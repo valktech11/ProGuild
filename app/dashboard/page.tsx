@@ -163,11 +163,17 @@ export default function DashboardPage() {
               Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-7 w-24 rounded-full animate-shimmer" />
               ))
-            ) : tradeStats.filter(t => t.pro_count > 0).map((t: any) => (
+            ) : tradeStats.map((t: any) => (
               <a key={t.id} href={`/?trade=${t.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 hover:border-teal-300 hover:bg-teal-50 transition-all group">
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all group ${
+                  t.pro_count > 0
+                    ? 'border-gray-200 hover:border-teal-300 hover:bg-teal-50'
+                    : 'border-gray-100 opacity-40 cursor-default'
+                }`}>
                 <span className="text-xs font-medium text-gray-700 group-hover:text-teal-700">{t.category_name}</span>
-                <span className="text-xs font-bold text-white bg-teal-600 rounded-full px-1.5 py-0.5 min-w-[20px] text-center leading-none group-hover:bg-teal-700">
+                <span className={`text-xs font-bold text-white rounded-full px-1.5 py-0.5 min-w-[20px] text-center leading-none ${
+                  t.pro_count > 0 ? 'bg-teal-600 group-hover:bg-teal-700' : 'bg-gray-300'
+                }`}>
                   {t.pro_count}
                 </span>
               </a>
@@ -328,7 +334,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {tradeStats.filter(t => t.pro_count > 0).slice(0, 8).map((t: any) => {
+                  {tradeStats.slice(0, 10).map((t: any) => {
                     const pct = tradeTotal > 0 ? Math.round((t.pro_count / tradeTotal) * 100) : 0
                     return (
                       <div key={t.id}>
@@ -338,14 +344,14 @@ export default function DashboardPage() {
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-1.5">
                           <div className="bg-teal-500 h-1.5 rounded-full transition-all"
-                            style={{ width: `${pct}%` }} />
+                            style={{ width: t.pro_count > 0 ? `${Math.max(pct, 4)}%` : '0%' }} />
                         </div>
                       </div>
                     )
                   })}
-                  {tradeStats.filter(t => t.pro_count > 0).length > 8 && (
+                  {tradeStats.length > 10 && (
                     <div className="text-xs text-gray-400 text-center pt-1">
-                      +{tradeStats.filter(t => t.pro_count > 0).length - 8} more trades
+                      +{tradeStats.length - 10} more trades
                     </div>
                   )}
                 </div>
