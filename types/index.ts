@@ -160,3 +160,47 @@ export function planLabel(plan: PlanTier): string {
   if (isPaidPlan(plan)) return plan.includes('Founding') ? 'Pro★' : 'Pro'
   return 'Free'
 }
+
+// ── TRADECOMMUNITY TYPES ────────────────────────────────────
+
+export type PostType = 'update' | 'work' | 'tip' | 'milestone'
+
+export interface PortfolioItem {
+  id: string
+  pro_id: string
+  photo_url: string
+  title: string
+  description: string | null
+  trade: string | null
+  created_at: string
+  pro?: Pro
+}
+
+export interface Post {
+  id: string
+  pro_id: string
+  content: string
+  photo_url: string | null
+  post_type: PostType
+  like_count: number
+  comment_count: number
+  created_at: string
+  pro?: Pro
+  liked_by_me?: boolean
+}
+
+export interface PostComment {
+  id: string
+  post_id: string
+  pro_id: string
+  content: string
+  created_at: string
+  pro?: Pro
+}
+
+export interface Follow {
+  id: string
+  follower_id: string
+  following_id: string
+  created_at: string
+}

@@ -22,6 +22,9 @@ export default function Navbar() {
           <Link href="/login" className={`text-sm transition-colors ${path === '/login' ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
             For pros
           </Link>
+          <Link href="/community" className={`text-sm transition-colors ${path.startsWith('/community') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
+            Community
+          </Link>
         </div>
 
         <div className="flex items-center gap-3">
