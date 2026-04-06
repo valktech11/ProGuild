@@ -1,0 +1,162 @@
+export type PlanTier =
+  | 'Free'
+  | 'Pro'
+  | 'Elite'
+  | 'Pro_Founding'
+  | 'Elite_Founding'
+  | 'Pro_Annual'
+  | 'Elite_Annual'
+  | 'Pro_Founding_Annual'
+  | 'Elite_Founding_Annual'
+
+export type ProfileStatus = 'Active' | 'Suspended' | 'Pending_Review'
+export type JobStatus = 'Open' | 'In_Progress' | 'Filled' | 'Expired' | 'Cancelled'
+export type LeadStatus = 'New' | 'Contacted' | 'Converted' | 'Archived'
+export type LeadSource = 'Profile_Page' | 'Job_Post' | 'Search_Result' | 'Direct'
+export type ApplicationStatus = 'Submitted' | 'Viewed' | 'Shortlisted' | 'Rejected' | 'Hired'
+export type BudgetRange = 'Under $500' | '$500–$2K' | '$2K–$10K' | '$10K+' | 'Negotiable'
+export type SubStatus = 'Active' | 'Cancelled' | 'Past_Due' | 'Trialing'
+
+export interface TradeCategory {
+  id: string
+  category_name: string
+  slug: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface Pro {
+  id: string
+  full_name: string
+  email: string
+  phone: string | null
+  city: string | null
+  state: string | null
+  zip_code: string | null
+  bio: string | null
+  years_experience: number | null
+  profile_photo_url: string | null
+  license_number: string | null
+  is_verified: boolean
+  plan_tier: PlanTier
+  stripe_customer_id: string | null
+  profile_status: ProfileStatus
+  avg_rating: number | null
+  review_count: number
+  lead_count: number
+  trade_category_id: string | null
+  created_at: string
+  updated_at: string
+  // joined
+  trade_category?: TradeCategory
+}
+
+export interface Job {
+  id: string
+  title: string
+  homeowner_name: string
+  homeowner_email: string
+  homeowner_phone: string | null
+  trade_category_id: string | null
+  city: string | null
+  state: string | null
+  zip_code: string | null
+  description: string
+  budget_range: BudgetRange | null
+  job_status: JobStatus
+  is_boosted: boolean
+  expires_at: string | null
+  posted_at: string
+  // joined
+  trade_category?: TradeCategory
+  application_count?: number
+}
+
+export interface Lead {
+  id: string
+  pro_id: string
+  job_id: string | null
+  contact_name: string
+  contact_email: string
+  contact_phone: string | null
+  message: string
+  lead_status: LeadStatus
+  lead_source: LeadSource
+  created_at: string
+  // joined
+  pro?: Pro
+  job?: Job
+}
+
+export interface Review {
+  id: string
+  pro_id: string
+  job_id: string | null
+  reviewer_name: string
+  reviewer_email: string
+  rating: number
+  comment: string | null
+  is_approved: boolean
+  reviewed_at: string
+  // joined
+  pro?: Pro
+  job?: Job
+}
+
+export interface Application {
+  id: string
+  pro_id: string
+  job_id: string
+  cover_note: string | null
+  status: ApplicationStatus
+  applied_at: string
+  pro?: Pro
+  job?: Job
+}
+
+export interface Subscription {
+  id: string
+  pro_id: string
+  stripe_sub_id: string | null
+  plan_name: string
+  sub_status: SubStatus
+  start_date: string | null
+  renewal_date: string | null
+  amount_usd: number | null
+  created_at: string
+}
+
+export interface Session {
+  id: string
+  name: string
+  email: string
+  plan: PlanTier
+  trade: string | null
+  city: string | null
+  state: string | null
+}
+
+export const PAID_PLANS: PlanTier[] = [
+  'Pro', 'Elite',
+  'Pro_Founding', 'Elite_Founding',
+  'Pro_Annual', 'Elite_Annual',
+  'Pro_Founding_Annual', 'Elite_Founding_Annual',
+]
+
+export const ELITE_PLANS: PlanTier[] = [
+  'Elite', 'Elite_Founding', 'Elite_Annual', 'Elite_Founding_Annual',
+]
+
+export function isPaidPlan(plan: PlanTier): boolean {
+  return PAID_PLANS.includes(plan)
+}
+
+export function isElitePlan(plan: PlanTier): boolean {
+  return ELITE_PLANS.includes(plan)
+}
+
+export function planLabel(plan: PlanTier): string {
+  if (isElitePlan(plan)) return plan.includes('Founding') ? 'Elite★' : 'Elite'
+  if (isPaidPlan(plan)) return plan.includes('Founding') ? 'Pro★' : 'Pro'
+  return 'Free'
+}
