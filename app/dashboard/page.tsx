@@ -77,12 +77,20 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-stone-50">
       {/* Nav */}
       <nav className="bg-white border-b border-gray-100 px-8 h-[60px] flex items-center justify-between sticky top-0 z-50">
-        <Link href="/" className="font-serif text-xl text-gray-900">Trades<span className="text-teal-600">Network</span></Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-700">{session.name}</span>
+        <div className="flex items-center gap-6">
+          <Link href="/" className="font-serif text-xl text-gray-900">Trades<span className="text-teal-600">Network</span></Link>
+          <div className="hidden md:flex items-center gap-1">
+            <Link href="/dashboard" className="text-sm font-medium px-3 py-1.5 rounded-lg bg-stone-100 text-gray-700">Dashboard</Link>
+            <Link href="/community" className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 hover:text-gray-700 transition-colors">Community</Link>
+            <Link href={`/community/profile/${session.id}`} className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 hover:text-gray-700 transition-colors">My feed profile</Link>
+            <Link href="/" className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 hover:text-gray-700 transition-colors">Marketplace</Link>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
             elite ? 'bg-purple-50 text-purple-700' : paid ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-500'
           }`}>{planLabel(session.plan)}</span>
+          <span className="text-sm font-medium text-gray-700 hidden md:block">{session.name}</span>
           <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">Log out</button>
         </div>
       </nav>
@@ -237,6 +245,21 @@ export default function DashboardPage() {
                 className="mt-2 block w-full py-2 text-center text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
                 Edit profile
               </Link>
+              <div className="border-t border-gray-100 mt-4 pt-4">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Community</div>
+                <Link href="/community"
+                  className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-teal-600 transition-colors">
+                  <span className="text-base">🏠</span> Feed
+                </Link>
+                <Link href={`/community/profile/${session.id}`}
+                  className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-teal-600 transition-colors border-t border-gray-50">
+                  <span className="text-base">👤</span> My community profile
+                </Link>
+                <Link href="/community/edit"
+                  className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-teal-600 transition-colors border-t border-gray-50">
+                  <span className="text-base">📸</span> Manage portfolio
+                </Link>
+              </div>
             </div>
 
             {/* Upgrade card */}
