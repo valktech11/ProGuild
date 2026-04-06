@@ -31,7 +31,6 @@ export default function DashboardPage() {
     const s: Session = JSON.parse(raw)
     setSession(s)
 
-    // Fetch pro data, leads, reviews
     Promise.all([
       fetch(`/api/pros/${s.id}`).then(r => r.json()),
       fetch(`/api/leads?pro_id=${s.id}`).then(r => r.json()),
@@ -43,7 +42,7 @@ export default function DashboardPage() {
     }).catch(e => console.error('Dashboard fetch error:', e))
       .finally(() => setLoading(false))
 
-    // Fetch trade stats with 5-min cache
+    // Trade stats with 5-min cache
     const cachedStats = sessionStorage.getItem('tn_trade_stats')
     const cacheTime   = sessionStorage.getItem('tn_trade_stats_ts')
     const cacheAge    = cacheTime ? Date.now() - parseInt(cacheTime) : Infinity
@@ -77,6 +76,7 @@ export default function DashboardPage() {
     const form = new FormData()
     form.append('file', file)
     form.append('pro_id', session.id)
+    form.append('bucket', 'avatars')
     const r = await fetch('/api/upload', { method: 'POST', body: form })
     const d = await r.json()
     setUploading(false)
@@ -102,15 +102,15 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-stone-50">
 
-      {/* ── NAV ─────────────────────────────────────────────────── */}
+      {/* NAV */}
       <nav className="bg-white border-b border-gray-100 px-6 h-[60px] flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-5">
           <Link href="/" className="font-serif text-xl text-gray-900">Trades<span className="text-teal-600">Network</span></Link>
           <div className="hidden md:flex items-center gap-1">
-            <Link href="/dashboard" className="text-sm font-medium px-3 py-1.5 rounded-lg bg-stone-100 text-gray-700">Dashboard</Link>
-            <Link href="/community" className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">Community</Link>
+            <Link href="/dashboard"                      className="text-sm font-medium px-3 py-1.5 rounded-lg bg-stone-100 text-gray-700">Dashboard</Link>
+            <Link href="/community"                      className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">Community</Link>
             <Link href={`/community/profile/${session.id}`} className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">My profile</Link>
-            <Link href="/" className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">Marketplace</Link>
+            <Link href="/"                               className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">Marketplace</Link>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -124,19 +124,19 @@ export default function DashboardPage() {
 
       <div className="max-w-6xl mx-auto px-6 py-9">
 
-        {/* ── GREETING ─────────────────────────────────────────── */}
+        {/* GREETING */}
         <div className="mb-7">
           <h1 className="font-serif text-3xl text-gray-900 mb-1">{greetingText(session.name)}</h1>
           <p className="text-gray-400 font-light">Here's what's happening with your profile today.</p>
         </div>
 
-        {/* ── STAT CARDS ───────────────────────────────────────── */}
+        {/* STAT CARDS */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Total leads',  value: loading ? '—' : leads.length,      sub: 'All time'    },
-            { label: 'New leads',    value: loading ? '—' : newLeads,           sub: 'Uncontacted' },
-            { label: 'Reviews',      value: loading ? '—' : reviews.length,     sub: 'Approved'    },
-            { label: 'Avg rating',   value: loading ? '—' : avgRating > 0 ? avgRating.toFixed(1) : '—', sub: 'Out of 5.0' },
+            { label: 'Total leads', value: loading ? '—' : leads.length,      sub: 'All time'    },
+            { label: 'New leads',   value: loading ? '—' : newLeads,           sub: 'Uncontacted' },
+            { label: 'Reviews',     value: loading ? '—' : reviews.length,     sub: 'Approved'    },
+            { label: 'Avg rating',  value: loading ? '—' : avgRating > 0 ? avgRating.toFixed(1) : '—', sub: 'Out of 5.0' },
           ].map(s => (
             <div key={s.label} className="bg-white border border-gray-100 rounded-2xl p-5">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">{s.label}</div>
@@ -146,7 +146,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* ── COMMUNITY BANNER ─────────────────────────────────── */}
+        {/* COMMUNITY BANNER */}
         <Link href={`/community/profile/${session.id}`}
           className="flex items-center justify-between bg-teal-600 text-white rounded-2xl px-6 py-4 mb-6 hover:bg-teal-700 transition-colors group">
           <div className="flex items-center gap-3">
@@ -159,38 +159,10 @@ export default function DashboardPage() {
           <span className="text-sm opacity-80 group-hover:opacity-100">View →</span>
         </Link>
 
-        {/* ── TRADE CHIPS BAR ──────────────────────────────────── */}
-        <div className="bg-white border border-gray-100 rounded-2xl px-6 py-4 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Network — pros by trade</div>
-            <div className="text-xs text-gray-400">{statsLoading ? '...' : `${tradeTotal} total`}</div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {statsLoading
-              ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-7 w-24 rounded-full animate-shimmer" />)
-              : tradeStats.length === 0
-                ? <div className="text-xs text-gray-400">No data yet</div>
-                : tradeStats.map((t: any) => (
-                    <a key={t.id} href={`/?trade=${t.id}`}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all group ${
-                        t.pro_count > 0
-                          ? 'border-gray-200 hover:border-teal-300 hover:bg-teal-50 cursor-pointer'
-                          : 'border-gray-100 opacity-40 cursor-default pointer-events-none'
-                      }`}>
-                      <span className="text-xs font-medium text-gray-700 group-hover:text-teal-700">{t.category_name}</span>
-                      <span className={`text-xs font-bold text-white rounded-full px-1.5 py-0.5 min-w-[20px] text-center leading-none ${
-                        t.pro_count > 0 ? 'bg-teal-600 group-hover:bg-teal-700' : 'bg-gray-300'
-                      }`}>{t.pro_count}</span>
-                    </a>
-                  ))
-            }
-          </div>
-        </div>
-
-        {/* ── MAIN GRID ────────────────────────────────────────── */}
+        {/* MAIN GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* LEFT — leads + reviews */}
+          {/* LEFT — leads + reviews + network breakdown */}
           <div className="lg:col-span-2 space-y-5">
 
             {/* Leads */}
@@ -277,19 +249,61 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+
+            {/* Network breakdown — bottom of main column */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Network breakdown</div>
+                  <div className="text-xs text-gray-400 mt-0.5">Active pros per trade on TradesNetwork</div>
+                </div>
+                {!statsLoading && <div className="text-xs font-semibold text-teal-600">{tradeTotal} total pros</div>}
+              </div>
+
+              {statsLoading ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {[1,2,3,4,5,6].map(i => <div key={i} className="h-10 animate-shimmer rounded-xl" />)}
+                </div>
+              ) : tradeStats.length === 0 ? (
+                <div className="text-xs text-gray-400 text-center py-4">No data yet</div>
+              ) : (
+                <div className="space-y-2.5">
+                  {tradeStats.slice(0, 12).map((t: any) => {
+                    const pct = tradeTotal > 0 ? Math.round((t.pro_count / tradeTotal) * 100) : 0
+                    return (
+                      <div key={t.id} className="flex items-center gap-3">
+                        <div className="w-28 flex-shrink-0">
+                          <span className="text-xs text-gray-600 truncate block">{t.category_name}</span>
+                        </div>
+                        <div className="flex-1 bg-gray-100 rounded-full h-2">
+                          <div className="bg-teal-500 h-2 rounded-full transition-all"
+                            style={{ width: t.pro_count > 0 ? `${Math.max(pct, 3)}%` : '0%' }} />
+                        </div>
+                        <span className="text-xs font-semibold text-gray-700 w-6 text-right flex-shrink-0">{t.pro_count}</span>
+                      </div>
+                    )
+                  })}
+                  {tradeStats.length > 12 && (
+                    <div className="text-xs text-gray-400 text-center pt-1">+{tradeStats.length - 12} more trades</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* RIGHT — sidebar */}
+          {/* SIDEBAR — personal info only */}
           <div className="space-y-4">
 
             {/* Profile card */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">Your profile</div>
               <div className="text-center mb-5">
-                <div className="relative w-16 h-16 mx-auto mb-3 group cursor-pointer" onClick={() => document.getElementById('avatar-input')?.click()}>
+                <div className="relative w-16 h-16 mx-auto mb-3 group cursor-pointer"
+                  onClick={() => document.getElementById('avatar-input')?.click()}>
                   {proData?.profile_photo_url
                     ? <img src={proData.profile_photo_url} alt={session.name} className="w-16 h-16 rounded-full object-cover" />
-                    : <div className="w-16 h-16 rounded-full flex items-center justify-center font-serif text-xl" style={{ background: bg, color: fg }}>{initials(session.name)}</div>
+                    : <div className="w-16 h-16 rounded-full flex items-center justify-center font-serif text-xl"
+                        style={{ background: bg, color: fg }}>{initials(session.name)}</div>
                   }
                   <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-white text-xs font-medium">{uploading ? '...' : 'Edit'}</span>
@@ -301,6 +315,7 @@ export default function DashboardPage() {
                 <div className="text-sm text-teal-700 font-medium">{session.trade || '—'}</div>
                 <div className="text-xs text-gray-400">{[session.city, session.state].filter(Boolean).join(', ') || '—'}</div>
               </div>
+
               <div className="border-t border-gray-100 pt-4 space-y-2 mb-4">
                 {[
                   ['Plan',       planLabel(session.plan)],
@@ -313,18 +328,22 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-              <Link href={`/pro/${session.id}`} className="block w-full py-2 text-center text-sm font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors mb-2">
+
+              <Link href={`/pro/${session.id}`}
+                className="block w-full py-2 text-center text-sm font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors mb-2">
                 View public profile →
               </Link>
-              <Link href="/edit-profile" className="block w-full py-2 text-center text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors mb-4">
+              <Link href="/edit-profile"
+                className="block w-full py-2 text-center text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors mb-4">
                 Edit profile
               </Link>
+
               <div className="border-t border-gray-100 pt-4">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Community</div>
                 {[
-                  { href: '/community',                          icon: '🏠', label: 'Feed'               },
-                  { href: `/community/profile/${session.id}`,   icon: '👤', label: 'My community profile' },
-                  { href: '/community/edit',                     icon: '📸', label: 'Manage portfolio'    },
+                  { href: '/community',                         icon: '🏠', label: 'Feed'                },
+                  { href: `/community/profile/${session.id}`,  icon: '👤', label: 'My community profile' },
+                  { href: '/community/edit',                    icon: '📸', label: 'Manage portfolio'     },
                 ].map((item, i) => (
                   <Link key={item.href} href={item.href}
                     className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-teal-600 transition-colors ${i > 0 ? 'border-t border-gray-50' : ''}`}>
@@ -334,39 +353,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Trade breakdown panel */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Network breakdown</div>
-              {statsLoading ? (
-                <div className="space-y-3">
-                  {[1,2,3,4,5].map(i => <div key={i} className="h-5 animate-shimmer rounded" />)}
-                </div>
-              ) : tradeStats.length === 0 ? (
-                <div className="text-xs text-gray-400">No data yet</div>
-              ) : (
-                <div className="space-y-3">
-                  {tradeStats.slice(0, 10).map((t: any) => {
-                    const pct = tradeTotal > 0 ? Math.round((t.pro_count / tradeTotal) * 100) : 0
-                    return (
-                      <div key={t.id}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs text-gray-600 truncate flex-1">{t.category_name}</span>
-                          <span className="text-xs font-semibold text-gray-900 ml-2">{t.pro_count}</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
-                          <div className="bg-teal-500 h-1.5 rounded-full" style={{ width: t.pro_count > 0 ? `${Math.max(pct, 4)}%` : '0%' }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {tradeStats.length > 10 && (
-                    <div className="text-xs text-gray-400 text-center">+{tradeStats.length - 10} more trades</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Upgrade card */}
+            {/* Upgrade card — free users only */}
             {!paid && (
               <div className="bg-teal-600 rounded-2xl p-6 text-white">
                 <h3 className="font-serif text-xl mb-2">Upgrade to Pro</h3>

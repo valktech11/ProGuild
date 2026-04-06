@@ -39,13 +39,22 @@ export default function HomePage() {
   const offset = useRef(0)
 
   // Fetch categories + stats once on mount
+  const [tradeCounts, setTradeCounts] = useState<Record<string, number>>({})
+
   useEffect(() => {
     Promise.all([
       fetch('/api/categories').then(r => r.json()),
       fetch('/api/reviews').then(r => r.json()),
-    ]).then(([catsData, revsData]) => {
+      fetch('/api/stats/trades').then(r => r.json()),
+    ]).then(([catsData, revsData, statsData]) => {
       setCategories(catsData.categories || [])
       setStats(s => ({ ...s, trades: (catsData.categories || []).length, reviews: (revsData.reviews || []).length }))
+      // Build a map of category_id -> pro_count
+      const counts: Record<string, number> = {}
+      for (const t of (statsData.trades || [])) {
+        counts[t.id] = t.pro_count
+      }
+      setTradeCounts(counts)
     })
   }, [])
 
@@ -182,14 +191,22 @@ export default function HomePage() {
               }`}>
               All trades
             </button>
-            {categories.map(cat => (
-              <button key={cat.id} onClick={() => selectTrade(cat.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                  activeTrade === cat.id ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-teal-300'
-                }`}>
-                {cat.category_name}
-              </button>
-            ))}
+            {categories.map(cat => {
+              const count = tradeCounts[cat.id] || 0
+              return (
+                <button key={cat.id} onClick={() => selectTrade(cat.id)}
+                  className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                    activeTrade === cat.id ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-teal-300'
+                  }`}>
+                  {cat.category_name}
+                  {count > 0 && (
+                    <span className={`text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none ${
+                      activeTrade === cat.id ? 'bg-white/25 text-white' : 'bg-teal-50 text-teal-700'
+                    }`}>{count}</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 

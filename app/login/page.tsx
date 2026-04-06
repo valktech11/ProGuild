@@ -169,7 +169,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     }
     sessionStorage.setItem('tn_pro', JSON.stringify(session))
     setSuccess(true)
-    setTimeout(() => router.push('/dashboard'), 1400)
+    setTimeout(() => router.push('/onboarding'), 1400)
   }
 
   if (success) return (
