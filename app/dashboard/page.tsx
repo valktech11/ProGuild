@@ -117,6 +117,18 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+        {/* Community quick link banner */}
+        <Link href={`/community/profile/${session.id}`}
+          className="flex items-center justify-between bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-2xl px-6 py-4 mb-8 hover:from-teal-700 hover:to-teal-800 transition-all group">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🌐</span>
+            <div>
+              <div className="text-sm font-semibold">Your community profile</div>
+              <div className="text-xs opacity-80">See your followers, posts and portfolio</div>
+            </div>
+          </div>
+          <span className="text-sm font-medium opacity-80 group-hover:opacity-100">View →</span>
+        </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

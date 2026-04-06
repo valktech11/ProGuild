@@ -26,6 +26,9 @@ export default function CommunityProfilePage() {
   const [loading, setLoading]     = useState(true)
   const [activeTab, setActiveTab] = useState<'posts' | 'portfolio'>('posts')
   const [lightbox, setLightbox]   = useState<PortfolioItem | null>(null)
+  const [followModal, setFollowModal] = useState<'followers' | 'following' | null>(null)
+  const [followList, setFollowList]   = useState<any[]>([])
+  const [loadingFollow, setLoadingFollow] = useState(false)
 
   const isOwn = session?.id === id
 
@@ -81,6 +84,15 @@ export default function CommunityProfilePage() {
       setLikedIds(prev => { const n = new Set(prev); d.liked ? n.add(postId) : n.delete(postId); return n })
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, like_count: p.like_count + (d.liked ? 1 : -1) } : p))
     }
+  }
+
+  async function openFollowModal(type: 'followers' | 'following') {
+    setFollowModal(type)
+    setLoadingFollow(true)
+    const r = await fetch(`/api/follows?pro_id=${id}`)
+    const d = await r.json()
+    setFollowList(type === 'followers' ? (d.followers || []) : (d.following || []))
+    setLoadingFollow(false)
   }
 
   if (loading) return (
@@ -145,18 +157,28 @@ export default function CommunityProfilePage() {
 
           {/* Stats */}
           <div className="flex gap-8 mt-6 pt-6 border-t border-gray-100">
-            {[
-              { n: posts.length, l: 'Posts' },
-              { n: portfolio.length, l: 'Portfolio' },
-              { n: stats.followers, l: 'Followers' },
-              { n: stats.following, l: 'Following' },
-              rating > 0 ? { n: `${rating.toFixed(1)} ★`, l: 'Rating' } : null,
-            ].filter(Boolean).map(s => (
-              <div key={s!.l} className="text-center">
-                <div className="font-serif text-xl text-gray-900">{s!.n}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{s!.l}</div>
+            <div className="text-center">
+              <div className="font-serif text-xl text-gray-900">{posts.length}</div>
+              <div className="text-xs text-gray-400 mt-0.5">Posts</div>
+            </div>
+            <div className="text-center">
+              <div className="font-serif text-xl text-gray-900">{portfolio.length}</div>
+              <div className="text-xs text-gray-400 mt-0.5">Portfolio</div>
+            </div>
+            <button onClick={() => openFollowModal('followers')} className="text-center hover:opacity-70 transition-opacity">
+              <div className="font-serif text-xl text-gray-900">{stats.followers}</div>
+              <div className="text-xs text-teal-600 mt-0.5 font-medium">Followers</div>
+            </button>
+            <button onClick={() => openFollowModal('following')} className="text-center hover:opacity-70 transition-opacity">
+              <div className="font-serif text-xl text-gray-900">{stats.following}</div>
+              <div className="text-xs text-teal-600 mt-0.5 font-medium">Following</div>
+            </button>
+            {rating > 0 && (
+              <div className="text-center">
+                <div className="font-serif text-xl text-gray-900">{rating.toFixed(1)} ★</div>
+                <div className="text-xs text-gray-400 mt-0.5">Rating</div>
               </div>
-            ))}
+            )}
           </div>
 
           {/* Bio */}
@@ -241,6 +263,64 @@ export default function CommunityProfilePage() {
           </>
         )}
       </div>
+
+      {/* Followers / Following modal */}
+      {followModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setFollowModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex gap-1">
+                <button onClick={() => openFollowModal('followers')}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${followModal === 'followers' ? 'bg-teal-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                  Followers ({stats.followers})
+                </button>
+                <button onClick={() => openFollowModal('following')}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${followModal === 'following' ? 'bg-teal-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                  Following ({stats.following})
+                </button>
+              </div>
+              <button onClick={() => setFollowModal(null)} className="text-gray-400 hover:text-gray-600 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">✕</button>
+            </div>
+            {/* Modal body */}
+            <div className="overflow-y-auto flex-1 p-4">
+              {loadingFollow ? (
+                <div className="space-y-3">
+                  {[1,2,3].map(i => <div key={i} className="flex gap-3 items-center"><div className="w-10 h-10 rounded-full animate-shimmer flex-shrink-0" /><div className="flex-1 space-y-1"><div className="h-3 w-1/2 animate-shimmer rounded" /><div className="h-3 w-1/3 animate-shimmer rounded" /></div></div>)}
+                </div>
+              ) : followList.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="text-3xl mb-2 opacity-20">👥</div>
+                  <div className="text-sm text-gray-400">{followModal === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {followList.filter(Boolean).map((person: any) => (
+                    <Link key={person.id} href={`/community/profile/${person.id}`}
+                      onClick={() => setFollowModal(null)}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-stone-50 transition-colors">
+                      {person.profile_photo_url ? (
+                        <img src={person.profile_photo_url} alt={person.full_name} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-serif text-sm flex-shrink-0 bg-teal-50 text-teal-700">
+                          {(person.full_name || 'A').split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">{person.full_name}</div>
+                        <div className="text-xs text-gray-400 truncate">
+                          {person.trade_category?.category_name}{person.city ? ` · ${person.city}` : ''}
+                        </div>
+                      </div>
+                      <span className="text-xs text-teal-600 font-medium">View →</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightbox && (
