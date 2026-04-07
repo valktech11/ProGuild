@@ -15,8 +15,7 @@ export async function GET(req: NextRequest) {
     .from('pros')
     .select(`
       *,
-      trade_category:trade_categories(id, category_name, slug),
-      trade_score:trade_score(trade_score)
+      trade_category:trade_categories(id, category_name, slug)
     `, { count: 'exact' })
     .eq('profile_status', status)
 
