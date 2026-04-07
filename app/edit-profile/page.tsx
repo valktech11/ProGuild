@@ -43,7 +43,9 @@ export default function EditProfilePage() {
   const [zip, setZip]             = useState('')
   const [yrs, setYrs]             = useState('')
   const [license, setLicense]     = useState('')
-  const [photoUrl, setPhotoUrl]   = useState('')
+  const [photoUrl, setPhotoUrl]     = useState('')
+  const [available, setAvailable]   = useState(false)
+  const [availableNote, setAvailableNote] = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('tn_pro')
@@ -67,6 +69,8 @@ export default function EditProfilePage() {
       setYrs(p.years_experience?.toString() || '')
       setLicense(p.license_number || '')
       setPhotoUrl(p.profile_photo_url || '')
+      setAvailable(p.available_for_work || false)
+      setAvailableNote(p.available_note || '')
       setLoading(false)
     })
   }, [])
@@ -105,8 +109,10 @@ export default function EditProfilePage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        full_name:        fullName.trim(),
-        phone:            phone.trim(),
+        full_name:          fullName.trim(),
+        phone:              phone.trim(),
+        available_for_work: available,
+        available_note:     availableNote.trim() || null,
         bio:              bio.trim() || null,
         trade_category_id: trade || null,
         state:            state || null,

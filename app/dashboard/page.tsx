@@ -125,6 +125,7 @@ export default function DashboardPage() {
             <Link href="/dashboard"                      className="text-sm font-medium px-3 py-1.5 rounded-lg bg-stone-100 text-gray-700">Dashboard</Link>
             <Link href="/community"                      className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">Community</Link>
             <Link href={`/community/profile/${session.id}`} className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">My profile</Link>
+            <Link href="/messages"                       className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">Messages</Link>
             <Link href="/"                               className="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:bg-stone-100 transition-colors">Marketplace</Link>
           </div>
         </div>
@@ -410,6 +411,7 @@ export default function DashboardPage() {
                   { href: '/community',                         icon: '🏠', label: 'Feed'                },
                   { href: `/community/profile/${session.id}`,  icon: '👤', label: 'My community profile' },
                   { href: '/community/edit',                    icon: '📸', label: 'Manage portfolio'     },
+                  { href: '/messages',                            icon: '💬', label: 'Messages'            },
                 ].map((item, i) => (
                   <Link key={item.href} href={item.href}
                     className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-teal-600 transition-colors ${i > 0 ? 'border-t border-gray-50' : ''}`}>
