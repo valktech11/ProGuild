@@ -24,11 +24,15 @@ export default function CommunityProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false)
   const [likedIds, setLikedIds]   = useState<Set<string>>(new Set())
   const [loading, setLoading]     = useState(true)
-  const [activeTab, setActiveTab] = useState<'posts' | 'portfolio'>('posts')
-  const [lightbox, setLightbox]   = useState<PortfolioItem | null>(null)
+  const [activeTab, setActiveTab] = useState<'posts' | 'portfolio' | 'skills'>('posts')
+  const [lightbox, setLightbox]       = useState<PortfolioItem | null>(null)
   const [followModal, setFollowModal] = useState<'followers' | 'following' | null>(null)
   const [followList, setFollowList]   = useState<any[]>([])
   const [loadingFollow, setLoadingFollow] = useState(false)
+  const [skills, setSkills]           = useState<any[]>([])
+  const [tradeScore, setTradeScore]   = useState<number | null>(null)
+  const [newSkill, setNewSkill]       = useState('')
+  const [addingSkill, setAddingSkill] = useState(false)
 
   const isOwn = session?.id === id
 
@@ -55,6 +59,17 @@ export default function CommunityProfilePage() {
         setIsFollowing((followData.followers || []).some((f: any) => f?.id === s.id))
       }
       setLoading(false)
+    })
+
+    // Fetch skills and trade score
+    Promise.all([
+      fetch(`/api/skills?pro_id=${id}&viewer_id=${s?.id || ''}`).then(r => r.json()),
+      fetch(`https://bzfauzqqxwtqqskjhrgq.supabase.co/rest/v1/trade_score?id=eq.${id}&select=trade_score`, {
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6ZmF1enFxeHd0cXFza2pocmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTQwMTksImV4cCI6MjA5MDk5MDAxOX0.3q_LydQPbCoPDw_6N0Q9F1-Dgt_RGH4Whh_cffZwzNg' }
+      }).then(r => r.json()),
+    ]).then(([skillsData, scoreData]) => {
+      setSkills(skillsData.skills || [])
+      setTradeScore(scoreData?.[0]?.trade_score ?? null)
     })
   }, [id])
 
@@ -83,6 +98,42 @@ export default function CommunityProfilePage() {
     if (r.ok) {
       setLikedIds(prev => { const n = new Set(prev); d.liked ? n.add(postId) : n.delete(postId); return n })
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, like_count: p.like_count + (d.liked ? 1 : -1) } : p))
+    }
+  }
+
+  async function addSkill() {
+    if (!newSkill.trim() || !session || !isOwn) return
+    setAddingSkill(true)
+    const r = await fetch('/api/skills', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pro_id: session.id, skill_name: newSkill.trim() }),
+    })
+    const d = await r.json()
+    if (r.ok) { setSkills(prev => [...prev, { ...d.skill, endorsement_count: 0, endorsed_by_me: false }]); setNewSkill('') }
+    setAddingSkill(false)
+  }
+
+  async function removeSkill(skillId: string) {
+    if (!session) return
+    await fetch(`/api/skills?id=${skillId}&pro_id=${session.id}`, { method: 'DELETE' })
+    setSkills(prev => prev.filter(s => s.id !== skillId))
+  }
+
+  async function endorseSkill(skillId: string) {
+    if (!session || isOwn) return
+    const r = await fetch('/api/skills/endorse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skill_id: skillId, endorsed_by: session.id }),
+    })
+    const d = await r.json()
+    if (r.ok) {
+      setSkills(prev => prev.map(s => s.id === skillId ? {
+        ...s,
+        endorsed_by_me: d.endorsed,
+        endorsement_count: s.endorsement_count + (d.endorsed ? 1 : -1)
+      } : s))
     }
   }
 
@@ -155,8 +206,27 @@ export default function CommunityProfilePage() {
             </div>
           </div>
 
+          {/* TradeScore badge */}
+          {tradeScore !== null && (
+            <div className="flex items-center gap-2 mt-4 mb-2">
+              <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-4 py-2">
+                <div className="text-2xl font-serif font-bold text-teal-700">{tradeScore}</div>
+                <div>
+                  <div className="text-xs font-bold text-teal-700 uppercase tracking-wide">TradeScore</div>
+                  <div className="text-xs text-teal-500">Credibility rating</div>
+                </div>
+              </div>
+              {pro.available_for_work && (
+                <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-xs font-semibold text-green-700">Available for work</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Stats */}
-          <div className="flex gap-8 mt-6 pt-6 border-t border-gray-100">
+          <div className="flex gap-8 mt-4 pt-4 border-t border-gray-100">
             <div className="text-center">
               <div className="font-serif text-xl text-gray-900">{posts.length}</div>
               <div className="text-xs text-gray-400 mt-0.5">Posts</div>
@@ -187,10 +257,10 @@ export default function CommunityProfilePage() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-5 bg-white border border-gray-100 rounded-xl p-1 w-fit">
-          {(['posts', 'portfolio'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+          {(['posts', 'portfolio', 'skills'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab as any)}
               className={`px-5 py-2 text-sm font-medium rounded-lg capitalize transition-all ${activeTab === tab ? 'bg-teal-600 text-white' : 'text-gray-500 hover:text-gray-900'}`}>
-              {tab} {tab === 'posts' ? `(${posts.length})` : `(${portfolio.length})`}
+              {tab === 'posts' ? `Posts (${posts.length})` : tab === 'portfolio' ? `Portfolio (${portfolio.length})` : `Skills (${skills.length})`}
             </button>
           ))}
         </div>
@@ -263,6 +333,69 @@ export default function CommunityProfilePage() {
           </>
         )}
       </div>
+
+      {/* Skills tab */}
+      {activeTab === 'skills' && (
+        <div className="space-y-4">
+          {/* Add skill — owner only */}
+          {isOwn && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Add a skill</div>
+              <div className="flex gap-2">
+                <input value={newSkill} onChange={e => setNewSkill(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addSkill()}
+                  placeholder="e.g. Panel upgrades, EV charger installation..."
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-400 bg-stone-50" />
+                <button onClick={addSkill} disabled={addingSkill || !newSkill.trim()}
+                  className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Skills list */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-6">
+            {skills.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-3xl mb-2 opacity-20">🔧</div>
+                <div className="text-sm text-gray-400">{isOwn ? 'Add your first skill above.' : 'No skills listed yet.'}</div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {skills.map(skill => (
+                  <div key={skill.id} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
+                    skill.endorsed_by_me ? 'border-teal-300 bg-teal-50' : 'border-gray-200 bg-stone-50'
+                  }`}>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">{skill.skill_name}</div>
+                      {skill.endorsement_count > 0 && (
+                        <div className="text-xs text-teal-600 font-medium">
+                          {skill.endorsement_count} endorsement{skill.endorsement_count !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                    {!isOwn && session && (
+                      <button onClick={() => endorseSkill(skill.id)}
+                        className={`text-xs font-semibold px-2 py-1 rounded-lg transition-all ${
+                          skill.endorsed_by_me
+                            ? 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+                            : 'bg-white border border-gray-200 text-gray-500 hover:border-teal-300 hover:text-teal-600'
+                        }`}>
+                        {skill.endorsed_by_me ? '✓ Endorsed' : '+ Endorse'}
+                      </button>
+                    )}
+                    {isOwn && (
+                      <button onClick={() => removeSkill(skill.id)}
+                        className="text-gray-300 hover:text-red-400 text-xs transition-colors ml-1">✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Followers / Following modal */}
       {followModal && (

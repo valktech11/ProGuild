@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { moderateContent } from '@/lib/moderation'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -33,6 +34,14 @@ export async function POST(req: NextRequest) {
 
   if (!title || !homeowner_name || !homeowner_email || !description) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  // Moderate job description
+  const mod = await moderateContent(description)
+  if (!mod.safe) {
+    return NextResponse.json({
+      error: `Job description not allowed: ${mod.reason}. Please keep content professional.`
+    }, { status: 422 })
   }
 
   const expires = new Date()

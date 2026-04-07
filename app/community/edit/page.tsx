@@ -69,7 +69,7 @@ export default function CommunityEditPage() {
     setSaving(false)
     if (r.ok) {
       setPortfolio(p => [d.item, ...p])
-      setNewPhoto(''); setNewTitle(''); setNewDesc(''); setNewTrade('')
+      setNewPhoto(''); setNewTitle(''); setNewDesc('')
     } else {
       setError(d.error || 'Could not add item')
     }

@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { moderateContent } from '@/lib/moderation'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
-
   const { data, error } = await getSupabaseAdmin()
     .from('portfolio_items')
     .select('*')
     .eq('pro_id', proId)
     .order('created_at', { ascending: false })
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ items: data || [] })
 }
@@ -22,6 +21,15 @@ export async function POST(req: NextRequest) {
 
   if (!pro_id || !photo_url || !title?.trim()) {
     return NextResponse.json({ error: 'pro_id, photo_url and title are required' }, { status: 400 })
+  }
+
+  // Moderate title and description
+  const textToCheck = [title, description].filter(Boolean).join(' ')
+  const mod = await moderateContent(textToCheck)
+  if (!mod.safe) {
+    return NextResponse.json({
+      error: `Portfolio item not allowed: ${mod.reason}. Please keep content professional.`
+    }, { status: 422 })
   }
 
   const { data, error } = await getSupabaseAdmin()
@@ -39,13 +47,8 @@ export async function DELETE(req: NextRequest) {
   const id    = searchParams.get('id')
   const proId = searchParams.get('pro_id')
   if (!id || !proId) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
-
   const { error } = await getSupabaseAdmin()
-    .from('portfolio_items')
-    .delete()
-    .eq('id', id)
-    .eq('pro_id', proId)
-
+    .from('portfolio_items').delete().eq('id', id).eq('pro_id', proId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

@@ -22,8 +22,12 @@ export default function DashboardPage() {
   const [tradeStats,   setTradeStats]   = useState<any[]>([])
   const [tradeTotal,   setTradeTotal]   = useState(0)
   const [statsLoading, setStatsLoading] = useState(true)
-  const [uploading,    setUploading]    = useState(false)
-  const [uploadError,  setUploadError]  = useState('')
+  const [uploading,      setUploading]      = useState(false)
+  const [uploadError,    setUploadError]    = useState('')
+  const [notifications,  setNotifications]  = useState<any[]>([])
+  const [unreadCount,    setUnreadCount]    = useState(0)
+  const [showNotifs,     setShowNotifs]     = useState(false)
+  const [completeness,   setCompleteness]   = useState<{score: number, next_step: string} | null>(null)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('tn_pro')
@@ -41,6 +45,17 @@ export default function DashboardPage() {
       setReviews(rData.reviews || [])
     }).catch(e => console.error('Dashboard fetch error:', e))
       .finally(() => setLoading(false))
+
+    // Fetch notifications
+    fetch(`/api/notifications?pro_id=${s.id}`)
+      .then(r => r.json())
+      .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unread || 0) })
+
+    // Fetch profile completeness
+    fetch(`https://bzfauzqqxwtqqskjhrgq.supabase.co/rest/v1/pro_completeness?id=eq.${s.id}&select=completeness_score,next_step`, {
+      headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6ZmF1enFxeHd0cXFza2pocmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTQwMTksImV4cCI6MjA5MDk5MDAxOX0.3q_LydQPbCoPDw_6N0Q9F1-Dgt_RGH4Whh_cffZwzNg' }
+    }).then(r => r.json())
+      .then(d => { if (d?.[0]) setCompleteness({ score: d[0].completeness_score, next_step: d[0].next_step }) })
 
     // Trade stats with 5-min cache
     const cachedStats = sessionStorage.getItem('tn_trade_stats')
@@ -118,6 +133,43 @@ export default function DashboardPage() {
             {planLabel(session.plan)}
           </span>
           <span className="text-sm font-medium text-gray-700 hidden md:block">{session.name}</span>
+          {/* Notifications bell */}
+          <div className="relative">
+            <button onClick={() => { setShowNotifs(s => !s); if (unreadCount > 0) { fetch('/api/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id }) }); setUnreadCount(0) }}}
+              className="relative p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+              🔔
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+            {showNotifs && (
+              <div className="absolute right-0 top-10 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                  <span className="text-sm font-semibold text-gray-900">Notifications</span>
+                  <button onClick={() => setShowNotifs(false)} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-gray-400">No notifications yet</div>
+                  ) : notifications.map(n => (
+                    <div key={n.id} className={`flex gap-3 px-4 py-3 border-b border-gray-50 hover:bg-stone-50 transition-colors ${!n.is_read ? 'bg-teal-50/50' : ''}`}>
+                      {n.actor?.profile_photo_url ? (
+                        <img src={n.actor.profile_photo_url} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-xs font-semibold text-teal-700 flex-shrink-0">
+                          {n.actor?.full_name?.[0] || '?'}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-gray-700 leading-relaxed">{n.message}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{new Date(n.created_at).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">Log out</button>
         </div>
       </nav>
@@ -337,6 +389,20 @@ export default function DashboardPage() {
                 className="block w-full py-2 text-center text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors mb-4">
                 Edit profile
               </Link>
+
+              {/* Profile completeness */}
+              {completeness && completeness.score < 100 && (
+                <div className="border border-gray-100 rounded-xl p-4 mb-4 bg-stone-50">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-semibold text-gray-600">Profile strength</span>
+                    <span className="text-xs font-bold text-teal-700">{completeness.score}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div className="bg-teal-500 h-2 rounded-full transition-all" style={{ width: `${completeness.score}%` }} />
+                  </div>
+                  <div className="text-xs text-gray-500">{completeness.next_step}</div>
+                </div>
+              )}
 
               <div className="border-t border-gray-100 pt-4">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Community</div>
