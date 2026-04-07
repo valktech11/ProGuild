@@ -47,6 +47,12 @@ export interface Pro {
   trade_category_id: string | null
   created_at: string
   updated_at: string
+  // LinkedIn-style fields
+  available_for_work: boolean
+  available_note: string | null
+  is_claimed: boolean
+  email_sent: boolean
+  claimed_at: string | null
   // joined
   trade_category?: TradeCategory
 }
