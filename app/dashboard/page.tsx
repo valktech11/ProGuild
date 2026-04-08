@@ -391,20 +391,6 @@ export default function DashboardPage() {
                 Edit profile
               </Link>
 
-              {/* Profile completeness */}
-              {completeness && completeness.score < 100 && (
-                <div className="border border-gray-100 rounded-xl p-4 mb-4 bg-stone-50">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-semibold text-gray-600">Profile strength</span>
-                    <span className="text-xs font-bold text-teal-700">{completeness.score}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                    <div className="bg-teal-500 h-2 rounded-full transition-all" style={{ width: `${completeness.score}%` }} />
-                  </div>
-                  <div className="text-xs text-gray-500">{completeness.next_step}</div>
-                </div>
-              )}
-
               <div className="border-t border-gray-100 pt-4">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Community</div>
                 {[

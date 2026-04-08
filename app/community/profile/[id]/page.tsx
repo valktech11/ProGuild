@@ -172,11 +172,21 @@ export default function CommunityProfilePage() {
         {session && (
           <div className="flex items-center gap-2">
             {isOwn ? (
-              <Link href="/community/edit" className="text-sm font-medium px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Edit profile</Link>
+              <div className="flex items-center gap-2">
+                <Link href="/community/edit" className="text-sm font-medium px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Edit profile</Link>
+                <Link href="/edit-profile" className="text-sm font-medium px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">Account settings</Link>
+              </div>
             ) : (
-              <button onClick={toggleFollow} className={`text-sm font-semibold px-4 py-2 rounded-lg border transition-all ${isFollowing ? 'border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-500' : 'bg-teal-600 text-white hover:bg-teal-700 border-teal-600'}`}>
-                {isFollowing ? 'Following' : 'Follow'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={toggleFollow} className={`text-sm font-semibold px-4 py-2 rounded-lg border transition-all ${isFollowing ? 'border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-500' : 'bg-teal-600 text-white hover:bg-teal-700 border-teal-600'}`}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
+                {session && (
+                  <Link href={`/messages?with=${id}`} className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-teal-300 hover:text-teal-700 transition-all">
+                    💬 Message
+                  </Link>
+                )}
+              </div>
             )}
           </div>
         )}

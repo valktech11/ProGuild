@@ -10,9 +10,10 @@ export default function ProProfilePage() {
   const { id } = useParams<{ id: string }>()
   const [pro, setPro]         = useState<Pro | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState('')
+  const [session, setSession]   = useState<Session | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState('')
+  const [isFollowing, setIsFollowing] = useState(false)
 
   // Contact form
   const [name, setName]           = useState('')
@@ -26,19 +27,35 @@ export default function ProProfilePage() {
   useEffect(() => {
     // Get logged-in session
     const raw = sessionStorage.getItem('tn_pro')
-    if (raw) setSession(JSON.parse(raw))
+    const s = raw ? JSON.parse(raw) : null
+    if (s) setSession(s)
 
     if (!id) return
     Promise.all([
       fetch(`/api/pros/${id}`).then(r => r.json()),
       fetch(`/api/reviews?pro_id=${id}`).then(r => r.json()),
-    ]).then(([proData, reviewData]) => {
+      s ? fetch(`/api/follows?pro_id=${id}`).then(r => r.json()) : Promise.resolve(null),
+    ]).then(([proData, reviewData, followData]) => {
       if (proData.error) { setError(proData.error); setLoading(false); return }
       setPro(proData.pro)
       setReviews(reviewData.reviews || [])
+      if (followData && s) {
+        setIsFollowing((followData.followers || []).some((f: any) => f?.id === s.id))
+      }
       setLoading(false)
     }).catch(() => { setError('Could not load profile'); setLoading(false) })
   }, [id])
+
+  async function toggleFollow() {
+    if (!session) return
+    const r = await fetch('/api/follows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follower_id: session.id, following_id: id }),
+    })
+    const d = await r.json()
+    if (r.ok) setIsFollowing(d.following)
+  }
 
   const handleSubmit = async () => {
     if (!name || !email || !message) { setFormError('Please fill in name, email and message.'); return }
@@ -210,7 +227,9 @@ export default function ProProfilePage() {
               Reviews ({reviews.length})
             </div>
             {reviews.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">No reviews yet — be the first.</div>
+              <div className="text-center py-8 text-gray-400 text-sm">
+              {isOwner ? 'No reviews yet. Homeowners will leave reviews after jobs.' : 'No reviews yet.'}
+            </div>
             ) : (
               <div className="space-y-4">
                 {reviews.map(rev => (
@@ -230,6 +249,25 @@ export default function ProProfilePage() {
 
         {/* RIGHT — Contact */}
         <div className="bg-white border border-gray-100 rounded-2xl p-7 sticky top-20">
+
+          {/* Follow + Message buttons for non-owners */}
+          {!isOwner && session && (
+            <div className="flex gap-2 mb-5">
+              <button onClick={toggleFollow}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-all ${
+                  isFollowing
+                    ? 'border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-500'
+                    : 'bg-teal-600 text-white hover:bg-teal-700 border-teal-600'
+                }`}>
+                {isFollowing ? '✓ Following' : '+ Follow'}
+              </button>
+              <a href={`/messages?with=${id}`}
+                className="flex-1 py-2 text-sm font-semibold text-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-teal-300 hover:text-teal-700 transition-all">
+                💬 Message
+              </a>
+            </div>
+          )}
+
           {/* Owner sees their own contact info, not the form */}
           {isOwner ? (
             <div className="text-center">
