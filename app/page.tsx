@@ -58,7 +58,7 @@ export default function HomePage() {
     })
   }, [])
 
-  // Build query URL
+  // Build query URL — city is exact filter, name is text search
   function buildUrl(off: number) {
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
@@ -66,7 +66,15 @@ export default function HomePage() {
       sort,
     })
     if (activeTrade)   params.set('trade', activeTrade)
-    if (appliedSearch) params.set('search', appliedSearch)
+    if (appliedSearch) {
+      // If search looks like a city name (no numbers), use city filter
+      // Otherwise use general search
+      if (/^[a-zA-Z\s]+$/.test(appliedSearch) && appliedSearch.length > 2) {
+        params.set('city', appliedSearch)
+      } else {
+        params.set('search', appliedSearch)
+      }
+    }
     return `/api/pros?${params}`
   }
 
@@ -235,7 +243,8 @@ export default function HomePage() {
             <option value="rating">Highest rated</option>
             <option value="experience">Most experienced</option>
             <option value="reviews">Most reviews</option>
-            <option value="name">Name A–Z</option>
+            <option value="name_asc">Name A–Z</option>
+            <option value="name_desc">Name Z–A</option>
           </select>
         </div>
 
@@ -288,8 +297,16 @@ export default function HomePage() {
 
       </div>
 
-      <footer className="border-t border-gray-100 py-8 text-center text-sm text-gray-400">
-        © 2026 TradesNetwork · <a href="#" className="text-teal-600">Privacy</a> · <a href="#" className="text-teal-600">Terms</a>
+      <footer className="border-t border-gray-100 py-8">
+        <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="text-sm text-gray-400">© 2026 TradesNetwork · Univaro Technologies</div>
+          <div className="flex items-center gap-5 text-sm">
+            <a href="/about"   className="text-gray-400 hover:text-teal-600 transition-colors">About</a>
+            <a href="/contact" className="text-gray-400 hover:text-teal-600 transition-colors">Contact</a>
+            <a href="/privacy" className="text-gray-400 hover:text-teal-600 transition-colors">Privacy</a>
+            <a href="/terms"   className="text-gray-400 hover:text-teal-600 transition-colors">Terms</a>
+          </div>
+        </div>
       </footer>
     </>
   )

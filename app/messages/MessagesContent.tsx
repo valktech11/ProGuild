@@ -34,13 +34,8 @@ export default function MessagesContent() {
     fetch(`/api/messages?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => {
-        const threadMap: Record<string, any> = {}
-        for (const msg of (d.messages || [])) {
-          const otherId = msg.sender_id === s.id ? msg.receiver_id : msg.sender_id
-          if (!threadMap[otherId]) threadMap[otherId] = { otherId, lastMsg: msg, unread: 0 }
-          if (!msg.is_read && msg.receiver_id === s.id) threadMap[otherId].unread++
-        }
-        setThreads(Object.values(threadMap))
+        // Use server-computed threads with proper unread counts
+        setThreads(d.threads || [])
         setLoading(false)
       })
   }, [])
@@ -113,7 +108,9 @@ export default function MessagesContent() {
                   <div className="text-xs text-gray-400 truncate">{thread.lastMsg?.content}</div>
                 </div>
                 {thread.unread > 0 && (
-                  <span className="w-5 h-5 bg-teal-600 text-white text-xs font-bold rounded-full flex items-center justify-center flex-shrink-0">{thread.unread}</span>
+                  <span className="w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center flex-shrink-0">
+                    {thread.unread > 9 ? '9+' : thread.unread}
+                  </span>
                 )}
               </Link>
             ))}

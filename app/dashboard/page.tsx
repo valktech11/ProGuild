@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [unreadCount,    setUnreadCount]    = useState(0)
   const [showNotifs,     setShowNotifs]     = useState(false)
   const [completeness,   setCompleteness]   = useState<{score: number, next_step: string} | null>(null)
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('tn_pro')
@@ -50,6 +51,11 @@ export default function DashboardPage() {
     fetch(`/api/notifications?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unread || 0) })
+
+    // Fetch unread message count
+    fetch(`/api/messages?pro_id=${s.id}`)
+      .then(r => r.json())
+      .then(d => setUnreadMessages(d.unread || 0))
 
     // Fetch profile completeness
     fetch(`https://bzfauzqqxwtqqskjhrgq.supabase.co/rest/v1/pro_completeness?id=eq.${s.id}&select=completeness_score,next_step`, {
@@ -212,11 +218,11 @@ export default function DashboardPage() {
           <span className="text-sm opacity-80 group-hover:opacity-100">View →</span>
         </Link>
 
-        {/* MAIN GRID */}
+        {/* MAIN GRID — profile left, content right */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* LEFT — leads + reviews + network breakdown */}
-          <div className="lg:col-span-2 space-y-5">
+          {/* LEFT — sidebar (profile card) */}
+          <div className="space-y-4 lg:order-1">
 
             {/* Leads */}
             <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
@@ -344,8 +350,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* SIDEBAR — personal info only */}
-          <div className="space-y-4">
+          {/* RIGHT — leads + reviews + network breakdown */}
+          <div className="lg:col-span-2 space-y-5 lg:order-2">
 
             {/* Profile card */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6">
@@ -394,14 +400,21 @@ export default function DashboardPage() {
               <div className="border-t border-gray-100 pt-4">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Community</div>
                 {[
-                  { href: '/community',                         icon: '🏠', label: 'Feed'                },
-                  { href: `/community/profile/${session.id}`,  icon: '👤', label: 'My community profile' },
-                  { href: '/community/edit',                    icon: '📸', label: 'Manage portfolio'     },
-                  { href: '/messages',                            icon: '💬', label: 'Messages'            },
+                  { href: '/community',                         icon: '🏠', label: 'Feed',                badge: null },
+                  { href: `/community/profile/${session.id}`,  icon: '👤', label: 'My community profile', badge: null },
+                  { href: '/community/edit',                    icon: '📸', label: 'Manage portfolio',     badge: null },
+                  { href: '/messages', icon: '💬', label: 'Messages', badge: unreadMessages > 0 ? unreadMessages : null },
                 ].map((item, i) => (
                   <Link key={item.href} href={item.href}
-                    className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-teal-600 transition-colors ${i > 0 ? 'border-t border-gray-50' : ''}`}>
-                    <span className="text-base">{item.icon}</span> {item.label}
+                    className={`flex items-center justify-between py-2 text-sm text-gray-600 hover:text-teal-600 transition-colors ${i > 0 ? 'border-t border-gray-50' : ''}`}>
+                    <span className="flex items-center gap-2">
+                      <span className="text-base">{item.icon}</span> {item.label}
+                    </span>
+                    {item.badge && (
+                      <span className="w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                        {item.badge > 9 ? '9+' : item.badge}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </div>

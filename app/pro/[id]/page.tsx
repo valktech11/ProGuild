@@ -120,17 +120,17 @@ export default function ProProfilePage() {
               <span className="font-medium">This is how your profile looks to homeowners</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Link href="/edit-profile"
+              <Link href="/dashboard"
                 className="text-xs font-semibold px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
+                ← Dashboard
+              </Link>
+              <Link href="/edit-profile"
+                className="text-xs font-semibold px-3 py-1.5 border border-teal-300 text-teal-700 rounded-lg hover:bg-teal-100 transition-colors">
                 Edit profile
               </Link>
               <Link href="/community/edit"
                 className="text-xs font-semibold px-3 py-1.5 border border-teal-300 text-teal-700 rounded-lg hover:bg-teal-100 transition-colors">
-                Edit community profile
-              </Link>
-              <Link href="/dashboard"
-                className="text-xs font-medium px-3 py-1.5 text-teal-600 hover:text-teal-800 transition-colors">
-                ← Dashboard
+                Community profile
               </Link>
             </div>
           </div>
@@ -163,6 +163,12 @@ export default function ProProfilePage() {
                   {elite && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-50 text-purple-800">Verified Elite</span>}
                   {paid && !elite && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-800">Pro member</span>}
                   {pro.license_number && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-800">Licensed · {pro.license_number}</span>}
+                  {pro.available_for_work && (
+                    <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse inline-block" />
+                      Available for work{pro.available_note ? ` · ${pro.available_note}` : ''}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

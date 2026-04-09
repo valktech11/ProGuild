@@ -241,11 +241,19 @@ export default function CommunityPage() {
 
     Promise.all([
       fetch(feedUrl).then(r => r.json()),
-      fetch('/api/pros?limit=6').then(r => r.json()),
+      s ? fetch(`/api/pros?limit=12&sort=rating`).then(r => r.json()) : fetch('/api/pros?limit=12&sort=rating').then(r => r.json()),
       s ? fetch(`/api/posts/likes?pro_id=${s.id}`).then(r => r.json()) : Promise.resolve({ likes: [] }),
     ]).then(([postsData, prosData, likesData]) => {
       setPosts(postsData.posts || [])
-      setSuggested((prosData.pros || []).filter((p: Pro) => p.id !== s?.id).slice(0, 5))
+      const allPros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
+      // Prefer same trade as logged-in user, then fill with others
+      if (s?.trade) {
+        const sameTrade = allPros.filter((p: any) => p.trade_category?.category_name === s.trade)
+        const others    = allPros.filter((p: any) => p.trade_category?.category_name !== s.trade)
+        setSuggested([...sameTrade, ...others].slice(0, 5))
+      } else {
+        setSuggested(allPros.slice(0, 5))
+      }
       setLikedIds(new Set(likesData.likes || []))
       setLoading(false)
     })
