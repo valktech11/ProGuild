@@ -17,8 +17,7 @@ export async function GET(req: NextRequest) {
     .from('pros')
     .select(`*, trade_category:trade_categories(id, category_name, slug)`, { count: 'exact' })
     .eq('profile_status', status)
-    // Exclude unclaimed placeholder emails from public search
-    .not('email', 'ilike', '%placeholder.tradesnetwork%')
+    // Include all active pros including unclaimed (they show as verified profiles)
 
   // Filters
   if (trade)  query = query.eq('trade_category_id', trade)

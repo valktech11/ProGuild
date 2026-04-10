@@ -59,9 +59,14 @@ function PostCard({ post, session, onLike, onDelete }: { post: Post; session: Se
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/community/profile/${post.pro_id}`} className="font-semibold text-sm text-gray-900 hover:text-teal-600 transition-colors">
-              {post.pro?.full_name}
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href={`/community/profile/${post.pro_id}`} className="font-semibold text-sm text-gray-900 hover:text-teal-600 transition-colors">
+                {post.pro?.full_name}
+              </Link>
+              {session && session.id !== post.pro_id && (
+                <a href={`/messages?with=${post.pro_id}`} className="text-xs text-gray-400 hover:text-teal-600 transition-colors">💬</a>
+              )}
+            </div>
             {isPaid((post.pro?.plan_tier ?? 'Free') as any) && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700">Pro</span>
             )}
@@ -360,7 +365,13 @@ export default function CommunityPage() {
                   <div className="text-xs text-gray-400 truncate">{pro.trade_category?.category_name} · {pro.city}</div>
                 </div>
                 {session && session.id !== pro.id && (
-                  <FollowButton proId={pro.id} followerId={session.id} />
+                  <div className="flex flex-col gap-1">
+                    <FollowButton proId={pro.id} followerId={session.id} />
+                    <a href={`/messages?with=${pro.id}`}
+                      className="text-xs font-medium px-2 py-1 border border-gray-200 rounded-lg text-gray-500 hover:border-teal-300 hover:text-teal-600 text-center transition-colors">
+                      💬 Msg
+                    </a>
+                  </div>
                 )}
               </div>
             ))}

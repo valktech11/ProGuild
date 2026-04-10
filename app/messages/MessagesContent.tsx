@@ -96,8 +96,9 @@ export default function MessagesContent() {
             ) : threads.length === 0 ? (
               <div className="text-center py-12 px-4">
                 <div className="text-3xl mb-2 opacity-20">💬</div>
-                <div className="text-sm text-gray-400">No messages yet.</div>
-                <div className="text-xs text-gray-400 mt-1">Visit a pro's community profile to start a conversation.</div>
+                <div className="text-sm font-medium text-gray-600 mb-1">No messages yet</div>
+                <div className="text-xs text-gray-400 mb-4">Start a conversation from the community feed or any pro's profile.</div>
+                <a href="/community" className="text-xs font-semibold text-teal-600 hover:underline">Browse community →</a>
               </div>
             ) : threads.map(thread => (
               <Link key={thread.otherId} href={`/messages?with=${thread.otherId}`}
