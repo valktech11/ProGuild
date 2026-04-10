@@ -103,6 +103,9 @@ export default function Navbar() {
                 <Link href="/edit-profile" className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-stone-50 transition-colors">
                   ✏️ Edit profile
                 </Link>
+                <Link href="/apprenticeship" className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-stone-50 transition-colors">
+                  🎓 Apprenticeship
+                </Link>
                 <div className="border-t border-gray-100 mt-1">
                   <button onClick={logout} className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-b-xl w-full text-left transition-colors">
                     → Log out

@@ -32,7 +32,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     'years_experience','profile_photo_url','license_number',
     'is_verified','plan_tier','stripe_customer_id','profile_status',
     'trade_category_id','available_for_work','available_note',
-    'is_claimed','claimed_at',
+    'is_claimed','claimed_at','license_expiry_date','license_status',
+    'osha_card_type','osha_card_number','osha_card_expiry','preferred_language',
   ]
   const updates: Record<string, any> = {}
   for (const key of allowed) { if (key in body) updates[key] = body[key] }

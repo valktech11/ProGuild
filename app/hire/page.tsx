@@ -39,6 +39,7 @@ export default function HirePage() {
   const [applying, setApplying]   = useState<string | null>(null)
   const [applied, setApplied]     = useState<Set<string>>(new Set())
   const [toast, setToast]         = useState('')
+  const [expanded, setExpanded]     = useState<Set<string>>(new Set())
 
   // Filters
   const [tradeFil, setTradeFil]   = useState('')
@@ -211,7 +212,9 @@ export default function HirePage() {
                         )}
                       </div>
 
-                      <h2 className="font-semibold text-gray-900 text-lg mb-2">{job.title}</h2>
+                      <a href={`/hire/${job.id}`} className="hover:text-teal-600 transition-colors">
+                        <h2 className="font-semibold text-gray-900 text-lg mb-2">{job.title}</h2>
+                      </a>
 
                       {/* Badges */}
                       <div className="flex flex-wrap gap-2 mb-3">
@@ -229,9 +232,20 @@ export default function HirePage() {
                         )}
                       </div>
 
-                      <p className="text-sm text-gray-600 leading-relaxed line-clamp-2 mb-3">
-                        {job.description}
-                      </p>
+                      <div className="mb-3">
+                        <p className={`text-sm text-gray-600 leading-relaxed ${expanded.has(job.id) ? '' : 'line-clamp-2'}`}>
+                          {job.description}
+                        </p>
+                        {job.description && job.description.length > 120 && (
+                          <button onClick={() => setExpanded(prev => {
+                            const next = new Set(prev)
+                            next.has(job.id) ? next.delete(job.id) : next.add(job.id)
+                            return next
+                          })} className="text-xs text-teal-600 hover:text-teal-800 font-medium mt-1 transition-colors">
+                            {expanded.has(job.id) ? 'Show less ↑' : 'Show more ↓'}
+                          </button>
+                        )}
+                      </div>
 
                       {job.requirements && (
                         <div className="text-xs text-gray-400 mb-2">

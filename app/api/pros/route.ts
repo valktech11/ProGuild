@@ -50,9 +50,11 @@ export async function GET(req: NextRequest) {
       query = query.order('is_verified', { ascending: false }); break
   }
 
-  query = query
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+  // Only add secondary created_at sort for default/verified sort
+  if (!sort || sort === 'default') {
+    query = query.order('created_at', { ascending: false })
+  }
+  query = query.range(offset, offset + limit - 1)
 
   const { data, error, count } = await query
 

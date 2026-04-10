@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState<string | null>(null)
   const [toast, setToast]     = useState('')
+  const [accessDenied, setAccessDenied] = useState(false)
 
   // Pros filter state
   const [proSearch, setProSearch] = useState('')
@@ -61,7 +62,10 @@ export default function AdminPage() {
     setSession(s)
     // Verify admin
     fetch(`/api/admin?section=dashboard`, { headers: { 'x-pro-id': s.id } })
-      .then(r => { if (r.status === 403) { router.replace('/dashboard'); return null } return r.json() })
+      .then(r => {
+        if (r.status === 403) { setAccessDenied(true); setLoading(false); return null }
+        return r.json()
+      })
       .then(d => { if (d) { setData(d); setLoading(false) } })
   }, [])
 
@@ -142,6 +146,24 @@ export default function AdminPage() {
 
   const cfg = data?.config || {}
 
+  if (accessDenied) return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-10 max-w-md text-center">
+        <div className="text-5xl mb-5">🔒</div>
+        <h1 className="font-serif text-2xl text-white mb-3">Access denied</h1>
+        <p className="text-gray-400 text-sm mb-2 leading-relaxed">
+          This page is restricted to TradesNetwork administrators only.
+        </p>
+        <p className="text-gray-500 text-xs mb-7">
+          If you believe you should have admin access, contact the platform owner to have your account elevated.
+        </p>
+        <a href="/dashboard" className="inline-block px-6 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">
+          ← Back to dashboard
+        </a>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gray-950 flex">
 
@@ -163,6 +185,7 @@ export default function AdminPage() {
         </nav>
         <div className="px-5 py-4 border-t border-gray-800">
           <div className="text-xs text-gray-500 mb-2">{session?.name}</div>
+          <Link href="/admin/setup" className="text-xs text-gray-500 hover:text-teal-400 transition-colors mb-1 block">👥 Manage admins</Link>
           <Link href="/dashboard" className="text-xs text-gray-500 hover:text-teal-400 transition-colors">← Back to site</Link>
         </div>
       </div>

@@ -57,6 +57,7 @@ export default function ProProfilePage() {
   const [lightbox, setLightbox]     = useState<string|null>(null)
   const [showHours, setShowHours]   = useState(false)
   const [showShareToast, setShowShareToast] = useState(false)
+  const [equipment, setEquipment] = useState<any[]>([])
 
   // Lead form
   const [name, setName]       = useState('')
@@ -84,6 +85,8 @@ export default function ProProfilePage() {
       setPortfolio(portfolioData.items || [])
       if (followData && s) setIsFollowing((followData.followers||[]).some((f:any) => f?.id === s.id))
       setLoading(false)
+      // Load equipment
+      fetch(`/api/equipment?pro_id=${id}`).then(r => r.json()).then(d => setEquipment(d.equipment || []))
     }).catch(() => { setError('Could not load profile'); setLoading(false) })
   }, [id])
 
@@ -227,6 +230,29 @@ export default function ProProfilePage() {
                   {elite && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-50 text-purple-800">Elite Pro</span>}
                   {paid && !elite && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-800">Pro Member</span>}
                   {pro.license_number && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-800">Licensed · {pro.license_number}</span>}
+                  {/* License status badge — green/amber/red */}
+                  {(pro as any).license_status === 'active' && (
+                    <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                      <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
+                      License active
+                    </span>
+                  )}
+                  {(pro as any).license_status === 'expiring_soon' && (
+                    <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      ⚠️ License expiring soon
+                    </span>
+                  )}
+                  {(pro as any).license_status === 'expired' && (
+                    <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
+                      🔴 License expired
+                    </span>
+                  )}
+                  {/* OSHA card */}
+                  {(pro as any).osha_card_type && (
+                    <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      🦺 {(pro as any).osha_card_type} certified
+                    </span>
+                  )}
                   {pro.available_for_work && (
                     <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
                       <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse inline-block" />
@@ -293,6 +319,22 @@ export default function ProProfilePage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Equipment proficiency */}
+                {equipment.length > 0 && (
+                  <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                    <h2 className="font-semibold text-gray-900 mb-4">Equipment & tools</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {equipment.map(eq => (
+                        <span key={eq.id} className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-full border ${eq.certified ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-stone-50 text-gray-600 border-gray-200'}`}>
+                          {eq.certified && <span className="text-teal-500 font-bold text-xs">✓</span>}
+                          {eq.name}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-3">✓ = certified · Unverified items are self-reported</p>
+                  </div>
+                )}
 
                 {/* Business hours */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-7">
@@ -410,9 +452,28 @@ export default function ProProfilePage() {
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {portfolio.map(item => (
-                      <div key={item.id} onClick={() => setLightbox(item.image_url)}
-                        className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity">
-                        <img src={item.image_url} alt={item.title || 'Portfolio'} className="w-full h-full object-cover" />
+                      <div key={item.id} onClick={() => item.image_url && setLightbox(item.image_url)}
+                        className="aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity bg-stone-100">
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.title || 'Portfolio'}
+                            className="w-full h-full object-cover"
+                            onError={e => {
+                              const el = e.currentTarget
+                              el.style.display = 'none'
+                              const parent = el.parentElement
+                              if (parent) {
+                                parent.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center text-gray-400"><div class="text-2xl mb-1">🖼</div><div class="text-xs">${item.title || 'Photo'}</div></div>`
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                            <div className="text-2xl mb-1">🖼</div>
+                            <div className="text-xs">{item.title || 'Photo'}</div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -531,8 +592,8 @@ export default function ProProfilePage() {
         <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-between gap-4">
           <div className="text-sm text-gray-400">© 2026 TradesNetwork</div>
           <div className="flex gap-5 text-sm">
-            {[['/','/about','About'],['/contact','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([,,label,href]) => (
-              <a key={label} href={href || label} className="text-gray-400 hover:text-teal-600 transition-colors">{label}</a>
+            {[['/', 'Home'],['/about','About'],['/contact','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([href, label]) => (
+              <a key={href} href={href} className="text-gray-400 hover:text-teal-600 transition-colors">{label}</a>
             ))}
           </div>
         </div>

@@ -135,15 +135,15 @@ export default function PostHireJobPage() {
               </div>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className={lbl}>City</label>
-                  <input value={form.city} onChange={set('city')} placeholder="Jacksonville" className={inp} />
-                </div>
-                <div>
                   <label className={lbl}>State</label>
                   <select value={form.state} onChange={set('state')} className={inp}>
                     <option value="">Select state...</option>
                     {US_STATES.map(([code, name]) => <option key={code} value={code}>{code} — {name}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className={lbl}>City</label>
+                  <input value={form.city} onChange={set('city')} placeholder="Jacksonville" className={inp} />
                 </div>
               </div>
               <div className="mb-4">

@@ -46,6 +46,18 @@ export default function EditProfilePage() {
   const [photoUrl, setPhotoUrl]     = useState('')
   const [available, setAvailable]   = useState(false)
   const [availableNote, setAvailableNote] = useState('')
+  // License
+  const [licenseExpiry, setLicenseExpiry] = useState('')
+  // OSHA
+  const [oshaType,   setOshaType]   = useState('')
+  const [oshaNumber, setOshaNumber] = useState('')
+  const [oshaExpiry, setOshaExpiry] = useState('')
+  // Equipment
+  const [equipment, setEquipment] = useState<any[]>([])
+  const [newEquip,  setNewEquip]  = useState('')
+  const [addingEquip, setAddingEquip] = useState(false)
+  // Language
+  const [language, setLanguage] = useState('en')
 
   // Cities
   const [cities, setCities]         = useState<string[]>([])
@@ -74,7 +86,14 @@ export default function EditProfilePage() {
       setPhotoUrl(p.profile_photo_url || '')
       setAvailable(p.available_for_work || false)
       setAvailableNote(p.available_note || '')
+      setLicenseExpiry(p.license_expiry_date || '')
+      setOshaType(p.osha_card_type || '')
+      setOshaNumber(p.osha_card_number || '')
+      setOshaExpiry(p.osha_card_expiry || '')
+      setLanguage(p.preferred_language || 'en')
       setLoading(false)
+      // Load equipment
+      fetch(`/api/equipment?pro_id=${s.id}`).then(r => r.json()).then(d => setEquipment(d.equipment || []))
     })
   }, [])
 

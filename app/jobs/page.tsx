@@ -146,7 +146,7 @@ export default function JobsPage() {
                   <div className="text-sm text-gray-500">
                     Posted by <span className="font-medium text-gray-900">{job.homeowner_name}</span>
                   </div>
-                  <Link href={`/pro?trade=${job.trade_category_id || ''}`}
+                  <Link href={`/?trade=${job.trade_category_id || ''}`}
                     className="text-sm font-semibold text-teal-600 hover:text-teal-800 transition-colors">
                     Find a {job.trade_category?.category_name || 'pro'} →
                   </Link>
