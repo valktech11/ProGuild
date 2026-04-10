@@ -11,15 +11,23 @@ export default function Navbar() {
   const [session, setSession] = useState<Session | null>(null)
 
   useEffect(() => {
+    // Read session immediately
     const raw = sessionStorage.getItem('tn_pro')
-    if (raw) setSession(JSON.parse(raw))
-    // Listen for storage changes (login/logout in other tabs)
-    const handler = () => {
+    if (raw) {
+      try { setSession(JSON.parse(raw)) } catch {}
+    }
+
+    // Re-read on storage change (other tabs) and custom login events
+    const sync = () => {
       const r = sessionStorage.getItem('tn_pro')
       setSession(r ? JSON.parse(r) : null)
     }
-    window.addEventListener('storage', handler)
-    return () => window.removeEventListener('storage', handler)
+    window.addEventListener('storage', sync)
+    window.addEventListener('tn-session-changed', sync)
+    return () => {
+      window.removeEventListener('storage', sync)
+      window.removeEventListener('tn-session-changed', sync)
+    }
   }, [])
 
   function logout() {
@@ -49,6 +57,9 @@ export default function Navbar() {
           </Link>
           <Link href="/jobs" className={`text-sm transition-colors ${path.startsWith('/jobs') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
             Jobs
+          </Link>
+          <Link href="/hire" className={`text-sm transition-colors ${path.startsWith('/hire') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
+            Hire
           </Link>
           <Link href="/community" className={`text-sm transition-colors ${path.startsWith('/community') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
             Community

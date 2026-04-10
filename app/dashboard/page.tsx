@@ -218,11 +218,11 @@ export default function DashboardPage() {
           <span className="text-sm opacity-80 group-hover:opacity-100">View →</span>
         </Link>
 
-        {/* MAIN GRID — profile left, content right */}
+        {/* MAIN GRID — content left (col-2), profile right (col-1) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* LEFT — sidebar (profile card) */}
-          <div className="space-y-4 lg:order-1">
+          {/* LEFT — leads + reviews + network (col-span-2) */}
+          <div className="lg:col-span-2 space-y-5">
 
             {/* Leads */}
             <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
@@ -350,8 +350,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* RIGHT — leads + reviews + network breakdown */}
-          <div className="lg:col-span-2 space-y-5 lg:order-2">
+          {/* RIGHT — profile card + community links (col-span-1) */}
+          <div className="space-y-4">
 
             {/* Profile card */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6">
