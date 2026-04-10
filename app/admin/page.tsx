@@ -329,28 +329,77 @@ export default function AdminPage() {
 
           {/* ── MODERATION ── */}
           {section === 'moderation' && (
-            <div>
-              <h1 className="font-serif text-2xl text-white mb-6">Content Moderation</h1>
-              {!(data?.posts?.length) ? (
-                <div className="bg-white border border-gray-100 rounded-2xl py-16 text-center">
-                  <div className="text-4xl mb-3">✓</div>
-                  <div className="text-gray-400">No flagged content</div>
+            <div className="space-y-6">
+              <h1 className="font-serif text-2xl text-white">Content Moderation</h1>
+
+              {/* Reviews pending approval */}
+              <div>
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+                  Reviews pending approval ({(data?.reviews || []).length})
                 </div>
-              ) : (data?.posts || []).map((post: any) => (
-                <div key={post.id} className="bg-white border border-gray-100 rounded-2xl p-5 mb-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="text-xs text-gray-400 mb-1">{post.pro?.full_name} · {timeAgo(post.created_at)}</div>
-                      <p className="text-sm text-gray-900 mb-2">{post.content}</p>
-                      {post.flag_reason && <div className="text-xs text-red-500">Reason: {post.flag_reason}</div>}
-                    </div>
-                    <button onClick={() => deletePost(post.id)}
-                      className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 transition-colors flex-shrink-0">
-                      Delete
-                    </button>
+                {!(data?.reviews?.length) ? (
+                  <div className="bg-white border border-gray-100 rounded-2xl py-8 text-center">
+                    <div className="text-2xl mb-2">✓</div>
+                    <div className="text-gray-400 text-sm">No reviews pending</div>
                   </div>
+                ) : (data?.reviews || []).map((rev: any) => (
+                  <div key={rev.id} className="bg-white border border-gray-100 rounded-2xl p-5 mb-3">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-semibold text-gray-900">{rev.reviewer_name}</span>
+                          <span className="text-amber-400 text-sm">{'★'.repeat(rev.rating)}{'☆'.repeat(5-rev.rating)}</span>
+                          <span className="text-xs text-gray-400">for {rev.pro?.full_name}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">{rev.comment}</p>
+                        <div className="text-xs text-gray-400">{rev.reviewer_email} · {timeAgo(rev.reviewed_at)}</div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={async () => {
+                          await fetch('/api/admin', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-pro-id': session!.id }, body: JSON.stringify({ approve_review_id: rev.id }) })
+                          showToast('Review approved ✓'); loadSection('moderation')
+                        }} className="px-3 py-1.5 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-semibold rounded-lg hover:bg-teal-100 transition-colors">
+                          Approve
+                        </button>
+                        <button onClick={async () => {
+                          if (!confirm('Delete this review?')) return
+                          await fetch('/api/admin', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-pro-id': session!.id }, body: JSON.stringify({ delete_review_id: rev.id }) })
+                          showToast('Review deleted'); loadSection('moderation')
+                        }} className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 transition-colors">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Flagged posts */}
+              <div>
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+                  Flagged posts ({(data?.posts || []).length})
                 </div>
-              ))}
+                {!(data?.posts?.length) ? (
+                  <div className="bg-white border border-gray-100 rounded-2xl py-8 text-center">
+                    <div className="text-2xl mb-2">✓</div>
+                    <div className="text-gray-400 text-sm">No flagged posts</div>
+                  </div>
+                ) : (data?.posts || []).map((post: any) => (
+                  <div key={post.id} className="bg-white border border-gray-100 rounded-2xl p-5 mb-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-xs text-gray-400 mb-1">{post.pro?.full_name} · {timeAgo(post.created_at)}</div>
+                        <p className="text-sm text-gray-900 mb-2">{post.content}</p>
+                        {post.flag_reason && <div className="text-xs text-red-500">Reason: {post.flag_reason}</div>}
+                      </div>
+                      <button onClick={() => deletePost(post.id)}
+                        className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 transition-colors flex-shrink-0">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

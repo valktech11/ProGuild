@@ -47,6 +47,9 @@ export default function Navbar() {
           <Link href="/post-job" className={`text-sm transition-colors ${path === '/post-job' ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
             Post a job
           </Link>
+          <Link href="/jobs" className={`text-sm transition-colors ${path.startsWith('/jobs') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
+            Jobs
+          </Link>
           <Link href="/community" className={`text-sm transition-colors ${path.startsWith('/community') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
             Community
           </Link>

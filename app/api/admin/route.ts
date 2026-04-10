@@ -92,11 +92,11 @@ export async function GET(req: NextRequest) {
   }
 
   if (section === 'moderation') {
-    const { data } = await sb.from('posts')
-      .select('*, pro:pros(full_name)')
-      .eq('is_flagged', true)
-      .order('created_at', { ascending: false }).limit(50)
-    return NextResponse.json({ posts: data || [] })
+    const [{ data: posts }, { data: reviews }] = await Promise.all([
+      sb.from('posts').select('*, pro:pros(full_name)').eq('is_flagged', true).order('created_at', { ascending: false }).limit(50),
+      sb.from('reviews').select('*, pro:pros(full_name, city)').eq('is_approved', false).order('reviewed_at', { ascending: false }).limit(50),
+    ])
+    return NextResponse.json({ posts: posts || [], reviews: reviews || [] })
   }
 
   if (section === 'config') {
@@ -138,6 +138,18 @@ export async function PATCH(req: NextRequest) {
   // Delete post (moderation)
   if (body.delete_post_id) {
     await sb.from('posts').delete().eq('id', body.delete_post_id)
+    return NextResponse.json({ ok: true })
+  }
+
+  // Approve review
+  if (body.approve_review_id) {
+    await sb.from('reviews').update({ is_approved: true }).eq('id', body.approve_review_id)
+    return NextResponse.json({ ok: true })
+  }
+
+  // Delete review
+  if (body.delete_review_id) {
+    await sb.from('reviews').delete().eq('id', body.delete_review_id)
     return NextResponse.json({ ok: true })
   }
 

@@ -362,10 +362,27 @@ export default function ProProfilePage() {
                   </div>
                 )}
 
+                {/* Write a review button — non-owners only */}
+                {!isOwner && (
+                  <div className="flex justify-end">
+                    <a href={`/reviews/${id}`}
+                      className="flex items-center gap-2 px-4 py-2 border border-teal-300 text-teal-700 text-sm font-semibold rounded-xl hover:bg-teal-50 transition-colors">
+                      ⭐ Write a review
+                    </a>
+                  </div>
+                )}
+
                 {/* Individual reviews */}
                 {reviews.length === 0 ? (
-                  <div className="bg-white border border-gray-100 rounded-2xl py-12 text-center text-gray-400 text-sm">
-                    {isOwner ? 'No reviews yet. Homeowners will leave reviews after jobs.' : 'No reviews yet.'}
+                  <div className="bg-white border border-gray-100 rounded-2xl py-12 text-center">
+                    <div className="text-gray-400 text-sm mb-3">
+                      {isOwner ? 'No reviews yet. Homeowners will leave reviews after jobs.' : 'No reviews yet — be the first!'}
+                    </div>
+                    {!isOwner && (
+                      <a href={`/reviews/${id}`} className="text-sm font-semibold text-teal-600 hover:underline">
+                        Leave the first review →
+                      </a>
+                    )}
                   </div>
                 ) : reviews.map(rev => (
                   <div key={rev.id} className="bg-white border border-gray-100 rounded-2xl p-6">
