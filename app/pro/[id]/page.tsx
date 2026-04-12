@@ -230,23 +230,54 @@ export default function ProProfilePage() {
                   {elite && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-50 text-purple-800">Elite Pro</span>}
                   {paid && !elite && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-800">Pro Member</span>}
                   {pro.license_number && <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-800">Licensed · {pro.license_number}</span>}
-                  {/* License status badge — green/amber/red */}
-                  {(pro as any).license_status === 'active' && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-                      <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
-                      License active
-                    </span>
-                  )}
-                  {(pro as any).license_status === 'expiring_soon' && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                      ⚠️ License expiring soon
-                    </span>
-                  )}
-                  {(pro as any).license_status === 'expired' && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
-                      🔴 License expired
-                    </span>
-                  )}
+                  {/* License status badge with expiry date + hover tooltip */}
+                  {(pro as any).license_status === 'active' && (() => {
+                    const expiry = (pro as any).license_expiry_date
+                    const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+                    return (
+                      <span
+                        title={expiryStr ? `License expires ${expiryStr}` : 'License is active'}
+                        className="relative group flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 cursor-default"
+                      >
+                        <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
+                        License active{expiryStr ? ` · exp ${expiryStr}` : ''}
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-lg z-10">
+                          {expiryStr ? `Expires ${expiryStr}` : 'License is currently active'}
+                        </span>
+                      </span>
+                    )
+                  })()}
+                  {(pro as any).license_status === 'expiring_soon' && (() => {
+                    const expiry = (pro as any).license_expiry_date
+                    const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+                    const daysLeft = expiry ? Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000) : null
+                    return (
+                      <span
+                        title={expiryStr ? `License expires ${expiryStr} — ${daysLeft} days left` : 'License expiring soon'}
+                        className="relative group flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 cursor-default"
+                      >
+                        ⚠️ Expiring soon{expiryStr ? ` · ${expiryStr}` : ''}
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-lg z-10">
+                          {daysLeft !== null ? `${daysLeft} days left — expires ${expiryStr}` : 'License expiring soon — renewal needed'}
+                        </span>
+                      </span>
+                    )
+                  })()}
+                  {(pro as any).license_status === 'expired' && (() => {
+                    const expiry = (pro as any).license_expiry_date
+                    const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+                    return (
+                      <span
+                        title={expiryStr ? `License expired ${expiryStr}` : 'License has expired'}
+                        className="relative group flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 cursor-default"
+                      >
+                        🔴 License expired{expiryStr ? ` · ${expiryStr}` : ''}
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-lg z-10">
+                          {expiryStr ? `Expired ${expiryStr} — renewal required` : 'License has expired — renewal required'}
+                        </span>
+                      </span>
+                    )
+                  })()}
                   {/* OSHA card */}
                   {(pro as any).osha_card_type && (
                     <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
