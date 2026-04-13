@@ -57,7 +57,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const raw = sessionStorage.getItem('tn_pro')
-    if (!raw) { router.replace('/login'); return }
+    if (!raw) { router.replace('/admin-login'); return }
     const s: Session = JSON.parse(raw)
     setSession(s)
     // Verify admin

@@ -23,18 +23,25 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
     fetch('/api/config').then(r => r.json()).then(d => setConfig(d.config || {}))
   }, [])
 
-  // Always allow admin routes through (so admin can turn it off)
-  const isAdminRoute = pathname?.startsWith('/admin')
+  // Routes that always pass through regardless of maintenance mode
+  const isAdminRoute   = pathname?.startsWith('/admin')
+  const isLoginRoute   = pathname === '/login' || pathname === '/admin-login'
+  const isApiRoute     = pathname?.startsWith('/api')
 
   // While loading config, render children (avoids flash of maintenance page on normal operation)
   if (config === null) return <>{children}</>
 
-  // Not in maintenance mode — render normally with banner if needed
+  // Not in maintenance mode — render normally
   if (config.maintenance_mode !== 'true') {
     return <>{children}</>
   }
 
-  // In maintenance mode — admin users and admin routes pass through
+  // Always let login pages and API routes through — needed to authenticate and recover
+  if (isLoginRoute || isApiRoute) {
+    return <>{children}</>
+  }
+
+  // In maintenance mode — admin users and admin routes pass through with reminder banner
   if (isAdminRoute || isAdmin) {
     return (
       <>
@@ -94,7 +101,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
       {/* Log in as admin link */}
       <div className="border-t border-gray-800 pt-6">
         <a
-          href="/login"
+          href="/admin-login"
           className="text-xs text-gray-600 hover:text-teal-400 transition-colors"
         >
           Admin? Log in →
