@@ -42,6 +42,27 @@ function extractKeywords(reviews: any[]) {
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 const DEFAULT_HOURS = { Monday: '8:00 AM – 5:00 PM', Tuesday: '8:00 AM – 5:00 PM', Wednesday: '8:00 AM – 5:00 PM', Thursday: '8:00 AM – 5:00 PM', Friday: '8:00 AM – 5:00 PM', Saturday: 'Closed', Sunday: 'Closed' }
 
+// License number — show partial to public, full on hover with copy
+function LicenseNumber({ number }: { number: string }) {
+  const [revealed, setRevealed] = useState(false)
+  if (!number) return <span>—</span>
+  const visible = number.slice(0, 4)
+  const hidden  = '•'.repeat(Math.max(0, number.length - 4))
+  return (
+    <span className="inline-flex items-center gap-1 group cursor-pointer select-none"
+      onClick={() => setRevealed(r => !r)}
+      title={revealed ? 'Click to hide' : 'Click to reveal full license number'}>
+      {revealed
+        ? <span className="font-mono">{number}</span>
+        : <><span className="font-mono">{visible}</span><span className="font-mono tracking-widest text-gray-400">{hidden}</span></>
+      }
+      <span className="text-gray-300 group-hover:text-teal-500 transition-colors text-xs ml-0.5">
+        {revealed ? '🙈' : '👁'}
+      </span>
+    </span>
+  )
+}
+
 export default function ProProfilePage() {
   const { id }   = useParams<{ id: string }>()
   const router   = useRouter()
@@ -252,7 +273,7 @@ export default function ProProfilePage() {
                     return (
                       <span key={lic.id} title={tip}
                         className={`relative group flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border cursor-default ${colors}`}>
-                        {dot} {lic.trade_name} · {lic.license_number}
+                        {dot} {lic.trade_name} · <LicenseNumber number={lic.license_number} />
                         {expiryStr && <span className="font-normal opacity-70">· {expiryStr}</span>}
                         <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-lg z-10">{tip}</span>
                       </span>
@@ -394,7 +415,7 @@ export default function ProProfilePage() {
                       { label: 'Location',    value: location },
                       { label: 'Experience',  value: pro.years_experience ? `${pro.years_experience} years` : '—' },
                       { label: 'Plan',        value: pro.plan_tier || 'Free' },
-                      { label: 'License',     value: pro.license_number || '—' },
+                      { label: 'License',     value: '—' }, // shown in badges above
                       { label: 'Verified',    value: pro.is_verified ? 'Yes — state database' : 'Not yet' },
                       ...((pro as any).counties_served?.length ? [{ label: 'Counties served', value: (pro as any).counties_served.join(', ') }] : []),
                     ].map(d => (

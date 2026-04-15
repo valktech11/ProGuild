@@ -52,3 +52,14 @@ export async function DELETE(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }
+
+export async function PATCH(req: NextRequest) {
+  const { id, pro_id, latitude, longitude, location_label } = await req.json()
+  if (!id || !pro_id) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
+  const { data, error } = await getSupabaseAdmin()
+    .from('portfolio_items')
+    .update({ latitude: latitude || null, longitude: longitude || null, location_label: location_label || null })
+    .eq('id', id).eq('pro_id', pro_id).select().single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ item: data })
+}

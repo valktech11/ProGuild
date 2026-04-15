@@ -62,38 +62,42 @@ export default function CommunityEditPage() {
     if (!newPhoto || !newTitle.trim() || !session) { setError('Please add a photo and title'); return }
     setSaving(true); setError('')
 
-    // Attempt geo capture for Proof of Work
-    let geoData: { latitude?: number; longitude?: number; location_label?: string; captured_at?: string; is_job_site?: boolean } = {}
-    if (markAsJobSite && navigator.geolocation) {
-      try {
-        const pos = await new Promise<GeolocationPosition>((res, rej) =>
-          navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
-        )
-        geoData = {
-          latitude:      pos.coords.latitude,
-          longitude:     pos.coords.longitude,
-          captured_at:   new Date().toISOString(),
-          is_job_site:   true,
-        }
-        // Reverse geocode using free API
-        try {
-          const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
-          const gd = await geo.json()
-          geoData.location_label = [gd.address?.city || gd.address?.town || gd.address?.village, gd.address?.state].filter(Boolean).join(', ')
-        } catch {}
-      } catch { /* geo not available — continue without */ }
-    }
-
+    // Post the item immediately — geo enrichment happens in background after
     const r = await fetch('/api/portfolio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: session.id, photo_url: newPhoto, title: newTitle, description: newDesc || null, trade: newTrade || null, ...geoData }),
+      body: JSON.stringify({
+        pro_id: session.id, photo_url: newPhoto, title: newTitle,
+        description: newDesc || null, trade: newTrade || null,
+        is_job_site: markAsJobSite,
+        captured_at: markAsJobSite ? new Date().toISOString() : null,
+      }),
     })
     const d = await r.json()
     setSaving(false)
     if (r.ok) {
       setPortfolio(p => [d.item, ...p])
       setNewPhoto(''); setNewTitle(''); setNewDesc(''); setMarkAsJobSite(false)
+      // Geo enrichment — non-blocking, runs after UI is already updated
+      if (markAsJobSite && navigator.geolocation && d.item?.id) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          try {
+            let location_label = ''
+            try {
+              const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
+              const gd = await geoRes.json()
+              location_label = [gd.address?.city || gd.address?.town || gd.address?.village, gd.address?.state].filter(Boolean).join(', ')
+            } catch {}
+            await fetch('/api/portfolio', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: d.item.id, pro_id: session!.id, latitude: pos.coords.latitude, longitude: pos.coords.longitude, location_label }),
+            })
+            // Update local state with geo label
+            if (location_label) setPortfolio(prev => prev.map(p => p.id === d.item.id ? { ...p, location_label } : p))
+          } catch {}
+        }, () => { /* GPS denied — silently ignore, item already saved */ }, { timeout: 10000, maximumAge: 60000 })
+      }
     } else {
       setError(d.error || 'Could not add item')
     }
