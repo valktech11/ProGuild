@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session, Pro } from '@/types'
@@ -7,50 +7,192 @@ import { initials, avatarColor, starsHtml, timeAgo, isPaid, isElite } from '@/li
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function Avatar({ pro, size = 'lg' }: { pro: any; size?: 'sm'|'md'|'lg'|'xl'|'hero' }) {
+function ProAvatar({ pro, cls }: { pro: any; cls: string }) {
   const [bg, fg] = avatarColor(pro?.full_name || 'A')
-  const sz = {
-    sm:   'w-8  h-8  text-xs',
-    md:   'w-12 h-12 text-sm',
-    lg:   'w-20 h-20 text-2xl',
-    xl:   'w-28 h-28 text-3xl',
-    hero: 'w-20 h-20 text-2xl ring-4 ring-teal-400/40',
-  }[size]
   if (pro?.profile_photo_url)
-    return <img src={pro.profile_photo_url} alt={pro.full_name}
-      className={`${sz} rounded-full object-cover flex-shrink-0`} />
-  return (
-    <div className={`${sz} rounded-full flex items-center justify-center font-serif flex-shrink-0`}
-      style={{ background: bg, color: fg }}>{initials(pro?.full_name || 'A')}</div>
-  )
+    return <img src={pro.profile_photo_url} alt={pro.full_name} className={`${cls} rounded-full object-cover flex-shrink-0`} />
+  return <div className={`${cls} rounded-full flex items-center justify-center font-serif flex-shrink-0`} style={{ background: bg, color: fg }}>{initials(pro?.full_name || 'A')}</div>
 }
 
-function Stars({ rating, size = 'sm' }: { rating: number; size?: 'sm'|'md' }) {
-  return (
-    <span className={`text-amber-400 ${size === 'md' ? 'text-base' : 'text-sm'}`}>
-      {starsHtml(rating)}
-    </span>
-  )
-}
-
-// License number — show start + end, click to reveal full
-function LicenseNumber({ number }: { number: string }) {
+// Traffic-light credential card
+function CredCard({ lic }: { lic: any }) {
+  const [open, setOpen] = useState(false)
   const [revealed, setRevealed] = useState(false)
-  if (!number) return <span className="text-gray-400">—</span>
-  const start  = number.slice(0, 4)
-  const end    = number.slice(-3)
-  const masked = '•••'
+  const status = lic.license_status || 'unknown'
+  const expiry = lic.license_expiry_date
+  const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
+  const daysLeft = expiry ? Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000) : null
+
+  const color = status === 'active' ? {
+    border: 'border-l-4 border-l-green-500',
+    bg: 'bg-green-50',
+    dot: 'bg-green-500',
+    text: 'text-green-700',
+    label: 'Active',
+  } : status === 'expiring_soon' ? {
+    border: 'border-l-4 border-l-amber-400',
+    bg: 'bg-amber-50',
+    dot: 'bg-amber-400',
+    text: 'text-amber-700',
+    label: daysLeft !== null ? `Expiring in ${daysLeft}d` : 'Expiring soon',
+  } : status === 'expired' ? {
+    border: 'border-l-4 border-l-red-400',
+    bg: 'bg-red-50',
+    dot: 'bg-red-500',
+    text: 'text-red-700',
+    label: 'Expired',
+  } : {
+    border: 'border-l-4 border-l-gray-300',
+    bg: 'bg-stone-50',
+    dot: 'bg-gray-300',
+    text: 'text-gray-500',
+    label: 'Unknown',
+  }
+
   return (
-    <span className="inline-flex items-center gap-1 font-mono text-xs">
-      <span className="text-gray-700 font-medium">{start}</span>
-      <span className="text-gray-400">{revealed ? number.slice(4, -3) : masked}</span>
-      <span className="text-gray-700 font-medium">{end}</span>
-      <button onClick={() => setRevealed(r => !r)}
-        className="ml-1 text-teal-600 hover:text-teal-700 text-xs underline-offset-2 underline"
-        title={revealed ? 'Hide' : 'Reveal full number'}>
-        {revealed ? 'hide' : 'reveal'}
+    <div className={`rounded-xl border border-gray-100 ${color.border} ${color.bg} overflow-hidden mb-2`}>
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${color.dot}`} />
+          <span className="text-sm font-medium text-gray-900">{lic.trade_name}</span>
+          {lic.is_primary && <span className="text-xs px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500">Primary</span>}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={`text-xs font-semibold ${color.text}`}>{color.label}</span>
+          {expiryStr && <span className="text-xs text-gray-400">exp {expiryStr}</span>}
+        </div>
+      </div>
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full text-left px-4 pb-2.5 flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 transition-colors">
+        View credentials {open ? '▲' : '▼'}
       </button>
-    </span>
+      {open && (
+        <div className="px-4 pb-3 pt-0 border-t border-gray-100 bg-white">
+          <div className="flex items-center justify-between mt-2.5">
+            <div className="font-mono text-xs text-gray-700">
+              {lic.license_number ? (
+                <>
+                  <span>{lic.license_number.slice(0,4)}</span>
+                  <span className="text-gray-400 mx-0.5">{revealed ? lic.license_number.slice(4,-3) : '•••'}</span>
+                  <span>{lic.license_number.slice(-3)}</span>
+                  <button onClick={() => setRevealed(r => !r)} className="ml-2 text-teal-600 underline text-xs">{revealed ? 'hide' : 'reveal'}</button>
+                </>
+              ) : '—'}
+            </div>
+            {lic.license_number && (
+              <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${encodeURIComponent(lic.license_number)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="text-xs text-teal-600 hover:text-teal-700 font-medium">
+                Verify with DBPR →
+              </a>
+            )}
+          </div>
+          {lic.license_expiry_date && (
+            <div className="text-xs text-gray-400 mt-1">
+              Expires {new Date(lic.license_expiry_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// OSHA / Insurance credential card — same traffic light system
+function AuxCredCard({ icon, title, status, sub }: { icon: string; title: string; status: 'active'|'expiring_soon'|'expired'|'valid'; sub?: string }) {
+  const color = status === 'active' || status === 'valid' ? {
+    border: 'border-l-4 border-l-green-500', bg: 'bg-green-50', dot: 'bg-green-500', text: 'text-green-700', label: 'Active'
+  } : status === 'expiring_soon' ? {
+    border: 'border-l-4 border-l-amber-400', bg: 'bg-amber-50', dot: 'bg-amber-400', text: 'text-amber-700', label: 'Expiring'
+  } : {
+    border: 'border-l-4 border-l-red-400', bg: 'bg-red-50', dot: 'bg-red-500', text: 'text-red-700', label: 'Expired'
+  }
+  return (
+    <div className={`rounded-xl border border-gray-100 ${color.border} ${color.bg} px-4 py-3 mb-2 flex items-center justify-between`}>
+      <div className="flex items-center gap-2.5">
+        <span className="text-base">{icon}</span>
+        <div>
+          <div className="text-sm font-medium text-gray-900">{title}</div>
+          {sub && <div className="text-xs text-gray-500 mt-0.5">{sub}</div>}
+        </div>
+      </div>
+      <span className={`text-xs font-semibold ${color.text}`}>{color.label}</span>
+    </div>
+  )
+}
+
+// Contact modal
+function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  const id = pro.id
+  const firstName = pro.full_name.split(' ')[0]
+
+  async function send() {
+    if (!name || !phone) { setErr('Name and phone are required'); return }
+    setSubmitting(true); setErr('')
+    const r = await fetch('/api/leads', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pro_id: id, contact_name: name, contact_email: `${phone.replace(/\D/g,'')}@sms.placeholder`, contact_phone: phone, message: message || 'Contact request', lead_source: 'Profile_Page' }),
+    })
+    setSubmitting(false)
+    if (r.ok) setDone(true)
+    else setErr('Could not send — please try again.')
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}>
+        {done ? (
+          <div className="p-8 text-center">
+            <div className="text-4xl mb-3">✓</div>
+            <div className="font-semibold text-gray-900 mb-1">Message sent!</div>
+            <div className="text-sm text-gray-400">{firstName} will be in touch soon.</div>
+            <button onClick={onClose} className="mt-5 text-sm text-teal-600">Close</button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+              <div>
+                <div className="font-semibold text-gray-900">Contact {firstName}</div>
+                <div className="text-xs text-gray-400 mt-0.5">Free · Direct · No middleman</div>
+              </div>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              {err && <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-lg">{err}</div>}
+              {[
+                { lbl: 'Your name *', val: name, set: setName, ph: 'James Smith', type: 'text' },
+                { lbl: 'Phone (preferred) *', val: phone, set: setPhone, ph: '(555) 000-0000', type: 'tel' },
+              ].map(f => (
+                <div key={f.lbl}>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{f.lbl}</label>
+                  <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 transition-colors" />
+                </div>
+              ))}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Job description</label>
+                <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2}
+                  placeholder="Briefly describe what you need done..."
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 resize-none transition-colors" />
+              </div>
+              <button onClick={send} disabled={submitting}
+                className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors">
+                {submitting ? 'Sending...' : 'Send message →'}
+              </button>
+              <p className="text-xs text-gray-400 text-center">Zero per-lead fees · Direct contact</p>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -64,48 +206,30 @@ function extractKeywords(reviews: any[]) {
   return Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,5).map(([kw]) => kw)
 }
 
-const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-const DEFAULT_HOURS: Record<string, string> = {
-  Monday: '8:00 AM – 5:00 PM', Tuesday: '8:00 AM – 5:00 PM',
-  Wednesday: '8:00 AM – 5:00 PM', Thursday: '8:00 AM – 5:00 PM',
-  Friday: '8:00 AM – 5:00 PM', Saturday: 'Closed', Sunday: 'Closed',
-}
-
-function dbprUrl(licenseNumber: string) {
-  return `https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=` +
-    encodeURIComponent(licenseNumber)
-}
-
-// ── Main ───────────────────────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ProProfilePage() {
   const { id } = useParams<{ id: string }>()
   const router  = useRouter()
 
-  const [session, setSession]     = useState<Session | null>(null)
-  const [pro, setPro]             = useState<Pro | null>(null)
-  const [reviews, setReviews]     = useState<any[]>([])
-  const [portfolio, setPortfolio] = useState<any[]>([])
-  const [equipment, setEquipment] = useState<any[]>([])
+  const [session, setSession]       = useState<Session | null>(null)
+  const [pro, setPro]               = useState<Pro | null>(null)
+  const [reviews, setReviews]       = useState<any[]>([])
+  const [portfolio, setPortfolio]   = useState<any[]>([])
+  const [equipment, setEquipment]   = useState<any[]>([])
   const [proLicenses, setProLicenses] = useState<any[]>([])
   const [memberships, setMemberships] = useState<any[]>([])
   const [endorsements, setEndorsements] = useState<any[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState('')
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState('')
   const [isFollowing, setIsFollowing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'about'|'reviews'|'photos'>('about')
-  const [lightbox, setLightbox]   = useState<string|null>(null)
+
+  const [activeTab, setActiveTab]   = useState<'about'|'reviews'>('about')
+  const [lightbox, setLightbox]     = useState<string|null>(null)
+  const [showModal, setShowModal]   = useState(false)
+  const [showOverflow, setShowOverflow] = useState(false)
   const [showShareToast, setShowShareToast] = useState(false)
   const [showAllPhotos, setShowAllPhotos] = useState(false)
-  const [showHours, setShowHours] = useState(false)
-
-  // Contact form
-  const [name, setName]       = useState('')
-  const [phone, setPhone]     = useState('')
-  const [message, setMessage] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted]   = useState(false)
-  const [formError, setFormError]   = useState('')
 
   useEffect(() => {
     const raw = sessionStorage.getItem('tn_pro')
@@ -127,10 +251,7 @@ export default function ProProfilePage() {
       fetch(`/api/equipment?pro_id=${id}`).then(r => r.json()).then(d => setEquipment(d.equipment || []))
       fetch(`/api/pro-licenses?pro_id=${id}`).then(r => r.json()).then(d => setProLicenses(d.licenses || []))
       fetch(`/api/memberships?pro_id=${id}`).then(r => r.json()).then(d => setMemberships(d.memberships || []))
-      fetch(`/api/skills?pro_id=${id}`).then(r => r.json()).then(d => {
-        const endorsed = (d.skills || []).filter((s: any) => s.endorsement_count > 0)
-        setEndorsements(endorsed)
-      })
+      fetch(`/api/skills?pro_id=${id}`).then(r => r.json()).then(d => setEndorsements((d.skills || []).filter((s:any) => s.endorsement_count > 0)))
     }).catch(() => { setError('Could not load profile'); setLoading(false) })
   }, [id])
 
@@ -144,225 +265,198 @@ export default function ProProfilePage() {
     if (r.ok) setIsFollowing(d.following)
   }
 
-  async function handleLead() {
-    if (!name || !phone) { setFormError('Name and phone are required'); return }
-    setSubmitting(true); setFormError('')
-    const r = await fetch('/api/leads', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: id, contact_name: name, contact_email: `${phone}@sms.placeholder`, contact_phone: phone, message: message || 'Callback request', lead_source: 'Profile_Page' }),
-    })
-    setSubmitting(false)
-    if (r.ok) setSubmitted(true)
-    else setFormError('Could not send — please try again.')
-  }
-
   function shareProfile() {
     const url = window.location.href
     if (navigator.share) navigator.share({ title: `${pro?.full_name} on TradesNetwork`, url })
     else { navigator.clipboard.writeText(url); setShowShareToast(true); setTimeout(() => setShowShareToast(false), 2500) }
   }
 
+  function downloadPdf() {
+    alert('Credential Report PDF — coming soon. This will generate a one-page summary of licenses, certifications and insurance for onboarding.')
+  }
+
   if (loading) return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+    <div className="min-h-screen bg-stone-100 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
     </div>
   )
   if (error || !pro) return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center text-center">
+    <div className="min-h-screen bg-stone-100 flex items-center justify-center text-center">
       <div><div className="font-serif text-2xl text-gray-900 mb-3">Pro not found</div>
         <Link href="/" className="text-teal-600 text-sm">← Back to search</Link></div>
     </div>
   )
 
-  const isOwner   = session?.id === id
-  const paid      = isPaid(pro.plan_tier)
-  const elite     = isElite(pro.plan_tier)
-  const trade     = (pro as any).trade_category?.category_name || '—'
-  const location  = [pro.city, pro.state].filter(Boolean).join(', ')
-  const rating    = pro.avg_rating || 0
+  const isOwner  = session?.id === id
+  const paid     = isPaid(pro.plan_tier)
+  const elite    = isElite(pro.plan_tier)
+  const trade    = (pro as any).trade_category?.category_name || '—'
+  const location = [pro.city, pro.state].filter(Boolean).join(', ')
+  const rating   = pro.avg_rating || 0
   const reviewCnt = pro.review_count || reviews.length || 0
-  const keywords  = extractKeywords(reviews)
   const firstName = pro.full_name.split(' ')[0]
-
-  // License status helpers
-  function licStatusDot(status: string) {
-    if (status === 'active')        return 'bg-green-500'
-    if (status === 'expiring_soon') return 'bg-amber-400'
-    if (status === 'expired')       return 'bg-red-500'
-    return 'bg-gray-300'
-  }
-  function licStatusLabel(status: string) {
-    if (status === 'active')        return { text: 'Active',        cls: 'text-green-700' }
-    if (status === 'expiring_soon') return { text: 'Expiring soon', cls: 'text-amber-700' }
-    if (status === 'expired')       return { text: 'Expired',       cls: 'text-red-700' }
-    return { text: 'Unknown', cls: 'text-gray-400' }
-  }
-
+  const keywords  = extractKeywords(reviews)
   const visiblePhotos = showAllPhotos ? portfolio : portfolio.slice(0, 6)
 
+  // Compact credential pills for hero
+  const hasLicense  = proLicenses.length > 0 || !!pro.license_number
+  const hasOsha     = !!(pro as any).osha_card_type
+  const hasInsurance = (pro as any).insurance_status === 'active'
+
+  // Track record bar items
+  const trackItems = [
+    pro.years_experience ? `${pro.years_experience} yrs experience` : null,
+    rating > 0 ? `${rating.toFixed(1)} ★ rating` : null,
+    hasOsha ? `${(pro as any).osha_card_type} certified` : null,
+    hasLicense && pro.is_verified ? 'DBPR verified' : null,
+  ].filter(Boolean) as string[]
+
+  const hasCredentials = proLicenses.length > 0 || pro.license_number || hasOsha || hasInsurance
+
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-stone-100">
 
       {/* Lightbox */}
       {lightbox && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setLightbox(null)}>
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
           <img src={lightbox} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" />
-          <button className="absolute top-4 right-4 text-white text-2xl">✕</button>
+          <button className="absolute top-4 right-4 text-white text-2xl leading-none">✕</button>
         </div>
       )}
 
+      {/* Contact modal */}
+      {showModal && <ContactModal pro={pro} onClose={() => setShowModal(false)} />}
+
       {/* Share toast */}
       {showShareToast && (
-        <div className="fixed top-4 right-4 bg-gray-900 text-white text-sm px-4 py-2 rounded-xl shadow-lg z-50">
-          Link copied ✓
-        </div>
+        <div className="fixed top-4 right-4 bg-gray-900 text-white text-sm px-4 py-2 rounded-xl shadow-lg z-50">Link copied ✓</div>
       )}
 
       {/* Owner banner */}
       {isOwner && (
         <div className="bg-teal-50 border-b border-teal-100">
-          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+          <div className="max-w-5xl mx-auto px-5 py-2.5 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 text-sm text-teal-700">
               <span>👁</span><span className="font-medium">Your public profile</span>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/dashboard" className="text-xs font-semibold px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">← Dashboard</Link>
-              <Link href="/edit-profile" className="text-xs font-semibold px-3 py-1.5 border border-teal-300 text-teal-700 rounded-lg hover:bg-teal-100 transition-colors">Edit profile</Link>
+              <Link href="/edit-profile" className="text-xs font-semibold px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Edit profile</Link>
+              <Link href="/dashboard" className="text-xs font-semibold px-3 py-1.5 border border-teal-300 text-teal-700 rounded-lg hover:bg-teal-100 transition-colors">← Dashboard</Link>
             </div>
           </div>
         </div>
       )}
 
       {/* Navbar */}
-      <nav className="bg-white border-b border-gray-100 px-6 h-[56px] flex items-center justify-between sticky top-0 z-40">
-        <Link href="/" className="font-serif text-xl text-gray-900">Trades<span className="text-teal-600">Network</span></Link>
-        <div className="flex items-center gap-3">
-          <button onClick={shareProfile}
-            className="text-xs font-medium px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:border-teal-300 hover:text-teal-600 transition-colors">
-            🔗 Share
-          </button>
+      <nav className="bg-white border-b border-gray-200 px-5 h-[52px] flex items-center justify-between sticky top-0 z-40">
+        <Link href="/" className="font-serif text-lg text-gray-900">Trades<span className="text-teal-600">Network</span></Link>
+        <div className="flex items-center gap-2">
+          <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 hidden sm:block">← Find a pro</Link>
           {session && !isOwner && (
             <button onClick={toggleFollow}
-              className={`text-sm font-semibold px-4 py-1.5 rounded-lg border transition-all ${isFollowing ? 'border-gray-200 text-gray-500' : 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'}`}>
+              className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition-all ${isFollowing ? 'border-gray-200 text-gray-500' : 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'}`}>
               {isFollowing ? '✓ Following' : '+ Follow'}
             </button>
           )}
         </div>
       </nav>
 
-      {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <div className="bg-[#152a23] relative overflow-hidden">
-        <div className="relative max-w-5xl mx-auto px-6 pt-8 pb-6">
-          <div className="flex items-start gap-5">
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-              <div className="w-20 h-20 rounded-full ring-2 ring-teal-400/40 overflow-hidden flex-shrink-0">
-                {pro.profile_photo_url
-                  ? <img src={pro.profile_photo_url} alt={pro.full_name} className="w-full h-full object-cover" />
-                  : (() => { const [bg,fg] = avatarColor(pro.full_name); return <div className="w-full h-full flex items-center justify-center font-serif text-2xl" style={{background:bg,color:fg}}>{initials(pro.full_name)}</div> })()
-                }
-              </div>
-              {pro.available_for_work && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-green-400 rounded-full border-2 border-[#152a23]" />
-              )}
-            </div>
+      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-5 pt-5">
+        <div className="bg-[#152a23] rounded-xl overflow-hidden">
 
-            {/* Name + meta */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h1 className="text-2xl font-semibold text-white leading-tight">{pro.full_name}</h1>
-                  {(pro as any).business_name && (pro as any).business_name !== pro.full_name && (
-                    <div className="text-sm text-teal-300/80 mt-0.5">{(pro as any).business_name}</div>
-                  )}
-                  <div className="text-teal-400 text-sm font-medium mt-0.5">{trade}</div>
-                  <div className="text-teal-200/60 text-xs mt-1">
-                    📍 {location || 'Florida'}{pro.years_experience ? ` · ${pro.years_experience} yrs experience` : ''}
-                  </div>
-                </div>
-
-                {/* Rating — top right */}
-                {rating > 0 && (
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-amber-400 text-sm">{starsHtml(rating)}</div>
-                    <div className="text-white font-semibold text-sm mt-0.5">{rating.toFixed(1)}</div>
-                    <div className="text-teal-200/60 text-xs">{reviewCnt} review{reviewCnt !== 1 ? 's' : ''}</div>
-                  </div>
+          {/* Identity row */}
+          <div className="px-5 sm:px-7 pt-6 pb-4">
+            <div className="flex items-start gap-4">
+              <div className="relative flex-shrink-0">
+                <ProAvatar pro={pro} cls="w-16 h-16 ring-2 ring-teal-400/40" />
+                {pro.available_for_work && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-[#152a23]" />
                 )}
               </div>
-
-              {/* Verified badge */}
-              {pro.is_verified && (
-                <div className="inline-flex items-center gap-1.5 mt-3 bg-teal-400/10 border border-teal-400/30 rounded-full px-3 py-1">
-                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-                  <span className="text-xs text-teal-300 font-medium">Verified by TradesNetwork</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">{pro.full_name}</h1>
+                    <div className="text-teal-400 text-sm font-medium mt-0.5">{trade}</div>
+                    <div className="text-teal-200/60 text-xs mt-0.5">📍 {location || 'Florida'}</div>
+                  </div>
+                  {/* Overflow menu */}
+                  <div className="relative flex-shrink-0">
+                    <button onClick={() => setShowOverflow(o => !o)}
+                      className="text-teal-300 hover:text-teal-100 transition-colors text-lg px-1">⋯</button>
+                    {showOverflow && (
+                      <div className="absolute right-0 top-8 bg-white rounded-xl border border-gray-200 shadow-lg py-1 w-44 z-10">
+                        <button onClick={() => { shareProfile(); setShowOverflow(false) }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-stone-50 transition-colors">
+                          🔗 Share profile
+                        </button>
+                        <button onClick={() => { downloadPdf(); setShowOverflow(false) }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-stone-50 transition-colors">
+                          📋 Credential Report (PDF)
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-              {elite && <span className="ml-2 text-xs px-2 py-0.5 bg-purple-400/20 border border-purple-400/30 rounded-full text-purple-300 font-medium">Elite Pro</span>}
-              {paid && !elite && <span className="ml-2 text-xs px-2 py-0.5 bg-teal-400/10 border border-teal-400/20 rounded-full text-teal-300 font-medium">Pro Member</span>}
+
+                {/* Badges row */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                  {pro.is_verified && (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-teal-400/10 border border-teal-400/30 text-teal-300 font-medium">
+                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block" /> Verified
+                    </span>
+                  )}
+                  {pro.available_for_work && (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-500/20 border border-green-400/30 text-green-300 font-medium">
+                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block" /> Available
+                    </span>
+                  )}
+                  {hasLicense && <span className="text-xs px-2 py-0.5 rounded-full bg-teal-400/10 border border-teal-400/20 text-teal-400">Licensed</span>}
+                  {hasOsha && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-400/10 border border-blue-400/20 text-blue-300">🦺 {(pro as any).osha_card_type}</span>}
+                  {hasInsurance && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-400/10 border border-blue-400/20 text-blue-300">🛡 Insured</span>}
+                  {elite && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-400/20 border border-purple-400/30 text-purple-300">Elite Pro</span>}
+                  {paid && !elite && <span className="text-xs px-2 py-0.5 rounded-full bg-teal-400/10 border border-teal-400/20 text-teal-300">Pro Member</span>}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Availability banner */}
-        {pro.available_for_work && (
-          <div className="bg-green-600/90 border-t border-green-500/30 py-2.5">
-            <div className="max-w-5xl mx-auto px-6 flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
-              <span className="text-sm text-white font-medium">Available for new work</span>
-              {(pro as any).available_note && (
-                <span className="text-green-200/80 text-xs ml-1">· {(pro as any).available_note}</span>
+          {/* Track record bar */}
+          {trackItems.length > 0 && (
+            <div className="mx-5 sm:mx-7 mb-4 bg-teal-900/40 border border-teal-700/30 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+              {trackItems.map((item, i) => (
+                <span key={i} className="text-xs text-teal-300 font-medium">
+                  {i > 0 && <span className="text-teal-700 mr-4">·</span>}
+                  {item}
+                </span>
+              ))}
+              {rating > 0 && (
+                <span className="text-xs text-amber-400 font-medium ml-auto">{starsHtml(rating)}</span>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* CTA bar */}
-        <div className="bg-[#0f1f1a] border-t border-teal-900/40 px-6 py-4">
-          <div className="max-w-5xl mx-auto">
+          {/* CTA bar */}
+          <div className="bg-[#0f1f1a] border-t border-teal-900/40 px-5 sm:px-7 py-3.5">
             {isOwner ? (
-              <div className="flex gap-3">
-                <Link href="/edit-profile"
-                  className="flex-1 py-3 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">
-                  Edit profile
-                </Link>
-                <Link href="/dashboard"
-                  className="flex-1 py-3 text-center border border-teal-800 text-teal-400 text-sm font-medium rounded-xl hover:bg-teal-900/30 transition-colors">
-                  ← Dashboard
-                </Link>
+              <div className="flex gap-2">
+                <Link href="/edit-profile" className="flex-1 py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">Edit profile</Link>
+                <Link href="/dashboard" className="flex-1 py-2.5 text-center border border-teal-800 text-teal-400 text-sm font-medium rounded-xl hover:bg-teal-900/30 transition-colors">← Dashboard</Link>
               </div>
             ) : (
-              <div className="flex gap-3">
+              <div className="flex gap-2.5">
                 {pro.phone ? (
-                  <a href={`tel:${pro.phone}`}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
+                  <a href={`tel:${pro.phone}`} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
                     📞 Call {firstName}
                   </a>
                 ) : (
-                  <button
-                    onClick={() => document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
+                  <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
                     📞 Request call
                   </button>
                 )}
-                {pro.phone && (
-                  <a href={`sms:${pro.phone}`}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors">
-                    💬 Text / SMS
-                  </a>
-                )}
-                {!pro.phone && (
-                  <button
-                    onClick={() => document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors">
-                    💬 Send message
-                  </button>
-                )}
-                <button
-                  onClick={() => alert('Compliance PDF download coming soon. This will generate a one-page summary of licenses, OSHA certification and insurance.')}
-                  className="flex items-center justify-center gap-1.5 px-4 py-3 border border-teal-800 text-teal-400 text-xs font-medium rounded-xl hover:bg-teal-900/40 transition-colors whitespace-nowrap">
-                  ⬇ PDF
+                <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors">
+                  💬 Message
                 </button>
               </div>
             )}
@@ -370,155 +464,40 @@ export default function ProProfilePage() {
         </div>
       </div>
 
-      {/* ── MAIN CONTENT ────────────────────────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      {/* ── MAIN CONTENT ─────────────────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-5 py-5">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-          {/* LEFT COLUMN — main content */}
-          <div className="lg:col-span-2 space-y-5">
+          {/* LEFT — main content column */}
+          <div className="lg:col-span-2 space-y-4">
 
-            {/* ── CREDENTIAL VAULT ── */}
-            {(proLicenses.length > 0 || (pro as any).osha_card_type || (pro as any).insurance_status === 'active' || (pro as any).insurance_status === 'expiring_soon') && (
-              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-                <div className="px-6 pt-5 pb-2 flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-900">Verified credentials</h2>
-                  <span className="text-xs text-gray-400 bg-stone-100 px-2 py-1 rounded-full">Florida DBPR</span>
-                </div>
-
-                <div className="px-6 pb-5 space-y-3">
-                  {/* License cards */}
-                  {proLicenses.map(lic => {
-                    const expiry    = lic.license_expiry_date
-                    const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
-                    const daysLeft  = expiry ? Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000) : null
-                    const { text: statusText, cls: statusCls } = licStatusLabel(lic.license_status)
-                    return (
-                      <div key={lic.id} className="bg-stone-50 border border-gray-100 rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${licStatusDot(lic.license_status)}`} />
-                            <span className="font-semibold text-sm text-gray-900">{lic.trade_name}</span>
-                            {lic.is_primary && <span className="text-xs px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded font-medium">Primary</span>}
-                          </div>
-                          <span className={`text-xs font-semibold ${statusCls}`}>{statusText}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs text-gray-400">
-                            <LicenseNumber number={lic.license_number} />
-                            {expiryStr && <span className="ml-2">· exp {expiryStr}{daysLeft !== null && daysLeft <= 30 && daysLeft > 0 ? ` (${daysLeft}d)` : ''}</span>}
-                          </div>
-                          <a href={dbprUrl(lic.license_number)} target="_blank" rel="noopener noreferrer"
-                            className="text-xs text-teal-600 hover:text-teal-700 font-medium">
-                            Verify →
-                          </a>
-                        </div>
-                      </div>
-                    )
-                  })}
-
-                  {/* Fallback single license */}
-                  {proLicenses.length === 0 && pro.license_number && (
-                    <div className="bg-stone-50 border border-gray-100 rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${licStatusDot((pro as any).license_status || 'unknown')}`} />
-                          <span className="font-semibold text-sm text-gray-900">{trade}</span>
-                        </div>
-                        <span className={`text-xs font-semibold ${licStatusLabel((pro as any).license_status || 'unknown').cls}`}>
-                          {licStatusLabel((pro as any).license_status || 'unknown').text}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <LicenseNumber number={pro.license_number} />
-                        <a href={dbprUrl(pro.license_number)} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-teal-600 hover:text-teal-700 font-medium">Verify →</a>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* OSHA card */}
-                  {(pro as any).osha_card_type && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">🦺</span>
-                          <span className="font-semibold text-sm text-blue-900">{(pro as any).osha_card_type} Safety Certification</span>
-                        </div>
-                        <span className="text-xs font-semibold text-blue-700">Valid</span>
-                      </div>
-                      {(pro as any).osha_card_expiry && (
-                        <div className="text-xs text-blue-500 mt-1.5 ml-7">
-                          Expires {new Date((pro as any).osha_card_expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Insurance */}
-                  {(pro as any).insurance_status === 'active' && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">🛡️</span>
-                          <span className="font-semibold text-sm text-blue-900">General Liability Insurance</span>
-                        </div>
-                        <span className="text-xs font-semibold text-blue-700">Active</span>
-                      </div>
-                      {(pro as any).insurance_expiry_date && (
-                        <div className="text-xs text-blue-500 mt-1.5 ml-7">
-                          Expires {new Date((pro as any).insurance_expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {(pro as any).insurance_status === 'expiring_soon' && (
-                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                      <div className="flex items-center gap-2">
-                        <span>🛡️</span>
-                        <span className="font-semibold text-sm text-amber-900">Insurance expiring soon</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <p className="text-xs text-gray-400 pt-1">
-                    All licenses verified against Florida Department of Business &amp; Professional Regulation
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* ── PORTFOLIO ── */}
+            {/* ── 1. PROJECT PHOTOS ── */}
             {portfolio.length > 0 && (
-              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-                <div className="px-6 pt-5 pb-3 flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-900">Project photos</h2>
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-5 pt-4 pb-3 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-gray-900">Project photos</h2>
                   <span className="text-xs text-gray-400">{portfolio.length} photos</span>
                 </div>
                 <div className="px-4 pb-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {visiblePhotos.map(item => (
-                      <div key={item.id} onClick={() => item.photo_url && setLightbox(item.photo_url)}
-                        className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group bg-stone-100">
-                        {item.photo_url ? (
-                          <img src={item.photo_url} alt={item.title || 'Portfolio'}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-                            <div className="text-2xl">🖼</div>
-                            <div className="text-xs mt-1">{item.title}</div>
-                          </div>
-                        )}
-                        {/* Title overlay on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                          <span className="text-white text-xs font-medium truncate">{item.title}</span>
+                      <div key={item.id} className="rounded-xl overflow-hidden bg-stone-100 cursor-pointer group"
+                        onClick={() => item.photo_url && setLightbox(item.photo_url)}>
+                        <div className="relative aspect-square">
+                          {item.photo_url
+                            ? <img src={item.photo_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            : <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">🖼</div>
+                          }
+                          {item.is_job_site && (
+                            <div className="absolute top-2 left-2 bg-green-700/90 rounded-full px-2 py-0.5">
+                              <span className="text-white text-xs font-semibold">✓ Verified GPS</span>
+                            </div>
+                          )}
                         </div>
-                        {/* GPS badge */}
-                        {item.is_job_site && (
-                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 rounded-full px-2 py-0.5">
-                            <span className="text-xs">📍</span>
-                            <span className="text-white text-xs truncate max-w-[80px]">{item.location_label || 'Job site'}</span>
-                          </div>
-                        )}
+                        <div className="px-2 py-1.5 bg-white border-t border-gray-100">
+                          <div className="text-xs font-medium text-gray-800 truncate">{item.title || 'Photo'}</div>
+                          {item.location_label && <div className="text-xs text-gray-400 truncate">📍 {item.location_label}</div>}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -529,155 +508,168 @@ export default function ProProfilePage() {
                     </button>
                   )}
                 </div>
-                {isOwner && portfolio.length === 0 && (
-                  <div className="px-6 pb-5 text-center">
-                    <Link href="/community/edit" className="text-sm text-teal-600 font-medium hover:underline">
-                      Add project photos →
-                    </Link>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* ── TABS ── */}
-            <div className="flex gap-1 bg-white border border-gray-100 rounded-2xl p-1.5">
-              {(['about','reviews','photos'] as const).map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2 text-sm font-medium rounded-xl capitalize transition-colors ${activeTab === tab ? 'bg-teal-600 text-white' : 'text-gray-500 hover:text-gray-900'}`}>
-                  {tab === 'reviews' ? `Reviews (${reviewCnt})` : tab === 'photos' ? `Photos (${portfolio.length})` : 'About'}
-                </button>
-              ))}
-            </div>
+            {/* ── 2. FLASH BIO / ABOUT ── */}
+            {(pro.bio || equipment.length > 0) && (
+              <div className="bg-stone-50 border border-gray-200 rounded-xl overflow-hidden">
+                <div className="border-l-4 border-l-teal-500 px-5 pt-5 pb-5">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3">About {firstName}</h2>
 
-            {/* ── ABOUT TAB ── */}
-            {activeTab === 'about' && (
-              <div className="space-y-4">
-
-                {/* Structured grid */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6">
-                  <h2 className="font-semibold text-gray-900 mb-4">About {firstName}</h2>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 mb-5">
+                  {/* Structured grid */}
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-4">
                     {[
-                      { label: 'Experience', value: pro.years_experience ? `${pro.years_experience} years` : '—' },
-                      { label: 'Location', value: location || '—' },
-                      { label: 'Languages', value: (pro as any).preferred_language === 'es' ? 'Spanish, English' : 'English' },
-                      { label: 'Verified', value: pro.is_verified ? '✓ State database' : 'Unverified' },
-                      ...((pro as any).counties_served?.length ? [{ label: 'Service area', value: (pro as any).counties_served.slice(0,3).join(', ') + ((pro as any).counties_served.length > 3 ? ` +${(pro as any).counties_served.length - 3} more` : '') }] : []),
+                      { lbl: 'Experience', val: pro.years_experience ? `${pro.years_experience} years` : '—' },
+                      { lbl: 'Location', val: location || '—' },
+                      { lbl: 'Languages', val: (pro as any).preferred_language === 'es' ? 'Spanish, English' : 'English' },
+                      ...((pro as any).counties_served?.length ? [{ lbl: 'Service area', val: (pro as any).counties_served.slice(0,3).join(', ') + ((pro as any).counties_served.length > 3 ? ` +${(pro as any).counties_served.length - 3}` : '') }] : []),
                     ].map(d => (
-                      <div key={d.label}>
-                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{d.label}</div>
-                        <div className="text-sm text-gray-900">{d.value}</div>
+                      <div key={d.lbl}>
+                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{d.lbl}</div>
+                        <div className="text-sm text-gray-900">{d.val}</div>
                       </div>
                     ))}
                   </div>
 
-                  {/* Bio */}
                   {pro.bio && (
-                    <>
-                      <div className="border-t border-gray-100 pt-4">
-                        <p className="text-gray-600 text-sm leading-relaxed">{pro.bio}</p>
-                      </div>
-                    </>
+                    <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-200 pt-3">{pro.bio}</p>
                   )}
-                </div>
 
-                {/* Equipment */}
-                {equipment.length > 0 && (
-                  <div className="bg-white border border-gray-100 rounded-2xl p-6">
-                    <h2 className="font-semibold text-gray-900 mb-3">Equipment &amp; tools</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {equipment.map(eq => (
-                        <span key={eq.id}
-                          className={`text-xs px-3 py-1.5 rounded-full border font-medium ${eq.certified ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-stone-50 text-gray-600 border-gray-200'}`}>
-                          {eq.certified && <span className="text-teal-500 mr-1">✓</span>}{eq.name}
-                        </span>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-3">✓ = certified · Other items are self-reported</p>
-                  </div>
-                )}
-
-                {/* Memberships */}
-                {memberships.length > 0 && (
-                  <div className="bg-white border border-gray-100 rounded-2xl p-6">
-                    <h2 className="font-semibold text-gray-900 mb-3">Associations</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {memberships.map(m => (
-                        <span key={m.id} className="text-xs px-3 py-1.5 rounded-full border bg-blue-50 text-blue-700 border-blue-100 font-medium">
-                          🏛️ {m.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Peer endorsements */}
-                {endorsements.length > 0 && (
-                  <div className="bg-white border border-gray-100 rounded-2xl p-6">
-                    <h2 className="font-semibold text-gray-900 mb-1">Peer endorsements</h2>
-                    <p className="text-xs text-gray-400 mb-4">Vouched for by other verified pros on TradesNetwork</p>
-                    <div className="space-y-3">
-                      {endorsements.map(skill => (
-                        <div key={skill.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">{skill.skill_name}</div>
-                            <div className="text-xs text-teal-600 font-medium mt-0.5">
-                              Vouched for by {skill.endorsement_count} pro{skill.endorsement_count !== 1 ? 's' : ''}
-                            </div>
-                          </div>
-                          <div className="flex -space-x-1.5">
-                            {Array.from({ length: Math.min(skill.endorsement_count, 4) }).map((_, i) => (
-                              <div key={i} className="w-7 h-7 rounded-full bg-teal-100 border-2 border-white flex items-center justify-center">
-                                <span className="text-teal-700 text-xs font-semibold">✓</span>
-                              </div>
-                            ))}
-                            {skill.endorsement_count > 4 && (
-                              <div className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
-                                <span className="text-gray-500 text-xs font-semibold">+{skill.endorsement_count - 4}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Business hours */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6">
-                  <button onClick={() => setShowHours(h => !h)}
-                    className="w-full flex items-center justify-between">
-                    <h2 className="font-semibold text-gray-900">Business hours</h2>
-                    <span className="text-gray-400 text-sm">{showHours ? '▲' : '▼'}</span>
-                  </button>
-                  {!showHours && (
-                    <p className="text-sm text-gray-400 mt-2">Mon–Fri: 8:00 AM – 5:00 PM · tap to expand</p>
-                  )}
-                  {showHours && (
-                    <div className="mt-4 space-y-2">
-                      {DAYS.map(day => (
-                        <div key={day} className="flex justify-between text-sm">
-                          <span className="text-gray-500 w-28">{day}</span>
-                          <span className={`font-medium ${DEFAULT_HOURS[day] === 'Closed' ? 'text-gray-400' : 'text-gray-900'}`}>
-                            {DEFAULT_HOURS[day]}
+                  {/* Equipment — the "hardware" line */}
+                  {equipment.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Equipment & tools</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {equipment.map(eq => (
+                          <span key={eq.id} className={`text-xs px-2.5 py-1 rounded-lg border font-medium ${eq.certified ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-white text-gray-600 border-gray-200'}`}>
+                            {eq.certified && <span className="text-teal-500 mr-1">✓</span>}{eq.name}
                           </span>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Memberships */}
+                  {memberships.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Associations</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {memberships.map(m => (
+                          <span key={m.id} className="text-xs px-2.5 py-1 rounded-lg border bg-blue-50 text-blue-700 border-blue-100 font-medium">🏛 {m.name}</span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* ── REVIEWS TAB ── */}
+            {/* ── 3. CREDENTIAL VAULT ── */}
+            {hasCredentials && (
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-gray-900">Verified credentials</h2>
+                  <span className="text-xs text-gray-400 bg-stone-100 border border-gray-200 px-2 py-0.5 rounded-full">Florida DBPR</span>
+                </div>
+
+                {proLicenses.map(lic => <CredCard key={lic.id} lic={lic} />)}
+
+                {proLicenses.length === 0 && pro.license_number && (
+                  <CredCard lic={{ id: 'legacy', trade_name: trade, license_number: pro.license_number, license_expiry_date: (pro as any).license_expiry_date, license_status: (pro as any).license_status || 'unknown', is_primary: true }} />
+                )}
+
+                {hasOsha && (
+                  <AuxCredCard icon="🦺" title={`${(pro as any).osha_card_type} Safety Certification`}
+                    status="valid" sub={(pro as any).osha_card_expiry ? `Expires ${new Date((pro as any).osha_card_expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : undefined} />
+                )}
+
+                {hasInsurance && (
+                  <AuxCredCard icon="🛡" title="General Liability Insurance"
+                    status={(pro as any).insurance_status === 'expiring_soon' ? 'expiring_soon' : 'active'}
+                    sub={(pro as any).insurance_expiry_date ? `Expires ${new Date((pro as any).insurance_expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : undefined} />
+                )}
+
+                <button onClick={downloadPdf}
+                  className="mt-1 w-full text-center py-2.5 border border-gray-200 rounded-xl text-xs font-medium text-gray-500 hover:border-teal-300 hover:text-teal-600 transition-colors">
+                  📋 Download Credential Report (PDF)
+                </button>
+                <p className="text-xs text-gray-400 mt-2.5 text-center">All licenses verified against Florida Dept. of Business &amp; Professional Regulation</p>
+              </div>
+            )}
+
+            {/* ── 4. PEER ENDORSEMENTS ── */}
+            {endorsements.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <h2 className="text-sm font-semibold text-gray-900 mb-1">Peer endorsements</h2>
+                <p className="text-xs text-gray-400 mb-3">Vouched for by verified pros on TradesNetwork</p>
+                <div className="space-y-0">
+                  {endorsements.map((skill, i) => (
+                    <div key={skill.id} className={`flex items-center justify-between py-2.5 ${i < endorsements.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                      <div>
+                        <div className="text-sm text-gray-900">{skill.skill_name}</div>
+                        <div className="text-xs text-teal-600 font-medium mt-0.5">Endorsed by {skill.endorsement_count} pro{skill.endorsement_count !== 1 ? 's' : ''}</div>
+                      </div>
+                      <div className="flex">
+                        {Array.from({ length: Math.min(skill.endorsement_count, 4) }).map((_, j) => (
+                          <div key={j} className="w-6 h-6 rounded-full bg-teal-100 border-2 border-white flex items-center justify-center -ml-1.5 first:ml-0">
+                            <span className="text-teal-700 text-xs font-semibold">✓</span>
+                          </div>
+                        ))}
+                        {skill.endorsement_count > 4 && (
+                          <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center -ml-1.5">
+                            <span className="text-gray-500 text-xs">+{skill.endorsement_count - 4}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── 5. TABS — About / Reviews ── */}
+            <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1.5">
+              {(['about', 'reviews'] as const).map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2 text-sm font-medium rounded-xl capitalize transition-colors ${activeTab === tab ? 'bg-teal-600 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+                  {tab === 'reviews' ? `Reviews (${reviewCnt})` : 'About'}
+                </button>
+              ))}
+            </div>
+
+            {/* About tab */}
+            {activeTab === 'about' && (
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-4">
+                  {[
+                    { lbl: 'Trade', val: trade },
+                    { lbl: 'Verified', val: pro.is_verified ? '✓ State database' : 'Self-reported' },
+                    { lbl: 'Plan', val: pro.plan_tier || 'Free' },
+                  ].map(d => (
+                    <div key={d.lbl}>
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{d.lbl}</div>
+                      <div className={`text-sm ${d.lbl === 'Verified' && pro.is_verified ? 'text-green-700' : 'text-gray-900'}`}>{d.val}</div>
+                    </div>
+                  ))}
+                </div>
+                {pro.bio ? (
+                  <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4">{pro.bio}</p>
+                ) : (
+                  <p className="text-sm text-gray-400 italic border-t border-gray-100 pt-4">No bio added yet.</p>
+                )}
+              </div>
+            )}
+
+            {/* Reviews tab */}
             {activeTab === 'reviews' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {rating > 0 && (
-                  <div className="bg-white border border-gray-100 rounded-2xl p-6">
+                  <div className="bg-white border border-gray-200 rounded-xl p-5">
                     <div className="flex items-center gap-6 mb-4">
                       <div className="text-center">
-                        <div className="text-5xl font-serif font-bold text-gray-900">{rating.toFixed(1)}</div>
-                        <div className="text-amber-400 text-xl mt-1">{starsHtml(rating)}</div>
+                        <div className="text-4xl font-serif font-bold text-gray-900">{rating.toFixed(1)}</div>
+                        <div className="text-amber-400 text-lg mt-1">{starsHtml(rating)}</div>
                         <div className="text-xs text-gray-400 mt-1">{reviewCnt} reviews</div>
                       </div>
                       <div className="flex-1 space-y-1.5">
@@ -699,38 +691,27 @@ export default function ProProfilePage() {
                     {keywords.length > 0 && (
                       <div>
                         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Mentioned often</div>
-                        <div className="flex flex-wrap gap-2">
-                          {keywords.map(kw => (
-                            <span key={kw} className="text-xs px-3 py-1 bg-teal-50 text-teal-700 rounded-full font-medium capitalize">{kw}</span>
-                          ))}
+                        <div className="flex flex-wrap gap-1.5">
+                          {keywords.map(kw => <span key={kw} className="text-xs px-2.5 py-1 bg-teal-50 text-teal-700 rounded-lg font-medium capitalize">{kw}</span>)}
                         </div>
                       </div>
                     )}
                   </div>
                 )}
-
                 {!isOwner && (
                   <div className="flex justify-end">
-                    <a href={`/reviews/${id}`}
-                      className="flex items-center gap-2 px-4 py-2 border border-teal-300 text-teal-700 text-sm font-semibold rounded-xl hover:bg-teal-50 transition-colors">
+                    <a href={`/reviews/${id}`} className="flex items-center gap-2 px-4 py-2 border border-teal-300 text-teal-700 text-sm font-semibold rounded-xl hover:bg-teal-50 transition-colors">
                       ⭐ Write a review
                     </a>
                   </div>
                 )}
-
                 {reviews.length === 0 ? (
-                  <div className="bg-white border border-gray-100 rounded-2xl py-12 text-center">
-                    <div className="text-gray-400 text-sm mb-3">
-                      {isOwner ? 'No reviews yet — homeowners will leave reviews after jobs.' : 'No reviews yet — be the first!'}
-                    </div>
-                    {!isOwner && (
-                      <a href={`/reviews/${id}`} className="text-sm font-semibold text-teal-600 hover:underline">
-                        Leave the first review →
-                      </a>
-                    )}
+                  <div className="bg-white border border-gray-200 rounded-xl py-10 text-center">
+                    <div className="text-gray-400 text-sm">{isOwner ? 'No reviews yet.' : 'No reviews yet — be the first!'}</div>
+                    {!isOwner && <a href={`/reviews/${id}`} className="text-sm font-semibold text-teal-600 hover:underline mt-2 block">Leave the first review →</a>}
                   </div>
                 ) : reviews.map(rev => (
-                  <div key={rev.id} className="bg-white border border-gray-100 rounded-2xl p-5">
+                  <div key={rev.id} className="bg-white border border-gray-200 rounded-xl p-5">
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="font-semibold text-gray-900 text-sm">{rev.reviewer_name || 'Anonymous'}</div>
@@ -743,55 +724,19 @@ export default function ProProfilePage() {
                 ))}
               </div>
             )}
-
-            {/* ── PHOTOS TAB ── */}
-            {activeTab === 'photos' && (
-              <div className="bg-white border border-gray-100 rounded-2xl p-5">
-                <h2 className="font-semibold text-gray-900 mb-4">All projects &amp; photos</h2>
-                {portfolio.length === 0 ? (
-                  <div className="py-10 text-center text-gray-400 text-sm">
-                    {isOwner
-                      ? <><Link href="/community/edit" className="text-teal-600 font-medium">Add photos</Link> to showcase your work</>
-                      : 'No photos yet.'}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {portfolio.map(item => (
-                      <div key={item.id} onClick={() => item.photo_url && setLightbox(item.photo_url)}
-                        className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group bg-stone-100">
-                        {item.photo_url
-                          ? <img src={item.photo_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                          : <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">🖼</div>
-                        }
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                          <span className="text-white text-xs font-medium truncate">{item.title}</span>
-                        </div>
-                        {item.is_job_site && (
-                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 rounded-full px-2 py-0.5">
-                            <span className="text-xs">📍</span>
-                            <span className="text-white text-xs truncate max-w-[80px]">{item.location_label || 'Job site'}</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* ── RIGHT SIDEBAR ── */}
-          <div className="space-y-4">
+          {/* ── RIGHT SIDEBAR (desktop only) ── */}
+          <div className="hidden lg:flex flex-col gap-4">
 
-            {/* Stats card */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <div className="grid grid-cols-3 gap-0 text-center divide-x divide-gray-100">
+            {/* Stats */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <div className="grid grid-cols-2 gap-3 text-center">
                 {[
-                  { val: reviewCnt,                                   lbl: 'Reviews' },
-                  { val: pro.years_experience || '—',                 lbl: 'Yrs exp' },
-                  { val: (pro as any).lead_count || 0,                lbl: 'Enquiries' },
+                  { val: reviewCnt,                          lbl: 'Reviews' },
+                  { val: pro.years_experience || '—',        lbl: 'Yrs exp' },
                 ].map(s => (
-                  <div key={s.lbl} className="px-2">
+                  <div key={s.lbl} className="bg-stone-50 rounded-xl py-3">
                     <div className="text-xl font-semibold text-teal-600">{s.val}</div>
                     <div className="text-xs text-gray-400 mt-0.5">{s.lbl}</div>
                   </div>
@@ -800,14 +745,14 @@ export default function ProProfilePage() {
             </div>
 
             {/* Trust signals */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2.5">
               {[
-                { icon: '✓', lbl: pro.is_verified ? 'License verified' : 'Profile created', sub: pro.is_verified ? 'State database check' : (isOwner ? 'Unverified — complete profile' : 'Self-reported') },
-                { icon: '💰', lbl: 'Free to contact', sub: 'No per-lead fees ever' },
-                { icon: rating > 0 ? '⭐' : '🆕', lbl: rating > 0 ? `${rating.toFixed(1)} star rating` : 'New pro', sub: rating > 0 ? `${reviewCnt} verified reviews` : 'Be the first to review' },
+                { icon: '✓', lbl: pro.is_verified ? 'License verified' : 'Profile created', sub: pro.is_verified ? 'State database check' : 'Self-reported' },
+                { icon: '$', lbl: 'Free to contact', sub: 'No per-lead fees ever' },
+                { icon: '★', lbl: rating > 0 ? `${rating.toFixed(1)} star rating` : 'New pro', sub: rating > 0 ? `${reviewCnt} verified reviews` : 'Be the first to review' },
               ].map(item => (
                 <div key={item.lbl} className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center text-sm flex-shrink-0">{item.icon}</div>
+                  <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center text-sm flex-shrink-0 font-semibold text-teal-700">{item.icon}</div>
                   <div>
                     <div className="text-xs font-semibold text-gray-900">{item.lbl}</div>
                     <div className="text-xs text-gray-400">{item.sub}</div>
@@ -816,108 +761,77 @@ export default function ProProfilePage() {
               ))}
             </div>
 
-            {/* Contact form */}
-            <div id="contact-form" className="bg-white border border-gray-100 rounded-2xl p-5">
-              {isOwner ? (
-                <>
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Your contact info</div>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">📧</span>
-                      <div><div className="text-xs text-gray-400">Email</div><div className="text-sm font-medium text-gray-900">{pro.email}</div></div>
+            {/* Compact credential status */}
+            {hasCredentials && (
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Credential status</div>
+                <div className="space-y-2">
+                  {proLicenses.slice(0, 3).map(lic => (
+                    <div key={lic.id} className="flex items-center justify-between">
+                      <span className="text-xs text-gray-700 truncate">{lic.trade_name}</span>
+                      <span className={`text-xs font-semibold ml-2 flex-shrink-0 ${lic.license_status === 'active' ? 'text-green-600' : lic.license_status === 'expiring_soon' ? 'text-amber-600' : 'text-red-600'}`}>
+                        {lic.license_status === 'active' ? '● Active' : lic.license_status === 'expiring_soon' ? '● Expiring' : '● Expired'}
+                      </span>
                     </div>
-                    {pro.phone && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">📱</span>
-                        <div><div className="text-xs text-gray-400">Phone</div><div className="text-sm font-medium text-gray-900">{pro.phone}</div></div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : submitted ? (
-                <div className="text-center py-6">
-                  <div className="text-3xl mb-3">✓</div>
-                  <div className="font-semibold text-gray-900 mb-1">Message sent!</div>
-                  <div className="text-sm text-gray-400">{firstName} will be in touch soon.</div>
+                  ))}
+                  {hasOsha && <div className="flex items-center justify-between"><span className="text-xs text-gray-700">🦺 {(pro as any).osha_card_type}</span><span className="text-xs font-semibold text-green-600 ml-2">● Valid</span></div>}
+                  {hasInsurance && <div className="flex items-center justify-between"><span className="text-xs text-gray-700">🛡 Insurance</span><span className="text-xs font-semibold text-green-600 ml-2">● Active</span></div>}
                 </div>
-              ) : (
-                <>
-                  <div className="font-semibold text-gray-900 mb-0.5">Request a callback</div>
-                  <div className="text-xs text-gray-400 mb-4">Free · Direct contact · No middleman</div>
-                  {formError && <div className="mb-3 p-2.5 bg-red-50 text-red-600 text-xs rounded-lg">{formError}</div>}
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Your name *</label>
-                      <input value={name} onChange={e => setName(e.target.value)} placeholder="James Smith"
-                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 transition-colors" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Phone (preferred) *</label>
-                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(555) 000-0000"
-                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 transition-colors" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Job description</label>
-                      <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3}
-                        placeholder="Briefly describe what you need done..."
-                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 resize-none transition-colors" />
-                    </div>
-                    <button onClick={handleLead} disabled={submitting}
-                      className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors">
-                      {submitting ? 'Sending...' : 'Request callback →'}
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-400 text-center mt-3">Zero per-lead fees · Direct contact</p>
-                </>
-              )}
-            </div>
-
-            {/* Follow / Community */}
-            {session && !isOwner && (
-              <div className="flex gap-2">
-                <button onClick={toggleFollow}
-                  className={`flex-1 py-2.5 text-sm font-semibold rounded-xl border transition-all ${isFollowing ? 'border-gray-200 text-gray-500' : 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'}`}>
-                  {isFollowing ? '✓ Following' : '+ Follow'}
-                </button>
-                <a href={`/messages?with=${id}`}
-                  className="flex-1 py-2.5 text-sm font-semibold text-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-teal-300 hover:text-teal-700 transition-all">
-                  💬 Message
-                </a>
               </div>
             )}
+
+            {/* Contact — desktop */}
+            {!isOwner && (
+              <button onClick={() => setShowModal(true)}
+                className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">
+                💬 Send a message
+              </button>
+            )}
+
+            {/* Owner shortcuts */}
+            {isOwner && (
+              <div className="space-y-2">
+                <Link href="/edit-profile" className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">Edit profile</Link>
+                <Link href="/community/edit" className="block w-full py-2.5 text-center border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">Edit portfolio</Link>
+              </div>
+            )}
+
+            {/* Follow (community) */}
+            {session && !isOwner && (
+              <button onClick={toggleFollow}
+                className={`w-full py-2.5 text-sm font-semibold rounded-xl border transition-all ${isFollowing ? 'border-gray-200 text-gray-500' : 'border-teal-300 text-teal-700 hover:bg-teal-50'}`}>
+                {isFollowing ? '✓ Following' : '+ Follow'}
+              </button>
+            )}
           </div>
+
         </div>
       </div>
 
-      {/* ── MOBILE STICKY CTA ── (hidden on lg) */}
+      {/* ── MOBILE STICKY FOOTER (hidden on lg) ── */}
       {!isOwner && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 z-40 shadow-lg">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-40">
           <div className="flex gap-3 max-w-sm mx-auto">
             {pro.phone ? (
-              <a href={`tel:${pro.phone}`}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
-                📞 Call
+              <a href={`tel:${pro.phone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
+                📞 Call now
               </a>
             ) : (
-              <button onClick={() => document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
+              <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
                 📞 Request call
               </button>
             )}
-            <button
-              onClick={() => document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex-1 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl">
+            <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl">
               💬 Message
             </button>
           </div>
         </div>
       )}
 
-      {/* Footer */}
-      <footer className={`border-t border-gray-100 mt-12 py-8 ${!isOwner ? 'pb-24 lg:pb-8' : ''}`}>
-        <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-between gap-4">
+      <footer className={`border-t border-gray-200 mt-8 py-6 ${!isOwner ? 'pb-24 lg:pb-6' : ''}`}>
+        <div className="max-w-5xl mx-auto px-5 flex flex-wrap items-center justify-between gap-4">
           <div className="font-serif text-sm text-gray-900">Trades<span className="text-teal-600">Network</span></div>
-          <div className="flex gap-5 text-sm">
+          <div className="flex gap-4 text-sm">
             {[['/', 'Home'],['/about','About'],['/contact','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([href, label]) => (
               <a key={href} href={href} className="text-gray-400 hover:text-teal-600 transition-colors">{label}</a>
             ))}
