@@ -3,7 +3,7 @@ import { Pro } from '@/types'
 import { initials, avatarColor, starsHtml, isPaid, isElite } from '@/lib/utils'
 
 interface ProCardProps {
-  pro: Pro & { trade_score?: number }
+  pro: Pro & { trade_score?: number; osha_card_type?: string; insurance_status?: string }
   index?: number
 }
 
@@ -15,92 +15,119 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
   const trade    = pro.trade_category?.category_name || '—'
   const location = [pro.city, pro.state].filter(Boolean).join(', ')
   const score    = pro.trade_score || null
+  const hasOsha  = !!(pro as any).osha_card_type
+  const hasInsurance = (pro as any).insurance_status === 'active'
 
   return (
     <Link
       href={`/pro/${pro.id}`}
-      className="group block bg-white border border-gray-100 rounded-2xl p-6 hover:border-teal-300 hover:shadow-lg hover:shadow-teal-50 hover:-translate-y-0.5 transition-all duration-200 relative"
+      className="group block bg-white border border-gray-200 rounded-xl p-5 hover:border-teal-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative"
       style={{ animationDelay: `${index * 40}ms` }}
     >
-      {/* Available for work badge */}
-      {pro.available_for_work && (
-        <div className="absolute top-4 right-4 flex items-center gap-1 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-          <span className="text-xs font-medium text-green-700">Available</span>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex gap-4 items-start mb-4">
-        {pro.profile_photo_url ? (
-          <img src={pro.profile_photo_url} alt={pro.full_name}
-            className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-            onError={e => { e.currentTarget.style.display='none'; (e.currentTarget.nextElementSibling as HTMLElement)?.removeAttribute('style') }}
-          />
-        ) : null}
-        <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-serif flex-shrink-0"
-          style={{ background: bg, color: fg, display: pro.profile_photo_url ? 'none' : 'flex' }}>
-          {initials(pro.full_name)}
+      {/* Header — avatar with availability ring + name */}
+      <div className="flex gap-3 items-start mb-3">
+        <div className="relative flex-shrink-0">
+          {pro.profile_photo_url ? (
+            <img src={pro.profile_photo_url} alt={pro.full_name}
+              className={`w-11 h-11 rounded-full object-cover ${pro.available_for_work ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
+              onError={e => { e.currentTarget.style.display='none'; (e.currentTarget.nextElementSibling as HTMLElement)?.removeAttribute('style') }}
+            />
+          ) : null}
+          <div
+            className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-serif flex-shrink-0 ${pro.available_for_work ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
+            style={{ background: bg, color: fg, display: pro.profile_photo_url ? 'none' : 'flex' }}>
+            {initials(pro.full_name)}
+          </div>
+          {/* Available pulse dot */}
+          {pro.available_for_work && (
+            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-900 truncate pr-16">{pro.full_name}</div>
-          <div className="text-sm font-medium text-teal-700">{trade}</div>
+          <div className="font-semibold text-gray-900 truncate text-sm leading-snug">{pro.full_name}</div>
+          <div className="text-xs font-medium text-teal-700 mt-0.5">{trade}</div>
+          {location && <div className="text-xs text-gray-400 mt-0.5 truncate">{location}</div>}
         </div>
       </div>
 
-      {/* Badges */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      {/* Trust badge row */}
+      <div className="flex flex-wrap gap-1 mb-3">
         {pro.is_verified && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-50 text-teal-800">✓ Verified</span>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" className="text-teal-600">
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+            </svg>
+            Verified
+          </span>
+        )}
+        {hasOsha && (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+            🦺 {(pro as any).osha_card_type}
+          </span>
+        )}
+        {hasInsurance && (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">🛡 Insured</span>
         )}
         {isElite(pro.plan_tier) && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-800">Elite</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800">Elite</span>
         )}
         {isPaid(pro.plan_tier) && !isElite(pro.plan_tier) && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-800">Pro</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-800">Pro</span>
         )}
-      </div>
-
-      {/* Location */}
-      <div className="text-sm text-gray-400 mb-3">
-        {location && <span>{location}</span>}
-        {yrs > 0 && <span>{location ? ' · ' : ''}{yrs} yrs exp</span>}
       </div>
 
       {/* Rating */}
       {rating > 0 ? (
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-amber-500 text-sm">{starsHtml(rating)}</span>
-          <span className="text-sm font-semibold text-gray-800">{rating.toFixed(1)}</span>
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="text-amber-500 text-xs">{starsHtml(rating)}</span>
+          <span className="text-xs font-semibold text-gray-800">{rating.toFixed(1)}</span>
           <span className="text-xs text-gray-400">({reviews})</span>
         </div>
       ) : (
-        <div className="h-6 mb-4" />
+        <div className="mb-3" />
       )}
 
       {/* Divider */}
-      <div className="border-t border-gray-100 mb-4" />
+      <div className="border-t border-gray-100 mb-3" />
 
-      {/* Stats + TradeScore */}
-      <div className="flex">
-        <div className="flex-1 text-center">
-          <div className="text-base font-semibold text-gray-900">{reviews}</div>
-          <div className="text-xs text-gray-400">Reviews</div>
+      {/* Stats row — never show 0 */}
+      <div className="flex text-center">
+        <div className="flex-1">
+          {reviews > 0 ? (
+            <>
+              <div className="text-sm font-semibold text-gray-900">{reviews}</div>
+              <div className="text-xs text-gray-400">Reviews</div>
+            </>
+          ) : (
+            <>
+              <div className="text-xs font-semibold text-gray-500">New member</div>
+              <div className="text-xs text-gray-400 mt-0.5">{pro.is_verified ? 'Verified pro' : 'References on request'}</div>
+            </>
+          )}
         </div>
-        <div className="flex-1 text-center border-l border-gray-100">
-          <div className="text-base font-semibold text-gray-900">{yrs || '—'}</div>
-          <div className="text-xs text-gray-400">Yrs exp</div>
+        <div className="flex-1 border-l border-gray-100">
+          {yrs > 0 ? (
+            <>
+              <div className="text-sm font-semibold text-gray-900">{yrs}</div>
+              <div className="text-xs text-gray-400">Yrs exp</div>
+            </>
+          ) : (
+            <>
+              <div className="text-xs font-semibold text-gray-500">{trade !== '—' ? trade : 'Pro'}</div>
+              <div className="text-xs text-gray-400 mt-0.5">Trade</div>
+            </>
+          )}
         </div>
         {score !== null && (
-          <div className="flex-1 text-center border-l border-gray-100">
-            <div className="text-base font-semibold text-teal-600">{score}</div>
+          <div className="flex-1 border-l border-gray-100">
+            <div className="text-sm font-semibold text-teal-600">{score}</div>
             <div className="text-xs text-gray-400">TradeScore</div>
           </div>
         )}
       </div>
 
       {/* CTA */}
-      <button className="mt-4 w-full py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 group-hover:bg-teal-50 group-hover:border-teal-200 group-hover:text-teal-700 transition-colors">
+      <button className="mt-3 w-full py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 group-hover:bg-teal-50 group-hover:border-teal-200 group-hover:text-teal-700 transition-colors">
         View profile →
       </button>
     </Link>

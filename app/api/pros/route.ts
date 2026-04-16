@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
   const limit  = parseInt(searchParams.get('limit') || '12')
   const offset = parseInt(searchParams.get('offset') || '0')
   const sort   = searchParams.get('sort') || 'rating'
-  const email  = searchParams.get('email')
+  const email     = searchParams.get('email')
+  const available  = searchParams.get('available') === 'true'
 
   let query = getSupabaseAdmin()
     .from('pros')
@@ -20,8 +21,9 @@ export async function GET(req: NextRequest) {
     // Include all active pros including unclaimed (they show as verified profiles)
 
   // Filters
-  if (trade)  query = query.eq('trade_category_id', trade)
-  if (email)  query = query.ilike('email', email)
+  if (trade)     query = query.eq('trade_category_id', trade)
+  if (email)     query = query.ilike('email', email)
+  if (available) query = query.eq('available_for_work', true)
 
   // City must be exact match (case-insensitive) — not partial
   if (city)   query = query.ilike('city', city)

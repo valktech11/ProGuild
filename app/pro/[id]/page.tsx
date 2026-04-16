@@ -64,7 +64,7 @@ function CredCard({ lic }: { lic: any }) {
       </div>
       <button onClick={() => setOpen(o => !o)}
         className="w-full text-left px-4 pb-2.5 flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 transition-colors">
-        View credentials {open ? '▲' : '▼'}
+        Details {open ? '▲' : '▼'}
       </button>
       {open && (
         <div className="px-4 pb-3 pt-0 border-t border-gray-100 bg-white">
@@ -303,13 +303,7 @@ export default function ProProfilePage() {
   const hasOsha     = !!(pro as any).osha_card_type
   const hasInsurance = (pro as any).insurance_status === 'active'
 
-  // Track record bar items
-  const trackItems = [
-    pro.years_experience ? `${pro.years_experience} yrs experience` : null,
-    rating > 0 ? `${rating.toFixed(1)} ★ rating` : null,
-    hasOsha ? `${(pro as any).osha_card_type} certified` : null,
-    hasLicense && pro.is_verified ? 'DBPR verified' : null,
-  ].filter(Boolean) as string[]
+
 
   const hasCredentials = proLicenses.length > 0 || pro.license_number || hasOsha || hasInsurance
 
@@ -403,8 +397,11 @@ export default function ProProfilePage() {
                 {/* Badges row */}
                 <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
                   {pro.is_verified && (
-                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-teal-400/10 border border-teal-400/30 text-teal-300 font-medium">
-                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block" /> Verified
+                    <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-teal-400/10 border border-teal-400/30 text-teal-300 font-semibold">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-green-400 flex-shrink-0">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+                      </svg>
+                      Verified by TradesNetwork
                     </span>
                   )}
                   {pro.available_for_work && (
@@ -422,20 +419,7 @@ export default function ProProfilePage() {
             </div>
           </div>
 
-          {/* Track record bar */}
-          {trackItems.length > 0 && (
-            <div className="mx-5 sm:mx-7 mb-4 bg-teal-900/40 border border-teal-700/30 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-              {trackItems.map((item, i) => (
-                <span key={i} className="text-xs text-teal-300 font-medium">
-                  {i > 0 && <span className="text-teal-700 mr-4">·</span>}
-                  {item}
-                </span>
-              ))}
-              {rating > 0 && (
-                <span className="text-xs text-amber-400 font-medium ml-auto">{starsHtml(rating)}</span>
-              )}
-            </div>
-          )}
+
 
           {/* CTA bar */}
           <div className="bg-[#0f1f1a] border-t border-teal-900/40 px-5 sm:px-7 py-3.5">
@@ -446,16 +430,26 @@ export default function ProProfilePage() {
               </div>
             ) : (
               <div className="flex gap-2.5">
+                {/* Mobile: hero shows utility actions. Sticky footer handles Call/Message */}
+                <button onClick={shareProfile}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors lg:hidden">
+                  🔗 Share
+                </button>
+                <button onClick={downloadPdf}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors lg:hidden">
+                  📋 PDF
+                </button>
+                {/* Desktop: hero shows call + message */}
                 {pro.phone ? (
-                  <a href={`tel:${pro.phone}`} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
+                  <a href={`tel:${pro.phone}`} className="flex-1 hidden lg:flex items-center justify-center gap-2 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
                     📞 Call {firstName}
                   </a>
                 ) : (
-                  <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
+                  <button onClick={() => setShowModal(true)} className="flex-1 hidden lg:flex items-center justify-center gap-2 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
                     📞 Request call
                   </button>
                 )}
-                <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors">
+                <button onClick={() => setShowModal(true)} className="flex-1 hidden lg:flex items-center justify-center gap-2 py-2.5 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors">
                   💬 Message
                 </button>
               </div>
@@ -475,7 +469,7 @@ export default function ProProfilePage() {
             {portfolio.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 <div className="px-5 pt-4 pb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-gray-900">Project photos</h2>
+                  <h2 className="text-sm font-bold text-gray-900">Project photos</h2>
                   <span className="text-xs text-gray-400">{portfolio.length} photos</span>
                 </div>
                 <div className="px-4 pb-4">
@@ -515,7 +509,7 @@ export default function ProProfilePage() {
             {(pro.bio || equipment.length > 0) && (
               <div className="bg-stone-50 border border-gray-200 rounded-xl overflow-hidden">
                 <div className="border-l-4 border-l-teal-500 px-5 pt-5 pb-5">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-3">About {firstName}</h2>
+                  <h2 className="text-sm font-bold text-gray-900 mb-3">About {firstName}</h2>
 
                   {/* Structured grid */}
                   <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-4">
@@ -526,8 +520,8 @@ export default function ProProfilePage() {
                       ...((pro as any).counties_served?.length ? [{ lbl: 'Service area', val: (pro as any).counties_served.slice(0,3).join(', ') + ((pro as any).counties_served.length > 3 ? ` +${(pro as any).counties_served.length - 3}` : '') }] : []),
                     ].map(d => (
                       <div key={d.lbl}>
-                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{d.lbl}</div>
-                        <div className="text-sm text-gray-900">{d.val}</div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-0.5">{d.lbl}</div>
+                        <div className="text-sm font-medium text-gray-900">{d.val}</div>
                       </div>
                     ))}
                   </div>
@@ -569,7 +563,7 @@ export default function ProProfilePage() {
             {hasCredentials && (
               <div className="bg-white border border-gray-200 rounded-xl p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-gray-900">Verified credentials</h2>
+                  <h2 className="text-sm font-bold text-gray-900">Verified credentials</h2>
                   <span className="text-xs text-gray-400 bg-stone-100 border border-gray-200 px-2 py-0.5 rounded-full">Florida DBPR</span>
                 </div>
 
@@ -591,7 +585,7 @@ export default function ProProfilePage() {
                 )}
 
                 <button onClick={downloadPdf}
-                  className="mt-1 w-full text-center py-2.5 border border-gray-200 rounded-xl text-xs font-medium text-gray-500 hover:border-teal-300 hover:text-teal-600 transition-colors">
+                  className="mt-1 w-full text-center py-2.5 bg-stone-100 hover:bg-stone-200 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 transition-colors">
                   📋 Download Credential Report (PDF)
                 </button>
                 <p className="text-xs text-gray-400 mt-2.5 text-center">All licenses verified against Florida Dept. of Business &amp; Professional Regulation</p>
@@ -601,7 +595,7 @@ export default function ProProfilePage() {
             {/* ── 4. PEER ENDORSEMENTS ── */}
             {endorsements.length > 0 && (
               <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <h2 className="text-sm font-semibold text-gray-900 mb-1">Peer endorsements</h2>
+                <h2 className="text-sm font-bold text-gray-900 mb-1">Peer endorsements</h2>
                 <p className="text-xs text-gray-400 mb-3">Vouched for by verified pros on TradesNetwork</p>
                 <div className="space-y-0">
                   {endorsements.map((skill, i) => (
@@ -629,40 +623,20 @@ export default function ProProfilePage() {
             )}
 
             {/* ── 5. TABS — About / Reviews ── */}
-            <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1.5">
-              {(['about', 'reviews'] as const).map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2 text-sm font-medium rounded-xl capitalize transition-colors ${activeTab === tab ? 'bg-teal-600 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
-                  {tab === 'reviews' ? `Reviews (${reviewCnt})` : 'About'}
-                </button>
-              ))}
+            {/* Reviews section — single tab */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-900">
+                {reviewCnt > 0 ? `Reviews (${reviewCnt})` : 'Reviews'}
+              </h2>
+              {!isOwner && (
+                <a href={`/reviews/${id}`} className="flex items-center gap-1.5 px-3 py-1.5 border border-teal-300 text-teal-700 text-xs font-semibold rounded-xl hover:bg-teal-50 transition-colors">
+                  ⭐ Write a review
+                </a>
+              )}
             </div>
 
-            {/* About tab */}
-            {activeTab === 'about' && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-4">
-                  {[
-                    { lbl: 'Trade', val: trade },
-                    { lbl: 'Verified', val: pro.is_verified ? '✓ State database' : 'Self-reported' },
-                    { lbl: 'Plan', val: pro.plan_tier || 'Free' },
-                  ].map(d => (
-                    <div key={d.lbl}>
-                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{d.lbl}</div>
-                      <div className={`text-sm ${d.lbl === 'Verified' && pro.is_verified ? 'text-green-700' : 'text-gray-900'}`}>{d.val}</div>
-                    </div>
-                  ))}
-                </div>
-                {pro.bio ? (
-                  <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4">{pro.bio}</p>
-                ) : (
-                  <p className="text-sm text-gray-400 italic border-t border-gray-100 pt-4">No bio added yet.</p>
-                )}
-              </div>
-            )}
-
-            {/* Reviews tab */}
-            {activeTab === 'reviews' && (
+            {/* Reviews content (always visible) */}
+            {(
               <div className="space-y-3">
                 {rating > 0 && (
                   <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -729,27 +703,12 @@ export default function ProProfilePage() {
           {/* ── RIGHT SIDEBAR (desktop only) ── */}
           <div className="hidden lg:flex flex-col gap-4">
 
-            {/* Stats */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="grid grid-cols-2 gap-3 text-center">
-                {[
-                  { val: reviewCnt,                          lbl: 'Reviews' },
-                  { val: pro.years_experience || '—',        lbl: 'Yrs exp' },
-                ].map(s => (
-                  <div key={s.lbl} className="bg-stone-50 rounded-xl py-3">
-                    <div className="text-xl font-semibold text-teal-600">{s.val}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{s.lbl}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Trust signals */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2.5">
               {[
-                { icon: '✓', lbl: pro.is_verified ? 'License verified' : 'Profile created', sub: pro.is_verified ? 'State database check' : 'Self-reported' },
+                { icon: '✓', lbl: pro.is_verified ? 'License verified' : 'Profile created', sub: pro.is_verified ? 'State database check' : 'Awaiting verification' },
                 { icon: '$', lbl: 'Free to contact', sub: 'No per-lead fees ever' },
-                { icon: '★', lbl: rating > 0 ? `${rating.toFixed(1)} star rating` : 'New pro', sub: rating > 0 ? `${reviewCnt} verified reviews` : 'Be the first to review' },
+                { icon: '★', lbl: rating > 0 ? `${rating.toFixed(1)} star rating` : 'New member', sub: rating > 0 ? `${reviewCnt} verified reviews` : 'References available on request' },
               ].map(item => (
                 <div key={item.lbl} className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center text-sm flex-shrink-0 font-semibold text-teal-700">{item.icon}</div>
@@ -761,24 +720,7 @@ export default function ProProfilePage() {
               ))}
             </div>
 
-            {/* Compact credential status */}
-            {hasCredentials && (
-              <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Credential status</div>
-                <div className="space-y-2">
-                  {proLicenses.slice(0, 3).map(lic => (
-                    <div key={lic.id} className="flex items-center justify-between">
-                      <span className="text-xs text-gray-700 truncate">{lic.trade_name}</span>
-                      <span className={`text-xs font-semibold ml-2 flex-shrink-0 ${lic.license_status === 'active' ? 'text-green-600' : lic.license_status === 'expiring_soon' ? 'text-amber-600' : 'text-red-600'}`}>
-                        {lic.license_status === 'active' ? '● Active' : lic.license_status === 'expiring_soon' ? '● Expiring' : '● Expired'}
-                      </span>
-                    </div>
-                  ))}
-                  {hasOsha && <div className="flex items-center justify-between"><span className="text-xs text-gray-700">🦺 {(pro as any).osha_card_type}</span><span className="text-xs font-semibold text-green-600 ml-2">● Valid</span></div>}
-                  {hasInsurance && <div className="flex items-center justify-between"><span className="text-xs text-gray-700">🛡 Insurance</span><span className="text-xs font-semibold text-green-600 ml-2">● Active</span></div>}
-                </div>
-              </div>
-            )}
+
 
             {/* Contact — desktop */}
             {!isOwner && (
@@ -810,7 +752,7 @@ export default function ProProfilePage() {
 
       {/* ── MOBILE STICKY FOOTER (hidden on lg) ── */}
       {!isOwner && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-40">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 z-40" style={{paddingTop:'12px', paddingBottom:'calc(12px + env(safe-area-inset-bottom))'}}>
           <div className="flex gap-3 max-w-sm mx-auto">
             {pro.phone ? (
               <a href={`tel:${pro.phone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
@@ -828,7 +770,7 @@ export default function ProProfilePage() {
         </div>
       )}
 
-      <footer className={`border-t border-gray-200 mt-8 py-6 ${!isOwner ? 'pb-24 lg:pb-6' : ''}`}>
+      <footer className={`border-t border-gray-200 mt-8 py-6 ${!isOwner ? 'lg:pb-6' : ''}`} style={!isOwner ? {paddingBottom: 'calc(80px + env(safe-area-inset-bottom))'} : {}}>
         <div className="max-w-5xl mx-auto px-5 flex flex-wrap items-center justify-between gap-4">
           <div className="font-serif text-sm text-gray-900">Trades<span className="text-teal-600">Network</span></div>
           <div className="flex gap-4 text-sm">

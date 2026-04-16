@@ -7,41 +7,47 @@ import { Pro, TradeCategory } from '@/types'
 
 const PAGE_SIZE = 12
 
+// Top 8 trade slugs to show by default (most common FL trades)
+const TOP_TRADE_SLUGS = [
+  'hvac-technician','electrician','plumber','general-contractor',
+  'roofer','painter','carpenter','flooring',
+]
+
 function SkeletonCard() {
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-6">
-      <div className="flex gap-4 mb-4">
-        <div className="w-12 h-12 rounded-full animate-shimmer flex-shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-3/5 rounded animate-shimmer" />
-          <div className="h-3 w-2/5 rounded animate-shimmer" />
+    <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="flex gap-3 mb-4">
+        <div className="w-11 h-11 rounded-full bg-gray-100 animate-pulse flex-shrink-0" />
+        <div className="flex-1 space-y-2 pt-1">
+          <div className="h-3.5 w-3/5 rounded bg-gray-100 animate-pulse" />
+          <div className="h-3 w-2/5 rounded bg-gray-100 animate-pulse" />
         </div>
       </div>
-      <div className="h-3 w-4/5 rounded animate-shimmer mb-2" />
-      <div className="h-3 w-3/5 rounded animate-shimmer mb-4" />
-      <div className="h-9 w-full rounded-lg animate-shimmer" />
+      <div className="h-3 w-4/5 rounded bg-gray-100 animate-pulse mb-2" />
+      <div className="h-3 w-3/5 rounded bg-gray-100 animate-pulse mb-4" />
+      <div className="h-8 w-full rounded-lg bg-gray-100 animate-pulse" />
     </div>
   )
 }
 
 function HomePageInner() {
   const searchParams = useSearchParams()
-  const [pros, setPros]           = useState<Pro[]>([])
+  const [pros, setPros]             = useState<Pro[]>([])
   const [categories, setCategories] = useState<TradeCategory[]>([])
-  const [stats, setStats]         = useState({ pros: 0, trades: 0, reviews: 0 })
-  const [total, setTotal]         = useState(0)
-  const [hasMore, setHasMore]     = useState(false)
-  const [loading, setLoading]     = useState(true)
+  const [stats, setStats]           = useState({ pros: 0, trades: 0, reviews: 0 })
+  const [total, setTotal]           = useState(0)
+  const [hasMore, setHasMore]       = useState(false)
+  const [loading, setLoading]       = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError]         = useState('')
-  const [search, setSearch]       = useState('')
+  const [error, setError]           = useState('')
+  const [search, setSearch]         = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
   const [activeTrade, setActiveTrade] = useState(() => searchParams.get('trade') || '')
-  const [sort, setSort]           = useState('rating')
-  const offset = useRef(0)
-
-  // Fetch categories + stats once on mount
+  const [sort, setSort]             = useState('rating')
+  const [availableOnly, setAvailableOnly] = useState(false)
+  const [showAllTrades, setShowAllTrades] = useState(false)
   const [tradeCounts, setTradeCounts] = useState<Record<string, number>>({})
+  const offset = useRef(0)
 
   useEffect(() => {
     Promise.all([
@@ -51,35 +57,22 @@ function HomePageInner() {
     ]).then(([catsData, revsData, statsData]) => {
       setCategories(catsData.categories || [])
       setStats(s => ({ ...s, trades: (catsData.categories || []).length, reviews: (revsData.reviews || []).length }))
-      // Build a map of category_id -> pro_count
       const counts: Record<string, number> = {}
-      for (const t of (statsData.trades || [])) {
-        counts[t.id] = t.pro_count
-      }
+      for (const t of (statsData.trades || [])) counts[t.id] = t.pro_count
       setTradeCounts(counts)
     })
   }, [])
 
-  // Build query URL — city is exact filter, name is text search
   function buildUrl(off: number) {
-    const params = new URLSearchParams({
-      limit: String(PAGE_SIZE),
-      offset: String(off),
-      sort,
-    })
-    if (activeTrade)   params.set('trade', activeTrade)
-    if (appliedSearch) {
-      // Single search param — API searches name, city, business name and zip
-      params.set('search', appliedSearch)
-    }
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(off), sort })
+    if (activeTrade)    params.set('trade', activeTrade)
+    if (appliedSearch)  params.set('search', appliedSearch)
+    if (availableOnly)  params.set('available', 'true')
     return `/api/pros?${params}`
   }
 
-  // Initial load / re-load on filter change
   const loadPros = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    offset.current = 0
+    setLoading(true); setError(''); offset.current = 0
     try {
       const r = await fetch(buildUrl(0))
       const d = await r.json()
@@ -89,15 +82,12 @@ function HomePageInner() {
       setHasMore(d.hasMore || false)
       setStats(s => ({ ...s, pros: d.total || 0 }))
       offset.current = PAGE_SIZE
-    } catch(e: any) {
-      setError('Could not load pros. Please refresh.')
-    }
+    } catch { setError('Could not load pros. Please refresh.') }
     setLoading(false)
-  }, [activeTrade, appliedSearch, sort])
+  }, [activeTrade, appliedSearch, sort, availableOnly])
 
   useEffect(() => { loadPros() }, [loadPros])
 
-  // Load more
   async function loadMore() {
     if (loadingMore || !hasMore) return
     setLoadingMore(true)
@@ -108,50 +98,105 @@ function HomePageInner() {
       setPros(prev => [...prev, ...(d.pros || [])])
       setHasMore(d.hasMore || false)
       offset.current += PAGE_SIZE
-    } catch(e) {
-      // silent fail on load more
-    }
+    } catch {}
     setLoadingMore(false)
   }
 
-  function applySearch() {
-    setAppliedSearch(search)
-  }
-
-  function selectTrade(id: string) {
-    setActiveTrade(prev => prev === id ? '' : id)
-    setSearch('')
-    setAppliedSearch('')
-  }
-
-  function clearFilters() {
-    setActiveTrade('')
-    setSearch('')
-    setAppliedSearch('')
-  }
+  function applySearch() { setAppliedSearch(search) }
+  function selectTrade(id: string) { setActiveTrade(prev => prev === id ? '' : id); setSearch(''); setAppliedSearch('') }
+  function clearFilters() { setActiveTrade(''); setSearch(''); setAppliedSearch(''); setAvailableOnly(false) }
 
   const activeCategory = categories.find(c => c.id === activeTrade)
-  const hasFilters = activeTrade || appliedSearch
+  const hasFilters = activeTrade || appliedSearch || availableOnly
+
+  // Trade groups with icons — slugs must match DB exactly
+  const TRADE_GROUPS = [
+    {
+      label: 'Mechanical', icon: '⚙',
+      slugs: ['electrician','plumber','hvac-technician','alarm-security','irrigation','solar-installer','solar-energy'],
+    },
+    {
+      label: 'Structural', icon: '🏗',
+      slugs: ['general-contractor','carpenter','roofer','roofing','mason','welder','structural-contractor','marine-contractor','industrial-facility'],
+    },
+    {
+      label: 'Finishing', icon: '✦',
+      slugs: ['painter','flooring','drywall','windows-doors','gutters','glass-glazing','screening-sheet-metal','tile-setter'],
+    },
+    {
+      label: 'Property & Outdoor', icon: '🌿',
+      slugs: ['landscaper','pool-spa','pest-control','handyman','other-trades'],
+    },
+  ]
+
+  const TRADE_ICONS: Record<string, string> = {
+    'electrician':           '⚡',
+    'plumber':               '🔧',
+    'hvac-technician':       '❄',
+    'alarm-security':        '🔒',
+    'irrigation':            '💧',
+    'solar-installer':       '☀',
+    'solar-energy':          '☀',
+    'general-contractor':    '📋',
+    'carpenter':             '🪚',
+    'roofer':                '🏠',
+    'roofing':               '🏠',
+    'mason':                 '🧱',
+    'welder':                '🔥',
+    'structural-contractor': '🏗',
+    'marine-contractor':     '⚓',
+    'industrial-facility':   '🏭',
+    'painter':               '🎨',
+    'flooring':              '▭',
+    'drywall':               '🔲',
+    'windows-doors':         '🪟',
+    'gutters':               '〰',
+    'glass-glazing':         '🔷',
+    'screening-sheet-metal': '⊞',
+    'tile-setter':           '◼',
+    'landscaper':            '🌿',
+    'pool-spa':              '🏊',
+    'pest-control':          '🛡',
+    'handyman':              '🔨',
+    'other-trades':          '⋯',
+  }
+
+  // Build slug→category lookup
+  const catBySlug: Record<string, typeof categories[0]> = {}
+  for (const cat of categories) catBySlug[cat.slug] = cat
+
+  // Ungrouped categories (not in any group)
+  const groupedSlugs = new Set(TRADE_GROUPS.flatMap(g => g.slugs))
+  const ungrouped = categories.filter(c => !groupedSlugs.has(c.slug))
+
+  const statItems = [
+    { n: loading ? '—' : (total > 0 ? total.toLocaleString() : stats.pros.toLocaleString()), l: 'Verified pros' },
+    { n: stats.trades || '—', l: 'Licensed trades' },
+    { n: stats.reviews || '—', l: 'Reviews posted' },
+  ]
 
   return (
     <>
       <Navbar />
 
-      {/* Hero */}
-      <section className="max-w-2xl mx-auto px-6 pt-16 pb-12 text-center">
-        <span className="inline-block text-xs font-semibold tracking-widest uppercase text-teal-600 bg-teal-50 px-3 py-1 rounded-full mb-5">
-          Trusted skilled trades
+      {/* ── HERO ──────────────────────────────────────────────────────────── */}
+      <section className="max-w-2xl mx-auto px-6 pt-14 pb-10 text-center">
+        <span className="inline-block text-xs font-semibold tracking-widest uppercase text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-full mb-5">
+          Florida's verified trades network
         </span>
-        <h1 className="font-serif text-5xl text-gray-900 leading-tight tracking-tight mb-4">
-          Find the right pro for <em className="not-italic text-teal-600">any job</em>
+        <h1 className="font-serif text-4xl sm:text-5xl text-gray-900 leading-tight tracking-tight mb-4">
+          The verified standard for{' '}
+          <em className="not-italic text-teal-600">skilled trades</em>
         </h1>
-        <p className="text-lg text-gray-400 font-light mb-9 leading-relaxed">
-          Browse verified electricians, plumbers, HVAC techs and more — real reviews, real pros.
+        <p className="text-base sm:text-lg text-gray-400 font-light mb-8 leading-relaxed max-w-xl mx-auto">
+          State-licensed pros, DBPR-verified credentials, GPS-confirmed project history.
+          Hire with certainty.
         </p>
+
+        {/* Search bar */}
         <div className="flex gap-2 bg-white border border-gray-200 rounded-full px-5 py-2 shadow-sm max-w-xl mx-auto">
           <input
-            type="text"
-            value={search}
+            type="text" value={search}
             onChange={e => setSearch(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && applySearch()}
             placeholder="Name, city or zip code..."
@@ -166,63 +211,135 @@ function HomePageInner() {
             Search
           </button>
         </div>
+
+        {/* Available now toggle */}
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <button
+            onClick={() => setAvailableOnly(v => !v)}
+            className={`flex items-center gap-2 text-sm px-4 py-1.5 rounded-full border transition-all font-medium ${
+              availableOnly
+                ? 'bg-green-600 text-white border-green-600'
+                : 'border-gray-200 text-gray-500 hover:border-green-400 hover:text-green-700'
+            }`}>
+            <span className={`w-2 h-2 rounded-full ${availableOnly ? 'bg-white animate-pulse' : 'bg-gray-300'}`} />
+            Available now
+          </button>
+        </div>
       </section>
 
-      {/* Stats */}
+      {/* ── TRUST BAR ─────────────────────────────────────────────────────── */}
       <div className="border-y border-gray-100 bg-white">
-        <div className="max-w-3xl mx-auto px-6 py-6 flex justify-center gap-12">
-          {[
-            { n: loading ? '—' : total > 0 ? total : stats.pros, l: 'Verified pros' },
-            { n: stats.trades || '—', l: 'Trade categories' },
-            { n: stats.reviews || '—', l: 'Reviews posted' },
-          ].map(s => (
-            <div key={s.l} className="text-center">
-              <div className="font-serif text-3xl text-teal-600">{s.n}</div>
-              <div className="text-xs text-gray-400 mt-1">{s.l}</div>
-            </div>
-          ))}
+        <div className="max-w-4xl mx-auto px-6 py-5">
+          <div className="flex flex-wrap justify-center gap-8 sm:gap-16">
+            {statItems.map(s => (
+              <div key={s.l} className="text-center">
+                <div className="font-serif text-3xl text-teal-600">{s.n}</div>
+                <div className="text-xs text-gray-400 mt-1">{s.l}</div>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-4 pt-4 border-t border-gray-100">
+            <span className="text-xs text-gray-400">
+              Directly integrated with{' '}
+              <span className="font-semibold text-gray-600">Florida DBPR</span>
+              {' '}·{' '}
+              <span className="font-semibold text-gray-600">OSHA</span>
+              {' '}state licensing databases
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* ── BROWSE + RESULTS ──────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-6">
 
-        {/* Trade chips */}
-        <div className="py-6">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Browse by trade</div>
-          <div className="flex flex-wrap gap-2">
+        {/* Trade filter — grouped by industry */}
+        <div className="py-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Browse by trade</div>
             <button onClick={() => selectTrade('')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                !activeTrade ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-teal-300'
+              className={`text-xs px-3 py-1 rounded-full border transition-all font-medium ${
+                !activeTrade ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-400 hover:border-teal-300 hover:text-teal-600'
               }`}>
               All trades
             </button>
-            {categories.map(cat => {
-              const count = tradeCounts[cat.id] || 0
+          </div>
+
+          <div className="space-y-4">
+            {TRADE_GROUPS.map(group => {
+              const groupCats = group.slugs.map(s => catBySlug[s]).filter(Boolean)
+              if (groupCats.length === 0) return null
               return (
-                <button key={cat.id} onClick={() => selectTrade(cat.id)}
-                  className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                    activeTrade === cat.id ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-teal-300'
-                  }`}>
-                  {cat.category_name}
-                  {count > 0 && (
-                    <span className={`text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none ${
-                      activeTrade === cat.id ? 'bg-white/25 text-white' : 'bg-teal-50 text-teal-700'
-                    }`}>{count}</span>
-                  )}
-                </button>
+                <div key={group.label}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-sm text-gray-300">{group.icon}</span>
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{group.label}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {groupCats.map(cat => {
+                      const count = tradeCounts[cat.id] || 0
+                      const icon  = TRADE_ICONS[cat.slug] || ''
+                      const active = activeTrade === cat.id
+                      return (
+                        <button key={cat.id} onClick={() => selectTrade(cat.id)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm border transition-all font-medium ${
+                            active
+                              ? 'bg-teal-600 text-white border-teal-600'
+                              : 'border-gray-200 text-gray-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50'
+                          }`}>
+                          {icon && <span className="text-xs opacity-70">{icon}</span>}
+                          {cat.category_name}
+                          {count > 0 && (
+                            <span className={`text-xs font-bold rounded-full px-1.5 min-w-[18px] text-center leading-none py-0.5 ${
+                              active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                            }`}>{count.toLocaleString()}</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               )
             })}
+
+            {/* Ungrouped fallback */}
+            {ungrouped.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Other</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {ungrouped.map(cat => {
+                    const count = tradeCounts[cat.id] || 0
+                    const active = activeTrade === cat.id
+                    return (
+                      <button key={cat.id} onClick={() => selectTrade(cat.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm border transition-all font-medium ${
+                          active ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50'
+                        }`}>
+                        {cat.category_name}
+                        {count > 0 && (
+                          <span className={`text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none ${
+                            active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                          }`}>{count.toLocaleString()}</span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Results header */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm text-gray-500">
               {loading ? 'Loading...' : (
                 <>
                   Showing <span className="font-semibold text-gray-900">{pros.length}</span> of{' '}
-                  <span className="font-semibold text-gray-900">{total}</span>{' '}
+                  <span className="font-semibold text-gray-900">{total.toLocaleString()}</span>{' '}
                   {activeCategory ? <span className="text-teal-700">{activeCategory.category_name}s</span> : 'pros'}
                   {appliedSearch && <span className="text-gray-400"> for "<span className="text-gray-700">{appliedSearch}</span>"</span>}
                 </>
@@ -236,17 +353,17 @@ function HomePageInner() {
             )}
           </div>
           <select value={sort} onChange={e => setSort(e.target.value)}
-            className="text-sm text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 bg-white outline-none">
+            className="text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 bg-white outline-none">
             <option value="rating">Highest rated</option>
-            <option value="experience">Most experienced</option>
+            <option value="default">Top credentialed</option>
             <option value="reviews">Most reviews</option>
             <option value="name_asc">Name A–Z</option>
             <option value="name_desc">Name Z–A</option>
           </select>
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-8">
+        {/* Pro card grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8">
           {loading
             ? Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)
             : error
@@ -254,7 +371,7 @@ function HomePageInner() {
               : pros.length === 0
                 ? (
                   <div className="col-span-4 text-center py-16">
-                    <div className="text-4xl mb-3 opacity-30">🔍</div>
+                    <div className="text-4xl mb-3 opacity-20">🔍</div>
                     <div className="font-semibold text-gray-700 mb-2">No pros found</div>
                     <div className="text-sm text-gray-400 mb-4">Try a different trade or search term.</div>
                     {hasFilters && (
@@ -278,30 +395,47 @@ function HomePageInner() {
                   <span className="w-4 h-4 border-2 border-gray-300 border-t-teal-600 rounded-full animate-spin" />
                   Loading...
                 </span>
-              ) : (
-                `Load more pros (${total - pros.length} remaining)`
-              )}
+              ) : `Load more pros (${(total - pros.length).toLocaleString()} remaining)`}
             </button>
           </div>
         )}
-
-        {/* End of results */}
         {!loading && !hasMore && pros.length > 0 && (
-          <div className="text-center pb-16 text-xs text-gray-300">
-            — All {total} pros shown —
-          </div>
+          <div className="text-center pb-16 text-xs text-gray-300">— All {total.toLocaleString()} pros shown —</div>
         )}
-
       </div>
 
-      <footer className="border-t border-gray-100 py-8">
-        <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="text-sm text-gray-400">© 2026 TradesNetwork · Univaro Technologies</div>
-          <div className="flex items-center gap-5 text-sm">
-            <a href="/about"   className="text-gray-400 hover:text-teal-600 transition-colors">About</a>
-            <a href="/contact" className="text-gray-400 hover:text-teal-600 transition-colors">Contact</a>
-            <a href="/privacy" className="text-gray-400 hover:text-teal-600 transition-colors">Privacy</a>
-            <a href="/terms"   className="text-gray-400 hover:text-teal-600 transition-colors">Terms</a>
+      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
+      <footer className="border-t border-gray-100 py-10 mt-4">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="flex flex-wrap items-start justify-between gap-8 mb-8">
+            <div>
+              <div className="font-serif text-xl text-gray-900 mb-2">Trades<span className="text-teal-600">Network</span></div>
+              <div className="text-sm text-gray-400 max-w-xs leading-relaxed">
+                The verified professional network for Florida's skilled trades. DBPR-integrated, GPS-confirmed, zero per-lead fees.
+              </div>
+            </div>
+            <div className="flex gap-12 text-sm">
+              <div>
+                <div className="font-semibold text-gray-700 mb-3 text-xs uppercase tracking-widest">Platform</div>
+                <div className="space-y-2">
+                  {[['/', 'Find a pro'],['/post-job','Post a job'],['/jobs','Browse jobs'],['/community','Community']].map(([href, label]) => (
+                    <a key={href} href={href} className="block text-gray-400 hover:text-teal-600 transition-colors">{label}</a>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="font-semibold text-gray-700 mb-3 text-xs uppercase tracking-widest">Company</div>
+                <div className="space-y-2">
+                  {[['/about','About'],['/contact','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([href, label]) => (
+                    <a key={href} href={href} className="block text-gray-400 hover:text-teal-600 transition-colors">{label}</a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-gray-100 pt-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-gray-400">© 2026 TradesNetwork · Univaro Technologies Pvt Ltd</div>
+            <div className="text-xs text-gray-400">Verified against Florida DBPR · OSHA · State licensing boards</div>
           </div>
         </div>
       </footer>
@@ -311,7 +445,11 @@ function HomePageInner() {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-stone-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
       <HomePageInner />
     </Suspense>
   )
