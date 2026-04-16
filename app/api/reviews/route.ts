@@ -16,12 +16,14 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ reviews: data || [] })
+  // Map 'comment' → 'review_text' so the profile page can read it consistently
+  const reviews = (data || []).map((r: any) => ({ ...r, review_text: r.comment || r.review_text || '' }))
+  return NextResponse.json({ reviews })
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, job_id, reviewer_name, reviewer_email, rating, comment } = body
+  const { pro_id, job_id, reviewer_name, reviewer_email, rating, comment, review_text } = body
 
   if (!pro_id || !reviewer_name || !reviewer_email || !rating) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
       reviewer_name,
       reviewer_email: reviewer_email.toLowerCase().trim(),
       rating: parseInt(rating),
-      comment: comment || null,
+      comment: (comment || review_text || null),
       is_approved: false, // requires admin approval
     })
     .select()

@@ -29,8 +29,12 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true)
   const [rating, setRating]   = useState(0)
   const [hover, setHover]     = useState(0)
-  const [name, setName]       = useState('')
-  const [email, setEmail]     = useState('')
+  const [name, setName]       = useState(() => {
+    try { const s = JSON.parse(sessionStorage.getItem('tn_pro') || '{}'); return s.name || '' } catch { return '' }
+  })
+  const [email, setEmail]     = useState(() => {
+    try { const s = JSON.parse(sessionStorage.getItem('tn_pro') || '{}'); return s.email || '' } catch { return '' }
+  })
   const [comment, setComment] = useState('')
   const [jobType, setJobType] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -38,13 +42,6 @@ export default function ReviewPage() {
   const [error, setError]           = useState('')
 
   useEffect(() => {
-    // Pre-fill from session if logged in
-    const raw = sessionStorage.getItem('tn_pro')
-    if (raw) {
-      const s = JSON.parse(raw)
-      setName(s.name || '')
-      setEmail(s.email || '')
-    }
     fetch(`/api/pros/${pro_id}`)
       .then(r => r.json())
       .then(d => { setPro(d.pro); setLoading(false) })

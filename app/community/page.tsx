@@ -189,18 +189,23 @@ function PostCard({ post, session, onLike, onDelete }: {
 }
 
 // ── Action bar shortcuts above composer ───────────────────────────────────────
-function ActionBar({ onSelect }: { onSelect: (type: string) => void }) {
+function ActionBar({ active, onSelect }: { active: string; onSelect: (type: string) => void }) {
+  const actions = [
+    { type: 'work',      icon: '📸', label: 'Post work' },
+    { type: 'tip',       icon: '❓', label: 'Ask a pro' },
+    { type: 'milestone', icon: '🏆', label: 'Milestone' },
+  ]
   return (
-    <div className="grid grid-cols-3 gap-2 mb-3">
-      {[
-        { type: 'work',   icon: '📸', label: 'Post Work',      bg: 'bg-teal-50 border-teal-200 text-teal-800 hover:bg-teal-100' },
-        { type: 'tip',    icon: '❓', label: 'Ask a Pro',      bg: 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100' },
-        { type: 'update', icon: '🛠', label: 'Marketplace',   bg: 'bg-stone-100 border-gray-200 text-gray-700 hover:bg-stone-200' },
-      ].map(a => (
+    <div className="flex gap-2 mb-3">
+      {actions.map(a => (
         <button key={a.type} onClick={() => onSelect(a.type)}
-          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${a.bg}`}>
-          <span>{a.icon}</span>
-          <span className="hidden sm:inline">{a.label}</span>
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold transition-all ${
+            active === a.type
+              ? 'bg-teal-600 border-teal-600 text-white'
+              : 'border-gray-200 text-gray-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50'
+          }`}>
+          <span style={{fontSize:'14px'}}>{a.icon}</span>
+          <span>{a.label}</span>
         </button>
       ))}
     </div>
@@ -229,7 +234,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
   }
 
   async function handlePost() {
-    if (!content.trim()) return
+    if (!content.trim() && !photo) return
     setPosting(true)
     const r = await fetch('/api/posts', {
       method: 'POST',
@@ -243,7 +248,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
-      <ActionBar onSelect={type => setPostType(type)} />
+      <ActionBar active={postType} onSelect={type => setPostType(type)} />
       <div className="flex gap-3">
         <Avatar pro={{ full_name: session.name, profile_photo_url: null }} />
         <div className="flex-1">
@@ -260,17 +265,14 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
           )}
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2">
-              <select value={postType} onChange={e => setPostType(e.target.value)}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none">
-                {POST_TYPES.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
-              </select>
+
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
               <button onClick={() => fileRef.current?.click()} disabled={uploading}
                 className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
                 {uploading ? 'Uploading...' : '📷 Photo'}
               </button>
             </div>
-            <button onClick={handlePost} disabled={posting || !content.trim()}
+            <button onClick={handlePost} disabled={posting || (!content.trim() && !photo)}
               className="px-5 py-1.5 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-40 transition-colors">
               {posting ? 'Posting...' : 'Post'}
             </button>

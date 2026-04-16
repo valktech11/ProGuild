@@ -280,22 +280,22 @@ function HomePageInner() {
                     <span className="text-sm">{group.icon}</span>
                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{group.label}</span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5">
                     {visibleCats.map(cat => {
                       const count = tradeCounts[cat.id] || 0
                       const icon  = TRADE_ICONS[cat.slug] || ''
                       const active = activeTrade === cat.id
                       return (
                         <button key={cat.id} onClick={() => selectTrade(cat.id)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm border transition-all font-medium ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl text-sm border transition-all font-medium ${
                             active
                               ? 'bg-teal-600 text-white border-teal-600'
                               : 'border-gray-200 text-gray-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50'
                           }`}>
                           {icon && <span style={{fontSize:'13px'}}>{icon}</span>}
-                          {cat.category_name}
+                          <span className="truncate">{cat.category_name}</span>
                           {count > 0 && (
-                            <span className={`text-xs font-bold rounded-full px-1.5 min-w-[18px] text-center leading-none py-0.5 ${
+                            <span className={`ml-auto text-xs font-bold rounded-full px-1.5 min-w-[18px] text-center leading-none py-0.5 ${
                               active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
                             }`}>{count.toLocaleString()}</span>
                           )}
@@ -327,18 +327,18 @@ function HomePageInner() {
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Other</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5">
                   {ungrouped.map(cat => {
                     const count = tradeCounts[cat.id] || 0
                     const active = activeTrade === cat.id
                     return (
                       <button key={cat.id} onClick={() => selectTrade(cat.id)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm border transition-all font-medium ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl text-sm border transition-all font-medium ${
                           active ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50'
                         }`}>
-                        {cat.category_name}
+                        <span className="truncate">{cat.category_name}</span>
                         {count > 0 && (
-                          <span className={`text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none ${
+                          <span className={`ml-auto text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none ${
                             active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
                           }`}>{count.toLocaleString()}</span>
                         )}

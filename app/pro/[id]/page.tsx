@@ -750,16 +750,23 @@ export default function ProProfilePage() {
           <div className="flex gap-3 max-w-sm mx-auto">
             {pro.phone ? (
               <a href={`tel:${pro.phone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
-                📞 Call now
+                📞 Call
               </a>
             ) : (
               <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
                 📞 Request call
               </button>
             )}
-            <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl">
-              💬 Message
-            </button>
+            {pro.phone ? (
+              <a href={`sms:${pro.phone}?body=${encodeURIComponent(`Hi ${firstName}, I saw your profile on TradesNetwork and I'd like to discuss a job. Are you available?`)}`}
+                className="flex-1 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl">
+                💬 Text
+              </a>
+            ) : (
+              <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl">
+                💬 Message
+              </button>
+            )}
           </div>
         </div>
       )}
