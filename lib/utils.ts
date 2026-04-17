@@ -10,7 +10,10 @@ export function starsHtml(rating: number): string {
 }
 
 export function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
+  if (!dateStr) return ''
+  const ts = new Date(dateStr).getTime()
+  if (isNaN(ts)) return ''
+  const diff = Date.now() - ts
   const days = Math.floor(diff / 86400000)
   if (days === 0) return 'Today'
   if (days === 1) return 'Yesterday'

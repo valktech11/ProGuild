@@ -416,6 +416,39 @@ export default function AdminPage() {
                 ))}
               </div>
 
+              {/* Approved reviews — can delete if abusive */}
+              <div className="mt-6">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+                  Live reviews ({(data?.approvedReviews || []).length}) — delete abusive content
+                </div>
+                {!(data?.approvedReviews?.length) ? (
+                  <div className="bg-white border border-gray-100 rounded-2xl py-6 text-center">
+                    <div className="text-gray-400 text-sm">No approved reviews yet</div>
+                  </div>
+                ) : (data?.approvedReviews || []).map((rev: any) => (
+                  <div key={rev.id} className="bg-white border border-gray-100 rounded-2xl p-4 mb-2">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-semibold text-gray-900">{rev.reviewer_name}</span>
+                          <span className="text-amber-400 text-sm">{'★'.repeat(rev.rating)}{'☆'.repeat(5-rev.rating)}</span>
+                          <span className="text-xs text-gray-400">for {rev.pro?.full_name}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">{rev.comment}</p>
+                        <div className="text-xs text-gray-400">{rev.reviewer_email}</div>
+                      </div>
+                      <button onClick={async () => {
+                        if (!confirm('Delete this review permanently?')) return
+                        await fetch('/api/admin', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-pro-id': session!.id }, body: JSON.stringify({ delete_review_id: rev.id }) })
+                        showToast('Review deleted'); loadSection('moderation')
+                      }} className="px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 transition-colors flex-shrink-0">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               {/* Flagged posts */}
               <div>
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">

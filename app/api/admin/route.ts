@@ -92,11 +92,12 @@ export async function GET(req: NextRequest) {
   }
 
   if (section === 'moderation') {
-    const [{ data: posts }, { data: reviews }] = await Promise.all([
+    const [{ data: posts }, { data: pendingReviews }, { data: approvedReviews }] = await Promise.all([
       sb.from('posts').select('*, pro:pros(full_name)').eq('is_flagged', true).order('created_at', { ascending: false }).limit(50),
       sb.from('reviews').select('*, pro:pros(full_name, city)').eq('is_approved', false).order('reviewed_at', { ascending: false }).limit(50),
+      sb.from('reviews').select('*, pro:pros(full_name, city)').eq('is_approved', true).order('reviewed_at', { ascending: false }).limit(30),
     ])
-    return NextResponse.json({ posts: posts || [], reviews: reviews || [] })
+    return NextResponse.json({ posts: posts || [], reviews: pendingReviews || [], approvedReviews: approvedReviews || [] })
   }
 
   if (section === 'config') {
@@ -144,6 +145,9 @@ export async function PATCH(req: NextRequest) {
   // Approve review
   if (body.approve_review_id) {
     await sb.from('reviews').update({ is_approved: true }).eq('id', body.approve_review_id)
+  }
+  if (body.delete_review_id) {
+    await sb.from('reviews').delete().eq('id', body.delete_review_id)
     return NextResponse.json({ ok: true })
   }
 

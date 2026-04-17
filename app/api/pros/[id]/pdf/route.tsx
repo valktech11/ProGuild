@@ -32,9 +32,9 @@ function statusStyle(s: string) {
   return styles.statusExp
 }
 function statusLabel(s: string) {
-  if (s === 'active') return '● Active'
-  if (s === 'expiring_soon') return '⚠ Expiring soon'
-  return '✕ Expired'
+  if (s === 'active') return 'Active'
+  if (s === 'expiring_soon') return 'Expiring Soon'
+  return 'Expired'
 }
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -77,9 +77,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             <Text style={styles.proName}>{pro.full_name}</Text>
             {pro.trade_category?.category_name && <Text style={styles.proTrade}>{pro.trade_category.category_name}</Text>}
             {pro.business_name && <Text style={styles.proMeta}>{pro.business_name}</Text>}
-            {location && <Text style={styles.proMeta}>📍 {location}</Text>}
-            {pro.years_experience && <Text style={styles.proMeta}>{pro.years_experience} years experience</Text>}
-            {pro.phone && <Text style={styles.proMeta}>📞 {pro.phone}</Text>}
+            {location && <Text style={styles.proMeta}>{location}</Text>}
+            {pro.years_experience && <Text style={styles.proMeta}>{pro.years_experience} yrs experience</Text>}
+            {pro.phone && <Text style={styles.proMeta}>Phone: {pro.phone}</Text>}
             {pro.is_verified && <Text style={styles.verified}>✓ Verified by TradesNetwork — Florida DBPR</Text>}
           </View>
         </View>
@@ -111,7 +111,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             <View style={styles.credCard}>
               <View style={styles.row}>
                 <Text style={styles.credTitle}>{pro.osha_card_type} Safety Certification</Text>
-                <Text style={styles.statusActive}>● Valid</Text>
+                <Text style={styles.statusActive}>Active</Text>
               </View>
               {pro.osha_card_expiry && (
                 <Text style={styles.credMeta}>Expires: {new Date(pro.osha_card_expiry).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
