@@ -55,11 +55,11 @@ function HomePageInner() {
   useEffect(() => {
     Promise.all([
       fetch('/api/categories').then(r => r.json()),
-      fetch('/api/reviews').then(r => r.json()),
+      fetch('/api/reviews/count').then(r => r.json()),
       fetch('/api/stats/trades').then(r => r.json()),
     ]).then(([catsData, revsData, statsData]) => {
       setCategories(catsData.categories || [])
-      setStats(s => ({ ...s, trades: (catsData.categories || []).length, reviews: (revsData.reviews || []).length }))
+      setStats(s => ({ ...s, trades: (catsData.categories || []).length, reviews: revsData.count || 0 }))
       const counts: Record<string, number> = {}
       for (const t of (statsData.trades || [])) counts[t.id] = t.pro_count
       setTradeCounts(counts)

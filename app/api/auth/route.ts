@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       email: pro.email,
       plan: pro.plan_tier,
       trade: pro.trade_category?.category_name || null,
+      trade_slug: pro.trade_category?.slug || null,
       city: pro.city,
       state: pro.state,
     }

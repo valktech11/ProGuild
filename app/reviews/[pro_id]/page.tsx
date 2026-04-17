@@ -47,11 +47,18 @@ export default function ReviewPage() {
       .then(d => { setPro(d.pro); setLoading(false) })
   }, [pro_id])
 
+  const BANNED = [/\bfuck/i,/\bshit/i,/\bbitch/i,/\basshole/i,/\bcunt/i,/\bdick\b/i,/\bwhore/i,/\bslut/i]
+  function hasProfanity(t: string) { return BANNED.some(p => p.test(t)) }
+
   async function handleSubmit() {
     if (!rating)        { setError('Please select a star rating'); return }
     if (!name.trim())   { setError('Please enter your name'); return }
     if (!email.trim())  { setError('Please enter your email'); return }
     if (!comment.trim()){ setError('Please write a review'); return }
+    if (hasProfanity(comment)) {
+      setError('Please keep your review professional and respectful. Personal attacks or profanity are not allowed.')
+      return
+    }
 
     setSubmitting(true); setError('')
     const r = await fetch('/api/reviews', {
