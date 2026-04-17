@@ -1,6 +1,1 @@
-{
-  "_crons_disabled_until_launch": [
-    { "path": "/api/cron/license-check",  "schedule": "0 9 * * *"  },
-    { "path": "/api/cron/claim-outreach", "schedule": "0 10 * * 1" }
-  ]
-}
+{}
