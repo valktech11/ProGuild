@@ -15,9 +15,8 @@ async function extractCOIData(file_url: string): Promise<{
   coverage_type: string|null, expiry_date: string|null
 }> {
   const empty = { insurer_name: null, policy_number: null, coverage_type: null, expiry_date: null }
-
   const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) { console.log('[COI] No GEMINI_API_KEY'); return empty }
+  if (!apiKey) return empty
 
   try {
     const fileRes = await fetch(file_url)
@@ -25,7 +24,7 @@ async function extractCOIData(file_url: string): Promise<{
     const arrayBuf = await fileRes.arrayBuffer()
     const b64      = Buffer.from(arrayBuf).toString('base64')
     const mimeType = mimeFromUrl(file_url)
-    console.log('[COI] File fetched, size:', arrayBuf.byteLength, 'mime:', mimeType)
+    console.log('[COI] File size:', arrayBuf.byteLength, 'mime:', mimeType)
 
     const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
     const response = await fetch(
@@ -37,43 +36,36 @@ async function extractCOIData(file_url: string): Promise<{
           contents: [{
             parts: [
               { inline_data: { mime_type: mimeType, data: b64 } },
-              { text: `Extract data from this Certificate of Liability Insurance (COI).
-Return the following fields:
-- insurer_name: insurance company name from the "INSURER A" field
-- policy_number: the policy number
-- coverage_type: type of coverage e.g. "Commercial General Liability"
-- expiry_date: POLICY EXPIRATION DATE in YYYY-MM-DD format — look for "POLICY EXP" column, NOT the event end date or certificate date. Return null if not found.` }
+              { text: `You are extracting fields from a Certificate of Liability Insurance (COI).
+Return a JSON object with exactly these four keys:
+- "insurer_name": string or null
+- "policy_number": string or null  
+- "coverage_type": string or null
+- "expiry_date": string in YYYY-MM-DD format from the POLICY EXP column, or null
+
+Do not include any other keys. Use null for missing fields.` }
             ]
           }],
           generationConfig: {
-            maxOutputTokens: 1024,
+            maxOutputTokens: 512,
             temperature: 0,
             responseMimeType: 'application/json',
-            responseSchema: {
-              type: 'object',
-              properties: {
-                insurer_name:  { type: 'string', nullable: true },
-                policy_number: { type: 'string', nullable: true },
-                coverage_type: { type: 'string', nullable: true },
-                expiry_date:   { type: 'string', nullable: true },
-              },
-              required: ['insurer_name', 'policy_number', 'coverage_type', 'expiry_date'],
-            },
           },
         }),
       }
     )
 
-    if (!response.ok) {
-      const err = await response.text()
-      console.log('[COI] Gemini API error:', response.status, err.slice(0, 300))
-      return empty
-    }
+    const resText = await response.text()
+    console.log('[COI] Gemini status:', response.status, 'body:', resText.slice(0, 500))
 
-    const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
-    console.log('[COI] Gemini raw response:', text)
-    const p = JSON.parse(text)
+    if (!response.ok) return empty
+
+    const data = JSON.parse(resText)
+    const raw  = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    console.log('[COI] Extracted text:', raw)
+
+    if (!raw) return empty
+    const p = JSON.parse(raw)
     return {
       insurer_name:  p.insurer_name  || null,
       policy_number: p.policy_number || null,
@@ -101,7 +93,7 @@ export async function POST(req: NextRequest) {
   const sb = getSupabaseAdmin()
 
   const extracted = await extractCOIData(file_url)
-  console.log('[COI] Final result:', extracted)
+  console.log('[COI] Final:', extracted)
 
   let status = 'unknown'
   if (extracted.expiry_date) {
