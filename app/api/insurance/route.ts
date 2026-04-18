@@ -38,7 +38,7 @@ Respond ONLY with valid JSON, no markdown, no explanation:
 {"insurer_name":"value or null","policy_number":"value or null","coverage_type":"value or null","expiry_date":"YYYY-MM-DD or null"}`
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
