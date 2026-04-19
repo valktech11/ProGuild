@@ -109,6 +109,7 @@ function SearchPageInner() {
   const [sort, setSort]               = useState('rating')
   const [availableOnly, setAvailableOnly] = useState(false)
   const offset = useRef(0)
+  const [cardKey, setCardKey] = useState(0) // increments on filter change to trigger animation
 
   // Load categories once — needed to resolve slug → UUID
   useEffect(() => {
@@ -174,6 +175,7 @@ function SearchPageInner() {
   function selectTrade(slug: string) {
     const next = activeTradeSlug === slug ? '' : slug
     setActiveTradeSlug(next)
+    setCardKey(k => k + 1)
     setSearch(''); setAppliedSearch('')
     const params = new URLSearchParams()
     if (next) params.set('trade', next)
@@ -249,6 +251,65 @@ function SearchPageInner() {
           </div>
         </div>
       </nav>
+
+      {/* Global fade-up animation */}
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .card-enter { animation: fadeUp 0.18s ease-out both; }
+      `}</style>
+
+      {/* ── VISUAL ANCHOR — card DNA header when arriving from a category ─── */}
+      {activeGroup && (
+        <div className="border-b" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center gap-4">
+              {/* Condensed category card — same DNA as homepage */}
+              <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border flex-shrink-0"
+                style={{
+                  borderColor: activeGroup.accent,
+                  borderTopWidth: '3px',
+                  background: `${activeGroup.accent}08`,
+                }}>
+                <span className="text-xl">{activeGroup.icon}</span>
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-widest" style={{ color: activeGroup.accent }}>
+                    {activeGroup.label}
+                  </div>
+                  <div className="text-xs" style={{ color: '#A89F93' }}>
+                    {activeGroup.trades.length} trades
+                  </div>
+                </div>
+              </div>
+
+              {/* Breadcrumb */}
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#A89F93' }}>
+                <Link href="/" style={{ color: '#A89F93' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = activeGroup.accent)}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#A89F93')}>
+                  Home
+                </Link>
+                <span>›</span>
+                <button onClick={clearFilters} style={{ color: '#A89F93' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = activeGroup.accent)}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#A89F93')}>
+                  {activeGroup.label}
+                </button>
+                {activeTradeSlug && (
+                  <>
+                    <span>›</span>
+                    <span className="font-semibold" style={{ color: activeGroup.accent }}>
+                      {activeGroup.trades.find(t => t.slug === activeTradeSlug)?.label || activeTradeSlug}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── PILL STRIP — visual bridge from homepage category cards ──────── */}
       {activeGroup && (
@@ -411,7 +472,13 @@ function SearchPageInner() {
                       )}
                     </div>
                   )
-                  : pros.map((pro, i) => <ProCard key={pro.id} pro={pro} index={i} />)
+                  : pros.map((pro, i) => (
+                    <div key={`${cardKey}-${pro.id}`}
+                      className="card-enter"
+                      style={{ animationDelay: `${Math.min(i * 30, 200)}ms` }}>
+                      <ProCard pro={pro} index={i} />
+                    </div>
+                  ))
             }
           </div>
 

@@ -21,7 +21,7 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
   return (
     <Link
       href={`/pro/${pro.id}`}
-      className="group block bg-white border border-gray-300 rounded-xl p-5 shadow-sm hover:border-teal-400 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative"
+      className="group block bg-white rounded-xl p-5 hover:-translate-y-0.5 transition-all duration-200 relative" style={{ border: "1px solid #E8E2D9", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
       style={{ animationDelay: `${index * 40}ms` }}
     >
       {/* Header — avatar with availability ring + name */}
@@ -53,11 +53,19 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
       {/* Trust badge row */}
       <div className="flex flex-wrap gap-1 mb-3">
         {pro.is_verified && (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" className="text-teal-600">
-              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+            style={{ background: 'rgba(20,184,166,0.1)', color: '#0D7377', border: '1px solid rgba(20,184,166,0.25)' }}>
+            {/* ProGuild shield mark */}
+            <svg width="11" height="11" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#pc-grad)"/>
+              <path d="M11 16l3 3 7-7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <defs>
+                <linearGradient id="pc-grad" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#2DD4BF"/><stop offset="1" stopColor="#0D7377"/>
+                </linearGradient>
+              </defs>
             </svg>
-            Verified
+            Guild Verified
           </span>
         )}
         {hasOsha && (
