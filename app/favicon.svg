@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="g" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#0D7377"/>
+    </linearGradient>
+  </defs>
+  <!-- Solid shield — no notches, clean at small sizes -->
+  <path d="M16 2L4 7v9c0 6.6 5.2 11.9 12 13.8C22.8 27.9 28 22.6 28 16V7L16 2z" fill="url(#g)"/>
+  <!-- Bold PG monogram — legible at 16x16 -->
+  <text x="7" y="21" font-size="13" font-weight="800" fill="white"
+    font-family="Arial, sans-serif" letter-spacing="-0.5">PG</text>
+</svg>

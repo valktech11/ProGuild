@@ -7,61 +7,62 @@ import { Pro, TradeCategory } from '@/types'
 
 const PAGE_SIZE = 12
 
-// Must match homepage exactly — same order, same slugs
+// Must match homepage exactly — same order, same slugs, Florida-first
 const TRADE_GROUPS = [
   {
     id: 'mechanical', label: 'Mechanical', icon: '⚡', accent: '#14B8A6',
     trades: [
-      { label: 'HVAC Technician',  slug: 'hvac-technician' },
-      { label: 'Electrician',       slug: 'electrician' },
-      { label: 'Plumber',          slug: 'plumber' },
-      { label: 'Solar Installer',   slug: 'solar-installer' },
-      { label: 'Gas Fitter',        slug: 'gas-fitter' },
-      { label: 'Fire Sprinkler',    slug: 'fire-sprinkler' },
+      { label: 'HVAC Technician',     slug: 'hvac-technician' },
+      { label: 'Electrician',         slug: 'electrician' },
+      { label: 'Plumber',             slug: 'plumber' },
+      { label: 'Solar Installer',     slug: 'solar-installer' },
+      { label: 'Gas Fitter',          slug: 'gas-fitter' },
+      { label: 'Fire Sprinkler',      slug: 'fire-sprinkler' },
     ],
   },
   {
     id: 'structural', label: 'Structural', icon: '🏗', accent: '#6366F1',
     trades: [
-      { label: 'General Contractor', slug: 'general-contractor' },
-      { label: 'Roofer',             slug: 'roofer' },
-      { label: 'Framing Carpenter',  slug: 'carpenter' },
-      { label: 'Mason',              slug: 'mason' },
-      { label: 'Concrete',           slug: 'concrete-contractor' },
-      { label: 'Foundation',         slug: 'foundation-specialist' },
+      { label: 'Roofer',                    slug: 'roofer' },
+      { label: 'General Contractor',        slug: 'general-contractor' },
+      { label: 'Impact Window & Shutter',   slug: 'impact-window-shutter' },
+      { label: 'Framing Carpenter',         slug: 'carpenter' },
+      { label: 'Mason',                     slug: 'mason' },
+      { label: 'Concrete',                  slug: 'concrete-contractor' },
+      { label: 'Foundation',                slug: 'foundation-specialist' },
     ],
   },
   {
     id: 'finishing', label: 'Finishing', icon: '🎨', accent: '#F59E0B',
     trades: [
-      { label: 'Painter',          slug: 'painter' },
-      { label: 'Drywall',          slug: 'drywall' },
-      { label: 'Flooring',         slug: 'flooring' },
-      { label: 'Tile Setter',      slug: 'tile-setter' },
-      { label: 'Insulation',       slug: 'insulation-contractor' },
-      { label: 'Windows & Doors',  slug: 'windows-doors' },
+      { label: 'Painter',             slug: 'painter' },
+      { label: 'Flooring',            slug: 'flooring' },
+      { label: 'Drywall',             slug: 'drywall' },
+      { label: 'Tile Setter',         slug: 'tile-setter' },
+      { label: 'Insulation',          slug: 'insulation-contractor' },
+      { label: 'Windows & Doors',     slug: 'windows-doors' },
     ],
   },
   {
     id: 'property', label: 'Property', icon: '🌿', accent: '#10B981',
     trades: [
-      { label: 'Landscaper',       slug: 'landscaper' },
-      { label: 'Pool & Spa',       slug: 'pool-spa' },
-      { label: 'Pest Control',     slug: 'pest-control' },
-      { label: 'Irrigation',       slug: 'irrigation' },
-      { label: 'Home Inspector',   slug: 'home-inspector' },
-      { label: 'Handyman',         slug: 'handyman' },
+      { label: 'Pool & Spa',          slug: 'pool-spa' },
+      { label: 'Landscaper',          slug: 'landscaper' },
+      { label: 'Pest Control',        slug: 'pest-control' },
+      { label: 'Irrigation',          slug: 'irrigation' },
+      { label: 'Handyman',            slug: 'handyman' },
+      { label: 'Home Inspector',      slug: 'home-inspector' },
     ],
   },
   {
     id: 'specialty', label: 'Specialty', icon: '🔐', accent: '#8B5CF6',
     trades: [
-      { label: 'Alarm & Security', slug: 'alarm-security' },
-      { label: 'Low-Voltage / AV', slug: 'low-voltage' },
-      { label: 'Welder',           slug: 'welder' },
-      { label: 'Septic & Drain',   slug: 'septic-drain' },
-      { label: 'Marine / Dock',    slug: 'marine-contractor' },
-      { label: 'Elevator Tech',    slug: 'elevator-technician' },
+      { label: 'Marine / Dock',       slug: 'marine-contractor' },
+      { label: 'Alarm & Security',    slug: 'alarm-security' },
+      { label: 'Low-Voltage / AV',    slug: 'low-voltage' },
+      { label: 'Septic & Drain',      slug: 'septic-drain' },
+      { label: 'Welder',              slug: 'welder' },
+      { label: 'Elevator Tech',       slug: 'elevator-technician' },
     ],
   },
 ]
@@ -92,9 +93,12 @@ function SearchPageInner() {
   const router = useRouter()
   const scopeState = getScopeState()
 
-  // Detect active group from URL trade slug
+  // Detect active group — from trade slug or group param (Browse All button)
   const urlTradeSlug = searchParams.get('trade') || ''
-  const activeGroup = TRADE_GROUPS.find(g => g.trades.some(t => t.slug === urlTradeSlug)) || null
+  const urlGroupId   = searchParams.get('group') || ''
+  const activeGroup  = TRADE_GROUPS.find(g =>
+    g.id === urlGroupId || g.trades.some(t => t.slug === urlTradeSlug)
+  ) || null
 
   const [pros, setPros]               = useState<Pro[]>([])
   const [categories, setCategories]   = useState<TradeCategory[]>([])

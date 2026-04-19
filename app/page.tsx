@@ -12,6 +12,9 @@ import { useRouter } from 'next/navigation'
 // BORDER:  #E8E2D9  warm gray
 
 // ── Static data ───────────────────────────────────────────────────────────────
+// PRIMARY_COUNT = trades shown by default on card (mobile launchpad)
+const PRIMARY_COUNT = 4
+
 const TRADE_GROUPS = [
   {
     id: 'mechanical',
@@ -19,12 +22,13 @@ const TRADE_GROUPS = [
     icon: '⚡',
     accent: '#14B8A6',
     trades: [
+      // Florida-first: HVAC is #1 search, then Electrician, Plumber, Solar
       { label: 'HVAC Technician',     slug: 'hvac-technician' },
-      { label: 'Electrician',          slug: 'electrician' },
+      { label: 'Electrician',         slug: 'electrician' },
       { label: 'Plumber',             slug: 'plumber' },
-      { label: 'Solar Installer',      slug: 'solar-installer' },
-      { label: 'Gas Fitter',           slug: 'gas-fitter' },
-      { label: 'Fire Sprinkler',       slug: 'fire-sprinkler' },
+      { label: 'Solar Installer',     slug: 'solar-installer' },
+      { label: 'Gas Fitter',          slug: 'gas-fitter' },
+      { label: 'Fire Sprinkler',      slug: 'fire-sprinkler' },
     ],
   },
   {
@@ -33,12 +37,14 @@ const TRADE_GROUPS = [
     icon: '🏗',
     accent: '#6366F1',
     trades: [
-      { label: 'General Contractor',  slug: 'general-contractor' },
-      { label: 'Roofer',              slug: 'roofer' },
-      { label: 'Framing Carpenter',   slug: 'carpenter' },
-      { label: 'Mason',               slug: 'mason' },
-      { label: 'Concrete',            slug: 'concrete-contractor' },
-      { label: 'Foundation',          slug: 'foundation-specialist' },
+      // Roofer #1 in FL post-hurricane season, GC #2, Impact Windows added
+      { label: 'Roofer',                      slug: 'roofer' },
+      { label: 'General Contractor',          slug: 'general-contractor' },
+      { label: 'Impact Window & Shutter',     slug: 'impact-window-shutter' },
+      { label: 'Framing Carpenter',           slug: 'carpenter' },
+      { label: 'Mason',                       slug: 'mason' },
+      { label: 'Concrete',                    slug: 'concrete-contractor' },
+      { label: 'Foundation',                  slug: 'foundation-specialist' },
     ],
   },
   {
@@ -48,8 +54,8 @@ const TRADE_GROUPS = [
     accent: '#F59E0B',
     trades: [
       { label: 'Painter',             slug: 'painter' },
-      { label: 'Drywall',             slug: 'drywall' },
       { label: 'Flooring',            slug: 'flooring' },
+      { label: 'Drywall',             slug: 'drywall' },
       { label: 'Tile Setter',         slug: 'tile-setter' },
       { label: 'Insulation',          slug: 'insulation-contractor' },
       { label: 'Windows & Doors',     slug: 'windows-doors' },
@@ -61,12 +67,13 @@ const TRADE_GROUPS = [
     icon: '🌿',
     accent: '#10B981',
     trades: [
-      { label: 'Landscaper',          slug: 'landscaper' },
+      // Pool & Spa #1 in FL — daily search term
       { label: 'Pool & Spa',          slug: 'pool-spa' },
+      { label: 'Landscaper',          slug: 'landscaper' },
       { label: 'Pest Control',        slug: 'pest-control' },
       { label: 'Irrigation',          slug: 'irrigation' },
-      { label: 'Home Inspector',      slug: 'home-inspector' },
       { label: 'Handyman',            slug: 'handyman' },
+      { label: 'Home Inspector',      slug: 'home-inspector' },
     ],
   },
   {
@@ -75,11 +82,12 @@ const TRADE_GROUPS = [
     icon: '🔐',
     accent: '#8B5CF6',
     trades: [
+      // Marine/Dock #1 in coastal FL — Jacksonville, Miami, Tampa
+      { label: 'Marine / Dock',       slug: 'marine-contractor' },
       { label: 'Alarm & Security',    slug: 'alarm-security' },
       { label: 'Low-Voltage / AV',    slug: 'low-voltage' },
-      { label: 'Welder',              slug: 'welder' },
       { label: 'Septic & Drain',      slug: 'septic-drain' },
-      { label: 'Marine / Dock',       slug: 'marine-contractor' },
+      { label: 'Welder',              slug: 'welder' },
       { label: 'Elevator Tech',       slug: 'elevator-technician' },
     ],
   },
@@ -282,50 +290,92 @@ export default function HomePage() {
           </h2>
         </div>
 
-        {/* Top 3 — large cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        {/* Global hover expansion style — desktop only */}
+        <style>{`
+          @media (hover: hover) {
+            .trade-card-extra { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.25s ease, opacity 0.2s ease; }
+            .trade-card:hover .trade-card-extra { max-height: 200px; opacity: 1; }
+            .trade-card { position: relative; }
+            .trade-card:hover { z-index: 10; box-shadow: 0 8px 24px rgba(0,0,0,0.10); }
+          }
+        `}</style>
+
+        {/* Top 3 — large cards with progressive disclosure */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4" style={{ position: 'relative' }}>
           {TRADE_GROUPS.slice(0, 3).map(group => (
             <div key={group.id}
-              className="bg-white rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md"
-              style={{ borderColor: '#E8E2D9', borderTopWidth: '3px', borderTopColor: group.accent }}
-              onMouseEnter={() => setHoveredGroup(group.id)}
-              onMouseLeave={() => setHoveredGroup(null)}>
+              className="trade-card bg-white rounded-2xl border overflow-hidden transition-all duration-200"
+              style={{ borderColor: '#E8E2D9', borderTopWidth: '3px', borderTopColor: group.accent }}>
               <div className="p-5">
+                {/* Card header */}
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-2xl">{group.icon}</span>
                   <span className="font-bold text-base" style={{ color: '#0A1628' }}>{group.label}</span>
                 </div>
+
+                {/* Primary trades — always visible (mobile launchpad) */}
                 <div className="space-y-1">
-                  {group.trades.map(trade => (
+                  {group.trades.slice(0, PRIMARY_COUNT).map(trade => (
                     <Link key={trade.slug}
                       href={`/${scopeState}/${trade.slug}`}
-                      className="flex items-center justify-between text-sm py-1.5 px-2 rounded-lg transition-all group"
+                      className="flex items-center justify-between text-sm py-1.5 px-2 rounded-lg transition-all group/link"
                       style={{ color: '#4B5563' }}
                       onMouseEnter={e => { e.currentTarget.style.background = '#F5F0E8'; e.currentTarget.style.color = group.accent }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4B5563' }}>
                       <span>{trade.label}</span>
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs">→</span>
+                      <span className="opacity-0 group-hover/link:opacity-100 transition-opacity text-xs">→</span>
                     </Link>
                   ))}
                 </div>
+
+                {/* Secondary trades — desktop hover reveal only */}
+                {group.trades.length > PRIMARY_COUNT && (
+                  <div className="trade-card-extra">
+                    <div className="pt-2 space-y-1 border-t mt-2" style={{ borderColor: '#F5F0E8' }}>
+                      {group.trades.slice(PRIMARY_COUNT).map(trade => (
+                        <Link key={trade.slug}
+                          href={`/${scopeState}/${trade.slug}`}
+                          className="flex items-center justify-between py-1 px-2 rounded-lg transition-all group/link2"
+                          style={{ color: '#A89F93', fontSize: '11px' }}
+                          onMouseEnter={e => { e.currentTarget.style.color = group.accent }}
+                          onMouseLeave={e => { e.currentTarget.style.color = '#A89F93' }}>
+                          <span>{trade.label}</span>
+                          <span className="opacity-0 group-hover/link2:opacity-100 transition-opacity" style={{ fontSize: '10px' }}>→</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Browse All — mobile tap target + desktop fallback */}
+                <Link
+                  href={`/search?group=${group.id}`}
+                  className="mt-4 flex items-center justify-between w-full text-xs font-bold py-2.5 px-3 rounded-xl border transition-all"
+                  style={{ color: group.accent, borderColor: group.accent + '40', background: group.accent + '08' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = group.accent + '15' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = group.accent + '08' }}>
+                  <span>Browse all {group.label}</span>
+                  <span>→</span>
+                </Link>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Bottom 2 — compact cards */}
+        {/* Bottom 2 — compact cards with Browse All */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TRADE_GROUPS.slice(3).map(group => (
             <div key={group.id}
-              className="bg-white rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md"
+              className="trade-card bg-white rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md"
               style={{ borderColor: '#E8E2D9', borderTopWidth: '3px', borderTopColor: group.accent }}>
               <div className="p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-xl">{group.icon}</span>
                   <span className="font-bold" style={{ color: '#0A1628' }}>{group.label}</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {group.trades.map(trade => (
+                {/* Primary trades as pills */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {group.trades.slice(0, PRIMARY_COUNT).map(trade => (
                     <Link key={trade.slug}
                       href={`/${scopeState}/${trade.slug}`}
                       className="text-xs font-medium px-3 py-1.5 rounded-full border transition-all"
@@ -336,6 +386,16 @@ export default function HomePage() {
                     </Link>
                   ))}
                 </div>
+                {/* Browse All button */}
+                <Link
+                  href={`/search?group=${group.id}`}
+                  className="flex items-center justify-between w-full text-xs font-bold py-2 px-3 rounded-xl border transition-all"
+                  style={{ color: group.accent, borderColor: group.accent + '40', background: group.accent + '08' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = group.accent + '15' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = group.accent + '08' }}>
+                  <span>Browse all {group.label}</span>
+                  <span>→</span>
+                </Link>
               </div>
             </div>
           ))}
