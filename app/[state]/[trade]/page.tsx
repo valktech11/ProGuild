@@ -25,7 +25,6 @@ const STATE_MAP: Record<string, { name: string; abbr: string }> = {
   nv: { name: 'Nevada',         abbr: 'NV' },
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function slugToTitle(slug: string): string {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
@@ -44,7 +43,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
   const sb = getSupabaseAdmin()
   const { data } = await sb
     .from('pros')
-    .select('id, full_name, city, state, avg_rating, review_count, is_verified, profile_photo_url, plan_tier, years_experience, trade_category:trade_categories(category_name, slug)')
+    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, trade_category:trade_categories(category_name, slug)')
     .eq('trade_category_id', tradeId)
     .ilike('state', stateAbbr)
     .eq('profile_status', 'Active')
@@ -64,39 +63,39 @@ async function getProCount(tradeId: string, stateAbbr: string): Promise<number> 
   return count || 0
 }
 
-// ── Metadata ─────────────────────────────────────────────────────────────────
+// ── Metadata ──────────────────────────────────────────────────────────────────
 export async function generateMetadata(
-  { params }: { params: { state: string; trade: string } }
+  { params }: { params: Promise<{ state: string; trade: string }> }
 ): Promise<Metadata> {
-  const stateInfo = STATE_MAP[params.state.toLowerCase()]
-  const tradeTitle = slugToTitle(params.trade)
-  const stateName = stateInfo?.name || params.state.toUpperCase()
-
-  const title = `${tradeTitle}s in ${stateName} — ProGuild.ai`
+  const { state, trade } = await params
+  const stateInfo  = STATE_MAP[state.toLowerCase()]
+  const tradeTitle = slugToTitle(trade)
+  const stateName  = stateInfo?.name || state.toUpperCase()
+  const title       = `${tradeTitle}s in ${stateName} — ProGuild.ai`
   const description = `Find verified, DBPR-licensed ${tradeTitle.toLowerCase()}s in ${stateName}. Read real reviews, compare credentials, hire direct. Zero lead fees on ProGuild.ai.`
-
   return {
     title,
     description,
     openGraph: { title, description, siteName: 'ProGuild.ai' },
     alternates: {
-      canonical: `https://proguild.ai/${params.state.toLowerCase()}/${params.trade.toLowerCase()}`,
+      canonical: `https://proguild.ai/${state.toLowerCase()}/${trade.toLowerCase()}`,
     },
   }
 }
 
-// ── Page (Server Component) ───────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default async function TradeLandingPage(
-  { params }: { params: { state: string; trade: string } }
+  { params }: { params: Promise<{ state: string; trade: string }> }
 ) {
-  const stateSlug = params.state.toLowerCase()
-  const tradeSlug = params.trade.toLowerCase()
+  // Next.js 16 — params is a Promise, must await
+  const { state, trade } = await params
+
+  const stateSlug = state.toLowerCase()
+  const tradeSlug = trade.toLowerCase()
   const stateInfo = STATE_MAP[stateSlug]
 
-  // 404 for unknown states
   if (!stateInfo) notFound()
 
-  // Resolve trade slug to DB category
   const category = await getTradeCategory(tradeSlug)
   if (!category) notFound()
 
