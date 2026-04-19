@@ -96,7 +96,6 @@ export default function EditProfilePage() {
   const [insurance, setInsurance]       = useState<Insurance[]>([])
   const [uploadingCOI, setUploadingCOI] = useState(false)
   const [coiError, setCOIError]         = useState('')
-  const [coiDebug, setCOIDebug]         = useState<any>(null)
 
   // Preferences
   const [available, setAvailable]       = useState(false)
@@ -543,20 +542,6 @@ export default function EditProfilePage() {
 
                 {coiError && <div className="mb-3 p-2.5 bg-red-50 text-red-600 text-xs rounded-lg">{coiError}</div>}
 
-                {/* DEBUG PANEL — remove after expiry issue is confirmed fixed */}
-                {coiDebug && (
-                  <div className="mb-3 p-3 bg-gray-900 text-green-400 text-xs rounded-lg font-mono overflow-x-auto">
-                    <div className="font-bold text-yellow-400 mb-1">🔍 COI Debug Output</div>
-                    <div><span className="text-gray-400">file_url:</span> {coiDebug.file_url}</div>
-                    <div><span className="text-gray-400">http_status:</span> {coiDebug.http_status}</div>
-                    <div><span className="text-gray-400">extracted.expiry_date:</span> {coiDebug.response?.extracted?.expiry_date ?? 'null'}</div>
-                    <div><span className="text-gray-400">extracted.insurer_name:</span> {coiDebug.response?.extracted?.insurer_name ?? 'null'}</div>
-                    <div><span className="text-gray-400">extracted.policy_number:</span> {coiDebug.response?.extracted?.policy_number ?? 'null'}</div>
-                    <div><span className="text-gray-400">insurance_status:</span> {coiDebug.response?.insurance?.insurance_status ?? 'null'}</div>
-                    <div><span className="text-gray-400">full response:</span></div>
-                    <pre className="text-xs text-green-300 whitespace-pre-wrap mt-1">{JSON.stringify(coiDebug.response, null, 2)}</pre>
-                  </div>
-                )}
 
                 {insurance.length > 0 && (
                   <div className="space-y-2 mb-4">
@@ -587,7 +572,7 @@ export default function EditProfilePage() {
                   <input type="file" className="hidden" accept="image/*,.pdf" onChange={async (e) => {
                     const file = e.target.files?.[0]
                     if (!file || !session) return
-                    setUploadingCOI(true); setCOIError(''); setCOIDebug(null)
+                    setUploadingCOI(true); setCOIError('')
                     const form = new FormData()
                     form.append('file', file); form.append('pro_id', session.id); form.append('bucket', 'insurance')
                     const upRes = await fetch('/api/upload', { method: 'POST', body: form })
@@ -595,7 +580,6 @@ export default function EditProfilePage() {
                     if (!upRes.ok) { setCOIError(upData.error || 'Upload failed'); setUploadingCOI(false); return }
                     const insRes = await fetch('/api/insurance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, file_url: upData.url }) })
                     const insData = await insRes.json()
-                    setCOIDebug({ file_url: upData.url, http_status: insRes.status, response: insData })
                     if (insRes.ok) setInsurance(prev => [insData.insurance, ...prev])
                     else setCOIError(insData.error || 'Could not process document')
                     setUploadingCOI(false)
