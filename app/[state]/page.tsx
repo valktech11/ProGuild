@@ -1,4 +1,3 @@
-'use client'
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -185,8 +184,7 @@ export default async function StateLandingPage(
                     <Link key={trade.slug} href={`/${stateSlug}/${trade.slug}`}
                       className="flex items-center justify-between text-sm py-1.5 px-2 rounded-lg transition-all"
                       style={{ color: '#4B5563' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#F5F0E8'; e.currentTarget.style.color = group.accent }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4B5563' }}>
+>
                       <span>{trade.label}</span>
                       <span className="text-xs opacity-0 hover:opacity-100">→</span>
                     </Link>
@@ -218,8 +216,7 @@ export default async function StateLandingPage(
                     <Link key={trade.slug} href={`/${stateSlug}/${trade.slug}`}
                       className="text-xs font-medium px-3 py-1.5 rounded-full border transition-all"
                       style={{ color: '#4B5563', borderColor: '#E8E2D9', background: '#F5F0E8' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = group.accent; e.currentTarget.style.color = group.accent; e.currentTarget.style.background = '#fff' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#4B5563'; e.currentTarget.style.background = '#F5F0E8' }}>
+>
                       {trade.label}
                     </Link>
                   ))}
@@ -245,8 +242,7 @@ export default async function StateLandingPage(
               <Link key={trade.slug} href={`/${stateSlug}/${trade.slug}`}
                 className="text-xs px-3 py-1.5 rounded-full border transition-colors"
                 style={{ color: '#6B7280', borderColor: '#E8E2D9', background: '#fff' }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#14B8A6'; e.currentTarget.style.borderColor = '#14B8A6' }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.borderColor = '#E8E2D9' }}>
+>
                 {trade.label}s in {info.name}
               </Link>
             ))}
