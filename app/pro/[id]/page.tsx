@@ -1,127 +1,55 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Session, Pro } from '@/types'
-import { initials, avatarColor, starsHtml, timeAgo, formatReviewDate, isPaid, isElite } from '@/lib/utils'
+import { initials, avatarColor, starsHtml, formatReviewDate, isPaid, isElite } from '@/lib/utils'
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
+type Tab = 'overview' | 'work' | 'reviews' | 'credentials'
 
-function ProAvatar({ pro, cls }: { pro: any; cls: string }) {
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ProAvatar({ pro, size }: { pro: any; size: string }) {
   const [bg, fg] = avatarColor(pro?.full_name || 'A')
   if (pro?.profile_photo_url)
-    return <img src={pro.profile_photo_url} alt={pro.full_name} className={`${cls} rounded-full object-cover flex-shrink-0`} />
-  return <div className={`${cls} rounded-full flex items-center justify-center font-serif flex-shrink-0`} style={{ background: bg, color: fg }}>{initials(pro?.full_name || 'A')}</div>
+    return <img src={pro.profile_photo_url} alt={pro.full_name}
+      className={`${size} rounded-full object-cover flex-shrink-0 ring-2`}
+      style={{ ringColor: 'rgba(20,184,166,0.3)' }} />
+  return <div className={`${size} rounded-full flex items-center justify-center font-bold flex-shrink-0`}
+    style={{ background: bg, color: fg, fontSize: '1rem' }}>{initials(pro?.full_name || 'A')}</div>
 }
 
-// Traffic-light credential card
-function CredCard({ lic }: { lic: any }) {
-  const [open, setOpen] = useState(false)
-  const [revealed, setRevealed] = useState(false)
-  const status = lic.license_status || 'unknown'
-  const expiry = lic.license_expiry_date
-  const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
-  const daysLeft = expiry ? Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000) : null
-
-  const color = status === 'active' ? {
-    border: 'border-l-4 border-l-green-500',
-    bg: 'bg-green-50',
-    dot: 'bg-green-500',
-    text: 'text-green-700',
-    label: 'Active',
-  } : status === 'expiring_soon' ? {
-    border: 'border-l-4 border-l-amber-400',
-    bg: 'bg-amber-50',
-    dot: 'bg-amber-400',
-    text: 'text-amber-700',
-    label: daysLeft !== null ? `Expiring in ${daysLeft}d` : 'Expiring soon',
-  } : status === 'expired' ? {
-    border: 'border-l-4 border-l-red-400',
-    bg: 'bg-red-50',
-    dot: 'bg-red-500',
-    text: 'text-red-700',
-    label: 'Expired',
-  } : {
-    border: 'border-l-4 border-l-gray-300',
-    bg: 'bg-stone-50',
-    dot: 'bg-gray-300',
-    text: 'text-gray-500',
-    label: 'Unknown',
-  }
-
+function ShieldBadge({ size = 16 }: { size?: number }) {
   return (
-    <div className={`rounded-xl border border-gray-100 ${color.border} ${color.bg} overflow-hidden mb-2`}>
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${color.dot}`} />
-          <span className="text-sm font-medium text-gray-900">{lic.trade_name}</span>
-          {lic.is_primary && <span className="text-xs px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500">Primary</span>}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={`text-xs font-semibold ${color.text}`}>{color.label}</span>
-          {expiryStr && <span className="text-xs text-gray-400">exp {expiryStr}</span>}
-        </div>
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#pg)"/>
+      <path d="M11 16l3 3 7-7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <defs><linearGradient id="pg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#2DD4BF"/><stop offset="1" stopColor="#0D7377"/>
+      </linearGradient></defs>
+    </svg>
+  )
+}
+
+function BeforeAfterSlider({ afterUrl, beforeUrl, title }: { afterUrl: string; beforeUrl: string; title: string }) {
+  const [pos, setPos] = useState(50)
+  return (
+    <div className="relative w-full h-full select-none overflow-hidden"
+      onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); setPos(Math.min(95,Math.max(5,((e.clientX-r.left)/r.width)*100))) }}
+      onTouchMove={e => { const r = e.currentTarget.getBoundingClientRect(); setPos(Math.min(95,Math.max(5,((e.touches[0].clientX-r.left)/r.width)*100))) }}>
+      <img src={afterUrl} alt={title} className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
+        <img src={beforeUrl} alt="Before" className="absolute inset-0 w-full h-full object-cover" style={{ minWidth: `${100*100/pos}%` }} />
       </div>
-      <button onClick={() => setOpen(o => !o)}
-        className="w-full text-left px-4 pb-2.5 flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 transition-colors">
-        Details {open ? '▲' : '▼'}
-      </button>
-      {open && (
-        <div className="px-4 pb-3 pt-0 border-t border-gray-100 bg-white">
-          <div className="flex items-center justify-between mt-2.5">
-            <div className="font-mono text-xs text-gray-700">
-              {lic.license_number ? (
-                <>
-                  <span>{lic.license_number.slice(0,4)}</span>
-                  <span className="text-gray-500 mx-0.5">{revealed ? lic.license_number.slice(4,-3) : '•••'}</span>
-                  <span>{lic.license_number.slice(-3)}</span>
-                  <button onClick={() => setRevealed(r => !r)} className="ml-2 text-teal-600 underline text-xs">{revealed ? 'hide' : 'reveal'}</button>
-                </>
-              ) : '—'}
-            </div>
-            {lic.license_number && (
-              <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${encodeURIComponent(lic.license_number)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="text-xs text-teal-600 hover:text-teal-700 font-medium">
-                Verify with DBPR →
-              </a>
-            )}
-          </div>
-          {lic.license_expiry_date && (
-            <div className="text-xs text-gray-600 mt-1 font-medium">
-              Expires {new Date(lic.license_expiry_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg" style={{ left: `${pos}%` }}>
+        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center text-xs font-bold text-gray-600">↔</div>
+      </div>
+      <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">Before</div>
+      <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">After</div>
     </div>
   )
 }
 
-// OSHA / Insurance credential card — same traffic light system
-function AuxCredCard({ icon, title, status, sub }: { icon: string; title: string; status: 'active'|'expiring_soon'|'expired'|'valid'; sub?: string }) {
-  const color = status === 'active' || status === 'valid' ? {
-    border: 'border-l-4 border-l-green-500', bg: 'bg-green-50', dot: 'bg-green-500', text: 'text-green-700', label: 'Active'
-  } : status === 'expiring_soon' ? {
-    border: 'border-l-4 border-l-amber-400', bg: 'bg-amber-50', dot: 'bg-amber-400', text: 'text-amber-700', label: 'Expiring'
-  } : {
-    border: 'border-l-4 border-l-red-400', bg: 'bg-red-50', dot: 'bg-red-500', text: 'text-red-700', label: 'Expired'
-  }
-  return (
-    <div className={`rounded-xl border border-gray-100 ${color.border} ${color.bg} px-4 py-3 mb-2 flex items-center justify-between`}>
-      <div className="flex items-center gap-2.5">
-        <span className="text-base">{icon}</span>
-        <div>
-          <div className="text-sm font-medium text-gray-900">{title}</div>
-          {sub && <div className="text-xs text-gray-500 mt-0.5">{sub}</div>}
-        </div>
-      </div>
-      <span className={`text-xs font-semibold ${color.text}`}>{color.label}</span>
-    </div>
-  )
-}
-
-// Contact modal
 function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -129,7 +57,6 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [err, setErr] = useState('')
-  const id = pro.id
   const firstName = pro.full_name.split(' ')[0]
 
   async function send() {
@@ -137,7 +64,7 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
     setSubmitting(true); setErr('')
     const r = await fetch('/api/leads', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: id, contact_name: name, contact_email: `${phone.replace(/\D/g,'')}@sms.placeholder`, contact_phone: phone, message: message || 'Contact request', lead_source: 'Profile_Page' }),
+      body: JSON.stringify({ pro_id: pro.id, contact_name: name, contact_email: `${phone.replace(/\D/g,'')}@sms.placeholder`, contact_phone: phone, message: message || 'Contact request', lead_source: 'Profile_Page' }),
     })
     setSubmitting(false)
     if (r.ok) setDone(true)
@@ -145,47 +72,48 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden"
-        onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         {done ? (
           <div className="p-8 text-center">
             <div className="text-4xl mb-3">✓</div>
-            <div className="font-semibold text-gray-900 mb-1">Message sent!</div>
+            <div className="font-bold text-gray-900 mb-1">Message sent!</div>
             <div className="text-sm text-gray-400">{firstName} will be in touch soon.</div>
             <button onClick={onClose} className="mt-5 text-sm text-teal-600">Close</button>
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: '#E8E2D9' }}>
               <div>
-                <div className="font-semibold text-gray-900">Contact {firstName}</div>
+                <div className="font-bold text-gray-900">Contact {firstName}</div>
                 <div className="text-xs text-gray-400 mt-0.5">Free · Direct · No middleman</div>
               </div>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
             <div className="px-5 py-4 space-y-3">
-              {err && <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-lg">{err}</div>}
+              {err && <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl">{err}</div>}
               {[
                 { lbl: 'Your name *', val: name, set: setName, ph: 'James Smith', type: 'text' },
-                { lbl: 'Phone (preferred) *', val: phone, set: setPhone, ph: '(555) 000-0000', type: 'tel' },
+                { lbl: 'Phone *', val: phone, set: setPhone, ph: '(555) 000-0000', type: 'tel' },
               ].map(f => (
                 <div key={f.lbl}>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{f.lbl}</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">{f.lbl}</label>
                   <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 transition-colors" />
+                    className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
+                    style={{ borderColor: '#E8E2D9', background: '#F5F0E8' }} />
                 </div>
               ))}
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Job description</label>
-                <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2}
-                  placeholder="Briefly describe what you need done..."
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 resize-none transition-colors" />
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">Job description</label>
+                <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3}
+                  placeholder="Briefly describe what you need..."
+                  className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 resize-none transition-colors"
+                  style={{ borderColor: '#E8E2D9', background: '#F5F0E8' }} />
               </div>
               <button onClick={send} disabled={submitting}
-                className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors">
-                {submitting ? 'Sending...' : 'Send message →'}
+                className="w-full py-3 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors"
+                style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
+                {submitting ? 'Sending...' : `Send message to ${firstName} →`}
               </button>
               <p className="text-xs text-gray-400 text-center">Zero per-lead fees · Direct contact</p>
             </div>
@@ -196,65 +124,230 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
   )
 }
 
-function BeforeAfterSlider({ afterUrl, beforeUrl, title }: { afterUrl: string; beforeUrl: string; title: string }) {
-  const [pos, setPos] = useState(50)
+// ── Portfolio add form (inline in Work tab) ───────────────────────────────────
+function AddWorkItem({ proId, onAdded }: { proId: string; onAdded: (item: any) => void }) {
+  const [photo, setPhoto]         = useState('')
+  const [title, setTitle]         = useState('')
+  const [desc, setDesc]           = useState('')
+  const [isJobSite, setIsJobSite] = useState(false)
+  const [isBA, setIsBA]           = useState(false)
+  const [beforePhoto, setBefore]  = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadingB, setUploadingB] = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [error, setError]         = useState('')
+  const fileRef  = useRef<HTMLInputElement>(null)
+  const beforeRef = useRef<HTMLInputElement>(null)
+
+  async function uploadPhoto(file: File, setUrl: (u: string) => void, setLoading: (b: boolean) => void) {
+    setLoading(true); setError('')
+    const form = new FormData()
+    form.append('file', file); form.append('pro_id', proId)
+    form.append('bucket', 'portfolio'); form.append('folder', proId)
+    const r = await fetch('/api/upload', { method: 'POST', body: form })
+    const d = await r.json()
+    setLoading(false)
+    if (r.ok) setUrl(d.url)
+    else setError(d.error || 'Upload failed')
+  }
+
+  async function save() {
+    if (!photo) { setError('Please add a photo'); return }
+    if (!title.trim()) { setError('Please add a project title'); return }
+    if (isBA && !beforePhoto) { setError('Please upload the Before photo'); return }
+    setSaving(true); setError('')
+    const r = await fetch('/api/portfolio', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pro_id: proId, photo_url: photo, title, description: desc || null, is_job_site: isJobSite, is_before_after: isBA, before_photo_url: isBA ? beforePhoto : null }),
+    })
+    const d = await r.json()
+    setSaving(false)
+    if (r.ok) {
+      onAdded(d.item)
+      setPhoto(''); setTitle(''); setDesc(''); setIsJobSite(false); setIsBA(false); setBefore(''); setError('')
+    } else { setError(d.error || 'Could not add item') }
+  }
+
   return (
-    <div className="relative w-full h-full select-none overflow-hidden bg-stone-100"
-      onMouseMove={e => {
-        const r = e.currentTarget.getBoundingClientRect()
-        setPos(Math.min(95, Math.max(5, ((e.clientX - r.left) / r.width) * 100)))
-      }}
-      onTouchMove={e => {
-        const r = e.currentTarget.getBoundingClientRect()
-        setPos(Math.min(95, Math.max(5, ((e.touches[0].clientX - r.left) / r.width) * 100)))
-      }}>
-      <img src={afterUrl} alt={title} className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
-        <img src={beforeUrl} alt="Before" className="absolute inset-0 w-full h-full object-cover" style={{ minWidth: `${100 * 100 / pos}%` }} />
+    <div className="bg-white rounded-2xl border p-5 mb-6" style={{ borderColor: '#E8E2D9' }}>
+      <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#A89F93' }}>Add project photo</div>
+      {error && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl">{error}</div>}
+
+      {/* Main photo upload */}
+      <div className="mb-4">
+        {isBA && photo && (
+          <div className="text-xs font-bold mb-1.5 px-1" style={{ color: '#14B8A6' }}>AFTER photo ↑</div>
+        )}
+        {photo ? (
+          <div className="relative rounded-xl overflow-hidden aspect-video bg-gray-100">
+            <img src={photo} className="w-full h-full object-cover" alt="Project" />
+            <button onClick={() => setPhoto('')}
+              className="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-sm hover:bg-black/80 transition-colors">×</button>
+          </div>
+        ) : (
+          <button onClick={() => fileRef.current?.click()}
+            className="w-full border-2 border-dashed rounded-xl p-8 text-center transition-colors"
+            style={{ borderColor: '#E8E2D9' }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = '#14B8A6'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = '#E8E2D9'}>
+            {uploading ? (
+              <span className="text-sm" style={{ color: '#A89F93' }}>Uploading...</span>
+            ) : (
+              <>
+                <div className="text-2xl mb-2">📷</div>
+                <div className="text-sm font-semibold" style={{ color: '#0A1628' }}>Click to upload photo</div>
+                <div className="text-xs mt-1" style={{ color: '#A89F93' }}>JPG, PNG or WebP · Max 5MB</div>
+              </>
+            )}
+          </button>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, setPhoto, setUploading) }} />
       </div>
-      <div className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg" style={{ left: `${pos}%` }}>
-        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-white rounded-full shadow-md flex items-center justify-center text-xs font-bold text-gray-700">↔</div>
+
+      {/* Before/After photo upload */}
+      {isBA && (
+        <div className="mb-4 p-4 rounded-xl border" style={{ background: 'rgba(245,240,232,0.5)', borderColor: '#E8E2D9' }}>
+          <div className="text-xs font-bold mb-2" style={{ color: '#F59E0B' }}>BEFORE photo</div>
+          <div className="text-xs mb-3" style={{ color: '#A89F93' }}>Upload the state before the work was done</div>
+          {beforePhoto ? (
+            <div className="relative rounded-xl overflow-hidden h-32">
+              <img src={beforePhoto} className="w-full h-full object-cover" alt="Before" />
+              <button onClick={() => setBefore('')}
+                className="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-sm">×</button>
+            </div>
+          ) : (
+            <button onClick={() => beforeRef.current?.click()}
+              className="w-full border-2 border-dashed rounded-xl p-4 text-center transition-colors"
+              style={{ borderColor: '#F59E0B' }}>
+              {uploadingB ? 'Uploading...' : '📷 Upload Before photo'}
+            </button>
+          )}
+          <input ref={beforeRef} type="file" accept="image/*" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, setBefore, setUploadingB) }} />
+        </div>
+      )}
+
+      {/* Title */}
+      <div className="mb-3">
+        <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: '#A89F93' }}>Project title *</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Full exterior repaint — Miami Beach residence"
+          className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none focus:border-teal-400 transition-colors"
+          style={{ borderColor: '#E8E2D9', background: '#F5F0E8', color: '#0A1628' }} />
       </div>
-      <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">Before</div>
-      <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">After</div>
+
+      {/* Description */}
+      <div className="mb-4">
+        <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: '#A89F93' }}>Description (optional)</label>
+        <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
+          placeholder="Scope of work, materials used, challenges solved..."
+          className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none focus:border-teal-400 resize-none transition-colors"
+          style={{ borderColor: '#E8E2D9', background: '#F5F0E8', color: '#0A1628' }} />
+      </div>
+
+      {/* Toggles */}
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setIsJobSite(v => !v)}
+          className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all"
+          style={isJobSite ? { background: '#14B8A6', color: '#fff', borderColor: '#14B8A6' } : { borderColor: '#E8E2D9', color: '#6B7280' }}>
+          📍 GPS job site
+        </button>
+        <button onClick={() => { setIsBA(v => !v); setBefore('') }}
+          className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all"
+          style={isBA ? { background: '#F59E0B', color: '#fff', borderColor: '#F59E0B' } : { borderColor: '#E8E2D9', color: '#6B7280' }}>
+          ↔ Before/After
+        </button>
+      </div>
+
+      <button onClick={save} disabled={saving || !photo || !title.trim()}
+        className="w-full py-3 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-all"
+        style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
+        {saving ? 'Adding...' : 'Add to portfolio'}
+      </button>
     </div>
   )
 }
 
-function extractKeywords(reviews: any[]) {
-  const positive = ['professional','responsive','reliable','quality','excellent','great','clean','fast','honest','affordable','knowledgeable','friendly','thorough','efficient','expert']
-  const counts: Record<string, number> = {}
-  for (const r of reviews) {
-    const text = (r.review_text || '').toLowerCase()
-    for (const kw of positive) if (text.includes(kw)) counts[kw] = (counts[kw] || 0) + 1
-  }
-  return Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,5).map(([kw]) => kw)
+// ── Credential traffic-light card ─────────────────────────────────────────────
+function CredCard({ lic }: { lic: any }) {
+  const [open, setOpen] = useState(false)
+  const [revealed, setRevealed] = useState(false)
+  const status = lic.license_status || 'unknown'
+  const expiry = lic.license_expiry_date
+  const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
+  const daysLeft = expiry ? Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000) : null
+
+  const color = status === 'active' ? { border: '#22C55E', bg: 'rgba(34,197,94,0.06)', dot: '#22C55E', text: '#15803D', label: 'Active' }
+    : status === 'expiring_soon' ? { border: '#F59E0B', bg: 'rgba(245,158,11,0.06)', dot: '#F59E0B', text: '#B45309', label: daysLeft !== null ? `Expiring in ${daysLeft}d` : 'Expiring' }
+    : status === 'expired' ? { border: '#EF4444', bg: 'rgba(239,68,68,0.06)', dot: '#EF4444', text: '#B91C1C', label: 'Expired' }
+    : { border: '#E8E2D9', bg: '#F5F0E8', dot: '#A89F93', text: '#6B7280', label: 'Unknown' }
+
+  return (
+    <div className="rounded-xl border overflow-hidden mb-2" style={{ borderColor: color.border, borderLeftWidth: '4px', background: color.bg }}>
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color.dot }} />
+          <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>{lic.trade_name}</span>
+          {lic.is_primary && <span className="text-xs px-1.5 py-0.5 bg-white border rounded" style={{ borderColor: '#E8E2D9', color: '#6B7280' }}>Primary</span>}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold" style={{ color: color.text }}>{color.label}</span>
+          {expiryStr && <span className="text-xs" style={{ color: '#A89F93' }}>exp {expiryStr}</span>}
+        </div>
+      </div>
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full text-left px-4 pb-2.5 text-xs font-medium transition-colors"
+        style={{ color: '#14B8A6' }}>
+        Details {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div className="px-4 pb-3 pt-2 border-t bg-white" style={{ borderColor: '#E8E2D9' }}>
+          <div className="flex items-center justify-between">
+            <div className="font-mono text-xs" style={{ color: '#0A1628' }}>
+              {lic.license_number ? (
+                <>
+                  {lic.license_number.slice(0,4)}
+                  <span style={{ color: '#A89F93' }}>{revealed ? lic.license_number.slice(4,-3) : '•••'}</span>
+                  {lic.license_number.slice(-3)}
+                  <button onClick={() => setRevealed(r => !r)} className="ml-2 underline text-xs" style={{ color: '#14B8A6' }}>{revealed ? 'hide' : 'reveal'}</button>
+                </>
+              ) : '—'}
+            </div>
+            {lic.license_number && (
+              <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${encodeURIComponent(lic.license_number)}`}
+                target="_blank" rel="noopener noreferrer" className="text-xs font-medium" style={{ color: '#14B8A6' }}>
+                Verify with DBPR →
+              </a>
+            )}
+          </div>
+          {lic.license_expiry_date && (
+            <div className="text-xs mt-1" style={{ color: '#6B7280' }}>
+              Expires {new Date(lic.license_expiry_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-
 export default function ProProfilePage() {
   const { id } = useParams<{ id: string }>()
   const router  = useRouter()
 
-  const [session, setSession]       = useState<Session | null>(null)
-  const [pro, setPro]               = useState<Pro | null>(null)
-  const [reviews, setReviews]       = useState<any[]>([])
-  const [portfolio, setPortfolio]   = useState<any[]>([])
-  const [equipment, setEquipment]   = useState<any[]>([])
+  const [session, setSession]         = useState<any>(null)
+  const [pro, setPro]                 = useState<any>(null)
+  const [reviews, setReviews]         = useState<any[]>([])
+  const [portfolio, setPortfolio]     = useState<any[]>([])
   const [proLicenses, setProLicenses] = useState<any[]>([])
-  const [memberships, setMemberships] = useState<any[]>([])
-  const [endorsements, setEndorsements] = useState<any[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState('')
-  const [isFollowing, setIsFollowing] = useState(false)
-
-  const [activeTab, setActiveTab]   = useState<'about'|'reviews'>('about')
-  const [lightbox, setLightbox]     = useState<string|null>(null)
-  const [showModal, setShowModal]   = useState(false)
-  const [showOverflow, setShowOverflow] = useState(false)
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState('')
+  const [activeTab, setActiveTab]     = useState<Tab>('overview')
+  const [lightbox, setLightbox]       = useState<string | null>(null)
+  const [showModal, setShowModal]     = useState(false)
   const [showShareToast, setShowShareToast] = useState(false)
-  const [showAllPhotos, setShowAllPhotos] = useState(false)
+  const [isFollowing, setIsFollowing] = useState(false)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('tn_pro')
@@ -273,10 +366,7 @@ export default function ProProfilePage() {
       setPortfolio(portfolioData.items || [])
       if (followData && s) setIsFollowing((followData.followers||[]).some((f:any) => f?.id === s.id))
       setLoading(false)
-      fetch(`/api/equipment?pro_id=${id}`).then(r => r.json()).then(d => setEquipment(d.equipment || []))
       fetch(`/api/pro-licenses?pro_id=${id}`).then(r => r.json()).then(d => setProLicenses(d.licenses || []))
-      fetch(`/api/memberships?pro_id=${id}`).then(r => r.json()).then(d => setMemberships(d.memberships || []))
-      fetch(`/api/skills?pro_id=${id}`).then(r => r.json()).then(d => setEndorsements((d.skills || []).filter((s:any) => s.endorsement_count > 0)))
     }).catch(() => { setError('Could not load profile'); setLoading(false) })
   }, [id])
 
@@ -291,402 +381,400 @@ export default function ProProfilePage() {
   }
 
   function shareProfile() {
-    const url = window.location.href
-    if (navigator.share) navigator.share({ title: `${pro?.full_name} on TradesNetwork`, url })
-    else { navigator.clipboard.writeText(url); setShowShareToast(true); setTimeout(() => setShowShareToast(false), 2500) }
-  }
-
-  function downloadPdf() {
-    window.open(`/api/pros/${id}/pdf`, '_blank')
+    if (navigator.share) navigator.share({ title: `${pro?.full_name} on ProGuild`, url: window.location.href })
+    else { navigator.clipboard.writeText(window.location.href); setShowShareToast(true); setTimeout(() => setShowShareToast(false), 2500) }
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-stone-100 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
-  if (error || !pro) return (
-    <div className="min-h-screen bg-stone-100 flex items-center justify-center text-center">
-      <div><div className="font-serif text-2xl text-gray-900 mb-3">Pro not found</div>
-        <Link href="/" className="text-teal-600 text-sm">← Back to search</Link></div>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#F5F0E8' }}>
+      <div className="w-8 h-8 border-2 border-t-teal-500 rounded-full animate-spin" style={{ borderColor: '#E8E2D9', borderTopColor: '#14B8A6' }} />
     </div>
   )
 
-  const isOwner  = session?.id === id
-  const paid     = isPaid(pro.plan_tier)
-  const elite    = isElite(pro.plan_tier)
-  const trade    = (pro as any).trade_category?.category_name || '—'
-  const location = [pro.city, pro.state].filter(Boolean).join(', ')
-  const rating   = pro.avg_rating || 0
+  if (error || !pro) return (
+    <div className="min-h-screen flex items-center justify-center text-center" style={{ background: '#F5F0E8' }}>
+      <div>
+        <div className="text-2xl font-bold mb-3" style={{ color: '#0A1628' }}>Pro not found</div>
+        <Link href="/" className="text-sm" style={{ color: '#14B8A6' }}>← Back to search</Link>
+      </div>
+    </div>
+  )
+
+  const isOwner   = session?.id === id
+  const trade     = pro.trade_category?.category_name || '—'
+  const location  = [pro.city, pro.state].filter(Boolean).join(', ')
+  const rating    = pro.avg_rating || 0
   const reviewCnt = pro.review_count || reviews.length || 0
   const firstName = pro.full_name.split(' ')[0]
-  const keywords  = extractKeywords(reviews)
-  const visiblePhotos = showAllPhotos ? portfolio : portfolio.slice(0, 6)
+  const hasLicense    = proLicenses.length > 0 || !!pro.license_number
+  const hasOsha       = !!pro.osha_card_type
+  const hasInsurance  = pro.insurance_status === 'active'
+  const hasCredentials = hasLicense || hasOsha || hasInsurance
 
-  // Compact credential pills for hero
-  const hasLicense  = proLicenses.length > 0 || !!pro.license_number
-  const hasOsha     = !!(pro as any).osha_card_type
-  const hasInsurance = (pro as any).insurance_status === 'active'
-
-
-
-  const hasCredentials = proLicenses.length > 0 || pro.license_number || hasOsha || hasInsurance
+  const TABS: { id: Tab; label: string; count?: number }[] = [
+    { id: 'overview',     label: 'Overview' },
+    { id: 'work',         label: 'Work', count: portfolio.length },
+    { id: 'reviews',      label: 'Reviews', count: reviewCnt },
+    { id: 'credentials',  label: 'Credentials' },
+  ]
 
   return (
-    <div className="min-h-screen bg-stone-100">
+    <div className="min-h-screen" style={{ background: '#F5F0E8', fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* Lightbox */}
       {lightbox && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
           <img src={lightbox} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" />
-          <button className="absolute top-4 right-4 text-white text-2xl leading-none">✕</button>
+          <button className="absolute top-4 right-4 text-white text-2xl">✕</button>
         </div>
       )}
 
-      {/* Contact modal */}
       {showModal && <ContactModal pro={pro} onClose={() => setShowModal(false)} />}
 
-      {/* Share toast */}
       {showShareToast && (
         <div className="fixed top-4 right-4 bg-gray-900 text-white text-sm px-4 py-2 rounded-xl shadow-lg z-50">Link copied ✓</div>
       )}
 
-      {/* Owner banner */}
+      {/* ── OWNER BAR — only visible to the pro ──────────────────────────── */}
       {isOwner && (
-        <div className="bg-teal-50 border-b border-teal-100">
+        <div className="border-b" style={{ background: 'rgba(20,184,166,0.06)', borderColor: 'rgba(20,184,166,0.2)' }}>
           <div className="max-w-5xl mx-auto px-5 py-2.5 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2 text-sm text-teal-700">
-              <span>👁</span><span className="font-medium">Your public profile</span>
+            <div className="flex items-center gap-2 text-sm" style={{ color: '#0D7377' }}>
+              <span>👁</span>
+              <span className="font-medium">You're viewing your public profile</span>
+              <span className="text-xs hidden sm:inline" style={{ color: '#A89F93' }}>— This is what homeowners and pros see</span>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/edit-profile" className="text-xs font-semibold px-3 py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Edit profile</Link>
-              <Link href="/dashboard" className="text-xs font-semibold px-3 py-1.5 border border-teal-300 text-teal-700 rounded-lg hover:bg-teal-100 transition-colors">← Dashboard</Link>
+              <Link href="/edit-profile"
+                className="text-xs font-bold px-4 py-1.5 rounded-lg text-white transition-all"
+                style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
+                ✏️ Edit profile
+              </Link>
+              <Link href="/dashboard"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors"
+                style={{ borderColor: 'rgba(20,184,166,0.3)', color: '#0D7377' }}>
+                Dashboard →
+              </Link>
             </div>
           </div>
         </div>
       )}
 
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 px-5 h-[52px] flex items-center justify-between sticky top-0 z-40">
-        <Link href="/" className="font-serif text-lg text-gray-900">Trades<span className="text-teal-600">Network</span></Link>
-        <div className="flex items-center gap-2">
-          <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 hidden sm:block">← Find a pro</Link>
-          {session && !isOwner && (
-            <button onClick={toggleFollow}
-              className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition-all ${isFollowing ? 'border-gray-200 text-gray-500' : 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'}`}>
-              {isFollowing ? '✓ Following' : '+ Follow'}
-            </button>
-          )}
+      {/* ── NAV ──────────────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-40 bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
+        <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-7 h-7">
+              <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#nav-g)"/><text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text><defs><linearGradient id="nav-g" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#2DD4BF"/><stop offset="1" stopColor="#0D7377"/></linearGradient></defs></svg>
+            </div>
+            <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#14B8A6', fontWeight: 300 }}>.ai</span></span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/search" className="text-xs hidden sm:block transition-colors" style={{ color: '#A89F93' }}>← Find a pro</Link>
+            {session && !isOwner && (
+              <button onClick={toggleFollow}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
+                style={isFollowing
+                  ? { borderColor: '#E8E2D9', color: '#6B7280' }
+                  : { background: 'linear-gradient(135deg, #14B8A6, #0D7377)', color: '#fff', borderColor: '#14B8A6' }}>
+                {isFollowing ? '✓ Following' : '+ Follow'}
+              </button>
+            )}
+            {!isOwner && (
+              <button onClick={() => setShowModal(true)}
+                className="text-xs font-bold px-4 py-2 rounded-lg text-white sm:hidden"
+                style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
+                Contact
+              </button>
+            )}
+          </div>
         </div>
       </nav>
 
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-5 pt-5">
-        <div className="rounded-xl overflow-hidden relative" style={{background: (pro as any).cover_image_url ? undefined : '#152a23'}}>
-        {(pro as any).cover_image_url && (
-          <div className="absolute inset-0">
-            <img src={(pro as any).cover_image_url} alt="Cover" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-[#152a23]/75" />
-          </div>
-        )}
-        {!(pro as any).cover_image_url && <div className="absolute inset-0 bg-[#152a23]" />}
-        <div className="relative z-10">
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-5 pt-6">
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
 
-          {/* Identity row */}
-          <div className="px-5 sm:px-7 pt-6 pb-4">
-            <div className="flex items-start gap-4">
-              <div className="relative flex-shrink-0">
-                <ProAvatar pro={pro} cls="w-16 h-16 ring-2 ring-teal-400/40" />
+          {/* Cover / header area */}
+          <div className="relative h-28 sm:h-36"
+            style={{ background: pro.cover_image_url ? undefined : 'linear-gradient(135deg, #0A1628, #0D2D4A)' }}>
+            {pro.cover_image_url && (
+              <>
+                <img src={pro.cover_image_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0" style={{ background: 'rgba(10,22,40,0.6)' }} />
+              </>
+            )}
+          </div>
+
+          {/* Profile info */}
+          <div className="px-5 sm:px-7 pb-5">
+            {/* Avatar — overlaps cover */}
+            <div className="flex items-end justify-between -mt-10 mb-4">
+              <div className="relative">
+                <ProAvatar pro={pro} size="w-20 h-20" />
                 {pro.available_for_work && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-[#152a23]" />
+                  <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-white" style={{ background: '#22C55E' }} />
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h1 className="text-xl sm:text-2xl font-semibold text-white leading-tight">{pro.full_name}</h1>
-                    <div className="text-teal-400 text-sm font-medium mt-0.5">{trade}</div>
-                    <div className="text-teal-200/60 text-xs mt-0.5">📍 {location || 'Florida'}</div>
-                  </div>
-                  {/* Overflow menu */}
-                  <div className="relative flex-shrink-0">
-                    <button onClick={() => setShowOverflow(o => !o)}
-                      className="text-teal-300 hover:text-teal-100 transition-colors text-lg px-1">⋯</button>
-                    {showOverflow && (
-                      <div className="absolute right-0 top-8 bg-white rounded-xl border border-gray-200 shadow-lg py-1 w-44 z-10">
-                        <button onClick={() => { shareProfile(); setShowOverflow(false) }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-stone-50 transition-colors">
-                          🔗 Share profile
-                        </button>
-                        <button onClick={() => { downloadPdf(); setShowOverflow(false) }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-stone-50 transition-colors">
-                          📋 Credential Report (PDF)
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Badges row */}
-                <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                  {pro.is_verified && (
-                    <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-teal-400/10 border border-teal-400/30 text-teal-300 font-semibold">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-green-400 flex-shrink-0">
-                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
-                      </svg>
-                      Verified by TradesNetwork
-                    </span>
-                  )}
-                  {pro.available_for_work && (
-                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-500/20 border border-green-400/30 text-green-300 font-medium">
-                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block" /> Available
-                    </span>
-                  )}
-                  {hasLicense && <span className="text-xs px-2 py-0.5 rounded-full bg-teal-400/10 border border-teal-400/20 text-teal-400">Licensed</span>}
-                  {hasOsha && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-400/10 border border-blue-400/20 text-blue-300">🦺 {(pro as any).osha_card_type}</span>}
-                  {hasInsurance && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-400/10 border border-blue-400/20 text-blue-300">🛡 Insured</span>}
-                  {elite && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-400/20 border border-purple-400/30 text-purple-300">Elite Pro</span>}
-                  {paid && !elite && <span className="text-xs px-2 py-0.5 rounded-full bg-teal-400/10 border border-teal-400/20 text-teal-300">Pro Member</span>}
-                </div>
-              </div>
+              {/* Desktop contact CTA */}
+              {!isOwner && (
+                <button onClick={() => setShowModal(true)}
+                  className="hidden sm:flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
+                  style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
+                  Contact {firstName}
+                </button>
+              )}
             </div>
-          </div>
 
+            {/* Name + trade */}
+            <h1 className="text-xl sm:text-2xl font-bold mb-0.5" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+              {pro.full_name}
+            </h1>
+            <div className="text-sm font-semibold mb-0.5" style={{ color: '#14B8A6' }}>{trade}</div>
+            <div className="text-sm mb-3" style={{ color: '#A89F93' }}>
+              📍 {location || 'Florida'}
+              {pro.years_experience ? ` · ${pro.years_experience} yrs exp` : ''}
+            </div>
 
+            {/* Trust badges */}
+            <div className="flex flex-wrap gap-2">
+              {pro.is_verified && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                  style={{ background: 'rgba(20,184,166,0.1)', color: '#0D7377', border: '1px solid rgba(20,184,166,0.25)' }}>
+                  <ShieldBadge size={13} /> Guild Verified
+                </span>
+              )}
+              {pro.available_for_work && (
+                <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full"
+                  style={{ background: 'rgba(34,197,94,0.1)', color: '#15803D', border: '1px solid rgba(34,197,94,0.25)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22C55E' }} /> Available now
+                </span>
+              )}
+              {hasLicense && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: '#F5F0E8', color: '#6B7280', border: '1px solid #E8E2D9' }}>
+                  🏛 DBPR Licensed
+                </span>
+              )}
+              {hasOsha && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: '#F5F0E8', color: '#6B7280', border: '1px solid #E8E2D9' }}>
+                  🦺 {pro.osha_card_type}
+                </span>
+              )}
+              {hasInsurance && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: '#F5F0E8', color: '#6B7280', border: '1px solid #E8E2D9' }}>
+                  🛡 Insured
+                </span>
+              )}
+              {isElite(pro.plan_tier) && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                  style={{ background: 'rgba(139,92,246,0.1)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.25)' }}>
+                  ✦ Elite Pro
+                </span>
+              )}
+            </div>
 
-          {/* CTA bar */}
-          <div className="bg-[#0f1f1a] border-t border-teal-900/40 px-5 sm:px-7 py-3.5">
-            {isOwner ? (
-              <div className="flex gap-2">
-                <Link href="/edit-profile" className="flex-1 py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">Edit profile</Link>
-                <Link href="/dashboard" className="flex-1 py-2.5 text-center border border-teal-800 text-teal-400 text-sm font-medium rounded-xl hover:bg-teal-900/30 transition-colors">← Dashboard</Link>
-              </div>
-            ) : (
-              <div className="flex gap-2.5">
-                {/* Mobile: hero shows utility actions. Sticky footer handles Call/Message */}
-                <button onClick={shareProfile}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors lg:hidden">
-                  🔗 Share
-                </button>
-                <button onClick={downloadPdf}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors lg:hidden">
-                  📋 PDF
-                </button>
-                {/* Desktop: hero shows call + message */}
-                {pro.phone ? (
-                  <a href={`tel:${pro.phone}`} className="flex-1 hidden lg:flex items-center justify-center gap-2 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
-                    📞 Call {firstName}
-                  </a>
-                ) : (
-                  <button onClick={() => setShowModal(true)} className="flex-1 hidden lg:flex items-center justify-center gap-2 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-xl hover:bg-teal-400 transition-colors">
-                    📞 Request call
-                  </button>
-                )}
-                <button onClick={() => setShowModal(true)} className="flex-1 hidden lg:flex items-center justify-center gap-2 py-2.5 border border-teal-700 text-teal-300 text-sm font-semibold rounded-xl hover:bg-teal-900/40 transition-colors">
-                  💬 Message
-                </button>
+            {/* Rating row */}
+            {rating > 0 && (
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-amber-400 text-sm">{starsHtml(rating)}</span>
+                <span className="text-sm font-bold" style={{ color: '#0A1628' }}>{rating.toFixed(1)}</span>
+                <span className="text-sm" style={{ color: '#A89F93' }}>({reviewCnt} reviews)</span>
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── TABS ─────────────────────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-5 mt-4">
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
+          <div className="flex border-b overflow-x-auto scrollbar-hide" style={{ borderColor: '#E8E2D9' }}>
+            {TABS.map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className="flex-shrink-0 flex items-center gap-1.5 px-5 py-3.5 text-sm font-semibold transition-all border-b-2"
+                style={activeTab === tab.id
+                  ? { borderBottomColor: '#14B8A6', color: '#14B8A6' }
+                  : { borderBottomColor: 'transparent', color: '#6B7280' }}>
+                {tab.label}
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
+                    style={activeTab === tab.id
+                      ? { background: 'rgba(20,184,166,0.15)', color: '#14B8A6' }
+                      : { background: '#F5F0E8', color: '#A89F93' }}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* ── MAIN CONTENT ─────────────────────────────────────────────────────── */}
+      {/* ── TAB CONTENT ──────────────────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-4 sm:px-5 py-5">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="flex gap-5">
 
-          {/* LEFT — main content column */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
 
-            {/* ── 1. PROJECT PHOTOS ── */}
-            {portfolio.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="px-5 pt-4 pb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-gray-900">Project photos</h2>
-                  <span className="text-xs text-gray-400">{portfolio.length} photos</span>
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <div className="space-y-4">
+
+                {/* Bio */}
+                {pro.bio && (
+                  <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
+                    <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>About {firstName}</div>
+                    <p className="text-sm leading-relaxed" style={{ color: '#4B5563' }}>{pro.bio}</p>
+                  </div>
+                )}
+
+                {/* Quick stats */}
+                <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    {[
+                      { n: portfolio.length || '—', l: 'Projects' },
+                      { n: reviewCnt > 0 ? rating.toFixed(1) : '—', l: 'Rating' },
+                      { n: pro.years_experience ? `${pro.years_experience}yr` : '—', l: 'Experience' },
+                    ].map(s => (
+                      <div key={s.l}>
+                        <div className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.n}</div>
+                        <div className="text-xs mt-0.5" style={{ color: '#A89F93' }}>{s.l}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="px-4 pb-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {visiblePhotos.map(item => (
-                      <div key={item.id} className="rounded-xl overflow-hidden bg-stone-100 cursor-pointer group"
-                        onClick={() => !item.is_before_after && item.photo_url && setLightbox(item.photo_url)}>
-                        <div className="relative aspect-square">
-                          {item.is_before_after && item.before_photo_url && item.photo_url ? (
-                            <BeforeAfterSlider afterUrl={item.photo_url} beforeUrl={item.before_photo_url} title={item.title} />
-                          ) : item.photo_url ? (
-                            <img src={item.photo_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">🖼</div>
-                          )}
+
+                {/* Top 4 portfolio photos preview */}
+                {portfolio.length > 0 && (
+                  <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
+                    <div className="px-5 pt-4 pb-3 flex items-center justify-between">
+                      <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Project work</div>
+                      <button onClick={() => setActiveTab('work')} className="text-xs font-semibold" style={{ color: '#14B8A6' }}>
+                        See all {portfolio.length} →
+                      </button>
+                    </div>
+                    <div className="px-4 pb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {portfolio.slice(0, 4).map(item => (
+                        <div key={item.id} className="rounded-xl overflow-hidden bg-stone-100 aspect-square cursor-pointer"
+                          onClick={() => item.photo_url && !item.is_before_after && setLightbox(item.photo_url)}>
+                          {item.is_before_after && item.before_photo_url && item.photo_url
+                            ? <BeforeAfterSlider afterUrl={item.photo_url} beforeUrl={item.before_photo_url} title={item.title} />
+                            : item.photo_url
+                              ? <img src={item.photo_url} alt={item.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                              : <div className="w-full h-full flex items-center justify-center text-2xl" style={{ color: '#E8E2D9' }}>🖼</div>
+                          }
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top 2 reviews preview */}
+                {reviews.length > 0 && (
+                  <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
+                    <div className="px-5 pt-4 pb-3 flex items-center justify-between">
+                      <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Recent reviews</div>
+                      <button onClick={() => setActiveTab('reviews')} className="text-xs font-semibold" style={{ color: '#14B8A6' }}>
+                        See all {reviewCnt} →
+                      </button>
+                    </div>
+                    <div className="px-4 pb-4 space-y-3">
+                      {reviews.slice(0, 2).map(rev => (
+                        <div key={rev.id} className="p-4 rounded-xl" style={{ background: '#F5F0E8' }}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="font-semibold text-sm" style={{ color: '#0A1628' }}>{rev.reviewer_name || 'Anonymous'}</div>
+                            <div className="text-amber-400 text-xs">{starsHtml(rev.rating)}</div>
+                          </div>
+                          <p className="text-sm leading-relaxed line-clamp-2" style={{ color: '#6B7280' }}>{rev.review_text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Trust strip */}
+                <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[
+                      { icon: '🛡', t: hasCredentials ? 'License Verified' : 'Profile Created', s: hasCredentials ? 'Florida DBPR database check' : 'Awaiting verification' },
+                      { icon: '✦', t: 'Zero Lead Fees', s: 'Direct contact, no middleman' },
+                      { icon: '⭐', t: rating > 0 ? `${rating.toFixed(1)} Star Rating` : 'New Member', s: rating > 0 ? `${reviewCnt} verified reviews` : 'References available on request' },
+                    ].map(item => (
+                      <div key={item.t} className="flex items-start gap-3">
+                        <div className="text-xl flex-shrink-0">{item.icon}</div>
+                        <div>
+                          <div className="text-xs font-bold" style={{ color: '#0A1628' }}>{item.t}</div>
+                          <div className="text-xs mt-0.5" style={{ color: '#A89F93' }}>{item.s}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* WORK TAB */}
+            {activeTab === 'work' && (
+              <div>
+                {isOwner && (
+                  <AddWorkItem proId={id} onAdded={item => setPortfolio(p => [item, ...p])} />
+                )}
+                {portfolio.length === 0 ? (
+                  <div className="bg-white rounded-2xl border py-16 text-center" style={{ borderColor: '#E8E2D9' }}>
+                    <div className="text-4xl mb-3 opacity-20">🖼</div>
+                    <div className="font-bold mb-1" style={{ color: '#0A1628' }}>No project photos yet</div>
+                    <div className="text-sm" style={{ color: '#A89F93' }}>{isOwner ? 'Add your first project photo above.' : `${firstName} hasn't added portfolio photos yet.`}</div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {portfolio.map(item => (
+                      <div key={item.id} className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
+                        <div className="relative aspect-video cursor-pointer"
+                          onClick={() => item.photo_url && !item.is_before_after && setLightbox(item.photo_url)}>
+                          {item.is_before_after && item.before_photo_url && item.photo_url
+                            ? <BeforeAfterSlider afterUrl={item.photo_url} beforeUrl={item.before_photo_url} title={item.title} />
+                            : item.photo_url
+                              ? <img src={item.photo_url} alt={item.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                              : <div className="w-full h-full flex items-center justify-center text-3xl" style={{ background: '#F5F0E8', color: '#E8E2D9' }}>🖼</div>
+                          }
                           {item.is_job_site && !item.is_before_after && (
                             <div className="absolute top-2 left-2 bg-green-700/90 rounded-full px-2 py-0.5">
-                              <span className="text-white text-xs font-semibold">✓ Verified GPS</span>
+                              <span className="text-white text-xs font-bold">✓ GPS</span>
                             </div>
                           )}
                           {item.is_before_after && (
                             <div className="absolute top-2 left-2 bg-amber-600/90 rounded-full px-2 py-0.5">
-                              <span className="text-white text-xs font-semibold">↔ Before/After</span>
+                              <span className="text-white text-xs font-bold">↔ Before/After</span>
                             </div>
                           )}
                         </div>
-                        <div className="px-2 py-1.5 bg-white border-t border-gray-100">
-                          <div className="text-xs font-medium text-gray-800 truncate">{item.title || 'Photo'}</div>
-                          {item.location_label && <div className="text-xs text-gray-400 truncate">📍 {item.location_label}</div>}
+                        <div className="p-3">
+                          <div className="font-semibold text-sm mb-0.5" style={{ color: '#0A1628' }}>{item.title || 'Untitled'}</div>
+                          {item.description && <div className="text-xs line-clamp-2" style={{ color: '#6B7280' }}>{item.description}</div>}
+                          {item.location_label && <div className="text-xs mt-1" style={{ color: '#A89F93' }}>📍 {item.location_label}</div>}
                         </div>
                       </div>
                     ))}
                   </div>
-                  {portfolio.length > 6 && (
-                    <button onClick={() => setShowAllPhotos(v => !v)}
-                      className="mt-3 w-full py-2 border border-gray-200 rounded-xl text-sm text-gray-500 hover:border-teal-300 hover:text-teal-600 transition-colors">
-                      {showAllPhotos ? 'Show less' : `See all ${portfolio.length} photos →`}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ── 2. FLASH BIO / ABOUT ── */}
-            {(pro.bio || equipment.length > 0) && (
-              <div className="bg-stone-50 border border-gray-200 rounded-xl overflow-hidden">
-                <div className="border-l-4 border-l-teal-500 px-5 pt-5 pb-5">
-                  <h2 className="text-sm font-bold text-gray-900 mb-3">About {firstName}</h2>
-
-                  {/* Structured grid */}
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-4">
-                    {[
-                      { lbl: 'Experience', val: pro.years_experience ? `${pro.years_experience} years` : '—' },
-                      { lbl: 'Location', val: location || '—' },
-                      { lbl: 'Languages', val: (pro as any).preferred_language === 'es' ? 'Spanish, English' : 'English' },
-                      ...((pro as any).counties_served?.length ? [{ lbl: 'Service area', val: (pro as any).counties_served.slice(0,3).join(', ') + ((pro as any).counties_served.length > 3 ? ` +${(pro as any).counties_served.length - 3}` : '') }] : []),
-                    ].map(d => (
-                      <div key={d.lbl}>
-                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-0.5">{d.lbl}</div>
-                        <div className="text-sm font-medium text-gray-900">{d.val}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {pro.bio && (
-                    <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-200 pt-3">{pro.bio}</p>
-                  )}
-
-                  {/* Equipment — the "hardware" line */}
-                  {equipment.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Equipment & tools</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {equipment.map(eq => (
-                          <span key={eq.id} className={`text-xs px-2.5 py-1 rounded-lg border font-medium ${eq.certified ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-white text-gray-600 border-gray-200'}`}>
-                            {eq.certified && <span className="text-teal-500 mr-1">✓</span>}{eq.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Memberships */}
-                  {memberships.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Associations</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {memberships.map(m => (
-                          <span key={m.id} className="text-xs px-2.5 py-1 rounded-lg border bg-blue-50 text-blue-700 border-blue-100 font-medium">🏛 {m.name}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ── 3. CREDENTIAL VAULT ── */}
-            {hasCredentials && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-bold text-gray-900">Verified credentials</h2>
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">🛡 Florida DBPR</span>
-                </div>
-
-                {proLicenses.map(lic => <CredCard key={lic.id} lic={lic} />)}
-
-                {proLicenses.length === 0 && pro.license_number && (
-                  <CredCard lic={{ id: 'legacy', trade_name: trade, license_number: pro.license_number, license_expiry_date: (pro as any).license_expiry_date, license_status: (pro as any).license_status || 'unknown', is_primary: true }} />
                 )}
-
-                {hasOsha && (
-                  <AuxCredCard icon="🦺" title={`${(pro as any).osha_card_type} Safety Certification`}
-                    status="valid" sub={(pro as any).osha_card_expiry ? `Expires ${new Date((pro as any).osha_card_expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : undefined} />
-                )}
-
-                {hasInsurance && (
-                  <AuxCredCard icon="🛡" title="General Liability Insurance"
-                    status={(pro as any).insurance_status === 'expiring_soon' ? 'expiring_soon' : 'active'}
-                    sub={(pro as any).insurance_expiry_date ? `Expires ${new Date((pro as any).insurance_expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : undefined} />
-                )}
-
-                <button onClick={downloadPdf}
-                  className="mt-1 w-full text-center py-2.5 bg-stone-100 hover:bg-stone-200 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 transition-colors">
-                  📋 Download Credential Report (PDF)
-                </button>
-                <p className="text-xs text-gray-400 mt-2.5 text-center">All licenses verified against Florida Dept. of Business &amp; Professional Regulation</p>
               </div>
             )}
 
-            {/* ── 4. PEER ENDORSEMENTS ── */}
-            {endorsements.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <h2 className="text-sm font-bold text-gray-900 mb-1">Peer endorsements</h2>
-                <p className="text-xs text-gray-400 mb-3">Vouched for by verified pros on TradesNetwork</p>
-                <div className="space-y-0">
-                  {endorsements.map((skill, i) => (
-                    <div key={skill.id} className={`flex items-center justify-between py-2.5 ${i < endorsements.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                      <div>
-                        <div className="text-sm text-gray-900">{skill.skill_name}</div>
-                        <div className="text-xs text-teal-600 font-medium mt-0.5">Endorsed by {skill.endorsement_count} pro{skill.endorsement_count !== 1 ? 's' : ''}</div>
-                      </div>
-                      <div className="flex">
-                        {Array.from({ length: Math.min(skill.endorsement_count, 4) }).map((_, j) => (
-                          <div key={j} className="w-6 h-6 rounded-full bg-teal-100 border-2 border-white flex items-center justify-center -ml-1.5 first:ml-0">
-                            <span className="text-teal-700 text-xs font-semibold">✓</span>
-                          </div>
-                        ))}
-                        {skill.endorsement_count > 4 && (
-                          <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center -ml-1.5">
-                            <span className="text-gray-500 text-xs">+{skill.endorsement_count - 4}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── 5. TABS — About / Reviews ── */}
-            {/* Reviews section — single tab */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-900">
-                {reviewCnt > 0 ? `Reviews (${reviewCnt})` : 'Reviews'}
-              </h2>
-              {!isOwner && (
-                <a href={`/reviews/${id}`} className="flex items-center gap-1.5 px-3 py-1.5 border border-teal-300 text-teal-700 text-xs font-semibold rounded-xl hover:bg-teal-50 transition-colors">
-                  ⭐ Write a review
-                </a>
-              )}
-            </div>
-
-            {/* Reviews content (always visible) */}
-            {(
-              <div className="space-y-3">
+            {/* REVIEWS TAB */}
+            {activeTab === 'reviews' && (
+              <div className="space-y-4">
+                {/* Rating summary */}
                 {rating > 0 && (
-                  <div className="bg-white border border-gray-200 rounded-xl p-5">
-                    <div className="flex items-center gap-6 mb-4">
+                  <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
+                    <div className="flex items-center gap-6">
                       <div className="text-center">
-                        <div className="text-4xl font-serif font-bold text-gray-900">{rating.toFixed(1)}</div>
+                        <div className="text-5xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{rating.toFixed(1)}</div>
                         <div className="text-amber-400 text-lg mt-1">{starsHtml(rating)}</div>
-                        <div className="text-xs text-gray-400 mt-1">{reviewCnt} reviews</div>
+                        <div className="text-xs mt-1" style={{ color: '#A89F93' }}>{reviewCnt} reviews</div>
                       </div>
                       <div className="flex-1 space-y-1.5">
                         {[5,4,3,2,1].map(star => {
@@ -694,131 +782,225 @@ export default function ProProfilePage() {
                           const pct = reviewCnt > 0 ? (cnt / reviewCnt) * 100 : 0
                           return (
                             <div key={star} className="flex items-center gap-2 text-xs">
-                              <span className="text-gray-400 w-4">{star}</span>
-                              <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                                <div className="bg-amber-400 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                              <span className="w-3 text-right" style={{ color: '#A89F93' }}>{star}</span>
+                              <div className="flex-1 rounded-full h-1.5" style={{ background: '#F5F0E8' }}>
+                                <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#F59E0B' }} />
                               </div>
-                              <span className="text-gray-400 w-4">{cnt}</span>
+                              <span className="w-4" style={{ color: '#A89F93' }}>{cnt}</span>
                             </div>
                           )
                         })}
                       </div>
                     </div>
-                    {keywords.length > 0 && (
-                      <div>
-                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Mentioned often</div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {keywords.map(kw => <span key={kw} className="text-xs px-2.5 py-1 bg-teal-50 text-teal-700 rounded-lg font-medium capitalize">{kw}</span>)}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 
+                {/* Write review CTA */}
+                {!isOwner && (
+                  <a href={`/reviews/${id}`}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border font-semibold text-sm transition-all"
+                    style={{ borderColor: '#E8E2D9', color: '#0A1628', background: '#fff' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#14B8A6'; e.currentTarget.style.color = '#14B8A6' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
+                    ⭐ Write a review
+                  </a>
+                )}
+
+                {/* Review list */}
                 {reviews.length === 0 ? (
-                  <div className="bg-white border border-gray-200 rounded-xl py-10 text-center">
-                    <div className="text-gray-400 text-sm">{isOwner ? 'No reviews yet.' : 'No reviews yet — be the first!'}</div>
-                    {!isOwner && <a href={`/reviews/${id}`} className="text-sm font-semibold text-teal-600 hover:underline mt-2 block">Leave the first review →</a>}
+                  <div className="bg-white rounded-2xl border py-16 text-center" style={{ borderColor: '#E8E2D9' }}>
+                    <div className="text-4xl mb-3 opacity-20">⭐</div>
+                    <div className="font-bold mb-1" style={{ color: '#0A1628' }}>No reviews yet</div>
+                    <div className="text-sm" style={{ color: '#A89F93' }}>{isOwner ? 'Reviews from customers will appear here.' : 'Be the first to leave a review!'}</div>
                   </div>
                 ) : reviews.map(rev => (
-                  <div key={rev.id} className="bg-white border border-gray-200 rounded-xl p-5">
-                    <div className="flex justify-between items-start mb-2">
+                  <div key={rev.id} className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
+                    <div className="flex items-start justify-between mb-2">
                       <div>
-                        <div className="font-semibold text-gray-900 text-sm">{rev.reviewer_name || 'Anonymous'}</div>
+                        <div className="font-bold text-sm" style={{ color: '#0A1628' }}>{rev.reviewer_name || 'Anonymous'}</div>
                         <div className="text-amber-400 text-sm mt-0.5">{starsHtml(rev.rating)}</div>
                       </div>
-                      <div className="text-xs text-gray-400">{formatReviewDate((rev as any).reviewed_at || rev.created_at)}</div>
+                      <div className="text-xs" style={{ color: '#A89F93' }}>{formatReviewDate(rev.reviewed_at || rev.created_at)}</div>
                     </div>
-                    <p className="text-sm text-gray-600 leading-relaxed">{rev.review_text}</p>
+                    <p className="text-sm leading-relaxed" style={{ color: '#4B5563' }}>{rev.review_text}</p>
                   </div>
                 ))}
               </div>
             )}
-          </div>
 
-          {/* ── RIGHT SIDEBAR (desktop only) ── */}
-          <div className="hidden lg:flex flex-col gap-4">
-
-            {/* Trust signals */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2.5">
-              {[
-                { icon: '✓', lbl: pro.is_verified ? 'License verified' : 'Profile created', sub: pro.is_verified ? 'State database check' : 'Awaiting verification' },
-                { icon: '$', lbl: 'Free to contact', sub: 'No per-lead fees ever' },
-                { icon: '★', lbl: rating > 0 ? `${rating.toFixed(1)} star rating` : 'New member', sub: rating > 0 ? `${reviewCnt} verified reviews` : 'References available on request' },
-              ].map(item => (
-                <div key={item.lbl} className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center text-sm flex-shrink-0 font-semibold text-teal-700">{item.icon}</div>
-                  <div>
-                    <div className="text-xs font-semibold text-gray-900">{item.lbl}</div>
-                    <div className="text-xs text-gray-400">{item.sub}</div>
+            {/* CREDENTIALS TAB */}
+            {activeTab === 'credentials' && (
+              <div className="space-y-4">
+                <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>License verification</div>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                      style={{ background: 'rgba(20,184,166,0.1)', color: '#0D7377', border: '1px solid rgba(20,184,166,0.2)' }}>
+                      🛡 Florida DBPR
+                    </span>
                   </div>
+
+                  {proLicenses.length > 0
+                    ? proLicenses.map(lic => <CredCard key={lic.id} lic={lic} />)
+                    : pro.license_number
+                      ? <CredCard lic={{ id: 'legacy', trade_name: trade, license_number: pro.license_number, license_expiry_date: pro.license_expiry_date, license_status: pro.license_status || 'unknown', is_primary: true }} />
+                      : <div className="text-sm py-4 text-center" style={{ color: '#A89F93' }}>No license on file</div>
+                  }
+
+                  {hasOsha && (
+                    <div className="rounded-xl border px-4 py-3 mb-2 flex items-center justify-between mt-2"
+                      style={{ borderColor: '#22C55E', borderLeftWidth: '4px', background: 'rgba(34,197,94,0.06)' }}>
+                      <div className="flex items-center gap-2.5">
+                        <span>🦺</span>
+                        <div>
+                          <div className="text-sm font-semibold" style={{ color: '#0A1628' }}>{pro.osha_card_type} Safety</div>
+                          {pro.osha_card_expiry && <div className="text-xs" style={{ color: '#6B7280' }}>Expires {new Date(pro.osha_card_expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold" style={{ color: '#15803D' }}>Active</span>
+                    </div>
+                  )}
+
+                  {hasInsurance && (
+                    <div className="rounded-xl border px-4 py-3 flex items-center justify-between"
+                      style={{ borderColor: '#22C55E', borderLeftWidth: '4px', background: 'rgba(34,197,94,0.06)' }}>
+                      <div className="flex items-center gap-2.5">
+                        <span>🛡</span>
+                        <div>
+                          <div className="text-sm font-semibold" style={{ color: '#0A1628' }}>General Liability Insurance</div>
+                          {pro.insurance_expiry_date && <div className="text-xs" style={{ color: '#6B7280' }}>Expires {new Date(pro.insurance_expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold" style={{ color: '#15803D' }}>Active</span>
+                    </div>
+                  )}
+
+                  {!hasCredentials && (
+                    <div className="text-sm py-8 text-center" style={{ color: '#A89F93' }}>
+                      <div className="text-3xl mb-2 opacity-20">🏛</div>
+                      No credentials on file yet
+                    </div>
+                  )}
+
+                  <p className="text-xs mt-4 text-center" style={{ color: '#C4BAB0' }}>
+                    All licenses verified against Florida Dept. of Business & Professional Regulation
+                  </p>
                 </div>
-              ))}
-            </div>
-
-
-
-            {/* Contact — desktop */}
-            {!isOwner && (
-              <button onClick={() => setShowModal(true)}
-                className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">
-                💬 Send a message
-              </button>
-            )}
-
-            {/* Owner shortcuts */}
-            {isOwner && (
-              <div className="space-y-2">
-                <Link href="/edit-profile" className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">Edit profile</Link>
-                <Link href="/community/edit" className="block w-full py-2.5 text-center border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">Edit portfolio</Link>
               </div>
             )}
-
-            {/* Follow (community) */}
-            {session && !isOwner && (
-              <button onClick={toggleFollow}
-                className={`w-full py-2.5 text-sm font-semibold rounded-xl border transition-all ${isFollowing ? 'border-gray-200 text-gray-500' : 'border-teal-300 text-teal-700 hover:bg-teal-50'}`}>
-                {isFollowing ? '✓ Following' : '+ Follow'}
-              </button>
-            )}
           </div>
 
+          {/* ── STICKY SIDEBAR — desktop only ────────────────────────────── */}
+          <div className="hidden lg:block w-64 flex-shrink-0">
+            <div className="sticky top-20 space-y-4">
+
+              {/* Contact CTA */}
+              {!isOwner && (
+                <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#E8E2D9' }}>
+                  <button onClick={() => setShowModal(true)}
+                    className="w-full py-3 text-white text-sm font-bold rounded-xl mb-3 transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
+                    Contact {firstName}
+                  </button>
+                  {pro.phone && (
+                    <a href={`tel:${pro.phone}`}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border text-sm font-semibold transition-all"
+                      style={{ borderColor: '#E8E2D9', color: '#0A1628' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#14B8A6'; e.currentTarget.style.color = '#14B8A6' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
+                      📞 Call directly
+                    </a>
+                  )}
+                  <p className="text-xs text-center mt-3" style={{ color: '#C4BAB0' }}>Free · No lead fees · Direct contact</p>
+                </div>
+              )}
+
+              {/* Owner shortcuts */}
+              {isOwner && (
+                <div className="bg-white rounded-2xl border p-4 space-y-2" style={{ borderColor: '#E8E2D9' }}>
+                  <Link href="/edit-profile"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 text-white text-sm font-bold rounded-xl transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
+                    ✏️ Edit profile
+                  </Link>
+                  <Link href="/dashboard"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold rounded-xl border transition-colors"
+                    style={{ borderColor: '#E8E2D9', color: '#6B7280' }}>
+                    📊 Dashboard
+                  </Link>
+                  <button onClick={shareProfile}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold rounded-xl border transition-colors"
+                    style={{ borderColor: '#E8E2D9', color: '#6B7280' }}>
+                    🔗 Share profile
+                  </button>
+                </div>
+              )}
+
+              {/* Follow */}
+              {session && !isOwner && (
+                <button onClick={toggleFollow}
+                  className="w-full py-2.5 text-sm font-bold rounded-xl border transition-all"
+                  style={isFollowing
+                    ? { borderColor: '#E8E2D9', color: '#6B7280', background: '#fff' }
+                    : { borderColor: '#14B8A6', color: '#0D7377', background: 'rgba(20,184,166,0.05)' }}>
+                  {isFollowing ? '✓ Following' : '+ Follow'}
+                </button>
+              )}
+
+              {/* Quick stats */}
+              <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#E8E2D9' }}>
+                <div className="space-y-3">
+                  {[
+                    { icon: '🖼', label: `${portfolio.length} project photos` },
+                    { icon: '⭐', label: rating > 0 ? `${rating.toFixed(1)} stars · ${reviewCnt} reviews` : 'No reviews yet' },
+                    { icon: '📍', label: location || 'Florida' },
+                    ...(pro.years_experience ? [{ icon: '🏗', label: `${pro.years_experience} years experience` }] : []),
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-2.5 text-xs" style={{ color: '#6B7280' }}>
+                      <span className="text-sm">{item.icon}</span>
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── MOBILE STICKY FOOTER (hidden on lg) ── */}
+      {/* ── MOBILE STICKY FOOTER ─────────────────────────────────────────── */}
       {!isOwner && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 z-40" style={{paddingTop:'12px', paddingBottom:'calc(12px + env(safe-area-inset-bottom))'}}>
-          <div className="flex gap-3 max-w-sm mx-auto">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-40" style={{ borderColor: '#E8E2D9', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+          <div className="flex gap-3 px-4 pt-3 max-w-sm mx-auto">
             {pro.phone ? (
-              <a href={`tel:${pro.phone}`} className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
+              <a href={`tel:${pro.phone}`}
+                className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
+                style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
                 📞 Call
               </a>
             ) : (
-              <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl">
-                📞 Request call
+              <button onClick={() => setShowModal(true)}
+                className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
+                style={{ background: 'linear-gradient(135deg, #14B8A6, #0D7377)' }}>
+                Contact
               </button>
             )}
-            {pro.phone ? (
-              <a href={`sms:${pro.phone}?body=${encodeURIComponent(`Hi ${firstName}, I saw your profile on TradesNetwork and I'd like to discuss a job. Are you available?`)}`}
-                className="flex-1 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl">
-                💬 Text
-              </a>
-            ) : (
-              <button onClick={() => setShowModal(true)} className="flex-1 flex items-center justify-center gap-2 py-3 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl">
-                💬 Message
-              </button>
-            )}
+            <button onClick={() => setShowModal(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl border"
+              style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
+              💬 Message
+            </button>
           </div>
         </div>
       )}
 
-      <footer className={`border-t border-gray-200 mt-8 py-6 ${!isOwner ? 'lg:pb-6' : ''}`} style={!isOwner ? {paddingBottom: 'calc(80px + env(safe-area-inset-bottom))'} : {}}>
-        <div className="max-w-5xl mx-auto px-5 flex flex-wrap items-center justify-between gap-4">
-          <div className="font-serif text-sm text-gray-900">Trades<span className="text-teal-600">Network</span></div>
-          <div className="flex gap-4 text-sm">
-            {[['/', 'Home'],['/about','About'],['/contact','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([href, label]) => (
-              <a key={href} href={href} className="text-gray-400 hover:text-teal-600 transition-colors">{label}</a>
+      {/* Footer */}
+      <footer className="border-t py-8 px-6 mt-8" style={{ borderColor: '#E8E2D9', background: '#fff', paddingBottom: !isOwner ? 'calc(80px + env(safe-area-inset-bottom))' : undefined }}>
+        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-4">
+          <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#14B8A6', fontWeight: 300 }}>.ai</span></span>
+          <div className="flex gap-4 text-xs" style={{ color: '#A89F93' }}>
+            {[['/', 'Home'],['/search', 'Find a Pro'],['/privacy', 'Privacy'],['/terms', 'Terms']].map(([href, label]) => (
+              <Link key={href} href={href} style={{ color: '#A89F93' }}>{label}</Link>
             ))}
           </div>
         </div>
