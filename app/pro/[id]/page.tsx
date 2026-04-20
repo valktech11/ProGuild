@@ -359,7 +359,7 @@ export default function ProProfilePage() {
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
   const [activeTab, setActiveTab]     = useState<Tab>('overview')
-  const [lightbox, setLightbox]       = useState<string | null>(null)
+  const [lightbox, setLightbox]       = useState<{after:string;before?:string;title?:string} | null>(null)
   const [showModal, setShowModal]     = useState(false)
   const [showShareToast, setShowShareToast] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
@@ -438,9 +438,15 @@ export default function ProProfilePage() {
 
       {/* Lightbox */}
       {lightbox && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" />
-          <button className="absolute top-4 right-4 text-white text-2xl">✕</button>
+        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+          <button className="absolute top-4 right-4 text-white text-2xl z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors">✕</button>
+          {lightbox.before ? (
+            <div className="w-full max-w-4xl" style={{ height: '80vh' }} onClick={e => e.stopPropagation()}>
+              <BeforeAfterSlider afterUrl={lightbox.after} beforeUrl={lightbox.before} title={lightbox.title || ''} />
+            </div>
+          ) : (
+            <img src={lightbox.after} className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain" onClick={e => e.stopPropagation()} />
+          )}
         </div>
       )}
 
