@@ -134,7 +134,7 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
       </div>
 
       {/* CTA */}
-      <button className="mt-3 w-full py-2 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 group-hover:bg-teal-50 group-hover:border-teal-400 group-hover:text-teal-700 transition-colors">
+      <button className="mt-3 w-full py-2 rounded-lg border border-[#E5E0D8] text-xs font-semibold text-gray-600 group-hover:bg-teal-50 group-hover:border-teal-400 group-hover:text-teal-700 transition-colors">
         View profile →
       </button>
     </Link>

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Navbar from '@/components/layout/Navbar'
 
 type Session = { id: string; name: string; email: string; plan: string }
 type TradeCategory = { id: string; category_name: string; slug: string }
@@ -24,7 +25,7 @@ const US_STATES: [string, string][] = [
 ]
 
 const inp = (err?: string) =>
-  `w-full px-3 py-2.5 border rounded-xl text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-teal-300 transition-all ${err ? 'border-red-300' : 'border-gray-200'}`
+  `w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-300 transition-all ${err ? 'border-red-300' : 'border-[#E5E0D8]'}`
 
 function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: React.ReactNode }) {
   return (
@@ -231,7 +232,7 @@ export default function EditProfilePage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+    <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
     </div>
   )
@@ -243,7 +244,8 @@ export default function EditProfilePage() {
   ]
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-[#FAF9F6]">
+      <Navbar />
       <div className="max-w-4xl mx-auto px-4 py-10">
 
         {/* Header */}
@@ -259,7 +261,7 @@ export default function EditProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 mb-6">
+        <div className="flex gap-1 bg-[#E5E0D8] rounded-2xl p-1 mb-6">
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.key ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
@@ -281,7 +283,7 @@ export default function EditProfilePage() {
 
           {/* LEFT — Photo (always visible) */}
           <div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 text-center">
+            <div className="bg-white border border-[#E5E0D8] rounded-2xl p-6 text-center">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">Profile photo</div>
               <div className="relative w-24 h-24 mx-auto mb-4">
                 {photoUrl
@@ -296,12 +298,12 @@ export default function EditProfilePage() {
               </div>
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoUpload} />
               <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="w-full py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors disabled:opacity-50">
+                className="w-full py-2 border border-[#E5E0D8] rounded-lg text-sm font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors disabled:opacity-50">
                 {uploading ? 'Uploading...' : photoUrl ? 'Change photo' : 'Upload photo'}
               </button>
               {errors.photo && <p className="text-xs text-red-500 mt-2">{errors.photo}</p>}
               <p className="text-xs text-gray-400 mt-2">JPG, PNG or WebP · Max 5MB</p>
-              <div className="border-t border-gray-100 mt-5 pt-5 text-left space-y-2">
+              <div className="border-t border-[#E5E0D8] mt-5 pt-5 text-left space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Plan</span>
                   <span className="font-medium text-gray-700">{session?.plan || 'Free'}</span>
@@ -314,7 +316,7 @@ export default function EditProfilePage() {
               <Link href="/upgrade" className="mt-4 block w-full py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition-colors text-center">
                 Upgrade plan
               </Link>
-              <div className="border-t border-gray-100 mt-5 pt-5">
+              <div className="border-t border-[#E5E0D8] mt-5 pt-5">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Cover photo</div>
                 <div className="relative w-full h-20 rounded-xl overflow-hidden bg-[#152a23] mb-2">
                   {coverUrl && <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />}
@@ -323,7 +325,7 @@ export default function EditProfilePage() {
                 <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" id="cover-upload"
                   onChange={handleCoverUpload} />
                 <label htmlFor="cover-upload"
-                  className="block w-full py-1.5 text-center border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors cursor-pointer">
+                  className="block w-full py-1.5 text-center border border-[#E5E0D8] rounded-lg text-xs font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors cursor-pointer">
                   {uploadingCover ? 'Uploading...' : coverUrl ? 'Change cover' : 'Upload cover'}
                 </label>
                 <p className="text-xs text-gray-400 mt-1.5 text-center">Shows behind your name on your profile</p>
@@ -337,8 +339,8 @@ export default function EditProfilePage() {
             {/* ══════════ BASIC TAB ══════════ */}
             {activeTab === 'basic' && (<>
 
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Basic information</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Basic information</div>
                 <Field label="Full name" error={errors.fullName}>
                   <input value={fullName} onChange={e => { setFullName(e.target.value); setErrors(p => ({ ...p, fullName: '' })) }}
                     placeholder="James Harrington" className={inp(errors.fullName)} />
@@ -375,8 +377,8 @@ export default function EditProfilePage() {
                 </Field>
               </div>
 
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">About you</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">About you</div>
                 <Field label="Bio" hint="Tell homeowners about your experience and why they should hire you">
                   <textarea value={bio} onChange={e => setBio(e.target.value)}
                     placeholder="I've been a licensed electrician for 12 years, specializing in panel upgrades..."
@@ -387,8 +389,8 @@ export default function EditProfilePage() {
                 </div>
               </div>
 
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Location</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Location</div>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="State">
                     <select value={state} onChange={e => { setState(e.target.value); setCity('') }} className={inp()}>
@@ -419,8 +421,8 @@ export default function EditProfilePage() {
             {activeTab === 'credentials' && (<>
 
               {/* License expiry */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">License expiry</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">License expiry</div>
                 <Field label="License expiry date" hint="We'll alert you before it expires">
                   <input type="date" value={licenseExpiry} onChange={e => setLicenseExpiry(e.target.value)} className={inp()} />
                 </Field>
@@ -432,8 +434,8 @@ export default function EditProfilePage() {
               </div>
 
               {/* OSHA */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">OSHA certification (self-reported)</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">OSHA certification (self-reported)</div>
                 <Field label="OSHA card type">
                   <select value={oshaType} onChange={e => setOshaType(e.target.value)} className={inp()}>
                     <option value="">None / not certified</option>
@@ -454,8 +456,8 @@ export default function EditProfilePage() {
               </div>
 
               {/* Equipment */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Equipment &amp; tool proficiency</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Equipment &amp; tool proficiency</div>
                 <p className="text-xs text-gray-400 mb-4">Add equipment and tools you're proficient with.</p>
                 <div className="flex gap-2 mb-4">
                   <input type="text" value={newEquip} onChange={e => setNewEquip(e.target.value)}
@@ -468,7 +470,7 @@ export default function EditProfilePage() {
                 {equipment.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {equipment.map(eq => (
-                      <span key={eq.id} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border bg-stone-50 text-gray-700 border-gray-200">
+                      <span key={eq.id} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border bg-[#FAF9F6] text-gray-700 border-[#E5E0D8]">
                         {eq.name}
                         <button onClick={async () => { if (!session) return; await fetch('/api/equipment', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: eq.id }) }); setEquipment(prev => prev.filter(e => e.id !== eq.id)) }} className="text-gray-400 hover:text-red-500 transition-colors text-xs font-bold">×</button>
                       </span>
@@ -478,13 +480,13 @@ export default function EditProfilePage() {
               </div>
 
               {/* Multiple licenses */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Licenses</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Licenses</div>
                 <p className="text-xs text-gray-400 mb-4">Add all your DBPR licenses. Each appears with its own badge on your profile.</p>
                 {proLicenses.length > 0 && (
                   <div className="space-y-2 mb-4">
                     {proLicenses.map(lic => (
-                      <div key={lic.id} className="flex items-center justify-between p-3 bg-stone-50 border border-gray-100 rounded-xl">
+                      <div key={lic.id} className="flex items-center justify-between p-3 bg-[#FAF9F6] border border-[#E5E0D8] rounded-xl">
                         <div className="flex items-center gap-3">
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${lic.license_status === 'active' ? 'bg-green-500' : lic.license_status === 'expiring_soon' ? 'bg-amber-400' : 'bg-red-500'}`} />
                           <div>
@@ -498,7 +500,7 @@ export default function EditProfilePage() {
                     ))}
                   </div>
                 )}
-                <div className="space-y-3 p-4 bg-stone-50 border border-gray-100 rounded-xl">
+                <div className="space-y-3 p-4 bg-[#FAF9F6] border border-[#E5E0D8] rounded-xl">
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Add a license</div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="text-xs text-gray-500 block mb-1">Trade / service</label><input value={newLicTrade} onChange={e => setNewLicTrade(e.target.value)} placeholder="e.g. Air conditioning" className={inp()} /></div>
@@ -512,8 +514,8 @@ export default function EditProfilePage() {
               </div>
 
               {/* Memberships */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Associations &amp; memberships</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Associations &amp; memberships</div>
                 <p className="text-xs text-gray-400 mb-4">List trade associations you belong to.</p>
                 <div className="flex gap-2 mb-4">
                   <input type="text" value={newMembership} onChange={e => setNewMembership(e.target.value)}
@@ -536,8 +538,8 @@ export default function EditProfilePage() {
               </div>
 
               {/* COI Insurance */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Certificate of Insurance (COI)</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Certificate of Insurance (COI)</div>
                 <p className="text-xs text-gray-400 mb-4">Upload your insurance certificate. AI extracts the expiry date automatically and shows a 🛡️ verified badge on your profile.</p>
 
                 {coiError && <div className="mb-3 p-2.5 bg-red-50 text-red-600 text-xs rounded-lg">{coiError}</div>}
@@ -550,7 +552,7 @@ export default function EditProfilePage() {
                       const statusColor = ins.insurance_status === 'active' ? 'bg-teal-50 text-teal-700 border-teal-200'
                         : ins.insurance_status === 'expiring_soon' ? 'bg-amber-50 text-amber-700 border-amber-200'
                         : ins.insurance_status === 'expired' ? 'bg-orange-50 text-orange-700 border-orange-200'
-                        : 'bg-gray-50 text-gray-600 border-gray-200'
+                        : 'bg-[#FAF9F6] text-gray-600 border-[#E5E0D8]'
                       return (
                         <div key={ins.id} className={`flex items-start justify-between p-3 rounded-xl border ${statusColor}`}>
                           <div>
@@ -568,7 +570,7 @@ export default function EditProfilePage() {
                   </div>
                 )}
 
-                <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${uploadingCOI ? 'border-teal-300 bg-teal-50' : 'border-gray-200 hover:border-teal-300 hover:bg-teal-50'}`}>
+                <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${uploadingCOI ? 'border-teal-300 bg-teal-50' : 'border-[#E5E0D8] hover:border-teal-300 hover:bg-teal-50'}`}>
                   <input type="file" className="hidden" accept="image/*,.pdf" onChange={async (e) => {
                     const file = e.target.files?.[0]
                     if (!file || !session) return
@@ -596,8 +598,8 @@ export default function EditProfilePage() {
             {activeTab === 'preferences' && (<>
 
               {/* Availability */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Availability</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Availability</div>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-sm font-semibold text-gray-900">Available for new work</div>
@@ -621,12 +623,12 @@ export default function EditProfilePage() {
               </div>
 
               {/* Preferred language */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Preferred language</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Preferred language</div>
                 <div className="flex gap-3">
                   {[['en','🇺🇸 English'],['es','🇪🇸 Spanish']].map(([val, label]) => (
                     <button key={val} onClick={() => setLanguage(val)}
-                      className={`flex-1 py-3 rounded-xl border text-sm font-semibold transition-all ${language === val ? 'bg-teal-50 border-teal-400 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                      className={`flex-1 py-3 rounded-xl border text-sm font-semibold transition-all ${language === val ? 'bg-teal-50 border-teal-400 text-teal-700' : 'border-[#E5E0D8] text-gray-500 hover:border-gray-300'}`}>
                       {label}
                     </button>
                   ))}
@@ -634,15 +636,15 @@ export default function EditProfilePage() {
               </div>
 
               {/* Counties served */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Counties served</div>
+              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Counties served</div>
                 <p className="text-xs text-gray-400 mb-4">Select all Florida counties you serve. Shown on your public profile.</p>
                 <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pr-1">
                   {FL_COUNTIES.map(county => {
                     const selected = counties.includes(county)
                     return (
                       <button key={county} onClick={() => setCounties(prev => selected ? prev.filter(c => c !== county) : [...prev, county])}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${selected ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-teal-300 hover:bg-teal-50'}`}>
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${selected ? 'bg-teal-600 text-white border-teal-600' : 'border-[#E5E0D8] text-gray-500 hover:border-teal-300 hover:bg-teal-50'}`}>
                         {county}
                       </button>
                     )

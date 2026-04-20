@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 SET PROJECT=%~dp0
 SET PROJECT=%PROJECT:~0,-1%
 SET DOWNLOADS=%USERPROFILE%\Downloads

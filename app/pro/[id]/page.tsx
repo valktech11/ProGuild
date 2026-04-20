@@ -32,16 +32,25 @@ function ShieldBadge({ size = 16 }: { size?: number }) {
 
 function BeforeAfterSlider({ afterUrl, beforeUrl, title, showLabels = false }: { afterUrl: string; beforeUrl: string; title: string; showLabels?: boolean }) {
   const [pos, setPos] = useState(50)
+  const [containerW, setContainerW] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Capture container width after mount and on resize
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => setContainerW(el.offsetWidth)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   function updatePos(clientX: number) {
     if (!containerRef.current) return
     const r = containerRef.current.getBoundingClientRect()
     setPos(Math.min(95, Math.max(5, ((clientX - r.left) / r.width) * 100)))
   }
-
-  // Container width in px — before image uses this so it never distorts
-  const containerW = containerRef.current?.offsetWidth || 0
 
   return (
     <div ref={containerRef}
