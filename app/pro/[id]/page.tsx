@@ -32,21 +32,46 @@ function ShieldBadge({ size = 16 }: { size?: number }) {
 
 function BeforeAfterSlider({ afterUrl, beforeUrl, title }: { afterUrl: string; beforeUrl: string; title: string }) {
   const [pos, setPos] = useState(50)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  function updatePos(clientX: number) {
+    if (!containerRef.current) return
+    const r = containerRef.current.getBoundingClientRect()
+    setPos(Math.min(95, Math.max(5, ((clientX - r.left) / r.width) * 100)))
+  }
+
+  // Container width in px — before image uses this so it never distorts
+  const containerW = containerRef.current?.offsetWidth || 0
+
   return (
-    <div className="relative w-full h-full select-none overflow-hidden"
-      onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); setPos(Math.min(95,Math.max(5,((e.clientX-r.left)/r.width)*100))) }}
-      onTouchMove={e => { const r = e.currentTarget.getBoundingClientRect(); setPos(Math.min(95,Math.max(5,((e.touches[0].clientX-r.left)/r.width)*100))) }}>
-      <img src={afterUrl} alt={title} className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
-        <div className="absolute inset-0" style={{ width: `${100*100/pos}%` }}>
-          <img src={beforeUrl} alt="Before" className="absolute inset-0 w-full h-full object-cover" />
+    <div ref={containerRef}
+      className="relative w-full h-full select-none overflow-hidden"
+      onMouseMove={e => updatePos(e.clientX)}
+      onTouchMove={e => updatePos(e.touches[0].clientX)}>
+
+      {/* After image — full size, sits underneath */}
+      <img src={afterUrl} alt={title}
+        className="absolute inset-0 w-full h-full object-cover" />
+
+      {/* Before image — clipped by wrapper, image always full container width */}
+      <div className="absolute top-0 left-0 bottom-0 overflow-hidden"
+        style={{ width: `${pos}%` }}>
+        <img src={beforeUrl} alt="Before"
+          className="absolute top-0 left-0 h-full object-cover"
+          style={{ width: containerW > 0 ? `${containerW}px` : '100%' }} />
+      </div>
+
+      {/* Divider handle */}
+      <div className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg pointer-events-none"
+        style={{ left: `${pos}%` }}>
+        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center text-xs font-bold text-gray-600 cursor-ew-resize">
+          ↔
         </div>
       </div>
-      <div className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg" style={{ left: `${pos}%` }}>
-        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center text-xs font-bold text-gray-600">↔</div>
-      </div>
-      <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">Before</div>
-      <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">After</div>
+
+      {/* Labels */}
+      <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">Before</div>
+      <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">After</div>
     </div>
   )
 }
