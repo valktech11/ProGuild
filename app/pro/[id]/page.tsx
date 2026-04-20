@@ -38,7 +38,9 @@ function BeforeAfterSlider({ afterUrl, beforeUrl, title }: { afterUrl: string; b
       onTouchMove={e => { const r = e.currentTarget.getBoundingClientRect(); setPos(Math.min(95,Math.max(5,((e.touches[0].clientX-r.left)/r.width)*100))) }}>
       <img src={afterUrl} alt={title} className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
-        <img src={beforeUrl} alt="Before" className="absolute inset-0 w-full h-full object-cover" style={{ minWidth: `${100*100/pos}%` }} />
+        <div className="absolute inset-0" style={{ width: `${100*100/pos}%` }}>
+          <img src={beforeUrl} alt="Before" className="absolute inset-0 w-full h-full object-cover" />
+        </div>
       </div>
       <div className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg" style={{ left: `${pos}%` }}>
         <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center text-xs font-bold text-gray-600">↔</div>
@@ -673,7 +675,7 @@ export default function ProProfilePage() {
                     <div className="px-4 pb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {portfolio.slice(0, 4).map(item => (
                         <div key={item.id} className="rounded-xl overflow-hidden bg-stone-100 aspect-square cursor-pointer"
-                          onClick={() => item.photo_url && !item.is_before_after && setLightbox(item.photo_url)}>
+                          onClick={() => item.photo_url && setLightbox(item.is_before_after && item.before_photo_url ? {after:item.photo_url,before:item.before_photo_url,title:item.title} : {after:item.photo_url})}>
                           {item.is_before_after && item.before_photo_url && item.photo_url
                             ? <BeforeAfterSlider afterUrl={item.photo_url} beforeUrl={item.before_photo_url} title={item.title} />
                             : item.photo_url
@@ -747,7 +749,7 @@ export default function ProProfilePage() {
                     {portfolio.map(item => (
                       <div key={item.id} className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
                         <div className="relative aspect-video cursor-pointer"
-                          onClick={() => item.photo_url && !item.is_before_after && setLightbox(item.photo_url)}>
+                          onClick={() => item.photo_url && setLightbox(item.is_before_after && item.before_photo_url ? {after:item.photo_url,before:item.before_photo_url,title:item.title} : {after:item.photo_url})}>
                           {item.is_before_after && item.before_photo_url && item.photo_url
                             ? <BeforeAfterSlider afterUrl={item.photo_url} beforeUrl={item.before_photo_url} title={item.title} />
                             : item.photo_url
@@ -921,7 +923,7 @@ export default function ProProfilePage() {
                       style={{ borderColor: '#E8E2D9', color: '#0A1628' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = '#14B8A6'; e.currentTarget.style.color = '#14B8A6' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
-                      📞 Call directly
+                      📞 Call {firstName}
                     </a>
                   )}
                   <p className="text-xs text-center mt-3" style={{ color: '#C4BAB0' }}>Free · No lead fees · Direct contact</p>
