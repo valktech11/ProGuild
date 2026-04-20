@@ -163,8 +163,6 @@ export default function GroupLandingPage({
             ))}
           </div>
         </div>
-      </div>
-
         </div>{/* end main */}
       </div>{/* end flex */}
 
