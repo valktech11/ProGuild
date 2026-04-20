@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Session, Post, Pro } from '@/types'
 import { initials, avatarColor, timeAgo, isPaid } from '@/lib/utils'
+import Navbar from '@/components/layout/Navbar'
 
 const POST_TYPES = [
   { value: 'update',    label: 'Update',    emoji: '💬' },
@@ -71,7 +72,7 @@ function PostCard({ post, session, onLike, onDelete }: {
   }
 
   return (
-    <div className={`bg-white border rounded-xl overflow-hidden ${isMilestone ? 'border-amber-300' : isAskAPro ? 'border-blue-200' : 'border-gray-200'}`}>
+    <div className={`bg-white border rounded-xl overflow-hidden ${isMilestone ? 'border-amber-300' : isAskAPro ? 'border-blue-200' : 'border-[#E5E0D8]'}`}>
 
       {/* Milestone banner */}
       {isMilestone && (
@@ -91,12 +92,12 @@ function PostCard({ post, session, onLike, onDelete }: {
 
       {/* Post header */}
       <div className="flex items-start gap-3 p-4 pb-3">
-        <Link href={`/community/profile/${post.pro_id}`}>
+        <Link href={`/pro/${post.pro_id}`}>
           <Avatar pro={post.pro} />
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/community/profile/${post.pro_id}`}
+            <Link href={`/pro/${post.pro_id}`}
               className="font-semibold text-sm text-gray-900 hover:text-teal-600 transition-colors">
               {post.pro?.full_name}
             </Link>
@@ -116,7 +117,7 @@ function PostCard({ post, session, onLike, onDelete }: {
               <span className={`text-xs px-2 py-0.5 rounded-full ${
                 isMilestone ? 'bg-amber-50 text-amber-700' :
                 isAskAPro   ? 'bg-blue-50 text-blue-700' :
-                isWork      ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-500'
+                isWork      ? 'bg-teal-50 text-teal-700' : 'bg-[#FAF9F6] text-gray-500'
               }`}>
                 {typeInfo?.emoji} {typeInfo?.label}
               </span>
@@ -150,8 +151,23 @@ function PostCard({ post, session, onLike, onDelete }: {
       {/* Work post photo */}
       {post.photo_url && (
         <div className="px-4 pb-3">
-          <img src={post.photo_url} alt="Post"
-            className="w-full rounded-xl object-contain bg-stone-50" style={{ maxHeight: '560px' }} />
+          <div className="relative group">
+            <img src={post.photo_url} alt="Post"
+              className="w-full rounded-xl object-contain bg-[#FAF9F6]" style={{ maxHeight: '560px' }} />
+            {isOwn && (
+              <button
+                onClick={async () => {
+                  await fetch('/api/posts', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: post.id, pro_id: post.pro_id, photo_url: null }),
+                  })
+                  onDelete(post.id)
+                }}
+                className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                title="Remove photo">✕</button>
+            )}
+          </div>
           {isWork && (
             <div className="mt-1.5 flex items-center gap-1">
               <span className="text-xs text-teal-600 font-medium">📸 Project work</span>
@@ -164,7 +180,7 @@ function PostCard({ post, session, onLike, onDelete }: {
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-1 px-4 py-2.5 border-t border-gray-100">
+      <div className="flex items-center gap-1 px-4 py-2.5 border-t border-[#E5E0D8]">
         {isOwn ? (
           /* Own post — show respect count read-only, no button */
           <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-300 select-none">
@@ -193,7 +209,7 @@ function PostCard({ post, session, onLike, onDelete }: {
 
       {/* Comments / Answers */}
       {showComments && (
-        <div className="border-t border-gray-100 px-4 py-3 bg-stone-50/60">
+        <div className="border-t border-[#E5E0D8] px-4 py-3 bg-[#FAF9F6]">
           {loadingComments ? (
             <div className="text-xs text-gray-400 py-2">Loading...</div>
           ) : (
@@ -208,7 +224,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                 return (
                   <div key={cm.id} className="flex gap-2 items-start">
                     <Avatar pro={cm.pro} size={7} />
-                    <div className={`flex-1 rounded-xl px-3 py-2 border ${isAskAPro && cmVerified ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
+                    <div className={`flex-1 rounded-xl px-3 py-2 border ${isAskAPro && cmVerified ? 'bg-green-50 border-green-200' : 'bg-white border-[#E5E0D8]'}`}>
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="text-xs font-semibold text-gray-800">{cm.pro?.full_name}</span>
                         {cmVerified && (
@@ -234,7 +250,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                 <input value={commentText} onChange={e => setCommentText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submitComment()}
                   placeholder={isAskAPro ? 'Share your expert answer...' : 'Write a comment...'}
-                  className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-teal-400 transition-colors" />
+                  className="flex-1 px-3 py-2 text-xs border border-[#E5E0D8] rounded-xl bg-white focus:outline-none focus:border-teal-400 transition-colors" />
                 <button onClick={submitComment} disabled={submittingComment || !commentText.trim()}
                   className="px-3 py-2 bg-teal-600 text-white text-xs font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">
                   {isAskAPro ? 'Answer' : 'Post'}
@@ -295,7 +311,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-4">
+    <div className="bg-white border border-[#E5E0D8] rounded-xl overflow-hidden mb-4">
 
       {/* Post type + composer row */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-0">
@@ -308,7 +324,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
               <select
                 value={postType}
                 onChange={e => { setPostType(e.target.value); setError('') }}
-                className="appearance-none text-xs font-semibold pl-3 pr-7 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:border-teal-400 cursor-pointer transition-colors"
+                className="appearance-none text-xs font-semibold pl-3 pr-7 py-1.5 rounded-lg border border-[#E5E0D8] bg-white text-gray-700 focus:outline-none focus:border-teal-400 cursor-pointer transition-colors"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
               >
                 {POST_TYPES.map(t => (
@@ -321,7 +337,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
               postType === 'tip'       ? 'bg-blue-50 text-blue-700' :
               postType === 'milestone' ? 'bg-amber-50 text-amber-700' :
               postType === 'work'      ? 'bg-teal-50 text-teal-700' :
-                                         'bg-gray-100 text-gray-500'
+                                         'bg-[#FAF9F6] text-gray-500'
             }`}>
               {postType === 'tip'       ? 'Verified pros will answer' :
                postType === 'milestone' ? 'Career achievement' :
@@ -333,7 +349,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
           <textarea value={content} onChange={e => setContent(e.target.value)}
             placeholder={current.placeholder}
             rows={3}
-            className="w-full text-sm text-gray-900 bg-stone-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-teal-400 focus:bg-white resize-none transition-colors" />
+            className="w-full text-sm text-gray-900 bg-[#FAF9F6] border border-[#E5E0D8] rounded-xl px-4 py-3 focus:outline-none focus:border-teal-400 focus:bg-white resize-none transition-colors" />
         </div>
       </div>
 
@@ -348,11 +364,11 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
       )}
       {error && <div className="px-4 mt-2 text-xs text-red-600">{error}</div>}
 
-      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 mt-3">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-[#E5E0D8] mt-3">
         <div className="flex items-center gap-2">
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
+            className="text-xs px-3 py-1.5 border border-[#E5E0D8] rounded-lg text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
             {uploading ? 'Uploading...' : '📷 Photo'}
           </button>
         </div>
@@ -381,7 +397,7 @@ function FollowButton({ proId, followerId }: { proId: string; followerId: string
   return (
     <button onClick={toggle} disabled={loading}
       className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-        following ? 'border-gray-200 text-gray-400 hover:border-red-200 hover:text-red-400'
+        following ? 'border-[#E5E0D8] text-gray-400 hover:border-red-200 hover:text-red-400'
                   : 'border-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100'
       }`}>
       {loading ? '...' : following ? 'Following' : 'Follow'}
@@ -473,37 +489,8 @@ export default function CommunityPage() {
   function applySearch() { setSearch(searchInput) }
 
   return (
-    <div className="min-h-screen bg-stone-100">
-      {/* Nav */}
-      <nav className="bg-white border-b border-gray-200 px-6 h-[56px] flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-5">
-          <Link href="/" className="font-serif text-xl text-gray-900">Trades<span className="text-teal-600">Network</span></Link>
-          <div className="hidden md:flex items-center gap-1">
-            <Link href="/community" className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700">Feed</Link>
-            <Link href="/" className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Find a pro</Link>
-            <Link href="/jobs" className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Jobs</Link>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Local / National toggle */}
-          <div className="hidden sm:flex items-center bg-stone-100 border border-gray-200 rounded-lg p-0.5">
-            {[{ v: false, l: 'All' }, { v: true, l: 'Florida' }].map(opt => (
-              <button key={String(opt.v)} onClick={() => setLocalOnly(opt.v)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-all ${localOnly === opt.v ? 'bg-white text-gray-900 border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>
-                {opt.l}
-              </button>
-            ))}
-          </div>
-          {session ? (
-            <>
-              <Link href={`/community/profile/${session.id}`} className="text-sm text-gray-500 hover:text-teal-600 hidden sm:block">My profile</Link>
-              <Link href="/dashboard" className="text-sm font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Dashboard</Link>
-            </>
-          ) : (
-            <Link href="/login" className="text-sm font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Log in</Link>
-          )}
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#FAF9F6] overflow-x-hidden">
+      <Navbar />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
@@ -512,10 +499,10 @@ export default function CommunityPage() {
           <div className="flex items-center justify-between mb-3">
             <h1 className="font-serif text-xl text-gray-900">Community feed</h1>
             <div className="flex items-center gap-2">
-              <div className="sm:hidden flex items-center bg-stone-100 border border-gray-200 rounded-lg p-0.5">
+              <div className="sm:hidden flex items-center bg-[#FAF9F6] border border-[#E5E0D8] rounded-lg p-0.5">
                 {[{ v: false, l: 'All' }, { v: true, l: 'FL' }].map(opt => (
                   <button key={String(opt.v)} onClick={() => setLocalOnly(opt.v)}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-all ${localOnly === opt.v ? 'bg-white text-gray-900 border border-gray-200' : 'text-gray-500'}`}>
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-all ${localOnly === opt.v ? 'bg-white text-gray-900 border border-[#E5E0D8]' : 'text-gray-500'}`}>
                     {opt.l}
                   </button>
                 ))}
@@ -526,7 +513,7 @@ export default function CommunityPage() {
 
           {/* Search bar */}
           <div className="flex gap-2 mb-3">
-            <div className="flex-1 flex gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
+            <div className="flex-1 flex gap-2 bg-white border border-[#E5E0D8] rounded-xl px-3 py-2">
               <input ref={searchRef} value={searchInput} onChange={e => setSearchInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && applySearch()}
                 placeholder="Search posts..."
@@ -544,12 +531,12 @@ export default function CommunityPage() {
           {/* Trade filter chips */}
           <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-hide">
             <button onClick={() => setTradeFilter('')}
-              className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-300 text-gray-600 bg-white hover:border-teal-400')}>
+              className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-[#E5E0D8] text-gray-600 bg-white hover:border-teal-400')}>
               All trades
             </button>
             {TRADE_CHIPS.map(chip => (
               <button key={chip.slug} onClick={() => setTradeFilter(tradeFilter === chip.slug ? '' : chip.slug)}
-                className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (tradeFilter === chip.slug ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-300 text-gray-600 bg-white hover:border-teal-400')}>
+                className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (tradeFilter === chip.slug ? 'bg-teal-600 text-white border-teal-600' : 'border-[#E5E0D8] text-gray-600 bg-white hover:border-teal-400')}>
                 {chip.label}
               </button>
             ))}
@@ -563,7 +550,7 @@ export default function CommunityPage() {
                 <div className="text-xs text-gray-500">Share work, ask questions, find local pros — free forever.</div>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <Link href="/login" className="text-xs font-semibold px-3 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Log in</Link>
+                <Link href="/login" className="text-xs font-semibold px-3 py-2 border border-[#E5E0D8] rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Log in</Link>
                 <Link href="/login?tab=signup" className="text-xs font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Join free</Link>
               </div>
             </div>
@@ -573,10 +560,10 @@ export default function CommunityPage() {
 
           {loading ? (
             <div className="space-y-4">
-              {[1,2,3].map(i => <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 h-40 animate-pulse" />)}
+              {[1,2,3].map(i => <div key={i} className="bg-white border border-[#E5E0D8] rounded-xl p-5 h-40 animate-pulse" />)}
             </div>
           ) : postsWithLikes.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-16 text-center">
+            <div className="bg-white border border-[#E5E0D8] rounded-xl p-16 text-center">
               <div className="text-4xl mb-3 opacity-20">🔧</div>
               <div className="font-semibold text-gray-700 mb-2">No posts found</div>
               <div className="text-sm text-gray-400">
@@ -601,14 +588,14 @@ export default function CommunityPage() {
 
           {/* Job Alerts */}
           {jobAlerts.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="bg-white border border-[#E5E0D8] rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">Job alerts</div>
                 <Link href="/jobs" className="text-xs text-teal-600 hover:underline">See all →</Link>
               </div>
               {jobAlerts.map((job, i) => (
                 <Link key={job.id} href="/jobs"
-                  className={`block py-2.5 ${i < jobAlerts.length - 1 ? 'border-b border-gray-100' : ''} hover:bg-stone-50 -mx-2 px-2 rounded-lg transition-colors`}>
+                  className={`block py-2.5 ${i < jobAlerts.length - 1 ? 'border-b border-[#E5E0D8]' : ''} hover:bg-[#FAF9F6] -mx-2 px-2 rounded-lg transition-colors`}>
                   <div className="text-sm font-medium text-gray-900 truncate">{job.title}</div>
                   <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
@@ -621,15 +608,15 @@ export default function CommunityPage() {
           )}
 
           {/* Pros to follow */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="bg-white border border-[#E5E0D8] rounded-xl p-4">
             <div className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3">Pros to follow</div>
             {suggested.length === 0
               ? <div className="text-sm text-gray-400">No suggestions yet.</div>
               : suggested.map(pro => (
-                <div key={pro.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-                  <Link href={`/community/profile/${pro.id}`}><Avatar pro={pro} size={9} /></Link>
+                <div key={pro.id} className="flex items-center gap-3 py-2.5 border-b border-[#E5E0D8] last:border-0">
+                  <Link href={`/pro/${pro.id}`}><Avatar pro={pro} size={9} /></Link>
                   <div className="flex-1 min-w-0">
-                    <Link href={`/community/profile/${pro.id}`} className="text-sm font-medium text-gray-900 hover:text-teal-600 block truncate">{pro.full_name}</Link>
+                    <Link href={`/pro/${pro.id}`} className="text-sm font-medium text-gray-900 hover:text-teal-600 block truncate">{pro.full_name}</Link>
                     <div className="text-xs text-gray-400 truncate">{pro.trade_category?.category_name}{pro.city ? ` · ${pro.city}` : ''}</div>
                   </div>
                   {session && session.id !== pro.id && <FollowButton proId={pro.id} followerId={session.id} />}
@@ -640,8 +627,8 @@ export default function CommunityPage() {
 
           {/* Logged-out signup */}
           {!session && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5">
-              <div className="text-sm font-bold text-gray-900 mb-1">New to TradesNetwork?</div>
+            <div className="bg-white border border-[#E5E0D8] rounded-xl p-5">
+              <div className="text-sm font-bold text-gray-900 mb-1">New to ProGuild.ai?</div>
               <p className="text-xs text-gray-500 mb-4 leading-relaxed">
                 Florida's verified trades network. Share your work, connect with GCs, find jobs — free forever.
               </p>
@@ -650,10 +637,10 @@ export default function CommunityPage() {
                 Join as a pro — free
               </Link>
               <Link href="/login"
-                className="block w-full py-2.5 text-center border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
+                className="block w-full py-2.5 text-center border border-[#E5E0D8] text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
                 Log in
               </Link>
-              <div className="mt-4 pt-4 border-t border-gray-100 space-y-1">
+              <div className="mt-4 pt-4 border-t border-[#E5E0D8] space-y-1">
                 {[['🔍','Find a pro','/'],['📋','Post a job','/post-job'],['💼','Browse jobs','/jobs']].map(([icon,label,href]) => (
                   <Link key={href as string} href={href as string}
                     className="flex items-center gap-2 py-1.5 text-sm text-gray-500 hover:text-teal-600 transition-colors">
@@ -666,17 +653,17 @@ export default function CommunityPage() {
 
           {/* Logged-in quick links */}
           {session && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="bg-white border border-[#E5E0D8] rounded-xl p-4">
               <div className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3">Quick links</div>
               {[
-                { href: '/',                                    label: '🔍 Find a pro' },
-                { href: '/post-job',                            label: '📋 Post a job' },
-                { href: '/jobs',                                label: '💼 Browse jobs' },
-                { href: `/community/profile/${session.id}`,    label: '👤 My profile' },
-                { href: '/community/edit',                      label: '✏️ Edit portfolio' },
+                { href: '/',                             label: '🔍 Find a pro' },
+                { href: '/post-job',                     label: '📋 Post a job' },
+                { href: '/jobs',                         label: '💼 Browse jobs' },
+                { href: `/pro/${session.id}`,            label: '👤 My profile' },
+                { href: '/edit-profile?tab=portfolio',   label: '✏️ Edit portfolio' },
               ].map(item => (
                 <Link key={item.href} href={item.href}
-                  className="block text-sm text-gray-600 hover:text-teal-600 py-2 border-b border-gray-100 last:border-0 transition-colors">
+                  className="block text-sm text-gray-600 hover:text-teal-600 py-2 border-b border-[#E5E0D8] last:border-0 transition-colors">
                   {item.label}
                 </Link>
               ))}

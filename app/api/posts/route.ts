@@ -86,6 +86,19 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ post: data }, { status: 201 })
 }
 
+export async function PATCH(req: NextRequest) {
+  const body = await req.json()
+  const { id, pro_id, photo_url } = body
+  if (!id || !pro_id) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
+  const { error } = await getSupabaseAdmin()
+    .from('posts')
+    .update({ photo_url: photo_url ?? null })
+    .eq('id', id)
+    .eq('pro_id', pro_id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+}
+
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id    = searchParams.get('id')
