@@ -105,14 +105,34 @@ async function getTradeCategory(slug: string) {
 }
 
 async function getTopPros(tradeId: string, stateAbbr: string) {
-  const { data } = await getSupabaseAdmin()
+  // Claimed pros first (ordered by rating), then unclaimed to fill the page
+  const { data: claimed } = await getSupabaseAdmin()
     .from('pros')
-    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, trade_category:trade_categories(category_name, slug)')
+    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
     .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
     .eq('profile_status', 'Active')
+    .eq('is_claimed', true)
     .order('avg_rating', { ascending: false, nullsFirst: false })
     .limit(12)
-  return data || []
+
+  const claimedList = claimed || []
+
+  // If we have fewer than 12 claimed, pad with unclaimed (those with license numbers)
+  if (claimedList.length < 12) {
+    const needed = 12 - claimedList.length
+    const { data: unclaimed } = await getSupabaseAdmin()
+      .from('pros')
+      .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
+      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('profile_status', 'Active')
+      .eq('is_claimed', false)
+      .not('license_number', 'is', null)
+      .order('full_name', { ascending: true })
+      .limit(needed)
+    return [...claimedList, ...(unclaimed || [])]
+  }
+
+  return claimedList
 }
 
 async function getProCount(tradeId: string, stateAbbr: string): Promise<number> {
@@ -211,8 +231,51 @@ export default async function SlugPage(
     getProCount(category.id, info.abbr),
   ])
 
+  // Build JSON-LD schema for Google
+  const siteUrl = 'https://proguild.ai'
+  const pageUrl = `${siteUrl}/${stateSlug}/${slugLower}`
+  const tradeLabel = category.category_name || slugToTitle(slugLower)
+
+  const itemListSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `${tradeLabel}s in ${info.name}`,
+    description: `DBPR-verified ${tradeLabel.toLowerCase()}s in ${info.name}. Zero per-lead fees.`,
+    url: pageUrl,
+    numberOfItems: count,
+    itemListElement: pros.slice(0, 10).map((pro: any, i: number) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      item: {
+        '@type': ['LocalBusiness', 'ProfessionalService'],
+        '@id': `${siteUrl}/pro/${pro.id}`,
+        name: pro.full_name,
+        url: `${siteUrl}/pro/${pro.id}`,
+        description: `Licensed ${tradeLabel} in ${pro.city || info.name}, ${info.abbr}`,
+        address: {
+          '@type': 'PostalAddress',
+          addressLocality: pro.city || info.name,
+          addressRegion: info.abbr,
+          addressCountry: 'US',
+        },
+        ...(pro.avg_rating > 0 ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: pro.avg_rating.toFixed(1),
+            reviewCount: pro.review_count || 1,
+          }
+        } : {}),
+      }
+    }))
+  }
+
   return (
-    <TradeLandingClient
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
+      />
+      <TradeLandingClient
       stateSlug={stateSlug}
       stateName={info.name}
       stateAbbr={info.abbr}
@@ -222,5 +285,6 @@ export default async function SlugPage(
       initialPros={pros as any[]}
       totalCount={count}
     />
+    </>
   )
 }

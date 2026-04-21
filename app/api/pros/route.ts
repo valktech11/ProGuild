@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   let query = getSupabaseAdmin()
     .from('pros')
-    .select(`id,full_name,city,state,avg_rating,review_count,is_verified,available_for_work,profile_photo_url,plan_tier,years_experience,trade_category_id,osha_card_type,insurance_status,profile_view_count,trade_category:trade_categories(id,category_name,slug)`, { count: 'exact' })
+    .select(`id,full_name,city,state,avg_rating,review_count,is_verified,available_for_work,profile_photo_url,plan_tier,years_experience,trade_category_id,osha_card_type,insurance_status,profile_view_count,is_claimed,license_number,trade_category:trade_categories(id,category_name,slug)`, { count: 'exact' })
     .eq('profile_status', status)
     // Include all active pros including unclaimed (they show as verified profiles)
 
