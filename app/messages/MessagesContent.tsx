@@ -85,11 +85,11 @@ export default function MessagesContent() {
               <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#mg)"/>
               <text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text>
               <defs><linearGradient id="mg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0D7377"/>
+                <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/>
               </linearGradient></defs></svg>
             </div>
             <span className="font-bold text-sm" style={{ color: '#1C1917' }}>
-              ProGuild<span style={{ color: '#0D9488', fontWeight: 300 }}>.ai</span>
+              ProGuild<span style={{ color: '#0F766E', fontWeight: 300 }}>.ai</span>
             </span>
           </Link>
           <Link href="/dashboard" className="text-sm transition-colors" style={{ color: '#A89F93' }}
@@ -130,7 +130,7 @@ export default function MessagesContent() {
                 <div className="text-xs mb-4" style={{ color: '#A89F93' }}>
                   Start a conversation from a pro's profile.
                 </div>
-                <Link href="/search" className="text-xs font-semibold transition-colors" style={{ color: '#0D9488' }}>
+                <Link href="/search" className="text-xs font-semibold transition-colors" style={{ color: '#0F766E' }}>
                   Find a pro →
                 </Link>
               </div>
@@ -140,7 +140,7 @@ export default function MessagesContent() {
                 style={{
                   borderColor: '#F5F0ED',
                   background: withId === thread.otherId ? 'rgba(13,148,136,0.06)' : 'transparent',
-                  borderLeft: withId === thread.otherId ? '2px solid #0D9488' : '2px solid transparent',
+                  borderLeft: withId === thread.otherId ? '2px solid #0F766E' : '2px solid transparent',
                 }}>
                 <Avatar name={thread.lastMsg?.sender?.full_name || 'Pro'} photo={thread.lastMsg?.sender?.profile_photo_url} size={9} />
                 <div className="flex-1 min-w-0">
@@ -186,7 +186,7 @@ export default function MessagesContent() {
                       <Link href={`/pro/${withId}`}
                         className="text-sm font-bold transition-colors"
                         style={{ color: '#1C1917' }}
-                        onMouseEnter={e => (e.currentTarget.style.color = '#0D9488')}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
                         onMouseLeave={e => (e.currentTarget.style.color = '#1C1917')}>
                         {activeWith.full_name}
                       </Link>
@@ -216,7 +216,7 @@ export default function MessagesContent() {
                       <div className={`max-w-xs lg:max-w-md flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
                         <div className="px-4 py-2.5 rounded-2xl text-sm leading-relaxed"
                           style={isMe
-                            ? { background: '#0D9488', color: '#fff', borderRadius: '18px 18px 4px 18px' }
+                            ? { background: '#0F766E', color: '#fff', borderRadius: '18px 18px 4px 18px' }
                             : { background: '#fff', color: '#1C1917', border: '1px solid #E5E0D8', borderRadius: '18px 18px 18px 4px' }}>
                           {msg.content}
                         </div>
@@ -239,12 +239,12 @@ export default function MessagesContent() {
                     rows={1}
                     className="flex-1 px-4 py-2.5 rounded-xl text-sm resize-none outline-none transition-colors"
                     style={{ border: '1px solid #E5E0D8', background: '#FAF9F6', color: '#1C1917' }}
-                    onFocus={e => (e.currentTarget.style.borderColor = '#0D9488')}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#0F766E')}
                     onBlur={e => (e.currentTarget.style.borderColor = '#E5E0D8')}
                   />
                   <button onClick={sendMessage} disabled={sending || !text.trim()}
                     className="px-5 py-2.5 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-40 flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                     {sending ? '...' : 'Send'}
                   </button>
                 </div>

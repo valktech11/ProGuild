@@ -1,8 +1,7 @@
 'use client'
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Navbar from '@/components/layout/Navbar'
+import { useRouter } from 'next/navigation'
 
 type Session = { id: string; name: string; email: string; plan: string }
 type TradeCategory = { id: string; category_name: string; slug: string }
@@ -25,7 +24,7 @@ const US_STATES: [string, string][] = [
 ]
 
 const inp = (err?: string) =>
-  `w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-300 transition-all ${err ? 'border-red-300' : 'border-[#E5E0D8]'}`
+  `w-full px-3 py-2.5 border rounded-xl text-sm bg-stone-50 focus:outline-none focus:ring-2 focus:ring-teal-300 transition-all ${err ? 'border-red-300' : 'border-gray-200'}`
 
 function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: React.ReactNode }) {
   return (
@@ -41,28 +40,18 @@ function Field({ label, hint, error, children }: { label: string; hint?: string;
 function initials(name: string) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
-const COLORS = [['#0D9488','#FFFFFF'],['#1E40AF','#FFFFFF'],['#7C3AED','#FFFFFF'],['#B45309','#FFFFFF'],['#047857','#FFFFFF']]
+const COLORS = [['#0F766E','#FFFFFF'],['#1E40AF','#FFFFFF'],['#7C3AED','#FFFFFF'],['#B45309','#FFFFFF'],['#047857','#FFFFFF']]
 
 const FL_COUNTIES = ['Alachua','Baker','Bay','Bradford','Brevard','Broward','Calhoun','Charlotte','Citrus','Clay','Collier','Columbia','DeSoto','Dixie','Duval','Escambia','Flagler','Franklin','Gadsden','Gilchrist','Glades','Gulf','Hamilton','Hardee','Hendry','Hernando','Highlands','Hillsborough','Holmes','Indian River','Jackson','Jefferson','Lafayette','Lake','Lee','Leon','Levy','Liberty','Madison','Manatee','Marion','Martin','Miami-Dade','Monroe','Nassau','Okaloosa','Okeechobee','Orange','Osceola','Palm Beach','Pasco','Pinellas','Polk','Putnam','St. Johns','St. Lucie','Santa Rosa','Sarasota','Seminole','Sumter','Suwannee','Taylor','Union','Volusia','Wakulla','Walton','Washington']
 
 export default function EditProfilePage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center"><div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>}>
-      <EditProfileInner />
-    </Suspense>
-  )
-}
-
-function EditProfileInner() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [session, setSession]   = useState<Session | null>(null)
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
   const [errors, setErrors]     = useState<Record<string, string>>({})
-  const initialTab = (searchParams.get('tab') === 'portfolio' ? 'portfolio' : 'basic') as 'basic' | 'credentials' | 'preferences' | 'portfolio'
-  const [activeTab, setActiveTab] = useState<'basic' | 'credentials' | 'preferences' | 'portfolio'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'basic' | 'credentials' | 'preferences'>('basic')
 
   // Basic
   const [fullName, setFullName]         = useState('')
@@ -113,23 +102,6 @@ function EditProfileInner() {
   const [availableNote, setAvailableNote] = useState('')
   const [language, setLanguage]         = useState('en')
   const [counties, setCounties]         = useState<string[]>([])
-
-  // Portfolio
-  const [portfolio, setPortfolio]             = useState<any[]>([])
-  const [portLoading, setPortLoading]         = useState(false)
-  const [portLoaded, setPortLoaded]           = useState(false)
-  const [newPhoto, setNewPhoto]               = useState('')
-  const [newTitle, setNewTitle]               = useState('')
-  const [newDesc, setNewDesc]                 = useState('')
-  const [newTrade, setNewTrade]               = useState('')
-  const [markAsJobSite, setMarkAsJobSite]     = useState(false)
-  const [isBeforeAfter, setIsBeforeAfter]     = useState(false)
-  const [beforePhoto, setBeforePhoto]         = useState<string | null>(null)
-  const [uploadingPort, setUploadingPort]     = useState(false)
-  const [uploadingBefore, setUploadingBefore] = useState(false)
-  const [portSaving, setPortSaving]           = useState(false)
-  const [portError, setPortError]             = useState('')
-  const portFileRef = useRef<HTMLInputElement>(null)
 
   const [bg, fg] = COLORS[fullName.charCodeAt(0) % COLORS.length] || COLORS[0]
 
@@ -221,87 +193,6 @@ function EditProfileInner() {
     }
   }
 
-  // Lazy-load portfolio when tab is activated
-  useEffect(() => {
-    if (activeTab !== 'portfolio' || portLoaded || !session) return
-    setPortLoading(true)
-    fetch(`/api/portfolio?pro_id=${session.id}`)
-      .then(r => r.json())
-      .then(d => { setPortfolio(d.items || []); setPortLoading(false); setPortLoaded(true) })
-  }, [activeTab, portLoaded, session])
-
-  async function handlePortPhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !session) return
-    setUploadingPort(true)
-    const form = new FormData()
-    form.append('file', file); form.append('pro_id', session.id)
-    form.append('bucket', 'portfolio'); form.append('folder', session.id)
-    const r = await fetch('/api/upload', { method: 'POST', body: form })
-    const d = await r.json()
-    setUploadingPort(false)
-    if (r.ok) setNewPhoto(d.url)
-    else setPortError(d.error || 'Upload failed')
-  }
-
-  async function handleBeforePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !session) return
-    setUploadingBefore(true)
-    const form = new FormData()
-    form.append('file', file); form.append('pro_id', session.id)
-    form.append('bucket', 'portfolio'); form.append('folder', `portfolio/${session.id}`)
-    const r = await fetch('/api/upload', { method: 'POST', body: form })
-    const d = await r.json()
-    if (r.ok) setBeforePhoto(d.url)
-    setUploadingBefore(false)
-  }
-
-  async function addPortfolioItem() {
-    if (!newPhoto || !newTitle.trim() || !session) { setPortError('Please add a photo and title'); return }
-    setPortSaving(true); setPortError('')
-    const r = await fetch('/api/portfolio', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pro_id: session.id, photo_url: newPhoto, title: newTitle,
-        description: newDesc || null, trade: newTrade || null,
-        is_job_site: markAsJobSite,
-        captured_at: markAsJobSite ? new Date().toISOString() : null,
-        is_before_after: isBeforeAfter,
-        before_photo_url: isBeforeAfter ? beforePhoto : null,
-      }),
-    })
-    const d = await r.json()
-    setPortSaving(false)
-    if (r.ok) {
-      setPortfolio(p => [d.item, ...p])
-      setNewPhoto(''); setNewTitle(''); setNewDesc(''); setMarkAsJobSite(false); setIsBeforeAfter(false); setBeforePhoto(null)
-      if (markAsJobSite && navigator.geolocation && d.item?.id) {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          try {
-            let location_label = ''
-            try {
-              const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
-              const gd = await geoRes.json()
-              location_label = [gd.address?.city || gd.address?.town || gd.address?.village, gd.address?.state].filter(Boolean).join(', ')
-            } catch {}
-            await fetch('/api/portfolio', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: d.item.id, pro_id: session!.id, latitude: pos.coords.latitude, longitude: pos.coords.longitude, location_label }) })
-            if (location_label) setPortfolio(prev => prev.map(p => p.id === d.item.id ? { ...p, location_label } : p))
-          } catch {}
-        }, () => {}, { timeout: 10000, maximumAge: 60000 })
-      }
-    } else {
-      setPortError(d.error || 'Could not add item')
-    }
-  }
-
-  async function deletePortfolioItem(id: string) {
-    if (!session) return
-    await fetch(`/api/portfolio?id=${id}&pro_id=${session.id}`, { method: 'DELETE' })
-    setPortfolio(p => p.filter(i => i.id !== id))
-  }
-
   async function handleSave() {
     const errs: Record<string, string> = {}
     if (!fullName.trim()) errs.fullName = 'Name is required'
@@ -340,7 +231,7 @@ function EditProfileInner() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
     </div>
   )
@@ -349,11 +240,10 @@ function EditProfileInner() {
     { key: 'basic' as const,       label: '📋 Basic info' },
     { key: 'credentials' as const, label: '🏅 Credentials' },
     { key: 'preferences' as const, label: '⚙️ Preferences' },
-    { key: 'portfolio' as const,   label: '📸 Portfolio' },
   ]
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6]">
+    <div className="min-h-screen bg-stone-50">
       <div className="max-w-4xl mx-auto px-4 py-10">
 
         {/* Header */}
@@ -369,7 +259,7 @@ function EditProfileInner() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-[#E5E0D8] rounded-2xl p-1 mb-6">
+        <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 mb-6">
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.key ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
@@ -391,7 +281,7 @@ function EditProfileInner() {
 
           {/* LEFT — Photo (always visible) */}
           <div>
-            <div className="bg-white border border-[#E5E0D8] rounded-2xl p-6 text-center">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 text-center">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">Profile photo</div>
               <div className="relative w-24 h-24 mx-auto mb-4">
                 {photoUrl
@@ -406,12 +296,12 @@ function EditProfileInner() {
               </div>
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoUpload} />
               <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="w-full py-2 border border-[#E5E0D8] rounded-lg text-sm font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors disabled:opacity-50">
+                className="w-full py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors disabled:opacity-50">
                 {uploading ? 'Uploading...' : photoUrl ? 'Change photo' : 'Upload photo'}
               </button>
               {errors.photo && <p className="text-xs text-red-500 mt-2">{errors.photo}</p>}
               <p className="text-xs text-gray-400 mt-2">JPG, PNG or WebP · Max 5MB</p>
-              <div className="border-t border-[#E5E0D8] mt-5 pt-5 text-left space-y-2">
+              <div className="border-t border-gray-100 mt-5 pt-5 text-left space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Plan</span>
                   <span className="font-medium text-gray-700">{session?.plan || 'Free'}</span>
@@ -424,7 +314,7 @@ function EditProfileInner() {
               <Link href="/upgrade" className="mt-4 block w-full py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition-colors text-center">
                 Upgrade plan
               </Link>
-              <div className="border-t border-[#E5E0D8] mt-5 pt-5">
+              <div className="border-t border-gray-100 mt-5 pt-5">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Cover photo</div>
                 <div className="relative w-full h-20 rounded-xl overflow-hidden bg-[#152a23] mb-2">
                   {coverUrl && <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />}
@@ -433,19 +323,9 @@ function EditProfileInner() {
                 <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" id="cover-upload"
                   onChange={handleCoverUpload} />
                 <label htmlFor="cover-upload"
-                  className="block w-full py-1.5 text-center border border-[#E5E0D8] rounded-lg text-xs font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors cursor-pointer">
+                  className="block w-full py-1.5 text-center border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors cursor-pointer">
                   {uploadingCover ? 'Uploading...' : coverUrl ? 'Change cover' : 'Upload cover'}
                 </label>
-                {coverUrl && (
-                  <button
-                    onClick={async () => {
-                      setCoverUrl('')
-                      await fetch(`/api/pros/${session!.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cover_image_url: null }) })
-                    }}
-                    className="block w-full py-1.5 text-center text-xs font-medium text-red-400 hover:text-red-600 transition-colors mt-1">
-                    Remove cover
-                  </button>
-                )}
                 <p className="text-xs text-gray-400 mt-1.5 text-center">Shows behind your name on your profile</p>
               </div>
             </div>
@@ -457,8 +337,8 @@ function EditProfileInner() {
             {/* ══════════ BASIC TAB ══════════ */}
             {activeTab === 'basic' && (<>
 
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Basic information</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Basic information</div>
                 <Field label="Full name" error={errors.fullName}>
                   <input value={fullName} onChange={e => { setFullName(e.target.value); setErrors(p => ({ ...p, fullName: '' })) }}
                     placeholder="James Harrington" className={inp(errors.fullName)} />
@@ -495,8 +375,8 @@ function EditProfileInner() {
                 </Field>
               </div>
 
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">About you</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">About you</div>
                 <Field label="Bio" hint="Tell homeowners about your experience and why they should hire you">
                   <textarea value={bio} onChange={e => setBio(e.target.value)}
                     placeholder="I've been a licensed electrician for 12 years, specializing in panel upgrades..."
@@ -507,8 +387,8 @@ function EditProfileInner() {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Location</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Location</div>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="State">
                     <select value={state} onChange={e => { setState(e.target.value); setCity('') }} className={inp()}>
@@ -539,8 +419,8 @@ function EditProfileInner() {
             {activeTab === 'credentials' && (<>
 
               {/* License expiry */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">License expiry</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">License expiry</div>
                 <Field label="License expiry date" hint="We'll alert you before it expires">
                   <input type="date" value={licenseExpiry} onChange={e => setLicenseExpiry(e.target.value)} className={inp()} />
                 </Field>
@@ -552,8 +432,8 @@ function EditProfileInner() {
               </div>
 
               {/* OSHA */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">OSHA certification (self-reported)</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">OSHA certification (self-reported)</div>
                 <Field label="OSHA card type">
                   <select value={oshaType} onChange={e => setOshaType(e.target.value)} className={inp()}>
                     <option value="">None / not certified</option>
@@ -574,8 +454,8 @@ function EditProfileInner() {
               </div>
 
               {/* Equipment */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Equipment &amp; tool proficiency</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Equipment &amp; tool proficiency</div>
                 <p className="text-xs text-gray-400 mb-4">Add equipment and tools you're proficient with.</p>
                 <div className="flex gap-2 mb-4">
                   <input type="text" value={newEquip} onChange={e => setNewEquip(e.target.value)}
@@ -588,7 +468,7 @@ function EditProfileInner() {
                 {equipment.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {equipment.map(eq => (
-                      <span key={eq.id} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border bg-[#FAF9F6] text-gray-700 border-[#E5E0D8]">
+                      <span key={eq.id} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border bg-stone-50 text-gray-700 border-gray-200">
                         {eq.name}
                         <button onClick={async () => { if (!session) return; await fetch('/api/equipment', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: eq.id }) }); setEquipment(prev => prev.filter(e => e.id !== eq.id)) }} className="text-gray-400 hover:text-red-500 transition-colors text-xs font-bold">×</button>
                       </span>
@@ -598,13 +478,13 @@ function EditProfileInner() {
               </div>
 
               {/* Multiple licenses */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Licenses</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Licenses</div>
                 <p className="text-xs text-gray-400 mb-4">Add all your DBPR licenses. Each appears with its own badge on your profile.</p>
                 {proLicenses.length > 0 && (
                   <div className="space-y-2 mb-4">
                     {proLicenses.map(lic => (
-                      <div key={lic.id} className="flex items-center justify-between p-3 bg-[#FAF9F6] border border-[#E5E0D8] rounded-xl">
+                      <div key={lic.id} className="flex items-center justify-between p-3 bg-stone-50 border border-gray-100 rounded-xl">
                         <div className="flex items-center gap-3">
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${lic.license_status === 'active' ? 'bg-green-500' : lic.license_status === 'expiring_soon' ? 'bg-amber-400' : 'bg-red-500'}`} />
                           <div>
@@ -618,7 +498,7 @@ function EditProfileInner() {
                     ))}
                   </div>
                 )}
-                <div className="space-y-3 p-4 bg-[#FAF9F6] border border-[#E5E0D8] rounded-xl">
+                <div className="space-y-3 p-4 bg-stone-50 border border-gray-100 rounded-xl">
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Add a license</div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="text-xs text-gray-500 block mb-1">Trade / service</label><input value={newLicTrade} onChange={e => setNewLicTrade(e.target.value)} placeholder="e.g. Air conditioning" className={inp()} /></div>
@@ -632,8 +512,8 @@ function EditProfileInner() {
               </div>
 
               {/* Memberships */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Associations &amp; memberships</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Associations &amp; memberships</div>
                 <p className="text-xs text-gray-400 mb-4">List trade associations you belong to.</p>
                 <div className="flex gap-2 mb-4">
                   <input type="text" value={newMembership} onChange={e => setNewMembership(e.target.value)}
@@ -656,8 +536,8 @@ function EditProfileInner() {
               </div>
 
               {/* COI Insurance */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Certificate of Insurance (COI)</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Certificate of Insurance (COI)</div>
                 <p className="text-xs text-gray-400 mb-4">Upload your insurance certificate. AI extracts the expiry date automatically and shows a 🛡️ verified badge on your profile.</p>
 
                 {coiError && <div className="mb-3 p-2.5 bg-red-50 text-red-600 text-xs rounded-lg">{coiError}</div>}
@@ -670,7 +550,7 @@ function EditProfileInner() {
                       const statusColor = ins.insurance_status === 'active' ? 'bg-teal-50 text-teal-700 border-teal-200'
                         : ins.insurance_status === 'expiring_soon' ? 'bg-amber-50 text-amber-700 border-amber-200'
                         : ins.insurance_status === 'expired' ? 'bg-orange-50 text-orange-700 border-orange-200'
-                        : 'bg-gray-50 text-gray-600 border-[#E5E0D8]'
+                        : 'bg-gray-50 text-gray-600 border-gray-200'
                       return (
                         <div key={ins.id} className={`flex items-start justify-between p-3 rounded-xl border ${statusColor}`}>
                           <div>
@@ -688,7 +568,7 @@ function EditProfileInner() {
                   </div>
                 )}
 
-                <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${uploadingCOI ? 'border-teal-300 bg-teal-50' : 'border-[#E5E0D8] hover:border-teal-300 hover:bg-teal-50'}`}>
+                <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${uploadingCOI ? 'border-teal-300 bg-teal-50' : 'border-gray-200 hover:border-teal-300 hover:bg-teal-50'}`}>
                   <input type="file" className="hidden" accept="image/*,.pdf" onChange={async (e) => {
                     const file = e.target.files?.[0]
                     if (!file || !session) return
@@ -716,8 +596,8 @@ function EditProfileInner() {
             {activeTab === 'preferences' && (<>
 
               {/* Availability */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Availability</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Availability</div>
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-sm font-semibold text-gray-900">Available for new work</div>
@@ -741,12 +621,12 @@ function EditProfileInner() {
               </div>
 
               {/* Preferred language */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Preferred language</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Preferred language</div>
                 <div className="flex gap-3">
                   {[['en','🇺🇸 English'],['es','🇪🇸 Spanish']].map(([val, label]) => (
                     <button key={val} onClick={() => setLanguage(val)}
-                      className={`flex-1 py-3 rounded-xl border text-sm font-semibold transition-all ${language === val ? 'bg-teal-50 border-teal-400 text-teal-700' : 'border-[#E5E0D8] text-gray-500 hover:border-gray-300'}`}>
+                      className={`flex-1 py-3 rounded-xl border text-sm font-semibold transition-all ${language === val ? 'bg-teal-50 border-teal-400 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                       {label}
                     </button>
                   ))}
@@ -754,15 +634,15 @@ function EditProfileInner() {
               </div>
 
               {/* Counties served */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Counties served</div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-7">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Counties served</div>
                 <p className="text-xs text-gray-400 mb-4">Select all Florida counties you serve. Shown on your public profile.</p>
                 <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pr-1">
                   {FL_COUNTIES.map(county => {
                     const selected = counties.includes(county)
                     return (
                       <button key={county} onClick={() => setCounties(prev => selected ? prev.filter(c => c !== county) : [...prev, county])}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${selected ? 'bg-teal-600 text-white border-teal-600' : 'border-[#E5E0D8] text-gray-500 hover:border-teal-300 hover:bg-teal-50'}`}>
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${selected ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-teal-300 hover:bg-teal-50'}`}>
                         {county}
                       </button>
                     )
@@ -773,131 +653,14 @@ function EditProfileInner() {
 
             </>)}
 
-            {/* ══════════ PORTFOLIO TAB ══════════ */}
-            {activeTab === 'portfolio' && (<>
-
-              {/* Add new item */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">Add portfolio item</div>
-
-                {portError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{portError}</div>}
-
-                <div className="mb-5">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">Project photo (after)</label>
-                  {newPhoto ? (
-                    <div className="relative inline-block">
-                      <img src={newPhoto} alt="Preview" className="h-40 rounded-xl object-cover" />
-                      <button onClick={() => setNewPhoto('')} className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800 text-white rounded-full text-xs flex items-center justify-center">✕</button>
-                    </div>
-                  ) : (
-                    <div onClick={() => portFileRef.current?.click()}
-                      className="border-2 border-dashed border-[#E5E0D8] rounded-xl p-8 text-center cursor-pointer hover:border-teal-300 hover:bg-teal-50/30 transition-all">
-                      <div className="text-2xl mb-2 opacity-30">📷</div>
-                      <div className="text-sm font-medium text-gray-500">{uploadingPort ? 'Uploading...' : 'Click to upload photo'}</div>
-                      <div className="text-xs text-gray-400 mt-1">JPG, PNG or WebP · Max 5MB</div>
-                    </div>
-                  )}
-                  <input ref={portFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePortPhotoUpload} />
-                </div>
-
-                <div className="mb-4">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Project title</label>
-                  <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
-                    placeholder="e.g. Full panel upgrade — Miami Beach residence"
-                    className={inp()} />
-                </div>
-
-                <div className="mb-4">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Description (optional)</label>
-                  <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={3}
-                    placeholder="Describe the project — scope of work, materials used, challenges solved..."
-                    className={inp() + ' resize-none'} />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 mb-5">
-                  <button type="button" onClick={() => setMarkAsJobSite(j => !j)}
-                    className={`flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-all ${markAsJobSite ? 'bg-teal-50 text-teal-700 border-teal-300' : 'border-[#E5E0D8] text-gray-500'}`}>
-                    <span>{markAsJobSite ? '📍' : '📷'}</span>
-                    {markAsJobSite ? 'Job site photo · GPS will be captured' : 'Mark as job site photo'}
-                  </button>
-                  <button type="button" onClick={() => { setIsBeforeAfter(v => !v); setBeforePhoto(null) }}
-                    className={`flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-all ${isBeforeAfter ? 'bg-amber-50 text-amber-700 border-amber-300' : 'border-[#E5E0D8] text-gray-500'}`}>
-                    ↔ {isBeforeAfter ? 'Before/After on' : 'Before/After project'}
-                  </button>
-                </div>
-
-                {isBeforeAfter && (
-                  <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                    <div className="text-xs font-semibold text-amber-700 mb-1">Upload the BEFORE photo</div>
-                    <div className="text-xs text-amber-600 mb-3">The photo above is AFTER. Upload the before state here.</div>
-                    {beforePhoto ? (
-                      <div className="relative inline-block">
-                        <img src={beforePhoto} alt="Before" className="h-20 rounded-lg object-cover" />
-                        <button onClick={() => setBeforePhoto(null)} className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 text-white rounded-full text-xs flex items-center justify-center">✕</button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center gap-2 cursor-pointer px-3 py-2 border border-dashed border-amber-300 rounded-xl text-xs text-amber-700 hover:bg-amber-100 transition-colors w-fit">
-                        <input type="file" accept="image/*" className="hidden" onChange={handleBeforePhotoUpload} disabled={uploadingBefore} />
-                        {uploadingBefore ? 'Uploading...' : '📷 Upload before photo'}
-                      </label>
-                    )}
-                  </div>
-                )}
-
-                <button onClick={addPortfolioItem} disabled={portSaving || uploadingPort || !newPhoto || !newTitle.trim()}
-                  className="px-6 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">
-                  {portSaving ? 'Adding...' : 'Add to portfolio'}
-                </button>
-              </div>
-
-              {/* Existing items */}
-              <div className="bg-white border border-[#E5E0D8] rounded-2xl p-7">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-[#E5E0D8]">
-                  Your portfolio {portLoaded && `(${portfolio.length} items)`}
-                </div>
-                {portLoading ? (
-                  <div className="flex items-center justify-center py-10">
-                    <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-                  </div>
-                ) : portfolio.length === 0 ? (
-                  <div className="text-center py-10">
-                    <div className="text-3xl mb-2 opacity-20">📸</div>
-                    <div className="text-sm text-gray-400">No portfolio items yet. Add your first project above.</div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {portfolio.map(item => (
-                      <div key={item.id} className="flex gap-4 items-start border border-[#E5E0D8] rounded-xl p-4 hover:bg-[#FAF9F6] transition-colors">
-                        <img src={item.photo_url} alt={item.title} className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm text-gray-900 mb-0.5">{item.title}</div>
-                          {item.trade && <div className="text-xs text-teal-600 mb-1">{item.trade}</div>}
-                          {item.description && <div className="text-xs text-gray-400 line-clamp-2">{item.description}</div>}
-                          {item.location_label && <div className="text-xs text-gray-400 mt-0.5">📍 {item.location_label}</div>}
-                          {item.is_before_after && <div className="text-xs text-amber-600 mt-0.5">↔ Before/After</div>}
-                        </div>
-                        <button onClick={() => deletePortfolioItem(item.id)}
-                          className="text-xs text-gray-300 hover:text-red-400 transition-colors px-2 py-1 flex-shrink-0">
-                          Delete
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </>)}
-
-            {/* Save — visible on all tabs except portfolio (portfolio auto-saves per item) */}
-            {activeTab !== 'portfolio' && (
-              <div className="flex items-center justify-between pt-2">
-                <Link href="/dashboard" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">Cancel</Link>
-                <button onClick={handleSave} disabled={saving}
-                  className="px-8 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2">
-                  {saving ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>) : 'Save changes'}
-                </button>
-              </div>
-            )}
+            {/* Save — always visible */}
+            <div className="flex items-center justify-between pt-2">
+              <Link href="/dashboard" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">Cancel</Link>
+              <button onClick={handleSave} disabled={saving}
+                className="px-8 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2">
+                {saving ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>) : 'Save changes'}
+              </button>
+            </div>
 
           </div>
         </div>

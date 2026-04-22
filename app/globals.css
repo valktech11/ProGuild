@@ -3,13 +3,13 @@
 @theme {
   --font-sans: 'DM Sans', sans-serif;
   --font-serif: 'DM Serif Display', serif;
-  --color-teal-50: #E1F5EE;
-  --color-teal-100: #9FE1CB;
-  --color-teal-400: #1D9E75;
-  --color-teal-500: #1D9E75;
-  --color-teal-600: #1D9E75;
-  --color-teal-700: #0F6E56;
-  --color-teal-800: #085041;
+  --color-teal-50:  #E0F2F1;
+  --color-teal-100: #99D4CF;
+  --color-teal-400: #0F766E;
+  --color-teal-500: #0F766E;
+  --color-teal-600: #0F766E;
+  --color-teal-700: #0C5F57;
+  --color-teal-800: #09524B;
 }
 
 @layer utilities {
@@ -24,6 +24,13 @@
   .font-serif {
     font-family: var(--font-serif);
   }
+}
+
+/* Input focus teal — override browser default blue */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #0F766E !important;
+  box-shadow: 0 0 0 1px #0F766E;
 }
 
 @keyframes fadeUp {

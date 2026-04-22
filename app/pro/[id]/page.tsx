@@ -24,7 +24,7 @@ function ShieldBadge({ size = 16 }: { size?: number }) {
       <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#pg)"/>
       <path d="M11 16l3 3 7-7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
       <defs><linearGradient id="pg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0D7377"/>
+        <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/>
       </linearGradient></defs>
     </svg>
   )
@@ -142,7 +142,7 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
               </div>
               <button onClick={send} disabled={submitting}
                 className="w-full py-3 text-white text-sm font-bold rounded-xl disabled:opacity-50 transition-colors"
-                style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                 {submitting ? 'Sending...' : `Send message to ${firstName} →`}
               </button>
               <p className="text-xs text-gray-400 text-center">Zero per-lead fees · Direct contact</p>
@@ -232,7 +232,7 @@ function AddWorkItem({ proId, onAdded }: { proId: string; onAdded: (item: any) =
           <button onClick={() => fileRef.current?.click()}
             className="w-full border-2 border-dashed rounded-xl p-8 text-center transition-colors"
             style={{ borderColor: '#E8E2D9' }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = '#0D9488'}
+            onMouseEnter={e => e.currentTarget.style.borderColor = '#0F766E'}
             onMouseLeave={e => e.currentTarget.style.borderColor = '#E8E2D9'}>
             {uploading ? (
               <span className="text-sm" style={{ color: '#A89F93' }}>Uploading...</span>
@@ -293,7 +293,7 @@ function AddWorkItem({ proId, onAdded }: { proId: string; onAdded: (item: any) =
       <div className="flex gap-2 mb-4">
         <button onClick={() => setIsJobSite(v => !v)}
           className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all"
-          style={isJobSite ? { background: '#0D9488', color: '#fff', borderColor: '#0D9488' } : { borderColor: '#E8E2D9', color: '#6B7280' }}>
+          style={isJobSite ? { background: '#0F766E', color: '#fff', borderColor: '#0F766E' } : { borderColor: '#E8E2D9', color: '#6B7280' }}>
           📍 GPS job site
         </button>
         <button onClick={() => { setIsBA(v => !v); setBefore('') }}
@@ -305,7 +305,7 @@ function AddWorkItem({ proId, onAdded }: { proId: string; onAdded: (item: any) =
 
       <button onClick={save} disabled={saving || !photo || !title.trim()}
         className="w-full py-3 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-all"
-        style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+        style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
         {saving ? 'Adding...' : 'Add to portfolio'}
       </button>
     </div>
@@ -341,7 +341,7 @@ function CredCard({ lic }: { lic: any }) {
       </div>
       <button onClick={() => setOpen(o => !o)}
         className="w-full text-left px-4 pb-2.5 text-xs font-medium transition-colors"
-        style={{ color: '#0D9488' }}>
+        style={{ color: '#0F766E' }}>
         Details {open ? '▲' : '▼'}
       </button>
       {open && (
@@ -353,13 +353,13 @@ function CredCard({ lic }: { lic: any }) {
                   {lic.license_number.slice(0,4)}
                   <span style={{ color: '#A89F93' }}>{revealed ? lic.license_number.slice(4,-3) : '•••'}</span>
                   {lic.license_number.slice(-3)}
-                  <button onClick={() => setRevealed(r => !r)} className="ml-2 underline text-xs" style={{ color: '#0D9488' }}>{revealed ? 'hide' : 'reveal'}</button>
+                  <button onClick={() => setRevealed(r => !r)} className="ml-2 underline text-xs" style={{ color: '#0F766E' }}>{revealed ? 'hide' : 'reveal'}</button>
                 </>
               ) : '—'}
             </div>
             {lic.license_number && (
               <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${encodeURIComponent(lic.license_number)}`}
-                target="_blank" rel="noopener noreferrer" className="text-xs font-medium" style={{ color: '#0D9488' }}>
+                target="_blank" rel="noopener noreferrer" className="text-xs font-medium" style={{ color: '#0F766E' }}>
                 Verify with DBPR →
               </a>
             )}
@@ -431,7 +431,7 @@ export default function ProProfilePage() {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF9F6' }}>
-      <div className="w-8 h-8 border-2 border-t-teal-500 rounded-full animate-spin" style={{ borderColor: '#E8E2D9', borderTopColor: '#0D9488' }} />
+      <div className="w-8 h-8 border-2 border-t-teal-500 rounded-full animate-spin" style={{ borderColor: '#E8E2D9', borderTopColor: '#0F766E' }} />
     </div>
   )
 
@@ -439,7 +439,7 @@ export default function ProProfilePage() {
     <div className="min-h-screen flex items-center justify-center text-center" style={{ background: '#FAF9F6' }}>
       <div>
         <div className="text-2xl font-bold mb-3" style={{ color: '#0A1628' }}>Pro not found</div>
-        <Link href="/" className="text-sm" style={{ color: '#0D9488' }}>← Back to search</Link>
+        <Link href="/" className="text-sm" style={{ color: '#0F766E' }}>← Back to search</Link>
       </div>
     </div>
   )
@@ -489,7 +489,7 @@ export default function ProProfilePage() {
       {isOwner && (
         <div className="border-b" style={{ background: 'rgba(20,184,166,0.06)', borderColor: 'rgba(20,184,166,0.2)' }}>
           <div className="max-w-5xl mx-auto px-5 py-2.5 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2 text-sm" style={{ color: '#0D7377' }}>
+            <div className="flex items-center gap-2 text-sm" style={{ color: '#0C5F57' }}>
               <span>👁</span>
               <span className="font-medium">You're viewing your public profile</span>
               <span className="text-xs hidden sm:inline" style={{ color: '#A89F93' }}>— This is what homeowners and pros see</span>
@@ -497,12 +497,12 @@ export default function ProProfilePage() {
             <div className="flex items-center gap-2">
               <Link href="/edit-profile"
                 className="text-xs font-bold px-4 py-1.5 rounded-lg text-white transition-all"
-                style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                 ✏️ Edit profile
               </Link>
               <Link href="/dashboard"
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors"
-                style={{ borderColor: 'rgba(20,184,166,0.3)', color: '#0D7377' }}>
+                style={{ borderColor: 'rgba(20,184,166,0.3)', color: '#0C5F57' }}>
                 Dashboard →
               </Link>
             </div>
@@ -515,9 +515,9 @@ export default function ProProfilePage() {
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7">
-              <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#nav-g)"/><text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text><defs><linearGradient id="nav-g" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0D7377"/></linearGradient></defs></svg>
+              <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#nav-g)"/><text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text><defs><linearGradient id="nav-g" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/></linearGradient></defs></svg>
             </div>
-            <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0D9488', fontWeight: 300 }}>.ai</span></span>
+            <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0F766E', fontWeight: 300 }}>.ai</span></span>
           </Link>
           <div className="flex items-center gap-2">
             <Link href="/search" className="text-xs hidden sm:block transition-colors" style={{ color: '#A89F93' }}>← Find a pro</Link>
@@ -526,14 +526,14 @@ export default function ProProfilePage() {
                 className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all"
                 style={isFollowing
                   ? { borderColor: '#E8E2D9', color: '#6B7280' }
-                  : { background: 'linear-gradient(135deg, #0D9488, #0D7377)', color: '#fff', borderColor: '#0D9488' }}>
+                  : { background: 'linear-gradient(135deg, #0F766E, #0C5F57)', color: '#fff', borderColor: '#0F766E' }}>
                 {isFollowing ? '✓ Following' : '+ Follow'}
               </button>
             )}
             {!isOwner && (
               <button onClick={() => setShowModal(true)}
                 className="text-xs font-bold px-4 py-2 rounded-lg text-white sm:hidden"
-                style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                 Contact
               </button>
             )}
@@ -570,7 +570,7 @@ export default function ProProfilePage() {
               {!isOwner && (
                 <button onClick={() => setShowModal(true)}
                   className="hidden sm:flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
-                  style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                  style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                   Contact {firstName}
                 </button>
               )}
@@ -580,7 +580,7 @@ export default function ProProfilePage() {
             <h1 className="text-xl sm:text-2xl font-bold mb-0.5" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
               {pro.full_name}
             </h1>
-            <div className="text-sm font-semibold mb-0.5" style={{ color: '#0D9488' }}>{trade}</div>
+            <div className="text-sm font-semibold mb-0.5" style={{ color: '#0F766E' }}>{trade}</div>
             <div className="text-sm mb-3" style={{ color: '#A89F93' }}>
               📍 {location || 'Florida'}
               {pro.years_experience ? ` · ${pro.years_experience} yrs exp` : ''}
@@ -590,7 +590,7 @@ export default function ProProfilePage() {
             <div className="flex flex-wrap gap-2">
               {pro.is_verified && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
-                  style={{ background: 'rgba(20,184,166,0.1)', color: '#0D7377', border: '1px solid rgba(20,184,166,0.25)' }}>
+                  style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.25)' }}>
                   <ShieldBadge size={13} /> Guild Verified
                 </span>
               )}
@@ -646,13 +646,13 @@ export default function ProProfilePage() {
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className="flex-shrink-0 flex items-center gap-1.5 px-5 py-3.5 text-sm font-semibold transition-all border-b-2"
                 style={activeTab === tab.id
-                  ? { borderBottomColor: '#0D9488', color: '#0D9488' }
+                  ? { borderBottomColor: '#0F766E', color: '#0F766E' }
                   : { borderBottomColor: 'transparent', color: '#6B7280' }}>
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
                   <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
                     style={activeTab === tab.id
-                      ? { background: 'rgba(20,184,166,0.15)', color: '#0D9488' }
+                      ? { background: 'rgba(20,184,166,0.15)', color: '#0F766E' }
                       : { background: '#FAF9F6', color: '#A89F93' }}>
                     {tab.count}
                   </span>
@@ -703,7 +703,7 @@ export default function ProProfilePage() {
                   <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
                     <div className="px-5 pt-4 pb-3 flex items-center justify-between">
                       <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Project work</div>
-                      <button onClick={() => setActiveTab('work')} className="text-xs font-semibold" style={{ color: '#0D9488' }}>
+                      <button onClick={() => setActiveTab('work')} className="text-xs font-semibold" style={{ color: '#0F766E' }}>
                         See all {portfolio.length} →
                       </button>
                     </div>
@@ -728,7 +728,7 @@ export default function ProProfilePage() {
                   <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
                     <div className="px-5 pt-4 pb-3 flex items-center justify-between">
                       <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Recent reviews</div>
-                      <button onClick={() => setActiveTab('reviews')} className="text-xs font-semibold" style={{ color: '#0D9488' }}>
+                      <button onClick={() => setActiveTab('reviews')} className="text-xs font-semibold" style={{ color: '#0F766E' }}>
                         See all {reviewCnt} →
                       </button>
                     </div>
@@ -850,7 +850,7 @@ export default function ProProfilePage() {
                   <a href={`/reviews/${id}`}
                     className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border font-semibold text-sm transition-all"
                     style={{ borderColor: '#E8E2D9', color: '#0A1628', background: '#fff' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#0D9488'; e.currentTarget.style.color = '#0D9488' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
                     ⭐ Write a review
                   </a>
@@ -885,7 +885,7 @@ export default function ProProfilePage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>License verification</div>
                     <span className="text-xs font-bold px-2.5 py-1 rounded-full"
-                      style={{ background: 'rgba(20,184,166,0.1)', color: '#0D7377', border: '1px solid rgba(20,184,166,0.2)' }}>
+                      style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.2)' }}>
                       🛡 Florida DBPR
                     </span>
                   </div>
@@ -949,14 +949,14 @@ export default function ProProfilePage() {
                 <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#E8E2D9' }}>
                   <button onClick={() => setShowModal(true)}
                     className="w-full py-3 text-white text-sm font-bold rounded-xl mb-3 transition-all hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                     Contact {firstName}
                   </button>
                   {pro.phone && (
                     <a href={`tel:${pro.phone}`}
                       className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border text-sm font-semibold transition-all"
                       style={{ borderColor: '#E8E2D9', color: '#0A1628' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#0D9488'; e.currentTarget.style.color = '#0D9488' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
                       📞 Call {firstName}
                     </a>
@@ -970,7 +970,7 @@ export default function ProProfilePage() {
                 <div className="bg-white rounded-2xl border p-4 space-y-2" style={{ borderColor: '#E8E2D9' }}>
                   <Link href="/edit-profile"
                     className="flex items-center justify-center gap-2 w-full py-2.5 text-white text-sm font-bold rounded-xl transition-all hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                     ✏️ Edit profile
                   </Link>
                   <Link href="/dashboard"
@@ -992,7 +992,7 @@ export default function ProProfilePage() {
                   className="w-full py-2.5 text-sm font-bold rounded-xl border transition-all"
                   style={isFollowing
                     ? { borderColor: '#E8E2D9', color: '#6B7280', background: '#fff' }
-                    : { borderColor: '#0D9488', color: '#0D7377', background: 'rgba(20,184,166,0.05)' }}>
+                    : { borderColor: '#0F766E', color: '#0C5F57', background: 'rgba(20,184,166,0.05)' }}>
                   {isFollowing ? '✓ Following' : '+ Follow'}
                 </button>
               )}
@@ -1025,13 +1025,13 @@ export default function ProProfilePage() {
             {pro.phone ? (
               <a href={`tel:${pro.phone}`}
                 className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
-                style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                 📞 Call
               </a>
             ) : (
               <button onClick={() => setShowModal(true)}
                 className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
-                style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                 Contact
               </button>
             )}
@@ -1047,7 +1047,7 @@ export default function ProProfilePage() {
       {/* Footer */}
       <footer className="border-t py-8 px-6 mt-8" style={{ borderColor: '#E8E2D9', background: '#fff', paddingBottom: !isOwner ? 'calc(80px + env(safe-area-inset-bottom))' : undefined }}>
         <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0D9488', fontWeight: 300 }}>.ai</span></span>
+          <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0F766E', fontWeight: 300 }}>.ai</span></span>
           <div className="flex gap-4 text-xs" style={{ color: '#A89F93' }}>
             {[['/', 'Home'],['/search', 'Find a Pro'],['/privacy', 'Privacy'],['/terms', 'Terms']].map(([href, label]) => (
               <Link key={href} href={href} style={{ color: '#A89F93' }}>{label}</Link>

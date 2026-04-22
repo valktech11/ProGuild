@@ -612,32 +612,41 @@ export default function CommunityPage() {
             </button>
           </div>
 
-          {/* Trade filter chips — arrow scroll, no raw scrollbar */}
+          {/* Trade filter chips — swipe on mobile, arrow buttons on desktop */}
           <div className="relative mb-3">
+            {/* Fade edges */}
             <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
               style={{ background: 'linear-gradient(to right, #FAF9F6 60%, transparent)' }} />
-            <button onClick={() => chipScrollRef.current?.scrollBy({ left: -160, behavior: 'smooth' })}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-teal-600 hover:border-teal-300 transition-colors"
-              style={{ fontSize: 11 }}>‹</button>
+            <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
+              style={{ background: 'linear-gradient(to left, #FAF9F6 60%, transparent)' }} />
+
+            {/* Arrow buttons — desktop only */}
+            <button onClick={() => chipScrollRef.current?.scrollBy({ left: -200, behavior: 'smooth' })}
+              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-9 h-9 items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-teal-600 hover:border-teal-400 transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button onClick={() => chipScrollRef.current?.scrollBy({ left: 200, behavior: 'smooth' })}
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-9 h-9 items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-teal-600 hover:border-teal-400 transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            {/* Chip row — native swipe on mobile, padded for desktop arrows */}
             <div ref={chipScrollRef}
-              className="flex gap-2 overflow-x-auto px-7"
+              className="flex gap-2 overflow-x-auto md:px-8"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <button onClick={() => setTradeFilter('')}
-                className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-300 text-gray-600 bg-white hover:border-teal-400')}>
+                className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
+                style={!tradeFilter ? {} : { background: 'rgba(15,118,110,0.06)' }}>
                 All trades
               </button>
               {TRADE_CHIPS.map(chip => (
                 <button key={chip.slug} onClick={() => setTradeFilter(tradeFilter === chip.slug ? '' : chip.slug)}
-                  className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (tradeFilter === chip.slug ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-300 text-gray-600 bg-white hover:border-teal-400')}>
+                  className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (tradeFilter === chip.slug ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
+                  style={tradeFilter === chip.slug ? {} : { background: 'rgba(15,118,110,0.06)' }}>
                   {chip.label}
                 </button>
               ))}
             </div>
-            <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
-              style={{ background: 'linear-gradient(to left, #FAF9F6 60%, transparent)' }} />
-            <button onClick={() => chipScrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-teal-600 hover:border-teal-300 transition-colors"
-              style={{ fontSize: 11 }}>›</button>
           </div>
 
           {/* Logged-out CTA */}

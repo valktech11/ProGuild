@@ -8,7 +8,7 @@ const PAGE_SIZE = 12
 
 // Same groups as homepage/search — for related trades sidebar
 const TRADE_GROUPS = [
-  { id: 'mechanical', label: 'Mechanical', icon: '⚡', accent: '#0D9488',
+  { id: 'mechanical', label: 'Mechanical', icon: '⚡', accent: '#0F766E',
     trades: ['hvac-technician','electrician','plumber','solar-installer','gas-fitter','fire-sprinkler'] },
   { id: 'structural', label: 'Structural', icon: '🏗', accent: '#6366F1',
     trades: ['roofer','general-contractor','impact-window-shutter','carpenter','mason','concrete-contractor','foundation-specialist'] },
@@ -102,12 +102,12 @@ export default function TradeLandingClient({
               <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#tlg)"/>
                 <text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text>
-                <defs><linearGradient id="tlg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0D7377"/></linearGradient></defs>
+                <defs><linearGradient id="tlg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/></linearGradient></defs>
               </svg>
             </div>
             <div className="flex items-baseline gap-0.5">
               <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild</span>
-              <span className="font-light text-sm" style={{ color: '#0D9488' }}>.ai</span>
+              <span className="font-light text-sm" style={{ color: '#0F766E' }}>.ai</span>
             </div>
           </Link>
 
@@ -123,7 +123,7 @@ export default function TradeLandingClient({
               />
               <button type="submit"
                 className="px-4 py-2 text-sm font-bold text-white hover:opacity-90 transition-all"
-                style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                 Search
               </button>
             </div>
@@ -133,7 +133,7 @@ export default function TradeLandingClient({
             <Link href="/login" className="text-sm hidden sm:block transition-colors" style={{ color: '#6B7280' }}>Log in</Link>
             <Link href="/login?tab=signup"
               className="text-xs font-bold px-4 py-2 rounded-lg text-white hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+              style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
               Join Free
             </Link>
           </div>
@@ -262,10 +262,10 @@ export default function TradeLandingClient({
               <button onClick={loadMore} disabled={loading}
                 className="px-8 py-3 rounded-xl text-sm font-semibold border transition-all disabled:opacity-50"
                 style={{ color: '#0A1628', borderColor: '#E8E2D9', background: '#FFFFFF' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#0D9488'; e.currentTarget.style.color = '#0D9488' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
                 {loading
-                  ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-t-teal-500 rounded-full animate-spin" style={{ borderColor: '#E8E2D9', borderTopColor: '#0D9488' }} />Loading...</span>
+                  ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-t-teal-500 rounded-full animate-spin" style={{ borderColor: '#E8E2D9', borderTopColor: '#0F766E' }} />Loading...</span>
                   : `Load more (${(total - pros.length).toLocaleString()} remaining)`}
               </button>
             </div>
@@ -285,7 +285,7 @@ export default function TradeLandingClient({
               </div>
               <Link href="/search"
                 className="text-sm font-medium transition-colors"
-                style={{ color: '#0D9488' }}>
+                style={{ color: '#0F766E' }}>
                 Browse all trades →
               </Link>
             </div>
@@ -330,7 +330,7 @@ export default function TradeLandingClient({
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-baseline gap-0.5">
             <span className="font-bold" style={{ color: '#0A1628' }}>ProGuild</span>
-            <span className="font-light" style={{ color: '#0D9488' }}>.ai</span>
+            <span className="font-light" style={{ color: '#0F766E' }}>.ai</span>
           </div>
           <div className="flex flex-wrap gap-4 text-xs" style={{ color: '#A89F93' }}>
             <Link href="/" style={{ color: '#A89F93' }}>Home</Link>

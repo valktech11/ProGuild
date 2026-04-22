@@ -25,7 +25,7 @@ const STATE_MAP: Record<string, { name: string; abbr: string }> = {
 }
 
 const TRADE_GROUPS = [
-  { id: 'mechanical', label: 'Mechanical', icon: '⚡', accent: '#0D9488',
+  { id: 'mechanical', label: 'Mechanical', icon: '⚡', accent: '#0F766E',
     trades: [
       { label: 'HVAC Technician',       slug: 'hvac-technician' },
       { label: 'Electrician',           slug: 'electrician' },
@@ -111,13 +111,13 @@ export default async function StateLandingPage(
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7">
-              <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#slg)"/><text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text><defs><linearGradient id="slg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0D7377"/></linearGradient></defs></svg>
+              <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#slg)"/><text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text><defs><linearGradient id="slg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/></linearGradient></defs></svg>
             </div>
-            <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0D9488', fontWeight: 300 }}>.ai</span></span>
+            <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0F766E', fontWeight: 300 }}>.ai</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className="text-sm hidden sm:block" style={{ color: '#6B7280' }}>Log in</Link>
-            <Link href="/login?tab=signup" className="text-xs font-bold px-4 py-2 rounded-lg text-white" style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>Join Free</Link>
+            <Link href="/login?tab=signup" className="text-xs font-bold px-4 py-2 rounded-lg text-white" style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>Join Free</Link>
           </div>
         </div>
       </nav>
@@ -155,7 +155,7 @@ export default async function StateLandingPage(
             <div className="flex max-w-xl rounded-2xl overflow-hidden border bg-white shadow-sm" style={{ borderColor: '#E8E2D9' }}>
               <input name="q" type="text" placeholder={`Search trades in ${info.name}...`}
                 className="flex-1 px-5 py-3.5 text-sm outline-none" style={{ background: 'transparent', color: '#0A1628' }} />
-              <button type="submit" className="px-6 py-3.5 text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg, #0D9488, #0D7377)' }}>
+              <button type="submit" className="px-6 py-3.5 text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                 Search
               </button>
             </div>
@@ -253,7 +253,7 @@ export default async function StateLandingPage(
       {/* FOOTER */}
       <footer className="border-t py-8 px-6 mt-8" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0D9488', fontWeight: 300 }}>.ai</span></span>
+          <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0F766E', fontWeight: 300 }}>.ai</span></span>
           <div className="flex flex-wrap gap-4 text-xs" style={{ color: '#A89F93' }}>
             {[['/', 'Home'],['/search', 'Find a Pro'],['/community', 'Community'],['/privacy', 'Privacy'],['/terms', 'Terms']].map(([href, label]) => (
               <Link key={href} href={href} style={{ color: '#A89F93' }}>{label}</Link>

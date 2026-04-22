@@ -2,7 +2,7 @@
   <defs>
     <linearGradient id="g" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#2DD4BF"/>
-      <stop offset="1" stop-color="#0D7377"/>
+      <stop offset="1" stop-color="#0C5F57"/>
     </linearGradient>
   </defs>
   <!-- Solid shield — no notches, clean at small sizes -->
