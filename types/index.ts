@@ -193,6 +193,8 @@ export interface Post {
   pro_id: string
   content: string
   photo_url: string | null
+  before_photo_url: string | null
+  is_before_after: boolean
   post_type: PostType
   like_count: number
   comment_count: number

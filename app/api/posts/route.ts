@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, content, photo_url, post_type } = body
+  const { pro_id, content, photo_url, post_type, before_photo_url, is_before_after } = body
 
   // For Ask a Pro and Post Work, content is optional if we have a photo
   const hasContent = content?.trim()
@@ -77,6 +77,8 @@ export async function POST(req: NextRequest) {
       pro_id,
       content: content?.trim() || '',
       photo_url: photo_url || null,
+      before_photo_url: before_photo_url || null,
+      is_before_after: is_before_after || false,
       post_type: post_type || 'update',
     })
     .select(`*, pro:pros(id, full_name, profile_photo_url, is_verified, trade_category:trade_categories(id, category_name, slug))`)
@@ -84,19 +86,6 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ post: data }, { status: 201 })
-}
-
-export async function PATCH(req: NextRequest) {
-  const body = await req.json()
-  const { id, pro_id, photo_url } = body
-  if (!id || !pro_id) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
-  const { error } = await getSupabaseAdmin()
-    .from('posts')
-    .update({ photo_url: photo_url ?? null })
-    .eq('id', id)
-    .eq('pro_id', pro_id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
 }
 
 export async function DELETE(req: NextRequest) {

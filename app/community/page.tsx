@@ -29,6 +29,62 @@ function Avatar({ pro, size = 10 }: { pro: any; size?: number }) {
   return <div className={cls} style={{ background: bg, color: fg }}>{initials(pro?.full_name || 'A')}</div>
 }
 
+// ── Before/After Slider ───────────────────────────────────────────────────────
+function BeforeAfterSlider({ afterUrl, beforeUrl }: { afterUrl: string; beforeUrl: string }) {
+  const [pos, setPos] = useState(50)
+  const containerRef  = useRef<HTMLDivElement>(null)
+  const dragging      = useRef(false)
+
+  function updatePos(clientX: number) {
+    if (!containerRef.current) return
+    const r = containerRef.current.getBoundingClientRect()
+    setPos(Math.min(95, Math.max(5, ((clientX - r.left) / r.width) * 100)))
+  }
+
+  const containerW = containerRef.current?.offsetWidth || 0
+
+  return (
+    <div ref={containerRef}
+      className="relative w-full select-none overflow-hidden rounded-xl cursor-ew-resize"
+      style={{ aspectRatio: '16/9' }}
+      onMouseDown={() => { dragging.current = true }}
+      onMouseUp={() => { dragging.current = false }}
+      onMouseLeave={() => { dragging.current = false }}
+      onMouseMove={e => { if (dragging.current) updatePos(e.clientX) }}
+      onTouchMove={e => updatePos(e.touches[0].clientX)}>
+
+      {/* After image — full */}
+      <img src={afterUrl} alt="After"
+        className="absolute inset-0 w-full h-full object-cover" />
+
+      {/* Before image — clipped */}
+      <div className="absolute top-0 left-0 bottom-0 overflow-hidden"
+        style={{ width: `${pos}%` }}>
+        <img src={beforeUrl} alt="Before"
+          className="absolute top-0 left-0 h-full object-cover"
+          style={{ width: containerW > 0 ? `${containerW}px` : '100%' }} />
+      </div>
+
+      {/* Divider handle */}
+      <div className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg pointer-events-none"
+        style={{ left: `${pos}%` }}>
+        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center text-xs font-bold text-gray-500">
+          ↔
+        </div>
+      </div>
+
+      {/* Labels */}
+      <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">Before</div>
+      <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">After</div>
+
+      {/* Drag hint — fades after first interaction */}
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
+        ← drag to compare →
+      </div>
+    </div>
+  )
+}
+
 // ── Post card with functional type rendering ──────────────────────────────────
 function PostCard({ post, session, onLike, onDelete }: {
   post: Post & { liked_by_me: boolean }
@@ -147,18 +203,32 @@ function PostCard({ post, session, onLike, onDelete }: {
         </div>
       )}
 
-      {/* Work post photo */}
+      {/* Work post photo — or before/after slider */}
       {post.photo_url && (
         <div className="px-4 pb-3">
-          <img src={post.photo_url} alt="Post"
-            className="w-full rounded-xl object-contain bg-stone-50" style={{ maxHeight: '560px' }} />
-          {isWork && (
-            <div className="mt-1.5 flex items-center gap-1">
-              <span className="text-xs text-teal-600 font-medium">📸 Project work</span>
-              {(post.pro as any)?.trade_category?.category_name && (
-                <span className="text-xs text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
+          {post.is_before_after && post.before_photo_url ? (
+            <>
+              <BeforeAfterSlider afterUrl={post.photo_url} beforeUrl={post.before_photo_url} />
+              <div className="mt-1.5 flex items-center gap-1">
+                <span className="text-xs text-teal-600 font-medium">📸 Before & After</span>
+                {(post.pro as any)?.trade_category?.category_name && (
+                  <span className="text-xs text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <img src={post.photo_url} alt="Post"
+                className="w-full rounded-xl object-contain bg-stone-50" style={{ maxHeight: '560px' }} />
+              {isWork && (
+                <div className="mt-1.5 flex items-center gap-1">
+                  <span className="text-xs text-teal-600 font-medium">📸 Project work</span>
+                  {(post.pro as any)?.trade_category?.category_name && (
+                    <span className="text-xs text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
       )}
@@ -401,7 +471,7 @@ export default function CommunityPage() {
   const [tradeFilter,setTradeFilter]= useState('')
   const [search,     setSearch]     = useState('')
   const [searchInput,setSearchInput]= useState('')
-  const searchRef = useRef<HTMLInputElement>(null)
+  const searchRef    = useRef<HTMLInputElement>(null)
   const chipScrollRef = useRef<HTMLDivElement>(null)
 
   // Build fetch URL from current filters
@@ -544,19 +614,14 @@ export default function CommunityPage() {
 
           {/* Trade filter chips — arrow scroll, no raw scrollbar */}
           <div className="relative mb-3">
-            {/* Left fade + arrow */}
             <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
               style={{ background: 'linear-gradient(to right, #FAF9F6 60%, transparent)' }} />
-            <button
-              onClick={() => chipScrollRef.current?.scrollBy({ left: -160, behavior: 'smooth' })}
+            <button onClick={() => chipScrollRef.current?.scrollBy({ left: -160, behavior: 'smooth' })}
               className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-teal-600 hover:border-teal-300 transition-colors"
               style={{ fontSize: 11 }}>‹</button>
-
-            {/* Chip row — scrollbar hidden */}
             <div ref={chipScrollRef}
               className="flex gap-2 overflow-x-auto px-7"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <style>{`.chip-row::-webkit-scrollbar{display:none}`}</style>
               <button onClick={() => setTradeFilter('')}
                 className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-300 text-gray-600 bg-white hover:border-teal-400')}>
                 All trades
@@ -568,12 +633,9 @@ export default function CommunityPage() {
                 </button>
               ))}
             </div>
-
-            {/* Right fade + arrow */}
             <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
               style={{ background: 'linear-gradient(to left, #FAF9F6 60%, transparent)' }} />
-            <button
-              onClick={() => chipScrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
+            <button onClick={() => chipScrollRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
               className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-teal-600 hover:border-teal-300 transition-colors"
               style={{ fontSize: 11 }}>›</button>
           </div>
