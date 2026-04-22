@@ -6,35 +6,31 @@ SET MSG=%~2
 
 IF "%ZIPNAME%"=="" (
   echo ERROR: Provide zip filename
-  echo Usage: deploy.bat v44-patch.zip "commit message"
+  echo Usage: deploy.bat v54-patch.zip "commit message"
   exit /b 1
 )
 IF "%MSG%"=="" SET MSG=patch update
 
 SET DOWNLOADS_ZIP=%DOWNLOADS%\%ZIPNAME%
-SET PROJECT_ZIP=%PROJECT%\%ZIPNAME%
 
-REM Move zip from Downloads to project
-IF EXIST "%DOWNLOADS_ZIP%" (
-  echo [1/5] Moving %ZIPNAME% from Downloads...
-  move "%DOWNLOADS_ZIP%" "%PROJECT_ZIP%"
-  IF ERRORLEVEL 1 ( echo Move failed. & exit /b 1 )
-) ELSE IF EXIST "%PROJECT_ZIP%" (
-  echo [1/5] Found %ZIPNAME% in project folder.
-) ELSE (
-  echo ERROR: %ZIPNAME% not found in Downloads or project folder.
+REM Locate zip — only look in Downloads, never copy into project folder
+IF NOT EXIST "%DOWNLOADS_ZIP%" (
+  echo ERROR: %ZIPNAME% not found in Downloads folder.
+  echo Place the zip in %DOWNLOADS% and try again.
   exit /b 1
 )
+echo [1/5] Found %ZIPNAME% in Downloads.
 
-REM Extract
+REM Extract to temp — never touch the project folder during extraction
 SET TEMP_DIR=%TEMP%\proguild_%RANDOM%
-echo [2/5] Extracting...
-powershell -Command "Expand-Archive -Path '%PROJECT_ZIP%' -DestinationPath '%TEMP_DIR%' -Force"
+echo [2/5] Extracting to temp...
+powershell -Command "Expand-Archive -Path '%DOWNLOADS_ZIP%' -DestinationPath '%TEMP_DIR%' -Force"
 IF ERRORLEVEL 1 ( echo Extraction failed. & exit /b 1 )
 
+REM Find the inner folder the zip extracted into
 FOR /D %%D IN ("%TEMP_DIR%\*") DO SET PATCH_DIR=%%D
 
-REM Preview
+REM Preview what will be copied
 echo [3/5] Files that will be copied:
 robocopy "%PATCH_DIR%" "%PROJECT%" /E /IS /IT /L /NJH /NJS
 
@@ -45,16 +41,15 @@ IF /I NOT "%CONFIRM%"=="Y" (
   exit /b 0
 )
 
-REM Copy
-echo [4/5] Copying...
+REM Copy files into project — zip stays untouched in Downloads
+echo [4/5] Copying files...
 robocopy "%PATCH_DIR%" "%PROJECT%" /E /IS /IT /NJH /NJS
 rmdir /S /Q "%TEMP_DIR%"
-del "%PROJECT_ZIP%"
+echo Zip kept at: %DOWNLOADS_ZIP%
 
-REM Git
+REM Git — set fscache config once to reduce Windows file-lock issues
 echo [5/5] Git...
 cd /d "%PROJECT%"
-REM Reduce Windows file-lock conflicts on .git/objects
 git config core.fscache true
 git config core.preloadindex true
 git config gc.auto 256
@@ -67,9 +62,4 @@ IF /I NOT "%GITCONFIRM%"=="Y" (
 git add -A
 git commit -m "%MSG%"
 git push origin main
-IF ERRORLEVEL 1 (
-  echo Push failed - if prompted "Should I try again" type Y and press Enter each time.
-  echo Re-trying push...
-  git push origin main
-)
 echo Done.
