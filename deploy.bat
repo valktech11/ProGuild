@@ -54,6 +54,10 @@ del "%PROJECT_ZIP%"
 REM Git
 echo [5/5] Git...
 cd /d "%PROJECT%"
+REM Reduce Windows file-lock conflicts on .git/objects
+git config core.fscache true
+git config core.preloadindex true
+git config gc.auto 256
 git status
 SET /P GITCONFIRM=Commit and push? (Y/N): 
 IF /I NOT "%GITCONFIRM%"=="Y" (
@@ -63,4 +67,9 @@ IF /I NOT "%GITCONFIRM%"=="Y" (
 git add -A
 git commit -m "%MSG%"
 git push origin main
+IF ERRORLEVEL 1 (
+  echo Push failed - if prompted "Should I try again" type Y and press Enter each time.
+  echo Re-trying push...
+  git push origin main
+)
 echo Done.
