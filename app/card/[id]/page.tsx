@@ -52,7 +52,7 @@ export default function DigitalCardPage() {
   function share() {
     const url = `${window.location.origin}/card/${id}`
     if (navigator.share) {
-      navigator.share({ title: `${pro.full_name} — TradesNetwork`, url })
+      navigator.share({ title: `${pro.full_name} — ProGuild.ai`, url })
     } else {
       navigator.clipboard.writeText(url)
       setCopied(true)

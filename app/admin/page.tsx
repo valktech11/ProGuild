@@ -171,7 +171,7 @@ export default function AdminPage() {
         <div className="text-5xl mb-5">🔒</div>
         <h1 className="font-serif text-2xl text-white mb-3">Access denied</h1>
         <p className="text-gray-400 text-sm mb-2 leading-relaxed">
-          This page is restricted to TradesNetwork administrators only.
+          This page is restricted to ProGuild administrators only.
         </p>
         <p className="text-gray-500 text-xs mb-7">
           If you believe you should have admin access, contact the platform owner to have your account elevated.

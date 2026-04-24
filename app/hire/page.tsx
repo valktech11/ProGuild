@@ -293,7 +293,7 @@ export default function HirePage() {
           <h2 className="font-serif text-2xl mb-3">Hiring trade professionals?</h2>
           <p className="text-gray-300 text-sm mb-6 max-w-lg mx-auto leading-relaxed">
             Post a job and get applications from verified, licensed professionals.
-            All pros on TradesNetwork have been cross-referenced with state licensing databases.
+            All pros on ProGuild.ai have been cross-referenced with state licensing databases.
           </p>
           <Link href="/hire/post"
             className="inline-block px-8 py-3 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-400 transition-colors">
@@ -304,7 +304,7 @@ export default function HirePage() {
 
       <footer className="border-t border-gray-100 mt-8 py-8">
         <div className="max-w-4xl mx-auto px-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="text-sm text-gray-400">© 2026 TradesNetwork</div>
+          <div className="text-sm text-gray-400">© 2026 ProGuild.ai</div>
           <div className="flex gap-5 text-sm">
             {[['/', 'Find a pro'], ['/jobs', 'Post a job'], ['/hire', 'Hiring board'], ['/contact', 'Contact']].map(([href, label]) => (
               <Link key={href} href={href} className="text-gray-400 hover:text-teal-600 transition-colors">{label}</Link>

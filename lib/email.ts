@@ -41,7 +41,7 @@ export function leadNotificationEmail({
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>New lead — TradesNetwork</title>
+<title>New lead — ProGuild.ai</title>
 </head>
 <body style="margin:0;padding:0;background:#f5f4ef;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4ef;padding:32px 16px;">
@@ -50,7 +50,7 @@ export function leadNotificationEmail({
 
     <!-- Header -->
     <tr><td style="background:#1D9E75;padding:28px 32px 24px;">
-      <div style="font-size:20px;font-weight:600;color:#ffffff;letter-spacing:-0.3px;">TradesNetwork</div>
+      <div style="font-size:20px;font-weight:600;color:#ffffff;letter-spacing:-0.3px;">ProGuild.ai</div>
       <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">Professional trades marketplace</div>
     </td></tr>
 
@@ -144,10 +144,10 @@ export function leadNotificationEmail({
     <!-- Footer -->
     <tr><td style="border-top:1px solid #e2e1db;padding:18px 32px;background:#fafaf8;">
       <div style="font-size:12px;color:#9c9a92;line-height:1.6;">
-        You're receiving this because you have an active TradesNetwork pro account.
+        You're receiving this because you have an active ProGuild.ai pro account.
         <a href="${dashboardUrl}" style="color:#73726c;text-decoration:none;">Manage notifications</a>
       </div>
-      <div style="font-size:11px;color:#9c9a92;margin-top:6px;">© 2026 TradesNetwork · Univaro Technologies</div>
+      <div style="font-size:11px;color:#9c9a92;margin-top:6px;">© 2026 ProGuild.ai · Univaro Technologies</div>
     </td></tr>
 
   </table>
@@ -162,23 +162,23 @@ export async function sendClaimEmail(pro: {
   city?: string | null; state?: string | null;
   license_number?: string | null; trade_category?: any;
 }) {
-  const claimUrl = `${process.env.NEXT_PUBLIC_URL || 'https://tradesnetwork.vercel.app'}/claim/${pro.id}`
+  const claimUrl = `${process.env.NEXT_PUBLIC_URL || 'https://proguild.ai'}/claim/${pro.id}`
   const tradeName = pro.trade_category?.category_name || 'trade professional'
   const location  = [pro.city, pro.state].filter(Boolean).join(', ')
 
   return getResend().emails.send({
-    from:    'TradesNetwork <hello@tradesnetwork.com>',
+    from:    'ProGuild.ai <hello@proguild.ai>',
     to:      pro.email,
-    subject: `${pro.full_name}, your verified profile is waiting on TradesNetwork`,
+    subject: `${pro.full_name}, your verified profile is waiting on ProGuild.ai`,
     html: `
       <div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
         <div style="background: #0d9488; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 22px;">TradesNetwork</h1>
+          <h1 style="color: white; margin: 0; font-size: 22px;">ProGuild.ai</h1>
         </div>
         <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
           <h2 style="font-size: 20px; margin-top: 0;">Hi ${pro.full_name},</h2>
           <p style="color: #6b7280; line-height: 1.6;">
-            We found your ${tradeName} license in the Florida state database and created a verified profile for you on TradesNetwork — the professional platform for America's trades workforce.
+            We found your ${tradeName} license in the Florida state database and created a verified profile for you on ProGuild.ai — the professional platform for America's trades workforce.
           </p>
           ${pro.license_number ? `<p style="color: #6b7280;">License: <strong>${pro.license_number}</strong>${location ? ` · ${location}` : ''}</p>` : ''}
           <p style="color: #6b7280; line-height: 1.6;">
@@ -188,8 +188,8 @@ export async function sendClaimEmail(pro: {
             Claim my profile →
           </a>
           <p style="color: #9ca3af; font-size: 13px; margin-top: 24px;">
-            TradesNetwork · Zero per-lead fees · License verified · Direct leads<br/>
-            <a href="${process.env.NEXT_PUBLIC_URL || 'https://tradesnetwork.vercel.app'}" style="color: #0d9488;">tradesnetwork.vercel.app</a>
+            ProGuild.ai · Zero per-lead fees · License verified · Direct leads<br/>
+            <a href="${process.env.NEXT_PUBLIC_URL || 'https://proguild.ai'}" style="color: #0d9488;">proguild.ai</a>
           </p>
         </div>
       </div>

@@ -76,7 +76,7 @@ export default function Navbar() {
 
         {/* Logo */}
         <Link href="/" className="font-serif text-xl text-gray-900 tracking-tight flex-shrink-0">
-          Trades<span className="text-teal-600">Network</span>
+          Pro<span className="text-teal-600">Guild</span><span className="text-gray-400 font-sans font-light text-base">.ai</span>
         </Link>
 
         {/* Desktop nav links */}

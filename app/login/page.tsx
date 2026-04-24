@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { TradeCategory, Session } from '@/types'
 import { US_STATES, fetchCitiesForState } from '@/lib/utils'
-import Navbar from '@/components/layout/Navbar'
 
 function LoginPageInner() {
   const router = useRouter()
@@ -17,13 +16,18 @@ function LoginPageInner() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
-      <Navbar />
+    <div className="min-h-screen bg-stone-50 flex flex-col">
+      <nav className="bg-white border-b border-gray-100 px-8 h-15 flex items-center justify-between">
+        <Link href="/" className="font-serif text-xl text-gray-900">
+          Trades<span className="text-teal-600">Network</span>
+        </Link>
+        <Link href="/" className="text-sm text-gray-400 hover:text-teal-600 transition-colors">← Back to search</Link>
+      </nav>
 
       <main className="flex-1 flex items-center justify-center p-4 py-12">
         <div className="w-full max-w-md">
           {/* Tab toggle */}
-          <div className="flex bg-[#E5E0D8] rounded-xl p-1 mb-7">
+          <div className="flex bg-stone-100 rounded-xl p-1 mb-7">
             <button onClick={() => setTab('login')}
               className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${tab === 'login' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
               Log in
@@ -38,7 +42,7 @@ function LoginPageInner() {
         </div>
       </main>
 
-      <footer className="text-center py-6 text-sm border-t" style={{ color: '#C4BAB0', borderColor: '#E5E0D8' }}>
+      <footer className="text-center py-6 text-sm text-gray-400 border-t border-gray-100">
         © 2026 ProGuild.ai
       </footer>
     </div>
@@ -48,7 +52,7 @@ function LoginPageInner() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center"><div style={{ color: '#A89F93' }}>Loading...</div></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-stone-50 flex items-center justify-center"><div className="text-gray-400">Loading...</div></div>}>
       <LoginPageInner />
     </Suspense>
   )
@@ -78,7 +82,7 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
   }
 
   return (
-    <div className="bg-white border border-[#E5E0D8] rounded-2xl p-8">
+    <div className="bg-white border border-gray-100 rounded-2xl p-8">
       {success ? (
         <div className="text-center py-6">
           <div className="w-14 h-14 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl text-teal-700">✓</div>
@@ -95,7 +99,7 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               placeholder="you@example.com"
-              className="w-full px-4 py-2.5 border border-[#E5E0D8] rounded-lg text-sm bg-white focus:outline-none focus:border-teal-400 transition-colors" />
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-stone-50 focus:outline-none focus:border-teal-400 focus:bg-white transition-colors" />
           </div>
           <button onClick={handleLogin} disabled={loading}
             className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50">
@@ -180,7 +184,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   }
 
   if (success) return (
-    <div className="bg-white border border-[#E5E0D8] rounded-2xl p-8 text-center">
+    <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center">
       <div className="w-14 h-14 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl text-teal-700">✓</div>
       <h2 className="font-serif text-2xl text-gray-900 mb-2">You're on ProGuild.ai!</h2>
       <p className="text-sm text-gray-400">Redirecting to your dashboard...</p>
@@ -188,7 +192,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   )
 
   return (
-    <div className="bg-white border border-[#E5E0D8] rounded-2xl p-8">
+    <div className="bg-white border border-gray-100 rounded-2xl p-8">
       <h1 className="font-serif text-2xl text-gray-900 mb-2">Join as a pro</h1>
       <p className="text-sm text-gray-400 mb-6">Create your free profile and start receiving leads.</p>
       {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">{error}</div>}
@@ -259,5 +263,5 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 }
 
 function inp() {
-  return 'w-full px-4 py-2.5 border border-[#E5E0D8] rounded-lg text-sm bg-white focus:outline-none focus:border-teal-400 transition-colors'
+  return 'w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-stone-50 focus:outline-none focus:border-teal-400 focus:bg-white transition-colors'
 }

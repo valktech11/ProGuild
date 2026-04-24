@@ -46,7 +46,7 @@ function SuccessInner() {
         </div>
         <h1 className="font-serif text-3xl text-gray-900 mb-3">You're in!</h1>
         <p className="text-gray-500 mb-2 leading-relaxed">
-          Welcome to TradesNetwork Pro. Your account has been upgraded and all features are now active.
+          Welcome to ProGuild Pro. Your account has been upgraded and all features are now active.
         </p>
         <p className="text-gray-400 text-sm mb-8">
           A receipt has been sent to your email.

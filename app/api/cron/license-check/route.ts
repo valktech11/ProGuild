@@ -16,14 +16,14 @@ function expiryEmail(pro: any, daysLeft: number, licenseNumber: string, tradeNam
 <tr><td align="center">
 <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e2e1db;">
   <tr><td style="background:${color};padding:24px 32px;">
-    <div style="font-size:18px;font-weight:600;color:#fff;">TradesNetwork</div>
+    <div style="font-size:18px;font-weight:600;color:#fff;">ProGuild.ai</div>
     <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:4px;">License Alert — ${headline}</div>
   </td></tr>
   <tr><td style="padding:28px 32px;">
     <p style="font-size:14px;color:#555;margin:0 0 16px;">Hi ${pro.full_name.split(' ')[0]},</p>
     <p style="font-size:14px;color:#555;margin:0 0 20px;">
       ${expired
-        ? `Your <strong>${tradeName}</strong> license (<strong>${licenseNumber}</strong>) has expired. Your verified badge has been updated on TradesNetwork. Please renew your license with the Florida DBPR to restore your active status.`
+        ? `Your <strong>${tradeName}</strong> license (<strong>${licenseNumber}</strong>) has expired. Your verified badge has been updated on ProGuild.ai. Please renew your license with the Florida DBPR to restore your active status.`
         : `Your <strong>${tradeName}</strong> license (<strong>${licenseNumber}</strong>) expires in <strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</strong>. Renew now to keep your verified green badge and stay visible to homeowners and contractors.`
       }
     </p>
@@ -32,9 +32,9 @@ function expiryEmail(pro: any, daysLeft: number, licenseNumber: string, tradeNam
       <div style="font-size:14px;font-weight:600;color:#111;">${tradeName}</div>
       <div style="font-size:13px;color:#555;font-family:monospace;">${licenseNumber}</div>
     </div>
-    <a href="https://tradesnetwork.vercel.app/edit-profile" style="display:inline-block;background:${color};color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;text-decoration:none;margin-right:12px;">Update my profile</a>
+    <a href="https://proguild.ai/edit-profile" style="display:inline-block;background:${color};color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;text-decoration:none;margin-right:12px;">Update my profile</a>
     <a href="https://www.myfloridalicense.com" style="display:inline-block;color:${color};font-size:13px;text-decoration:underline;">Renew at DBPR →</a>
-    <p style="font-size:12px;color:#aaa;margin-top:24px;">TradesNetwork · Florida's verified trades network</p>
+    <p style="font-size:12px;color:#aaa;margin-top:24px;">ProGuild.ai · Florida's verified trades community</p>
   </td></tr>
 </table>
 </td></tr>
@@ -43,20 +43,20 @@ function expiryEmail(pro: any, daysLeft: number, licenseNumber: string, tradeNam
 }
 
 function claimEmail(pro: any): string {
-  const profileUrl = `https://tradesnetwork.vercel.app/pro/${pro.id}`
-  const loginUrl   = `https://tradesnetwork.vercel.app/login`
+  const profileUrl = `https://proguild.ai/pro/${pro.id}`
+  const loginUrl   = `https://proguild.ai/login`
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f4ef;font-family:Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
 <tr><td align="center">
 <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e2e1db;">
-  <tr><td style="background:#0D9488;padding:24px 32px;">
-    <div style="font-size:18px;font-weight:600;color:#fff;">TradesNetwork</div>
+  <tr><td style="background:#0F766E;padding:24px 32px;">
+    <div style="font-size:18px;font-weight:600;color:#fff;">ProGuild.ai</div>
     <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:4px;">Your free verified profile is ready</div>
   </td></tr>
   <tr><td style="padding:28px 32px;">
     <p style="font-size:14px;color:#555;margin:0 0 16px;">Hi ${pro.full_name.split(' ')[0]},</p>
     <p style="font-size:14px;color:#555;margin:0 0 20px;">
-      We've created a <strong>free verified profile</strong> for you on TradesNetwork — Florida's state-licensed trades network. 
+      We've created a <strong>free verified profile</strong> for you on ProGuild.ai — Florida's state-licensed trades network. 
       Your ${pro.trade_category?.category_name || 'trade'} license has been verified against Florida DBPR records.
     </p>
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:20px;">
@@ -65,9 +65,9 @@ function claimEmail(pro: any): string {
       <div style="font-size:13px;color:#166534;">• ${pro.city ? `Listed for ${pro.city}, FL` : 'Florida listing'}</div>
       <div style="font-size:13px;color:#166534;">• Free to contact — no per-lead fees</div>
     </div>
-    <a href="${loginUrl}" style="display:inline-block;background:#0D9488;color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;text-decoration:none;margin-right:12px;">Claim my free profile</a>
-    <a href="${profileUrl}" style="display:inline-block;color:#0D9488;font-size:13px;text-decoration:underline;">View my profile →</a>
-    <p style="font-size:12px;color:#aaa;margin-top:24px;">TradesNetwork · No cost, no catch. Unsubscribe anytime.</p>
+    <a href="${loginUrl}" style="display:inline-block;background:#0F766E;color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;text-decoration:none;margin-right:12px;">Claim my free profile</a>
+    <a href="${profileUrl}" style="display:inline-block;color:#0F766E;font-size:13px;text-decoration:underline;">View my profile →</a>
+    <p style="font-size:12px;color:#aaa;margin-top:24px;">ProGuild.ai · No cost, no catch. Unsubscribe anytime.</p>
   </td></tr>
 </table>
 </td></tr>
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
       if (!sent) {
         try {
           await getResend().emails.send({
-            from: 'TradesNetwork <alerts@tradesnetwork.com>',
+            from: 'ProGuild.ai <alerts@proguild.ai>',
             to: pro.email,
             subject: daysLeft <= 0 ? `Your ${lic.trade_name} license has expired` : `Your license expires in ${daysLeft} days`,
             html: expiryEmail(pro, daysLeft, lic.license_number, lic.trade_name),

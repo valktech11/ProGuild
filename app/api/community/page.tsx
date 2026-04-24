@@ -641,7 +641,7 @@ export default function CommunityPage() {
           {/* Logged-out signup */}
           {!session && (
             <div className="bg-white border border-gray-200 rounded-xl p-5">
-              <div className="text-sm font-bold text-gray-900 mb-1">New to TradesNetwork?</div>
+              <div className="text-sm font-bold text-gray-900 mb-1">New to ProGuild.ai?</div>
               <p className="text-xs text-gray-500 mb-4 leading-relaxed">
                 Florida's verified trades network. Share your work, connect with GCs, find jobs — free forever.
               </p>

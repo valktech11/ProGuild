@@ -91,7 +91,7 @@ export default function AdminSetupPage() {
           {msg && <div className="mb-4 p-3 bg-teal-900/50 border border-teal-700 text-teal-300 text-sm rounded-xl">{msg}</div>}
           {error && <div className="mb-4 p-3 bg-red-900/50 border border-red-700 text-red-300 text-sm rounded-xl">{error}</div>}
           <p className="text-sm text-gray-400 mb-4 leading-relaxed">
-            Enter the email address of a registered TradesNetwork pro account.
+            Enter the email address of a registered ProGuild.ai pro account.
             They must already have a pro account before being granted admin access.
           </p>
           <div className="flex gap-3">

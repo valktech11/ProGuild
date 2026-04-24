@@ -77,7 +77,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
       </h1>
 
       <p className="text-gray-400 text-lg mb-2 max-w-md leading-relaxed">
-        {config.maintenance_message || 'TradesNetwork is down for scheduled maintenance.'}
+        {config.maintenance_message || 'ProGuild.ai is down for scheduled maintenance.'}
       </p>
 
       <p className="text-gray-600 text-sm italic mb-10 max-w-sm">

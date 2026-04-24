@@ -62,7 +62,7 @@ export default function UpgradePage() {
         <div className="text-center mb-6">
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-teal-600 bg-teal-50 px-3 py-1 rounded-full mb-4">Simple pricing · No contracts</span>
           <h1 className="font-serif text-4xl text-gray-900 mb-3">Grow your trades business</h1>
-          <p className="text-gray-400 font-light max-w-lg mx-auto leading-relaxed">One job from TradesNetwork pays for months of your subscription. Start free, upgrade when ready.</p>
+          <p className="text-gray-400 font-light max-w-lg mx-auto leading-relaxed">One job from ProGuild.ai pays for months of your subscription. Start free, upgrade when ready.</p>
         </div>
 
         {/* Founding banner */}

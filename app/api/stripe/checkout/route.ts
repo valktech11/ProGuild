@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   if (!pro) return NextResponse.json({ error: 'Pro not found' }, { status: 404 })
 
   const stripe = getStripe()
-  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://tradesnetwork.vercel.app'
+  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://proguild.ai'
 
   // Create or reuse Stripe customer
   let customerId = pro.stripe_customer_id

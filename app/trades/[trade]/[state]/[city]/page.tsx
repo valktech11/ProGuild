@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const stateName = state.toUpperCase()
 
   return {
-    title:       `Licensed ${tradeName}s in ${cityName}, ${stateName} | TradesNetwork`,
+    title:       `Licensed ${tradeName}s in ${cityName}, ${stateName} | ProGuild.ai`,
     description: `Find verified, licensed ${tradeName}s in ${cityName}, ${stateName}. Browse profiles, read reviews, and contact trusted trade professionals near you.`,
     openGraph: {
       title:       `Licensed ${tradeName}s in ${cityName}, ${stateName}`,
@@ -172,7 +172,7 @@ export default async function TradeCityPage({ params }: Props) {
           </h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-4">
             When hiring a {tradeLabel.toLowerCase()} in {cityLabel}, always verify their license is active and in good standing
-            with the {stateUpper} state licensing board. All professionals on TradesNetwork have been 
+            with the {stateUpper} state licensing board. All professionals on ProGuild.ai have been 
             cross-referenced with official state licensing databases.
           </p>
           <p className="text-sm text-gray-500 leading-relaxed">

@@ -561,7 +561,7 @@ export default function ProProfilePage() {
             {/* Avatar — overlaps cover */}
             <div className="flex items-end justify-between -mt-10 mb-4">
               <div className="relative">
-                <ProAvatar pro={pro} size="w-20 h-20" />
+                <ProAvatar pro={pro} size="w-24 h-24" />
                 {pro.available_for_work && (
                   <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-white" style={{ background: '#22C55E' }} />
                 )}
@@ -679,6 +679,22 @@ export default function ProProfilePage() {
                   <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
                     <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>About {firstName}</div>
                     <p className="text-sm leading-relaxed" style={{ color: '#4B5563' }}>{pro.bio}</p>
+                  </div>
+                )}
+
+                {/* Counties served */}
+                {(pro as any).counties_served?.length > 0 && (
+                  <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
+                    <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>Counties Served</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(pro as any).counties_served.map((county: string) => (
+                        <span key={county}
+                          className="text-xs font-medium px-2.5 py-1 rounded-full"
+                          style={{ background: 'rgba(15,118,110,0.08)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.15)' }}>
+                          📍 {county}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
 

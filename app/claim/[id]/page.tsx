@@ -171,7 +171,7 @@ export default function ClaimProfilePage() {
               </button>
 
               <p className="text-xs text-gray-400 text-center mt-4">
-                Not your profile? <Link href="/" className="text-teal-600">Browse TradesNetwork</Link>
+                Not your profile? <Link href="/" className="text-teal-600">Browse ProGuild</Link>
               </p>
             </div>
           )}

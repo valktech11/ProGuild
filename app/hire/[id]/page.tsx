@@ -185,7 +185,7 @@ export default function HireJobDetailPage() {
                   <Link href="/login" className="block w-full py-3 text-sm font-semibold text-center rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition-colors mb-3">
                     Log in to apply
                   </Link>
-                  <p className="text-xs text-gray-400 text-center">Your verified TradesNetwork profile is your resume</p>
+                  <p className="text-xs text-gray-400 text-center">Your verified ProGuild.ai profile is your resume</p>
                 </>
               )}
 

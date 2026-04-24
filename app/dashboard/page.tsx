@@ -533,7 +533,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Performance</div>
                   {(proData?.profile_view_count ?? 0) === 0 && (
-                    <button onClick={() => navigator.clipboard?.writeText('https://tradesnetwork.vercel.app/pro/' + session.id)}
+                    <button onClick={() => navigator.clipboard?.writeText('https://proguild.ai/pro/' + session.id)}
                       className="text-xs text-teal-600 hover:underline">Share →</button>
                   )}
                 </div>
@@ -596,7 +596,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center mb-4">
                 <div className="p-3 bg-white border border-gray-200 rounded-2xl shadow-sm">
                   <img
-                    src={'https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=' + encodeURIComponent('https://tradesnetwork.vercel.app/card/' + session.id) + '&color=0f766e&bgcolor=ffffff&margin=6'}
+                    src={'https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=' + encodeURIComponent('https://proguild.ai/card/' + session.id) + '&color=0f766e&bgcolor=ffffff&margin=6'}
                     alt="QR code" width={130} height={130} className="rounded-lg"
                   />
                 </div>
@@ -608,7 +608,7 @@ export default function DashboardPage() {
                   Preview my card →
                 </a>
                 <button onClick={() => {
-                  const url = 'https://tradesnetwork.vercel.app/card/' + session.id
+                  const url = 'https://proguild.ai/card/' + session.id
                   if (navigator.share) { navigator.share({ title: session.name + ' - ProGuild.ai', url }) }
                   else { navigator.clipboard.writeText(url) }
                 }} className="block w-full py-2.5 text-center border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">

@@ -49,11 +49,11 @@ export async function POST(req: NextRequest) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY)
       const isPaid = pro.plan_tier !== 'Free'
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tradesnetwork.vercel.app'
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
       await resend.emails.send({
         from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
         to: pro.email,
-        subject: `New lead from ${contact_name} — TradesNetwork`,
+        subject: `New lead from ${contact_name} — ProGuild.ai`,
         html: leadNotificationEmail({
           proName: pro.full_name, proEmail: pro.email,
           contactName: contact_name, contactEmail: contact_email,

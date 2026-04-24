@@ -241,7 +241,7 @@ export default function PostJobPage() {
             </ul>
           </div>
           <div className="bg-white border border-gray-100 rounded-2xl p-6">
-            <div className="text-sm font-semibold text-gray-700 mb-4">Why TradesNetwork?</div>
+            <div className="text-sm font-semibold text-gray-700 mb-4">Why ProGuild.ai?</div>
             {[['✓', 'Verified professionals', 'Background checked'],['★', 'Real reviews', 'From verified customers'],['0', 'Free to post', 'No fees ever']].map(([icon, title, sub]) => (
               <div key={title as string} className="flex gap-3 items-center py-3 border-b border-gray-100 last:border-0">
                 <div className="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center text-teal-700 text-sm font-semibold flex-shrink-0">{icon}</div>

@@ -14,7 +14,7 @@ export default function AboutPage() {
             The professional home for<br />America's trades workforce
           </h1>
           <p className="text-xl text-gray-400 font-light leading-relaxed max-w-2xl mx-auto">
-            We built TradesNetwork because the trades industry deserved better than a lead-generation service that treats skilled professionals like commodities.
+            We built ProGuild.ai because the trades industry deserved better than a lead-generation service that treats skilled professionals like commodities.
           </p>
         </div>
 
@@ -56,7 +56,7 @@ export default function AboutPage() {
         <div className="bg-teal-600 rounded-2xl p-10 mb-8 text-white">
           <h2 className="font-serif text-2xl mb-4">Our promise to trade professionals</h2>
           <p className="text-teal-100 leading-relaxed mb-6">
-            TradesNetwork will never sell your leads to competitors, charge you per enquiry, or treat you as inventory. Your professional profile, your reputation, and your connections belong to you.
+            ProGuild.ai will never sell your leads to competitors, charge you per enquiry, or treat you as inventory. Your professional profile, your reputation, and your connections belong to you.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
@@ -74,7 +74,7 @@ export default function AboutPage() {
         {/* CTA */}
         <div className="text-center">
           <h2 className="font-serif text-2xl text-gray-900 mb-4">Ready to join?</h2>
-          <p className="text-gray-400 mb-8">Join thousands of verified trade professionals building their career on TradesNetwork.</p>
+          <p className="text-gray-400 mb-8">Join thousands of verified trade professionals building their career on ProGuild.ai.</p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Link href="/login?tab=signup" className="px-8 py-3 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition-colors">
               Join as a pro →

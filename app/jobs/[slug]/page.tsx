@@ -54,11 +54,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const { filterLabel, filterType } = await getJobs(slug)
   const title = filterType === 'state'
-    ? `Trade Jobs in ${filterLabel} | TradesNetwork`
-    : `${filterLabel} Jobs | TradesNetwork`
+    ? `Trade Jobs in ${filterLabel} | ProGuild.ai`
+    : `${filterLabel} Jobs | ProGuild.ai`
   return {
     title,
-    description: `Browse verified trade job postings${filterType === 'trade' ? ` for ${filterLabel}s` : ` in ${filterLabel}`}. Apply with your verified TradesNetwork profile — zero per-application fees.`,
+    description: `Browse verified trade job postings${filterType === 'trade' ? ` for ${filterLabel}s` : ` in ${filterLabel}`}. Apply with your verified ProGuild.ai profile — zero per-application fees.`,
   }
 }
 
@@ -91,7 +91,7 @@ export default async function JobsSlugPage({ params }: Props) {
         <h1 className="font-serif text-3xl text-gray-900 mb-2">{heading}</h1>
         <p className="text-gray-400 mb-8">
           {jobs.length} active position{jobs.length !== 1 ? 's' : ''}
-          {filterType === 'trade' ? ` for ${filterLabel}s` : ` in ${filterLabel}`} on TradesNetwork
+          {filterType === 'trade' ? ` for ${filterLabel}s` : ` in ${filterLabel}`} on ProGuild.ai
         </p>
 
         {jobs.length === 0 ? (
@@ -130,7 +130,7 @@ export default async function JobsSlugPage({ params }: Props) {
             {filterType === 'trade' ? `About ${filterLabel} jobs` : `Trade jobs in ${filterLabel}`}
           </h2>
           <p className="text-sm text-gray-500 leading-relaxed">
-            All trade professionals on TradesNetwork are verified against state licensing databases.
+            All trade professionals on ProGuild.ai are verified against state licensing databases.
             Apply with your profile — no resume needed. Zero per-application fees.
           </p>
           <div className="flex gap-4 mt-4 flex-wrap text-sm">

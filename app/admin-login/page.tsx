@@ -105,7 +105,7 @@ function AdminLoginInner() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                placeholder="admin@tradesnetwork.com"
+                placeholder="admin@proguild.com"
                 autoFocus
                 className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white text-sm rounded-xl
                   placeholder-gray-600 focus:outline-none focus:border-teal-500 transition-colors"
@@ -125,7 +125,7 @@ function AdminLoginInner() {
 
             <div className="mt-6 pt-5 border-t border-gray-800 text-center">
               <a href="/" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
-                ← Back to TradesNetwork
+                ← Back to ProGuild.ai
               </a>
             </div>
           </>

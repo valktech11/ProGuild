@@ -1,4 +1,4 @@
-// Translation strings for TradesNetwork
+// Translation strings for ProGuild.ai
 // Add new keys to both 'en' and 'es' objects
 
 export const translations = {

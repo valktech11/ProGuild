@@ -30,7 +30,7 @@ export default function ContactPage() {
     })
     setSending(false)
     if (r.ok) setSent(true)
-    else setError('Could not send message. Please email us directly at hello@tradesnetwork.com')
+    else setError('Could not send message. Please email us directly at hello@proguild.ai')
   }
 
   return (
@@ -96,7 +96,7 @@ export default function ContactPage() {
               className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors">
               {sending ? 'Sending...' : 'Send message →'}
             </button>
-            <p className="text-xs text-gray-400 text-center mt-4">Or email us directly: <a href="mailto:hello@tradesnetwork.com" className="text-teal-600">hello@tradesnetwork.com</a></p>
+            <p className="text-xs text-gray-400 text-center mt-4">Or email us directly: <a href="mailto:hello@proguild.ai" className="text-teal-600">hello@proguild.ai</a></p>
           </div>
         )}
       </div>
