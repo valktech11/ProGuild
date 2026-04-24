@@ -6,14 +6,14 @@ SET MSG=%~2
 
 IF "%ZIPNAME%"=="" (
   echo ERROR: Provide zip filename
-  echo Usage: deploy.bat v54-patch.zip "commit message"
+  echo Usage: deploy.bat v57-patch.zip "commit message"
   exit /b 1
 )
 IF "%MSG%"=="" SET MSG=patch update
 
 SET DOWNLOADS_ZIP=%DOWNLOADS%\%ZIPNAME%
 
-REM Locate zip — only look in Downloads, never copy into project folder
+REM Locate zip in Downloads only — never copy into project folder
 IF NOT EXIST "%DOWNLOADS_ZIP%" (
   echo ERROR: %ZIPNAME% not found in Downloads folder.
   echo Place the zip in %DOWNLOADS% and try again.
@@ -21,7 +21,7 @@ IF NOT EXIST "%DOWNLOADS_ZIP%" (
 )
 echo [1/5] Found %ZIPNAME% in Downloads.
 
-REM Extract to temp — never touch the project folder during extraction
+REM Extract to temp — never touch project folder during extraction
 SET TEMP_DIR=%TEMP%\proguild_%RANDOM%
 echo [2/5] Extracting to temp...
 powershell -Command "Expand-Archive -Path '%DOWNLOADS_ZIP%' -DestinationPath '%TEMP_DIR%' -Force"
@@ -41,13 +41,13 @@ IF /I NOT "%CONFIRM%"=="Y" (
   exit /b 0
 )
 
-REM Copy files into project — zip stays untouched in Downloads
+REM Copy files — zip stays untouched in Downloads
 echo [4/5] Copying files...
 robocopy "%PATCH_DIR%" "%PROJECT%" /E /IS /IT /NJH /NJS
 rmdir /S /Q "%TEMP_DIR%"
 echo Zip kept at: %DOWNLOADS_ZIP%
 
-REM Git — set fscache config once to reduce Windows file-lock issues
+REM Git — set fscache to reduce Windows file-lock issues
 echo [5/5] Git...
 cd /d "%PROJECT%"
 git config core.fscache true
@@ -62,4 +62,8 @@ IF /I NOT "%GITCONFIRM%"=="Y" (
 git add -A
 git commit -m "%MSG%"
 git push origin main
+IF ERRORLEVEL 1 (
+  echo Push failed - if prompted "Should I try again" type Y each time.
+  git push origin main
+)
 echo Done.
