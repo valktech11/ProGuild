@@ -1101,5 +1101,6 @@ export default function ProProfilePage() {
         </div>
       </footer>
     </div>
+    </>
   )
 }
