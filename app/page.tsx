@@ -4,20 +4,35 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
-// BG:      #FAF9F6  warm cream (Claude-inspired)
-// NAV:     #FFFFFF  white card
+// BG:      #FAF9F6  warm cream
 // CARD:    #FFFFFF  white
-// DARK:    #0A1628  navy (headlines, footer)
-// TEAL:    #14B8A6  primary accent
+// DARK:    #0A1628  navy
+// TEAL:    #0F766E  primary accent (v56)
 // BORDER:  #E8E2D9  warm gray
 
-// ── Static data ───────────────────────────────────────────────────────────────
-// PRIMARY_COUNT = trades shown by default on card (mobile launchpad)
-const PRIMARY_COUNT = 4
+// ── 8 primary trade tiles — direct to /fl/[slug] ─────────────────────────────
+const PRIMARY_TRADES = [
+  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️', count: '430+' },
+  { slug: 'electrician',        label: 'Electrician',        icon: '⚡', count: '154+' },
+  { slug: 'plumber',            label: 'Plumber',            icon: '🔧', count: '213+' },
+  { slug: 'roofer',             label: 'Roofer',             icon: '🏠', count: '1,386+' },
+  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️', count: '2,751+' },
+  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊', count: '128+' },
+  { slug: 'painter',            label: 'Painter',            icon: '🎨', count: '' },
+  { slug: 'landscaper',         label: 'Landscaper',         icon: '🌿', count: '' },
+]
 
-const TRADE_GROUPS = [
-  {
-    id: 'mechanical',
+// Secondary trades shown as pills below
+const SECONDARY_TRADES = [
+  { slug: 'solar-installer',        label: 'Solar Installer' },
+  { slug: 'drywall',                label: 'Drywall' },
+  { slug: 'impact-window-shutter',  label: 'Impact Windows' },
+  { slug: 'flooring',               label: 'Flooring' },
+  { slug: 'pest-control',           label: 'Pest Control' },
+  { slug: 'marine-contractor',      label: 'Marine / Dock' },
+  { slug: 'carpenter',              label: 'Carpenter' },
+  { slug: 'irrigation',             label: 'Irrigation' },
+]
     label: 'Mechanical',
     icon: '⚡',
     accent: '#0F766E',
@@ -123,18 +138,35 @@ function getScopeLabel(): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
-  const [search, setSearch]       = useState('')
-  const [activeTab, setActiveTab] = useState<'homeowner' | 'pro'>('homeowner')
-  const [hoveredGroup, setHoveredGroup] = useState<string | null>(null)
+  const [search, setSearch]         = useState('')
+  const [matching, setMatching]     = useState(false)
+  const [activeTab, setActiveTab]   = useState<'homeowner' | 'pro'>('homeowner')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const scopeLabel = getScopeLabel()
   const scopeState = getScopeState().toLowerCase()
 
-  function handleSearch(e?: React.FormEvent) {
+  async function handleSearch(e?: React.FormEvent) {
     e?.preventDefault()
-    if (!search.trim()) { inputRef.current?.focus(); return }
-    router.push(`/search?q=${encodeURIComponent(search.trim())}`)
+    const q = search.trim()
+    if (!q) { inputRef.current?.focus(); return }
+
+    setMatching(true)
+    try {
+      const res  = await fetch('/api/match-trade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q }),
+      })
+      const data = await res.json()
+      if (data.slug && data.confidence >= 0.7) {
+        router.push(`/${scopeState}/${data.slug}`)
+        return
+      }
+    } catch { /* fall through to search */ }
+    finally { setMatching(false) }
+
+    router.push(`/search?q=${encodeURIComponent(q)}`)
   }
 
   return (
@@ -215,8 +247,8 @@ export default function HomePage() {
           {scopeLabel}'s verified trades network — for homeowners who need a pro, and pros who deserve better.
         </p>
 
-        {/* Search bar */}
-        <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-4">
+        {/* Search bar — Gemini AI matches problem to trade */}
+        <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-3">
           <div className="flex rounded-2xl overflow-hidden shadow-sm border bg-white"
             style={{ borderColor: '#E8E2D9' }}>
             <input
@@ -225,21 +257,34 @@ export default function HomePage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder={`Electrician, plumber... city or ZIP in ${scopeLabel}...`}
+              placeholder={`What do you need? e.g. "AC stopped working" or "licensed electrician Tampa"...`}
               className="flex-1 px-5 py-4 text-sm outline-none"
               style={{ background: 'transparent', color: '#0A1628' }}
+              disabled={matching}
             />
-            {search && (
+            {search && !matching && (
               <button type="button" onClick={() => setSearch('')}
                 className="px-3 text-gray-300 hover:text-gray-500 transition-colors">×</button>
             )}
-            <button type="submit"
-              className="px-7 py-4 text-sm font-bold text-white transition-all hover:opacity-90 flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-              Search
+            <button type="submit" disabled={matching}
+              className="px-7 py-4 text-sm font-bold text-white transition-all hover:opacity-90 flex-shrink-0 flex items-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)', opacity: matching ? 0.8 : 1 }}>
+              {matching ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Matching...
+                </>
+              ) : 'Search'}
             </button>
           </div>
         </form>
+
+        {/* AI hint */}
+        <div className="flex items-center justify-center gap-1.5 mb-4">
+          <span className="text-xs" style={{ color: '#A89F93' }}>
+            ✦ Describe your problem — AI finds the right trade automatically
+          </span>
+        </div>
 
         {/* Trust line */}
         <p className="text-xs" style={{ color: '#A89F93' }}>
@@ -247,113 +292,46 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* ── DUAL GATEWAY ─────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {/* Homeowner card */}
-          <div className="bg-white rounded-2xl p-7 border" style={{ borderColor: '#E8E2D9' }}>
-            <div className="text-2xl mb-3">🏠</div>
-            <div className="font-bold text-lg mb-1.5" style={{ color: '#0A1628' }}>I need a pro</div>
-            <p className="text-sm mb-5 leading-relaxed" style={{ color: '#6B7280' }}>
-              Find a DBPR-licensed, ID-verified tradesperson near you. Read real reviews. Hire with confidence.
-            </p>
-            <Link href="/search"
-              className="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-xl text-white transition-all hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-              Find a Pro →
-            </Link>
-          </div>
-
-          {/* Pro card */}
-          <div className="bg-white rounded-2xl p-7 border" style={{ borderColor: '#E8E2D9' }}>
-            <div className="text-2xl mb-3">🔧</div>
-            <div className="font-bold text-lg mb-1.5" style={{ color: '#0A1628' }}>I am a pro</div>
-            <p className="text-sm mb-5 leading-relaxed" style={{ color: '#6B7280' }}>
-              Other platforms charge pros per lead. We never do. One flat fee — keep every dollar you earn.
-            </p>
-            <Link href="/login?tab=signup"
-              className="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-xl border transition-all hover:bg-gray-50"
-              style={{ color: '#0A1628', borderColor: '#E8E2D9' }}>
-              Join Free →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── TRADE CATEGORIES ─────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 py-12">
-        <div className="text-center mb-10">
+      {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
+      <section className="max-w-5xl mx-auto px-6 pb-12">
+        <div className="text-center mb-8">
           <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Browse by trade</div>
-          <h2 className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-            Find the right professional
+          <h2 className="text-xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+            What do you need done?
           </h2>
         </div>
 
-        {/* Top 3 — fixed height launchpad cards, no expansion */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          {TRADE_GROUPS.slice(0, 3).map(group => (
-            <div key={group.id}
-              className="bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-shadow duration-200"
-              style={{ borderColor: '#E8E2D9', borderTopWidth: '3px', borderTopColor: group.accent }}>
-              <div className="p-5 flex flex-col" style={{ minHeight: '220px' }}>
-                {/* Clickable header → group page */}
-                <Link href={`/${scopeState}/${group.id}`}
-                  className="flex items-center gap-2 mb-4 hover:opacity-75 transition-opacity"
-                  style={{ textDecoration: 'none' }}>
-                  <span className="text-2xl">{group.icon}</span>
-                  <span className="font-bold text-base" style={{ color: '#0A1628' }}>{group.label}</span>
-                  <span className="ml-auto text-xs font-semibold" style={{ color: group.accent }}>All →</span>
-                </Link>
-                {/* Top 4 trades — always visible, fixed */}
-                <div className="space-y-1 flex-1">
-                  {group.trades.slice(0, PRIMARY_COUNT).map(trade => (
-                    <Link key={trade.slug}
-                      href={`/${scopeState}/${trade.slug}`}
-                      className="flex items-center justify-between text-sm py-1.5 px-2 rounded-lg transition-all"
-                      style={{ color: '#4B5563' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#FAF9F6'; e.currentTarget.style.color = group.accent }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4B5563' }}>
-                      <span>{trade.label}</span>
-                      <span className="text-xs" style={{ opacity: 0, transition: 'opacity 0.15s' }}>→</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
+        {/* 4×2 primary trade grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          {PRIMARY_TRADES.map(trade => (
+            <Link key={trade.slug} href={`/${scopeState}/${trade.slug}`}
+              className="group bg-white rounded-2xl border p-4 flex flex-col hover:-translate-y-0.5 transition-all duration-200"
+              style={{ borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <span className="text-2xl mb-2">{trade.icon}</span>
+              <span className="text-sm font-semibold mb-0.5" style={{ color: '#0A1628' }}>{trade.label}</span>
+              {trade.count && (
+                <span className="text-xs" style={{ color: '#A89F93' }}>{trade.count} FL licensed</span>
+              )}
+              <span className="text-xs font-semibold mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ color: '#0F766E' }}>Find pros →</span>
+            </Link>
           ))}
         </div>
 
-        {/* Bottom 2 — compact cards with Browse All */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {TRADE_GROUPS.slice(3).map(group => (
-            <div key={group.id}
-              className="bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-shadow duration-200"
-              style={{ borderColor: '#E8E2D9', borderTopWidth: '3px', borderTopColor: group.accent }}>
-              <div className="p-5">
-                <Link href={`/${scopeState}/${group.id}`}
-                  className="flex items-center gap-2 mb-3 hover:opacity-75 transition-opacity">
-                  <span className="text-xl">{group.icon}</span>
-                  <span className="font-bold" style={{ color: '#0A1628' }}>{group.label}</span>
-                  <span className="ml-auto text-xs font-semibold" style={{ color: group.accent }}>All →</span>
-                </Link>
-                {/* Primary trades as pills */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {group.trades.slice(0, PRIMARY_COUNT).map(trade => (
-                    <Link key={trade.slug}
-                      href={`/${scopeState}/${trade.slug}`}
-                      className="text-xs font-medium px-3 py-1.5 rounded-full border transition-all"
-                      style={{ color: '#4B5563', borderColor: '#E8E2D9', background: '#FAF9F6' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = group.accent; e.currentTarget.style.color = group.accent; e.currentTarget.style.background = '#fff' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#4B5563'; e.currentTarget.style.background = '#FAF9F6' }}>
-                      {trade.label}
-                    </Link>
-                  ))}
-                </div>
-
-              </div>
-            </div>
+        {/* Secondary trades as pills */}
+        <div className="flex flex-wrap gap-2 justify-center">
+          {SECONDARY_TRADES.map(trade => (
+            <Link key={trade.slug} href={`/${scopeState}/${trade.slug}`}
+              className="text-xs font-medium px-3 py-1.5 rounded-full border transition-all hover:border-teal-400 hover:text-teal-700"
+              style={{ color: '#6B7280', borderColor: '#E8E2D9', background: '#FAF9F6' }}>
+              {trade.label}
+            </Link>
           ))}
+          <Link href={`/${scopeState}`}
+            className="text-xs font-semibold px-3 py-1.5 rounded-full border transition-all"
+            style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>
+            All trades →
+          </Link>
         </div>
       </section>
 
