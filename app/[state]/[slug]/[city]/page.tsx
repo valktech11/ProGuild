@@ -2,8 +2,10 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import ProCard from '@/components/ui/ProCard'
 import { getDBPRTrade, slugToCity, cityToSlug, FL_SEO_CITIES } from '@/config/dbpr-trades'
+
+// ProCard uses onError — must be rendered inside a client component
+import ProCardGrid from './ProCardGrid'
 
 const STATE_MAP: Record<string, { name: string; abbr: string }> = {
   fl: { name: 'Florida', abbr: 'FL' },
@@ -214,12 +216,8 @@ export default async function CityTradePage(
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
-                {pros.map((pro: any, i: number) => (
-                  <ProCard key={pro.id} pro={pro} index={i} />
-                ))}
-              </div>
-              <div className="text-center">
+              <ProCardGrid pros={pros} />
+              <div className="text-center mt-8">
                 <Link href={`/${state.toLowerCase()}/${slug}`}
                   className="text-sm font-semibold text-teal-600 hover:text-teal-700 transition-colors">
                   See all {tradeName.toLowerCase()}s in {info.name} →
