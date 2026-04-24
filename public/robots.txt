@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Block admin and API routes
+Disallow: /admin
+Disallow: /admin-login
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /edit-profile
+Disallow: /messages
+Disallow: /onboarding
+
+Sitemap: https://proguild.ai/sitemap.xml

@@ -86,7 +86,7 @@ export default function HomePage() {
       })
       const data = await res.json()
       if (data.slug && data.confidence >= 0.7) {
-        router.push(`/${scopeState}/${data.slug}`)
+        router.push(`/${scopeState}/${data.slug}?from=ai&q=${encodeURIComponent(q)}`)
         return
       }
     } catch { /* fall through to search */ }
@@ -206,13 +206,14 @@ export default function HomePage() {
 
         {/* AI hint */}
         <div className="flex items-center justify-center gap-1.5 mb-4">
-          <span className="text-xs" style={{ color: '#A89F93' }}>
-            ✦ Describe your problem — AI finds the right trade automatically
+          <span style={{ color: '#0F766E' }}>✦</span>
+          <span className="text-xs" style={{ color: '#6B7280' }}>
+            Describe your problem — AI finds the right trade automatically
           </span>
         </div>
 
         {/* Trust line */}
-        <p className="text-xs" style={{ color: '#A89F93' }}>
+        <p className="text-xs" style={{ color: '#6B7280' }}>
           134,000+ DBPR-verified {scopeLabel} pros · Zero lead fees · License checked
         </p>
       </section>

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import ProCard from '@/components/ui/ProCard'
 
 const PAGE_SIZE = 12
@@ -54,7 +54,11 @@ interface Props {
 export default function TradeLandingClient({
   stateSlug, stateName, stateAbbr, tradeSlug, tradeTitle, tradeCategoryId, initialPros, totalCount
 }: Props) {
-  const router = useRouter()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const fromAI       = searchParams.get('from') === 'ai'
+  const aiQuery      = searchParams.get('q') || ''
+  const [showAIBanner, setShowAIBanner] = useState(fromAI)
   const [pros, setPros]           = useState(initialPros)
   const [total]                   = useState(totalCount)
   const [hasMore, setHasMore]     = useState(totalCount > PAGE_SIZE)
@@ -139,6 +143,23 @@ export default function TradeLandingClient({
           </div>
         </div>
       </nav>
+
+      {/* ── AI MATCH BANNER ───────────────────────────────────────────── */}
+      {showAIBanner && aiQuery && (
+        <div className="border-b" style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.2)' }}>
+          <div className="max-w-7xl mx-auto px-6 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm" style={{ color: '#0C5F57' }}>
+              <span style={{ color: '#0F766E' }}>✦</span>
+              <span>Based on <strong>"{aiQuery}"</strong> — showing {tradeTitle}s in {stateName}</span>
+            </div>
+            <button onClick={() => setShowAIBanner(false)}
+              className="text-xs flex-shrink-0 hover:opacity-70 transition-opacity"
+              style={{ color: '#0C5F57' }}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── VISUAL ANCHOR — category DNA header ──────────────────────────── */}
       {activeGroup && (

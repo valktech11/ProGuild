@@ -462,8 +462,37 @@ export default function ProProfilePage() {
     { id: 'credentials',  label: 'Credentials' },
   ]
 
+  const siteUrl = 'https://proguild.ai'
+  const proSchema = {
+    '@context': 'https://schema.org',
+    '@type': ['LocalBusiness', 'ProfessionalService'],
+    '@id': `${siteUrl}/pro/${pro.id}`,
+    name: pro.full_name,
+    url: `${siteUrl}/pro/${pro.id}`,
+    description: pro.bio || `Licensed ${trade} in ${[pro.city, pro.state].filter(Boolean).join(', ')}. DBPR verified.`,
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: pro.city || '',
+      addressRegion: pro.state || 'FL',
+      addressCountry: 'US',
+    },
+    ...(pro.license_number ? { identifier: { '@type': 'PropertyValue', name: 'DBPR License', value: pro.license_number } } : {}),
+    ...(pro.is_verified ? { hasCredential: { '@type': 'EducationalOccupationalCredential', credentialCategory: 'license', recognizedBy: { '@type': 'Organization', name: 'Florida DBPR' } } } : {}),
+    ...(reviewCnt > 0 && pro.avg_rating > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: pro.avg_rating.toFixed(1),
+        reviewCount: reviewCnt,
+        bestRating: 5,
+        worstRating: 1,
+      }
+    } : {}),
+  }
+
   return (
-    <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(proSchema) }} />
+      <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* Lightbox */}
       {lightbox && (
