@@ -394,7 +394,7 @@ export default function ProProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     const s   = raw ? JSON.parse(raw) : null
     if (s) setSession(s)
 

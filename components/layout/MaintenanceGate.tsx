@@ -9,7 +9,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
 
   useEffect(() => {
     // Check if current user is admin
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (raw) {
       try {
         const s = JSON.parse(raw)

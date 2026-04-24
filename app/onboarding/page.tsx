@@ -18,11 +18,11 @@ export default function OnboardingPage() {
   const [uploadError, setUploadError] = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.replace('/login'); return }
     const s: Session = JSON.parse(raw)
     // If already onboarded, skip to dashboard
-    if (sessionStorage.getItem('tn_onboarded')) { router.replace('/dashboard'); return }
+    if (sessionStorage.getItem('pg_onboarded')) { router.replace('/dashboard'); return }
     setSession(s)
   }, [])
 
@@ -55,14 +55,14 @@ export default function OnboardingPage() {
         body: JSON.stringify(updates),
       })
     }
-    sessionStorage.setItem('tn_onboarded', '1')
+    sessionStorage.setItem('pg_onboarded', '1')
     setSaving(false)
     setStep(3)
     setTimeout(() => router.push('/dashboard'), 1400)
   }
 
   function skip() {
-    sessionStorage.setItem('tn_onboarded', '1')
+    sessionStorage.setItem('pg_onboarded', '1')
     router.push('/dashboard')
   }
 

@@ -27,11 +27,11 @@ export default function Navbar() {
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (raw) { try { setSession(JSON.parse(raw)) } catch {} }
 
     const sync = () => {
-      const r = sessionStorage.getItem('tn_pro')
+      const r = sessionStorage.getItem('pg_pro')
       const s = r ? JSON.parse(r) : null
       setSession(s)
       if (s?.id) {
@@ -42,7 +42,7 @@ export default function Navbar() {
       }
     }
     window.addEventListener('storage', sync)
-    window.addEventListener('tn-session-changed', sync)
+    window.addEventListener('pg-session-changed', sync)
 
     const handleOutside = (e: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false)
@@ -53,7 +53,7 @@ export default function Navbar() {
     document.addEventListener('touchstart', handleOutside as any)
     return () => {
       window.removeEventListener('storage', sync)
-      window.removeEventListener('tn-session-changed', sync)
+      window.removeEventListener('pg-session-changed', sync)
       document.removeEventListener('mousedown', handleOutside)
       document.removeEventListener('touchstart', handleOutside as any)
     }
@@ -63,7 +63,7 @@ export default function Navbar() {
   useEffect(() => { setMobileMenuOpen(false) }, [path])
 
   function logout() {
-    sessionStorage.removeItem('tn_pro')
+    sessionStorage.removeItem('pg_pro')
     setSession(null)
     router.push('/')
   }

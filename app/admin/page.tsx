@@ -56,7 +56,7 @@ export default function AdminPage() {
   const [emailResult, setEmailResult]   = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.replace('/admin-login'); return }
     const s: Session = JSON.parse(raw)
     setSession(s)

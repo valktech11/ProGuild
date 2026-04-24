@@ -7,7 +7,7 @@ export function useTranslation() {
 
   useEffect(() => {
     // Read from session or localStorage
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (raw) {
       try {
         const s = JSON.parse(raw)

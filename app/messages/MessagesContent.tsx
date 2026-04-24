@@ -32,7 +32,7 @@ export default function MessagesContent() {
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.replace('/login'); return }
     const s: Session = JSON.parse(raw)
     setSession(s)

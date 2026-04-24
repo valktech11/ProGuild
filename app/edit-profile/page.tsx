@@ -106,7 +106,7 @@ export default function EditProfilePage() {
   const [bg, fg] = COLORS[fullName.charCodeAt(0) % COLORS.length] || COLORS[0]
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.push('/login'); return }
     const s: Session = JSON.parse(raw)
     setSession(s)
@@ -221,7 +221,7 @@ export default function EditProfilePage() {
     setSaving(false)
     if (r.ok) {
       const updated = { ...session!, name: fullName.trim() }
-      sessionStorage.setItem('tn_pro', JSON.stringify(updated))
+      sessionStorage.setItem('pg_pro', JSON.stringify(updated))
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } else {

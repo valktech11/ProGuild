@@ -13,7 +13,7 @@ function SuccessInner() {
     if (!sessionId) { setStatus('error'); return }
 
     // Refresh session from DB — plan has been updated by webhook
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (raw) {
       const s = JSON.parse(raw)
       fetch(`/api/pros/${s.id}`)
@@ -21,8 +21,8 @@ function SuccessInner() {
         .then(d => {
           if (d.pro) {
             const updated = { ...s, plan: d.pro.plan_tier }
-            sessionStorage.setItem('tn_pro', JSON.stringify(updated))
-            window.dispatchEvent(new Event('tn-session-changed'))
+            sessionStorage.setItem('pg_pro', JSON.stringify(updated))
+            window.dispatchEvent(new Event('pg-session-changed'))
           }
           setStatus('success')
         })

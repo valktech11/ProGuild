@@ -78,7 +78,7 @@ export default function DashboardPage() {
   const [activeStage,    setActiveStage]    = useState('New')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.replace('/login'); return }
     const s: Session = JSON.parse(raw)
     setSession(s)
@@ -99,8 +99,8 @@ export default function DashboardPage() {
     fetch('/api/messages?pro_id=' + s.id).then(r => r.json())
       .then(d => setUnreadMessages(d.unread || 0))
 
-    const cached = sessionStorage.getItem('tn_trade_stats')
-    const cachedTs = sessionStorage.getItem('tn_trade_stats_ts')
+    const cached = sessionStorage.getItem('pg_trade_stats')
+    const cachedTs = sessionStorage.getItem('pg_trade_stats_ts')
     const age = cachedTs ? Date.now() - parseInt(cachedTs) : Infinity
     const parsed = cached ? JSON.parse(cached) : null
     if (parsed?.trades?.length > 0 && age < 300000) {
@@ -109,8 +109,8 @@ export default function DashboardPage() {
       fetch('/api/stats/trades').then(r => r.json()).then(d => {
         setTradeStats(d.trades || [])
         if ((d.trades || []).length > 0) {
-          sessionStorage.setItem('tn_trade_stats', JSON.stringify(d))
-          sessionStorage.setItem('tn_trade_stats_ts', String(Date.now()))
+          sessionStorage.setItem('pg_trade_stats', JSON.stringify(d))
+          sessionStorage.setItem('pg_trade_stats_ts', String(Date.now()))
         }
       }).finally(() => setStatsLoading(false))
     }
@@ -138,7 +138,7 @@ export default function DashboardPage() {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, lead_status: status as any } : l))
   }
 
-  function logout() { sessionStorage.removeItem('tn_pro'); router.push('/') }
+  function logout() { sessionStorage.removeItem('pg_pro'); router.push('/') }
 
   if (!session) return null
 

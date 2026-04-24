@@ -30,10 +30,10 @@ export default function ReviewPage() {
   const [rating, setRating]   = useState(0)
   const [hover, setHover]     = useState(0)
   const [name, setName]       = useState(() => {
-    try { const s = JSON.parse(sessionStorage.getItem('tn_pro') || '{}'); return s.name || '' } catch { return '' }
+    try { const s = JSON.parse(sessionStorage.getItem('pg_pro') || '{}'); return s.name || '' } catch { return '' }
   })
   const [email, setEmail]     = useState(() => {
-    try { const s = JSON.parse(sessionStorage.getItem('tn_pro') || '{}'); return s.email || '' } catch { return '' }
+    try { const s = JSON.parse(sessionStorage.getItem('pg_pro') || '{}'); return s.email || '' } catch { return '' }
   })
   const [comment, setComment] = useState('')
   const [jobType, setJobType] = useState('')

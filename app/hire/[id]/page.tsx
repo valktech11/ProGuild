@@ -28,7 +28,7 @@ export default function HireJobDetailPage() {
   const [toast, setToast]       = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (raw) setSession(JSON.parse(raw))
 
     fetch(`/api/b2b/${id}`)

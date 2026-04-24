@@ -486,7 +486,7 @@ export default function CommunityPage() {
   }
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     const s   = raw ? JSON.parse(raw) : null
     setSession(s)
 

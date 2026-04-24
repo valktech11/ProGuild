@@ -12,7 +12,7 @@ function LoginPageInner() {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (sessionStorage.getItem('tn_pro')) router.replace('/dashboard')
+    if (sessionStorage.getItem('pg_pro')) router.replace('/dashboard')
   }, [])
 
   return (
@@ -75,7 +75,7 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
     const d = await r.json()
     setLoading(false)
     if (!r.ok) { setError(d.error || 'Something went wrong.'); return }
-    sessionStorage.setItem('tn_pro', JSON.stringify(d.session))
+    sessionStorage.setItem('pg_pro', JSON.stringify(d.session))
     setProName(d.session.name.split(' ')[0])
     setSuccess(true)
     setTimeout(() => router.push('/dashboard'), 1200)
@@ -178,7 +178,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       trade: cats.find(c => c.id === trade)?.category_name || null,
       city: finalCity, state,
     }
-    sessionStorage.setItem('tn_pro', JSON.stringify(session))
+    sessionStorage.setItem('pg_pro', JSON.stringify(session))
     setSuccess(true)
     setTimeout(() => router.push('/onboarding'), 1400)
   }

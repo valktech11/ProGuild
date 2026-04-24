@@ -47,7 +47,7 @@ export default function HirePage() {
   const [stateFil, setStateFil]   = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (raw) setSession(JSON.parse(raw))
     fetch('/api/categories').then(r => r.json()).then(d => setCategories(d.categories || []))
   }, [])

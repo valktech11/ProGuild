@@ -16,7 +16,7 @@ export default function AdminSetupPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.replace('/admin-login'); return }
     const s = JSON.parse(raw)
     setSession(s)

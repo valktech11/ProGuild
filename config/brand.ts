@@ -24,7 +24,7 @@ export const BRAND = {
   emailSupport: 'support@proguild.ai',
 
   // Session storage key (don't change — breaks existing sessions)
-  sessionKey: 'tn_pro',
+  sessionKey: 'pg_pro',
 
   // Social / legal
   company:    'Univaro Technologies Pvt Ltd',

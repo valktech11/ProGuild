@@ -97,7 +97,7 @@ export default function ClaimProfilePage() {
       city:  d.pro.city || '',
       state: d.pro.state || '',
     }
-    sessionStorage.setItem('tn_pro', JSON.stringify(session))
+    sessionStorage.setItem('pg_pro', JSON.stringify(session))
     setStep('done')
     setTimeout(() => router.push('/onboarding'), 1800)
   }

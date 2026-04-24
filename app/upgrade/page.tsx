@@ -24,7 +24,7 @@ export default function UpgradePage() {
   const [done, setDone]     = useState(false)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (raw) { const s = JSON.parse(raw); setSession(s) }
     const interval = setInterval(() => setSpots(s => Math.random() < 0.08 && s > 40 ? s - 1 : s), 9000)
     return () => clearInterval(interval)

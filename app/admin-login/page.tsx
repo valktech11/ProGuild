@@ -11,7 +11,7 @@ function AdminLoginInner() {
 
   useEffect(() => {
     // If already logged in as admin, go straight to admin panel
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) return
     try {
       const s = JSON.parse(raw)
@@ -56,8 +56,8 @@ function AdminLoginInner() {
     }
 
     // Authenticated + admin confirmed
-    sessionStorage.setItem('tn_pro', JSON.stringify(d.session))
-    window.dispatchEvent(new Event('tn-session-changed'))
+    sessionStorage.setItem('pg_pro', JSON.stringify(d.session))
+    window.dispatchEvent(new Event('pg-session-changed'))
     setSuccess(true)
     setLoading(false)
     setTimeout(() => router.push('/admin'), 800)

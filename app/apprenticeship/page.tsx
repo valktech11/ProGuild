@@ -20,7 +20,7 @@ export default function ApprenticeshipPage() {
   const [error, setError]   = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('tn_pro')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.replace('/login'); return }
     const s: Session = JSON.parse(raw)
     setSession(s)
