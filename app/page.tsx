@@ -1,9 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
-import SearchBar from '@/components/ui/SearchBar'
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
 // BG:      #FAF9F6  warm cream
