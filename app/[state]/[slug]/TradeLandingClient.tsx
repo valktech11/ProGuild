@@ -391,6 +391,7 @@ export default function TradeLandingClient({
             .card-enter { animation: fadeUp 0.2s ease-out both; }
           `}</style>
         </div>
+      </div>
     </div>
   )
 }
