@@ -140,7 +140,7 @@ export default function HomePage() {
         </h1>
 
         <p className="text-lg mb-10 max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
-          {scopeLabel}'s verified trades network — for homeowners who need a pro, and pros who deserve better.
+          {scopeLabel !== 'Florida' ? scopeLabel + "'s" : 'The'} verified trades network — for homeowners who need a pro, and pros who deserve better.
         </p>
 
         {/* Search bar — Gemini AI matches problem to trade */}
@@ -209,7 +209,7 @@ export default function HomePage() {
           <div className="flex items-center gap-1.5">
             <span className="text-sm">🛡</span>
             <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>134,000+</span>
-            <span className="text-sm" style={{ color: '#6B7280' }}>DBPR-verified FL pros</span>
+            <span className="text-sm" style={{ color: '#6B7280' }}>state-verified licensed pros</span>
           </div>
           <div className="w-px h-4 bg-gray-200 hidden sm:block" />
           <div className="flex items-center gap-1.5">
@@ -273,7 +273,7 @@ export default function HomePage() {
       <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           {[
-            { icon: '🛡', title: 'DBPR License Verified', sub: 'Every pro checked against Florida state database' },
+            { icon: '🛡', title: 'License Verified', sub: 'Every pro checked against their state licensing board' },
             { icon: '✦', title: 'Zero Lead Fees. Ever.', sub: 'One flat monthly subscription — keep every dollar' },
             { icon: '✓', title: 'ID + Background Checked', sub: 'Didit-powered identity verification on signup' },
           ].map(item => (
@@ -360,7 +360,7 @@ export default function HomePage() {
                 <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
               </div>
               <p className="text-base leading-relaxed" style={{ color: '#A89F93' }}>
-                {scopeLabel}'s verified professional trades network. DBPR-integrated. Zero lead fees. Your Craft. Your Guild.
+                {scopeLabel}'s verified professional trades network. State-licensed pros. Zero lead fees. Your Craft. Your Guild.
               </p>
             </div>
 
@@ -413,7 +413,7 @@ export default function HomePage() {
           <div className="border-t pt-6 flex flex-wrap items-center justify-between gap-3"
             style={{ borderColor: '#E8E2D9' }}>
             <div className="text-xs" style={{ color: '#C4BAB0' }}>© 2026 ProGuild.ai</div>
-            <div className="text-xs" style={{ color: '#C4BAB0' }}>Verified against Florida DBPR · OSHA · State licensing boards</div>
+            <div className="text-xs" style={{ color: '#C4BAB0' }}>Verified against state licensing boards · OSHA · Background checked</div>
           </div>
         </div>
       </footer>

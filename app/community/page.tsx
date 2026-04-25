@@ -593,7 +593,7 @@ export default function CommunityPage() {
         {/* ── FEED ── */}
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="font-serif text-xl text-gray-900">Community feed</h1>
+            <h1 className="font-serif text-xl text-gray-900">Pro Feed</h1>
             <div className="flex items-center gap-2">
               <div className="sm:hidden flex items-center bg-stone-100 border border-gray-200 rounded-lg p-0.5">
                 {[{ v: false, l: 'All' }, { v: true, l: 'FL' }].map(opt => (
@@ -626,11 +626,11 @@ export default function CommunityPage() {
 
           {/* Trade filter chips — swipe on mobile, arrow buttons on desktop */}
           <div className="relative mb-3">
-            {/* Fade edges */}
-            <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
-              style={{ background: 'linear-gradient(to right, #FAF9F6 60%, transparent)' }} />
-            <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
-              style={{ background: 'linear-gradient(to left, #FAF9F6 60%, transparent)' }} />
+            {/* Fade edges — desktop only on left (where arrow sits), both sides hidden on mobile */}
+            <div className="hidden md:block absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
+              style={{ background: 'linear-gradient(to right, #FAF9F6 55%, transparent)' }} />
+            <div className="hidden md:block absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
+              style={{ background: 'linear-gradient(to left, #FAF9F6 55%, transparent)' }} />
 
             {/* Arrow buttons — desktop only */}
             <button onClick={() => chipScrollRef.current?.scrollBy({ left: -200, behavior: 'smooth' })}
@@ -642,9 +642,9 @@ export default function CommunityPage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
 
-            {/* Chip row — native swipe on mobile, padded for desktop arrows */}
+            {/* Chip row — native swipe on mobile (no padding), arrows on desktop (px-10 clears 36px button) */}
             <div ref={chipScrollRef}
-              className="flex gap-2 overflow-x-auto md:px-8"
+              className="flex gap-2 overflow-x-auto px-1 md:px-10"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <button onClick={() => setTradeFilter('')}
                 className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
@@ -665,7 +665,7 @@ export default function CommunityPage() {
           {!session && (
             <div className="bg-white border border-teal-200 rounded-xl p-5 mb-4 flex items-center justify-between gap-4">
               <div>
-                <div className="text-sm font-semibold text-gray-900 mb-0.5">Join Florida's verified trades community</div>
+                <div className="text-sm font-semibold text-gray-900 mb-0.5">Join the verified trades network</div>
                 <div className="text-xs text-gray-500">Share work, ask questions, find local pros — free forever.</div>
               </div>
               <div className="flex gap-2 flex-shrink-0">
@@ -686,7 +686,7 @@ export default function CommunityPage() {
               <div className="text-4xl mb-3 opacity-20">🔧</div>
               <div className="font-semibold text-gray-700 mb-2">No posts found</div>
               <div className="text-sm text-gray-400">
-                {tradeFilter || search ? 'Try clearing your filters.' : localOnly ? 'No Florida posts yet. Try switching to All.' : 'Be the first to share something.'}
+                {tradeFilter || search ? 'Try clearing your filters.' : localOnly ? 'No local posts yet. Try switching to All.' : 'Be the first to share something.'}
               </div>
               {(tradeFilter || search) && (
                 <button onClick={() => { setTradeFilter(''); setSearch(''); setSearchInput('') }}
@@ -749,7 +749,7 @@ export default function CommunityPage() {
             <div className="bg-white border border-gray-200 rounded-xl p-5">
               <div className="text-sm font-bold text-gray-900 mb-1">New to ProGuild.ai?</div>
               <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-                Florida's verified trades community. Share your work, connect with GCs, find jobs — free forever.
+                Verified trades network. Share your work, connect with pros, find jobs — free forever.
               </p>
               <Link href="/login?tab=signup"
                 className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors mb-2">
