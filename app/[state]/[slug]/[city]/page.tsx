@@ -229,22 +229,13 @@ export default async function CityTradePage(
             </div>
           ) : (
             <>
-              <ProCardGrid pros={pros} />
-
-              {/* Request a Pro CTA */}
-              <div className="mt-6 p-6 bg-white rounded-2xl border text-center" style={{ borderColor: '#E8E2D9' }}>
-                <div className="text-base font-bold mb-1" style={{ color: '#0A1628' }}>
-                  Don't see the right pro?
-                </div>
-                <p className="text-sm mb-4" style={{ color: '#6B7280' }}>
-                  Post your job — we'll match you with a verified {tradeName.toLowerCase()} in {cityDisplay}.
-                </p>
-                <Link href="/post-job"
-                  className="inline-block px-6 py-2.5 rounded-xl font-semibold text-sm text-white"
-                  style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                  Request a Pro →
-                </Link>
-              </div>
+              <ProCardGrid
+                pros={pros}
+                tradeSlug={slug}
+                stateSlug={state.toLowerCase()}
+                tradeName={tradeName}
+                cityDisplay={cityDisplay}
+              />
             </>
           )}
 

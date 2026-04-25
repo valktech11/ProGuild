@@ -323,9 +323,9 @@ function SearchPageInner() {
               <select value={sort} onChange={e => setSort(e.target.value)}
                 className="w-full text-sm border rounded-xl px-3 py-2 bg-white outline-none"
                 style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
-                <option value="rating">Highest rated</option>
-                <option value="default">Top credentialed</option>
-                <option value="reviews">Most reviews</option>
+                <option value="rating">Highest Rated</option>
+                <option value="default">Top Credentialed</option>
+                <option value="reviews">Most Reviews</option>
                 <option value="name_asc">Name A–Z</option>
                 <option value="name_desc">Name Z–A</option>
               </select>
@@ -399,9 +399,9 @@ function SearchPageInner() {
             <select value={sort} onChange={e => setSort(e.target.value)}
               className="lg:hidden text-sm border rounded-xl px-3 py-1.5 bg-white outline-none"
               style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
-              <option value="rating">Highest rated</option>
-              <option value="default">Top credentialed</option>
-              <option value="reviews">Most reviews</option>
+              <option value="rating">Highest Rated</option>
+              <option value="default">Top Credentialed</option>
+              <option value="reviews">Most Reviews</option>
               <option value="name_asc">Name A–Z</option>
               <option value="name_desc">Name Z–A</option>
             </select>
@@ -428,6 +428,17 @@ function SearchPageInner() {
                           : 'Try a different trade or city.'}
                       </div>
                       {hasFilters && (
+                        <button onClick={clearFilters}
+                          className="text-sm font-semibold px-5 py-2.5 rounded-xl border mr-3"
+                          style={{ color: '#0A1628', borderColor: '#E8E2D9' }}>
+                          Clear filters
+                        </button>
+                      )}
+                      <a href="/post-job"
+                        className="inline-block px-5 py-2.5 rounded-xl font-semibold text-sm text-white"
+                        style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                        Request a Pro →
+                      </a>
                         <button onClick={clearFilters}
                           className="text-sm font-medium transition-colors"
                           style={{ color: '#0F766E' }}>

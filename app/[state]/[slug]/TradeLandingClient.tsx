@@ -1,6 +1,6 @@
 'use client'
 import Navbar from '@/components/layout/Navbar'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ProCard from '@/components/ui/ProCard'
@@ -64,16 +64,16 @@ export default function TradeLandingClient({
   const fromAI       = searchParams.get('from') === 'ai'
   const aiQuery      = searchParams.get('q') || ''
   const [showAIBanner, setShowAIBanner] = useState(fromAI)
+
+  // Auto-dismiss AI banner after 6 seconds
+  useEffect(() => {
+    if (fromAI) {
+      const t = setTimeout(() => setShowAIBanner(false), 6000)
+      return () => clearTimeout(t)
+    }
+  }, [fromAI])
   const [cityInput, setCityInput]         = useState('')
   const [nearMeLoading, setNearMeLoading] = useState(false)
-  const [activeSort, setActiveSort]       = useState<'rating' | 'reviews' | 'experience' | 'default'>('rating')
-
-  const SORT_OPTIONS = [
-    { key: 'rating',     label: 'Highest Rated' },
-    { key: 'reviews',    label: 'Most Reviews' },
-    { key: 'experience', label: 'Most Experienced' },
-    { key: 'default',    label: 'Best Match' },
-  ] as const
 
   function cityToSlug(c: string) {
     return c.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-')
@@ -318,71 +318,37 @@ export default function TradeLandingClient({
               ))}
             </div>
 
-            <div className="flex items-center gap-4 flex-wrap mt-4" style={{ color: '#6B7280' }}>
-              <span className="flex items-center gap-1.5">
-                <span className="text-lg font-bold" style={{ color: '#0A1628' }}>{total.toLocaleString()}</span>
-                <span className="text-sm">verified {tradeTitle.toLowerCase()}s in {stateName}</span>
-              </span>
-              <span className="text-gray-300">·</span>
-              <span className="text-sm font-medium" style={{ color: '#0F766E' }}>🛡 DBPR license verified</span>
-              <span className="text-gray-300">·</span>
-              <span className="text-sm">Zero lead fees</span>
+            <div className="flex items-center justify-between flex-wrap gap-3 mt-4">
+              <div className="flex items-center gap-3 flex-wrap" style={{ color: '#6B7280' }}>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-lg font-bold" style={{ color: '#0A1628' }}>{total.toLocaleString()}</span>
+                  <span className="text-sm">verified {tradeTitle.toLowerCase()}s in {stateName}</span>
+                </span>
+                <span className="text-gray-300 hidden sm:inline">·</span>
+                <span className="text-sm font-medium hidden sm:inline" style={{ color: '#0F766E' }}>🛡 DBPR verified</span>
+                <span className="text-gray-300 hidden sm:inline">·</span>
+                <span className="text-sm hidden sm:inline">Zero lead fees</span>
+              </div>
+              {/* Styled sort dropdown */}
+              <div className="relative flex-shrink-0">
+                <select value={sort} onChange={e => changeSort(e.target.value)}
+                  className="appearance-none text-sm font-medium pl-3 pr-8 py-2 rounded-xl border outline-none cursor-pointer"
+                  style={{ borderColor: '#E8E2D9', color: '#0A1628', background: 'white' }}>
+                  <option value="rating">Highest Rated</option>
+                  <option value="reviews">Most Reviews</option>
+                  <option value="default">Top Credentialed</option>
+                  <option value="name_asc">Name A–Z</option>
+                  <option value="name_desc">Name Z–A</option>
+                </select>
+                <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </div>
             </div>
           </div>
 
-          {/* Sort pills */}
-          <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-            <span className="text-sm text-gray-400 flex-shrink-0">Sort:</span>
-            {[
-              { value: 'rating',     label: '⭐ Highest rated' },
-              { value: 'reviews',    label: '💬 Most reviews' },
-              { value: 'experience', label: '🏆 Most experienced' },
-              { value: 'default',    label: '✦ Best match' },
-            ].map(s => (
-              <button key={s.value} onClick={() => changeSort(s.value)}
-                className="flex-shrink-0 text-sm font-semibold px-3 py-1.5 rounded-full border transition-all"
-                style={sort === s.value
-                  ? { background: '#0F766E', color: 'white', borderColor: '#0F766E' }
-                  : { background: 'white', color: '#6B7280', borderColor: '#E8E2D9' }}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Sort pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-4" style={{ scrollbarWidth: 'none' }}>
-            <span className="text-sm text-gray-400 flex-shrink-0">Sort:</span>
-            {SORT_OPTIONS.map(opt => (
-              <button key={opt.key}
-                onClick={async () => {
-                  setActiveSort(opt.key)
-                  // Re-fetch first page with new sort
-                  const params = new URLSearchParams({
-                    trade: tradeCategoryId,
-                    state: stateAbbr,
-                    limit: String(PAGE_SIZE),
-                    offset: '0',
-                    sort: opt.key,
-                  })
-                  try {
-                    const r = await fetch(`/api/pros?${params}`)
-                    const d = await r.json()
-                    setPros(d.pros || [])
-                    setHasMore(d.hasMore || false)
-                    offset.current = PAGE_SIZE
-                  } catch {}
-                }}
-                className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold border transition-all"
-                style={activeSort === opt.key
-                  ? { background: '#0F766E', color: 'white', borderColor: '#0F766E' }
-                  : { background: 'white', color: '#6B7280', borderColor: '#E8E2D9' }}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
           {/* Pro grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
             {pros.map((pro, i) => (
               <div key={pro.id} className="card-enter" style={{ animationDelay: `${Math.min(i * 25, 150)}ms` }}>
                 <ProCard pro={pro} index={i} />
@@ -392,90 +358,31 @@ export default function TradeLandingClient({
 
           {/* Load more */}
           {hasMore && (
-            <div className="text-center pb-16">
+            <div className="text-center mb-6">
               <button onClick={loadMore} disabled={loading}
                 className="px-8 py-3 rounded-xl text-sm font-semibold border transition-all disabled:opacity-50"
                 style={{ color: '#0A1628', borderColor: '#E8E2D9', background: '#FFFFFF' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
-                {loading
-                  ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-t-teal-500 rounded-full animate-spin" style={{ borderColor: '#E8E2D9', borderTopColor: '#0F766E' }} />Loading...</span>
-                  : `Load more (${(total - pros.length).toLocaleString()} remaining)`}
+                {loading ? 'Loading...' : `Load more (${(total - pros.length).toLocaleString()} remaining)`}
               </button>
             </div>
           )}
-          {!hasMore && pros.length > 0 && (
-            <div className="text-center pb-16 text-xs" style={{ color: '#C4BAB0' }}>
-              All {total.toLocaleString()} verified {tradeTitle.toLowerCase()}s shown
+
+          {/* Request a Pro CTA */}
+          {!loading && pros.length > 0 && (
+            <div className="mb-8 p-5 bg-white rounded-2xl border text-center" style={{ borderColor: '#E8E2D9' }}>
+              <div className="text-base font-bold mb-1" style={{ color: '#0A1628' }}>Don't see the right pro?</div>
+              <p className="text-sm mb-4" style={{ color: '#6B7280' }}>
+                Post a request — we'll match you with a verified {tradeTitle.toLowerCase()} near you.
+              </p>
+              <a href="/post-job" className="inline-block px-6 py-2.5 rounded-xl font-semibold text-sm text-white"
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                Request a Pro →
+              </a>
             </div>
           )}
 
-          {pros.length === 0 && (
-            <div className="text-center py-20">
-              <div className="text-5xl mb-4 opacity-20">🔍</div>
-              <div className="font-bold mb-2" style={{ color: '#0A1628' }}>No {tradeTitle.toLowerCase()}s found in {stateName}</div>
-              <div className="text-sm mb-5" style={{ color: '#A89F93' }}>
-                This trade may not have verified pros in this state yet.
-              </div>
-              <Link href="/search"
-                className="text-sm font-medium transition-colors"
-                style={{ color: '#0F766E' }}>
-                Browse all trades →
-              </Link>
-            </div>
-          )}
-
-          {/* SEO footer content — rich text for Google */}
-          <div className="border-t pt-10 mt-4" style={{ borderColor: '#E8E2D9' }}>
-            <h2 className="text-lg font-bold mb-3" style={{ color: '#0A1628' }}>
-              Hiring a {tradeTitle} in {stateName}
-            </h2>
-            <p className="text-sm leading-relaxed mb-4" style={{ color: '#6B7280' }}>
-              ProGuild verifies every {tradeTitle.toLowerCase()} in {stateName} against the{' '}
-              {stateAbbr === 'FL' ? 'Florida DBPR (Department of Business and Professional Regulation)' : `${stateName} state licensing board`}.
-              This means you can hire with confidence — every pro listed here holds an active,
-              state-issued license.
-            </p>
-            <p className="text-sm leading-relaxed mb-6" style={{ color: '#6B7280' }}>
-              Unlike other platforms, ProGuild charges pros a flat monthly fee — not per-lead charges.
-              That means {tradeTitle.toLowerCase()}s are motivated to respond to you because they're
-              not paying $50+ every time they make contact. You get faster responses, better service,
-              and lower prices.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { icon: '🛡', title: 'License Verified', desc: `Every ${tradeTitle.toLowerCase()} checked against ${stateName} state database` },
-                { icon: '✦', title: 'Zero Lead Fees', desc: 'Pros pay flat monthly fee — not per contact' },
-                { icon: '⭐', title: 'Real Reviews', desc: 'Verified reviews from real customers' },
-              ].map(item => (
-                <div key={item.title} className="bg-white rounded-xl p-4 border" style={{ borderColor: '#E8E2D9' }}>
-                  <div className="text-xl mb-2">{item.icon}</div>
-                  <div className="font-bold text-base mb-1" style={{ color: '#0A1628' }}>{item.title}</div>
-                  <div className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>{item.desc}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-      <footer className="border-t py-8 px-6 mt-8" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-baseline gap-0.5">
-            <span className="font-bold" style={{ color: '#0A1628' }}>ProGuild</span>
-            <span className="font-medium" style={{ color: '#0F766E' }}>.ai</span>
-          </div>
-          <div className="flex flex-wrap gap-4 text-xs" style={{ color: '#A89F93' }}>
-            <Link href="/" style={{ color: '#A89F93' }}>Home</Link>
-            <Link href="/search" style={{ color: '#A89F93' }}>Find a Pro</Link>
-            <Link href="/community" style={{ color: '#A89F93' }}>Community</Link>
-            <Link href="/privacy" style={{ color: '#A89F93' }}>Privacy</Link>
-            <Link href="/terms" style={{ color: '#A89F93' }}>Terms</Link>
-          </div>
-          <div className="text-xs" style={{ color: '#C4BAB0' }}>© 2026 ProGuild.ai</div>
-        </div>
-      </footer>
 
       <style>{`
         @keyframes fadeUp {
