@@ -547,124 +547,160 @@ export default function ProProfilePage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-5 pt-6">
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
 
-          {/* Cover / header area */}
-          <div className="relative h-28 sm:h-36"
-            style={{ background: pro.cover_image_url ? undefined : 'linear-gradient(135deg, #0A1628, #0D2D4A)' }}>
+          {/* Cover / header area — full width hero */}
+          <div className="relative h-40 sm:h-52"
+            style={{ background: pro.cover_image_url ? undefined : 'linear-gradient(135deg, #0A1628 0%, #0D2D4A 50%, #0C5F57 100%)' }}>
             {pro.cover_image_url && (
               <>
                 <img src={pro.cover_image_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
-                <div className="absolute inset-0" style={{ background: 'rgba(10,22,40,0.6)' }} />
+                <div className="absolute inset-0" style={{ background: 'rgba(10,22,40,0.55)' }} />
               </>
+            )}
+            {/* Trade label on cover */}
+            {!pro.cover_image_url && (
+              <div className="absolute bottom-4 left-6">
+                <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  {trade}
+                </div>
+                <div className="text-white text-lg font-bold" style={{ fontFamily: "'DM Serif Display', serif" }}>
+                  {pro.full_name}
+                </div>
+              </div>
             )}
           </div>
 
           {/* Profile info */}
-          <div className="px-5 sm:px-7 pb-5">
-            {/* Avatar — overlaps cover */}
-            <div className="flex items-end justify-between -mt-10 mb-4">
+          <div className="px-5 sm:px-7 pb-6">
+            {/* Avatar + CTA row — overlaps cover */}
+            <div className="flex items-end justify-between -mt-12 mb-4">
               <div className="relative">
-                <ProAvatar pro={pro} size="w-24 h-24" />
+                <ProAvatar pro={pro} size="w-28 h-28 sm:w-32 sm:h-32" />
                 {pro.available_for_work && (
-                  <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-white" style={{ background: '#22C55E' }} />
+                  <span className="absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center"
+                    style={{ background: '#22C55E' }}>
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  </span>
                 )}
               </div>
               {/* Desktop contact CTA */}
               {!isOwner && (
                 <button onClick={() => setShowModal(true)}
-                  className="hidden sm:flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
+                  className="hidden sm:flex items-center gap-2 px-7 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-sm"
                   style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                   Contact {firstName}
                 </button>
               )}
             </div>
 
-            {/* Name + trade */}
-            <h1 className="text-xl sm:text-2xl font-bold mb-0.5" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-              {pro.full_name}
-            </h1>
-            <div className="text-sm font-semibold mb-0.5" style={{ color: '#0F766E' }}>{trade}</div>
-            <div className="text-sm mb-3" style={{ color: '#A89F93' }}>
-              📍 {location || 'Florida'}
-              {pro.years_experience ? ` · ${pro.years_experience} yrs exp` : ''}
+            {/* Name + trade + location */}
+            <div className="mb-4">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+                {pro.full_name}
+              </h1>
+              <div className="text-base font-semibold mb-1" style={{ color: '#0F766E' }}>{trade}</div>
+              <div className="flex items-center gap-3 flex-wrap text-sm" style={{ color: '#6B7280' }}>
+                {location && <span>📍 {location}</span>}
+                {pro.years_experience > 0 && <span>· {pro.years_experience} yrs experience</span>}
+                {pro.available_for_work && (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: 'rgba(34,197,94,0.1)', color: '#15803D', border: '1px solid rgba(34,197,94,0.25)' }}>
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22C55E' }} /> Available now
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Rating — prominent if exists */}
+            {rating > 0 && (
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-amber-400">{starsHtml(rating)}</span>
+                <span className="text-base font-bold" style={{ color: '#0A1628' }}>{rating.toFixed(1)}</span>
+                <span className="text-sm" style={{ color: '#A89F93' }}>({reviewCnt} {reviewCnt === 1 ? 'review' : 'reviews'})</span>
+              </div>
+            )}
+
+            {/* Stats row */}
+            <div className="flex flex-wrap gap-6 mb-4 pb-4 border-b" style={{ borderColor: '#F0EDE8' }}>
+              {reviewCnt > 0 && (
+                <div>
+                  <div className="text-xl font-bold" style={{ color: '#0A1628' }}>{reviewCnt}</div>
+                  <div className="text-xs" style={{ color: '#A89F93' }}>Reviews</div>
+                </div>
+              )}
+              {pro.years_experience > 0 && (
+                <div>
+                  <div className="text-xl font-bold" style={{ color: '#0A1628' }}>{pro.years_experience}</div>
+                  <div className="text-xs" style={{ color: '#A89F93' }}>Yrs experience</div>
+                </div>
+              )}
+              {(pro as any).pricing_note && (
+                <div>
+                  <div className="text-sm font-bold" style={{ color: '#0A1628' }}>{(pro as any).pricing_note}</div>
+                  <div className="text-xs" style={{ color: '#A89F93' }}>Pricing</div>
+                </div>
+              )}
             </div>
 
             {/* Trust badges */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-4">
               {pro.is_verified && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full"
                   style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.25)' }}>
                   <ShieldBadge size={13} /> Guild Verified
                 </span>
               )}
-              {pro.available_for_work && (
-                <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full"
-                  style={{ background: 'rgba(34,197,94,0.1)', color: '#15803D', border: '1px solid rgba(34,197,94,0.25)' }}>
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22C55E' }} /> Available now
+              {pro.license_number && (
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full"
+                  style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.15)' }}>
+                  🛡 #{pro.license_number}
+                  <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${pro.license_number}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="underline text-xs ml-0.5">Verify ↗</a>
                 </span>
               )}
-              {hasLicense && (
-                <span className="text-sm font-semibold px-2.5 py-1 rounded-full"
+              {hasLicense && !pro.license_number && (
+                <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
                   style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
                   🏛 DBPR Licensed
                 </span>
               )}
               {hasOsha && (
-                <span className="text-sm font-semibold px-2.5 py-1 rounded-full"
+                <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
                   style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
                   🦺 {pro.osha_card_type}
                 </span>
               )}
               {hasInsurance && (
-                <span className="text-sm font-semibold px-2.5 py-1 rounded-full"
+                <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
                   style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
                   🛡 Insured
                 </span>
               )}
               {isElite(pro.plan_tier) && (
-                <span className="text-sm font-bold px-2.5 py-1 rounded-full"
+                <span className="text-sm font-bold px-3 py-1.5 rounded-full"
                   style={{ background: 'rgba(139,92,246,0.1)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.25)' }}>
                   ✦ Elite Pro
                 </span>
               )}
             </div>
 
-            {/* Rating row */}
-            {rating > 0 && (
-              <div className="flex items-center gap-2 mt-3">
-                <span className="text-amber-400 text-sm">{starsHtml(rating)}</span>
-                <span className="text-sm font-bold" style={{ color: '#0A1628' }}>{rating.toFixed(1)}</span>
-                <span className="text-sm" style={{ color: '#A89F93' }}>({reviewCnt} reviews)</span>
+            {/* Services — shown inline on hero for quick scanning */}
+            {(pro as any).services?.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {(pro as any).services.slice(0, 6).map((s: string) => (
+                  <span key={s} className="text-sm font-medium px-3 py-1 rounded-full"
+                    style={{ background: 'rgba(15,118,110,0.06)', color: '#0C5F57', border: '1px solid rgba(15,118,110,0.15)' }}>
+                    ✓ {s}
+                  </span>
+                ))}
+                {(pro as any).services.length > 6 && (
+                  <span className="text-sm font-medium px-3 py-1 rounded-full"
+                    style={{ color: '#A89F93', border: '1px solid #E8E2D9' }}>
+                    +{(pro as any).services.length - 6} more
+                  </span>
+                )}
               </div>
             )}
-
-            {/* Stats row — key trust signals at a glance */}
-            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 pt-4 border-t" style={{ borderColor: '#F0EDE8' }}>
-              {reviewCnt > 0 && (
-                <div className="text-center">
-                  <div className="text-base font-bold" style={{ color: '#0A1628' }}>{reviewCnt}</div>
-                  <div className="text-xs" style={{ color: '#A89F93' }}>Reviews</div>
-                </div>
-              )}
-              {pro.years_experience > 0 && (
-                <div className="text-center">
-                  <div className="text-base font-bold" style={{ color: '#0A1628' }}>{pro.years_experience}</div>
-                  <div className="text-xs" style={{ color: '#A89F93' }}>Yrs experience</div>
-                </div>
-              )}
-              {pro.license_number && (
-                <div>
-                  <div className="text-xs font-semibold mb-0.5" style={{ color: '#A89F93' }}>DBPR License</div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold font-mono" style={{ color: '#0A1628' }}>{pro.license_number}</span>
-                    <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${pro.license_number}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="text-xs font-semibold underline" style={{ color: '#0F766E' }}>
-                      Verify ↗
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -714,7 +750,7 @@ export default function ProProfilePage() {
                   </div>
                 )}
 
-                {/* Services offered */}
+                {/* Full services list — all of them */}
                 {(pro as any).services?.length > 0 && (
                   <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
                     <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>Services Offered</div>
@@ -729,7 +765,7 @@ export default function ProProfilePage() {
                   </div>
                 )}
 
-                {/* Pricing signal */}
+                {/* Pricing */}
                 {(pro as any).pricing_note && (
                   <div className="bg-white rounded-2xl border p-5 flex items-center gap-4" style={{ borderColor: '#E8E2D9' }}>
                     <div className="text-3xl">💰</div>
@@ -740,35 +776,6 @@ export default function ProProfilePage() {
                   </div>
                 )}
 
-                {/* Counties served */}
-                {/* Services list */}
-                {(pro as any).services?.length > 0 && (
-                  <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
-                    <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>Services Offered</div>
-                    <div className="flex flex-wrap gap-2">
-                      {(pro as any).services.map((svc: string) => (
-                        <span key={svc}
-                          className="text-sm font-medium px-3 py-1.5 rounded-full border"
-                          style={{ background: 'rgba(15,118,110,0.06)', color: '#0C5F57', borderColor: 'rgba(15,118,110,0.2)' }}>
-                          ✓ {svc}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Pricing signal */}
-                {(pro as any).pricing_note && (
-                  <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
-                    <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#A89F93' }}>Pricing</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl">💰</span>
-                      <span className="text-base font-semibold" style={{ color: '#0A1628' }}>
-                        {(pro as any).pricing_note}
-                      </span>
-                    </div>
-                  </div>
-                )}
 
                 {(pro as any).counties_served?.length > 0 && (
                   <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
@@ -1123,8 +1130,9 @@ export default function ProProfilePage() {
 
       {/* ── MOBILE STICKY FOOTER ─────────────────────────────────────────── */}
       {!isOwner && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-40" style={{ borderColor: '#E8E2D9', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
-          <div className="flex gap-3 px-4 pt-3 max-w-sm mx-auto">
+        <div className="md:hidden fixed bottom-16 left-0 right-0 bg-white border-t z-40"
+          style={{ borderColor: '#E8E2D9' }}>
+          <div className="flex gap-3 px-4 py-3 max-w-sm mx-auto">
             {pro.phone ? (
               <a href={`tel:${pro.phone}`}
                 className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
