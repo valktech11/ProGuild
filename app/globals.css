@@ -17,7 +17,7 @@
    text-base (1rem) = 15px, text-lg (1.125rem) = ~17px.
    This lifts the entire site 1px without breaking any layout. */
 html {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* Body copy default — minimum readable size */

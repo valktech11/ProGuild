@@ -65,23 +65,50 @@ function getScopeLabel(): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
-  const [search, setSearch]         = useState('')
+  const [search, setSearch]             = useState('')
+  const [city, setCity]                 = useState('')
+  const [locating, setLocating]         = useState(false)
   const [matching, setMatching]         = useState(false)
   const [matchedTrade, setMatchedTrade] = useState<{ slug: string; label: string } | null>(null)
   const [activeTab, setActiveTab]       = useState<'homeowner' | 'pro'>('homeowner')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef  = useRef<HTMLInputElement>(null)
+  const cityRef   = useRef<HTMLInputElement>(null)
 
   const scopeLabel = getScopeLabel()
   const scopeState = getScopeState().toLowerCase()
 
+  // Geolocation — resolve coordinates to city name via reverse geocode
+  async function detectLocation() {
+    if (!navigator.geolocation) return
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const { latitude, longitude } = pos.coords
+        const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
+        const data = await res.json()
+        const detected = data.address?.city || data.address?.town || data.address?.county || ''
+        if (detected) setCity(detected)
+      } catch {}
+      finally { setLocating(false) }
+    }, () => setLocating(false))
+  }
+
+  function cityToSlug(c: string) {
+    return c.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-')
+  }
+
   async function handleSearch(e?: React.FormEvent) {
     e?.preventDefault()
-    const q = search.trim()
+    const q    = search.trim()
+    const loc  = city.trim()
     if (!q) { inputRef.current?.focus(); return }
 
-    // If confirmation is showing and user searches again — go directly
+    // If confirmation showing — go directly with city
     if (matchedTrade) {
-      router.push(`/${scopeState}/${matchedTrade.slug}?from=ai&q=${encodeURIComponent(q)}`)
+      const dest = loc
+        ? `/${scopeState}/${matchedTrade.slug}/${cityToSlug(loc)}`
+        : `/${scopeState}/${matchedTrade.slug}?from=ai&q=${encodeURIComponent(q)}`
+      router.push(dest)
       return
     }
 
@@ -93,8 +120,6 @@ export default function HomePage() {
         body: JSON.stringify({ query: q }),
       })
       const data = await res.json()
-
-      // Higher threshold — 0.85 keyword, 0.90 Gemini
       const threshold = data.method === 'keyword' ? 0.85 : 0.90
       if (data.slug && data.confidence >= threshold) {
         setMatching(false)
@@ -103,17 +128,23 @@ export default function HomePage() {
         setTimeout(() => {
           setMatchedTrade(prev => {
             if (prev?.slug === matched.slug) {
-              router.push(`/${scopeState}/${matched.slug}?from=ai&q=${encodeURIComponent(q)}`)
+              const dest = loc
+                ? `/${scopeState}/${matched.slug}/${cityToSlug(loc)}`
+                : `/${scopeState}/${matched.slug}?from=ai&q=${encodeURIComponent(q)}`
+              router.push(dest)
             }
             return null
           })
         }, 1500)
         return
       }
-    } catch { /* fall through */ }
+    } catch {}
     finally { setMatching(false) }
 
-    router.push(`/search?q=${encodeURIComponent(q)}`)
+    // No confident match — go to search
+    const params = new URLSearchParams({ q })
+    if (loc) params.set('city', loc)
+    router.push(`/search?${params}`)
   }
 
   return (
@@ -143,34 +174,80 @@ export default function HomePage() {
           {scopeLabel !== 'Florida' ? scopeLabel + "'s" : 'The'} verified trades network — for homeowners who need a pro, and pros who deserve better.
         </p>
 
-        {/* Search bar — Gemini AI matches problem to trade */}
-        <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-3">
-          <div className="flex rounded-2xl overflow-hidden shadow-sm border bg-white"
+        {/* ── TWO-FIELD SEARCH BAR ─────────────────────────────────────── */}
+        <form onSubmit={handleSearch} className="max-w-3xl mx-auto mb-3">
+          <div className="flex flex-col sm:flex-row rounded-2xl overflow-hidden shadow-md border bg-white gap-px"
             style={{ borderColor: '#E8E2D9' }}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder={`What do you need? e.g. "AC stopped working" or "licensed electrician Tampa"...`}
-              className="flex-1 px-5 py-4 text-sm outline-none"
-              style={{ background: 'transparent', color: '#0A1628' }}
-              disabled={matching}
-            />
-            {search && !matching && (
-              <button type="button" onClick={() => setSearch('')}
-                className="px-3 text-gray-300 hover:text-gray-500 transition-colors">×</button>
-            )}
+
+            {/* Field 1 — What do you need */}
+            <div className="flex items-center flex-1 px-4 py-3.5 gap-3 border-b sm:border-b-0 sm:border-r"
+              style={{ borderColor: '#E8E2D9' }}>
+              <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                ref={inputRef}
+                type="text"
+                value={search}
+                onChange={e => { setSearch(e.target.value); setMatchedTrade(null) }}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                placeholder='What do you need? e.g. "AC repair", "electrician"'
+                className="flex-1 text-base outline-none bg-transparent"
+                style={{ color: '#0A1628' }}
+                disabled={matching}
+              />
+              {search && (
+                <button type="button" onClick={() => { setSearch(''); setMatchedTrade(null) }}
+                  className="text-gray-300 hover:text-gray-500 flex-shrink-0">×</button>
+              )}
+            </div>
+
+            {/* Field 2 — City or ZIP */}
+            <div className="flex items-center px-4 py-3.5 gap-3 sm:w-52"
+              style={{ borderColor: '#E8E2D9' }}>
+              <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+              <input
+                ref={cityRef}
+                type="text"
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                placeholder="City or ZIP"
+                className="flex-1 text-base outline-none bg-transparent"
+                style={{ color: '#0A1628' }}
+              />
+              {/* Near me button */}
+              {!city && (
+                <button type="button" onClick={detectLocation}
+                  className="flex-shrink-0 text-xs font-semibold transition-colors"
+                  style={{ color: locating ? '#A89F93' : '#0F766E' }}
+                  title="Use my location">
+                  {locating ? '...' : '📍'}
+                </button>
+              )}
+              {city && (
+                <button type="button" onClick={() => setCity('')}
+                  className="text-gray-300 hover:text-gray-500 flex-shrink-0">×</button>
+              )}
+            </div>
+
+            {/* Submit */}
             <button type="submit" disabled={matching}
-              className="px-7 py-4 text-sm font-bold text-white transition-all hover:opacity-90 flex-shrink-0 flex items-center gap-2"
+              className="px-8 py-3.5 text-base font-bold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2 flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)', opacity: matching ? 0.8 : 1 }}>
               {matching ? (
                 <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Matching...
+                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <span className="hidden sm:inline">Finding...</span>
                 </>
-              ) : 'Search'}
+              ) : (
+                <>
+                  <span>Find Pros</span>
+                  <span className="hidden sm:inline">→</span>
+                </>
+              )}
             </button>
           </div>
         </form>

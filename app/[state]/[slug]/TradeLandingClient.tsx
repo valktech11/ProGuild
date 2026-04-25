@@ -5,7 +5,11 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ProCard from '@/components/ui/ProCard'
 
+import { FL_SEO_CITIES } from '@/config/dbpr-trades'
+
 const PAGE_SIZE = 12
+
+const TOP_CITIES = FL_SEO_CITIES.slice(0, 10)
 
 // Same groups as homepage/search — for related trades sidebar
 const TRADE_GROUPS = [
@@ -60,6 +64,33 @@ export default function TradeLandingClient({
   const fromAI       = searchParams.get('from') === 'ai'
   const aiQuery      = searchParams.get('q') || ''
   const [showAIBanner, setShowAIBanner] = useState(fromAI)
+  const [cityInput, setCityInput]       = useState('')
+  const [nearMeLoading, setNearMeLoading] = useState(false)
+
+  function cityToSlug(c: string) {
+    return c.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-')
+  }
+
+  function handleCitySearch() {
+    const c = cityInput.trim()
+    if (!c) return
+    router.push(`/${stateSlug}/${tradeSlug}/${cityToSlug(c)}`)
+  }
+
+  async function handleNearMe() {
+    if (!navigator.geolocation) return
+    setNearMeLoading(true)
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const { latitude, longitude } = pos.coords
+        const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
+        const data = await res.json()
+        const detected = data.address?.city || data.address?.town || ''
+        if (detected) router.push(`/${stateSlug}/${tradeSlug}/${cityToSlug(detected)}`)
+      } catch {}
+      finally { setNearMeLoading(false) }
+    }, () => setNearMeLoading(false))
+  }
   const [pros, setPros]           = useState(initialPros)
   const [total]                   = useState(totalCount)
   const [hasMore, setHasMore]     = useState(totalCount > PAGE_SIZE)
@@ -201,7 +232,7 @@ export default function TradeLandingClient({
         {/* ── MAIN CONTENT ─────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0">
 
-          {/* SEO headline */}
+          {/* SEO headline + city search */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-3"
               style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
@@ -212,7 +243,55 @@ export default function TradeLandingClient({
               Every pro on ProGuild is license-checked against the state database.
               Zero lead fees — contact them directly.
             </p>
-            <div className="flex items-center gap-4 flex-wrap" style={{ color: '#6B7280' }}>
+
+            {/* City/ZIP search — the key missing piece */}
+            <div className="flex gap-2 max-w-xl mb-5">
+              <div className="flex flex-1 items-center gap-3 bg-white border rounded-xl px-4 py-3 shadow-sm"
+                style={{ borderColor: '#E8E2D9' }}>
+                <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                </svg>
+                <input
+                  type="text"
+                  value={cityInput}
+                  onChange={e => setCityInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleCitySearch()}
+                  placeholder={`Search by city or ZIP — e.g. "Tampa" or "33601"`}
+                  className="flex-1 text-base outline-none bg-transparent"
+                  style={{ color: '#0A1628' }}
+                />
+                {cityInput && (
+                  <button onClick={() => setCityInput('')} className="text-gray-300 hover:text-gray-500">×</button>
+                )}
+              </div>
+              <button onClick={handleCitySearch}
+                className="px-6 py-3 rounded-xl text-base font-bold text-white flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                Search
+              </button>
+              <button onClick={handleNearMe}
+                className="px-4 py-3 rounded-xl text-sm font-semibold border flex-shrink-0 flex items-center gap-1.5"
+                style={{ borderColor: '#E8E2D9', color: '#0F766E', background: 'white' }}
+                title="Use my location">
+                {nearMeLoading ? (
+                  <div className="w-4 h-4 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" />
+                ) : '📍'}
+                <span className="hidden sm:inline">Near me</span>
+              </button>
+            </div>
+
+            {/* Quick city links */}
+            <div className="flex flex-wrap gap-2">
+              {TOP_CITIES.map(c => (
+                <a key={c} href={`/${stateSlug}/${tradeSlug}/${c.toLowerCase().replace(/\s+/g, '-').replace(/\./g, '')}`}
+                  className="text-sm font-medium px-3 py-1.5 rounded-full border transition-all hover:border-teal-400 hover:text-teal-700"
+                  style={{ color: '#6B7280', borderColor: '#E8E2D9', background: 'white' }}>
+                  {c}
+                </a>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-4 flex-wrap mt-4" style={{ color: '#6B7280' }}>
               <span className="flex items-center gap-1.5">
                 <span className="text-lg font-bold" style={{ color: '#0A1628' }}>{total.toLocaleString()}</span>
                 <span className="text-sm">verified {tradeTitle.toLowerCase()}s in {stateName}</span>

@@ -572,7 +572,7 @@ export default function CommunityPage() {
           <div className="hidden sm:flex items-center bg-stone-100 border border-gray-200 rounded-lg p-0.5">
             {[{ v: false, l: 'All' }, { v: true, l: 'Florida' }].map(opt => (
               <button key={String(opt.v)} onClick={() => setLocalOnly(opt.v)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-all ${localOnly === opt.v ? 'bg-white text-gray-900 border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>
+                className={`text-sm font-semibold px-3 py-1.5 rounded-md transition-all ${localOnly === opt.v ? 'bg-white text-gray-900 border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>
                 {opt.l}
               </button>
             ))}
@@ -647,13 +647,13 @@ export default function CommunityPage() {
               className="flex gap-2 overflow-x-auto px-1 md:px-10"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <button onClick={() => setTradeFilter('')}
-                className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
+                className={'flex-shrink-0 text-sm font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
                 style={!tradeFilter ? {} : { background: 'rgba(15,118,110,0.06)' }}>
                 All trades
               </button>
               {TRADE_CHIPS.map(chip => (
                 <button key={chip.slug} onClick={() => setTradeFilter(tradeFilter === chip.slug ? '' : chip.slug)}
-                  className={'flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ' + (tradeFilter === chip.slug ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
+                  className={'flex-shrink-0 text-sm font-semibold px-3 py-1.5 rounded-full border transition-all ' + (tradeFilter === chip.slug ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
                   style={tradeFilter === chip.slug ? {} : { background: 'rgba(15,118,110,0.06)' }}>
                   {chip.label}
                 </button>
@@ -790,6 +790,35 @@ export default function CommunityPage() {
           )}
         </div>
       </div>
+
+      {/* ── MOBILE STICKY BOTTOM NAV ──────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t"
+        style={{ borderColor: '#E8E2D9', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex items-stretch h-16">
+          {(session ? [
+            { href: '/dashboard',  label: 'Home',      icon: '⊞' },
+            { href: '/jobs',       label: 'Find Work', icon: '💼' },
+            { href: '/community',  label: 'Community', icon: '◎' },
+            { href: '/messages',   label: 'Messages',  icon: '✉' },
+          ] : [
+            { href: '/',           label: 'Home',      icon: '⊞' },
+            { href: '/post-job',   label: 'Request',   icon: '+' },
+            { href: '/community',  label: 'Community', icon: '◎' },
+            { href: '/search',     label: 'Search',    icon: '🔍' },
+          ]).map(item => {
+            const active = item.href === '/community'
+            return (
+              <a key={item.href} href={item.href}
+                className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                style={{ color: active ? '#0F766E' : '#9CA3AF' }}>
+                <span className="text-lg leading-none">{item.icon}</span>
+                <span className="text-xs font-medium leading-none">{item.label}</span>
+              </a>
+            )
+          })}
+        </div>
+      </nav>
+      <div className="md:hidden h-16" />
     </div>
   )
 }
