@@ -3,9 +3,9 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getDBPRTrade, slugToCity, cityToSlug, FL_SEO_CITIES } from '@/config/dbpr-trades'
-
-// ProCard uses onError — must be rendered inside a client component
+import Navbar from '@/components/layout/Navbar'
 import ProCardGrid from './ProCardGrid'
+import CitySearch from './CitySearch'
 
 const STATE_MAP: Record<string, { name: string; abbr: string }> = {
   fl: { name: 'Florida', abbr: 'FL' },
@@ -164,14 +164,17 @@ export default async function CityTradePage(
 
       <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
 
+        {/* Shared Navbar — logo, nav links, mobile bottom bar, session-aware */}
+        <Navbar />
+
         {/* Breadcrumb */}
-        <div className="border-b bg-white" style={{ borderColor: '#E8E2D9' }}>
-          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-2 text-xs overflow-x-auto" style={{ color: '#A89F93' }}>
-            <Link href="/" style={{ color: '#A89F93' }} className="hover:text-teal-600 transition-colors">Home</Link>
+        <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
+          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-2 text-sm overflow-x-auto" style={{ color: '#A89F93' }}>
+            <Link href="/" className="hover:text-teal-600 transition-colors" style={{ color: '#A89F93' }}>Home</Link>
             <span>›</span>
-            <Link href={`/${state.toLowerCase()}`} style={{ color: '#A89F93' }} className="hover:text-teal-600 transition-colors">{info.name}</Link>
+            <Link href={`/${state.toLowerCase()}`} className="hover:text-teal-600 transition-colors" style={{ color: '#A89F93' }}>{info.name}</Link>
             <span>›</span>
-            <Link href={`/${state.toLowerCase()}/${slug}`} style={{ color: '#A89F93' }} className="hover:text-teal-600 transition-colors">{tradeName}s in {info.name}</Link>
+            <Link href={`/${state.toLowerCase()}/${slug}`} className="hover:text-teal-600 transition-colors" style={{ color: '#A89F93' }}>{tradeName}s</Link>
             <span>›</span>
             <span className="font-semibold flex-shrink-0" style={{ color: '#0F766E' }}>{cityDisplay}</span>
           </div>
@@ -179,66 +182,90 @@ export default async function CityTradePage(
 
         {/* Hero */}
         <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
-          <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="max-w-5xl mx-auto px-6 py-10">
             <h1 className="text-4xl font-bold mb-3" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-              Licensed {tradeName}s in {cityDisplay}, FL
+              {tradeName}s in {cityDisplay}, {info.abbr}
             </h1>
             <p className="text-base mb-5" style={{ color: '#4B5563' }}>
-              {count > 0 ? `${count} DBPR-verified ${tradeName.toLowerCase()}s` : `DBPR-verified ${tradeName.toLowerCase()}s`} in {cityDisplay}, Florida.
-              {dbpr && ` All hold a ${dbpr.licenseLabel} (${dbpr.licenseCodes.join('/')}) from the Florida DBPR.`}
-              {' '}Zero lead fees. Contact them directly.
+              {count > 0 ? `${count} DBPR-verified ${tradeName.toLowerCase()}s` : `Verified ${tradeName.toLowerCase()}s`} in {cityDisplay}, {info.name}.
+              {dbpr && ` Licensed ${dbpr.licenseLabel} (${dbpr.licenseCodes.join('/')}).`}
+              {' '}Zero lead fees — contact them directly.
             </p>
 
-            {/* DBPR info badge */}
+            {/* DBPR badge */}
             {dbpr && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold mb-5"
                 style={{ background: 'rgba(15,118,110,0.08)', color: '#0C5F57', border: '1px solid rgba(15,118,110,0.2)' }}>
-                🛡 License verified: {dbpr.licenseLabel} · Florida DBPR
+                🛡 License verified: {dbpr.licenseLabel}
               </div>
             )}
+
+            {/* City search — change city without going back */}
+            <CitySearch stateSlug={state.toLowerCase()} tradeSlug={slug} currentCity={cityDisplay} />
           </div>
         </div>
 
         {/* Pro grid */}
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-5xl mx-auto px-6 py-8">
           {pros.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="text-4xl mb-4">🔍</div>
-              <h2 className="text-xl font-bold mb-2" style={{ color: '#0A1628' }}>No claimed pros in {cityDisplay} yet</h2>
-              <p className="text-sm mb-6" style={{ color: '#6B7280' }}>
-                Browse all {tradeName.toLowerCase()}s in Florida, or check nearby cities.
+            <div className="text-center py-12 bg-white rounded-2xl border" style={{ borderColor: '#E8E2D9' }}>
+              <div className="text-5xl mb-4">🔍</div>
+              <h2 className="text-xl font-bold mb-2" style={{ color: '#0A1628' }}>No verified pros in {cityDisplay} yet</h2>
+              <p className="text-base mb-6" style={{ color: '#6B7280' }}>
+                Try a nearby city, or leave your contact — we'll find a licensed {tradeName.toLowerCase()} for you.
               </p>
-              <Link href={`/${state.toLowerCase()}/${slug}`}
-                className="inline-block px-6 py-2.5 rounded-xl font-semibold text-white text-sm"
-                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                See all {tradeName}s in Florida →
-              </Link>
+              <div className="flex gap-3 justify-center flex-wrap">
+                <Link href={`/${state.toLowerCase()}/${slug}`}
+                  className="px-5 py-2.5 rounded-xl font-semibold text-sm border"
+                  style={{ borderColor: '#E8E2D9', color: '#0A1628', background: 'white' }}>
+                  ← All {tradeName}s in {info.name}
+                </Link>
+                <Link href="/post-job"
+                  className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white"
+                  style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                  Request a Pro →
+                </Link>
+              </div>
             </div>
           ) : (
             <>
               <ProCardGrid pros={pros} />
-              <div className="text-center mt-8">
-                <Link href={`/${state.toLowerCase()}/${slug}`}
-                  className="text-sm font-semibold text-teal-600 hover:text-teal-700 transition-colors">
-                  See all {tradeName.toLowerCase()}s in {info.name} →
+
+              {/* Request a Pro CTA */}
+              <div className="mt-6 p-6 bg-white rounded-2xl border text-center" style={{ borderColor: '#E8E2D9' }}>
+                <div className="text-base font-bold mb-1" style={{ color: '#0A1628' }}>
+                  Don't see the right pro?
+                </div>
+                <p className="text-sm mb-4" style={{ color: '#6B7280' }}>
+                  Post your job — we'll match you with a verified {tradeName.toLowerCase()} in {cityDisplay}.
+                </p>
+                <Link href="/post-job"
+                  className="inline-block px-6 py-2.5 rounded-xl font-semibold text-sm text-white"
+                  style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                  Request a Pro →
                 </Link>
               </div>
             </>
           )}
 
-          {/* Other cities */}
-          <div className="mt-12 pt-8 border-t" style={{ borderColor: '#E8E2D9' }}>
+          {/* Nearby cities */}
+          <div className="mt-10 pt-8 border-t" style={{ borderColor: '#E8E2D9' }}>
             <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: '#A89F93' }}>
-              {tradeName}s in other Florida cities
+              {tradeName}s in nearby cities
             </h2>
             <div className="flex flex-wrap gap-2">
-              {FL_SEO_CITIES.filter(c => c !== cityDisplay).map(c => (
+              {FL_SEO_CITIES.filter(c => c !== cityDisplay).slice(0, 12).map(c => (
                 <Link key={c} href={`/${state.toLowerCase()}/${slug}/${cityToSlug(c)}`}
-                  className="text-xs font-medium px-3 py-1.5 rounded-full border transition-all hover:border-teal-400 hover:text-teal-700"
-                  style={{ color: '#6B7280', borderColor: '#E8E2D9', background: '#FAF9F6' }}>
-                  {tradeName}s in {c}
+                  className="text-sm font-medium px-3 py-1.5 rounded-full border transition-all hover:border-teal-400 hover:text-teal-700"
+                  style={{ color: '#6B7280', borderColor: '#E8E2D9', background: 'white' }}>
+                  {c}
                 </Link>
               ))}
+              <Link href={`/${state.toLowerCase()}/${slug}`}
+                className="text-sm font-semibold px-3 py-1.5 rounded-full border transition-all"
+                style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>
+                All {info.name} →
+              </Link>
             </div>
           </div>
         </div>
@@ -246,6 +273,7 @@ export default async function CityTradePage(
     </>
   )
 }
+
 
 // Pre-generate top trade × city combinations at build time
 export async function generateStaticParams() {

@@ -65,86 +65,86 @@ function getScopeLabel(): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
-  const [search, setSearch]             = useState('')
+  const [trade, setTrade]               = useState('')
   const [city, setCity]                 = useState('')
-  const [locating, setLocating]         = useState(false)
-  const [matching, setMatching]         = useState(false)
-  const [matchedTrade, setMatchedTrade] = useState<{ slug: string; label: string } | null>(null)
+  const [zipResolving, setZipResolving] = useState(false)
   const [activeTab, setActiveTab]       = useState<'homeowner' | 'pro'>('homeowner')
-  const inputRef  = useRef<HTMLInputElement>(null)
-  const cityRef   = useRef<HTMLInputElement>(null)
+  const tradeRef = useRef<HTMLInputElement>(null)
+  const cityRef  = useRef<HTMLInputElement>(null)
 
   const scopeLabel = getScopeLabel()
   const scopeState = getScopeState().toLowerCase()
 
-  // Geolocation — resolve coordinates to city name via reverse geocode
-  async function detectLocation() {
-    if (!navigator.geolocation) return
-    setLocating(true)
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const { latitude, longitude } = pos.coords
-        const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
-        const data = await res.json()
-        const detected = data.address?.city || data.address?.town || data.address?.county || ''
-        if (detected) setCity(detected)
-      } catch {}
-      finally { setLocating(false) }
-    }, () => setLocating(false))
+  function cSlug(c: string) {
+    return c.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
   }
 
-  function cityToSlug(c: string) {
-    return c.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-')
+  async function resolveCity(raw: string): Promise<string | null> {
+    const trimmed = raw.trim()
+    if (!trimmed) return null
+    if (/^\d{5}$/.test(trimmed)) {
+      setZipResolving(true)
+      try {
+        const res  = await fetch(`/api/zip?zip=${trimmed}`)
+        const data = await res.json()
+        if (data.city) return cSlug(data.city)
+      } catch {}
+      finally { setZipResolving(false) }
+      return null
+    }
+    return cSlug(trimmed)
+  }
+
+  async function navigate(tradeSlug: string, rawCity?: string) {
+    const citySlug = rawCity ? await resolveCity(rawCity) : null
+    if (citySlug) {
+      router.push(`/${scopeState}/${tradeSlug}/${citySlug}`)
+    } else {
+      router.push(`/${scopeState}/${tradeSlug}`)
+    }
   }
 
   async function handleSearch(e?: React.FormEvent) {
     e?.preventDefault()
-    const q    = search.trim()
-    const loc  = city.trim()
-    if (!q) { inputRef.current?.focus(); return }
+    const t = trade.trim()
+    const c = city.trim()
+    if (!t && !c) { tradeRef.current?.focus(); return }
 
-    // If confirmation showing — go directly with city
-    if (matchedTrade) {
-      const dest = loc
-        ? `/${scopeState}/${matchedTrade.slug}/${cityToSlug(loc)}`
-        : `/${scopeState}/${matchedTrade.slug}?from=ai&q=${encodeURIComponent(q)}`
-      router.push(dest)
-      return
-    }
-
-    setMatching(true)
-    try {
+    if (t) {
       const res  = await fetch('/api/match-trade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query: t }),
       })
       const data = await res.json()
-      const threshold = data.method === 'keyword' ? 0.85 : 0.90
+      const threshold = data.method === 'keyword' ? 0.80 : 0.85
       if (data.slug && data.confidence >= threshold) {
-        setMatching(false)
-        setMatchedTrade({ slug: data.slug, label: data.label })
-        const matched = data
-        setTimeout(() => {
-          setMatchedTrade(prev => {
-            if (prev?.slug === matched.slug) {
-              const dest = loc
-                ? `/${scopeState}/${matched.slug}/${cityToSlug(loc)}`
-                : `/${scopeState}/${matched.slug}?from=ai&q=${encodeURIComponent(q)}`
-              router.push(dest)
-            }
-            return null
-          })
-        }, 1500)
+        await navigate(data.slug, c)
         return
       }
-    } catch {}
-    finally { setMatching(false) }
+    }
 
-    // No confident match — go to search
-    const params = new URLSearchParams({ q })
-    if (loc) params.set('city', loc)
+    const params = new URLSearchParams()
+    if (t) params.set('q', t)
+    if (c) params.set('city', c)
     router.push(`/search?${params}`)
+  }
+
+  async function handleTileTap(slug: string) {
+    await navigate(slug, city.trim() || undefined)
+  }
+
+  function detectLocation() {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const { latitude: lat, longitude: lng } = pos.coords
+        const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+        const data = await res.json()
+        const detected = data.address?.city || data.address?.town || data.address?.village || ''
+        if (detected) setCity(detected)
+      } catch {}
+    })
   }
 
   return (
@@ -175,113 +175,64 @@ export default function HomePage() {
         </p>
 
         {/* ── TWO-FIELD SEARCH BAR ─────────────────────────────────────── */}
-        <form onSubmit={handleSearch} className="max-w-3xl mx-auto mb-3">
-          <div className="flex flex-col sm:flex-row rounded-2xl overflow-hidden shadow-md border bg-white gap-px"
+        <form onSubmit={handleSearch} className="max-w-3xl mx-auto mb-5">
+          <div className="flex flex-col sm:flex-row bg-white rounded-2xl shadow-md border overflow-hidden"
             style={{ borderColor: '#E8E2D9' }}>
 
-            {/* Field 1 — What do you need */}
-            <div className="flex items-center flex-1 px-4 py-3.5 gap-3 border-b sm:border-b-0 sm:border-r"
+            {/* Trade field */}
+            <div className="flex items-center flex-1 px-4 py-4 gap-3 border-b sm:border-b-0 sm:border-r"
               style={{ borderColor: '#E8E2D9' }}>
-              <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <svg className="w-5 h-5 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
-              <input
-                ref={inputRef}
-                type="text"
-                value={search}
-                onChange={e => { setSearch(e.target.value); setMatchedTrade(null) }}
-                onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                placeholder='What do you need? e.g. "AC repair", "electrician"'
+              <input ref={tradeRef} type="text" value={trade}
+                onChange={e => setTrade(e.target.value)}
+                placeholder='What do you need? e.g. "electrician", "AC repair"'
                 className="flex-1 text-base outline-none bg-transparent"
-                style={{ color: '#0A1628' }}
-                disabled={matching}
-              />
-              {search && (
-                <button type="button" onClick={() => { setSearch(''); setMatchedTrade(null) }}
-                  className="text-gray-300 hover:text-gray-500 flex-shrink-0">×</button>
-              )}
+                style={{ color: '#0A1628' }} />
+              {trade && <button type="button" onClick={() => setTrade('')} className="text-gray-300 hover:text-gray-500 flex-shrink-0 text-lg">×</button>}
             </div>
 
-            {/* Field 2 — City or ZIP */}
-            <div className="flex items-center px-4 py-3.5 gap-3 sm:w-52"
+            {/* City / ZIP field */}
+            <div className="flex items-center px-4 py-4 gap-3 sm:w-56 border-b sm:border-b-0"
               style={{ borderColor: '#E8E2D9' }}>
-              <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <svg className="w-5 h-5 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
               </svg>
-              <input
-                ref={cityRef}
-                type="text"
-                value={city}
+              <input ref={cityRef} type="text" value={city}
                 onChange={e => setCity(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                placeholder="City or ZIP"
+                placeholder="City or ZIP code"
                 className="flex-1 text-base outline-none bg-transparent"
-                style={{ color: '#0A1628' }}
-              />
-              {/* Near me button */}
-              {!city && (
-                <button type="button" onClick={detectLocation}
-                  className="flex-shrink-0 text-xs font-semibold transition-colors"
-                  style={{ color: locating ? '#A89F93' : '#0F766E' }}
-                  title="Use my location">
-                  {locating ? '...' : '📍'}
-                </button>
-              )}
-              {city && (
-                <button type="button" onClick={() => setCity('')}
-                  className="text-gray-300 hover:text-gray-500 flex-shrink-0">×</button>
-              )}
+                style={{ color: '#0A1628' }} />
+              {city
+                ? <button type="button" onClick={() => setCity('')} className="text-gray-300 hover:text-gray-500 flex-shrink-0 text-lg">×</button>
+                : <button type="button" onClick={detectLocation} title="Use my location"
+                    className="text-lg flex-shrink-0" style={{ color: '#0F766E' }}>📍</button>
+              }
             </div>
 
             {/* Submit */}
-            <button type="submit" disabled={matching}
-              className="px-8 py-3.5 text-base font-bold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2 flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)', opacity: matching ? 0.8 : 1 }}>
-              {matching ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  <span className="hidden sm:inline">Finding...</span>
-                </>
-              ) : (
-                <>
-                  <span>Find Pros</span>
-                  <span className="hidden sm:inline">→</span>
-                </>
-              )}
+            <button type="submit"
+              className="px-8 py-4 text-base font-bold text-white flex items-center justify-center gap-2 flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+              {zipResolving
+                ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : <><span>Find Pros</span><span className="hidden sm:inline ml-1">→</span></>
+              }
             </button>
           </div>
         </form>
 
-        {/* AI match confirmation — shows before redirect */}
-        {matchedTrade && (
-          <div className="max-w-2xl mx-auto mb-3 animate-fade-up">
-            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border"
-              style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.25)' }}>
-              <div className="flex items-center gap-2">
-                <div className="w-3.5 h-3.5 border-2 border-teal-500/40 border-t-teal-600 rounded-full animate-spin flex-shrink-0" />
-                <span className="text-sm font-medium" style={{ color: '#0C5F57' }}>
-                  ✦ Showing <strong>{matchedTrade.label}s</strong> in {scopeLabel}
-                </span>
-              </div>
-              <button
-                onClick={() => { setMatchedTrade(null); router.push(`/search?q=${encodeURIComponent(search)}`) }}
-                className="text-xs font-semibold flex-shrink-0 hover:opacity-70 transition-opacity"
-                style={{ color: '#0F766E' }}>
-                Wrong trade? Search instead →
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* AI hint */}
         <div className="flex items-center justify-center gap-2 mb-5">
-          <span className="text-base" style={{ color: '#0F766E' }}>✦</span>
+          <span style={{ color: '#0F766E' }}>✦</span>
           <span className="text-sm font-medium" style={{ color: '#4B5563' }}>
             Describe your problem — AI finds the right trade automatically
           </span>
         </div>
 
-        {/* Trust stats — three columns */}
+        {/* Trust stats */}
         <div className="flex items-center justify-center gap-6 flex-wrap mb-2">
           <div className="flex items-center gap-1.5">
             <span className="text-sm">🛡</span>
@@ -290,13 +241,11 @@ export default function HomePage() {
           </div>
           <div className="w-px h-4 bg-gray-200 hidden sm:block" />
           <div className="flex items-center gap-1.5">
-            <span className="text-sm">✦</span>
             <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>Zero</span>
             <span className="text-sm" style={{ color: '#6B7280' }}>lead fees, ever</span>
           </div>
           <div className="w-px h-4 bg-gray-200 hidden sm:block" />
           <div className="flex items-center gap-1.5">
-            <span className="text-sm">✓</span>
             <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>License</span>
             <span className="text-sm" style={{ color: '#6B7280' }}>state-verified</span>
           </div>
@@ -305,44 +254,44 @@ export default function HomePage() {
 
       {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 pb-12">
-        <div className="text-center mb-8">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Browse by trade</div>
-          <h2 className="text-xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-            What do you need done?
-          </h2>
+        <div className="text-center mb-6">
+          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Or tap a trade</div>
+          <p className="text-sm" style={{ color: '#6B7280' }}>
+            {city.trim() ? `Will search near "${city.trim()}"` : 'Enter a city above to find local pros, or tap a trade to browse'}
+          </p>
         </div>
 
         {/* 3×2 primary trade grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-          {PRIMARY_TRADES.map(trade => (
-            <Link key={trade.slug} href={`/${scopeState}/${trade.slug}`}
-              className="group bg-white rounded-2xl border p-4 flex flex-col hover:-translate-y-0.5 transition-all duration-200"
+          {PRIMARY_TRADES.map(t => (
+            <button key={t.slug} onClick={() => handleTileTap(t.slug)}
+              className="group bg-white rounded-2xl border p-4 flex flex-col text-left hover:-translate-y-0.5 transition-all duration-200 cursor-pointer w-full"
               style={{ borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-              <span className="text-2xl mb-2">{trade.icon}</span>
-              <span className="text-sm font-semibold mb-0.5" style={{ color: '#0A1628' }}>{trade.label}</span>
-              {trade.count && (
-                <span className="text-sm font-medium" style={{ color: '#6B7280' }}>{trade.count} FL licensed</span>
-              )}
+              <span className="text-2xl mb-2">{t.icon}</span>
+              <span className="text-sm font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
+              {t.count && <span className="text-sm font-medium" style={{ color: '#6B7280' }}>{t.count} licensed</span>}
               <span className="text-xs font-semibold mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ color: '#0F766E' }}>Find pros →</span>
-            </Link>
+                style={{ color: '#0F766E' }}>
+                {city.trim() ? `Near ${city.trim()} →` : 'Browse pros →'}
+              </span>
+            </button>
           ))}
         </div>
 
         {/* Secondary trades as pills */}
         <div className="flex flex-wrap gap-2 justify-center">
-          {SECONDARY_TRADES.map(trade => (
-            <Link key={trade.slug} href={`/${scopeState}/${trade.slug}`}
-              className="text-xs font-medium px-3 py-1.5 rounded-full border transition-all hover:border-teal-400 hover:text-teal-700"
+          {SECONDARY_TRADES.map(t => (
+            <button key={t.slug} onClick={() => handleTileTap(t.slug)}
+              className="text-sm font-medium px-3 py-1.5 rounded-full border transition-all hover:border-teal-400 hover:text-teal-700 cursor-pointer"
               style={{ color: '#6B7280', borderColor: '#E8E2D9', background: '#FAF9F6' }}>
-              {trade.label}
-            </Link>
+              {t.label}
+            </button>
           ))}
-          <Link href={`/${scopeState}`}
-            className="text-xs font-semibold px-3 py-1.5 rounded-full border transition-all"
+          <a href={`/${scopeState}`}
+            className="text-sm font-semibold px-3 py-1.5 rounded-full border transition-all"
             style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>
             All trades →
-          </Link>
+          </a>
         </div>
       </section>
 
