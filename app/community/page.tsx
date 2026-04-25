@@ -153,11 +153,11 @@ function PostCard({ post, session, onLike, onDelete }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Link href={`/community/profile/${post.pro_id}`}
-              className="font-semibold text-sm text-gray-900 hover:text-teal-600 transition-colors">
+              className="font-semibold text-base text-gray-900 hover:text-teal-600 transition-colors">
               {post.pro?.full_name}
             </Link>
             {isVerifiedPro && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700">
+              <span className="inline-flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700">
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
                 </svg>
@@ -197,7 +197,7 @@ function PostCard({ post, session, onLike, onDelete }: {
       {/* Content */}
       {post.content && (
         <div className="px-4 pb-3">
-          <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAskAPro ? 'text-blue-900 font-medium' : 'text-gray-700'}`}>
+          <p className={`text-base leading-relaxed whitespace-pre-wrap ${isAskAPro ? 'text-blue-900 font-medium' : 'text-gray-700'}`}>
             {post.content}
           </p>
         </div>
@@ -210,7 +210,7 @@ function PostCard({ post, session, onLike, onDelete }: {
             <>
               <BeforeAfterSlider afterUrl={post.photo_url} beforeUrl={post.before_photo_url} />
               <div className="mt-1.5 flex items-center gap-1">
-                <span className="text-xs text-teal-600 font-medium">📸 Before & After</span>
+                <span className="text-sm text-teal-600 font-medium">📸 Before & After</span>
                 {(post.pro as any)?.trade_category?.category_name && (
                   <span className="text-sm text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
                 )}
@@ -222,7 +222,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                 className="w-full rounded-xl object-contain bg-stone-50" style={{ maxHeight: '560px' }} />
               {isWork && (
                 <div className="mt-1.5 flex items-center gap-1">
-                  <span className="text-xs text-teal-600 font-medium">📸 Project work</span>
+                  <span className="text-sm text-teal-600 font-medium">📸 Project work</span>
                   {(post.pro as any)?.trade_category?.category_name && (
                     <span className="text-sm text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
                   )}
@@ -280,7 +280,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                     <Avatar pro={cm.pro} size={7} />
                     <div className={`flex-1 rounded-xl px-3 py-2 border ${isAskAPro && cmVerified ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-xs font-semibold text-gray-800">{cm.pro?.full_name}</span>
+                        <span className="text-sm font-semibold text-gray-800">{cm.pro?.full_name}</span>
                         {cmVerified && (
                           <span className="inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700">
                             <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
@@ -290,7 +290,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-600 leading-relaxed">{cm.content}</div>
+                      <div className="text-sm text-gray-600 leading-relaxed">{cm.content}</div>
                     </div>
                   </div>
                 )
@@ -304,9 +304,9 @@ function PostCard({ post, session, onLike, onDelete }: {
                 <input value={commentText} onChange={e => setCommentText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submitComment()}
                   placeholder={isAskAPro ? 'Share your expert answer...' : 'Write a comment...'}
-                  className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-teal-400 transition-colors" />
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-teal-400 transition-colors" />
                 <button onClick={submitComment} disabled={submittingComment || !commentText.trim()}
-                  className="px-3 py-2 bg-teal-600 text-white text-xs font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">
+                  className="px-3 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">
                   {isAskAPro ? 'Answer' : 'Post'}
                 </button>
               </div>

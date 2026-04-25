@@ -180,10 +180,10 @@ export default async function CityTradePage(
         {/* Hero */}
         <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
           <div className="max-w-7xl mx-auto px-6 py-10">
-            <h1 className="text-3xl font-bold mb-2" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+            <h1 className="text-4xl font-bold mb-3" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
               Licensed {tradeName}s in {cityDisplay}, FL
             </h1>
-            <p className="text-sm mb-4" style={{ color: '#6B7280' }}>
+            <p className="text-base mb-5" style={{ color: '#4B5563' }}>
               {count > 0 ? `${count} DBPR-verified ${tradeName.toLowerCase()}s` : `DBPR-verified ${tradeName.toLowerCase()}s`} in {cityDisplay}, Florida.
               {dbpr && ` All hold a ${dbpr.licenseLabel} (${dbpr.licenseCodes.join('/')}) from the Florida DBPR.`}
               {' '}Zero lead fees. Contact them directly.

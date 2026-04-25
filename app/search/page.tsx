@@ -288,7 +288,7 @@ function SearchPageInner() {
               {/* All pill */}
               <button
                 onClick={() => selectTrade('')}
-                className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all"
+                className="flex-shrink-0 text-sm font-semibold px-3 py-1.5 rounded-full border transition-all"
                 style={!activeTradeSlug
                   ? { background: activeGroup.accent, color: '#fff', borderColor: activeGroup.accent }
                   : { color: '#6B7280', borderColor: '#E8E2D9', background: '#fff' }}>
@@ -299,7 +299,7 @@ function SearchPageInner() {
               {activeGroup.trades.map(trade => (
                 <button key={trade.slug}
                   onClick={() => selectTrade(trade.slug)}
-                  className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all"
+                  className="flex-shrink-0 text-sm font-semibold px-3 py-1.5 rounded-full border transition-all"
                   style={activeTradeSlug === trade.slug
                     ? { background: activeGroup.accent, color: '#fff', borderColor: activeGroup.accent }
                     : { color: '#6B7280', borderColor: '#E8E2D9', background: '#fff' }}>
@@ -461,7 +461,7 @@ function SearchPageInner() {
             </div>
           )}
           {!loading && !hasMore && pros.length > 0 && (
-            <div className="text-center pb-16 text-xs" style={{ color: '#C4BAB0' }}>
+            <div className="text-center pb-16 text-sm" style={{ color: '#C4BAB0' }}>
               — All {total.toLocaleString()} pros shown —
             </div>
           )}

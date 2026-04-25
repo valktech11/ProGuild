@@ -43,7 +43,7 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-900 truncate text-sm leading-snug">{pro.full_name}</div>
+          <div className="font-semibold text-gray-900 truncate text-base leading-snug">{pro.full_name}</div>
           <div className="text-sm font-medium text-teal-700 mt-0.5">{trade}</div>
           {location && <div className="text-sm text-gray-400 mt-0.5 truncate">{location}</div>}
         </div>
@@ -52,7 +52,7 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
       {/* Trust badge row */}
       <div className="flex flex-wrap gap-1 mb-3">
         {pro.is_verified && (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+          <span className="inline-flex items-center gap-1 text-sm font-semibold px-2.5 py-1 rounded-full"
             style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.25)' }}>
             {/* ProGuild shield mark */}
             <svg width="11" height="11" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -68,26 +68,26 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
           </span>
         )}
         {hasOsha && (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+          <span className="text-sm font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
             🦺 {(pro as any).osha_card_type}
           </span>
         )}
         {hasInsurance && (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">🛡 Insured</span>
+          <span className="text-sm font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">🛡 Insured</span>
         )}
         {isElite(pro.plan_tier) && (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800">Elite</span>
+          <span className="text-sm font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-800">Elite</span>
         )}
         {isPaid(pro.plan_tier) && !isElite(pro.plan_tier) && (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-800">Pro</span>
+          <span className="text-sm font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-800">Pro</span>
         )}
       </div>
 
       {/* Rating */}
       {rating > 0 ? (
         <div className="flex items-center gap-1.5 mb-3">
-          <span className="text-amber-500 text-xs">{starsHtml(rating)}</span>
-          <span className="text-xs font-semibold text-gray-800">{rating.toFixed(1)}</span>
+          <span className="text-amber-500 text-sm">{starsHtml(rating)}</span>
+          <span className="text-sm font-semibold text-gray-800">{rating.toFixed(1)}</span>
           <span className="text-sm text-gray-400">({reviews})</span>
         </div>
       ) : (
@@ -134,7 +134,7 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
       </div>
 
       {/* CTA */}
-      <button className="mt-3 w-full py-2 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 group-hover:bg-teal-50 group-hover:border-teal-400 group-hover:text-teal-700 transition-colors">
+      <button className="mt-3 w-full py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-600 group-hover:bg-teal-50 group-hover:border-teal-400 group-hover:text-teal-700 transition-colors">
         View profile →
       </button>
     </Link>

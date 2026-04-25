@@ -149,7 +149,7 @@ export default function TradeLandingClient({
               <div>
                 <div className="flex items-center gap-2 mb-3 px-2">
                   <span className="text-base">{activeGroup.icon}</span>
-                  <span className="text-xs font-bold uppercase tracking-widest" style={{ color: activeGroup.accent }}>
+                  <span className="text-sm font-bold uppercase tracking-widest" style={{ color: activeGroup.accent }}>
                     {activeGroup.label}
                   </span>
                 </div>
@@ -178,7 +178,7 @@ export default function TradeLandingClient({
 
             {/* Other groups — single line links to search page, no expansion */}
             <div>
-              <div className="text-xs font-bold uppercase tracking-widest mb-3 px-2" style={{ color: '#A89F93' }}>
+              <div className="text-sm font-bold uppercase tracking-widest mb-3 px-2" style={{ color: '#A89F93' }}>
                 Other trades
               </div>
               <div className="space-y-0.5">
@@ -203,24 +203,24 @@ export default function TradeLandingClient({
 
           {/* SEO headline */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2"
+            <h1 className="text-4xl font-bold mb-3"
               style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
               {tradeTitle}s in {stateName}
             </h1>
-            <p className="text-sm leading-relaxed mb-4" style={{ color: '#6B7280' }}>
+            <p className="text-base leading-relaxed mb-5" style={{ color: '#4B5563' }}>
               Find verified, DBPR-licensed {tradeTitle.toLowerCase()}s in {stateName}.
               Every pro on ProGuild is license-checked against the state database.
               Zero lead fees — contact them directly.
             </p>
-            <div className="flex items-center gap-4 text-xs" style={{ color: '#A89F93' }}>
-              <span>
-                <span className="font-bold" style={{ color: '#0A1628' }}>{total.toLocaleString()}</span>
-                {' '}verified {tradeTitle.toLowerCase()}s in {stateName}
+            <div className="flex items-center gap-4 flex-wrap" style={{ color: '#6B7280' }}>
+              <span className="flex items-center gap-1.5">
+                <span className="text-lg font-bold" style={{ color: '#0A1628' }}>{total.toLocaleString()}</span>
+                <span className="text-sm">verified {tradeTitle.toLowerCase()}s in {stateName}</span>
               </span>
-              <span>·</span>
-              <span>DBPR license verified</span>
-              <span>·</span>
-              <span>Zero lead fees</span>
+              <span className="text-gray-300">·</span>
+              <span className="text-sm font-medium" style={{ color: '#0F766E' }}>🛡 DBPR license verified</span>
+              <span className="text-gray-300">·</span>
+              <span className="text-sm">Zero lead fees</span>
             </div>
           </div>
 
@@ -293,8 +293,8 @@ export default function TradeLandingClient({
               ].map(item => (
                 <div key={item.title} className="bg-white rounded-xl p-4 border" style={{ borderColor: '#E8E2D9' }}>
                   <div className="text-xl mb-2">{item.icon}</div>
-                  <div className="font-bold text-sm mb-1" style={{ color: '#0A1628' }}>{item.title}</div>
-                  <div className="text-xs leading-relaxed" style={{ color: '#A89F93' }}>{item.desc}</div>
+                  <div className="font-bold text-base mb-1" style={{ color: '#0A1628' }}>{item.title}</div>
+                  <div className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>{item.desc}</div>
                 </div>
               ))}
             </div>
