@@ -11,8 +11,8 @@ export type PlanTier =
 
 export type ProfileStatus = 'Active' | 'Suspended' | 'Pending_Review'
 export type JobStatus = 'Open' | 'In_Progress' | 'Filled' | 'Expired' | 'Cancelled'
-export type LeadStatus = 'New' | 'Contacted' | 'Converted' | 'Archived'
-export type LeadSource = 'Profile_Page' | 'Job_Post' | 'Search_Result' | 'Direct'
+export type LeadStatus = 'New' | 'Contacted' | 'Quoted' | 'Scheduled' | 'Completed' | 'Paid' | 'Lost' | 'Archived' | 'Queued_Manual' | 'Converted'
+export type LeadSource = 'Profile_Page' | 'Job_Post' | 'Search_Result' | 'Direct' | 'Registry_Card'
 export type ApplicationStatus = 'Submitted' | 'Viewed' | 'Shortlisted' | 'Rejected' | 'Hired'
 export type BudgetRange = 'Under $500' | '$500–$2K' | '$2K–$10K' | '$10K+' | 'Negotiable'
 export type SubStatus = 'Active' | 'Cancelled' | 'Past_Due' | 'Trialing'
@@ -89,12 +89,17 @@ export interface Lead {
   pro_id: string
   job_id: string | null
   contact_name: string
-  contact_email: string
+  contact_email: string | null
   contact_phone: string | null
   message: string
   lead_status: LeadStatus
   lead_source: LeadSource
   created_at: string
+  // CRM fields
+  quoted_amount: number | null
+  scheduled_date: string | null
+  notes: string | null
+  follow_up_date: string | null
   // joined
   pro?: Pro
   job?: Job

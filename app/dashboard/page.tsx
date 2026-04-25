@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session, Lead, Review } from '@/types'
 import { initials, avatarColor, starsHtml, timeAgo, greetingText, isPaid, isElite, planLabel } from '@/lib/utils'
+import LeadPipeline from '@/components/ui/LeadPipeline'
 
 const REFERRAL_NETWORK: Record<string, string[]> = {
   'painter':              ['general-contractor','drywall','flooring','tile-setter'],
@@ -139,6 +140,15 @@ export default function DashboardPage() {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, lead_status: status as any } : l))
   }
 
+  async function updateLead(leadId: string, fields: Partial<Lead>) {
+    await fetch('/api/leads', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: leadId, ...fields }),
+    })
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...fields } : l))
+  }
+
   function logout() { sessionStorage.removeItem('pg_pro'); router.push('/') }
 
   if (!session) return null
@@ -217,108 +227,45 @@ export default function DashboardPage() {
             </div>
 
             {/* ACTIVE LEADS */}
+            {/* ── LEAD PIPELINE ──────────────────────────────────────── */}
             <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-900">Active leads</span>
-                  {newLeads > 0 && (
+                  <span className="text-sm font-semibold text-gray-900">Lead Pipeline</span>
+                  {leads.filter(l => l.lead_status === 'New').length > 0 && (
                     <span className="w-5 h-5 bg-amber-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                      {newLeads > 9 ? '9+' : newLeads}
+                      {leads.filter(l => l.lead_status === 'New').length > 9 ? '9+' : leads.filter(l => l.lead_status === 'New').length}
                     </span>
                   )}
                 </div>
+                <span className="text-xs font-medium px-2 py-1 rounded-lg"
+                  style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E' }}>
+                  Tap any card to manage
+                </span>
               </div>
 
-              {/* Pipeline tabs — all users */}
-              {!loading && leads.length > 0 && (
-                <div className="flex border-b border-gray-100">
-                  {LEAD_STAGES.map((stage, idx) => {
-                    const cnt = stageLeads(stage).length
-                    return (
-                      <button key={stage} onClick={() => setActiveStage(stage)}
-                        className={'flex-1 px-3 py-2.5 text-xs font-semibold transition-all ' + (activeStage === stage ? 'text-teal-700 bg-teal-50 border-b-2 border-teal-500' : 'text-gray-400 hover:text-gray-600 hover:bg-stone-50')}>
-                        {stage}
-                        {cnt > 0 && (
-                          <span className={'ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold ' + (stage === 'New' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600')}>
-                            {cnt}
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-
-              {loading ? (
-                <div className="p-4 space-y-3">
-                  {[1,2].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-50" />)}
-                </div>
-              ) : leads.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <div className="text-3xl mb-2 opacity-20">📬</div>
-                  <div className="text-sm font-medium text-gray-600 mb-1">No leads yet</div>
-                  <div className="text-xs">When someone contacts you, they'll appear here.</div>
-                </div>
-              ) : (
-                <div>
-                  {visibleLeads.length === 0 && paid ? (
-                    <div className="text-center py-10 text-sm text-gray-400">
-                      No leads in <strong>{activeStage}</strong>
-                    </div>
-                  ) : visibleLeads.map(lead => (
-                    <div key={lead.id} className="flex items-start gap-4 px-5 py-4 border-b border-gray-50 hover:bg-stone-50/50 transition-colors">
-                      <div className="w-10 h-10 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-sm font-semibold text-teal-700 flex-shrink-0 font-serif">
-                        {initials(lead.contact_name)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <span className="text-sm font-semibold text-gray-900">{lead.contact_name}</span>
-                          <span className={'text-xs font-semibold px-2 py-0.5 rounded-full ' + (STATUS_STYLES[lead.lead_status] || STATUS_STYLES.New)}>
-                            {lead.lead_status}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 mb-1.5 leading-relaxed line-clamp-2">{lead.message}</div>
-                        <div className="text-sm text-gray-400">{timeAgo(lead.created_at)}</div>
-                      </div>
-                      <div className="flex flex-col gap-1.5 flex-shrink-0">
-                        {lead.contact_phone && (
-                          <a href={'tel:' + lead.contact_phone}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition-colors">
-                            📞 Call
-                          </a>
-                        )}
-                        <Link href="/messages"
-                          className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:border-teal-300 hover:text-teal-600 transition-colors">
-                          💬 Msg
-                        </Link>
-                        {lead.lead_status === 'New' && (
-                          <button onClick={() => updateLeadStatus(lead.id, 'Contacted')}
-                            className="px-3 py-1.5 border border-dashed border-gray-200 text-gray-400 text-xs rounded-lg hover:border-teal-300 hover:text-teal-600 transition-colors">
-                            Contacted
-                          </button>
-                        )}
-                        {lead.lead_status === 'Contacted' && (
-                          <button onClick={() => updateLeadStatus(lead.id, 'Converted')}
-                            className="px-3 py-1.5 border border-dashed border-green-200 text-green-600 text-xs rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors">
-                            Mark won
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {lockedCount > 0 && (
-                    <div className="px-5 py-6 text-center bg-gradient-to-b from-white to-stone-50">
-                      <div className="text-2xl mb-2">🔒</div>
-                      <div className="text-sm font-semibold text-gray-700 mb-1">{lockedCount} more lead{lockedCount !== 1 ? 's' : ''} waiting</div>
-                      <div className="text-xs text-gray-400 mb-4">Upgrade to Pro to unlock all your leads</div>
-                      <Link href="/upgrade" className="inline-block px-5 py-2 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition-colors">
-                        Upgrade to Pro
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="p-4">
+                {loading ? (
+                  <div className="space-y-3">
+                    {[1,2,3].map(i => <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-50" />)}
+                  </div>
+                ) : leads.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <div className="text-3xl mb-2 opacity-20">📬</div>
+                    <div className="text-sm font-medium text-gray-600 mb-1">No leads yet</div>
+                    <div className="text-xs">When someone contacts you, they'll appear here.</div>
+                  </div>
+                ) : (
+                  <LeadPipeline
+                    leads={leads}
+                    onStatusChange={updateLeadStatus}
+                    onUpdate={updateLead}
+                    isPaid={paid}
+                  />
+                )}
+              </div>
             </div>
+
 
             {/* REVIEWS */}
             <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">

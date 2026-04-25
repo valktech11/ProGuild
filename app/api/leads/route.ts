@@ -71,10 +71,22 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json()
-  const { id, lead_status } = body
-  if (!id || !lead_status) return NextResponse.json({ error: 'id and lead_status required' }, { status: 400 })
+  const { id, lead_status, notes, quoted_amount, scheduled_date, follow_up_date } = body
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+
+  const updateFields: Record<string, any> = {}
+  if (lead_status    !== undefined) updateFields.lead_status    = lead_status
+  if (notes          !== undefined) updateFields.notes          = notes
+  if (quoted_amount  !== undefined) updateFields.quoted_amount  = quoted_amount
+  if (scheduled_date !== undefined) updateFields.scheduled_date = scheduled_date
+  if (follow_up_date !== undefined) updateFields.follow_up_date = follow_up_date
+
+  if (Object.keys(updateFields).length === 0) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+  }
+
   const { data, error } = await getSupabaseAdmin()
-    .from('leads').update({ lead_status }).eq('id', id).select().single()
+    .from('leads').update(updateFields).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ lead: data })
 }
