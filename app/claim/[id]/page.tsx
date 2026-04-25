@@ -136,7 +136,7 @@ export default function ClaimProfilePage() {
             <div>
               <div className="font-semibold text-gray-900">{pro.full_name}</div>
               <div className="text-sm text-teal-700">{trade}</div>
-              <div className="text-xs text-gray-400">{[pro.city, pro.state].filter(Boolean).join(', ')}</div>
+              <div className="text-sm text-gray-400">{[pro.city, pro.state].filter(Boolean).join(', ')}</div>
               {pro.license_number && (
                 <div className="text-xs text-teal-600 font-medium mt-0.5">✓ License {pro.license_number} — verified</div>
               )}

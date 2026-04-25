@@ -178,7 +178,7 @@ export default function CommunityEditPage() {
             {newTrade ? (
               <div className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-stone-50 text-gray-700 flex items-center justify-between">
                 <span>{newTrade}</span>
-                <span className="text-xs text-gray-400">Your trade</span>
+                <span className="text-sm text-gray-400">Your trade</span>
               </div>
             ) : (
               <select value={newTrade} onChange={e => setNewTrade(e.target.value)}
@@ -202,7 +202,7 @@ export default function CommunityEditPage() {
               <span>{markAsJobSite ? '📍' : '📷'}</span>
               {markAsJobSite ? 'Job site photo — will capture GPS' : 'Mark as job site photo'}
             </button>
-            {markAsJobSite && <span className="text-xs text-gray-400">GPS captured at upload time</span>}
+            {markAsJobSite && <span className="text-sm text-gray-400">GPS captured at upload time</span>}
             <button type="button" onClick={() => { setIsBeforeAfter(v => !v); setBeforePhoto(null) }}
               className={`flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-all ${isBeforeAfter ? 'bg-amber-50 text-amber-700 border-amber-300' : 'border-gray-200 text-gray-500'}`}>
               <span>{isBeforeAfter ? '↔' : '↔'}</span>

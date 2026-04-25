@@ -278,7 +278,7 @@ export default function DashboardPage() {
                           </span>
                         </div>
                         <div className="text-xs text-gray-500 mb-1.5 leading-relaxed line-clamp-2">{lead.message}</div>
-                        <div className="text-xs text-gray-400">{timeAgo(lead.created_at)}</div>
+                        <div className="text-sm text-gray-400">{timeAgo(lead.created_at)}</div>
                       </div>
                       <div className="flex flex-col gap-1.5 flex-shrink-0">
                         {lead.contact_phone && (
@@ -345,7 +345,7 @@ export default function DashboardPage() {
                     {(rev.comment || (rev as any).review_text) && (
                       <div className="text-xs text-gray-500 line-clamp-2 mb-1">{rev.comment || (rev as any).review_text}</div>
                     )}
-                    <div className="text-xs text-gray-400">{timeAgo((rev as any).reviewed_at)}</div>
+                    <div className="text-sm text-gray-400">{timeAgo((rev as any).reviewed_at)}</div>
                   </div>
                 </div>
               ))}
@@ -355,7 +355,7 @@ export default function DashboardPage() {
             <div className="bg-white border border-gray-100 rounded-2xl p-5">
               <div className="mb-4">
                 <div className="text-sm font-semibold text-gray-900">Your referral network</div>
-                <div className="text-xs text-gray-400 mt-0.5">
+                <div className="text-sm text-gray-400 mt-0.5">
                   {session.city
                     ? 'Trades that send work to ' + (session.trade || 'your trade') + ' in ' + session.city
                     : 'Complementary trades for ' + (session.trade || 'your work')
@@ -385,7 +385,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-gray-800 truncate">{name}</div>
-                          <div className="text-xs text-gray-400">{count > 0 ? count.toLocaleString() + ' in FL' : 'Verified pros available'}</div>
+                          <div className="text-sm text-gray-400">{count > 0 ? count.toLocaleString() + ' in FL' : 'Verified pros available'}</div>
                         </div>
                         <span className="text-gray-300 group-hover:text-teal-500 text-sm">→</span>
                       </Link>
@@ -423,7 +423,7 @@ export default function DashboardPage() {
                 {uploadError && <div className="text-xs text-red-500 mb-2">{uploadError}</div>}
                 <div className="font-semibold text-gray-900">{session.name}</div>
                 <div className="text-sm text-teal-700 font-medium">{session.trade || '—'}</div>
-                <div className="text-xs text-gray-400">{[session.city, session.state].filter(Boolean).join(', ') || '—'}</div>
+                <div className="text-sm text-gray-400">{[session.city, session.state].filter(Boolean).join(', ') || '—'}</div>
               </div>
 
               {/* Completeness bar */}
@@ -522,7 +522,7 @@ export default function DashboardPage() {
                 <div className="w-8 h-8 bg-teal-50 rounded-xl flex items-center justify-center text-base">📇</div>
                 <div>
                   <div className="text-sm font-semibold text-gray-900">Digital Business Card</div>
-                  <div className="text-xs text-gray-400">Share your profile via QR</div>
+                  <div className="text-sm text-gray-400">Share your profile via QR</div>
                 </div>
               </div>
               <div className="flex flex-col items-center mb-4">

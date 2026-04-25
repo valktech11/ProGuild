@@ -125,7 +125,7 @@ export default function ReviewPage() {
             <div>
               <h2 className="font-semibold text-gray-900 text-lg">{pro.full_name}</h2>
               <div className="text-sm text-teal-700">{trade}</div>
-              {location && <div className="text-xs text-gray-400">{location}</div>}
+              {location && <div className="text-sm text-gray-400">{location}</div>}
               {pro.is_verified && (
                 <span className="text-xs font-semibold text-teal-600">✓ License verified</span>
               )}

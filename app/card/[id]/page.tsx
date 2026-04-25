@@ -91,11 +91,11 @@ export default function DigitalCardPage() {
           {/* Name + trade */}
           <h1 className="font-serif text-2xl text-gray-900 leading-tight">{pro.full_name}</h1>
           {pro.business_name && pro.business_name !== pro.full_name && (
-            <p className="text-xs text-gray-400 mt-0.5">{pro.business_name}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{pro.business_name}</p>
           )}
           <p className="text-sm font-medium text-teal-700 mt-1">{trade}</p>
           {(pro.city || pro.state) && (
-            <p className="text-xs text-gray-400 mt-0.5">📍 {[pro.city, pro.state].filter(Boolean).join(', ')}</p>
+            <p className="text-sm text-gray-400 mt-0.5">📍 {[pro.city, pro.state].filter(Boolean).join(', ')}</p>
           )}
 
           {/* Rating */}
@@ -103,7 +103,7 @@ export default function DigitalCardPage() {
             <div className="flex items-center gap-1.5 mt-2">
               <span className="text-amber-400 text-sm">{starsHtml(rating)}</span>
               <span className="text-sm font-semibold text-gray-900">{rating.toFixed(1)}</span>
-              <span className="text-xs text-gray-400">({reviewCnt})</span>
+              <span className="text-sm text-gray-400">({reviewCnt})</span>
             </div>
           )}
 
@@ -116,7 +116,7 @@ export default function DigitalCardPage() {
             ].map(s => (
               <div key={s.label} className="text-center">
                 <div className="text-lg font-semibold text-teal-600">{s.value}</div>
-                <div className="text-xs text-gray-400">{s.label}</div>
+                <div className="text-sm text-gray-400">{s.label}</div>
               </div>
             ))}
           </div>
@@ -137,7 +137,7 @@ export default function DigitalCardPage() {
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.dot}`} />
                     <div className="flex-1 min-w-0">
                       <div className={`text-xs font-semibold ${c.text}`}>{lic.trade_name}</div>
-                      <div className="text-xs text-gray-400">{lic.license_number}{expiryStr ? ` · exp ${expiryStr}` : ''}</div>
+                      <div className="text-sm text-gray-400">{lic.license_number}{expiryStr ? ` · exp ${expiryStr}` : ''}</div>
                     </div>
                     <span className={`text-xs font-semibold ${c.text}`}>
                       {lic.license_status === 'active' ? '✓ Active' : lic.license_status === 'expiring_soon' ? '⚠️ Expiring' : lic.license_status === 'expired' ? '🔴 Expired' : '—'}
@@ -186,7 +186,7 @@ export default function DigitalCardPage() {
 
         {/* Footer brand */}
         <div className="bg-gray-50 border-t border-gray-100 px-6 py-3 flex items-center justify-between">
-          <span className="text-xs text-gray-400">Powered by</span>
+          <span className="text-sm text-gray-400">Powered by</span>
           <Link href="/" className="font-serif text-sm text-gray-900">Pro<span className="text-teal-600">Guild</span><span className="text-gray-500 font-sans font-medium text-sm">.ai</span></Link>
         </div>
       </div>

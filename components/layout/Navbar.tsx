@@ -268,7 +268,7 @@ export default function Navbar() {
                             <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!n.is_read ? 'bg-teal-500' : 'bg-gray-200'}`} />
                             <div className="flex-1 min-w-0">
                               <div className="text-sm text-gray-800">{n.message}</div>
-                              <div className="text-xs text-gray-400 mt-0.5">{n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</div>
+                              <div className="text-sm text-gray-400 mt-0.5">{n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</div>
                             </div>
                           </a>
                         ))}

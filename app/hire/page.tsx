@@ -131,7 +131,7 @@ export default function HirePage() {
             ].map(s => (
               <div key={s.label} className="text-center">
                 <div className="text-lg font-bold text-teal-600">{s.value}</div>
-                <div className="text-xs text-gray-400">{s.label}</div>
+                <div className="text-sm text-gray-400">{s.label}</div>
               </div>
             ))}
           </div>
@@ -205,7 +205,7 @@ export default function HirePage() {
                         </div>
                         <div>
                           <div className="text-xs font-semibold text-gray-700">{job.company?.name}</div>
-                          <div className="text-xs text-gray-400">{[job.company?.city, job.company?.state].filter(Boolean).join(', ')}</div>
+                          <div className="text-sm text-gray-400">{[job.company?.city, job.company?.state].filter(Boolean).join(', ')}</div>
                         </div>
                         {job.company?.is_verified && (
                           <span className="text-xs text-teal-600 font-semibold">✓ Verified</span>

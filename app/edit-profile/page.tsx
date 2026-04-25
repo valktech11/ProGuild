@@ -489,7 +489,7 @@ export default function EditProfilePage() {
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${lic.license_status === 'active' ? 'bg-green-500' : lic.license_status === 'expiring_soon' ? 'bg-amber-400' : 'bg-red-500'}`} />
                           <div>
                             <div className="text-sm font-semibold text-gray-900">{lic.trade_name}</div>
-                            <div className="text-xs text-gray-400">{lic.license_number}{lic.license_expiry_date ? ` · exp ${new Date(lic.license_expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</div>
+                            <div className="text-sm text-gray-400">{lic.license_number}{lic.license_expiry_date ? ` · exp ${new Date(lic.license_expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</div>
                           </div>
                           {lic.is_primary && <span className="text-xs px-2 py-0.5 bg-teal-50 text-teal-700 rounded-full font-semibold">Primary</span>}
                         </div>
@@ -601,7 +601,7 @@ export default function EditProfilePage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-sm font-semibold text-gray-900">Available for new work</div>
-                    <div className="text-xs text-gray-400 mt-0.5">Shows a green badge on your profile and in search results</div>
+                    <div className="text-sm text-gray-400 mt-0.5">Shows a green badge on your profile and in search results</div>
                   </div>
                   <button onClick={() => setAvailable(a => !a)} className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${available ? 'bg-teal-600' : 'bg-gray-200'}`}>
                     <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${available ? 'left-6' : 'left-0.5'}`} />

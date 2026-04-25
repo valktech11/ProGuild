@@ -345,7 +345,7 @@ function SearchPageInner() {
                   <div key={group.id}>
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <span className="text-sm">{group.icon}</span>
-                      <span className="text-xs font-semibold" style={{ color: '#6B7280' }}>{group.label}</span>
+                      <span className="text-sm font-semibold" style={{ color: '#6B7280' }}>{group.label}</span>
                     </div>
                     <div className="space-y-0.5 pl-1">
                       {group.trades.map(trade => (

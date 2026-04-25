@@ -181,7 +181,7 @@ function PostCard({ post, session, onLike, onDelete }: {
               <a href={`/messages?with=${post.pro_id}`} className="text-xs text-gray-400 hover:text-teal-600 transition-colors ml-auto">💬</a>
             )}
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">
+          <div className="text-sm text-gray-400 mt-0.5">
             {(post.pro as any)?.trade_category?.category_name}
             {post.pro?.city ? ` · ${post.pro.city}` : ''}
             {post.pro?.state ? `, ${post.pro.state}` : ''}
@@ -212,7 +212,7 @@ function PostCard({ post, session, onLike, onDelete }: {
               <div className="mt-1.5 flex items-center gap-1">
                 <span className="text-xs text-teal-600 font-medium">📸 Before & After</span>
                 {(post.pro as any)?.trade_category?.category_name && (
-                  <span className="text-xs text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
+                  <span className="text-sm text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
                 )}
               </div>
             </>
@@ -224,7 +224,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                 <div className="mt-1.5 flex items-center gap-1">
                   <span className="text-xs text-teal-600 font-medium">📸 Project work</span>
                   {(post.pro as any)?.trade_category?.category_name && (
-                    <span className="text-xs text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
+                    <span className="text-sm text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
                   )}
                 </div>
               )}
@@ -269,7 +269,7 @@ function PostCard({ post, session, onLike, onDelete }: {
           ) : (
             <div className="space-y-2.5 mb-3">
               {comments.length === 0 && (
-                <div className="text-xs text-gray-400">
+                <div className="text-sm text-gray-400">
                   {isAskAPro ? 'No answers yet — be the first verified pro to answer.' : 'No comments yet — be the first.'}
                 </div>
               )}
@@ -603,7 +603,7 @@ export default function CommunityPage() {
                   </button>
                 ))}
               </div>
-              <span className="text-xs text-gray-400">{postsWithLikes.length} posts</span>
+              <span className="text-sm text-gray-400">{postsWithLikes.length} posts</span>
             </div>
           </div>
 

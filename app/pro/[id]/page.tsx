@@ -117,7 +117,7 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
             <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: '#E8E2D9' }}>
               <div>
                 <div className="font-bold text-gray-900">Contact {firstName}</div>
-                <div className="text-xs text-gray-400 mt-0.5">Free · Direct · No middleman</div>
+                <div className="text-sm text-gray-400 mt-0.5">Free · Direct · No middleman</div>
               </div>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
@@ -603,25 +603,25 @@ export default function ProProfilePage() {
                 </span>
               )}
               {hasLicense && (
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                <span className="text-sm font-semibold px-2.5 py-1 rounded-full"
                   style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
                   🏛 DBPR Licensed
                 </span>
               )}
               {hasOsha && (
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                <span className="text-sm font-semibold px-2.5 py-1 rounded-full"
                   style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
                   🦺 {pro.osha_card_type}
                 </span>
               )}
               {hasInsurance && (
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                <span className="text-sm font-semibold px-2.5 py-1 rounded-full"
                   style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
                   🛡 Insured
                 </span>
               )}
               {isElite(pro.plan_tier) && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                <span className="text-sm font-bold px-2.5 py-1 rounded-full"
                   style={{ background: 'rgba(139,92,246,0.1)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.25)' }}>
                   ✦ Elite Pro
                 </span>
@@ -710,7 +710,7 @@ export default function ProProfilePage() {
                 {pro.bio && (
                   <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
                     <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>About {firstName}</div>
-                    <p className="text-sm leading-relaxed" style={{ color: '#4B5563' }}>{pro.bio}</p>
+                    <p className="text-base leading-relaxed" style={{ color: '#4B5563' }}>{pro.bio}</p>
                   </div>
                 )}
 
@@ -751,7 +751,7 @@ export default function ProProfilePage() {
                   <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
                     <div className="px-5 pt-4 pb-3 flex items-center justify-between">
                       <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Project work</div>
-                      <button onClick={() => setActiveTab('work')} className="text-xs font-semibold" style={{ color: '#0F766E' }}>
+                      <button onClick={() => setActiveTab('work')} className="text-sm font-semibold" style={{ color: '#0F766E' }}>
                         See all {portfolio.length} →
                       </button>
                     </div>
@@ -776,7 +776,7 @@ export default function ProProfilePage() {
                   <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
                     <div className="px-5 pt-4 pb-3 flex items-center justify-between">
                       <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Recent reviews</div>
-                      <button onClick={() => setActiveTab('reviews')} className="text-xs font-semibold" style={{ color: '#0F766E' }}>
+                      <button onClick={() => setActiveTab('reviews')} className="text-sm font-semibold" style={{ color: '#0F766E' }}>
                         See all {reviewCnt} →
                       </button>
                     </div>
@@ -920,7 +920,7 @@ export default function ProProfilePage() {
                       </div>
                       <div className="text-xs" style={{ color: '#A89F93' }}>{formatReviewDate(rev.reviewed_at || rev.created_at)}</div>
                     </div>
-                    <p className="text-sm leading-relaxed" style={{ color: '#4B5563' }}>{rev.review_text}</p>
+                    <p className="text-base leading-relaxed" style={{ color: '#4B5563' }}>{rev.review_text}</p>
                   </div>
                 ))}
               </div>
@@ -932,7 +932,7 @@ export default function ProProfilePage() {
                 <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>License verification</div>
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                    <span className="text-sm font-bold px-2.5 py-1 rounded-full"
                       style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.2)' }}>
                       🛡 Florida DBPR
                     </span>

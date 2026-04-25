@@ -101,7 +101,7 @@ export default async function TradeCityPage({ params }: Props) {
             <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-4 text-center">
               <div className="text-xl mb-1">{s.icon}</div>
               <div className="text-xs font-semibold text-gray-800">{s.label}</div>
-              <div className="text-xs text-gray-400">{s.sub}</div>
+              <div className="text-sm text-gray-400">{s.sub}</div>
             </div>
           ))}
         </div>
@@ -135,7 +135,7 @@ export default async function TradeCityPage({ params }: Props) {
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-900 truncate">{pro.full_name}</div>
                       <div className="text-sm font-medium text-teal-700">{tradeLabel}</div>
-                      <div className="text-xs text-gray-400">{location}</div>
+                      <div className="text-sm text-gray-400">{location}</div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mb-3">
@@ -147,7 +147,7 @@ export default async function TradeCityPage({ params }: Props) {
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-amber-500 text-sm">{starsHtml(rating)}</span>
                       <span className="text-sm font-semibold">{rating.toFixed(1)}</span>
-                      <span className="text-xs text-gray-400">({pro.review_count})</span>
+                      <span className="text-sm text-gray-400">({pro.review_count})</span>
                     </div>
                   ) : <div className="h-5 mb-3" />}
                   {pro.bio && <p className="text-xs text-gray-500 line-clamp-2 mb-4">{pro.bio}</p>}

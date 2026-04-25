@@ -119,7 +119,7 @@ export default function AdminSetupPage() {
             <div key={admin.id} className="flex items-center justify-between px-7 py-4 border-b border-gray-800 last:border-0">
               <div>
                 <div className="text-sm font-medium text-white">{admin.full_name}</div>
-                <div className="text-xs text-gray-400">{admin.email}</div>
+                <div className="text-sm text-gray-400">{admin.email}</div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs font-semibold px-2 py-0.5 bg-teal-900/50 text-teal-400 rounded-full border border-teal-800">Admin</span>

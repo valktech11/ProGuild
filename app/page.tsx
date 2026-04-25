@@ -66,8 +66,9 @@ function getScopeLabel(): string {
 export default function HomePage() {
   const router = useRouter()
   const [search, setSearch]         = useState('')
-  const [matching, setMatching]     = useState(false)
-  const [activeTab, setActiveTab]   = useState<'homeowner' | 'pro'>('homeowner')
+  const [matching, setMatching]         = useState(false)
+  const [matchedTrade, setMatchedTrade] = useState<{ slug: string; label: string } | null>(null)
+  const [activeTab, setActiveTab]       = useState<'homeowner' | 'pro'>('homeowner')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const scopeLabel = getScopeLabel()
@@ -78,6 +79,12 @@ export default function HomePage() {
     const q = search.trim()
     if (!q) { inputRef.current?.focus(); return }
 
+    // If confirmation is showing and user searches again — go directly
+    if (matchedTrade) {
+      router.push(`/${scopeState}/${matchedTrade.slug}?from=ai&q=${encodeURIComponent(q)}`)
+      return
+    }
+
     setMatching(true)
     try {
       const res  = await fetch('/api/match-trade', {
@@ -86,11 +93,24 @@ export default function HomePage() {
         body: JSON.stringify({ query: q }),
       })
       const data = await res.json()
-      if (data.slug && data.confidence >= 0.7) {
-        router.push(`/${scopeState}/${data.slug}?from=ai&q=${encodeURIComponent(q)}`)
+
+      // Higher threshold — 0.85 keyword, 0.90 Gemini
+      const threshold = data.method === 'keyword' ? 0.85 : 0.90
+      if (data.slug && data.confidence >= threshold) {
+        setMatching(false)
+        setMatchedTrade({ slug: data.slug, label: data.label })
+        const matched = data
+        setTimeout(() => {
+          setMatchedTrade(prev => {
+            if (prev?.slug === matched.slug) {
+              router.push(`/${scopeState}/${matched.slug}?from=ai&q=${encodeURIComponent(q)}`)
+            }
+            return null
+          })
+        }, 1500)
         return
       }
-    } catch { /* fall through to search */ }
+    } catch { /* fall through */ }
     finally { setMatching(false) }
 
     router.push(`/search?q=${encodeURIComponent(q)}`)
@@ -154,6 +174,27 @@ export default function HomePage() {
             </button>
           </div>
         </form>
+
+        {/* AI match confirmation — shows before redirect */}
+        {matchedTrade && (
+          <div className="max-w-2xl mx-auto mb-3 animate-fade-up">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border"
+              style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.25)' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 border-2 border-teal-500/40 border-t-teal-600 rounded-full animate-spin flex-shrink-0" />
+                <span className="text-sm font-medium" style={{ color: '#0C5F57' }}>
+                  ✦ Showing <strong>{matchedTrade.label}s</strong> in {scopeLabel}
+                </span>
+              </div>
+              <button
+                onClick={() => { setMatchedTrade(null); router.push(`/search?q=${encodeURIComponent(search)}`) }}
+                className="text-xs font-semibold flex-shrink-0 hover:opacity-70 transition-opacity"
+                style={{ color: '#0F766E' }}>
+                Wrong trade? Search instead →
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* AI hint */}
         <div className="flex items-center justify-center gap-2 mb-5">
@@ -274,7 +315,7 @@ export default function HomePage() {
                 {step.n}
               </div>
               <div className="font-bold mb-2" style={{ color: '#0A1628' }}>{step.title}</div>
-              <div className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>{step.desc}</div>
+              <div className="text-base leading-relaxed" style={{ color: '#6B7280' }}>{step.desc}</div>
             </div>
           ))}
         </div>
@@ -318,7 +359,7 @@ export default function HomePage() {
                 <span className="text-xl font-bold" style={{ color: '#0A1628' }}>ProGuild</span>
                 <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
               </div>
-              <p className="text-sm leading-relaxed" style={{ color: '#A89F93' }}>
+              <p className="text-base leading-relaxed" style={{ color: '#A89F93' }}>
                 {scopeLabel}'s verified professional trades network. DBPR-integrated. Zero lead fees. Your Craft. Your Guild.
               </p>
             </div>

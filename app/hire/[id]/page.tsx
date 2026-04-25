@@ -141,7 +141,7 @@ export default function HireJobDetailPage() {
                 )}
               </div>
 
-              <div className="text-xs text-gray-400">{timeAgo(job.posted_at)} · {job.applications_count} applicant{job.applications_count !== 1 ? 's' : ''}</div>
+              <div className="text-sm text-gray-400">{timeAgo(job.posted_at)} · {job.applications_count} applicant{job.applications_count !== 1 ? 's' : ''}</div>
             </div>
 
             {/* Job type detail */}
@@ -199,7 +199,7 @@ export default function HireJobDetailPage() {
                     <div className="w-7 h-7 bg-teal-50 rounded-lg flex items-center justify-center text-xs flex-shrink-0">{item.icon}</div>
                     <div>
                       <div className="text-xs font-semibold text-gray-900">{item.label}</div>
-                      <div className="text-xs text-gray-400">{item.sub}</div>
+                      <div className="text-sm text-gray-400">{item.sub}</div>
                     </div>
                   </div>
                 ))}
@@ -219,11 +219,11 @@ export default function HireJobDetailPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-gray-900 truncate">{sj.title}</div>
-                          <div className="text-xs text-gray-400">{sj.company?.name}</div>
+                          <div className="text-sm text-gray-400">{sj.company?.name}</div>
                           <div className="flex gap-1 mt-1">
                             <JobTypeBadge type={sj.job_type} />
                             {(sj.city || sj.state) && (
-                              <span className="text-xs text-gray-400">{[sj.city, sj.state].filter(Boolean).join(', ')}</span>
+                              <span className="text-sm text-gray-400">{[sj.city, sj.state].filter(Boolean).join(', ')}</span>
                             )}
                           </div>
                         </div>

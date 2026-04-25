@@ -33,7 +33,7 @@ export default function TermsPage() {
         ))}
 
         <div className="border-t border-gray-100 pt-6 mt-8">
-          <p className="text-xs text-gray-400">Related: <Link href="/privacy" className="text-teal-600 hover:underline">Privacy Policy</Link></p>
+          <p className="text-sm text-gray-400">Related: <Link href="/privacy" className="text-teal-600 hover:underline">Privacy Policy</Link></p>
         </div>
       </div>
     </>

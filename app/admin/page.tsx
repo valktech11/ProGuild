@@ -25,7 +25,7 @@ function Toggle({ value, onChange, label, sub }: { value: boolean; onChange: (v:
     <div className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
       <div>
         <div className="text-sm font-semibold text-gray-900">{label}</div>
-        {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+        {sub && <div className="text-sm text-gray-400 mt-0.5">{sub}</div>}
       </div>
       <button onClick={() => onChange(!value)}
         className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${value ? 'bg-teal-600' : 'bg-gray-200'}`}>
@@ -391,10 +391,10 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-sm font-semibold text-gray-900">{rev.reviewer_name}</span>
                           <span className="text-amber-400 text-sm">{'★'.repeat(rev.rating)}{'☆'.repeat(5-rev.rating)}</span>
-                          <span className="text-xs text-gray-400">for {rev.pro?.full_name}</span>
+                          <span className="text-sm text-gray-400">for {rev.pro?.full_name}</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-1">{rev.comment}</p>
-                        <div className="text-xs text-gray-400">{rev.reviewer_email} · {timeAgo(rev.reviewed_at)}</div>
+                        <div className="text-sm text-gray-400">{rev.reviewer_email} · {timeAgo(rev.reviewed_at)}</div>
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
                         <button onClick={async () => {
@@ -432,10 +432,10 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-sm font-semibold text-gray-900">{rev.reviewer_name}</span>
                           <span className="text-amber-400 text-sm">{'★'.repeat(rev.rating)}{'☆'.repeat(5-rev.rating)}</span>
-                          <span className="text-xs text-gray-400">for {rev.pro?.full_name}</span>
+                          <span className="text-sm text-gray-400">for {rev.pro?.full_name}</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-1">{rev.comment}</p>
-                        <div className="text-xs text-gray-400">{rev.reviewer_email}</div>
+                        <div className="text-sm text-gray-400">{rev.reviewer_email}</div>
                       </div>
                       <button onClick={async () => {
                         if (!confirm('Delete this review permanently?')) return
@@ -726,9 +726,9 @@ export default function AdminPage() {
                 {cronResult?.type === 'license' && (
                   <div className="bg-stone-50 border border-gray-100 rounded-xl p-4 text-sm">
                     <div className="grid grid-cols-3 gap-4 mb-3">
-                      <div className="text-center"><div className="text-xl font-semibold text-amber-600">{cronResult.expiring || 0}</div><div className="text-xs text-gray-400">Expiring (30d)</div></div>
-                      <div className="text-center"><div className="text-xl font-semibold text-red-600">{cronResult.expired || 0}</div><div className="text-xs text-gray-400">Expired</div></div>
-                      <div className="text-center"><div className="text-xl font-semibold text-teal-600">{cronResult.emailsSent ?? (cronResult.wouldSend || 0)}</div><div className="text-xs text-gray-400">{cronResult.emailsSent !== undefined ? 'Emails sent' : 'Would send'}</div></div>
+                      <div className="text-center"><div className="text-xl font-semibold text-amber-600">{cronResult.expiring || 0}</div><div className="text-sm text-gray-400">Expiring (30d)</div></div>
+                      <div className="text-center"><div className="text-xl font-semibold text-red-600">{cronResult.expired || 0}</div><div className="text-sm text-gray-400">Expired</div></div>
+                      <div className="text-center"><div className="text-xl font-semibold text-teal-600">{cronResult.emailsSent ?? (cronResult.wouldSend || 0)}</div><div className="text-sm text-gray-400">{cronResult.emailsSent !== undefined ? 'Emails sent' : 'Would send'}</div></div>
                     </div>
                     {cronResult.preview && cronResult.preview.length > 0 && (
                       <div>
@@ -770,8 +770,8 @@ export default function AdminPage() {
                 {cronResult?.type === 'claim' && (
                   <div className="bg-stone-50 border border-gray-100 rounded-xl p-4 text-sm">
                     <div className="grid grid-cols-2 gap-4 mb-3">
-                      <div className="text-center"><div className="text-xl font-semibold text-teal-600">{cronResult.eligible || 0}</div><div className="text-xs text-gray-400">Eligible pros</div></div>
-                      <div className="text-center"><div className="text-xl font-semibold text-teal-600">{(cronResult.emailsSent ?? cronResult.wouldSend) || 0}</div><div className="text-xs text-gray-400">{cronResult.emailsSent !== undefined ? 'Sent' : 'Would send'}</div></div>
+                      <div className="text-center"><div className="text-xl font-semibold text-teal-600">{cronResult.eligible || 0}</div><div className="text-sm text-gray-400">Eligible pros</div></div>
+                      <div className="text-center"><div className="text-xl font-semibold text-teal-600">{(cronResult.emailsSent ?? cronResult.wouldSend) || 0}</div><div className="text-sm text-gray-400">{cronResult.emailsSent !== undefined ? 'Sent' : 'Would send'}</div></div>
                     </div>
                     {cronResult.sample && cronResult.sample.length > 0 && (
                       <div>
@@ -780,7 +780,7 @@ export default function AdminPage() {
                           <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
                             <span className="text-sm text-gray-800">{p.full_name}</span>
                             <span className="text-xs text-gray-500">{p.trade} · {p.city}</span>
-                            <span className="text-xs text-gray-400">{p.email}</span>
+                            <span className="text-sm text-gray-400">{p.email}</span>
                           </div>
                         ))}
                       </div>

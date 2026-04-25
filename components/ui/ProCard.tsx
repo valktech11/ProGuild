@@ -44,8 +44,8 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-gray-900 truncate text-sm leading-snug">{pro.full_name}</div>
-          <div className="text-xs font-medium text-teal-700 mt-0.5">{trade}</div>
-          {location && <div className="text-xs text-gray-400 mt-0.5 truncate">{location}</div>}
+          <div className="text-sm font-medium text-teal-700 mt-0.5">{trade}</div>
+          {location && <div className="text-sm text-gray-400 mt-0.5 truncate">{location}</div>}
         </div>
       </div>
 
@@ -88,7 +88,7 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
         <div className="flex items-center gap-1.5 mb-3">
           <span className="text-amber-500 text-xs">{starsHtml(rating)}</span>
           <span className="text-xs font-semibold text-gray-800">{rating.toFixed(1)}</span>
-          <span className="text-xs text-gray-400">({reviews})</span>
+          <span className="text-sm text-gray-400">({reviews})</span>
         </div>
       ) : (
         <div className="mb-3" />
@@ -103,12 +103,12 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
           {reviews > 0 ? (
             <>
               <div className="text-sm font-semibold text-gray-900">{reviews}</div>
-              <div className="text-xs text-gray-400">Reviews</div>
+              <div className="text-sm text-gray-400">Reviews</div>
             </>
           ) : (
             <>
-              <div className="text-xs font-semibold text-gray-500">New member</div>
-              <div className="text-xs text-gray-400 mt-0.5">{pro.is_verified ? 'Verified pro' : 'References on request'}</div>
+              <div className="text-sm font-semibold text-gray-500">New member</div>
+              <div className="text-sm text-gray-400 mt-0.5">{pro.is_verified ? 'Verified pro' : 'References on request'}</div>
             </>
           )}
         </div>
@@ -116,19 +116,19 @@ export default function ProCard({ pro, index = 0 }: ProCardProps) {
           {yrs > 0 ? (
             <>
               <div className="text-sm font-semibold text-gray-900">{yrs}</div>
-              <div className="text-xs text-gray-400">Yrs exp</div>
+              <div className="text-sm text-gray-400">Yrs exp</div>
             </>
           ) : (
             <>
-              <div className="text-xs font-semibold text-gray-500">{trade !== '—' ? trade : 'Pro'}</div>
-              <div className="text-xs text-gray-400 mt-0.5">Trade</div>
+              <div className="text-sm font-semibold text-gray-500">{trade !== '—' ? trade : 'Pro'}</div>
+              <div className="text-sm text-gray-400 mt-0.5">Trade</div>
             </>
           )}
         </div>
         {score !== null && (
           <div className="flex-1 border-l border-gray-100">
             <div className="text-sm font-semibold text-teal-600">{score}</div>
-            <div className="text-xs text-gray-400">TradeScore</div>
+            <div className="text-sm text-gray-400">TradeScore</div>
           </div>
         )}
       </div>

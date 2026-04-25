@@ -12,6 +12,22 @@
   --color-teal-800: #09524B;
 }
 
+/* ── Base font size ─────────────────────────────────────────────────────── */
+/* Sets root to 15px so Tailwind's text-sm (0.875rem) = ~13px,
+   text-base (1rem) = 15px, text-lg (1.125rem) = ~17px.
+   This lifts the entire site 1px without breaking any layout. */
+html {
+  font-size: 15px;
+}
+
+/* Body copy default — minimum readable size */
+body {
+  font-size: 1rem; /* 15px */
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 @layer utilities {
   .animate-fade-up {
     animation: fadeUp 0.3s ease both;

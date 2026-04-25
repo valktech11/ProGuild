@@ -162,10 +162,10 @@ export default function ApprenticeshipPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-teal-600">{log.hours}h</span>
-                        <span className="text-xs text-gray-400">{new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <span className="text-sm text-gray-400">{new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                       </div>
                       {log.description && <div className="text-xs text-gray-600 mt-0.5">{log.description}</div>}
-                      {log.supervisor && <div className="text-xs text-gray-400">Supervisor: {log.supervisor}</div>}
+                      {log.supervisor && <div className="text-sm text-gray-400">Supervisor: {log.supervisor}</div>}
                     </div>
                     <button onClick={() => deleteLog(log.id)} className="text-gray-300 hover:text-red-500 text-sm transition-colors flex-shrink-0">×</button>
                   </div>
