@@ -11,6 +11,7 @@ import StatStrip from '@/components/ui/StatStrip'
 import ReviewCard from '@/components/ui/ReviewCard'
 import UpgradeNudge from '@/components/ui/UpgradeNudge'
 import BusinessCardModal from '@/components/ui/BusinessCardModal'
+import AddLeadModal from '@/components/ui/AddLeadModal'
 
 // Referral network map — unchanged from v70
 const REFERRAL_NETWORK: Record<string, string[]> = {
@@ -71,6 +72,7 @@ export default function DashboardPage() {
   const [uploading,     setUploading]     = useState(false)
   const [uploadError,   setUploadError]   = useState('')
   const [showBizCard,   setShowBizCard]   = useState(false)
+  const [showAddLead,  setShowAddLead]  = useState(false)
 
   // Refs for scroll-to
   const pipelineRef = useRef<HTMLDivElement>(null)
@@ -121,6 +123,10 @@ export default function DashboardPage() {
     setUploading(false)
     if (r.ok) setProData((prev: any) => ({ ...prev, profile_photo_url: d.url }))
     else setUploadError(d.error || 'Upload failed')
+  }
+
+  function handleLeadAdded(lead: any) {
+    setLeads(prev => [lead, ...prev])
   }
 
   async function updateLeadStatus(leadId: string, status: string) {
@@ -212,10 +218,17 @@ export default function DashboardPage() {
               }
             </p>
           </div>
-          <Link href={proUrl}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition-colors flex-shrink-0">
-            View public profile →
-          </Link>
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={() => setShowAddLead(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-[#E8E2D9] bg-white text-[#0A1628] rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors flex-shrink-0">
+              + Add lead
+            </button>
+            <Link href={proUrl}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition-colors flex-shrink-0">
+              View public profile →
+            </Link>
+          </div>
         </div>
 
         {/* ── ACTION ALERTS — urgent leads strip ───────────────────────── */}
@@ -458,13 +471,18 @@ export default function DashboardPage() {
                 Edit profile
               </Link>
 
-              {/* Share card button — opens BusinessCardModal */}
-              <button
-                onClick={() => setShowBizCard(true)}
-                className="block w-full py-2 text-center text-sm font-semibold border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                📇 Share card
-              </button>
+              {/* Quick actions row */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowBizCard(true)}
+                  className="flex-1 py-2 text-center text-sm font-semibold border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
+                  📇 Share card
+                </button>
+                <Link href="/dashboard/clients"
+                  className="flex-1 py-2 text-center text-sm font-semibold border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
+                  👥 Clients
+                </Link>
+              </div>
             </div>
 
             {/* Upgrade nudge — free plan only, compact, dismissible 30 days */}
@@ -491,6 +509,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Add lead modal */}
+      {showAddLead && session && (
+        <AddLeadModal
+          proId={session.id}
+          onClose={() => setShowAddLead(false)}
+          onAdded={handleLeadAdded}
+        />
+      )}
 
       {/* Business card modal */}
       {showBizCard && session && (

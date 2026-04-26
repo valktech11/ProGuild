@@ -16,9 +16,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, job_id, contact_name, contact_email, contact_phone, message, lead_source } = body
-  if (!pro_id || !contact_name || !contact_email || !message)
+  const { pro_id, job_id, contact_name, contact_email, contact_phone, message, lead_source, client_id, is_manual } = body
+  // Manual leads (pro-entered) don't require email — just name + what they need
+  if (!pro_id || !contact_name || !message)
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  // External leads from contact forms still require email
+  if (!is_manual && !contact_email)
+    return NextResponse.json({ error: 'Email required for contact form leads' }, { status: 400 })
 
   // Moderate message
   const mod = await moderateContent(message)
@@ -32,9 +36,10 @@ export async function POST(req: NextRequest) {
     .from('leads')
     .insert({
       pro_id, job_id: job_id || null,
-      contact_name, contact_email: contact_email.toLowerCase().trim(),
+      contact_name, contact_email: contact_email ? contact_email.toLowerCase().trim() : null,
       contact_phone: contact_phone || null, message,
       lead_status: 'New', lead_source: lead_source || 'Profile_Page',
+      client_id: client_id || null,
     })
     .select().single()
 
@@ -71,7 +76,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json()
-  const { id, lead_status, notes, quoted_amount, scheduled_date, follow_up_date } = body
+  const { id, lead_status, notes, quoted_amount, scheduled_date, follow_up_date, client_id } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const updateFields: Record<string, any> = {}
@@ -80,6 +85,7 @@ export async function PATCH(req: NextRequest) {
   if (quoted_amount  !== undefined) updateFields.quoted_amount  = quoted_amount
   if (scheduled_date !== undefined) updateFields.scheduled_date = scheduled_date
   if (follow_up_date !== undefined) updateFields.follow_up_date = follow_up_date
+  if (client_id      !== undefined) updateFields.client_id      = client_id
 
   if (Object.keys(updateFields).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
