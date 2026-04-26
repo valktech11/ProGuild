@@ -143,6 +143,8 @@ export default function DashboardPage() {
 
   if (!session) return null
 
+  const proSlug   = (session as any).slug || session.id
+  const proUrl    = `/pro/${proSlug}`
   const paid      = isPaid(session.plan)
   const [bg, fg]  = avatarColor(session.name)
   const newLeads  = leads.filter(l => l.lead_status === 'New').length
