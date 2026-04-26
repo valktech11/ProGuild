@@ -1,12 +1,18 @@
 'use client'
 import Navbar from '@/components/layout/Navbar'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session, Lead, Review } from '@/types'
-import { initials, avatarColor, starsHtml, timeAgo, greetingText, isPaid, isElite, planLabel } from '@/lib/utils'
+import { initials, avatarColor, timeAgo, isPaid, isElite, planLabel } from '@/lib/utils'
 import LeadPipeline from '@/components/ui/LeadPipeline'
+import ActionAlert from '@/components/ui/ActionAlert'
+import StatStrip from '@/components/ui/StatStrip'
+import ReviewCard from '@/components/ui/ReviewCard'
+import UpgradeNudge from '@/components/ui/UpgradeNudge'
+import BusinessCardModal from '@/components/ui/BusinessCardModal'
 
+// Referral network map — unchanged from v70
 const REFERRAL_NETWORK: Record<string, string[]> = {
   'painter':              ['general-contractor','drywall','flooring','tile-setter'],
   'drywall':              ['general-contractor','painter','carpenter','flooring'],
@@ -49,35 +55,26 @@ const TRADE_ICONS: Record<string, string> = {
   'solar-energy':'☀️','handyman':'🔨','other-trades':'🛠️',
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  New:       'bg-amber-50 text-amber-700 border border-amber-200',
-  Contacted: 'bg-blue-50 text-blue-700 border border-blue-200',
-  Converted: 'bg-green-50 text-green-700 border border-green-200',
-  Archived:  'bg-gray-100 text-gray-500 border border-gray-200',
-}
-
-const LEAD_STAGES = ['New', 'Contacted', 'Converted', 'Archived']
-
 function slugify(s: string) {
   return s.toLowerCase().split(' ').join('-').split('&').join('').split('--').join('-')
 }
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [session,        setSession]        = useState<Session | null>(null)
-  const [leads,          setLeads]          = useState<Lead[]>([])
-  const [reviews,        setReviews]        = useState<Review[]>([])
-  const [proData,        setProData]        = useState<any>(null)
-  const [loading,        setLoading]        = useState(true)
-  const [tradeStats,     setTradeStats]     = useState<any[]>([])
-  const [statsLoading,   setStatsLoading]   = useState(true)
-  const [uploading,      setUploading]      = useState(false)
-  const [uploadError,    setUploadError]    = useState('')
-  const [notifications,  setNotifications]  = useState<any[]>([])
-  const [unreadCount,    setUnreadCount]    = useState(0)
-  const [showNotifs,     setShowNotifs]     = useState(false)
-  const [unreadMessages, setUnreadMessages] = useState(0)
-  const [activeStage,    setActiveStage]    = useState('New')
+  const [session,       setSession]       = useState<Session | null>(null)
+  const [leads,         setLeads]         = useState<Lead[]>([])
+  const [reviews,       setReviews]       = useState<Review[]>([])
+  const [proData,       setProData]       = useState<any>(null)
+  const [loading,       setLoading]       = useState(true)
+  const [tradeStats,    setTradeStats]    = useState<any[]>([])
+  const [statsLoading,  setStatsLoading]  = useState(true)
+  const [uploading,     setUploading]     = useState(false)
+  const [uploadError,   setUploadError]   = useState('')
+  const [showBizCard,   setShowBizCard]   = useState(false)
+
+  // Refs for scroll-to
+  const pipelineRef = useRef<HTMLDivElement>(null)
+  const reviewsRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('pg_pro')
@@ -95,16 +92,11 @@ export default function DashboardPage() {
       setReviews(rData.reviews || [])
     }).finally(() => setLoading(false))
 
-    fetch('/api/notifications?pro_id=' + s.id).then(r => r.json())
-      .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unread || 0) })
-
-    fetch('/api/messages?pro_id=' + s.id).then(r => r.json())
-      .then(d => setUnreadMessages(d.unread || 0))
-
-    const cached = sessionStorage.getItem('pg_trade_stats')
+    // Trade stats for referral network (cached)
+    const cached   = sessionStorage.getItem('pg_trade_stats')
     const cachedTs = sessionStorage.getItem('pg_trade_stats_ts')
-    const age = cachedTs ? Date.now() - parseInt(cachedTs) : Infinity
-    const parsed = cached ? JSON.parse(cached) : null
+    const age      = cachedTs ? Date.now() - parseInt(cachedTs) : Infinity
+    const parsed   = cached ? JSON.parse(cached) : null
     if (parsed?.trades?.length > 0 && age < 300000) {
       setTradeStats(parsed.trades); setStatsLoading(false)
     } else {
@@ -149,28 +141,19 @@ export default function DashboardPage() {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...fields } : l))
   }
 
-  function logout() { sessionStorage.removeItem('pg_pro'); router.push('/') }
-
   if (!session) return null
 
   const paid      = isPaid(session.plan)
-  const elite     = isElite(session.plan)
   const [bg, fg]  = avatarColor(session.name)
   const newLeads  = leads.filter(l => l.lead_status === 'New').length
   const avgRating = proData?.avg_rating || 0
 
-  // Referral network
-  const tradeSlug = (session as any).trade_slug || ''
-  const isGC = tradeSlug === 'general-contractor'
-  let referralSlugs: string[] = []
-  if (isGC) {
-    referralSlugs = [...tradeStats].sort((a, b) => b.pro_count - a.pro_count)
-      .filter(t => t.slug !== 'general-contractor').slice(0, 4).map(t => t.slug)
-  } else {
-    referralSlugs = (REFERRAL_NETWORK[tradeSlug] || []).slice(0, 4)
-  }
+  // Pipeline value — sum of quoted_amount on non-closed leads
+  const pipelineValue = leads
+    .filter(l => l.quoted_amount && !['Lost','Archived','Paid'].includes(l.lead_status))
+    .reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
 
-  // Profile completeness
+  // Profile completeness — same logic as v70
   const completenessItems = [
     { done: !!proData?.profile_photo_url, label: 'Profile photo' },
     { done: !!proData?.bio,               label: 'Add a bio' },
@@ -182,21 +165,50 @@ export default function DashboardPage() {
   const completenessScore = Math.round(completenessItems.filter(i => i.done).length / completenessItems.length * 100)
   const nextStep = completenessItems.find(i => !i.done)
 
-  const stageLeads = (stage: string) => leads.filter(l => l.lead_status === stage)
-  const visibleLeads = paid ? stageLeads(activeStage) : leads.slice(0, 2)
-  const lockedCount  = paid ? 0 : Math.max(0, leads.length - 2)
+  // Referral network
+  const tradeSlug    = (session as any).trade_slug || ''
+  const isGC         = tradeSlug === 'general-contractor'
+  let referralSlugs: string[] = []
+  if (isGC) {
+    referralSlugs = [...tradeStats].sort((a, b) => b.pro_count - a.pro_count)
+      .filter(t => t.slug !== 'general-contractor').slice(0, 4).map(t => t.slug)
+  } else {
+    referralSlugs = (REFERRAL_NETWORK[tradeSlug] || []).slice(0, 4)
+  }
+
+  // Revenue snapshot from pipeline data
+  const paidLeads = leads.filter(l => l.lead_status === 'Paid' && l.quoted_amount)
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const paidThisMonth = paidLeads
+    .filter(l => new Date(l.created_at) >= startOfMonth)
+    .reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
+  const closedLeads = leads.filter(l => ['Paid','Lost'].includes(l.lead_status))
+  const winRate = closedLeads.length >= 5
+    ? Math.round((paidLeads.length / closedLeads.length) * 100)
+    : null
+  const avgJobValue = paidLeads.length > 0
+    ? Math.round(paidLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0) / paidLeads.length)
+    : 0
 
   return (
-    <div className="min-h-screen" style={{background:"#FAF9F6",fontFamily:"'DM Sans',sans-serif"}}>
+    <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans',sans-serif" }}>
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-7">
 
-        {/* GREETING */}
-        <div className="flex items-center justify-between mb-6">
+        {/* ── GREETING ─────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-5">
           <div>
-            <h1 className="font-serif text-2xl sm:text-3xl text-gray-900 mb-0.5">{greetingText(session.name)}</h1>
-            <p className="text-gray-400 font-light text-sm">Here's what's happening with your profile today.</p>
+            <h1 className="font-serif text-2xl sm:text-3xl text-gray-900 mb-0.5">
+              Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {session.name.split(' ')[0]}!
+            </h1>
+            <p className="text-gray-400 font-light text-sm">
+              {leads.some(l => !['Paid','Lost','Archived'].includes(l.lead_status) && Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000) >= 3)
+                ? 'You have leads that need your attention.'
+                : "Here's what's happening with your profile today."
+              }
+            </p>
           </div>
           <Link href={'/pro/' + session.id}
             className="hidden sm:flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition-colors flex-shrink-0">
@@ -204,101 +216,114 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* MAIN GRID — sidebar starts flush with KPI stats */}
+        {/* ── ACTION ALERTS — urgent leads strip ───────────────────────── */}
+        {!loading && <ActionAlert leads={leads} onRespond={() => pipelineRef.current?.scrollIntoView({ behavior: 'smooth' })} />}
+
+        {/* ── STAT STRIP — replaces the 4 KPI cards ────────────────────── */}
+        <StatStrip
+          totalLeads={leads.length}
+          newLeads={newLeads}
+          avgRating={avgRating}
+          reviewCount={reviews.length}
+          pipelineValue={pipelineValue}
+          loading={loading}
+          onLeadsClick={() => pipelineRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          onRatingClick={() => reviewsRef.current?.scrollIntoView({ behavior: 'smooth' })}
+        />
+
+        {/* ── MAIN GRID ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* LEFT — col-span-2 */}
           <div className="lg:col-span-2 space-y-5">
 
-            {/* KPI STAT CARDS — 2x2 inside left column */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Total leads',  value: loading ? '—' : leads.length,      sub: 'All time',    highlight: false },
-                { label: 'New leads',    value: loading ? '—' : newLeads,           sub: 'Uncontacted', highlight: newLeads > 0 },
-                { label: 'Reviews',      value: loading ? '—' : reviews.length,     sub: 'Approved',    highlight: false },
-                { label: 'Avg rating',   value: loading ? '—' : avgRating > 0 ? avgRating.toFixed(1) : '—', sub: 'Out of 5.0', highlight: false },
-              ].map(s => (
-                <div key={s.label} className={'bg-white border rounded-2xl p-5 ' + (s.highlight ? 'border-amber-300 bg-amber-50/30' : 'border-gray-100')}>
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">{s.label}</div>
-                  <div className={'font-serif text-3xl ' + (s.highlight ? 'text-amber-600' : 'text-teal-600')}>{s.value}</div>
-                  <div className="text-xs text-gray-400 mt-1">{s.sub}</div>
+            {/* LEAD PIPELINE */}
+            <div ref={pipelineRef} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+              {loading ? (
+                <div className="p-6 space-y-3">
+                  {[1,2,3].map(i => <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-50" />)}
                 </div>
-              ))}
+              ) : (
+                <LeadPipeline
+                  leads={leads}
+                  onStatusChange={updateLeadStatus}
+                  onUpdate={updateLead}
+                  isPaid={paid}
+                />
+              )}
             </div>
 
-            {/* ACTIVE LEADS */}
-            {/* ── LEAD PIPELINE ──────────────────────────────────────── */}
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-900">Lead Pipeline</span>
-                  {leads.filter(l => l.lead_status === 'New').length > 0 && (
-                    <span className="w-5 h-5 bg-amber-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                      {leads.filter(l => l.lead_status === 'New').length > 9 ? '9+' : leads.filter(l => l.lead_status === 'New').length}
-                    </span>
+            {/* REVENUE SNAPSHOT */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-semibold text-gray-900">Revenue</span>
+                <span className="text-xs text-gray-400">from your pipeline</span>
+              </div>
+              {paidLeads.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-400 mb-1">No paid jobs yet</p>
+                  <p className="text-xs text-gray-400">
+                    Move a lead to <span className="font-semibold text-teal-600">Paid</span> in your pipeline to start tracking revenue
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">This month</div>
+                    <div className="font-serif text-2xl text-teal-600">${paidThisMonth.toLocaleString()}</div>
+                  </div>
+                  {winRate !== null && (
+                    <div>
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Win rate</div>
+                      <div className="font-serif text-2xl text-teal-600">{winRate}%</div>
+                    </div>
+                  )}
+                  {avgJobValue > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Avg job</div>
+                      <div className="font-serif text-2xl text-teal-600">${avgJobValue.toLocaleString()}</div>
+                    </div>
                   )}
                 </div>
-                <span className="text-xs font-medium px-2 py-1 rounded-lg"
-                  style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E' }}>
-                  Tap any card to manage
-                </span>
-              </div>
-
-              <div className="p-4">
-                {loading ? (
-                  <div className="space-y-3">
-                    {[1,2,3].map(i => <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-50" />)}
-                  </div>
-                ) : leads.length === 0 ? (
-                  <div className="text-center py-12 text-gray-400">
-                    <div className="text-3xl mb-2 opacity-20">📬</div>
-                    <div className="text-sm font-medium text-gray-600 mb-1">No leads yet</div>
-                    <div className="text-xs">When someone contacts you, they'll appear here.</div>
-                  </div>
-                ) : (
-                  <LeadPipeline
-                    leads={leads}
-                    onStatusChange={updateLeadStatus}
-                    onUpdate={updateLead}
-                    isPaid={paid}
-                  />
-                )}
-              </div>
+              )}
             </div>
 
-
             {/* REVIEWS */}
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div ref={reviewsRef} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-900">Recent reviews</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-900">Recent reviews</span>
+                  {avgRating > 0 && (
+                    <span className="text-xs text-gray-400">{avgRating.toFixed(1)} avg · {reviews.length} total</span>
+                  )}
+                </div>
                 <Link href={'/pro/' + session.id} className="text-xs text-teal-600 hover:underline">View all →</Link>
               </div>
+
+              {/* Low rating tip */}
+              {avgRating > 0 && avgRating < 3 && (
+                <div className="mx-5 mt-4 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2">
+                  <span className="text-sm">⚠️</span>
+                  <p className="text-xs text-amber-800">
+                    Your rating is below 3.0. Responding to reviews and asking happy customers to leave feedback can help.
+                  </p>
+                </div>
+              )}
+
               {reviews.length === 0 ? (
                 <div className="text-center py-10 text-gray-400">
                   <div className="text-3xl mb-2 opacity-20">⭐</div>
                   <div className="text-sm font-medium text-gray-600 mb-1">No reviews yet</div>
                   <div className="text-xs">Share your profile link to start getting reviews.</div>
                 </div>
-              ) : reviews.slice(0, 5).map(rev => (
-                <div key={rev.id} className="flex items-start gap-4 px-5 py-4 border-b border-gray-50">
-                  <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center text-xs font-semibold text-amber-700 flex-shrink-0 font-serif">
-                    {initials(rev.reviewer_name)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-semibold text-gray-900">{rev.reviewer_name}</span>
-                      <span className="text-amber-500 text-xs">{starsHtml(rev.rating)}</span>
-                    </div>
-                    {(rev.comment || (rev as any).review_text) && (
-                      <div className="text-xs text-gray-500 line-clamp-2 mb-1">{rev.comment || (rev as any).review_text}</div>
-                    )}
-                    <div className="text-sm text-gray-400">{timeAgo((rev as any).reviewed_at)}</div>
-                  </div>
-                </div>
-              ))}
+              ) : (
+                reviews.slice(0, 5).map(rev => (
+                  <ReviewCard key={rev.id} review={rev} proId={session.id} />
+                ))
+              )}
             </div>
 
-            {/* REFERRAL NETWORK */}
+            {/* REFERRAL NETWORK — unchanged from v70 */}
             <div className="bg-white border border-gray-100 rounded-2xl p-5">
               <div className="mb-4">
                 <div className="text-sm font-semibold text-gray-900">Your referral network</div>
@@ -320,16 +345,14 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   {referralSlugs.map(slug => {
-                    const stat = tradeStats.find(t => t.slug === slug || slugify(t.category_name || '') === slug)
-                    const icon = TRADE_ICONS[slug] || '🔧'
-                    const name = stat?.category_name || slug.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                    const stat  = tradeStats.find(t => t.slug === slug || slugify(t.category_name || '') === slug)
+                    const icon  = TRADE_ICONS[slug] || '🔧'
+                    const name  = stat?.category_name || slug.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
                     const count = stat?.pro_count || 0
                     return (
                       <Link key={slug} href={'/?trade=' + (stat?.id || '')}
                         className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 transition-all group">
-                        <div className="w-9 h-9 bg-stone-100 group-hover:bg-teal-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0 transition-colors">
-                          {icon}
-                        </div>
+                        <div className="w-9 h-9 bg-stone-100 group-hover:bg-teal-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0 transition-colors">{icon}</div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-gray-800 truncate">{name}</div>
                           <div className="text-sm text-gray-400">{count > 0 ? count.toLocaleString() + ' in FL' : 'Verified pros available'}</div>
@@ -393,7 +416,7 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* Stats */}
+              {/* Plan / Status / Rating */}
               <div className="border-t border-gray-100 pt-3 space-y-1.5 mb-3">
                 {[
                   ['Plan',   planLabel(session.plan)],
@@ -407,23 +430,15 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* Performance stats */}
+              {/* Performance — 4 meaningful stats only */}
               <div className="border-t border-gray-100 pt-3 mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Performance</div>
-                  {(proData?.profile_view_count ?? 0) === 0 && (
-                    <button onClick={() => navigator.clipboard?.writeText('https://proguild.ai/pro/' + session.id)}
-                      className="text-xs text-teal-600 hover:underline">Share →</button>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Performance</div>
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: 'Views',     value: proData?.profile_view_count ?? 0 },
-                    { label: 'Leads',     value: leads.length },
-                    { label: 'Followers', value: proData?.follower_count ?? '—' },
-                    { label: 'Endorsed',  value: proData?.endorsement_count ?? '—' },
-                    { label: 'Portfolio', value: proData?.portfolio_count ?? '—' },
-                    { label: 'Reviews',   value: reviews.length },
+                    { label: 'Views',   value: proData?.profile_view_count ?? 0 },
+                    { label: 'Leads',   value: leads.length },
+                    { label: 'Rating',  value: avgRating > 0 ? avgRating.toFixed(1) : '—' },
+                    { label: 'Reviews', value: reviews.length },
                   ].map(s => (
                     <div key={s.label} className="bg-stone-50 rounded-lg p-2 text-center">
                       <div className="text-sm font-bold text-teal-600">{loading ? '—' : s.value}</div>
@@ -433,88 +448,54 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* Edit profile */}
               <Link href="/edit-profile"
-                className="block w-full py-2 text-center text-sm font-semibold bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors mb-4">
+                className="block w-full py-2 text-center text-sm font-semibold bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors mb-3">
                 Edit profile
               </Link>
 
-
-              {/* Quick links */}
-              <div className="border-t border-gray-100 pt-3">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Quick links</div>
-                {[
-                  { href: '/community',      icon: '🏠', label: 'Feed',            badge: 0 },
-                  { href: '/pro/' + session.id + '?tab=work', icon: '📸', label: 'Portfolio', badge: 0 },
-                  { href: '/messages',       icon: '💬', label: 'Messages',         badge: unreadMessages },
-                  { href: '/apprenticeship', icon: '📋', label: 'Apprenticeship',   badge: 0 },
-                ].map((item, i) => (
-                  <Link key={item.href} href={item.href}
-                    className={'flex items-center justify-between py-2 text-sm text-gray-600 hover:text-teal-600 transition-colors ' + (i > 0 ? 'border-t border-gray-50' : '')}>
-                    <span className="flex items-center gap-2">
-                      <span>{item.icon}</span>{item.label}
-                    </span>
-                    {item.badge > 0 && (
-                      <span className="w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                        {item.badge > 9 ? '9+' : item.badge}
-                      </span>
-                    )}
-                  </Link>
-                ))}
-              </div>
+              {/* Share card button — opens BusinessCardModal */}
+              <button
+                onClick={() => setShowBizCard(true)}
+                className="block w-full py-2 text-center text-sm font-semibold border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                📇 Share card
+              </button>
             </div>
 
-            {/* Digital Business Card */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 bg-teal-50 rounded-xl flex items-center justify-center text-base">📇</div>
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">Digital Business Card</div>
-                  <div className="text-sm text-gray-400">Share your profile via QR</div>
-                </div>
-              </div>
-              <div className="flex flex-col items-center mb-4">
-                <div className="p-3 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                  <img
-                    src={'https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=' + encodeURIComponent('https://proguild.ai/card/' + session.id) + '&color=0f766e&bgcolor=ffffff&margin=6'}
-                    alt="QR code" width={130} height={130} className="rounded-lg"
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-2 text-center">Show to homeowners or paste the link</p>
-              </div>
-              <div className="space-y-2">
-                <a href={'/card/' + session.id} target="_blank" rel="noopener noreferrer"
-                  className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">
-                  Preview my card →
-                </a>
-                <button onClick={() => {
-                  const url = 'https://proguild.ai/card/' + session.id
-                  if (navigator.share) { navigator.share({ title: session.name + ' - ProGuild.ai', url }) }
-                  else { navigator.clipboard.writeText(url) }
-                }} className="block w-full py-2.5 text-center border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
-                  🔗 Copy card link
-                </button>
-              </div>
-            </div>
+            {/* Upgrade nudge — free plan only, compact, dismissible 30 days */}
+            <UpgradeNudge plan={session.plan} />
 
-            {/* Upgrade — free users only */}
-            {!paid && (
-              <div className="bg-teal-600 rounded-2xl p-5 text-white">
-                <div className="text-xs font-semibold text-teal-200 uppercase tracking-widest mb-2">Pro status</div>
-                <h3 className="font-serif text-lg mb-1">Upgrade to Pro</h3>
-                <p className="text-sm opacity-80 mb-4 leading-relaxed">Unlock all leads, priority placement, and your Pro badge.</p>
-                <ul className="space-y-1.5 mb-4">
-                  {['Unlimited leads + contact details','Email lead notifications','Pro badge on profile','Priority search placement'].map(f => (
-                    <li key={f} className="text-xs flex gap-2 opacity-90"><span>✓</span>{f}</li>
-                  ))}
-                </ul>
-                <Link href="/upgrade" className="block w-full py-2.5 text-center text-sm font-semibold bg-white text-teal-700 rounded-xl hover:opacity-90 transition-opacity">
-                  Upgrade — $29/month
-                </Link>
+            {/* License badge — trust signal, always visible */}
+            {proData?.license_number && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-teal-50 rounded-xl flex items-center justify-center text-base flex-shrink-0">🛡️</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-gray-900">DBPR Verified</div>
+                    <div className="text-xs text-gray-400 truncate">License: {proData.license_number}</div>
+                  </div>
+                  <a href={`https://www.myfloridalicense.com/wl11.asp?mode=2&search=LicNbr&SID=&brd=&typ=&LicNbr=${proData.license_number}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-teal-600 hover:underline flex-shrink-0">
+                    Verify →
+                  </a>
+                </div>
               </div>
             )}
+
           </div>
         </div>
       </div>
+
+      {/* Business card modal */}
+      {showBizCard && session && (
+        <BusinessCardModal
+          session={session}
+          proData={proData}
+          onClose={() => setShowBizCard(false)}
+        />
+      )}
     </div>
   )
 }
