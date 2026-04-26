@@ -210,7 +210,7 @@ export default function DashboardPage() {
               }
             </p>
           </div>
-          <Link href={'/pro/' + session.id}
+          <Link href={proUrl}
             className="hidden sm:flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-sm font-semibold hover:bg-teal-700 transition-colors flex-shrink-0">
             View public profile →
           </Link>
@@ -297,7 +297,7 @@ export default function DashboardPage() {
                     <span className="text-xs text-gray-400">{avgRating.toFixed(1)} avg · {reviews.length} total</span>
                   )}
                 </div>
-                <Link href={'/pro/' + session.id} className="text-xs font-semibold text-teal-600 hover:underline">
+                <Link href={proUrl} className="text-xs font-semibold text-teal-600 hover:underline">
                   View all →
                 </Link>
               </div>

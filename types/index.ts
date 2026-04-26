@@ -151,6 +151,7 @@ export interface Session {
   trade: string | null
   city: string | null
   state: string | null
+  slug: string | null          // vanity URL slug e.g. wasim-akram-painter-jacksonville
 }
 
 export const PAID_PLANS: PlanTier[] = [

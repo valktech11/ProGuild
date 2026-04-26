@@ -11,7 +11,9 @@ interface BusinessCardModalProps {
 
 export default function BusinessCardModal({ session, proData, onClose }: BusinessCardModalProps) {
   const [copied, setCopied] = useState(false)
-  const cardUrl = `https://proguild.ai/card/${session.id}`
+  // Use vanity slug if available, fall back to UUID
+  const slug    = (session as any).slug || session.id
+  const cardUrl = `https://proguild.ai/pro/${slug}`
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(cardUrl)}&color=0f766e&bgcolor=ffffff&margin=8`
 
   // Close on Escape

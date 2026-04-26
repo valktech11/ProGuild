@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     'years_experience','profile_photo_url','license_number',
     'is_verified','plan_tier','stripe_customer_id','profile_status',
     'trade_category_id','available_for_work','available_note',
-    'is_claimed','claimed_at','license_expiry_date','license_status',
+    'is_claimed','claimed_at','license_expiry_date','license_status','slug',
     'osha_card_type','osha_card_number','osha_card_expiry','preferred_language',
     'business_name','phone_cell','phone_work','phone_cell2','counties_served','address_line1','cover_image_url',
   ]

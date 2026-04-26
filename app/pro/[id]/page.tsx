@@ -395,9 +395,23 @@ export default function ProProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false)
 
   useEffect(() => {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     const raw = sessionStorage.getItem('pg_pro')
     const s   = raw ? JSON.parse(raw) : null
     if (s) setSession(s)
+
+    // If the URL param is a vanity slug (not a UUID), resolve it to a UUID first
+    // then re-render with the real ID so all downstream fetches work correctly
+    if (!UUID_RE.test(id)) {
+      fetch(`/api/pros/slug?slug=${encodeURIComponent(id)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.pro_id) router.replace(`/pro/${d.pro_id}`)
+          else { setError('Pro not found'); setLoading(false) }
+        })
+        .catch(() => { setError('Could not load profile'); setLoading(false) })
+      return
+    }
 
     Promise.all([
       fetch(`/api/pros/${id}${!s || s.id !== id ? '?view=1' : ''}`).then(r => r.json()),
