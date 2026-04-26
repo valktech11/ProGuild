@@ -115,7 +115,8 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
   const [followUp, setFollowUp]   = useState(lead.follow_up_date || '')
   const [saving, setSaving]       = useState(false)
   const [status, setStatus]       = useState(lead.lead_status)
-  const [pendingStage, setPendingStage] = useState<string | null>(null)
+  const [pendingStage,       setPendingStage]       = useState<string | null>(null)
+  const [showDidntProceed,   setShowDidntProceed]   = useState(false)
 
   function handleStageClick(newStage: string) {
     if (newStage === status) return
@@ -319,10 +320,10 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
               {/* ── Actions — full width, 56px height ── */}
               <div className="flex gap-3 pb-2">
                 <button
-                  onClick={async () => { await onStatusChange(lead.id, 'Lost'); onClose() }}
-                  className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                  onClick={() => setShowDidntProceed(true)}
+                  className="flex-1 py-4 rounded-2xl text-sm font-bold border-2 border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
                 >
-                  Mark Lost
+                  Didn't proceed
                 </button>
                 <button
                   onClick={save}
@@ -337,6 +338,40 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
           </div>
         </div>
       </div>
+      {showDidntProceed && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setShowDidntProceed(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+              Mark as didn't proceed?
+            </h3>
+            <p className="text-sm text-gray-500 text-center leading-relaxed mb-2">
+              <span className="font-semibold text-gray-800">{lead.contact_name}</span> will be moved out of your active pipeline.
+            </p>
+            <p className="text-xs text-gray-400 text-center mb-5">
+              You can still find them under <span className="font-semibold">Show closed</span> if you need them later.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDidntProceed(false)}
+                className="flex-1 py-3.5 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-600 hover:bg-gray-50">
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowDidntProceed(false)
+                  await onStatusChange(lead.id, 'Lost')
+                  onClose()
+                }}
+                className="flex-1 py-3.5 rounded-xl text-sm font-bold border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors">
+                Yes, didn't proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   )
 }
@@ -587,16 +622,24 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
                         </span>
                       )}
                     </div>
-                    {/* Cards */}
+                    {/* Cards — max 2 visible, collapse rest */}
                     <div className="space-y-2">
                       {!hasLeads ? (
                         <div className="flex items-center justify-center py-8 rounded-xl text-xs text-gray-300"
                           style={{ border: '1.5px dashed #E8E2D9' }}>
                           Empty
                         </div>
-                      ) : stageLeads.map(lead => (
+                      ) : stageLeads.slice(0, 2).map(lead => (
                         <LeadCard key={lead.id} lead={lead} stage={stage} onOpen={() => setSelectedLead(lead)} />
                       ))}
+                      {stageLeads.length > 2 && (
+                        <button
+                          onClick={() => setSelectedLead(stageLeads[2])}
+                          className="w-full py-2 text-xs font-semibold text-center rounded-xl border transition-colors hover:bg-gray-50"
+                          style={{ borderColor: stage.color + '44', color: stage.color }}>
+                          +{stageLeads.length - 2} more
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -607,7 +650,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
             <div className="hidden md:block">
               <button
                 onClick={() => setShowClosed(v => !v)}
-                className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors mb-3 group"
+                className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors mb-3 px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 hover:border-gray-300"
               >
                 <svg
                   width="14" height="14" viewBox="0 0 14 14" fill="none"
@@ -670,7 +713,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
             {leads.filter(l => l.lead_status === 'Lost').length > 0 && (
               <div className="mt-3 text-center">
                 <span className="text-xs text-gray-400">
-                  {leads.filter(l => l.lead_status === 'Lost').length} lost lead{leads.filter(l => l.lead_status === 'Lost').length !== 1 ? 's' : ''} hidden
+                  {leads.filter(l => l.lead_status === 'Lost').length} lead{leads.filter(l => l.lead_status === 'Lost').length !== 1 ? 's' : ''} didn't proceed
                 </span>
               </div>
             )}

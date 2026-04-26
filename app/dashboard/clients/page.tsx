@@ -30,6 +30,7 @@ export default function ClientsPage() {
   const [newTags,  setNewTags]  = useState<string[]>([])
   const [saving,   setSaving]   = useState(false)
   const [err,      setErr]      = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<any>(null)
 
   useEffect(() => {
     const raw = sessionStorage.getItem('pg_pro')
@@ -64,6 +65,13 @@ export default function ClientsPage() {
       setShowAdd(false)
       setNewName(''); setNewPhone(''); setNewEmail(''); setNewNotes(''); setNewTags([])
     } else setErr(d.error || 'Failed to save')
+  }
+
+  async function deleteClient() {
+    if (!deleteTarget) return
+    await fetch(`/api/clients?id=${deleteTarget.id}`, { method: 'DELETE' })
+    setClients(prev => prev.filter(c => c.id !== deleteTarget.id))
+    setDeleteTarget(null)
   }
 
   function toggleTag(tag: string) {
@@ -193,6 +201,36 @@ export default function ClientsPage() {
             )
           })}
         </div>
+
+        {/* Delete confirm modal */}
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.6)' }}
+            onClick={() => setDeleteTarget(null)}>
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+                Delete {deleteTarget.full_name}?
+              </h3>
+              <p className="text-sm text-gray-500 text-center leading-relaxed mb-2">
+                This removes them from your client book permanently.
+              </p>
+              <p className="text-xs text-gray-400 text-center mb-5">
+                Their job history will remain in your pipeline.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteTarget(null)}
+                  className="flex-1 py-3.5 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-600 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button onClick={deleteClient}
+                  className="flex-1 py-3.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-colors">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add client modal */}
         {showAdd && (

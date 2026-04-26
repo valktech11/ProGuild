@@ -268,7 +268,15 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* REVENUE SNAPSHOT — only shows as full card when there's real data */}
+            {/* Pipeline → Clients link */}
+            <div className="flex items-center justify-between px-1 -mt-2 mb-2">
+              <Link href="/dashboard/clients"
+                className="text-xs font-semibold text-gray-400 hover:text-teal-600 transition-colors">
+                👥 View client address book →
+              </Link>
+            </div>
+
+            {/* REVENUE SNAPSHOT — only shows as full card when there's real data */}}
             {paidLeads.length === 0 ? (
               <div className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl text-sm text-gray-400">
                 <span>💰</span>
@@ -453,7 +461,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: 'Views',   value: proData?.profile_view_count ?? 0 },
-                    { label: 'Leads',   value: leads.length },
+                    { label: 'Leads',   value: leads.length, sub: 'total' },
                     { label: 'Rating',  value: avgRating > 0 ? avgRating.toFixed(1) : '—' },
                     { label: 'Reviews', value: reviews.length },
                   ].map(s => (
@@ -471,24 +479,45 @@ export default function DashboardPage() {
                 Edit profile
               </Link>
 
-              {/* Quick actions row */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowBizCard(true)}
-                  className="flex-1 py-2 text-center text-sm font-semibold border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
-                  📇 Share card
-                </button>
-                <Link href="/dashboard/clients"
-                  className="flex-1 py-2 text-center text-sm font-semibold border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
-                  👥 Clients
-                </Link>
-              </div>
+              {/* Share card */}
+              <button
+                onClick={() => setShowBizCard(true)}
+                className="block w-full py-2 text-center text-sm font-semibold border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
+                📇 Share card
+              </button>
             </div>
 
             {/* Upgrade nudge — free plan only, compact, dismissible 30 days */}
             <UpgradeNudge plan={session.plan} />
 
-            {/* License badge — trust signal, always visible */}
+            {/* Clients widget — CRM quick access */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">My Clients</div>
+                  <div className="text-xs text-gray-400 mt-0.5">People you've worked with</div>
+                </div>
+                <Link href="/dashboard/clients"
+                  className="text-sm font-semibold text-teal-600 hover:underline flex-shrink-0">
+                  View all →
+                </Link>
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-50">
+                <Link href="/dashboard/clients"
+                  className="flex items-center gap-2 text-sm text-gray-500 hover:text-teal-600 transition-colors">
+                  <span className="text-base">👥</span>
+                  <span>Address book + job history</span>
+                </Link>
+                <button
+                  onClick={() => setShowAddLead(true)}
+                  className="flex items-center gap-2 text-sm text-gray-500 hover:text-teal-600 transition-colors mt-2">
+                  <span className="text-base">➕</span>
+                  <span>Add a lead from any source</span>
+                </button>
+              </div>
+            </div>
+
+            {/* License badge — trust signal, always visible */}}
             {proData?.license_number && (
               <div className="bg-white border border-gray-100 rounded-2xl p-4">
                 <div className="flex items-center gap-3">
@@ -509,6 +538,16 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile FAB — + Add lead, always visible on mobile */}
+      <button
+        onClick={() => setShowAddLead(true)}
+        className="md:hidden fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white text-2xl font-bold transition-transform active:scale-95"
+        style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}
+        aria-label="Add lead"
+      >
+        +
+      </button>
 
       {/* Add lead modal */}
       {showAddLead && session && (
