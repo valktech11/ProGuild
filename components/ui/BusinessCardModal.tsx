@@ -13,7 +13,7 @@ export default function BusinessCardModal({ session, proData, onClose }: Busines
   const [copied, setCopied] = useState(false)
   // Use vanity slug if available, fall back to UUID
   const slug    = (session as any).slug || session.id
-  const cardUrl = `https://proguild.ai/pro/${slug}`
+  const cardUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://tradesnetwork.vercel.app'}/pro/${slug}`
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(cardUrl)}&color=0f766e&bgcolor=ffffff&margin=8`
 
   // Close on Escape
