@@ -56,7 +56,7 @@ export default function ReviewCard({ review, proId }: ReviewCardProps) {
           <span className="text-sm font-semibold text-gray-900">{review.reviewer_name}</span>
           <span className="text-amber-500 text-xs">{starsHtml(review.rating)}</span>
           <span className="text-xs text-gray-400">
-            {timeAgo((review as any).reviewed_at || review.created_at || '')}
+            {timeAgo((review as any).reviewed_at || '')}
           </span>
         </div>
 
