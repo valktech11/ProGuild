@@ -276,7 +276,7 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            {/* REVENUE SNAPSHOT — only shows as full card when there's real data */}}
+            {/* REVENUE SNAPSHOT — only shows as full card when there's real data */}
             {paidLeads.length === 0 ? (
               <div className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-100 rounded-2xl text-sm text-gray-400">
                 <span>💰</span>
@@ -517,7 +517,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* License badge — trust signal, always visible */}}
+            {/* License badge — trust signal, always visible */}
             {proData?.license_number && (
               <div className="bg-white border border-gray-100 rounded-2xl p-4">
                 <div className="flex items-center gap-3">
