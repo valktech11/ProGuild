@@ -67,28 +67,32 @@ function StageChip({ label, count, color }: { label: string; count: number; colo
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function OverviewPage() {
   const router = useRouter()
-  const [session,    setSession]    = useState<Session | null>(null)
-  const [leads,      setLeads]      = useState<Lead[]>([])
-  const [reviews,    setReviews]    = useState<Review[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [showAddLead,setShowAddLead]= useState(false)
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
-  useEffect(() => {
+  // Read session synchronously so first render already has it — no flicker
+  const [session] = useState<Session | null>(() => {
+    if (typeof window === 'undefined') return null
     const stored = localStorage.getItem('pg_session')
-    if (!stored) { router.push('/login'); return }
-    const s: Session = JSON.parse(stored)
-    setSession(s)
+    return stored ? JSON.parse(stored) : null
+  })
+
+  const [leads,       setLeads]      = useState<Lead[]>([])
+  const [reviews,     setReviews]    = useState<Review[]>([])
+  const [dataLoading, setDataLoading]= useState(true)
+  const [showAddLead, setShowAddLead]= useState(false)
+
+  // ── Redirect if no session ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!session) { router.push('/login'); return }
 
     Promise.all([
-      fetch(`/api/leads?pro_id=${s.id}`).then(r => r.json()),
-      fetch(`/api/reviews?pro_id=${s.id}`).then(r => r.json()),
+      fetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
+      fetch(`/api/reviews?pro_id=${session.id}`).then(r => r.json()),
     ]).then(([leadsData, reviewsData]) => {
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [router])
+      setDataLoading(false)
+    }).catch(() => setDataLoading(false))
+  }, [session, router])
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const activeLeads   = leads.filter(l => !['Paid','Lost','Archived','Converted'].includes(l.lead_status))
@@ -113,7 +117,7 @@ export default function OverviewPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = session?.name?.split(' ')[0] || ''
 
-  if (loading) {
+  if (!session || dataLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: '#F5F4F0' }}>
         <div className="flex flex-col items-center gap-3">

@@ -9,21 +9,24 @@ import AddLeadModal from '@/components/ui/AddLeadModal'
 
 export default function PipelinePage() {
   const router = useRouter()
-  const [session,     setSession]     = useState<Session | null>(null)
+
+  const [session] = useState<Session | null>(() => {
+    if (typeof window === 'undefined') return null
+    const stored = localStorage.getItem('pg_session')
+    return stored ? JSON.parse(stored) : null
+  })
+
   const [leads,       setLeads]       = useState<Lead[]>([])
-  const [loading,     setLoading]     = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
   const [showAddLead, setShowAddLead] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem('pg_session')
-    if (!stored) { router.push('/login'); return }
-    const s: Session = JSON.parse(stored)
-    setSession(s)
-    fetch(`/api/leads?pro_id=${s.id}`)
+    if (!session) { router.push('/login'); return }
+    fetch(`/api/leads?pro_id=${session.id}`)
       .then(r => r.json())
-      .then(data => { setLeads(data.leads || []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [router])
+      .then(data => { setLeads(data.leads || []); setDataLoading(false) })
+      .catch(() => setDataLoading(false))
+  }, [session, router])
 
   const newLeads = leads.filter(l => l.lead_status === 'New')
   const overdue  = leads.filter(l => {
@@ -33,7 +36,7 @@ export default function PipelinePage() {
 
   const TEAL = '#0F766E'
 
-  if (loading) {
+  if (!session || dataLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: '#F5F4F0' }}>
         <div className="flex flex-col items-center gap-3">
