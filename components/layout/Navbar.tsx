@@ -5,6 +5,20 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Session } from '@/types'
 import { initials, avatarColor } from '@/lib/utils'
 
+
+// ── Staging environment badge ────────────────────────────────────────────────
+declare const process: { env: Record<string, string | undefined> }
+const NEXT_PUBLIC_ENV = process.env.NEXT_PUBLIC_ENV
+function StagingBadge() {
+  if (NEXT_PUBLIC_ENV !== 'staging') return null
+  return (
+    <span className="ml-1 px-1.5 py-0.5 rounded text-xs font-bold tracking-wide"
+      style={{ backgroundColor: '#FEF3C7', color: '#B45309', border: '1px solid #FCD34D' }}>
+      STAGING
+    </span>
+  )
+}
+
 // ── Role-aware nav links ────────────────────────────────────────────────────
 // Homeowner (logged out): Find a Pro · Request a Pro · Community
 // Pro (logged in):        Find Work · Community · Dashboard
@@ -170,6 +184,7 @@ export default function Navbar() {
               <span className="font-serif text-lg font-bold tracking-tight" style={{ color: '#0A1628' }}>ProGuild</span>
               <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
             </div>
+            <StagingBadge />
           </Link>
 
           {/* Desktop nav — role-aware */}
