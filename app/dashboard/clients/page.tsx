@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Navbar from '@/components/layout/Navbar'
+import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { initials, avatarColor, timeAgo } from '@/lib/utils'
 
@@ -33,8 +33,8 @@ export default function ClientsPage() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.replace('/login'); return }
+    const raw = localStorage.getItem('pg_session')
+    if (!raw) { router.push('/login'); return }
     const s: Session = JSON.parse(raw)
     setSession(s)
     fetch(`/api/clients?pro_id=${s.id}`)
@@ -90,10 +90,9 @@ export default function ClientsPage() {
 
   const totalValue = clients.reduce((sum, c) => sum + (c.lifetime_value || 0), 0)
 
+  const leads_count = 0 // placeholder
   return (
-    <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
-      <Navbar />
-
+    <DashboardShell session={session} newLeads={0}>
       <div className="max-w-4xl mx-auto px-4 py-7">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -298,6 +297,6 @@ export default function ClientsPage() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardShell>
   )
 }
