@@ -12,7 +12,7 @@ export default function PipelinePage() {
 
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
-    const stored = localStorage.getItem('pg_session')
+    const stored = sessionStorage.getItem('pg_pro')
     return stored ? JSON.parse(stored) : null
   })
 

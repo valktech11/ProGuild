@@ -33,7 +33,7 @@ export default function ClientsPage() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
 
   useEffect(() => {
-    const raw = localStorage.getItem('pg_session')
+    const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.push('/login'); return }
     const s: Session = JSON.parse(raw)
     setSession(s)

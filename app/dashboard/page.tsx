@@ -71,8 +71,7 @@ export default function OverviewPage() {
   // Read session synchronously so first render already has it — no flicker
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
-    const stored = localStorage.getItem('pg_session')
-    console.log('[Dashboard] useState init — session found:', !!stored)
+    const stored = sessionStorage.getItem('pg_pro')
     return stored ? JSON.parse(stored) : null
   })
 
@@ -81,22 +80,18 @@ export default function OverviewPage() {
   const [dataLoading, setDataLoading]= useState(true)
   const [showAddLead, setShowAddLead]= useState(false)
 
-  console.log('[Dashboard] render — session:', !!session, 'dataLoading:', dataLoading)
-
   // ── Redirect if no session ────────────────────────────────────────────────
   useEffect(() => {
-    console.log('[Dashboard] useEffect — session:', !!session)
     if (!session) { router.push('/login'); return }
 
     Promise.all([
       fetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/reviews?pro_id=${session.id}`).then(r => r.json()),
     ]).then(([leadsData, reviewsData]) => {
-      console.log('[Dashboard] data loaded — leads:', leadsData.leads?.length, 'reviews:', reviewsData.reviews?.length)
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))
       setDataLoading(false)
-    }).catch((e) => { console.error('[Dashboard] fetch error:', e); setDataLoading(false) })
+    }).catch(() => setDataLoading(false))
   }, [session, router])
 
   // ── Derived data ──────────────────────────────────────────────────────────
