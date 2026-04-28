@@ -212,7 +212,7 @@ export default function OverviewPage() {
             <div className="text-center py-4">
               <p className="text-sm mb-3" style={{ color: MUTED }}>No leads yet. Add your first lead to get started.</p>
               <button onClick={() => setShowAddLead(true)}
-                className="px-4 py-2 rounded-lg text-sm font-medium"
+                className="hidden md:inline-flex px-4 py-2 rounded-lg text-sm font-medium"
                 style={{ backgroundColor: TEAL, color: 'white' }}>
                 Add Lead
               </button>
@@ -304,7 +304,7 @@ export default function OverviewPage() {
               Add your first lead to start tracking your pipeline.
             </p>
             <button onClick={() => setShowAddLead(true)}
-              className="px-6 py-3 rounded-xl text-sm font-semibold"
+              className="hidden md:inline-flex px-6 py-3 rounded-xl text-sm font-semibold"
               style={{ backgroundColor: TEAL, color: 'white' }}>
               Add First Lead
             </button>
