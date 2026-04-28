@@ -1,5 +1,5 @@
 'use client'
-import Navbar from '@/components/layout/Navbar'
+import DashboardShell from '@/components/layout/DashboardShell'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -300,25 +300,21 @@ export default function MessagesContent() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
-      <Navbar />
-
-      {/* ── MOBILE: single panel, switch between threads and conversation ── */}
-      <div className="md:hidden flex-1 flex flex-col" style={{ height: 'calc(100vh - 56px - 64px)' }}>
+    <DashboardShell session={session} newLeads={0}>
+      {/* MOBILE: single panel */}
+      <div className="md:hidden flex-1 flex flex-col" style={{ height: 'calc(100dvh - 60px)' }}>
         {mobileView === 'threads' || !withId ? ThreadList : ConversationPanel}
       </div>
 
-      {/* ── DESKTOP: two-column layout ── */}
-      <div className="hidden md:flex flex-1 max-w-6xl mx-auto w-full" style={{ minHeight: 'calc(100vh - 56px)' }}>
-        {/* Thread list — fixed width sidebar */}
-        <div className="w-80 border-r flex-shrink-0 flex flex-col" style={{ borderColor: '#E5E0D8' }}>
+      {/* DESKTOP: two-column */}
+      <div className="hidden md:flex" style={{ height: '100%' }}>
+        <div className="w-80 border-r flex-shrink-0 flex flex-col overflow-y-auto" style={{ borderColor: '#E5E0D8' }}>
           {ThreadList}
         </div>
-        {/* Conversation */}
         <div className="flex-1 flex flex-col min-w-0">
           {ConversationPanel}
         </div>
       </div>
-    </div>
+    </DashboardShell>
   )
 }

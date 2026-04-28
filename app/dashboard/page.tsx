@@ -153,6 +153,7 @@ export default function OverviewPage() {
             </svg>
             Add Lead
           </button>
+          {/* Mobile: FAB in bottom nav handles add lead */}
         </div>
 
         {/* ── Action alerts ─────────────────────────────────────────────── */}

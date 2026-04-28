@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import DashboardShell from '@/components/layout/DashboardShell'
 import Link from 'next/link'
 import { Session, Post, Pro } from '@/types'
 import { initials, avatarColor, timeAgo, isPaid } from '@/lib/utils'
@@ -544,9 +545,10 @@ export default function CommunityPage() {
   function applySearch() { setSearch(searchInput) }
 
   return (
-    <div className="min-h-screen bg-stone-100">
-      {/* Nav */}
-      <nav className="bg-white/95 backdrop-blur border-b px-6 h-14 flex items-center justify-between sticky top-0 z-50" style={{ borderColor: '#E8E2D9' }}>
+    <DashboardShell session={session} newLeads={0}>
+      <div className="min-h-screen" style={{ backgroundColor: '#ECEAE5' }}>
+      {/* Community inline subnav */}
+      <nav className="bg-white/95 backdrop-blur border-b px-6 h-12 flex items-center gap-4 sticky top-0 z-40" style={{ borderColor: '#E8E2D9' }}>
         <div className="flex items-center gap-5">
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <div className="w-7 h-7 flex-shrink-0">
@@ -818,7 +820,7 @@ export default function CommunityPage() {
           })}
         </div>
       </nav>
-      <div className="md:hidden h-16" />
-    </div>
+      </div>
+    </DashboardShell>
   )
 }

@@ -59,7 +59,7 @@ export default function PipelinePage() {
             </p>
           </div>
           <button onClick={() => setShowAddLead(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
+            className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
               transition-all hover:opacity-90 active:scale-95"
             style={{ backgroundColor: TEAL, color: 'white' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
