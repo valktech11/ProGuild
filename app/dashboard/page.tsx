@@ -302,8 +302,8 @@ export default function OverviewPage() {
           {leads.length === 0 ? (
             <p className="text-[13px] py-4 text-center" style={{ color: MUTED }}>No leads yet — add your first lead to get started.</p>
           ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center flex-wrap gap-2">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center flex-wrap gap-2 flex-shrink-0">
                 <PipeStage iconPath={ICONS.users}     iconBg="#EFF6FF" iconColor="#3B82F6" label="New"       count={newLeads.length}       sub="New leads"       dk={dk} />
                 <PipeStage iconPath={ICONS.phone}     iconBg="#DCFCE7" iconColor="#16A34A" label="Contacted" count={contactedLeads.length}  sub="You contacted"   dk={dk} />
                 <PipeStage iconPath={ICONS.fileText}  iconBg="#EDE9FE" iconColor="#7C3AED" label="Quoted"    count={quotedLeads.length}     sub="Estimate sent"   dk={dk} />
@@ -311,7 +311,7 @@ export default function OverviewPage() {
                 <PipeStage iconPath={ICONS.checkCirc} iconBg="#DCFCE7" iconColor="#16A34A" label="Job Won"   count={completedLeads.length + paidLeads.length} sub="Converted" isLast dk={dk} showDash />
               </div>
               {pipeline > 0 && (
-                <div className="flex-shrink-0 text-right border-l pl-6" style={{ borderColor: cardBdr }}>
+                <div className="text-right border-l pl-6 flex-shrink-0" style={{ borderColor: cardBdr }}>
                   <div className="text-[11px] font-medium mb-0.5" style={{ color: MUTED }}>Total Pipeline Value</div>
                   <div className="text-[28px] font-bold" style={{ color: textMain }}>${pipeline.toLocaleString()}</div>
                   <div className="text-[11px]" style={{ color: MUTED }}>Potential Revenue</div>
@@ -389,12 +389,12 @@ export default function OverviewPage() {
                         <div className="flex items-center gap-2 mb-1.5">
                           <AvatarInitials name={review.reviewer_name || 'A'} size={30} />
                           <div>
-                            <div className="text-[13px] font-semibold" style={{ color: NAVY }}>{review.reviewer_name}</div>
+                            <div className="text-[13px] font-semibold" style={{ color: textMain }}>{review.reviewer_name}</div>
                             <Stars rating={review.rating} size={13} />
                           </div>
-                          <div className="ml-auto text-[11px]" style={{ color: '#9CA3AF' }}>{timeAgo(review.reviewed_at)}</div>
+                          <div className="ml-auto text-[11px]" style={{ color: dk ? '#64748B' : '#9CA3AF' }}>{timeAgo(review.reviewed_at)}</div>
                         </div>
-                        {review.comment && <p className="text-[13px] line-clamp-2 mb-2 leading-snug" style={{ color: '#374151' }}>{review.comment}</p>}
+                        {review.comment && <p className="text-[13px] line-clamp-2 mb-2 leading-snug" style={{ color: dk ? '#CBD5E1' : '#374151' }}>{review.comment}</p>}
                         <span className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
                           style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span>
                       </div>
@@ -424,7 +424,7 @@ export default function OverviewPage() {
                       style={{ backgroundColor: c.color }}>{c.initials}</div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[12px] font-semibold" style={{ color: textMain }}>{c.name}</div>
-                      <div className="text-[10px]" style={{ color: dk ? '#94A3B8' : MUTED }}>{c.sub}</div>
+                      <div className="text-[10px]" style={{ color: dk ? '#94A3B8' : '#6B7280' }}>{c.sub}</div>
                     </div>
                     <button className="text-[11px] font-semibold px-3 py-1 rounded-lg"
                       style={{ border: `1px solid ${cardBdr}`, color: textMain, backgroundColor: cardBg }}>Request</button>
