@@ -37,9 +37,25 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev',
+    // Pass staging Supabase env vars explicitly so the dev server never picks up
+    // prod credentials from Vercel-baked env or a local .env file.
+    command: [
+      `NEXT_PUBLIC_SUPABASE_URL=${process.env.STAGING_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL}`,
+      `NEXT_PUBLIC_SUPABASE_ANON_KEY=${process.env.STAGING_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+      `SUPABASE_SERVICE_ROLE_KEY=${process.env.STAGING_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      `NEXT_PUBLIC_ENV=staging`,
+      `MODERATION_MODE=off`,
+      `npm run dev`,
+    ].join(' '),
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI, // in CI always start fresh; locally reuse if running
+    reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: process.env.STAGING_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.STAGING_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      SUPABASE_SERVICE_ROLE_KEY: process.env.STAGING_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+      NEXT_PUBLIC_ENV: 'staging',
+      MODERATION_MODE: 'off',
+    },
   },
 })
