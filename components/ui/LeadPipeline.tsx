@@ -590,7 +590,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
                 ? <p className="text-center py-8 text-sm text-gray-400">No leads in {mobileStage}</p>
                 : leadsForStage(mobileStage).map(lead => {
                     const stage = PIPELINE_STAGES.find(s => s.key === lead.lead_status) || PIPELINE_STAGES[0]
-                    return <LeadCard key={lead.id} lead={lead} stage={stage} onOpen={() => setSelectedLead(lead)} />
+                    return <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => setSelectedLead(lead)} /></div>
                   })
               }
             </div>
@@ -602,7 +602,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
                 const hasLeads   = stageLeads.length > 0
                 return (
                   <div key={stage.key} data-testid={`column-${stage.key}`}>
-                    {/* Column header */
+                    {/* Column header */}
                     <div
                       className="flex items-center justify-between mb-2 px-2.5 py-2 rounded-xl"
                       style={hasLeads ? { background: stage.bg } : {}}
@@ -630,7 +630,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
                           Empty
                         </div>
                       ) : stageLeads.slice(0, 2).map(lead => (
-                        <LeadCard key={lead.id} lead={lead} stage={stage} onOpen={() => setSelectedLead(lead)} />
+                        <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => setSelectedLead(lead)} /></div>
                       ))}
                       {stageLeads.length > 2 && (
                         <button
@@ -702,7 +702,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
                             <div className="flex items-center justify-center py-6 rounded-xl text-xs text-gray-300"
                               style={{ border: '1.5px dashed #E8E2D9' }}>Empty</div>
                           ) : stageLeads.map(lead => (
-                            <LeadCard key={lead.id} lead={lead} stage={stage} onOpen={() => setSelectedLead(lead)} />
+                            <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => setSelectedLead(lead)} /></div>
                           ))}
                         </div>
                       </div>

@@ -698,7 +698,7 @@ export default function CommunityPage() {
           ) : (
             <div className="space-y-4">
               {postsWithLikes.map(post => (
-                <PostCard key={post.id} post={post} session={session} onLike={handleLike} onDelete={handleDelete} />
+                <div key={post.id}><PostCard post={post} session={session} onLike={handleLike} onDelete={handleDelete} /></div>
               ))}
             </div>
           )}

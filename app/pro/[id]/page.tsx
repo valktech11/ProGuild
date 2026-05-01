@@ -1015,7 +1015,7 @@ export default function ProProfilePage() {
                   </div>
 
                   {proLicenses.length > 0
-                    ? proLicenses.map(lic => <CredCard key={lic.id} lic={lic} />)
+                    ? proLicenses.map(lic => <div key={lic.id}><CredCard lic={lic} /></div>)
                     : pro.license_number
                       ? <CredCard lic={{ id: 'legacy', trade_name: trade, license_number: pro.license_number, license_expiry_date: pro.license_expiry_date, license_status: pro.license_status || 'unknown', is_primary: true }} />
                       : <div className="text-sm py-4 text-center" style={{ color: '#A89F93' }}>No license on file</div>
