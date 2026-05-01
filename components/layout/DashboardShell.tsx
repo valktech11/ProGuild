@@ -135,8 +135,7 @@ function Av({ s, px }: { s: Session; px: number }) {
 
 // ── Scrollbar CSS ─────────────────────────────────────────────────────────────
 const SB = `
-  .pg-sb::-webkit-scrollbar{width:3px}.pg-sb::-webkit-scrollbar-track{background:transparent}
-  .pg-sb::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:9px}
+  .pg-sb::-webkit-scrollbar{display:none}
   .pg-main::-webkit-scrollbar{width:4px}.pg-main::-webkit-scrollbar-track{background:transparent}
   .pg-main::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:9px}
 `
@@ -297,7 +296,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
         {/* ── DESKTOP ──────────────────────────────────────────────────────── */}
         <div className="hidden md:flex h-screen overflow-hidden">
 
-          <aside className="pg-sb flex-shrink-0 flex flex-col h-full overflow-y-auto"
+          <aside className="flex-shrink-0 flex flex-col h-full overflow-hidden"
             style={{ width: 220, background: 'linear-gradient(175deg,#0C1D38 0%,#07111C 100%)', borderRight: '1px solid rgba(255,255,255,.04)' }}>
 
             {/* Logo */}
@@ -322,7 +321,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
             </div>
 
             {/* Nav */}
-            <div className="flex-1 px-3 pb-4 overflow-y-auto">
+            <div className="flex-1 px-3 pb-4 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
               {nav.map((g, gi) => (
                 <div key={g.title} className={gi > 0 ? 'mt-5' : ''}>
                   {/* Section header — clear separator */}
