@@ -302,7 +302,7 @@ export default function OverviewPage() {
           {leads.length === 0 ? (
             <p className="text-[13px] py-4 text-center" style={{ color: MUTED }}>No leads yet — add your first lead to get started.</p>
           ) : (
-            <div className="flex items-center gap-6 flex-wrap">
+            <div className="flex items-center justify-between">
               <div className="flex items-center flex-wrap gap-2">
                 <PipeStage iconPath={ICONS.users}     iconBg="#EFF6FF" iconColor="#3B82F6" label="New"       count={newLeads.length}       sub="New leads"       dk={dk} />
                 <PipeStage iconPath={ICONS.phone}     iconBg="#DCFCE7" iconColor="#16A34A" label="Contacted" count={contactedLeads.length}  sub="You contacted"   dk={dk} />
@@ -311,7 +311,7 @@ export default function OverviewPage() {
                 <PipeStage iconPath={ICONS.checkCirc} iconBg="#DCFCE7" iconColor="#16A34A" label="Job Won"   count={completedLeads.length + paidLeads.length} sub="Converted" isLast dk={dk} showDash />
               </div>
               {pipeline > 0 && (
-                <div className="flex-shrink-0 text-right pl-8 ml-auto border-l" style={{ borderColor: cardBdr }}>
+                <div className="flex-shrink-0 text-right border-l pl-6" style={{ borderColor: cardBdr }}>
                   <div className="text-[11px] font-medium mb-0.5" style={{ color: MUTED }}>Total Pipeline Value</div>
                   <div className="text-[28px] font-bold" style={{ color: textMain }}>${pipeline.toLocaleString()}</div>
                   <div className="text-[11px]" style={{ color: MUTED }}>Potential Revenue</div>
@@ -342,7 +342,7 @@ export default function OverviewPage() {
                 </div>
 
                 {/* Gamification card */}
-                <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#F0FDF4', borderLeft: `3px solid ${dk ? '#22C55E' : '#BBF7D0'}`, border: dk ? 'none' : '1px solid #BBF7D0', borderLeftWidth: '3px' }}>
+                <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#F0FDF4', borderTop: `1px solid ${dk ? '#334155' : '#BBF7D0'}`, borderRight: `1px solid ${dk ? '#334155' : '#BBF7D0'}`, borderBottom: `1px solid ${dk ? '#334155' : '#BBF7D0'}`, borderLeft: `3px solid ${dk ? '#22C55E' : '#16A34A'}` }}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="text-[12px] font-bold mb-1" style={{ color: textMain }}>
@@ -364,7 +364,7 @@ export default function OverviewPage() {
                 </div>
 
                 {/* AI Insight card */}
-                <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#F5F3FF', borderLeft: `3px solid ${dk ? '#8B5CF6' : '#DDD6FE'}`, border: dk ? 'none' : '1px solid #DDD6FE', borderLeftWidth: '3px' }}>
+                <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#F5F3FF', borderTop: `1px solid ${dk ? '#334155' : '#DDD6FE'}`, borderRight: `1px solid ${dk ? '#334155' : '#DDD6FE'}`, borderBottom: `1px solid ${dk ? '#334155' : '#DDD6FE'}`, borderLeft: `3px solid ${dk ? '#8B5CF6' : '#7C3AED'}` }}>
                   <div className="flex items-center gap-1.5 mb-2">
                     <SvgIcon d={ICONS.sparkle} s={14} sw={1.5} color="#7C3AED" />
                     <span className="text-[12px] font-bold" style={{ color: textMain }}>AI Insight</span>
@@ -408,7 +408,7 @@ export default function OverviewPage() {
             <div className="flex flex-col gap-4">
               {/* Request reviews panel */}
               <div className="rounded-xl p-4" style={{ border: `1px solid ${cardBdr}`, backgroundColor: cardBg }}>
-                <div className="text-[13px] font-bold mb-0.5" style={{ color: NAVY }}>Request reviews from happy customers</div>
+                <div className="text-[13px] font-bold mb-0.5" style={{ color: textMain }}>Request reviews from happy customers</div>
                 <div className="text-[12px] mb-3 flex items-center gap-1" style={{ color: dk ? '#94A3B8' : '#6B7280' }}>
                   3 customers are likely to give you a
                   <Star filled size={11} />
@@ -446,7 +446,7 @@ export default function OverviewPage() {
                 </div>
 
                 {/* Negative review reply */}
-                <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: dk ? '#1E293B' : '#FEF2F2', borderLeft: `3px solid ${dk ? '#EF4444' : '#FECACA'}`, border: dk ? 'none' : '1px solid #FECACA', borderLeftWidth: '3px' }}>
+                <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: dk ? '#1E293B' : '#FEF2F2', borderTop: `1px solid ${dk ? '#334155' : '#FECACA'}`, borderRight: `1px solid ${dk ? '#334155' : '#FECACA'}`, borderBottom: `1px solid ${dk ? '#334155' : '#FECACA'}`, borderLeft: `3px solid ${dk ? '#EF4444' : '#DC2626'}` }}>
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEE2E2' }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
@@ -468,7 +468,7 @@ export default function OverviewPage() {
                 </div>
 
                 {/* Positive review booster */}
-                <div className="rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#FFFBEB', borderLeft: `3px solid ${dk ? '#F59E0B' : '#FDE68A'}`, border: dk ? 'none' : '1px solid #FDE68A', borderLeftWidth: '3px' }}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#FFFBEB', borderTop: `1px solid ${dk ? '#334155' : '#FDE68A'}`, borderRight: `1px solid ${dk ? '#334155' : '#FDE68A'}`, borderBottom: `1px solid ${dk ? '#334155' : '#FDE68A'}`, borderLeft: `3px solid ${dk ? '#F59E0B' : '#D97706'}` }}>
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEF3C7' }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -505,8 +505,8 @@ export default function OverviewPage() {
             </div>
             <div className="flex items-center gap-2">
               <Link href="/community" className="text-[12px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
-                style={{ border: `1px solid ${BORDER}`, color: NAVY }}>
-                View Community <SvgIcon d={ICONS.arrowRight} s={13} sw={2} color={NAVY} />
+                style={{ border: `1px solid ${cardBdr}`, color: textMain, backgroundColor: cardBg }}>
+                View Community <SvgIcon d={ICONS.arrowRight} s={13} sw={2} color={textMain} />
               </Link>
               <Link href="/community" className="text-[12px] font-semibold px-3 py-1.5 rounded-lg text-white flex items-center gap-1"
                 style={{ backgroundColor: TEAL }}>
