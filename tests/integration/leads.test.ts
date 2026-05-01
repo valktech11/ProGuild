@@ -103,7 +103,7 @@ describe.skipIf(SKIP)('Integration — Leads API against staging Supabase', () =
       const { data, error } = await db
         .from('leads')
         .select('*')
-        .eq('pro_id', 'non-existent-id-00000000')
+        .eq('pro_id', '00000000-0000-0000-0000-000000000000')
 
       expect(error).toBeNull()
       expect(data).toHaveLength(0)
