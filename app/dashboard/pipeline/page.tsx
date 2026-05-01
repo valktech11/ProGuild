@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Session, Lead } from '@/types'
 import DashboardShell from '@/components/layout/DashboardShell'
@@ -16,7 +16,6 @@ export default function PipelinePage() {
     return stored ? JSON.parse(stored) : null
   })
 
-  // Dark mode — persisted in localStorage, same key as Overview
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
@@ -33,15 +32,21 @@ export default function PipelinePage() {
   const [leads,       setLeads]       = useState<Lead[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [showAddLead, setShowAddLead] = useState(false)
+  const [saveError,   setSaveError]   = useState<string | null>(null)
+
+  // Single fetch function — reused on mount, after add, after save
+  const fetchLeads = useCallback(async () => {
+    if (!session) return
+    const r = await fetch(`/api/leads?pro_id=${session.id}`)
+    if (!r.ok) return
+    const data = await r.json()
+    setLeads(data.leads || [])
+  }, [session])
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
-    // BUG FIX: Always fetch fresh — don't rely on passed state from Overview
-    fetch(`/api/leads?pro_id=${session.id}`)
-      .then(r => r.json())
-      .then(data => { setLeads(data.leads || []); setDataLoading(false) })
-      .catch(() => setDataLoading(false))
-  }, [session, router])
+    fetchLeads().finally(() => setDataLoading(false))
+  }, [session, router, fetchLeads])
 
   const newLeads = leads.filter(l => l.lead_status === 'New')
   const overdue  = leads.filter(l => {
@@ -49,8 +54,41 @@ export default function PipelinePage() {
     return days >= 3 && l.lead_status === 'New'
   })
 
-  const TEAL = '#0F766E'
+  const TEAL     = '#0F766E'
   const textMain = dk ? '#F1F5F9' : '#0A1628'
+
+  // Status change — PATCH [id] route, then re-fetch from DB (no optimistic state)
+  async function handleStatusChange(leadId: string, status: string) {
+    setSaveError(null)
+    const r = await fetch(`/api/leads/${leadId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead_status: status }),
+    })
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}))
+      setSaveError(err.error || 'Failed to save — please try again')
+      return
+    }
+    // Re-fetch from Supabase so mobile + desktop see identical DB state
+    await fetchLeads()
+  }
+
+  // Field update (notes, amount, dates) — same pattern
+  async function handleUpdate(leadId: string, fields: Partial<Lead>) {
+    setSaveError(null)
+    const r = await fetch(`/api/leads/${leadId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    })
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}))
+      setSaveError(err.error || 'Failed to save — please try again')
+      return
+    }
+    await fetchLeads()
+  }
 
   if (!session || dataLoading) {
     return (
@@ -67,9 +105,10 @@ export default function PipelinePage() {
   return (
     <DashboardShell session={session} newLeads={newLeads.length} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
       <div className="px-4 py-6" style={{ color: textMain }}>
+
+        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            {/* BUG FIX: removed duplicate "Lead Pipeline" h2 that appeared inside LeadPipeline component */}
             <h1 className="text-xl font-bold" style={{ color: textMain }}>Pipeline</h1>
             <p className="text-sm mt-0.5" style={{ color: '#9CA3AF' }}>
               {leads.length} lead{leads.length !== 1 ? 's' : ''} total
@@ -84,6 +123,16 @@ export default function PipelinePage() {
             Add Lead
           </button>
         </div>
+
+        {/* Save error toast */}
+        {saveError && (
+          <div className="mb-4 px-4 py-3 rounded-xl text-sm font-medium"
+            style={{ background: '#FEE2E2', color: '#B91C1C', border: '1px solid #FECACA' }}>
+            ⚠️ {saveError}
+          </div>
+        )}
+
+        {/* Overdue alerts */}
         {overdue.length > 0 && (
           <div className="mb-4">
             <ActionAlert
@@ -95,38 +144,24 @@ export default function PipelinePage() {
             />
           </div>
         )}
+
         {session && (
           <LeadPipeline
             leads={leads}
-            onStatusChange={async (leadId: string, status: string) => {
-              await fetch(`/api/leads/${leadId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lead_status: status }),
-              })
-              setLeads(prev => prev.map(l => l.id === leadId ? { ...l, lead_status: status as Lead['lead_status'] } : l))
-            }}
-            onUpdate={async (leadId: string, fields: Partial<Lead>) => {
-              await fetch(`/api/leads/${leadId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(fields),
-              })
-              setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...fields } : l))
-            }}
+            onStatusChange={handleStatusChange}
+            onUpdate={handleUpdate}
             isPaid={['Pro','Elite','Pro_Founding','Elite_Founding','Pro_Annual','Elite_Annual','Pro_Founding_Annual','Elite_Founding_Annual'].includes(session.plan)}
           />
         )}
       </div>
+
       {showAddLead && session && (
         <AddLeadModal
           proId={session.id}
           onClose={() => setShowAddLead(false)}
-          onAdded={() => {
+          onAdded={async () => {
             setShowAddLead(false)
-            fetch(`/api/leads?pro_id=${session.id}`)
-              .then(r => r.json())
-              .then(data => setLeads(data.leads || []))
+            await fetchLeads()  // re-fetch from DB, not optimistic
           }}
         />
       )}
