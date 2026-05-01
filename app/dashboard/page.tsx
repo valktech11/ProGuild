@@ -130,10 +130,11 @@ function PipeStage({ iconPath, iconBg, iconColor, label, count, sub, dk, showDas
 function PipeArrow({ dk }: { dk: boolean }) {
   const c = dk ? '#475569' : '#CBD5E1'
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c}
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-      className="flex-shrink-0">
-      <path d="M5 12h14M12 5l7 7-7 7" />
+    <svg width="48" height="16" viewBox="0 0 48 16" fill="none"
+      className="flex-shrink-0 flex-1" style={{ minWidth: 32, maxWidth: 80 }}>
+      <line x1="0" y1="8" x2="40" y2="8" stroke={c} strokeWidth="1.5" />
+      <polyline points="34,3 44,8 34,13" fill="none" stroke={c} strokeWidth="1.5"
+        strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -309,7 +310,7 @@ export default function OverviewPage() {
           {leads.length === 0 ? (
             <p className="text-[13px] py-4 text-center" style={{ color: MUTED }}>No leads yet — add your first lead to get started.</p>
           ) : (
-            <div className="flex items-center justify-between w-full">
+            <div className="flex items-center justify-between w-full overflow-hidden">
               <PipeStage iconPath={ICONS.users}     iconBg="#EFF6FF" iconColor="#3B82F6" label="New"       count={newLeads.length}       sub="New leads"       dk={dk} />
               <PipeArrow dk={dk} />
               <PipeStage iconPath={ICONS.phone}     iconBg="#DCFCE7" iconColor="#16A34A" label="Contacted" count={contactedLeads.length}  sub="You contacted"   dk={dk} />
@@ -320,9 +321,9 @@ export default function OverviewPage() {
               <PipeArrow dk={dk} />
               <PipeStage iconPath={ICONS.checkCirc} iconBg="#DCFCE7" iconColor="#16A34A" label="Job Won"   count={completedLeads.length + paidLeads.length} sub="Converted" dk={dk} showDash />
               {pipeline > 0 && (
-                <div className="text-right border-l pl-5 flex-shrink-0 min-w-[130px]" style={{ borderColor: cardBdr }}>
+                <div className="text-right border-l pl-6 flex-shrink-0 min-w-[160px]" style={{ borderColor: cardBdr }}>
                   <div className="text-[11px] font-medium mb-0.5" style={{ color: BODY }}>Total Pipeline Value</div>
-                  <div className="text-[24px] font-bold" style={{ color: textMain }}>${pipeline.toLocaleString()}</div>
+                  <div className="text-[28px] font-bold" style={{ color: textMain }}>${pipeline.toLocaleString()}</div>
                   <div className="text-[11px]" style={{ color: BODY }}>Potential Revenue</div>
                 </div>
               )}
