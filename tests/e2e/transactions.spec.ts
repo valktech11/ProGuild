@@ -7,12 +7,18 @@
  *
  * Test pro is seeded in global-setup.ts and deleted in global-teardown.ts.
  * All leads/clients created here are cleaned up by teardown automatically
- * (DELETE WHERE pro_id = E2E_PRO_ID).
+ * (DELETE WHERE pro_id = getProId()).
  */
 
 import { createClient } from '@supabase/supabase-js'
 import { test, expect, BASE_URL } from './fixtures'
-import { E2E_PRO_ID } from './global-setup'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+// Pro ID is written by global-setup at runtime (uses existing staging test pro)
+function getProId(): string {
+  return readFileSync(join(process.cwd(), 'tests/e2e/.e2e-pro-id'), 'utf-8').trim()
+}
 
 // Admin client for direct DB assertions — never used to seed test state (use UI for that)
 function getAdmin() {
@@ -57,13 +63,13 @@ test.describe('Lead — Add', () => {
     const { data } = await getAdmin()
       .from('leads')
       .select('lead_status, pro_id')
-      .eq('pro_id', E2E_PRO_ID)
+      .eq('pro_id', getProId())
       .eq('contact_name', name)
       .single()
 
     expect(data).not.toBeNull()
     expect(data!.lead_status).toBe('New')
-    expect(data!.pro_id).toBe(E2E_PRO_ID)
+    expect(data!.pro_id).toBe(getProId())
   })
 
   test('Add Lead — empty contact name blocks submit, no DB row inserted', async ({ authedPage: page }) => {
@@ -81,7 +87,7 @@ test.describe('Lead — Add', () => {
     const { data } = await getAdmin()
       .from('leads')
       .select('id')
-      .eq('pro_id', E2E_PRO_ID)
+      .eq('pro_id', getProId())
       .eq('contact_name', '')
     expect(data?.length ?? 0).toBe(0)
   })
@@ -97,7 +103,7 @@ test.describe('Lead — Move Status', () => {
     const { data: inserted, error } = await getAdmin()
       .from('leads')
       .insert({
-        pro_id:       E2E_PRO_ID,
+        pro_id:       getProId(),
         contact_name: name,
         contact_phone: '9045550101',
         message:      'E2E move-status test',
@@ -150,7 +156,7 @@ test.describe('Lead — Move Status', () => {
     const name = `E2E-Reload-${Date.now()}`
 
     await getAdmin().from('leads').insert({
-      pro_id:       E2E_PRO_ID,
+      pro_id:       getProId(),
       contact_name: name,
       contact_phone: '9045550102',
       message:      'E2E reload test',
@@ -203,12 +209,12 @@ test.describe('Client — Add', () => {
     const { data } = await getAdmin()
       .from('clients')
       .select('pro_id, phone')
-      .eq('pro_id', E2E_PRO_ID)
+      .eq('pro_id', getProId())
       .eq('full_name', name)
       .single()
 
     expect(data).not.toBeNull()
-    expect(data!.pro_id).toBe(E2E_PRO_ID)
+    expect(data!.pro_id).toBe(getProId())
     expect(data!.phone).toContain(phone.slice(-4)) // allow formatting
   })
 
@@ -224,7 +230,7 @@ test.describe('Client — Edit', () => {
     const { data: inserted, error } = await getAdmin()
       .from('clients')
       .insert({
-        pro_id:    E2E_PRO_ID,
+        pro_id:    getProId(),
         full_name: name,
         phone:     '9045550201',
         email:     `e2e-edit-${Date.now()}@test.invalid`,

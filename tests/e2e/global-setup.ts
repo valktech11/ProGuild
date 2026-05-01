@@ -1,19 +1,17 @@
 /**
  * global-setup.ts — runs ONCE before all Playwright tests.
  *
- * 1. Cleans up leftover data from any previous crashed run
- * 2. Inserts an isolated e2e_test_pro row directly into staging Supabase
- *    via Admin API (bypasses RLS, no UI auth flow dependency)
- *
- * The local dev server (localhost:3000) connects to staging Supabase,
- * so seeding here is visible to the app under test.
+ * Uses the EXISTING test pro (test@proguild.ai) already in staging.
+ * No insert needed — avoids schema constraint failures.
+ * Just verifies the pro exists and cleans up any leftover test leads/clients
+ * from a previous crashed run.
  */
 
 import { FullConfig } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 
-export const E2E_PRO_ID    = 'e2e00000-0000-0000-0000-000000000001'
 export const E2E_PRO_EMAIL = process.env.TEST_PRO_EMAIL!
+export let   E2E_PRO_ID    = ''   // resolved at runtime from DB
 
 const SUPABASE_URL     = process.env.STAGING_SUPABASE_URL!
 const SERVICE_ROLE_KEY = process.env.STAGING_SUPABASE_SERVICE_ROLE_KEY!
@@ -30,23 +28,31 @@ export default async function globalSetup(_config: FullConfig) {
     auth: { persistSession: false },
   })
 
-  // Clean up leftover data from any previous crashed run
+  // Resolve the pro's real ID from the existing staging account
+  const { data: pro, error } = await admin
+    .from('pros')
+    .select('id')
+    .eq('email', E2E_PRO_EMAIL)
+    .single()
+
+  if (error || !pro) {
+    throw new Error(
+      `global-setup: pro not found in staging for email "${E2E_PRO_EMAIL}"\n` +
+      `Error: ${error?.message || 'no row returned'}\n` +
+      `Ensure TEST_PRO_EMAIL matches an existing pro in staging Supabase (${SUPABASE_URL})`
+    )
+  }
+
+  E2E_PRO_ID = pro.id
+
+  // Write ID to a temp file so global-teardown and tests can read it
+  const { writeFileSync } = await import('fs')
+  const { join } = await import('path')
+  writeFileSync(join(process.cwd(), 'tests/e2e/.e2e-pro-id'), E2E_PRO_ID)
+
+  // Clean up leftover leads/clients from any previous crashed run
   await admin.from('leads').delete().eq('pro_id', E2E_PRO_ID)
   await admin.from('clients').delete().eq('pro_id', E2E_PRO_ID)
-  await admin.from('pros').delete().eq('id', E2E_PRO_ID)
 
-  // Seed the isolated e2e test pro
-  const { error } = await admin.from('pros').insert({
-    id:             E2E_PRO_ID,
-    full_name:      'E2E Test Pro',
-    email:          E2E_PRO_EMAIL,
-    plan_tier:      'Free',
-    profile_status: 'Active',
-    city:           'Jacksonville',
-    state:          'FL',
-  })
-
-  if (error) throw new Error(`global-setup: failed to seed test pro — ${error.message}`)
-
-  console.log(`✓ global-setup: e2e test pro seeded (${E2E_PRO_EMAIL})`)
+  console.log(`✓ global-setup: using existing pro "${E2E_PRO_EMAIL}" (id: ${E2E_PRO_ID})`)
 }

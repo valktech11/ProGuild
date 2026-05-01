@@ -92,11 +92,6 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       # Vercel password protection returns 401 until unlocked.
-      - name: Verify staging Supabase URL (first 40 chars)
-        run: echo "SUPABASE_URL prefix=${SUPABASE_URL:0:40}"
-        env:
-          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-
       # SUPABASE_URL is a server-side-only env var read at request time (not compiled).
       # The webServer (npm run dev) inherits this from the CI job env, so every
       # API route call during tests hits staging Supabase — no .env file needed.
