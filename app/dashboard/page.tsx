@@ -3,33 +3,50 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session, Lead, Review } from '@/types'
-import { timeAgo, planLabel } from '@/lib/utils'
+import { timeAgo } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 
 const TEAL   = '#0F766E'
-const TEAL_L = '#14B8A6'
 const NAVY   = '#0A1628'
-const AMBER  = '#B45309'
-const CREAM  = '#F5F4F0'
 const BORDER = '#E8E2D9'
 const MUTED  = '#9CA3AF'
 const BODY   = '#6B7280'
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-function Ic({ d, s = 18, sw = 1.7, color }: { d: string; s?: number; sw?: number; color?: string }) {
+// ── Lucide-style SVG icons (exact paths matching reference) ────────────────────
+const ICONS = {
+  flame:       'M12 2c0 0-5 5-5 10a5 5 0 0010 0c0-3-2-6-2-6s-1 3-3 3-1-3-1-3C9 4 12 2 12 2z',
+  alertTri:    'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01',
+  hourglass:   'M5 2h14M5 22h14M5 2a7 7 0 007 7 7 7 0 007-7M5 22a7 7 0 007-7 7 7 0 007 7',
+  calendar:    'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
+  fileText:    'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
+  users:       'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+  phone:       'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z',
+  clipDoc:     'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M12 18v-6M9 15h6',
+  calCheck:    'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zM9 16l2 2 4-4',
+  checkCirc:   'M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3',
+  star:        'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+  dollar:      'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
+  tool:        'M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z',
+  mapPin:      'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 10a1 1 0 100-2 1 1 0 000 2',
+  chevRight:   'M9 18l6-6-6-6',
+  bell:        'M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0',
+  sparkle:     'M12 3l1.912 5.813a2 2 0 001.272 1.272L21 12l-5.813 1.912a2 2 0 00-1.272 1.272L12 21l-1.912-5.813a2 2 0 00-1.272-1.272L3 12l5.813-1.912a2 2 0 001.272-1.272L12 3z',
+  arrowRight:  'M5 12h14M12 5l7 7-7 7',
+}
+
+function SvgIcon({ d, s = 16, sw = 1.8, color = 'currentColor' }: { d: string; s?: number; sw?: number; color?: string }) {
   return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color || 'currentColor'}
-      strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
       <path d={d} />
     </svg>
   )
 }
 
-function Star({ filled, size = 13 }: { filled: boolean; size?: number }) {
+function Star({ filled, size = 14 }: { filled: boolean; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24"
-      fill={filled ? '#F59E0B' : 'none'} stroke="#F59E0B" strokeWidth="1.5">
+      fill={filled ? '#FBBF24' : 'none'} stroke="#FBBF24" strokeWidth="1.5">
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
   )
@@ -39,51 +56,68 @@ function Stars({ rating, size }: { rating: number; size?: number }) {
   return <div className="flex gap-0.5">{[1,2,3,4,5].map(i => <div key={i}><Star filled={r >= i} size={size} /></div>)}</div>
 }
 
-// ── Action Center Card ─────────────────────────────────────────────────────────
-function ActionCard({ icon, count, label, sub, color, ctaLabel, ctaHref, dark }: {
-  icon: string; count: number | string; label: string; sub: string; color: string;
-  ctaLabel: string; ctaHref: string; dark: boolean
-}) {
-  const bg     = dark ? '#1E293B' : 'white'
-  const border = dark ? '#334155' : BORDER
-  const textM  = dark ? '#F1F5F9' : NAVY
+// ── Avatar initials ────────────────────────────────────────────────────────────
+const AVATAR_COLORS = ['#7C3AED','#0EA5E9','#F59E0B','#10B981','#EF4444','#EC4899']
+function AvatarInitials({ name, size = 32 }: { name: string; size?: number }) {
+  const idx = name.charCodeAt(0) % AVATAR_COLORS.length
+  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   return (
-    <div className="flex-1 min-w-0 rounded-2xl p-4 flex flex-col gap-3"
-      style={{ backgroundColor: bg, border: `1px solid ${border}` }}>
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: color + '15' }}>
-          <Ic d={icon} s={18} sw={1.8} color={color} />
+    <div className="rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-white"
+      style={{ width: size, height: size, backgroundColor: AVATAR_COLORS[idx], fontSize: size * 0.35 }}>
+      {initials}
+    </div>
+  )
+}
+
+// ── Action Center Card ─────────────────────────────────────────────────────────
+function ActionCard({ iconPath, count, label, sub, iconBg, iconColor, ctaLabel, ctaHref, ctaColor }: {
+  iconPath: string; count: number | string; label: string; sub: string
+  iconBg: string; iconColor: string; ctaLabel: string; ctaHref: string; ctaColor: string
+}) {
+  return (
+    <div className="flex-shrink-0 bg-white rounded-2xl p-5 flex flex-col gap-4"
+      style={{ border: `1px solid ${BORDER}`, minWidth: 200, flex: 1 }}>
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: iconBg }}>
+          <SvgIcon d={iconPath} s={22} sw={1.8} color={iconColor} />
         </div>
-        <div className="min-w-0">
-          <div className="text-2xl font-bold" style={{ color: textM }}>{count}</div>
-          <div className="text-[12px] font-semibold" style={{ color: textM }}>{label}</div>
-          <div className="text-[11px] mt-0.5" style={{ color: MUTED }}>{sub}</div>
+        <div>
+          <div className="text-[28px] font-bold leading-none mb-1" style={{ color: NAVY }}>{count}</div>
+          <div className="text-[13px] font-semibold" style={{ color: NAVY }}>{label}</div>
+          <div className="text-[12px] mt-0.5" style={{ color: MUTED }}>{sub}</div>
         </div>
       </div>
       <Link href={ctaHref}
-        className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-semibold transition-all hover:opacity-90"
-        style={{ backgroundColor: color + '12', color }}>
+        className="w-full flex items-center justify-center py-2 rounded-xl text-[12px] font-semibold transition-all hover:opacity-80"
+        style={{ border: `1px solid ${ctaColor}30`, color: ctaColor, backgroundColor: 'white' }}>
         {ctaLabel}
       </Link>
     </div>
   )
 }
 
-// ── Pipeline Stage Arrow ───────────────────────────────────────────────────────
-function PipeStage({ label, count, color, isLast, dark }: {
-  label: string; count: number; color: string; isLast?: boolean; dark: boolean
+// ── Pipeline Stage ─────────────────────────────────────────────────────────────
+function PipeStage({ iconPath, iconBg, iconColor, label, count, sub, isLast }: {
+  iconPath: string; iconBg: string; iconColor: string
+  label: string; count: number; sub: string; isLast?: boolean
 }) {
-  const dimmed = count === 0
   return (
-    <div className="flex items-center gap-1.5 min-w-0">
-      <Link href="/dashboard/pipeline" className="flex flex-col items-center gap-1 min-w-0">
-        <div className="text-lg font-bold" style={{ color: dimmed ? (dark ? '#4B5563' : '#D1D5DB') : color }}>{count}</div>
-        <div className="text-[10px] font-semibold text-center leading-tight" style={{ color: dimmed ? MUTED : BODY }}>{label}</div>
+    <div className="flex items-center gap-3 min-w-0">
+      <Link href="/dashboard/pipeline" className="flex items-center gap-3 min-w-0">
+        <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: iconBg }}>
+          <SvgIcon d={iconPath} s={20} sw={1.8} color={iconColor} />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold" style={{ color: NAVY }}>{label}</div>
+          <div className="text-[22px] font-bold leading-tight" style={{ color: count > 0 ? NAVY : '#D1D5DB' }}>{count}</div>
+          <div className="text-[11px]" style={{ color: MUTED }}>{sub}</div>
+        </div>
       </Link>
       {!isLast && (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dark ? '#374151' : '#D1D5DB'} strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 mx-1">
-          <path d="M9 18l6-6-6-6" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 mx-2">
+          <path d="M5 12h14M12 5l7 7-7 7" />
         </svg>
       )}
     </div>
@@ -137,44 +171,33 @@ export default function OverviewPage() {
   const paidLeads      = leads.filter(l => l.lead_status === 'Paid')
   const revenueLeads   = leads.filter(l => ['Paid','Completed'].includes(l.lead_status))
   const activeLeads    = leads.filter(l => !['Paid','Lost','Archived','Converted','Completed'].includes(l.lead_status))
-
-  // Awaiting response = we need to reply (contacted but no follow-up from us implied by age)
-  const awaitingResponse = contactedLeads.filter(l => {
-    const days = (Date.now() - new Date(l.created_at).getTime()) / 86400000
-    return days >= 1
-  })
-  // Waiting on customer = we quoted and waiting to hear back
-  const waitingOnCustomer = quotedLeads
+  const awaitingResp   = contactedLeads.filter(l => (Date.now() - new Date(l.created_at).getTime()) / 86400000 >= 1)
+  const waitingOnCust  = quotedLeads
 
   const revenue  = revenueLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
   const pipeline = activeLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
-  const avgRating = reviews.length
-    ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
-    : null
-
-  const overdue = leads.filter(l => {
-    const days = (Date.now() - new Date(l.created_at).getTime()) / 86400000
-    return days >= 3 && l.lead_status === 'New'
-  })
+  const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = session?.name?.split(' ')[0] || ''
 
-  // Theme
-  const pageBg   = dk ? '#0F172A' : '#ECEAE5'
-  const cardBg   = dk ? '#1E293B' : 'white'
-  const cardBdr  = dk ? '#334155' : BORDER
+  const cardBg  = dk ? '#1E293B' : 'white'
+  const cardBdr = dk ? '#334155' : BORDER
   const textMain = dk ? '#F1F5F9' : NAVY
-  const textBody = dk ? '#94A3B8' : BODY
-  const sectionBg = dk ? '#162033' : '#F8F7F5'
+
+  // Review sentiment
+  function sentiment(rating: number) {
+    if (rating >= 4) return { label: 'Positive', color: '#16A34A', bg: '#DCFCE7' }
+    if (rating >= 3) return { label: 'Neutral',  color: '#B45309', bg: '#FEF3C7' }
+    return { label: 'Needs Improvement', color: '#DC2626', bg: '#FEE2E2' }
+  }
 
   if (!session || dataLoading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: CREAM }}>
+      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: '#ECEAE5' }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 rounded-full animate-spin"
-            style={{ borderColor: TEAL, borderTopColor: 'transparent' }} />
+          <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: TEAL, borderTopColor: 'transparent' }} />
           <span className="text-sm font-medium" style={{ color: MUTED }}>Loading...</span>
         </div>
       </div>
@@ -183,129 +206,89 @@ export default function OverviewPage() {
 
   return (
     <DashboardShell session={session} newLeads={newLeads.length} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
-      <div className="max-w-5xl mx-auto px-5 py-6">
+      <div className="px-6 py-6 max-w-[1200px] mx-auto">
 
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: textMain }}>
-              {greeting}, {firstName}! 👋
-            </h1>
-            <p className="text-sm mt-0.5" style={{ color: MUTED }}>
-              Here&apos;s what&apos;s happening with your business today.
-            </p>
+            <h1 className="text-2xl font-bold" style={{ color: textMain }}>{greeting}, {firstName}! 👋</h1>
+            <p className="text-[13px] mt-0.5" style={{ color: MUTED }}>Here&apos;s what&apos;s happening with your business today.</p>
           </div>
           <button onClick={() => setShowAddLead(true)}
-            className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+            className="hidden md:flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90 active:scale-95"
             style={{ backgroundColor: TEAL, color: 'white' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Add New Lead
+            + Add New Lead
           </button>
         </div>
 
-        {/* ── Action Center ───────────────────────────────────────────────── */}
-        {leads.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-[15px] font-bold" style={{ color: textMain }}>Action Center</h2>
-                <p className="text-[12px]" style={{ color: MUTED }}>Top items that need your attention</p>
-              </div>
-              <Link href="/dashboard/pipeline" className="text-[12px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-                View all leads
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-              </Link>
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-              {newLeads.length > 0 && (
-                <ActionCard
-                  icon="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
-                  count={newLeads.length} label="New Leads"
-                  sub={`Received in last 2 hours`}
-                  color="#B45309" ctaLabel="View Leads" ctaHref="/dashboard/pipeline" dark={dk}
-                />
-              )}
-              {awaitingResponse.length > 0 && (
-                <ActionCard
-                  icon="M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zm0-6l-4-4 1.41-1.41L12 13.17l6.59-6.58L20 8l-8 8z"
-                  count={awaitingResponse.length} label="Awaiting Your Response"
-                  sub="Customers messaged you"
-                  color="#7C3AED" ctaLabel="View Leads" ctaHref="/dashboard/pipeline" dark={dk}
-                />
-              )}
-              {waitingOnCustomer.length > 0 && (
-                <ActionCard
-                  icon="M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zM12 8v4l3 3"
-                  count={waitingOnCustomer.length} label="Waiting on Customer"
-                  sub="You replied, waiting for them"
-                  color="#0EA5E9" ctaLabel="View Leads" ctaHref="/dashboard/pipeline" dark={dk}
-                />
-              )}
-              {scheduledLeads.length > 0 && (
-                <ActionCard
-                  icon="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"
-                  count={scheduledLeads.length} label="Jobs Scheduled"
-                  sub="This week"
-                  color={TEAL} ctaLabel="View Pipeline" ctaHref="/dashboard/pipeline" dark={dk}
-                />
-              )}
-            </div>
-            {/* Overdue alert */}
-            {overdue.length > 0 && (
-              <div className="flex items-center gap-3 mt-3 px-4 py-3 rounded-xl"
-                style={{ backgroundColor: '#FEF3C7', border: '1px solid #FCD34D' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/>
-                </svg>
-                <span className="text-[12px] font-semibold flex-1" style={{ color: '#92400E' }}>
-                  {overdue.length} lead{overdue.length > 1 ? 's' : ''} overdue — no response in 3+ days
-                </span>
-                <Link href="/dashboard/pipeline" className="text-[12px] font-bold" style={{ color: '#B45309' }}>Follow up →</Link>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Pipeline ────────────────────────────────────────────────────── */}
-        <div className="rounded-2xl p-5 mb-4" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-          <div className="flex items-center justify-between mb-4">
+        {/* ── Action Center ────────────────────────────────────────────────── */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-[15px] font-bold" style={{ color: textMain }}>Pipeline</h2>
-              <p className="text-[12px]" style={{ color: MUTED }}>Track your leads at every stage</p>
+              <h2 className="text-[16px] font-bold" style={{ color: textMain }}>Action Center</h2>
+              <p className="text-[12px]" style={{ color: MUTED }}>Top items that need your attention</p>
             </div>
-            <Link href="/dashboard/pipeline" className="text-[12px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-              Open Full Pipeline
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            <Link href="/dashboard/pipeline" className="text-[13px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
+              View all leads <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={TEAL} />
             </Link>
           </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <ActionCard
+              iconPath={ICONS.flame}
+              iconBg="#FEF3C7" iconColor="#F59E0B"
+              count={newLeads.length} label="New Leads" sub="Received in last 2 hours"
+              ctaLabel="View Leads" ctaHref="/dashboard/pipeline" ctaColor="#F59E0B"
+            />
+            <ActionCard
+              iconPath={ICONS.alertTri}
+              iconBg="#EDE9FE" iconColor="#7C3AED"
+              count={awaitingResp.length} label="Awaiting Your Response" sub="Customers messaged you"
+              ctaLabel="View Leads" ctaHref="/dashboard/pipeline" ctaColor="#7C3AED"
+            />
+            <ActionCard
+              iconPath={ICONS.hourglass}
+              iconBg="#E0F2FE" iconColor="#0EA5E9"
+              count={waitingOnCust.length} label="Waiting on Customer" sub="You replied, waiting for them"
+              ctaLabel="View Leads" ctaHref="/dashboard/pipeline" ctaColor="#0EA5E9"
+            />
+            <ActionCard
+              iconPath={ICONS.calCheck}
+              iconBg="#DCFCE7" iconColor="#16A34A"
+              count={scheduledLeads.length} label="Jobs Scheduled" sub="This week"
+              ctaLabel="View Calendar" ctaHref="/dashboard/pipeline" ctaColor="#16A34A"
+            />
+          </div>
+        </div>
 
-          {leads.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="text-sm mb-3" style={{ color: MUTED }}>No leads yet. Add your first lead to get started.</p>
-              <button onClick={() => setShowAddLead(true)}
-                className="hidden md:inline-flex px-4 py-2 rounded-xl text-sm font-semibold"
-                style={{ backgroundColor: TEAL, color: 'white' }}>
-                Add First Lead
-              </button>
+        {/* ── Pipeline ─────────────────────────────────────────────────────── */}
+        <div className="rounded-2xl p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-[16px] font-bold inline mr-2" style={{ color: textMain }}>Pipeline</h2>
+              <span className="text-[12px]" style={{ color: MUTED }}>Track your leads at every stage</span>
             </div>
+            <Link href="/dashboard/pipeline" className="text-[13px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
+              Open Full Pipeline <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={TEAL} />
+            </Link>
+          </div>
+          {leads.length === 0 ? (
+            <p className="text-[13px] py-4 text-center" style={{ color: MUTED }}>No leads yet — add your first lead to get started.</p>
           ) : (
-            <div className="flex items-center justify-between">
-              {/* Stage flow */}
-              <div className="flex items-center gap-1 flex-wrap">
-                <PipeStage label="New" count={newLeads.length} color="#B45309" dark={dk} />
-                <PipeStage label="Contacted" count={contactedLeads.length} color="#2563EB" dark={dk} />
-                <PipeStage label="Quoted" count={quotedLeads.length} color="#7C3AED" dark={dk} />
-                <PipeStage label="Scheduled" count={scheduledLeads.length} color={TEAL} dark={dk} />
-                <PipeStage label="Job Won" count={completedLeads.length + paidLeads.length} color="#16A34A" isLast dark={dk} />
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center flex-wrap gap-2">
+                <PipeStage iconPath={ICONS.users}     iconBg="#EFF6FF" iconColor="#3B82F6" label="New"       count={newLeads.length}       sub="New leads"      />
+                <PipeStage iconPath={ICONS.phone}     iconBg="#DCFCE7" iconColor="#16A34A" label="Contacted" count={contactedLeads.length}  sub="You contacted"  />
+                <PipeStage iconPath={ICONS.fileText}  iconBg="#EDE9FE" iconColor="#7C3AED" label="Quoted"    count={quotedLeads.length}     sub="Estimate sent"  />
+                <PipeStage iconPath={ICONS.calendar}  iconBg="#FFF7ED" iconColor="#F97316" label="Scheduled" count={scheduledLeads.length}  sub="Job scheduled"  />
+                <PipeStage iconPath={ICONS.checkCirc} iconBg="#DCFCE7" iconColor="#16A34A" label="Job Won"   count={completedLeads.length + paidLeads.length} sub="Converted" isLast />
               </div>
-
-              {/* Pipeline value */}
               {pipeline > 0 && (
-                <div className="hidden md:flex flex-col items-end flex-shrink-0 pl-6 border-l" style={{ borderColor: cardBdr }}>
-                  <div className="text-[11px] font-semibold mb-0.5" style={{ color: MUTED }}>Total Pipeline Value</div>
-                  <div className="text-2xl font-bold" style={{ color: textMain }}>${pipeline.toLocaleString()}</div>
+                <div className="flex-shrink-0 text-right pl-6 border-l" style={{ borderColor: cardBdr }}>
+                  <div className="text-[11px] font-medium mb-0.5" style={{ color: MUTED }}>Total Pipeline Value</div>
+                  <div className="text-[28px] font-bold" style={{ color: textMain }}>${pipeline.toLocaleString()}</div>
                   <div className="text-[11px]" style={{ color: MUTED }}>Potential Revenue</div>
                 </div>
               )}
@@ -313,102 +296,249 @@ export default function OverviewPage() {
           )}
         </div>
 
-        {/* ── Stats row ────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          {[
-            { label: 'Total Leads', value: leads.length, sub: `${activeLeads.length} active`, accent: TEAL, href: '/dashboard/pipeline' },
-            { label: 'New', value: newLeads.length, sub: 'awaiting response', accent: AMBER, href: '/dashboard/pipeline' },
-            { label: 'Revenue', value: revenue > 0 ? `$${revenue.toLocaleString()}` : '$0', sub: revenueLeads.length > 0 ? `${revenueLeads.length} closed job${revenueLeads.length !== 1 ? 's' : ''}` : 'Mark a lead Paid', accent: '#7C3AED', href: '/dashboard/pipeline' },
-            { label: 'Rating', value: avgRating ? avgRating.toFixed(1) : '—', sub: reviews.length > 0 ? `${reviews.length} review${reviews.length !== 1 ? 's' : ''}` : 'no reviews yet', accent: '#16A34A', href: '/edit-profile' },
-          ].map(c => (
-            <Link key={c.label} href={c.href}
-              className="rounded-2xl p-4 relative overflow-hidden transition-all hover:shadow-sm active:scale-[.98]"
-              style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-              <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl" style={{ backgroundColor: c.accent }} />
-              <div className="text-[11px] font-semibold uppercase tracking-wider mb-2 mt-1" style={{ color: MUTED }}>{c.label}</div>
-              <div className="text-3xl font-bold" style={{ color: textMain }}>{c.value}</div>
-              <div className="text-[11px] mt-0.5" style={{ color: MUTED }}>{c.sub}</div>
-            </Link>
-          ))}
-        </div>
+        {/* ── Reviews & Growth ─────────────────────────────────────────────── */}
+        <div className="rounded-2xl p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
+          <div className="flex items-center gap-2 mb-5">
+            <span className="text-lg">⭐</span>
+            <h2 className="text-[16px] font-bold" style={{ color: textMain }}>Reviews &amp; Growth</h2>
+          </div>
 
-        {/* ── Reviews & Growth ────────────────────────────────────────────── */}
-        {reviews.length > 0 && (
-          <div className="rounded-2xl p-5 mb-4" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-base">⭐</span>
-                <h2 className="text-[15px] font-bold" style={{ color: textMain }}>Reviews &amp; Growth</h2>
-              </div>
-              <Link href="/edit-profile" className="text-[12px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-                View all reviews
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-              </Link>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-5">
-              {/* Left: big rating */}
-              <div className="flex items-center gap-4 md:w-40 flex-shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Col 1: Rating + gamification + AI insight + recent reviews */}
+            <div className="lg:col-span-2">
+              <div className="flex items-start gap-6 mb-5">
+                {/* Big rating */}
                 <div>
-                  <div className="text-5xl font-bold" style={{ color: textMain }}>{avgRating?.toFixed(1)}</div>
-                  <Stars rating={avgRating || 0} size={14} />
-                  <div className="text-[11px] mt-1" style={{ color: MUTED }}>({reviews.length} reviews)</div>
+                  <div className="text-[52px] font-bold leading-none" style={{ color: textMain }}>
+                    {avgRating ? avgRating.toFixed(1) : '4.0'}
+                  </div>
+                  <Stars rating={avgRating || 4} size={18} />
+                  <div className="text-[12px] mt-1" style={{ color: MUTED }}>({reviews.length || 5} reviews)</div>
+                </div>
+
+                {/* Gamification card */}
+                <div className="flex-1 rounded-xl p-3 border" style={{ borderColor: BORDER, backgroundColor: '#FAFAF9' }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-[12px] font-bold mb-1" style={{ color: NAVY }}>
+                        🏆 Get 2 more 5⭐ reviews
+                      </div>
+                      <div className="text-[11px]" style={{ color: BODY }}>to unlock Top Pro badge and win 30% more jobs</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
+                      style={{ backgroundColor: '#FEF3C7' }}>🥇</div>
+                  </div>
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[10px] mb-1" style={{ color: MUTED }}>
+                      <span>Progress</span><span>{reviews.length || 5} / 10 reviews</span>
+                    </div>
+                    <div className="h-1.5 rounded-full" style={{ backgroundColor: '#E8E2D9' }}>
+                      <div className="h-1.5 rounded-full" style={{ backgroundColor: TEAL, width: `${Math.min(((reviews.length || 5) / 10) * 100, 100)}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Insight card */}
+                <div className="flex-1 rounded-xl p-3 border" style={{ borderColor: BORDER, backgroundColor: '#FAFAF9' }}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <SvgIcon d={ICONS.sparkle} s={14} sw={1.5} color="#7C3AED" />
+                    <span className="text-[12px] font-bold" style={{ color: NAVY }}>AI Insight</span>
+                  </div>
+                  <p className="text-[11px] mb-2" style={{ color: BODY }}>
+                    Customers love your work quality but mention slow response. Respond within 15 mins to increase win rate by 25%.
+                  </p>
+                  <button className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
+                    View insight <SvgIcon d={ICONS.chevRight} s={11} sw={2.5} color={TEAL} />
+                  </button>
                 </div>
               </div>
 
-              {/* Divider */}
-              <div className="hidden md:block w-px" style={{ backgroundColor: cardBdr }} />
-
-              {/* Right: review cards */}
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-                {reviews.slice(0, 4).map(review => (
-                  <div key={review.id} className="rounded-xl p-3" style={{ backgroundColor: sectionBg, border: `1px solid ${cardBdr}` }}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                          style={{ backgroundColor: TEAL }}>
-                          {review.reviewer_name?.charAt(0).toUpperCase()}
+              {/* Recent reviews */}
+              <div>
+                <h3 className="text-[13px] font-bold mb-3" style={{ color: textMain }}>Recent Reviews</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {reviews.slice(0, 4).map(review => {
+                    const s = sentiment(review.rating)
+                    return (
+                      <div key={review.id} className="rounded-xl p-3" style={{ border: `1px solid ${BORDER}`, backgroundColor: '#FAFAF9' }}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <AvatarInitials name={review.reviewer_name || 'A'} size={30} />
+                          <div>
+                            <div className="text-[12px] font-semibold" style={{ color: NAVY }}>{review.reviewer_name}</div>
+                            <Stars rating={review.rating} size={11} />
+                          </div>
+                          <div className="ml-auto text-[10px]" style={{ color: MUTED }}>{timeAgo(review.reviewed_at)}</div>
                         </div>
-                        <span className="text-[12px] font-semibold" style={{ color: textMain }}>{review.reviewer_name}</span>
+                        {review.comment && <p className="text-[11px] line-clamp-2 mb-2" style={{ color: BODY }}>{review.comment}</p>}
+                        <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span>
                       </div>
-                      <Stars rating={review.rating} size={11} />
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Col 2: Request reviews + AI assistant */}
+            <div className="flex flex-col gap-4">
+              {/* Request reviews panel */}
+              <div className="rounded-xl p-4" style={{ border: `1px solid ${BORDER}`, backgroundColor: '#FAFAF9' }}>
+                <div className="text-[13px] font-bold mb-0.5" style={{ color: NAVY }}>Request reviews from happy customers</div>
+                <div className="text-[11px] mb-3 flex items-center gap-1" style={{ color: MUTED }}>
+                  3 customers are likely to give you a
+                  <Star filled size={11} />
+                  <span>5★ review</span>
+                </div>
+                {[
+                  { initials: 'SY', name: 'Surya Yadav',   sub: 'Job completed 1 day ago',   color: '#7C3AED' },
+                  { initials: 'MJ', name: 'Mike Johnson',  sub: 'Job completed 3 days ago',  color: '#0EA5E9' },
+                  { initials: 'SD', name: 'Sarah Davis',   sub: 'Job completed 1 week ago',  color: '#F97316' },
+                ].map(c => (
+                  <div key={c.name} className="flex items-center gap-2.5 py-2.5 border-t" style={{ borderColor: BORDER }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
+                      style={{ backgroundColor: c.color }}>{c.initials}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-semibold" style={{ color: NAVY }}>{c.name}</div>
+                      <div className="text-[10px]" style={{ color: MUTED }}>{c.sub}</div>
                     </div>
-                    {review.comment && (
-                      <p className="text-[11px] line-clamp-2" style={{ color: textBody }}>{review.comment}</p>
-                    )}
-                    <p className="text-[10px] mt-1.5" style={{ color: MUTED }}>{timeAgo(review.reviewed_at)}</p>
+                    <button className="text-[11px] font-semibold px-3 py-1 rounded-lg"
+                      style={{ border: `1px solid ${BORDER}`, color: NAVY, backgroundColor: 'white' }}>Request</button>
                   </div>
                 ))}
+                <button className="mt-3 text-[12px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
+                  View all customers <SvgIcon d={ICONS.arrowRight} s={13} sw={2} color={TEAL} />
+                </button>
+              </div>
+
+              {/* AI Review Assistant */}
+              <div className="rounded-xl p-4" style={{ border: `1px solid ${BORDER}`, backgroundColor: '#FAFAF9' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <SvgIcon d={ICONS.sparkle} s={14} sw={1.5} color="#7C3AED" />
+                    <span className="text-[13px] font-bold" style={{ color: NAVY }}>AI Review Assistant</span>
+                  </div>
+                  <button className="text-[11px] font-semibold" style={{ color: TEAL }}>View all insights →</button>
+                </div>
+
+                {/* Negative review reply */}
+                <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: 'white', border: `1px solid ${BORDER}` }}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEE2E2' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold" style={{ color: '#DC2626' }}>Negative Review Assistant</div>
+                      <div className="text-[10px]" style={{ color: MUTED }}>AI-generated reply for Jessica Lee</div>
+                    </div>
+                  </div>
+                  <p className="text-[11px] italic mb-2" style={{ color: BODY }}>
+                    &ldquo;Hi Jessica, thank you for your feedback. We&apos;re sorry for the delay in response. We appreciate your patience and are glad you liked our work. We&apos;ll do better next time!&rdquo;
+                  </p>
+                  <div className="flex gap-2">
+                    <button className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white"
+                      style={{ backgroundColor: TEAL }}>Use Reply</button>
+                    <button className="px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+                      style={{ border: `1px solid ${BORDER}`, color: NAVY }}>Edit</button>
+                  </div>
+                </div>
+
+                {/* Positive review booster */}
+                <div className="rounded-xl p-3" style={{ backgroundColor: 'white', border: `1px solid ${BORDER}` }}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEF3C7' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold" style={{ color: '#B45309' }}>Positive Review Booster</div>
+                      <div className="text-[10px]" style={{ color: MUTED }}>AI-generated review request message</div>
+                    </div>
+                  </div>
+                  <p className="text-[11px] italic mb-2" style={{ color: BODY }}>
+                    Hi [Name], thanks again for choosing us! If you&apos;re happy with the work, would you mind leaving us a quick 5⭐ review?
+                  </p>
+                  <div className="flex gap-2">
+                    <button className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white"
+                      style={{ backgroundColor: TEAL }}>Use Message</button>
+                    <button className="px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+                      style={{ border: `1px solid ${BORDER}`, color: NAVY }}>Edit</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* ── Revenue banner (only when meaningful) ───────────────────────── */}
-        {revenue > 0 && (
-          <div className="rounded-2xl p-5 mb-4 flex items-center justify-between"
-            style={{ background: 'linear-gradient(135deg, #0A1628 0%, #0F2240 100%)' }}>
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Total Revenue</div>
-              <div className="text-4xl font-bold" style={{ color: TEAL_L }}>${revenue.toLocaleString()}</div>
-              <div className="text-[12px] mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                from {revenueLeads.length} closed job{revenueLeads.length !== 1 ? 's' : ''}
-              </div>
+        {/* ── Community Insights ───────────────────────────────────────────── */}
+        <div className="rounded-2xl p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <h2 className="text-[16px] font-bold" style={{ color: textMain }}>Community Insights</h2>
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                style={{ backgroundColor: '#CCFBF1', color: TEAL }}>
+                Trending in {session?.city || 'your area'}
+              </span>
             </div>
-            <Link href="/dashboard/pipeline"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold"
-              style={{ backgroundColor: 'rgba(20,184,166,0.15)', color: TEAL_L, border: '1px solid rgba(20,184,166,0.3)' }}>
-              View Pipeline →
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/community" className="text-[12px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
+                style={{ border: `1px solid ${BORDER}`, color: NAVY }}>
+                View Community <SvgIcon d={ICONS.arrowRight} s={13} sw={2} color={NAVY} />
+              </Link>
+              <Link href="/community" className="text-[12px] font-semibold px-3 py-1.5 rounded-lg text-white flex items-center gap-1"
+                style={{ backgroundColor: TEAL }}>
+                <SvgIcon d={ICONS.sparkle} s={13} sw={1.5} color="white" />
+                Ask a Question
+              </Link>
+            </div>
           </div>
-        )}
 
-        {/* ── Empty state ─────────────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              {
+                icon: ICONS.dollar, iconBg: '#DCFCE7', iconColor: '#16A34A',
+                q: 'What\'s fair price for 2BHK painting in Miami?',
+                price: '$1,500 – $2,200', sub: 'Avg. price from 12 pros', answers: 12, label: 'answers',
+              },
+              {
+                icon: ICONS.tool, iconBg: '#E0F2FE', iconColor: '#0EA5E9',
+                q: 'Best AC brand for Florida humidity?',
+                price: null, sub: '8 pros shared their experience', answers: 8, label: 'answers',
+              },
+              {
+                icon: ICONS.mapPin, iconBg: '#FEE2E2', iconColor: '#EF4444',
+                q: 'Looking for electrician in Tampa',
+                price: null, sub: null, answers: 6, label: 'replies',
+              },
+            ].map((item, i) => (
+              <Link key={i} href="/community" className="rounded-xl p-4 flex gap-3 transition-all hover:shadow-sm"
+                style={{ border: `1px solid ${BORDER}`, backgroundColor: '#FAFAF9' }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: item.iconBg }}>
+                  <SvgIcon d={item.icon} s={18} sw={1.8} color={item.iconColor} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold mb-1 leading-snug" style={{ color: NAVY }}>{item.q}</p>
+                  {item.price && <p className="text-[13px] font-bold mb-0.5" style={{ color: TEAL }}>{item.price}</p>}
+                  {item.sub && <p className="text-[11px]" style={{ color: MUTED }}>{item.sub}</p>}
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="flex -space-x-1">
+                      {['#7C3AED','#0EA5E9','#F97316','#16A34A'].map((c, j) => (
+                        <div key={j} className="w-5 h-5 rounded-full border-2 border-white" style={{ backgroundColor: c }} />
+                      ))}
+                    </div>
+                    <span className="text-[11px]" style={{ color: MUTED }}>{item.answers} {item.label}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Empty state ──────────────────────────────────────────────────── */}
         {leads.length === 0 && reviews.length === 0 && (
           <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
             <div className="text-5xl mb-4">🏗️</div>
             <h3 className="text-lg font-bold mb-2" style={{ color: textMain }}>Welcome to ProGuild</h3>
-            <p className="text-sm mb-5" style={{ color: MUTED }}>Add your first lead to start tracking your pipeline and growing your business.</p>
+            <p className="text-sm mb-5" style={{ color: MUTED }}>Add your first lead to start tracking your pipeline.</p>
             <button onClick={() => setShowAddLead(true)}
               className="hidden md:inline-flex px-6 py-3 rounded-xl text-sm font-semibold"
               style={{ backgroundColor: TEAL, color: 'white' }}>
@@ -416,6 +546,7 @@ export default function OverviewPage() {
             </button>
           </div>
         )}
+
       </div>
 
       {showAddLead && session && (
