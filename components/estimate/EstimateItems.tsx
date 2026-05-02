@@ -1,236 +1,272 @@
 'use client'
 
-import { Dispatch, SetStateAction, useState } from 'react'
-import { Plus, Pencil, Copy, Trash2, GripVertical, BookOpen, Check, X } from 'lucide-react'
+import { Dispatch, SetStateAction, useState, useRef, useEffect } from 'react'
+import { Plus, Pencil, Copy, Trash2, GripVertical, BookOpen, Save } from 'lucide-react'
 import { Estimate, EstimateItem } from '@/app/dashboard/estimates/[id]/page'
 
-function generateId() { return Math.random().toString(36).slice(2, 10) }
+function uid() { return Math.random().toString(36).slice(2, 9) }
 
-function recalcTotals(items: EstimateItem[], taxRate: number, discount: number) {
+function recalc(items: EstimateItem[], tax: number, discount: number) {
   const subtotal   = items.reduce((s, i) => s + i.qty * i.unit_price, 0)
   const discounted = Math.max(0, subtotal - discount)
-  const tax_amount = discounted * (taxRate / 100)
+  const tax_amount = discounted * (tax / 100)
   return { subtotal, tax_amount, total: discounted + tax_amount }
 }
 
-type Template = { id: string; name: string; items: EstimateItem[] }
-
-// ── Inline edit state for a single row ─────────────────────────────────────
-type RowEdit = {
-  id:          string
-  name:        string
-  description: string
-  qty:         number
-  unit_price:  number
+function money(n: number) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export default function EstimateItems({
-  estimate, setEstimate, darkMode, onOpenTemplatePicker, onSaveTemplate,
+  estimate, setEstimate, darkMode, onSaveTemplate, onOpenTemplatePicker,
 }: {
-  estimate:            Estimate
-  setEstimate:         Dispatch<SetStateAction<Estimate | null>>
-  darkMode:            boolean
+  estimate: Estimate
+  setEstimate: Dispatch<SetStateAction<Estimate | null>>
+  darkMode: boolean
+  onSaveTemplate?: () => void
   onOpenTemplatePicker?: () => void
-  onSaveTemplate?:     () => void
 }) {
   const dk = darkMode
-  const [editRow, setEditRow] = useState<RowEdit | null>(null)
+  // Which row is open for editing (id or null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  // Draft values while editing
+  const [draft, setDraft] = useState<Partial<EstimateItem>>({})
 
-  const muted    = dk ? 'text-slate-400'   : 'text-[#9CA3AF]'
-  const textMain = dk ? 'text-white'       : 'text-gray-900'
-  const textBody = dk ? 'text-slate-300'   : 'text-[#374151]'
-  const divider  = dk ? 'border-[#334155]' : 'border-[#E8E2D9]'
-  const rowBg    = dk ? 'bg-[#1E293B]'     : 'bg-white'
-  const rowHover = dk ? 'hover:bg-[#243447]' : 'hover:bg-[#FAFAF8]'
-  const inputCls = `w-full rounded-lg px-2.5 py-1.5 text-sm ${dk ? 'bg-[#0F172A] text-white' : 'bg-[#F5F4F0] text-gray-900'} focus:ring-1 focus:ring-[#0F766E]`
+  const border  = dk ? '#334155' : '#E8E2D9'
+  const bgCard  = dk ? '#1E293B' : '#ffffff'
+  const bgPage  = dk ? '#0A1628' : '#F5F4F0'
+  const bgEdit  = dk ? '#1a2e44' : '#F0FDF9'
+  const col     = dk ? '#f1f5f9' : '#111827'
+  const colMuted= dk ? '#94a3b8' : '#6B7280'
+  const colSub  = dk ? '#64748b' : '#9CA3AF'
 
-  const fmt = (n: number) =>
-    '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  function startEdit(item: EstimateItem) {
+    setDraft({ name: item.name, description: item.description, qty: item.qty, unit_price: item.unit_price })
+    setEditingId(item.id)
+  }
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
-  const commitEdit = () => {
-    if (!editRow) return
+  function commitEdit(id: string) {
     const updated = estimate.items.map(i =>
-      i.id === editRow.id
-        ? { ...i, name: editRow.name, description: editRow.description, qty: editRow.qty, unit_price: editRow.unit_price, amount: editRow.qty * editRow.unit_price }
-        : i
+      i.id === id ? {
+        ...i,
+        name:        (draft.name        ?? i.name).trim(),
+        description: (draft.description ?? i.description).trim(),
+        qty:          draft.qty         ?? i.qty,
+        unit_price:   draft.unit_price  ?? i.unit_price,
+        amount:      (draft.qty ?? i.qty) * (draft.unit_price ?? i.unit_price),
+      } : i
     )
-    const t = recalcTotals(updated, estimate.tax_rate, estimate.discount)
-    setEstimate(prev => prev ? { ...prev, items: updated, ...t } : prev)
-    setEditRow(null)
+    setEstimate(prev => prev ? { ...prev, items: updated, ...recalc(updated, prev.tax_rate, prev.discount) } : prev)
+    setEditingId(null)
+    setDraft({})
   }
 
-  const cancelEdit = () => setEditRow(null)
+  function cancelEdit() { setEditingId(null); setDraft({}) }
 
-  const startEdit = (item: EstimateItem) =>
-    setEditRow({ id: item.id, name: item.name, description: item.description, qty: item.qty, unit_price: item.unit_price })
-
-  const addItem = () => {
-    const newItem: EstimateItem = { id: generateId(), name: 'New Item', description: '', qty: 1, unit_price: 0, amount: 0 }
-    const items = [...estimate.items, newItem]
-    const t = recalcTotals(items, estimate.tax_rate, estimate.discount)
-    setEstimate(prev => prev ? { ...prev, items, ...t } : prev)
-    setEditRow({ id: newItem.id, name: newItem.name, description: newItem.description, qty: newItem.qty, unit_price: newItem.unit_price })
+  function addItem() {
+    const item: EstimateItem = { id: uid(), name: '', description: '', qty: 1, unit_price: 0, amount: 0 }
+    const items = [...estimate.items, item]
+    setEstimate(prev => prev ? { ...prev, items, ...recalc(items, prev.tax_rate, prev.discount) } : prev)
+    setDraft({ name: '', description: '', qty: 1, unit_price: 0 })
+    setEditingId(item.id)
   }
 
-  const duplicateItem = (item: EstimateItem) => {
-    const dup   = { ...item, id: generateId() }
+  function duplicate(item: EstimateItem) {
+    const dup   = { ...item, id: uid() }
     const items = [...estimate.items, dup]
-    const t     = recalcTotals(items, estimate.tax_rate, estimate.discount)
-    setEstimate(prev => prev ? { ...prev, items, ...t } : prev)
+    setEstimate(prev => prev ? { ...prev, items, ...recalc(items, prev.tax_rate, prev.discount) } : prev)
   }
 
-  const deleteItem = (id: string) => {
-    if (editRow?.id === id) setEditRow(null)
+  function remove(id: string) {
+    if (editingId === id) cancelEdit()
     const items = estimate.items.filter(i => i.id !== id)
-    const t     = recalcTotals(items, estimate.tax_rate, estimate.discount)
-    setEstimate(prev => prev ? { ...prev, items, ...t } : prev)
+    setEstimate(prev => prev ? { ...prev, items, ...recalc(items, prev.tax_rate, prev.discount) } : prev)
+  }
+
+  const hdStyle: React.CSSProperties = {
+    fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+    textTransform: 'uppercase', color: colSub, padding: '0 0 10px 0',
+  }
+
+  const inputStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
+    width: '100%', padding: '8px 12px', fontSize: 14, borderRadius: 8,
+    border: `1px solid ${border}`, background: dk ? '#0f172a' : '#fff',
+    color: col, outline: 'none', boxSizing: 'border-box', ...extra,
+  })
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11, fontWeight: 700, letterSpacing: '0.07em',
+    textTransform: 'uppercase', color: colMuted, marginBottom: 5, display: 'block',
   }
 
   return (
     <div>
-      {/* ── Column header row ── */}
-      <div className={`grid grid-cols-[20px_32px_1fr_90px_110px_110px_88px] items-center px-4 pb-2 text-[11px] font-semibold tracking-widest uppercase ${muted}`}>
-        <span /><span>#</span>
-        <span>Item</span>
-        <span className="text-center">QTY</span>
-        <span className="text-right">Unit Price</span>
-        <span className="text-right">Amount</span>
+      {/* ── Column headers ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '24px 28px 1fr 80px 110px 110px 96px', gap: '0 12px', padding: '0 8px 8px' }}>
+        <span /><span />
+        <span style={hdStyle}>Item</span>
+        <span style={{ ...hdStyle, textAlign: 'center' }}>QTY</span>
+        <span style={{ ...hdStyle, textAlign: 'right' }}>Unit Price</span>
+        <span style={{ ...hdStyle, textAlign: 'right' }}>Amount</span>
         <span />
       </div>
 
-      {/* ── Item rows ── */}
-      <div className={`rounded-xl border overflow-hidden ${divider}`}>
+      {/* ── Rows ── */}
+      <div style={{ border: `1px solid ${border}`, borderRadius: 12, overflow: 'hidden', background: bgCard }}>
+        {estimate.items.length === 0 && (
+          <div style={{ padding: '32px 24px', textAlign: 'center', color: colMuted, fontSize: 14 }}>
+            No items yet — click <strong>+ Add Item</strong> to get started
+          </div>
+        )}
+
         {estimate.items.map((item, idx) => {
-          const isEditing = editRow?.id === item.id
+          const isEditing = editingId === item.id
+          const rowAmount = item.qty * item.unit_price
 
           return (
-            <div key={item.id}
-              className={`border-b last:border-b-0 ${divider} ${isEditing ? (dk ? 'bg-[#243447]' : 'bg-[#F0FDF9]') : `${rowBg} ${rowHover}`} transition-colors`}>
+            <div key={item.id} style={{ borderBottom: idx < estimate.items.length - 1 || isEditing ? `1px solid ${border}` : 'none' }}>
 
-              {isEditing ? (
-                /* ── Edit mode ── */
-                <div className="px-4 py-3 space-y-2.5">
-                  <div className="grid grid-cols-2 gap-2">
+              {/* ── Display row ── */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '24px 28px 1fr 80px 110px 110px 96px',
+                  gap: '0 12px',
+                  alignItems: 'center',
+                  padding: '14px 8px',
+                  background: isEditing ? bgEdit : bgCard,
+                  cursor: 'default',
+                }}
+              >
+                {/* Drag */}
+                <GripVertical size={13} style={{ color: colSub, opacity: 0.5 }} />
+
+                {/* # */}
+                <span style={{ fontSize: 13, color: colSub, fontWeight: 500 }}>{idx + 1}</span>
+
+                {/* Name + description */}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: col, lineHeight: 1.3 }}>
+                    {item.name || <span style={{ color: colSub, fontStyle: 'italic' }}>Unnamed item</span>}
+                  </div>
+                  {item.description && (
+                    <div style={{ fontSize: 12, color: colMuted, marginTop: 2 }}>{item.description}</div>
+                  )}
+                </div>
+
+                {/* QTY box */}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 36, height: 32, borderRadius: 7,
+                    border: `1px solid ${border}`, background: dk ? '#0f172a' : '#fff',
+                    fontSize: 14, fontWeight: 500, color: col,
+                  }}>
+                    {item.qty}
+                  </div>
+                  <div style={{ fontSize: 10, color: colSub, marginTop: 2 }}>job</div>
+                </div>
+
+                {/* Unit price */}
+                <div style={{ textAlign: 'right', fontSize: 14, color: colMuted }}>
+                  {item.unit_price > 0 ? money(item.unit_price) : <span style={{ color: colSub }}>—</span>}
+                </div>
+
+                {/* Amount */}
+                <div style={{ textAlign: 'right', fontSize: 14, fontWeight: 600, color: col }}>
+                  {rowAmount > 0 ? money(rowAmount) : <span style={{ color: colSub }}>—</span>}
+                </div>
+
+                {/* Action buttons — always visible */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                  {[
+                    { icon: <Pencil size={12} />, action: () => isEditing ? cancelEdit() : startEdit(item), title: 'Edit', hoverColor: '#0F766E' },
+                    { icon: <Copy size={12} />,   action: () => duplicate(item),  title: 'Duplicate', hoverColor: '#0F766E' },
+                    { icon: <Trash2 size={12} />, action: () => remove(item.id),  title: 'Delete',    hoverColor: '#ef4444' },
+                  ].map(({ icon, action, title, hoverColor }) => (
+                    <button key={title} onClick={action} title={title}
+                      style={{
+                        width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: `1px solid ${border}`, borderRadius: 7,
+                        background: 'transparent', color: colMuted, cursor: 'pointer',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = hoverColor; (e.currentTarget as HTMLButtonElement).style.borderColor = hoverColor }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = colMuted; (e.currentTarget as HTMLButtonElement).style.borderColor = border }}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Edit panel — slides open below the row ── */}
+              {isEditing && (
+                <div style={{ padding: '16px 20px 20px', background: bgEdit, borderTop: `1px solid ${dk ? '#1e3a5f' : '#ccfbf1'}` }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                     <div>
-                      <label className={`text-[10px] font-semibold uppercase tracking-wider ${muted} mb-1 block`}>Item Name</label>
+                      <label style={labelStyle}>Item Name</label>
                       <input
                         autoFocus
-                        value={editRow!.name}
-                        onChange={e => setEditRow(r => r ? { ...r, name: e.target.value } : r)}
-                        className={inputCls}
-                        placeholder="Item name"
-                        onKeyDown={e => e.key === 'Enter' && commitEdit()}
+                        value={draft.name ?? ''}
+                        onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
+                        placeholder="e.g. Interior Wall Painting"
+                        style={inputStyle()}
+                        onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)}
                       />
                     </div>
                     <div>
-                      <label className={`text-[10px] font-semibold uppercase tracking-wider ${muted} mb-1 block`}>Description</label>
+                      <label style={labelStyle}>Description <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
                       <input
-                        value={editRow!.description}
-                        onChange={e => setEditRow(r => r ? { ...r, description: e.target.value } : r)}
-                        className={inputCls}
-                        placeholder="Optional description"
-                        onKeyDown={e => e.key === 'Enter' && commitEdit()}
+                        value={draft.description ?? ''}
+                        onChange={e => setDraft(d => ({ ...d, description: e.target.value }))}
+                        placeholder="e.g. Premium quality paint"
+                        style={inputStyle()}
+                        onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)}
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                     <div>
-                      <label className={`text-[10px] font-semibold uppercase tracking-wider ${muted} mb-1 block`}>Quantity</label>
+                      <label style={labelStyle}>Quantity</label>
                       <input
-                        type="number" min={0}
-                        value={editRow!.qty}
-                        onChange={e => setEditRow(r => r ? { ...r, qty: Number(e.target.value) } : r)}
-                        className={inputCls}
-                        onKeyDown={e => e.key === 'Enter' && commitEdit()}
+                        type="number" min={1}
+                        value={draft.qty ?? 1}
+                        onChange={e => setDraft(d => ({ ...d, qty: Math.max(1, Number(e.target.value)) }))}
+                        style={inputStyle()}
+                        onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)}
                       />
                     </div>
                     <div>
-                      <label className={`text-[10px] font-semibold uppercase tracking-wider ${muted} mb-1 block`}>Unit Price ($)</label>
-                      <input
-                        type="number" min={0}
-                        value={editRow!.unit_price}
-                        onChange={e => setEditRow(r => r ? { ...r, unit_price: Number(e.target.value) } : r)}
-                        className={inputCls}
-                        onKeyDown={e => e.key === 'Enter' && commitEdit()}
-                      />
+                      <label style={labelStyle}>Unit Price</label>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 14 }}>$</span>
+                        <input
+                          type="number" min={0} step={0.01}
+                          value={draft.unit_price ?? ''}
+                          placeholder="0.00"
+                          onChange={e => setDraft(d => ({ ...d, unit_price: Number(e.target.value) }))}
+                          style={inputStyle({ paddingLeft: 24 })}
+                          onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)}
+                        />
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between pt-1">
-                    <span className={`text-sm ${muted}`}>
-                      Subtotal: <span className={`font-semibold ${textMain}`}>{fmt(editRow!.qty * editRow!.unit_price)}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 13, color: colMuted }}>
+                      Line total: <strong style={{ color: col }}>
+                        {money((draft.qty ?? item.qty) * (draft.unit_price ?? item.unit_price))}
+                      </strong>
                     </span>
-                    <div className="flex gap-2">
+                    <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={cancelEdit}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                          dk ? 'border-[#334155] text-slate-400 hover:border-red-500 hover:text-red-400'
-                             : 'border-[#E8E2D9] text-gray-500 hover:border-red-300 hover:text-red-500'}`}>
-                        <X size={13} /> Cancel
+                        style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'pointer' }}>
+                        Cancel
                       </button>
-                      <button onClick={commitEdit}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[#0F766E] text-white hover:bg-[#0D6A62] transition-colors">
-                        <Check size={13} /> Done
+                      <button onClick={() => commitEdit(item.id)}
+                        style={{ padding: '7px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer' }}>
+                        ✓ Done
                       </button>
                     </div>
-                  </div>
-                </div>
-              ) : (
-                /* ── Display mode ── */
-                <div className="grid grid-cols-[20px_32px_1fr_90px_110px_110px_88px] items-center px-4 py-3.5 gap-x-3">
-                  {/* Drag handle */}
-                  <span className={`cursor-grab ${muted} opacity-40 hover:opacity-100`}>
-                    <GripVertical size={13} />
-                  </span>
-
-                  {/* Row number */}
-                  <span className={`text-sm font-medium ${muted}`}>{idx + 1}</span>
-
-                  {/* Item + description */}
-                  <div className="min-w-0">
-                    <p className={`text-sm font-semibold leading-snug ${textMain}`}>{item.name || <span className={muted}>Unnamed item</span>}</p>
-                    {item.description && <p className={`text-xs mt-0.5 ${muted}`}>{item.description}</p>}
-                  </div>
-
-                  {/* QTY */}
-                  <div className="text-center">
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-medium border ${
-                      dk ? 'bg-[#0F172A] border-[#334155] text-white' : 'bg-white border-[#E8E2D9] text-gray-900'
-                    }`}>{item.qty}</span>
-                    <p className={`text-[10px] mt-0.5 ${muted}`}>job</p>
-                  </div>
-
-                  {/* Unit price */}
-                  <span className={`text-sm text-right ${textBody}`}>{fmt(item.unit_price)}</span>
-
-                  {/* Amount */}
-                  <span className={`text-sm font-semibold text-right ${textMain}`}>{fmt(item.qty * item.unit_price)}</span>
-
-                  {/* Actions — always visible */}
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => startEdit(item)}
-                      title="Edit"
-                      className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-colors ${
-                        dk ? 'border-[#334155] text-slate-400 hover:border-[#0F766E] hover:text-[#0F766E]'
-                           : 'border-[#E8E2D9] text-gray-400 hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => duplicateItem(item)}
-                      title="Duplicate"
-                      className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-colors ${
-                        dk ? 'border-[#334155] text-slate-400 hover:border-[#0F766E] hover:text-[#0F766E]'
-                           : 'border-[#E8E2D9] text-gray-400 hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
-                      <Copy size={12} />
-                    </button>
-                    <button
-                      onClick={() => deleteItem(item.id)}
-                      title="Delete"
-                      className={`w-7 h-7 flex items-center justify-center rounded-lg border transition-colors ${
-                        dk ? 'border-[#334155] text-slate-400 hover:border-red-500 hover:text-red-400'
-                           : 'border-[#E8E2D9] text-gray-400 hover:border-red-400 hover:text-red-500'}`}>
-                      <Trash2 size={12} />
-                    </button>
                   </div>
                 </div>
               )}
@@ -238,37 +274,42 @@ export default function EstimateItems({
           )
         })}
 
-        {/* ── Add Item — full width dashed button inside the table ── */}
-        <button
-          onClick={addItem}
-          className={`w-full flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors ${
-            dk ? 'text-slate-400 hover:text-[#0F766E] hover:bg-[#243447]'
-               : 'text-[#6B7280] hover:text-[#0F766E] hover:bg-[#F0FDF9]'
-          }`}
-          style={{ borderTop: `1.5px dashed ${dk ? '#334155' : '#D1FAE5'}` }}>
-          <Plus size={15} className="text-[#0F766E]" />
+        {/* + Add Item — full-width dashed button */}
+        <button onClick={addItem}
+          style={{
+            width: '100%', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 8, fontSize: 14, fontWeight: 500, color: '#0F766E',
+            background: 'transparent', border: 'none',
+            borderTop: estimate.items.length > 0 ? `1.5px dashed ${dk ? '#1e3a5f' : '#99f6e4'}` : 'none',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = dk ? '#1a2e44' : '#f0fdf9')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <Plus size={15} />
           Add Item
         </button>
       </div>
 
-      {/* ── Save time with templates nudge card ── */}
-      <div className={`mt-4 flex items-center justify-between rounded-xl border px-5 py-4 ${
-        dk ? 'border-[#334155] bg-[#1E293B]' : 'border-[#E8E2D9] bg-white'}`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-            dk ? 'bg-[#0F172A]' : 'bg-[#F0F9FF]'}`}>
-            <BookOpen size={18} className="text-[#0F766E]" />
+      {/* ── Save time with templates nudge ── */}
+      <div style={{
+        marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 18px', borderRadius: 12, border: `1px solid ${border}`, background: bgCard,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: dk ? '#0f172a' : '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <BookOpen size={17} color="#0F766E" />
           </div>
           <div>
-            <p className={`text-sm font-semibold ${textMain}`}>Save time with templates</p>
-            <p className={`text-xs mt-0.5 ${muted}`}>Create reusable templates for your common jobs and send estimates in seconds.</p>
+            <div style={{ fontSize: 14, fontWeight: 600, color: col }}>Save time with templates</div>
+            <div style={{ fontSize: 12, color: colMuted, marginTop: 2 }}>Create reusable templates for your common jobs and send estimates in seconds.</div>
           </div>
         </div>
-        <button
-          onClick={onSaveTemplate}
-          className={`shrink-0 text-sm font-medium px-4 py-2 rounded-lg border transition-colors ml-4 ${
-            dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]'
-               : 'border-[#E8E2D9] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
+        <button onClick={onSaveTemplate}
+          style={{ flexShrink: 0, marginLeft: 16, padding: '7px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: col, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#0F766E'; (e.currentTarget as HTMLButtonElement).style.color = '#0F766E' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = border; (e.currentTarget as HTMLButtonElement).style.color = col }}
+        >
           Manage Templates
         </button>
       </div>
