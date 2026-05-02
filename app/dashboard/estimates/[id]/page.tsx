@@ -2,7 +2,7 @@
 
 import React, { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, MoreHorizontal, Eye, Send } from 'lucide-react'
+import { ArrowLeft, Eye, Send, Save } from 'lucide-react'
 import DashboardShell from '@/components/layout/DashboardShell'
 import EstimateItems from '@/components/estimate/EstimateItems'
 import EstimateSummary from '@/components/estimate/EstimateSummary'
@@ -98,19 +98,30 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
   const handleSave = async () => {
     if (!estimate) return
+    // Don't save mock data
+    if (estimate.id === 'mock-1') {
+      setSaveMsg('Run v75-estimates-sql.sql on staging DB first')
+      setTimeout(() => setSaveMsg(null), 5000)
+      return
+    }
     setSaving(true)
     try {
-      await fetch(`/api/estimates/${id}`, {
+      const r = await fetch(`/api/estimates/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(estimate),
       })
-      setSaveMsg('Saved')
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        setSaveMsg(err.error || 'Save failed — check DB')
+      } else {
+        setSaveMsg('Saved ✓')
+      }
     } catch {
-      setSaveMsg('Error saving')
+      setSaveMsg('Network error')
     } finally {
       setSaving(false)
-      setTimeout(() => setSaveMsg(null), 3000)
+      setTimeout(() => setSaveMsg(null), 4000)
     }
   }
 
@@ -290,9 +301,18 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           </button>
                         ))}
                       </div>
-                      {/* Action buttons — right side of tab bar (reference style) */}
+                      {/* Action buttons — right side of tab bar */}
                       {activeTab === 'items' && (
                         <div className="flex items-center gap-2 pr-4">
+                          {estimate.items.length > 0 && (
+                            <button onClick={() => setShowSaveTemplate(true)}
+                              className={`flex items-center gap-1.5 text-sm font-medium px-3.5 py-1.5 rounded-lg border transition-colors ${
+                                dk ? 'border-[#334155] text-slate-400 hover:border-[#0F766E] hover:text-[#0F766E]'
+                                   : 'border-[#E8E2D9] text-[#6B7280] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
+                              <Save size={13} />
+                              Save as Template
+                            </button>
+                          )}
                           <button onClick={openTemplatePicker}
                             className={`flex items-center gap-1.5 text-sm font-medium px-3.5 py-1.5 rounded-lg border transition-colors ${
                               dk ? 'border-[#334155] text-slate-400 hover:border-[#0F766E] hover:text-[#0F766E]'

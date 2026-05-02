@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, FileText, Search, Filter } from 'lucide-react'
+import { Plus, FileText, Search, Trash2 } from 'lucide-react'
 import { Session } from '@/types'
 import DashboardShell from '@/components/layout/DashboardShell'
 
@@ -75,6 +75,15 @@ export default function EstimatesPage() {
     } catch {
       setCreating(false)
     }
+  }
+
+  const deleteEstimate = async (e: React.MouseEvent, estId: string) => {
+    e.stopPropagation()
+    if (!confirm('Delete this estimate? This cannot be undone.')) return
+    try {
+      await fetch(`/api/estimates/${estId}`, { method: 'DELETE' })
+      setEstimates(prev => prev.filter(est => est.id !== estId))
+    } catch { /* silent */ }
   }
 
   if (!session) return null
@@ -151,7 +160,7 @@ export default function EstimatesPage() {
           {/* ── Estimates table ── */}
           <div className={`rounded-xl border overflow-hidden ${card}`}>
             {/* Table header */}
-            <div className={`grid grid-cols-[1fr_140px_100px_120px_100px] gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide ${muted} ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
+            <div className={`grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide ${muted} ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
               <span>Client / Estimate</span>
               <span>Trade</span>
               <span>Status</span>
@@ -173,7 +182,7 @@ export default function EstimatesPage() {
                   <button
                     key={est.id}
                     onClick={() => router.push(`/dashboard/estimates/${est.id}`)}
-                    className={`w-full grid grid-cols-[1fr_140px_100px_120px_100px] gap-4 px-5 py-4 text-left transition-colors border-b last:border-b-0 ${
+                    className={`w-full grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-4 text-left transition-colors border-b last:border-b-0 ${
                       dk
                         ? 'border-[#334155] hover:bg-[#0F172A]'
                         : 'border-[#E8E2D9] hover:bg-[#F9FAFB]'
@@ -195,6 +204,13 @@ export default function EstimatesPage() {
                     <div className={`text-xs self-center text-right ${muted}`}>
                       {new Date(est.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
+                    <button
+                      onClick={e => deleteEstimate(e, est.id)}
+                      className="self-center p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title="Delete estimate"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </button>
                 ))}
               </div>
