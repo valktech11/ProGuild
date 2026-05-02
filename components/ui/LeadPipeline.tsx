@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Lead } from '@/types'
 import { initials, avatarColor, timeAgo } from '@/lib/utils'
@@ -375,23 +376,22 @@ function LeadCard({ lead, stage, onOpen }: {
         </div>
       </div>
 
-      {/* ── Existing estimate modal ── */}
-      {existingEst && (
+      {/* ── Existing estimate modal — rendered via portal to escape card onClick ── */}
+      {existingEst && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.55)' }}
-          onClick={e => { e.stopPropagation(); setExistingEst(null) }}
+          onClick={e => { e.stopPropagation(); e.preventDefault(); setExistingEst(null) }}
         >
           <div
             className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl"
-            onClick={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); e.preventDefault() }}
           >
             <h3 className="font-bold text-gray-900 text-base mb-1">Estimate already exists</h3>
             <p className="text-sm text-gray-500 mb-4">
               A draft estimate was found for <span className="font-semibold text-gray-700">{lead.contact_name}</span>.
             </p>
 
-            {/* Existing estimate preview */}
             <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-5 flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold text-gray-900">#{existingEst.estimate_number}</p>
@@ -406,13 +406,13 @@ function LeadCard({ lead, stage, onOpen }: {
 
             <div className="flex gap-3">
               <button
-                onClick={e => { e.stopPropagation(); router.push(`/dashboard/estimates/${existingEst.id}`) }}
+                onClick={e => { e.stopPropagation(); e.preventDefault(); router.push(`/dashboard/estimates/${existingEst.id}`) }}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white hover:opacity-90 transition-opacity"
               >
                 Open Existing
               </button>
               <button
-                onClick={createFresh}
+                onClick={e => { e.stopPropagation(); e.preventDefault(); createFresh(e) }}
                 disabled={creatingEst}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
@@ -421,13 +421,14 @@ function LeadCard({ lead, stage, onOpen }: {
             </div>
 
             <button
-              onClick={e => { e.stopPropagation(); setExistingEst(null) }}
+              onClick={e => { e.stopPropagation(); e.preventDefault(); setExistingEst(null) }}
               className="w-full mt-3 text-xs text-gray-400 hover:text-gray-600 transition-colors"
             >
               Cancel
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
