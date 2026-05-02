@@ -12,65 +12,63 @@
   --color-teal-800: #09524B;
 }
 
-/* ── Base font size ─────────────────────────────────────────────────────── */
-/* Sets root to 15px so Tailwind's text-sm (0.875rem) = ~13px,
-   text-base (1rem) = 15px, text-lg (1.125rem) = ~17px.
-   This lifts the entire site 1px without breaking any layout. */
-html {
-  font-size: 16px;
-}
+html { font-size: 16px; }
 
-/* Body copy default — minimum readable size */
 body {
-  font-size: 1rem; /* 15px */
+  font-size: 1rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
-  .animate-fade-up {
-    animation: fadeUp 0.3s ease both;
-  }
+  .animate-fade-up { animation: fadeUp 0.3s ease both; }
   .animate-shimmer {
     background: linear-gradient(90deg, #f1f0eb 25%, #e2e1db 50%, #f1f0eb 75%);
     background-size: 200% 100%;
     animation: shimmer 1.4s infinite;
   }
-  .font-serif {
-    font-family: var(--font-serif);
-  }
+  .font-serif { font-family: var(--font-serif); }
 }
 
-/* Input focus teal — override browser default blue */
-input:focus, textarea:focus, select:focus {
-  outline: none;
-  border-color: #0F766E !important;
-  box-shadow: 0 0 0 1px #0F766E;
-}
-
-/* No default border on inputs — components add borders explicitly when needed */
+/* ── Inputs: no browser defaults, no ugly rings or borders ─────────────── */
 input, textarea, select {
   border: none;
   outline: none;
+  box-shadow: none;
+  background: transparent;
+  -webkit-appearance: none;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
-/* Prevent faded/muted table headers and labels globally */
-th, thead td {
-  color: #374151;
-  font-weight: 600;
+/* Editable pill — used for qty / price inputs in estimate table */
+.est-pill {
+  background: #F0F0EC;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.8125rem;
+  color: #111827;
+  text-align: right;
+  width: 100%;
+  transition: background 0.15s;
+}
+.est-pill:focus {
+  background: #fff;
+  box-shadow: 0 0 0 1.5px #0F766E !important;
+  border-radius: 6px;
 }
 
-/* Column header labels inside divs (e.g. estimate table headers) */
-[class*="uppercase"][class*="tracking"] {
-  color: #6B7280;
-}
+/* ── Table header contrast ──────────────────────────────────────────────── */
+th, thead td { color: #374151; font-weight: 600; }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
