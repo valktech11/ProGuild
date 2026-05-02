@@ -1,79 +1,53 @@
 'use client'
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Lead, Session } from '@/types'
+import { Lead, Session, LeadStatus } from '@/types'
 import { avatarColor, initials, timeAgo } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 
-// ── Stage definitions ──────────────────────────────────────────────────────────
-const STAGES = [
-  { key: 'New',       label: 'New',       color: '#D97706', bg: '#FFFBEB' },
-  { key: 'Contacted', label: 'Contacted', color: '#2563EB', bg: '#EFF6FF' },
-  { key: 'Quoted',    label: 'Quoted',    color: '#7C3AED', bg: '#F5F3FF' },
-  { key: 'Scheduled', label: 'Scheduled', color: '#0F766E', bg: '#F0FDFA' },
-  { key: 'Completed', label: 'Completed', color: '#374151', bg: '#F9FAFB' },
-  { key: 'Paid',      label: 'Paid',      color: 'white',   bg: '#4A7B4A' },
-]
+const STAGES: LeadStatus[] = ['New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid']
+const STAGE_ORDER: Record<string, number> = { New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5 }
 
-const STAGE_ORDER: Record<string, number> = {
-  New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5, Lost: 6,
+function fmt(d: string | null): string {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+function fmtPhone(p: string | null): string {
+  if (!p) return '—'
+  const digits = p.replace(/\D/g, '')
+  if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+  return p
+}
+function isOverdue(dateStr: string | null): boolean {
+  if (!dateStr) return false
+  return new Date(dateStr) < new Date()
 }
 
-// ── Next Best Action (static rule-based) ───────────────────────────────────────
-function getNextAction(lead: Lead): { icon: string; text: string; cta: string; color: string } {
+function getNBA(lead: Lead, stage: LeadStatus): { label: string; sub: string; urgent: boolean } {
   const days = Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 86400000)
-  switch (lead.lead_status) {
-    case 'New':
-      return days >= 1
-        ? { icon: '⚡', text: `No contact in ${days} day${days > 1 ? 's' : ''} — call now to increase win rate`, cta: 'Call Lead', color: '#EF4444' }
-        : { icon: '📞', text: 'New lead — respond within 24hrs to increase win rate by 40%', cta: 'Call Lead', color: '#D97706' }
-    case 'Contacted':
-      return { icon: '📋', text: 'Send a quote to keep momentum going', cta: 'Create Estimate', color: '#7C3AED' }
-    case 'Quoted':
-      return days >= 3
-        ? { icon: '🔔', text: `Quote pending ${days} days — follow up to close`, cta: 'Follow Up', color: '#EF4444' }
-        : { icon: '⏳', text: 'Quote sent — follow up in 2–3 days if no response', cta: 'Set Reminder', color: '#0F766E' }
-    case 'Scheduled':
-      return { icon: '📅', text: 'Confirm job day details with the client', cta: 'Send Confirmation', color: '#0F766E' }
-    case 'Completed':
-      return { icon: '🧾', text: 'Job done — send invoice and request a review', cta: 'Generate Invoice', color: '#059669' }
-    case 'Paid':
-      return { icon: '⭐', text: 'Great job! Ask the client for a review while fresh', cta: 'Request Review', color: '#D97706' }
-    default:
-      return { icon: '📋', text: 'Review this lead and take the next step', cta: 'View Details', color: '#6B7280' }
+  switch (stage) {
+    case 'New': return days > 3
+      ? { label: 'Call now — overdue response', sub: `Lead is ${days} days old with no contact.`, urgent: true }
+      : { label: 'Call or message this lead', sub: 'Respond quickly to win the job.', urgent: false }
+    case 'Contacted': return { label: 'Send a quote', sub: 'Customer has been contacted. Send your estimate.', urgent: false }
+    case 'Quoted':    return { label: 'Follow up (3 days no response)', sub: 'Customer has not replied to the estimate yet.', urgent: true }
+    case 'Scheduled': return { label: 'Confirm the job day', sub: 'Send a reminder before the scheduled date.', urgent: false }
+    case 'Completed': return { label: 'Generate invoice & request review', sub: 'Job is done — collect payment and get a review.', urgent: false }
+    case 'Paid':      return { label: 'Request a review', sub: 'Ask the customer to leave a review.', urgent: false }
+    default:          return { label: 'Review this lead', sub: '', urgent: false }
   }
 }
 
-// ── Inline SVG icon ────────────────────────────────────────────────────────────
-function Ic({ d, s = 16, sw = 1.8, c = '#6B7280' }: { d: string; s?: number; sw?: number; c?: string }) {
+interface ToastItem { id: number; message: string; type: 'success' | 'error'; prevStage?: LeadStatus }
+
+function Ic({ children, color = '#0F766E', size = 14 }: { children: React.ReactNode; color?: string; size?: number }) {
   return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
-      <path d={d} />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {children}
     </svg>
   )
 }
 
-// ── Backward confirmation ──────────────────────────────────────────────────────
-function BackConfirm({ from, to, onConfirm, onCancel }: { from: string; to: string; onConfirm: () => void; onCancel: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onCancel}>
-      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
-          <Ic d="M12 9v4M12 16.5v1M2 12a10 10 0 1020 0 10 10 0 00-20 0" s={24} sw={2} c="#D97706" />
-        </div>
-        <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Move back to {to}?</h3>
-        <p className="text-sm text-gray-500 text-center mb-5">This lead is currently <strong>{from}</strong>. Moving backward is allowed but recorded.</p>
-        <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">Cancel</button>
-          <button onClick={onConfirm} className="flex-1 py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#0F766E' }}>Move back</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Main page ──────────────────────────────────────────────────────────────────
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -83,494 +57,388 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     const s = sessionStorage.getItem('pg_pro')
     return s ? JSON.parse(s) : null
   })
-  const [dk, setDk] = useState(() => typeof window !== 'undefined' && localStorage.getItem('pg_darkmode') === '1')
-  function toggleDark() { setDk(p => { const n = !p; localStorage.setItem('pg_darkmode', n ? '1' : '0'); return n }) }
 
-  const [lead,    setLead]    = useState<Lead | null>(null)
+  const [dk, setDk] = useState(false)
+  const [lead, setLead] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
-  const [saving,  setSaving]  = useState(false)
-  const [tab,     setTab]     = useState<'notes' | 'activity' | 'conversation' | 'files'>('notes')
-  const [backConfirm, setBackConfirm] = useState<string | null>(null)
-  const [toast,   setToast]   = useState('')
+  const [notFound, setNotFound] = useState(false)
 
-  // Editable fields
-  const [notes,     setNotes]     = useState('')
-  const [amount,    setAmount]    = useState('')
-  const [schedDate, setSchedDate] = useState('')
-  const [followUp,  setFollowUp]  = useState('')
+  const [currentStage, setCurrentStage] = useState<LeadStatus>('New')
+  const [stageSaving, setStageSaving] = useState(false)
+  const [confirmBack, setConfirmBack] = useState<LeadStatus | null>(null)
+
+  const [editingInfo, setEditingInfo] = useState(false)
+  const [editPhone, setEditPhone] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editQuote, setEditQuote] = useState('')
+  const [editScheduled, setEditScheduled] = useState('')
+  const [editFollowUp, setEditFollowUp] = useState('')
+  const [savingInfo, setSavingInfo] = useState(false)
+
+  const [notes, setNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+
+  const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [toastSeq, setToastSeq] = useState(0)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') setDk(localStorage.getItem('pg_darkmode') === '1')
+  }, [])
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
-    fetch(`/api/leads/${id}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.lead) {
-          setLead(d.lead)
-          setNotes(d.lead.notes || '')
-          setAmount(d.lead.quoted_amount?.toString() || '')
-          setSchedDate(d.lead.scheduled_date || '')
-          setFollowUp(d.lead.follow_up_date || '')
-        }
+    fetch(`/api/leads/${id}?pro_id=${session.id}`)
+      .then(r => { if (r.status === 404) { setNotFound(true); setLoading(false); return null }; return r.json() })
+      .then(data => {
+        if (!data) return
+        const l: Lead = data.lead
+        setLead(l)
+        setCurrentStage(l.lead_status as LeadStatus)
+        setNotes(l.notes || '')
+        setEditPhone(l.contact_phone || '')
+        setEditEmail(l.contact_email || '')
+        setEditQuote(l.quoted_amount != null ? String(l.quoted_amount) : '')
+        setEditScheduled(l.scheduled_date || '')
+        setEditFollowUp(l.follow_up_date || '')
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [id, session, router])
+  }, [session, id, router])
 
-  async function saveChanges(fields: Partial<Lead> = {}) {
-    if (!lead) return
-    setSaving(true)
-    const body = {
-      notes: notes || null,
-      quoted_amount: amount ? parseFloat(amount) : null,
-      scheduled_date: schedDate || null,
-      follow_up_date: followUp || null,
-      ...fields,
-    }
-    const r = await fetch(`/api/leads/${id}`, {
+  function addToast(message: string, type: ToastItem['type'] = 'success', prevStage?: LeadStatus) {
+    const tid = toastSeq + 1
+    setToastSeq(tid)
+    setToasts(t => [...t, { id: tid, message, type, prevStage }])
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== tid)), 5000)
+  }
+  function dismissToast(tid: number) { setToasts(t => t.filter(x => x.id !== tid)) }
+
+  const patchLead = useCallback(async (fields: Record<string, unknown>) => {
+    if (!session) return false
+    const res = await fetch(`/api/leads/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ pro_id: session.id, ...fields }),
     })
-    const d = await r.json()
-    if (d.lead) {
-      setLead(d.lead)
-      setToast('Saved!')
-      setTimeout(() => setToast(''), 2000)
-    }
-    setSaving(false)
+    return res.ok
+  }, [session, id])
+
+  async function handleStageClick(stage: LeadStatus) {
+    if (stage === currentStage || stageSaving) return
+    if (STAGE_ORDER[stage] < STAGE_ORDER[currentStage]) { setConfirmBack(stage); return }
+    const prev = currentStage
+    setCurrentStage(stage)
+    setStageSaving(true)
+    const ok = await patchLead({ lead_status: stage })
+    setStageSaving(false)
+    if (ok) { setLead(l => l ? { ...l, lead_status: stage } : l); addToast(`Moved to ${stage}`, 'success', prev) }
+    else { setCurrentStage(prev); addToast('Failed to update stage', 'error') }
   }
 
-  async function changeStage(newStage: string) {
-    if (!lead) return
-    const isBackward = (STAGE_ORDER[newStage] ?? 0) < (STAGE_ORDER[lead.lead_status] ?? 0)
-    if (isBackward) { setBackConfirm(newStage); return }
-    await saveChanges({ lead_status: newStage as Lead['lead_status'] })
-    setLead(prev => prev ? { ...prev, lead_status: newStage as Lead['lead_status'] } : null)
+  async function handleConfirmBack() {
+    if (!confirmBack) return
+    const stage = confirmBack; const prev = currentStage
+    setConfirmBack(null); setCurrentStage(stage); setStageSaving(true)
+    const ok = await patchLead({ lead_status: stage })
+    setStageSaving(false)
+    if (ok) { setLead(l => l ? { ...l, lead_status: stage } : l); addToast(`Moved back to ${stage}`, 'success', prev) }
+    else { setCurrentStage(prev); addToast('Failed to update stage', 'error') }
   }
 
-  const cardBg   = dk ? '#1E293B' : 'white'
-  const cardBdr  = dk ? '#334155' : '#E5E7EB'
-  const pageBg   = dk ? '#0F172A' : '#F3F4F6'
-  const textMain = dk ? '#F1F5F9' : '#0A1628'
-  const textSub  = dk ? '#94A3B8' : '#6B7280'
-  const inputCls = `w-full px-3 py-2.5 text-[13px] rounded-xl border outline-none transition-all focus:ring-2 focus:ring-teal-100 focus:border-teal-600`
-  const inputStyle = { backgroundColor: dk ? '#0F172A' : 'white', borderColor: cardBdr, color: textMain }
-
-  if (!session || loading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ background: pageBg }}>
-        <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: '#0F766E', borderTopColor: 'transparent' }} />
-      </div>
-    )
+  async function handleUndo(tid: number, prevStage: LeadStatus) {
+    dismissToast(tid)
+    const from = currentStage; setCurrentStage(prevStage); setStageSaving(true)
+    const ok = await patchLead({ lead_status: prevStage })
+    setStageSaving(false)
+    if (!ok) { setCurrentStage(from); addToast('Undo failed', 'error') }
   }
 
-  if (!lead) {
-    return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center gap-4" style={{ background: pageBg }}>
-        <p className="text-lg font-bold" style={{ color: textMain }}>Lead not found</p>
-        <Link href="/dashboard/pipeline" className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#0F766E' }}>← Back to Pipeline</Link>
-      </div>
-    )
+  async function handleSaveInfo() {
+    setSavingInfo(true)
+    const ok = await patchLead({
+      contact_phone: editPhone || null,
+      contact_email: editEmail || null,
+      quoted_amount: editQuote ? parseFloat(editQuote) : null,
+      scheduled_date: editScheduled || null,
+      follow_up_date: editFollowUp || null,
+    })
+    setSavingInfo(false)
+    if (ok) {
+      setLead(l => l ? { ...l, contact_phone: editPhone || null, contact_email: editEmail || null, quoted_amount: editQuote ? parseFloat(editQuote) : null, scheduled_date: editScheduled || null, follow_up_date: editFollowUp || null } : l)
+      setEditingInfo(false); addToast('Lead information saved')
+    } else addToast('Failed to save', 'error')
   }
 
-  const [avBg, avFg] = avatarColor(lead.contact_name)
-  const currentStage = STAGES.find(s => s.key === lead.lead_status) || STAGES[0]
-  const nextAction   = getNextAction(lead)
-  const days         = Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 86400000)
+  async function handleSaveNotes() {
+    setSavingNotes(true)
+    const ok = await patchLead({ notes })
+    setSavingNotes(false)
+    if (ok) { setLead(l => l ? { ...l, notes } : l); addToast('Note saved') }
+    else addToast('Failed to save note', 'error')
+  }
+
+  function getActivity() {
+    if (!lead) return []
+    const items: { date: string; title: string; sub: string; type: string }[] = []
+    items.push({ date: lead.created_at, title: 'Lead created', sub: `From ${(lead.lead_source || 'unknown').replace(/_/g, ' ')}${lead.message ? ` · "${lead.message.slice(0, 60)}${lead.message.length > 60 ? '…' : ''}"` : ''}`, type: 'created' })
+    if (lead.quoted_amount != null) items.push({ date: (lead as any).updated_at || lead.created_at, title: 'Quote amount set', sub: `$${Number(lead.quoted_amount).toLocaleString()}`, type: 'quote' })
+    if (lead.scheduled_date) items.push({ date: (lead as any).updated_at || lead.created_at, title: 'Job scheduled', sub: fmt(lead.scheduled_date), type: 'scheduled' })
+    if (lead.notes) items.push({ date: (lead as any).updated_at || lead.created_at, title: 'Note added', sub: lead.notes.slice(0, 80) + (lead.notes.length > 80 ? '…' : ''), type: 'note' })
+    return items.reverse()
+  }
+
+  const bg = dk ? '#0A1628' : '#F5F4F0'
+  const card = dk ? '#1E293B' : '#FFFFFF'
+  const border = dk ? '#2D3748' : '#E8E2D9'
+  const tp = dk ? '#F1F5F9' : '#111827'
+  const ts = dk ? '#94A3B8' : '#6B7280'
+  const inputBg = dk ? '#0F172A' : '#F9FAFB'
+  const subBg = dk ? '#0F172A' : '#F9FAFB'
+
+  if (!session) return null
+
+  const overdueFU = isOverdue(lead?.follow_up_date ?? null)
+  const nba = lead ? getNBA(lead, currentStage) : null
+  const activity = getActivity()
+  const curIdx = STAGE_ORDER[currentStage] ?? 0
+  const [avBg, avFg] = lead ? avatarColor(lead.contact_name) : ['#E1F5EE', '#0F6E56']
+
+  const infoRows = lead ? [
+    { label: 'Phone',          icon: 'phone',    view: fmtPhone(lead.contact_phone),   edit: <input value={editPhone} onChange={e => setEditPhone(e.target.value)} style={{ fontSize: 13, padding: '5px 8px', borderRadius: 6, border: `1px solid ${border}`, background: inputBg, color: tp, width: '100%' }} /> },
+    { label: 'Source',         icon: 'source',   view: (lead.lead_source || '—').replace(/_/g, ' '), edit: null },
+    { label: 'Email',          icon: 'email',    view: lead.contact_email || '—',       edit: <input value={editEmail} onChange={e => setEditEmail(e.target.value)} style={{ fontSize: 13, padding: '5px 8px', borderRadius: 6, border: `1px solid ${border}`, background: inputBg, color: tp, width: '100%' }} /> },
+    { label: 'Scheduled date', icon: 'calendar', view: fmt(lead.scheduled_date),        edit: <input type="date" value={editScheduled} onChange={e => setEditScheduled(e.target.value)} style={{ fontSize: 13, padding: '5px 8px', borderRadius: 6, border: `1px solid ${border}`, background: inputBg, color: tp, width: '100%' }} /> },
+    { label: 'Quote amount',   icon: 'dollar',   view: lead.quoted_amount != null ? `$${Number(lead.quoted_amount).toLocaleString()}` : '—', edit: <input type="number" value={editQuote} onChange={e => setEditQuote(e.target.value)} placeholder="0.00" style={{ fontSize: 13, padding: '5px 8px', borderRadius: 6, border: `1px solid ${border}`, background: inputBg, color: tp, width: '100%' }} /> },
+    { label: 'Follow-up date', icon: 'followup', view: <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{fmt(lead.follow_up_date)}{overdueFU && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>Overdue</span>}</span>, edit: <input type="date" value={editFollowUp} onChange={e => setEditFollowUp(e.target.value)} style={{ fontSize: 13, padding: '5px 8px', borderRadius: 6, border: `1px solid ${border}`, background: inputBg, color: tp, width: '100%' }} /> },
+  ] : []
 
   return (
-    <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
-      {backConfirm && (
-        <BackConfirm
-          from={lead.lead_status} to={backConfirm}
-          onConfirm={async () => {
-            const stage = backConfirm
-            setBackConfirm(null)
-            await saveChanges({ lead_status: stage as Lead['lead_status'] })
-            setLead(prev => prev ? { ...prev, lead_status: stage as Lead['lead_status'] } : null)
-          }}
-          onCancel={() => setBackConfirm(null)}
-        />
-      )}
+    <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={() => { const n = !dk; setDk(n); localStorage.setItem('pg_darkmode', n ? '1' : '0') }}>
+      <div style={{ background: bg, minHeight: '100vh', padding: '20px 24px', paddingBottom: 40 }}>
 
-      {/* Save toast */}
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl text-sm font-semibold text-white shadow-xl"
-          style={{ background: '#0F766E' }}>
-          {toast}
-        </div>
-      )}
-
-      <div style={{ backgroundColor: pageBg, minHeight: '100%' }}>
-        {/* ── Top header ───────────────────────────────────────────────────── */}
-        <div className="px-6 py-4 border-b flex items-center justify-between"
-          style={{ backgroundColor: cardBg, borderColor: cardBdr }}>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard/pipeline"
-              className="flex items-center gap-1.5 text-[13px] font-semibold hover:opacity-70 transition-opacity"
-              style={{ color: '#0F766E' }}>
-              <Ic d="M19 12H5M12 19l-7-7 7-7" s={15} sw={2.5} c="#0F766E" />
-              Back to Pipeline
-            </Link>
-            <div className="w-px h-5 bg-gray-200" />
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                style={{ background: avBg, color: avFg }}>
-                {initials(lead.contact_name)}
-              </div>
-              <div>
-                <div className="text-[15px] font-bold" style={{ color: textMain }}>{lead.contact_name}</div>
-                <div className="text-[12px]" style={{ color: textSub }}>
-                  {lead.lead_source?.replace(/_/g, ' ')} · {timeAgo(lead.created_at)}
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold ml-1"
-                style={{ background: currentStage.bg, color: currentStage.key === 'Paid' ? '#4A7B4A' : currentStage.color }}>
-                {currentStage.label}
-              </span>
+        {/* Toasts */}
+        <div style={{ position: 'fixed', top: 20, right: 24, zIndex: 200, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
+          {toasts.map(t => (
+            <div key={t.id} style={{ pointerEvents: 'all', background: t.type === 'error' ? '#FEF2F2' : '#F0FDF4', border: `1px solid ${t.type === 'error' ? '#FECACA' : '#BBF7D0'}`, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: t.type === 'error' ? '#991B1B' : '#166534', minWidth: 220, maxWidth: 320 }}>
+              <span style={{ flex: 1 }}>{t.message}</span>
+              {t.prevStage && t.type === 'success' && <button onClick={() => handleUndo(t.id, t.prevStage!)} style={{ fontSize: 12, color: '#0F766E', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Undo</button>}
+              <button onClick={() => dismissToast(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ts, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {lead.contact_phone && (
-              <a href={`tel:${lead.contact_phone}`}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold border transition-colors hover:bg-gray-50"
-                style={{ borderColor: cardBdr, color: textMain }}>
-                <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11 19.79 19.79 0 01.01 2.38a2 2 0 012-2.18h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" s={14} c="#0F766E" />
-                Call
-              </a>
-            )}
-            <button onClick={() => saveChanges()} disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: '#0F766E' }}>
-              {saving ? 'Saving…' : 'Save Changes'}
-            </button>
-          </div>
+          ))}
         </div>
 
-        {/* ── Stage progress bar ───────────────────────────────────────────── */}
-        <div className="px-6 py-3 border-b overflow-x-auto" style={{ backgroundColor: cardBg, borderColor: cardBdr }}>
-          <div className="flex items-center gap-2 min-w-max">
-            {STAGES.filter(s => s.key !== 'Paid').concat(STAGES.filter(s => s.key === 'Paid')).map((s, i, arr) => {
-              const isActive  = lead.lead_status === s.key
-              const isPast    = (STAGE_ORDER[lead.lead_status] ?? 0) > (STAGE_ORDER[s.key] ?? 0)
-              const isLast    = i === arr.length - 1
-              return (
-                <div key={s.key} className="flex items-center gap-2">
-                  <button onClick={() => changeStage(s.key)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all hover:opacity-80"
-                    style={isActive
-                      ? { background: s.key === 'Paid' ? s.bg : s.bg, color: s.key === 'Paid' ? '#4A7B4A' : s.color, border: `2px solid ${s.key === 'Paid' ? '#4A7B4A' : s.color}` }
-                      : isPast
-                        ? { background: '#F0FDF4', color: '#059669', border: '2px solid #86EFAC' }
-                        : { background: dk ? '#334155' : '#F9FAFB', color: textSub, border: `1.5px solid ${cardBdr}` }
-                    }>
-                    {(isActive || isPast) && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                        stroke={isActive ? (s.key === 'Paid' ? '#4A7B4A' : s.color) : '#059669'}
-                        strokeWidth="2.5" strokeLinecap="round">
-                        <path d={isActive ? 'M12 2l.01 0' : 'M20 6L9 17l-5-5'} />
-                      </svg>
-                    )}
-                    {s.label}
-                  </button>
-                  {!isLast && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#475569' : '#D1D5DB'} strokeWidth="2" strokeLinecap="round">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* ── 3-column body ────────────────────────────────────────────────── */}
-        <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-          {/* ── LEFT: Conversation / Notes / Activity ── */}
-          <div className="lg:col-span-7 flex flex-col gap-4">
-            {/* Tabs */}
-            <div className="flex gap-1 border-b" style={{ borderColor: cardBdr }}>
-              {(['conversation', 'notes', 'activity', 'files'] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  className="px-4 py-2.5 text-[13px] font-semibold capitalize transition-all border-b-2"
-                  style={tab === t
-                    ? { color: '#0F766E', borderColor: '#0F766E' }
-                    : { color: textSub, borderColor: 'transparent' }}>
-                  {t}
-                </button>
-              ))}
-            </div>
-
-            {/* Conversation — TBD */}
-            {tab === 'conversation' && (
-              <div className="rounded-2xl p-8 flex flex-col items-center justify-center text-center min-h-[300px]"
-                style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-                <div className="text-4xl mb-3">💬</div>
-                <div className="text-[15px] font-bold mb-1" style={{ color: textMain }}>Messaging coming in v76</div>
-                <div className="text-[13px] max-w-xs" style={{ color: textSub }}>
-                  SMS, WhatsApp and Email conversations will appear here once messaging is live.
-                </div>
-                <div className="mt-4 px-3 py-1 rounded-full text-[11px] font-semibold" style={{ background: '#EDE9FE', color: '#7C3AED' }}>v76</div>
-              </div>
-            )}
-
-            {/* Notes */}
-            {tab === 'notes' && (
-              <div className="rounded-2xl p-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-                <div className="text-[13px] font-bold mb-3" style={{ color: textMain }}>Notes</div>
-                <div className="relative">
-                  <svg className="absolute left-3 top-3 flex-shrink-0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={textSub} strokeWidth="1.8" strokeLinecap="round">
-                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                  </svg>
-                  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={8}
-                    placeholder="Add notes about this lead — what they want, budget discussed, special requirements..."
-                    className={inputCls + ' pl-9 resize-none'}
-                    style={inputStyle} />
-                </div>
-                <div className="flex justify-end mt-3">
-                  <button onClick={() => saveChanges()} disabled={saving}
-                    className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
-                    style={{ background: '#0F766E' }}>
-                    {saving ? 'Saving…' : 'Save Notes'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Activity */}
-            {tab === 'activity' && (
-              <div className="rounded-2xl p-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-                <div className="text-[13px] font-bold mb-4" style={{ color: textMain }}>Activity</div>
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#F0FDFA' }}>
-                      <Ic d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" s={14} c="#0F766E" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-semibold" style={{ color: textMain }}>Lead created</div>
-                      <div className="text-[12px]" style={{ color: textSub }}>
-                        Received via {lead.lead_source?.replace(/_/g, ' ')} · {timeAgo(lead.created_at)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: currentStage.key === 'Paid' ? '#D1FAE5' : currentStage.bg }}>
-                      <div className="w-2 h-2 rounded-full" style={{ background: currentStage.key === 'Paid' ? '#4A7B4A' : currentStage.color }} />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-semibold" style={{ color: textMain }}>
-                        Currently: {lead.lead_status}
-                      </div>
-                      <div className="text-[12px]" style={{ color: textSub }}>
-                        {days === 0 ? 'Today' : `${days} day${days > 1 ? 's' : ''} in pipeline`}
-                      </div>
-                    </div>
-                  </div>
-                  {lead.notes && (
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#F5F3FF' }}>
-                        <Ic d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" s={14} c="#7C3AED" />
-                      </div>
-                      <div>
-                        <div className="text-[13px] font-semibold" style={{ color: textMain }}>Notes added</div>
-                        <div className="text-[12px] line-clamp-2" style={{ color: textSub }}>{lead.notes}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-5 pt-4 border-t text-center text-[12px]" style={{ borderColor: cardBdr, color: textSub }}>
-                  Full activity log with timestamps coming in v76
-                </div>
-              </div>
-            )}
-
-            {/* Files — TBD */}
-            {tab === 'files' && (
-              <div className="rounded-2xl p-8 flex flex-col items-center justify-center text-center min-h-[300px]"
-                style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-                <div className="text-4xl mb-3">📎</div>
-                <div className="text-[15px] font-bold mb-1" style={{ color: textMain }}>File attachments coming in v76</div>
-                <div className="text-[13px] max-w-xs" style={{ color: textSub }}>
-                  Photos, contracts, and documents shared by the client will appear here.
-                </div>
-                <div className="mt-4 px-3 py-1 rounded-full text-[11px] font-semibold" style={{ background: '#EDE9FE', color: '#7C3AED' }}>v76</div>
-              </div>
-            )}
-
-            {/* Request message card */}
-            <div className="rounded-2xl p-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-              <div className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: textSub }}>Original Request</div>
-              <p className="text-[14px] leading-relaxed" style={{ color: textMain }}>{lead.message}</p>
-            </div>
-          </div>
-
-          {/* ── MIDDLE: Lead details ── */}
-          <div className="lg:col-span-3 flex flex-col gap-4">
-            <div className="rounded-2xl p-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-[14px] font-bold" style={{ color: textMain }}>Lead Details</div>
-              </div>
-
-              <div className="space-y-3">
-                {/* Phone */}
-                {lead.contact_phone && (
-                  <div className="flex items-center gap-3">
-                    <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11 19.79 19.79 0 01.01 2.38a2 2 0 012-2.18h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" s={15} c="#0F766E" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: textSub }}>Phone</div>
-                      <a href={`tel:${lead.contact_phone}`} className="text-[13px] font-semibold hover:underline" style={{ color: textMain }}>
-                        {lead.contact_phone}
-                      </a>
-                    </div>
-                    <a href={`tel:${lead.contact_phone}`} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Call">
-                      <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11 19.79 19.79 0 01.01 2.38a2 2 0 012-2.18h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" s={13} c="#0F766E" />
-                    </a>
-                  </div>
-                )}
-
-                {/* Email */}
-                {lead.contact_email && (
-                  <div className="flex items-center gap-3">
-                    <Ic d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6" s={15} c="#2563EB" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: textSub }}>Email</div>
-                      <a href={`mailto:${lead.contact_email}`} className="text-[13px] font-semibold hover:underline truncate block" style={{ color: textMain }}>
-                        {lead.contact_email}
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {/* Source */}
-                <div className="flex items-center gap-3">
-                  <Ic d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 10a1 1 0 100-2 1 1 0 000 2" s={15} c="#7C3AED" />
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: textSub }}>Source</div>
-                    <div className="text-[13px] font-semibold" style={{ color: textMain }}>{lead.lead_source?.replace(/_/g, ' ')}</div>
-                  </div>
-                </div>
-
-                {/* Received */}
-                <div className="flex items-center gap-3">
-                  <Ic d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" s={15} c="#D97706" />
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: textSub }}>Received</div>
-                    <div className="text-[13px] font-semibold" style={{ color: textMain }}>{timeAgo(lead.created_at)}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 space-y-3 pt-4 border-t" style={{ borderColor: cardBdr }}>
-                {/* Quote amount */}
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1.5" style={{ color: textSub }}>Quote Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-semibold" style={{ color: textSub }}>$</span>
-                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-                      placeholder="0"
-                      className={inputCls + ' pl-6'}
-                      style={inputStyle} />
-                  </div>
-                </div>
-
-                {/* Scheduled date */}
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1.5" style={{ color: textSub }}>Scheduled Date</label>
-                  <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)}
-                    className={inputCls}
-                    style={inputStyle} />
-                </div>
-
-                {/* Follow-up date */}
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1.5" style={{ color: textSub }}>Follow-up Date</label>
-                  <input type="date" value={followUp} onChange={e => setFollowUp(e.target.value)}
-                    className={inputCls}
-                    style={inputStyle} />
-                </div>
-              </div>
-
-              {/* Reminders placeholder */}
-              <div className="mt-4 pt-4 border-t" style={{ borderColor: cardBdr }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[13px] font-bold" style={{ color: textMain }}>Reminders</div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#EDE9FE', color: '#7C3AED' }}>v76</span>
-                </div>
-                <div className="text-[12px]" style={{ color: textSub }}>Automated reminders and follow-up scheduling coming in v76.</div>
+        {/* Backward confirm modal */}
+        {confirmBack && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setConfirmBack(null)}>
+            <div style={{ background: card, borderRadius: 16, padding: 24, maxWidth: 360, width: '100%', border: `1px solid ${border}` }} onClick={e => e.stopPropagation()}>
+              <p style={{ fontSize: 15, fontWeight: 500, color: tp, marginBottom: 8 }}>Move back to {confirmBack}?</p>
+              <p style={{ fontSize: 13, color: ts, marginBottom: 20 }}>This lead is currently <strong>{currentStage}</strong>. Moving backward is allowed but recorded.</p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button onClick={() => setConfirmBack(null)} style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                <button onClick={handleConfirmBack} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>Move back</button>
               </div>
             </div>
           </div>
+        )}
 
-          {/* ── RIGHT: Intelligence ── */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            {/* Estimate */}
-            <div className="rounded-2xl p-4" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[13px] font-bold" style={{ color: textMain }}>Estimate</div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#FEF3C7', color: '#D97706' }}>v75</span>
-              </div>
-              {lead.quoted_amount ? (
-                <div className="text-[24px] font-bold mb-1" style={{ color: textMain }}>${lead.quoted_amount.toLocaleString()}</div>
-              ) : (
-                <div className="text-[14px] font-bold mb-1" style={{ color: textSub }}>—</div>
-              )}
-              <div className="text-[11px] mb-3" style={{ color: textSub }}>Est. Amount</div>
-              <button className="w-full py-2 rounded-xl text-[12px] font-semibold border transition-colors hover:bg-gray-50"
-                style={{ borderColor: cardBdr, color: textSub }}>
-                Create / View Estimate
+        {loading && <div style={{ textAlign: 'center', padding: 80, color: ts, fontSize: 14 }}>Loading...</div>}
+        {notFound && <div style={{ textAlign: 'center', padding: 80, color: ts, fontSize: 14 }}>Lead not found.</div>}
+
+        {!loading && !notFound && lead && (
+          <>
+            {/* Top nav */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <button onClick={() => router.push('/dashboard/pipeline')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <Ic color={ts}><polyline points="15 18 9 12 15 6"/></Ic>
+                Back to Pipeline
               </button>
-              <div className="text-[10px] text-center mt-1.5" style={{ color: textSub }}>Available in v75</div>
-            </div>
-
-            {/* Next Best Action */}
-            <div className="rounded-2xl p-4" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-sm">💡</span>
-                <div className="text-[13px] font-bold" style={{ color: textMain }}>Next Best Action</div>
-              </div>
-              <p className="text-[12px] leading-relaxed mb-3" style={{ color: textSub }}>{nextAction.text}</p>
-              {lead.contact_phone && nextAction.cta === 'Call Lead' ? (
-                <a href={`tel:${lead.contact_phone}`}
-                  className="w-full flex items-center justify-center py-2 rounded-xl text-[12px] font-bold text-white transition-opacity hover:opacity-90"
-                  style={{ background: nextAction.color }}>
-                  📞 {nextAction.cta}
-                </a>
-              ) : (
-                <button className="w-full py-2 rounded-xl text-[12px] font-bold text-white transition-opacity hover:opacity-90"
-                  style={{ background: nextAction.color }}>
-                  {nextAction.cta}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, fontSize: 13, cursor: 'pointer' }}>
+                  <Ic color={tp}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
+                  Call
                 </button>
-              )}
+                <button style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, fontSize: 13, cursor: 'pointer' }}>Send Estimate</button>
+                <button style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Follow Up</button>
+                <button style={{ padding: '7px 11px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: ts, fontSize: 18, lineHeight: 1, cursor: 'pointer' }}>···</button>
+              </div>
             </div>
 
-            {/* AI Insights — TBD */}
-            <div className="rounded-2xl p-4" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M12 3l1.912 5.813a2 2 0 001.272 1.272L21 12l-5.813 1.912a2 2 0 00-1.272 1.272L12 21l-1.912-5.813a2 2 0 00-1.272-1.272L3 12l5.813-1.912a2 2 0 001.272-1.272L12 3z"/>
-                  </svg>
-                  <div className="text-[13px] font-bold" style={{ color: textMain }}>AI Insights</div>
+            {/* Hero */}
+            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '20px 24px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: avBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 500, color: avFg, flexShrink: 0 }}>
+                  {initials(lead.contact_name)}
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#EDE9FE', color: '#7C3AED' }}>v85</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <span style={{ fontSize: 22, fontWeight: 500, color: tp }}>{lead.contact_name}</span>
+                    <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: '#EEEDFE', color: '#3C3489', fontWeight: 500 }}>{currentStage}</span>
+                    <span style={{ fontSize: 13, color: ts }}>· {timeAgo(lead.created_at)}</span>
+                    {overdueFU && <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>Overdue</span>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: ts, flexWrap: 'wrap' }}>
+                    {lead.quoted_amount != null && <><span>${Number(lead.quoted_amount).toLocaleString()} est. value</span><span style={{ opacity: 0.5 }}>·</span></>}
+                    {lead.lead_source && <span>{lead.lead_source.replace(/_/g, ' ')}</span>}
+                  </div>
+                </div>
               </div>
-              <div className="text-[12px]" style={{ color: textSub }}>Price sensitivity analysis, win probability, and competitive insights coming in v85.</div>
             </div>
 
-            {/* Lead Score — TBD */}
-            <div className="rounded-2xl p-4" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[13px] font-bold" style={{ color: textMain }}>Lead Score</div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#EDE9FE', color: '#7C3AED' }}>v85</span>
-              </div>
-              <div className="text-[12px]" style={{ color: textSub }}>AI-powered lead scoring with budget, intent, and fit signals coming in v85.</div>
+            {/* Stage pills */}
+            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '14px 24px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto' }}>
+              {STAGES.map((stage, i) => {
+                const done = i < curIdx; const active = i === curIdx
+                return (
+                  <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleStageClick(stage)}
+                      disabled={stageSaving}
+                      style={{
+                        padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
+                        background: done ? '#DCFCE7' : 'transparent',
+                        border: `1.5px solid ${done ? '#22C55E' : active ? '#7C3AED' : (dk ? '#4B5563' : '#D1D5DB')}`,
+                        color: done ? '#166534' : active ? '#7C3AED' : ts,
+                        cursor: stageSaving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+                      }}
+                    >
+                      {done   && <Ic color="#166534" size={12}><polyline points="20 6 9 17 4 12"/></Ic>}
+                      {active && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7C3AED', display: 'inline-block' }} />}
+                      {stage}
+                    </button>
+                    {i < STAGES.length - 1 && <Ic color={ts} size={12}><polyline points="9 18 15 12 9 6"/></Ic>}
+                  </div>
+                )
+              })}
             </div>
-          </div>
-        </div>
+
+            {/* Lead information */}
+            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '20px 24px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <span style={{ fontSize: 15, fontWeight: 500, color: tp }}>Lead information</span>
+                {!editingInfo
+                  ? <button onClick={() => setEditingInfo(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: ts, background: 'none', border: 'none', cursor: 'pointer' }}><Ic color={ts}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Ic>Edit</button>
+                  : <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => { setEditingInfo(false); setEditPhone(lead.contact_phone || ''); setEditEmail(lead.contact_email || '') }} style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                      <button onClick={handleSaveInfo} disabled={savingInfo} style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>{savingInfo ? 'Saving…' : 'Save'}</button>
+                    </div>
+                }
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                {infoRows.map((row, i) => {
+                  const isLeft = i % 2 === 0; const isLast = i >= 4
+                  return (
+                    <div key={row.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '13px 0', paddingRight: isLeft ? 24 : 0, paddingLeft: isLeft ? 0 : 24, borderBottom: isLast ? 'none' : `1px solid ${border}`, borderRight: isLeft ? `1px solid ${border}` : 'none' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: dk ? '#1E3A4A' : '#F0FDFA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                        <Ic color="#0F766E">
+                          {row.icon === 'phone'    && <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>}
+                          {row.icon === 'email'    && <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>}
+                          {row.icon === 'source'   && <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>}
+                          {row.icon === 'calendar' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                          {row.icon === 'dollar'   && <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                          {row.icon === 'followup' && <><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></>}
+                        </Ic>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, color: ts, marginBottom: 3 }}>{row.label}</div>
+                        <div style={{ fontSize: 13, color: tp, fontWeight: 500 }}>{editingInfo && row.edit ? row.edit : row.view}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Current status & next action */}
+            {nba && (
+              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '20px 24px', marginBottom: 10 }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: tp, marginBottom: 12 }}>Current status &amp; next action</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{ padding: 16, background: subBg, borderRight: `1px solid ${border}` }}>
+                    <div style={{ fontSize: 11, color: ts, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Status</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 500, color: '#3C3489', marginBottom: 6 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 8, background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ic color="#3C3489"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></Ic>
+                      </div>
+                      {currentStage}
+                    </div>
+                    <div style={{ fontSize: 12, color: ts }}>Updated {timeAgo((lead as any).updated_at || lead.created_at)}</div>
+                  </div>
+                  <div style={{ padding: 16, background: nba.urgent ? (dk ? '#2D1B00' : '#FFFBF0') : subBg }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: nba.urgent ? '#F59E0B' : '#0F766E', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Ic color="white" size={10}>
+                          {nba.urgent ? <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></> : <polyline points="20 6 9 17 4 12"/>}
+                        </Ic>
+                      </div>
+                      <span style={{ fontSize: 11, color: nba.urgent ? '#854F0B' : '#0F6E56', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Next step</span>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: tp, marginBottom: 4 }}>{nba.label}</div>
+                    <div style={{ fontSize: 12, color: ts, marginBottom: 12 }}>{nba.sub}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                        <Ic color="white" size={13}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
+                        Call now
+                      </button>
+                      <button style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'transparent', color: tp, border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+                        <Ic color={tp} size={13}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></Ic>
+                        Send SMS
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Conversation */}
+            <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '20px 24px' }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: tp, marginBottom: 16 }}>Conversation</div>
+              <div style={{ border: `1px solid ${border}`, borderRadius: 10, marginBottom: 20, overflow: 'hidden' }}>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add a note or send a message..." rows={3} style={{ width: '100%', padding: '12px 14px', fontSize: 13, background: inputBg, color: tp, border: 'none', resize: 'none', fontFamily: 'inherit', outline: 'none', display: 'block' }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderTop: `1px solid ${border}`, background: subBg }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {(['Note', 'SMS', 'Email'] as const).map((t, ti) => (
+                      <button key={t} style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6, border: `1px solid ${border}`, background: ti === 0 ? card : 'transparent', color: ti === 0 ? tp : ts, cursor: 'pointer' }}>{t}</button>
+                    ))}
+                  </div>
+                  <button onClick={handleSaveNotes} disabled={savingNotes || !notes.trim()} style={{ padding: '6px 14px', fontSize: 13, background: notes.trim() ? '#0F766E' : (dk ? '#1E293B' : '#E5E7EB'), color: notes.trim() ? 'white' : ts, border: 'none', borderRadius: 6, cursor: notes.trim() ? 'pointer' : 'default', fontWeight: 500 }}>
+                    {savingNotes ? 'Saving…' : 'Save note'}
+                  </button>
+                </div>
+              </div>
+              {activity.length === 0
+                ? <div style={{ textAlign: 'center', padding: '32px 0', color: ts, fontSize: 13 }}>No activity yet.</div>
+                : activity.map((item, i) => {
+                  const iconColor = item.type === 'note' ? '#854F0B' : item.type === 'quote' ? '#3C3489' : '#0F766E'
+                  const iconBg = item.type === 'note' ? '#FAEEDA' : item.type === 'quote' ? '#EEEDFE' : '#E1F5EE'
+                  return (
+                    <div key={i}>
+                      <div style={{ textAlign: 'center', margin: '8px 0 12px' }}>
+                        <span style={{ fontSize: 11, color: ts, background: dk ? '#1E293B' : '#F3F4F6', padding: '3px 10px', borderRadius: 20, border: `1px solid ${border}` }}>
+                          {new Date(item.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: 14, borderBottom: i < activity.length - 1 ? `1px solid ${border}` : 'none', marginBottom: i < activity.length - 1 ? 14 : 0 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Ic color={iconColor}>
+                            {item.type === 'note'      && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>}
+                            {item.type === 'quote'     && <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                            {item.type === 'created'   && <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                            {item.type === 'scheduled' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                          </Ic>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: tp }}>{item.title}</div>
+                          <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>{item.sub}</div>
+                        </div>
+                        <div style={{ fontSize: 12, color: ts, flexShrink: 0 }}>{new Date(item.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                      </div>
+                    </div>
+                  )
+                })
+              }
+            </div>
+          </>
+        )}
       </div>
     </DashboardShell>
   )
