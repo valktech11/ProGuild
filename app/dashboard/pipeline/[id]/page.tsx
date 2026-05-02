@@ -451,6 +451,22 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                       <span>Lead #{shortId(lead.id)}</span>
                     </div>
                   </div>
+                  {/* Last activity + Status */}
+                  <div style={{ display: 'flex', gap: 0, flexShrink: 0, border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 18px', borderRight: `1px solid ${border}` }}>
+                      <div style={{ fontSize: 11, color: ts, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Last activity</div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: tp }}>
+                        {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(lead.updated_at || lead.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <div style={{ padding: '12px 18px' }}>
+                      <div style={{ fontSize: 11, color: ts, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Status</div>
+                      <div style={{ fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, color: nbaData.urgent ? '#C2410C' : '#0F766E' }}>
+                        <span>{nbaData.urgent ? '🔥' : '✓'}</span>
+                        <span>{nbaData.urgent ? 'Needs attention' : 'On track'}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -497,7 +513,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                   <div style={{ fontSize: 18, fontWeight: 500, color: dk ? '#E0DEFF' : '#1E1B4B', marginBottom: 4 }}>{nbaData.label}</div>
                   <div style={{ fontSize: 14, color: dk ? '#A5B4FC' : '#6D6494' }}>{nbaData.sub}</div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
                   <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     <Ic color="white" size={14}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
                     Call Now
@@ -535,7 +551,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                         {cell.icon === 'phone'    && <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>}
                         {cell.icon === 'email'    && <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>}
                         {cell.icon === 'pin'      && <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>}
-                        {cell.icon === 'source'   && <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>}
+                        {cell.icon === 'source'   && <><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.87"/></>}
                         {cell.icon === 'calendar' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
                         {cell.icon === 'followup' && <><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></>}
                       </Ic>
@@ -595,43 +611,49 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                   })
                 }
 
-                {/* Composer */}
-                <div style={{ marginTop: 16, border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden' }}>
-                  <textarea
-                    value={composerText}
-                    onChange={e => setComposerText(e.target.value)}
-                    placeholder="Add a note or send a message..."
-                    rows={2}
-                    style={{ width: '100%', padding: '12px 14px', fontSize: 14, background: inputBg, color: tp, border: 'none', resize: 'none', fontFamily: 'inherit', outline: 'none', display: 'block' }}
-                  />
-                  <div style={{ display: 'flex', borderTop: `1px solid ${border}` }}>
-                    {[
-                      { label: 'Add Note', icon: 'note', action: handleAddNote, primary: true },
-                      { label: 'Send SMS', icon: 'sms', action: () => addToast('SMS coming in v76', 'error'), primary: false },
-                      { label: 'Log Call', icon: 'call', action: () => addToast('Call log coming in v76', 'error'), primary: false },
-                    ].map((btn, bi) => (
-                      <button
-                        key={btn.label}
-                        onClick={btn.action}
-                        disabled={btn.primary && (savingNote || !composerText.trim())}
-                        style={{
-                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          padding: '11px 0', fontSize: 14, fontWeight: 500, cursor: 'pointer',
-                          background: btn.primary && composerText.trim() ? '#0F766E' : 'transparent',
-                          color: btn.primary && composerText.trim() ? 'white' : ts,
-                          border: 'none',
-                          borderRight: bi < 2 ? `1px solid ${border}` : 'none',
-                          transition: 'background 0.15s',
-                        }}
-                      >
-                        <Ic color={btn.primary && composerText.trim() ? 'white' : ts} size={14}>
-                          {btn.icon === 'note' && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
-                          {btn.icon === 'sms'  && <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>}
-                          {btn.icon === 'call' && <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>}
-                        </Ic>
-                        {savingNote && btn.primary ? 'Saving…' : btn.label}
-                      </button>
-                    ))}
+                {/* Composer — persistent footer bar */}
+                <div style={{ marginTop: 16, borderTop: `1px solid ${border}`, paddingTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: inputBg, border: `1px solid ${border}`, borderRadius: 10, padding: '4px 4px 4px 14px' }}>
+                    <input
+                      value={composerText}
+                      onChange={e => setComposerText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && composerText.trim()) { e.preventDefault(); handleAddNote() } }}
+                      placeholder="Add a note or send a message..."
+                      style={{ flex: 1, fontSize: 14, background: 'transparent', color: tp, border: 'none', outline: 'none', fontFamily: 'inherit', padding: '8px 0' }}
+                    />
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                      {[
+                        { label: 'Add Note', icon: 'note', action: handleAddNote, primary: true },
+                        { label: 'Send SMS', icon: 'sms', action: () => addToast('SMS coming in v76', 'error'), primary: false },
+                        { label: 'Log Call', icon: 'call', action: () => addToast('Call log coming in v76', 'error'), primary: false },
+                      ].map((btn) => (
+                        <button
+                          key={btn.label}
+                          onClick={btn.action}
+                          disabled={btn.primary && (savingNote || !composerText.trim())}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '9px 14px', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                            background: btn.primary
+                              ? (composerText.trim() ? '#0F766E' : (dk ? '#1E293B' : '#E5E7EB'))
+                              : (dk ? '#1E293B' : '#F3F4F6'),
+                            color: btn.primary
+                              ? (composerText.trim() ? 'white' : ts)
+                              : ts,
+                            border: 'none',
+                            transition: 'background 0.15s',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <Ic color={btn.primary && composerText.trim() ? 'white' : ts} size={13}>
+                            {btn.icon === 'note' && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+                            {btn.icon === 'sms'  && <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>}
+                            {btn.icon === 'call' && <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>}
+                          </Ic>
+                          {savingNote && btn.primary ? 'Saving…' : btn.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
