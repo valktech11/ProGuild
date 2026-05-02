@@ -100,6 +100,8 @@ export interface Lead {
   scheduled_date: string | null
   notes: string | null
   follow_up_date: string | null
+  contact_city: string | null
+  contact_state: string | null
   // joined
   pro?: Pro
   job?: Job
