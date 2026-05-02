@@ -50,7 +50,7 @@ function buildNav(nl: number): NavGroup[] {
       { label: 'Messages',    href: '/messages',           icon: icon.messages },
     ]},
     { title: 'MONEY', items: [
-      { label: 'Estimates',   href: '/dashboard/estimates', icon: icon.estimates,  soon: true },
+      { label: 'Estimates',   href: '/dashboard/estimates', icon: icon.estimates },
       { label: 'Invoices',    href: '/dashboard/invoices',  icon: icon.invoices,   soon: true },
       { label: 'Revenue',     href: '/dashboard/revenue',   icon: icon.revenue,    soon: true },
     ]},
@@ -247,7 +247,7 @@ function QuickSheet({ open, onClose, onAddLead }: { open: boolean; onClose: () =
   const opts = [
     { label: 'New Lead',   sub: 'Add to pipeline',    icon: icon.pipeline,  fn: () => { onClose(); onAddLead() },                                        soon: false },
     { label: 'New Client', sub: 'Add to address book', icon: icon.clients,   fn: () => { onClose(); window.location.href = '/dashboard/clients' }, soon: false },
-    { label: 'Estimate',   sub: 'Coming in v75',       icon: icon.estimates, fn: () => {},                                                                 soon: true  },
+    { label: 'Estimate',   sub: 'Create a new estimate', icon: icon.estimates, fn: () => { onClose(); window.location.href = '/dashboard/estimates/new' }, soon: false },
     { label: 'Invoice',    sub: 'Coming in v76',        icon: icon.invoices,  fn: () => {},                                                                 soon: true  },
   ]
   return (
