@@ -180,18 +180,18 @@ export default function EstimateItems({
                 {/* Action buttons — always visible */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
                   {[
-                    { icon: <Pencil size={12} />, action: () => isEditing ? cancelEdit() : startEdit(item), title: 'Edit', hoverColor: '#0F766E' },
-                    { icon: <Copy size={12} />,   action: () => duplicate(item),  title: 'Duplicate', hoverColor: '#0F766E' },
-                    { icon: <Trash2 size={12} />, action: () => remove(item.id),  title: 'Delete',    hoverColor: '#ef4444' },
-                  ].map(({ icon, action, title, hoverColor }) => (
+                    { icon: <Pencil size={14} />, action: () => isEditing ? cancelEdit() : startEdit(item), title: 'Edit',      bg: isEditing ? '#0F766E' : 'transparent', fg: isEditing ? '#fff' : '#374151', hoverBg: '#0F766E', hoverFg: '#fff' },
+                    { icon: <Copy size={14} />,   action: () => duplicate(item),  title: 'Duplicate', bg: 'transparent', fg: '#374151', hoverBg: '#0F766E', hoverFg: '#fff' },
+                    { icon: <Trash2 size={14} />, action: () => remove(item.id),  title: 'Delete',    bg: 'transparent', fg: '#374151', hoverBg: '#fee2e2', hoverFg: '#dc2626' },
+                  ].map(({ icon, action, title, bg, fg, hoverBg, hoverFg }) => (
                     <button key={title} onClick={action} title={title}
                       style={{
-                        width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: `1px solid ${border}`, borderRadius: 7,
-                        background: 'transparent', color: colMuted, cursor: 'pointer',
+                        width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: `1.5px solid ${border}`, borderRadius: 8,
+                        background: bg, color: fg, cursor: 'pointer', transition: 'all 0.15s',
                       }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = hoverColor; (e.currentTarget as HTMLButtonElement).style.borderColor = hoverColor }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = colMuted; (e.currentTarget as HTMLButtonElement).style.borderColor = border }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = hoverBg; (e.currentTarget as HTMLButtonElement).style.color = hoverFg; (e.currentTarget as HTMLButtonElement).style.borderColor = hoverBg }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = bg; (e.currentTarget as HTMLButtonElement).style.color = fg; (e.currentTarget as HTMLButtonElement).style.borderColor = border }}
                     >
                       {icon}
                     </button>
@@ -305,7 +305,7 @@ export default function EstimateItems({
             <div style={{ fontSize: 12, color: colMuted, marginTop: 2 }}>Create reusable templates for your common jobs and send estimates in seconds.</div>
           </div>
         </div>
-        <button onClick={onSaveTemplate}
+        <button onClick={onOpenTemplatePicker}
           style={{ flexShrink: 0, marginLeft: 16, padding: '7px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: col, cursor: 'pointer', whiteSpace: 'nowrap' }}
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#0F766E'; (e.currentTarget as HTMLButtonElement).style.color = '#0F766E' }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = border; (e.currentTarget as HTMLButtonElement).style.color = col }}

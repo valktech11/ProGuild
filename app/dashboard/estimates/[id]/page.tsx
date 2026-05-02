@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import React, { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, MoreHorizontal, Eye, Send } from 'lucide-react'
 import DashboardShell from '@/components/layout/DashboardShell'
@@ -39,6 +39,7 @@ export type Estimate = {
   require_deposit: boolean
   terms: string
   items: EstimateItem[]
+  notes?: string
   timeline: { event: string; label: string; timestamp: string | null }[]
 }
 
@@ -186,17 +187,10 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
             <div className="flex items-center gap-3">
               {saveMsg && (
-                <span className={`text-sm ${saveMsg === 'Saved' ? 'text-teal-600' : 'text-red-500'}`}>
+                <span className={`text-sm font-medium ${saveMsg === 'Saved' ? 'text-teal-600' : 'text-red-500'}`}>
                   {saveMsg}
                 </span>
               )}
-              <button className={`p-2 rounded-lg border ${card} hover:border-[#0F766E] transition-colors`}>
-                <MoreHorizontal size={18} />
-              </button>
-              <button className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium ${card} hover:border-[#0F766E] hover:text-[#0F766E] transition-colors`}>
-                <Eye size={16} />
-                Preview
-              </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
@@ -209,7 +203,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               <button
                 onClick={async () => {
                   await handleSave()
-                  // TODO: trigger send flow in v76
+                  setEstimate(prev => prev ? { ...prev, status: 'sent' } : prev)
+                  setSaveMsg('Sent!')
                 }}
                 disabled={saving}
                 className="flex items-center gap-2 bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60"
@@ -318,9 +313,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           onSaveTemplate={() => setShowSaveTemplate(true)}
                         />
                       ) : (
-                        <div className={`text-center py-12 ${muted}`}>
-                          <p className="text-sm">Notes & Attachments — coming in v76</p>
-                        </div>
+                        <NotesTab estimate={estimate} setEstimate={setEstimate} darkMode={dk} />
                       )}
                     </div>
                   </div>
@@ -370,19 +363,25 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
                   {/* ── Client Actions footer ── */}
                   <div className={`rounded-xl border p-4 ${card}`}>
+                    <p className={`text-xs font-semibold uppercase tracking-widest mb-3 ${muted}`}>Client Actions</p>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <button className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors ${dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]' : 'border-[#E8E2D9] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
+                      <button
+                        title="Opens a public client-facing preview page (v76)"
+                        className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors ${dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]' : 'border-[#E8E2D9] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
                         <Eye size={14} /> View Estimate
                       </button>
-                      <button className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors ${dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]' : 'border-[#E8E2D9] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
+                      <button
+                        title="PDF generation coming in v76"
+                        className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors opacity-50 cursor-not-allowed ${dk ? 'border-[#334155] text-slate-300' : 'border-[#E8E2D9] text-[#374151]'}`}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Download PDF
+                        Download PDF <span className="text-[10px] ml-1 opacity-60">v76</span>
                       </button>
                       <button
                         onClick={async () => {
                           if (!estimate) return
-                          await fetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: new Date().toISOString() }) })
+                          await fetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent' }) })
                           setEstimate(prev => prev ? { ...prev, status: 'sent' } : prev)
+                          setSaveMsg('Marked as sent')
                         }}
                         className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors ${dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]' : 'border-[#E8E2D9] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
                         <Send size={14} /> Mark as Sent
@@ -462,6 +461,71 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         </div>
       )}
     </DashboardShell>
+  )
+}
+
+// ── Notes & Attachments tab ────────────────────────────────────────────────
+function NotesTab({ estimate, setEstimate, darkMode }: {
+  estimate: Estimate
+  setEstimate: React.Dispatch<React.SetStateAction<Estimate | null>>
+  darkMode: boolean
+}) {
+  const dk = darkMode
+  const [note, setNote] = React.useState(estimate.notes || '')
+  const [saved, setSaved] = React.useState(false)
+
+  const border  = dk ? '#334155' : '#E8E2D9'
+  const bgCard  = dk ? '#1E293B' : '#ffffff'
+  const col     = dk ? '#f1f5f9' : '#111827'
+  const colMuted= dk ? '#94a3b8' : '#6B7280'
+
+  const saveNote = async () => {
+    setEstimate(prev => prev ? { ...prev, notes: note } : prev)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Internal notes */}
+      <div>
+        <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' as const, color: colMuted, marginBottom: 8, display: 'block' }}>
+          Internal Notes
+        </label>
+        <textarea
+          value={note}
+          onChange={e => { setNote(e.target.value); setSaved(false) }}
+          placeholder="Add notes visible only to you — job details, client preferences, reminders..."
+          rows={5}
+          style={{
+            width: '100%', padding: '12px 14px', fontSize: 14, borderRadius: 10,
+            border: `1.5px solid ${border}`, background: dk ? '#0f172a' : '#f9fafb',
+            color: col, resize: 'vertical', outline: 'none', lineHeight: 1.6, boxSizing: 'border-box' as const,
+          }}
+          onFocus={e => (e.target.style.borderColor = '#0F766E')}
+          onBlur={e => (e.target.style.borderColor = border)}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, gap: 8, alignItems: 'center' }}>
+          {saved && <span style={{ fontSize: 13, color: '#0F766E' }}>✓ Saved</span>}
+          <button onClick={saveNote}
+            style={{ padding: '7px 18px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer' }}>
+            Save Note
+          </button>
+        </div>
+      </div>
+
+      {/* Attachments placeholder */}
+      <div style={{ border: `1.5px dashed ${border}`, borderRadius: 12, padding: '28px 20px', textAlign: 'center' as const }}>
+        <div style={{ width: 44, height: 44, borderRadius: 10, background: dk ? '#0f172a' : '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+        </div>
+        <p style={{ fontSize: 14, fontWeight: 600, color: col, marginBottom: 4 }}>File Attachments</p>
+        <p style={{ fontSize: 13, color: colMuted, marginBottom: 12 }}>Attach photos, contracts, or reference documents to this estimate.</p>
+        <button style={{ padding: '8px 18px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: `1.5px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'not-allowed', opacity: 0.5 }}>
+          Upload Files — coming in v76
+        </button>
+      </div>
+    </div>
   )
 }
 
