@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import ReactPDF from '@react-pdf/renderer'
-import { EstimatePDF } from '@/components/estimate/EstimatePDF'
-import React from 'react'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -21,7 +18,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
   }
 
-  // Fetch pro info for PDF header
   const { data: pro } = await sb
     .from('pros')
     .select('full_name, trade, city, state, phone')
@@ -39,16 +35,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const stream = await ReactPDF.renderToStream(
-      React.createElement(EstimatePDF, { estimate: pdfData })
-    )
+    // Dynamic import avoids SSR issues with canvas/pdf renderer
+    const ReactPDF = await import('@react-pdf/renderer')
+    const React = await import('react')
+    const { EstimateDocumentPDF } = await import('@/components/estimate/EstimatePDF')
 
-    // Collect stream into buffer
-    const chunks: Buffer[] = []
-    for await (const chunk of stream as AsyncIterable<Buffer>) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-    }
-    const buffer = Buffer.concat(chunks)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const buffer = await ReactPDF.renderToBuffer(
+      React.createElement(EstimateDocumentPDF, { estimate: pdfData }) as any
+    )
 
     return new NextResponse(buffer, {
       status: 200,
