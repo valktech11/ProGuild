@@ -44,6 +44,7 @@ export default function EstimatesPage() {
   const [creating,     setCreating]     = useState(false)
   const [search,       setSearch]       = useState('')
   const [showPicker,   setShowPicker]   = useState(false)
+  const [createError,  setCreateError]  = useState<string | null>(null)
   const [leads,        setLeads]        = useState<any[]>([])
   const [leadSearch,   setLeadSearch]   = useState('')
   const [loadingLeads, setLoadingLeads] = useState(false)
@@ -98,9 +99,14 @@ export default function EstimatesPage() {
           contact_email: lead?.contact_email || '',
         }),
       })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        setCreateError(err.error || 'Failed to create estimate — check DB tables')
+        setCreating(false)
+        return
+      }
       const d = await r.json()
       if (d.existed) {
-        // Show inline modal instead of native confirm
         setExistingEst({ ...d.estimate, lead_name: lead?.contact_name || 'this lead' })
         setPendingLead(lead)
         setCreating(false)
@@ -109,7 +115,10 @@ export default function EstimatesPage() {
       } else {
         setCreating(false)
       }
-    } catch { setCreating(false) }
+    } catch (err: any) {
+      setCreateError(err.message || 'Network error')
+      setCreating(false)
+    }
   }
 
   const createFresh = async () => {
@@ -206,6 +215,14 @@ export default function EstimatesPage() {
               </div>
             ))}
           </div>
+
+          {/* ── Error toast ── */}
+          {createError && (
+            <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <p className="text-sm text-red-700 font-medium">{createError}</p>
+              <button onClick={() => setCreateError(null)} className="text-red-400 hover:text-red-600 ml-4 text-lg leading-none">×</button>
+            </div>
+          )}
 
           {/* ── Search ── */}
           <div className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 ${card}`}>
