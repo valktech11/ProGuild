@@ -45,12 +45,14 @@ export async function GET(req: NextRequest) {
       React.createElement(EstimateDocumentPDF, { estimate: pdfData }) as any
     )
 
-    return new NextResponse(buffer, {
+    const uint8 = new Uint8Array(buffer)
+
+    return new NextResponse(uint8, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="Estimate-${estimate.estimate_number}.pdf"`,
-        'Content-Length': buffer.length.toString(),
+        'Content-Length': uint8.byteLength.toString(),
       },
     })
   } catch (err) {
