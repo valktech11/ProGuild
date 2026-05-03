@@ -1,7 +1,7 @@
 'use client'
 
 import { Dispatch, SetStateAction, useState } from 'react'
-import { Plus, Pencil, Copy, Trash2, GripVertical, BookOpen } from 'lucide-react'
+import { Plus, Pencil, Copy, Trash2, GripVertical } from 'lucide-react'
 import { Estimate, EstimateItem } from '@/app/dashboard/estimates/[id]/page'
 
 function uid() {
@@ -33,7 +33,9 @@ export default function EstimateItems({
   const dk = darkMode
   const [editingId,   setEditingId]   = useState<string | null>(null)
   const [draft,       setDraft]       = useState<Partial<EstimateItem>>({})
-  const [showDiscount, setShowDiscount] = useState(estimate.discount > 0)
+  const [showDiscount,  setShowDiscount]  = useState(estimate.discount > 0)
+  const [discountType,  setDiscountType]  = useState<'$' | '%'>('$')
+  const [discountInput, setDiscountInput] = useState<number>(estimate.discount || 0)
 
   // ── Design tokens ────────────────────────────────────────────────────────
   const border   = dk ? '#334155' : '#D1D5DB'          // visible borders
@@ -252,25 +254,51 @@ export default function EstimateItems({
           )
         })}
 
-        {/* Discount row — shown when enabled */}
+        {/* Discount row — with $ / % toggle */}
         {showDiscount && (
           <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: '0 12px', alignItems: 'center', padding: '10px 8px', borderBottom: `1px solid ${borderSoft}`, background: bgCard }}>
             <span /><span />
-            <span style={{ fontSize: 14, color: colMuted }}>Discount</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, color: colMuted }}>Discount</span>
+              {/* $ / % toggle */}
+              <div style={{ display: 'flex', border: `1.5px solid ${border}`, borderRadius: 6, overflow: 'hidden' }}>
+                {(['$', '%'] as const).map(t => (
+                  <button key={t} onClick={() => {
+                    setDiscountType(t)
+                    const flat = t === '%' ? estimate.subtotal * (discountInput / 100) : discountInput
+                    updateDiscount(flat)
+                  }}
+                    style={{ padding: '2px 7px', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+                      background: discountType === t ? '#0F766E' : 'transparent',
+                      color: discountType === t ? '#fff' : colMuted }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
             <span />
-            <div style={{ position: 'relative', textAlign: 'right' }}>
-              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 13 }}>$</span>
-              <input type="number" min={0} value={estimate.discount || ''}
-                onChange={e => updateDiscount(Number(e.target.value))}
-                placeholder="0.00"
-                style={{ width: '100%', padding: '5px 8px 5px 22px', fontSize: 13, borderRadius: 7, border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', boxSizing: 'border-box' }} />
+            <div style={{ position: 'relative' }}>
+              <input type="number" min={0} max={discountType === '%' ? 100 : undefined}
+                value={discountInput || ''}
+                onChange={e => {
+                  const v = Number(e.target.value)
+                  setDiscountInput(v)
+                  const flat = discountType === '%' ? estimate.subtotal * (v / 100) : v
+                  updateDiscount(flat)
+                }}
+                placeholder={discountType === '%' ? '0' : '0.00'}
+                style={{ width: '100%', padding: `5px ${discountType === '%' ? '22px' : '8px'} 5px 8px`, fontSize: 13, borderRadius: 7,
+                  border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', boxSizing: 'border-box' as const, textAlign: 'right' }} />
+              {discountType === '%' && (
+                <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 12, pointerEvents: 'none' }}>%</span>
+              )}
             </div>
             <div style={{ textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#16a34a' }}>
               {estimate.discount > 0 ? `− ${money(estimate.discount)}` : '—'}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowDiscount(false); updateDiscount(0) }}
-                style={{ fontSize: 11, color: colMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+              <button onClick={() => { setShowDiscount(false); setDiscountInput(0); updateDiscount(0) }}
+                style={{ fontSize: 12, color: colMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
                 title="Remove discount">✕</button>
             </div>
           </div>
@@ -325,26 +353,6 @@ export default function EstimateItems({
         )}
       </div>
 
-      {/* ── Save as reusable job nudge ── */}
-      <button onClick={onSaveTemplate}
-        style={{ marginTop: 16, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 18px', borderRadius: 12, border: `1.5px solid ${border}`, background: bgCard,
-          cursor: 'pointer', textAlign: 'left' }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = '#0F766E')}
-        onMouseLeave={e => (e.currentTarget.style.borderColor = border)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: dk ? '#0f172a' : '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <BookOpen size={17} color="#0F766E" />
-          </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: col }}>Save this estimate as reusable job</div>
-            <div style={{ fontSize: 12, color: colMuted, marginTop: 2 }}>Use it again for similar jobs and save time.</div>
-          </div>
-        </div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colMuted} strokeWidth="2" style={{ flexShrink: 0, marginLeft: 12 }}>
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </button>
     </div>
   )
 }

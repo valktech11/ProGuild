@@ -252,18 +252,18 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   </div>
                 </div>
 
-                {/* Row 4: Lead Source | Created | Valid Until — pipe separated, exact reference */}
-                <div className={`flex items-stretch gap-0 mt-5 pt-5 border-t ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
+                {/* Meta row: Lead Source | Created | Valid Until — no divider, tight to name */}
+                <div className="flex items-stretch gap-0 mt-4">
                   {[
                     { label: 'Lead Source', value: estimate.lead_source || '—', amber: false },
                     { label: 'Created',     value: new Date(estimate.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), amber: false },
                     { label: 'Valid Until', value: new Date(estimate.valid_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), amber: true },
                   ].map(({ label, value, amber }, i) => (
                     <div key={label} className="flex items-stretch">
-                      {i > 0 && <div className={`w-px mx-6 ${dk ? 'bg-[#334155]' : 'bg-[#E8E2D9]'}`} />}
+                      {i > 0 && <div className={`w-px mx-5 self-stretch ${dk ? 'bg-[#334155]' : 'bg-[#E2E8F0]'}`} />}
                       <div>
-                        <p className={`text-xs font-medium mb-1 ${muted}`}>{label}</p>
-                        <p className={`text-sm font-bold ${amber ? 'text-amber-500' : (dk ? 'text-white' : 'text-gray-900')}`}>{value}</p>
+                        <p className={`text-[11px] font-medium uppercase tracking-wide mb-0.5 ${muted}`}>{label}</p>
+                        <p className={`text-sm font-semibold ${amber ? 'text-amber-500' : (dk ? 'text-white' : 'text-gray-900')}`}>{value}</p>
                       </div>
                     </div>
                   ))}
@@ -347,6 +347,29 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     </div>
                   )}
 
+                  {/* ── Save as reusable job nudge ── */}
+                  {activeTab === 'items' && (
+                    <button onClick={() => setShowSaveTemplate(true)}
+                      className={`w-full flex items-center justify-between px-5 py-4 rounded-xl border transition-colors text-left ${
+                        dk ? 'border-[#334155] bg-[#1E293B] hover:border-[#0F766E]' : 'border-[#E8E2D9] bg-white hover:border-[#0F766E]'
+                      }`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${dk ? 'bg-[#0F172A]' : 'bg-[#f0f9ff]'}`}>
+                          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2">
+                            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>Save this estimate as reusable job</p>
+                          <p className={`text-xs mt-0.5 ${dk ? 'text-slate-400' : 'text-[#6B7280]'}`}>Use it again for similar jobs and save time.</p>
+                        </div>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${dk ? '#64748b' : '#9CA3AF'}" strokeWidth="2" className="shrink-0 ml-3">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </button>
+                  )}
+
                   {/* ── Terms & Conditions — editable ── */}
                   <div className={`rounded-xl border p-6 ${card}`}>
                     <div className="flex items-center justify-between mb-3">
@@ -356,8 +379,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           onClick={() => { setTermsValue(estimate.terms); setEditingTerms(true) }}
                           className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                             dk ? 'border-[#334155] text-slate-400 hover:border-[#0F766E] hover:text-[#0F766E]'
-                               : 'border-[#E8E2D9] text-[#6B7280] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                               : 'border-[#D1D5DB] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                           Edit
                         </button>
                       )}
@@ -534,7 +557,7 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Internal notes */}
       <div>
-        <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' as const, color: colMuted, marginBottom: 8, display: 'block' }}>
+        <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#6B7280', marginBottom: 8, display: 'block' }}>
           Internal Notes
         </label>
         <textarea

@@ -76,6 +76,9 @@ export default function EstimatesPage() {
     finally { setLoadingLeads(false) }
   }
 
+  const [existingEst, setExistingEst] = useState<{ id: string; estimate_number: string; total: number; lead_name: string } | null>(null)
+  const [pendingLead,  setPendingLead]  = useState<any>(null)
+
   const createFromLead = async (lead?: any) => {
     if (!session || creating) return
     setCreating(true)
@@ -97,12 +100,41 @@ export default function EstimatesPage() {
       })
       const d = await r.json()
       if (d.existed) {
-        if (confirm(`A draft estimate already exists for ${lead?.contact_name}. Open it?`)) {
-          router.push(`/dashboard/estimates/${d.estimate.id}`)
-        } else setCreating(false)
+        // Show inline modal instead of native confirm
+        setExistingEst({ ...d.estimate, lead_name: lead?.contact_name || 'this lead' })
+        setPendingLead(lead)
+        setCreating(false)
       } else if (d.estimate?.id) {
         router.push(`/dashboard/estimates/${d.estimate.id}`)
+      } else {
+        setCreating(false)
       }
+    } catch { setCreating(false) }
+  }
+
+  const createFresh = async () => {
+    if (!session || creating) return
+    setCreating(true)
+    setExistingEst(null)
+    try {
+      const r = await fetch('/api/estimates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pro_id:        session.id,
+          state:         session.state || '',
+          lead_id:       pendingLead?.id || null,
+          lead_name:     pendingLead?.contact_name || 'New Client',
+          lead_source:   pendingLead?.lead_source || '',
+          trade:         session.trade || '',
+          contact_phone: pendingLead?.contact_phone || '',
+          contact_email: pendingLead?.contact_email || '',
+          force_new:     true,
+        }),
+      })
+      const d = await r.json()
+      if (d.estimate?.id) router.push(`/dashboard/estimates/${d.estimate.id}`)
+      else setCreating(false)
     } catch { setCreating(false) }
   }
 
@@ -248,6 +280,43 @@ export default function EstimatesPage() {
 
         </div>
       </div>
+      {/* ── Existing estimate modal ── */}
+      {existingEst && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setExistingEst(null)}>
+          <div className={`w-full max-w-sm rounded-2xl shadow-2xl p-6 ${dk ? 'bg-[#1E293B]' : 'bg-white'}`}
+            onClick={e => e.stopPropagation()}>
+            <h3 className={`font-bold text-base mb-1 ${dk ? 'text-white' : 'text-gray-900'}`}>Estimate already exists</h3>
+            <p className={`text-sm mb-4 ${dk ? 'text-slate-400' : 'text-[#6B7280]'}`}>
+              A draft estimate was found for <span className={`font-semibold ${dk ? 'text-white' : 'text-gray-800'}`}>{existingEst.lead_name}</span>.
+            </p>
+            <div className={`flex items-center justify-between rounded-xl border px-4 py-3 mb-5 ${dk ? 'border-[#334155] bg-[#0F172A]' : 'border-[#E8E2D9] bg-gray-50'}`}>
+              <div>
+                <p className={`text-sm font-bold ${dk ? 'text-white' : 'text-gray-900'}`}>#{existingEst.estimate_number}</p>
+                <p className={`text-xs mt-0.5 ${dk ? 'text-slate-400' : 'text-[#6B7280]'}`}>Draft</p>
+              </div>
+              <span className="text-sm font-bold text-[#0F766E]">
+                ${existingEst.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => router.push(`/dashboard/estimates/${existingEst.id}`)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white hover:opacity-90 transition-opacity">
+                Open Existing
+              </button>
+              <button onClick={createFresh} disabled={creating}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-colors disabled:opacity-50 ${dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E]' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                {creating ? 'Creating...' : 'New Version'}
+              </button>
+            </div>
+            <button onClick={() => setExistingEst(null)}
+              className={`w-full mt-3 text-xs transition-colors ${dk ? 'text-slate-500 hover:text-slate-300' : 'text-gray-400 hover:text-gray-600'}`}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Lead picker modal ── */}
       {showPicker && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
