@@ -140,6 +140,18 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       .catch(() => setLoading(false))
   }, [session, id, router])
 
+  // Fetch existing estimate for this lead
+  useEffect(() => {
+    if (!session || !lead) return
+    fetch(`/api/estimates?pro_id=${session.id}`)
+      .then(r => r.json())
+      .then(d => {
+        const match = (d.estimates || []).find((e: any) => e.lead_id === lead.id)
+        if (match) setLeadEstimate(match)
+      })
+      .catch(() => {})
+  }, [session, lead])
+
   function openDrawer() {
     if (!lead) return
     setDPhone(lead.contact_phone || '')

@@ -24,6 +24,7 @@ export type Estimate = {
   id: string
   estimate_number: string
   status: 'draft' | 'sent' | 'viewed' | 'approved' | 'paid'
+  lead_id?: string
   lead_name: string
   lead_source: string
   trade: string
@@ -220,9 +221,18 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   {/* Col 1: name / trade / estimate# — grows */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h1 className={`text-xl font-bold leading-tight ${dk ? 'text-white' : 'text-gray-900'}`}>
-                        {estimate.lead_name}
-                      </h1>
+                      {estimate.lead_id ? (
+                        <button
+                          onClick={() => router.push(`/dashboard/pipeline/${estimate.lead_id}`)}
+                          className={`text-xl font-bold leading-tight hover:text-[#0F766E] transition-colors text-left ${dk ? 'text-white' : 'text-gray-900'}`}
+                          title="View lead details">
+                          {estimate.lead_name}
+                        </button>
+                      ) : (
+                        <h1 className={`text-xl font-bold leading-tight ${dk ? 'text-white' : 'text-gray-900'}`}>
+                          {estimate.lead_name}
+                        </h1>
+                      )}
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-100 shrink-0">
                         Lead
                       </span>
