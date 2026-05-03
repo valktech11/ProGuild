@@ -424,30 +424,81 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   </div>
 
                   {/* ── Client Actions footer ── */}
-                  <div className={`rounded-xl border p-4 ${card}`}>
-                    <p className={`text-xs font-semibold uppercase tracking-widest mb-3 ${muted}`}>Client Actions</p>
-                    <div className="flex items-center gap-3 flex-wrap">
+                  <div className={`rounded-xl border p-5 ${card}`}>
+                    <p className={`text-[11px] font-bold uppercase tracking-widest mb-4 ${muted}`}>Client Actions</p>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+
+                      {/* Primary: View Estimate — teal filled */}
                       <button
                         onClick={() => window.open(`${window.location.origin}/estimate/${id}`, '_blank')}
-                        className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors ${dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]' : 'border-[#E8E2D9] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
+                        className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white shadow-sm hover:opacity-90 transition-opacity">
                         <Link2 size={14} /> View Estimate
                       </button>
-                      <button
-                        title="PDF generation coming in v76"
-                        className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border opacity-40 cursor-not-allowed ${dk ? 'border-[#334155] text-slate-300' : 'border-[#E8E2D9] text-[#374151]'}`}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Download PDF <span className="text-[10px] ml-1">v76</span>
-                      </button>
+
+                      {/* Secondary: Download PDF — teal outline */}
                       <button
                         onClick={async () => {
-                          if (!estimate) return
-                          await fetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent' }) })
-                          setEstimate(prev => prev ? { ...prev, status: 'sent' } : prev)
-                          setSaveMsg('Marked as sent ✓')
+                          if (!estimate || estimate.id === 'mock-1') {
+                            setSaveMsg('Save estimate to DB first')
+                            setTimeout(() => setSaveMsg(null), 3000)
+                            return
+                          }
+                          setSaveMsg('Generating PDF...')
+                          try {
+                            const r = await fetch(`/api/estimates/pdf?id=${id}`)
+                            if (!r.ok) throw new Error('PDF failed')
+                            const blob = await r.blob()
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = `Estimate-${estimate.estimate_number}.pdf`
+                            a.click()
+                            URL.revokeObjectURL(url)
+                            setSaveMsg('PDF downloaded ✓')
+                          } catch {
+                            setSaveMsg('PDF generation failed')
+                          }
+                          setTimeout(() => setSaveMsg(null), 4000)
                         }}
-                        className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors ${dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]' : 'border-[#E8E2D9] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
-                        <Send size={14} /> Mark as Sent
+                        className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg border-2 border-[#0F766E] text-[#0F766E] hover:bg-teal-50 transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Download PDF
                       </button>
+
+                      {/* Tertiary: Mark as Sent — ghost with checkmark on already-sent */}
+                      {estimate.status === 'sent' || estimate.status === 'viewed' || estimate.status === 'approved' || estimate.status === 'paid' ? (
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-teal-600 px-4 py-2.5 rounded-lg bg-teal-50 border border-teal-100">
+                          <Check size={14} /> Marked as Sent
+                        </div>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            if (!estimate) return
+                            const sentAt = new Date().toISOString()
+                            await fetch(`/api/estimates/${id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }),
+                            })
+                            setEstimate(prev => {
+                              if (!prev) return prev
+                              const updatedTimeline = prev.timeline.map(t =>
+                                t.event === 'sent' ? { ...t, timestamp: sentAt } : t
+                              )
+                              return { ...prev, status: 'sent', timeline: updatedTimeline }
+                            })
+                            setSaveMsg('Marked as sent ✓')
+                            setTimeout(() => setSaveMsg(null), 3000)
+                          }}
+                          className={`flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-lg border transition-colors ${
+                            dk
+                              ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E] hover:bg-teal-900/20'
+                              : 'border-[#D1D5DB] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E] hover:bg-teal-50'
+                          }`}>
+                          <Send size={14} /> Mark as Sent
+                        </button>
+                      )}
+
                     </div>
                   </div>
                 </div>

@@ -52,26 +52,31 @@ export async function PATCH(
     notes,
     contact_phone,
     contact_email,
+    sent_at,
   } = body
+
+  // Build update payload — only include sent_at when explicitly provided
+  const updatePayload: Record<string, unknown> = {
+    subtotal,
+    discount,
+    tax_rate,
+    tax_amount,
+    total,
+    require_deposit,
+    deposit_percent,
+    terms,
+    status,
+    notes,
+    contact_phone: contact_phone || undefined,
+    contact_email: contact_email || undefined,
+    updated_at: new Date().toISOString(),
+  }
+  if (sent_at !== undefined) updatePayload.sent_at = sent_at
 
   // Update estimate header
   const { error: estError } = await sb
     .from('estimates')
-    .update({
-      subtotal,
-      discount,
-      tax_rate,
-      tax_amount,
-      total,
-      require_deposit,
-      deposit_percent,
-      terms,
-      status,
-      notes,
-      contact_phone: contact_phone || undefined,
-      contact_email: contact_email || undefined,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', id)
 
   if (estError) return NextResponse.json({ error: estError.message }, { status: 500 })
