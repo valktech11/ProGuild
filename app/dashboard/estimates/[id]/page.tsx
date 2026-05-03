@@ -212,67 +212,60 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             <EstimateSkeleton dk={dk} />
           ) : estimate ? (
             <>
-              {/* ── Estimate header — pixel-matching reference ── */}
+              {/* ── Estimate header — matches reference exactly ── */}
               <div className={`rounded-xl border px-6 py-5 ${card}`}>
-                <div className="flex items-start justify-between gap-4">
+                {/* Single row: [name+meta left] [source columns center-right] [send button right] */}
+                <div className="flex items-start gap-6">
 
-                  {/* Left: name → trade/location → meta → source columns */}
-                  <div className="min-w-0 flex-1">
-
-                    {/* Lead name + Lead pill */}
-                    <div className="flex items-center gap-2.5">
-                      <h1 className={`text-[22px] font-bold leading-tight ${dk ? 'text-white' : 'text-gray-900'}`}>
+                  {/* Col 1: name / trade / estimate# — grows */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h1 className={`text-xl font-bold leading-tight ${dk ? 'text-white' : 'text-gray-900'}`}>
                         {estimate.lead_name}
                       </h1>
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-100 shrink-0">
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-100 shrink-0">
                         Lead
                       </span>
                     </div>
-
-                    {/* Trade */}
                     {estimate.trade && (
                       <p className={`text-sm mt-0.5 ${muted}`}>{estimate.trade}</p>
                     )}
-
-                    {/* Estimate # · status · last edited — compact */}
-                    <div className={`flex items-center gap-1.5 mt-1 text-xs ${muted}`}>
+                    <div className={`flex items-center gap-1.5 mt-0.5 text-xs ${muted}`}>
                       <span>Estimate #{estimate.estimate_number}</span>
                       <span>·</span>
-                      <span className={`font-semibold ${STATUS_STYLES[estimate.status].text}`}>
-                        {STATUS_STYLES[estimate.status].label}
-                      </span>
+                      <span className={`font-medium ${STATUS_STYLES[estimate.status].text}`}>{STATUS_STYLES[estimate.status].label}</span>
                       <span>·</span>
                       <span>Last edited {timeAgo(estimate.updated_at || estimate.created_at)}</span>
                     </div>
-
-                    {/* Lead Source | Created | Valid Until — on same row, pipe dividers */}
-                    <div className="flex items-center mt-3 gap-0">
-                      {[
-                        { label: 'Lead Source', value: estimate.lead_source || '—', amber: false },
-                        { label: 'Created',     value: new Date(estimate.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), amber: false },
-                        { label: 'Valid Until', value: new Date(estimate.valid_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), amber: true },
-                      ].map(({ label, value, amber }, i) => (
-                        <div key={label} className="flex items-center">
-                          {i > 0 && <div className={`w-px h-8 mx-5 ${dk ? 'bg-[#334155]' : 'bg-[#E2E8F0]'}`} />}
-                          <div>
-                            <p className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>{label}</p>
-                            <p className={`text-sm font-semibold mt-0.5 ${amber ? 'text-amber-500' : (dk ? 'text-white' : 'text-gray-900')}`}>{value}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
 
-                  {/* Right: Send Estimate button */}
-                  <div className="shrink-0 flex flex-col items-end gap-1">
+                  {/* Col 2: Lead Source | Created | Valid Until — pipe separated, fixed width */}
+                  <div className="flex items-start shrink-0 gap-0 pt-0.5">
+                    {[
+                      { label: 'Lead Source', value: estimate.lead_source || '—', amber: false },
+                      { label: 'Created',     value: new Date(estimate.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), amber: false },
+                      { label: 'Valid Until', value: new Date(estimate.valid_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), amber: true },
+                    ].map(({ label, value, amber }, i) => (
+                      <div key={label} className="flex items-stretch">
+                        {i > 0 && <div className={`w-px mx-4 self-stretch ${dk ? 'bg-[#334155]' : 'bg-[#E2E8F0]'}`} />}
+                        <div>
+                          <p className={`text-[10px] font-semibold uppercase tracking-wider leading-none ${muted}`}>{label}</p>
+                          <p className={`text-sm font-bold mt-1 ${amber ? 'text-amber-500' : (dk ? 'text-white' : 'text-gray-900')}`}>{value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Col 3: Send button */}
+                  <div className="shrink-0 flex flex-col items-end gap-1 pt-0.5">
                     <button
                       onClick={async () => { await handleSave(); setEstimate(prev => prev ? { ...prev, status: 'sent' } : prev) }}
                       disabled={saving}
-                      className="flex items-center gap-2 bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 whitespace-nowrap">
+                      className="flex items-center gap-2 bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 whitespace-nowrap">
                       <Send size={14} />
                       Send Estimate
                     </button>
-                    <p className={`text-[11px] ${muted}`}>Client can approve &amp; pay instantly</p>
+                    <p className={`text-[11px] text-right ${muted}`}>Client can approve &amp; pay instantly</p>
                   </div>
                 </div>
               </div>
