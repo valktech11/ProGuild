@@ -428,11 +428,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     <p className={`text-xs font-semibold uppercase tracking-widest mb-3 ${muted}`}>Client Actions</p>
                     <div className="flex items-center gap-3 flex-wrap">
                       <button
-                        onClick={() => {
-                          const url = `${window.location.origin}/estimate/${id}`
-                          navigator.clipboard.writeText(url)
-                          setSaveMsg('Link copied ✓')
-                        }}
+                        onClick={() => window.open(`${window.location.origin}/estimate/${id}`, '_blank')}
                         className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg border transition-colors ${dk ? 'border-[#334155] text-slate-300 hover:border-[#0F766E] hover:text-[#0F766E]' : 'border-[#E8E2D9] text-[#374151] hover:border-[#0F766E] hover:text-[#0F766E]'}`}>
                         <Link2 size={14} /> View Estimate
                       </button>
