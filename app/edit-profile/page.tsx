@@ -177,6 +177,9 @@ export default function EditProfilePage() {
     const file = e.target.files?.[0]
     if (!file || !session) return
     setUploading(true)
+    // Show preview immediately
+    const localPreview = URL.createObjectURL(file)
+    setPhotoUrl(localPreview)
     const form = new FormData()
     form.append('file', file)
     form.append('pro_id', session.id)
@@ -184,16 +187,19 @@ export default function EditProfilePage() {
     const r = await fetch('/api/upload', { method: 'POST', body: form })
     const d = await r.json()
     setUploading(false)
-    if (r.ok) setPhotoUrl(d.url)
-    else setErrors(p => ({ ...p, photo: d.error || 'Upload failed' }))
+    if (r.ok) setPhotoUrl(d.url)  // replace with permanent R2 URL
+    else { setPhotoUrl(''); setErrors(p => ({ ...p, photo: d.error || 'Upload failed' })) }
+  }
   }
 
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !session) return
     setUploadingCover(true)
+    const localPreview = URL.createObjectURL(file)
+    setCoverUrl(localPreview)
     const form = new FormData()
-    form.append('file', file); form.append('pro_id', session.id); form.append('bucket', 'avatars'); form.append('folder', `covers/${session.id}`)
+    form.append('file', file); form.append('pro_id', session.id); form.append('bucket', 'cover')
     const r = await fetch('/api/upload', { method: 'POST', body: form })
     const d = await r.json()
     setUploadingCover(false)
