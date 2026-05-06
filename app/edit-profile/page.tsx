@@ -190,7 +190,6 @@ export default function EditProfilePage() {
     if (r.ok) setPhotoUrl(d.url)  // replace with permanent R2 URL
     else { setPhotoUrl(''); setErrors(p => ({ ...p, photo: d.error || 'Upload failed' })) }
   }
-  }
 
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
