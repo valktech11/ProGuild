@@ -464,29 +464,30 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
   }
 
   return (
-    <div className="flex items-center justify-end gap-3 px-6 py-3 flex-shrink-0"
+    <div className="flex items-center justify-end gap-2 md:gap-3 px-3 md:px-6 py-2.5 md:py-3 flex-shrink-0"
       style={{ backgroundColor: bg, borderBottom: `1px solid ${bdr}` }}>
 
       {/* Add New Lead button */}
       {onAddLead && (
         <button onClick={onAddLead}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90 active:scale-95"
+          className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-xl text-[12px] md:text-[13px] font-semibold transition-all hover:opacity-90 active:scale-95"
           style={{ backgroundColor: '#0F766E', color: 'white' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          Add New Lead
+          <span className="hidden sm:inline">Add New Lead</span>
+          <span className="sm:hidden">Add Lead</span>
         </button>
       )}
 
       {/* Available for jobs dropdown */}
       <div className="relative">
         <button onClick={() => { setStatusOpen(o => !o); setUserOpen(false) }}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all hover:opacity-80"
+          className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all hover:opacity-80"
           style={{ border: `1px solid ${bdr}`, color: txt, backgroundColor: bg }}>
           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: current.dot }} />
-          {current.label}
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <span className="hidden md:inline">{current.label}</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="hidden md:block">
             <path d={statusOpen ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
           </svg>
         </button>
@@ -513,22 +514,19 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
         )}
       </div>
 
-      {/* Location */}
+      {/* Location — hidden on mobile */}
       {session?.city && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium"
+        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium"
           style={{ border: `1px solid ${bdr}`, color: txt }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 10a1 1 0 100-2 1 1 0 000 2" />
           </svg>
           {session.city}{session.state ? `, ${session.state}` : ''}
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
         </div>
       )}
 
       {/* Bell */}
-      <div className="relative cursor-pointer">
+      <div className="relative cursor-pointer flex-shrink-0">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="1.8" strokeLinecap="round">
           <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
         </svg>

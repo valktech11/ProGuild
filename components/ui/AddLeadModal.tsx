@@ -55,12 +55,13 @@ interface AddLeadModalProps {
   proId: string
   onClose: () => void
   onAdded: (lead: any) => void
+  dk?: boolean
 }
 
 const TEAL = '#0F766E'
 const NAVY = '#0A1628'
 
-export default function AddLeadModal({ proId, onClose, onAdded }: AddLeadModalProps) {
+export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: AddLeadModalProps) {
   const [name,   setName]   = useState('')
   const [phone,  setPhone]  = useState('')
   const [email,  setEmail]  = useState('')
@@ -94,14 +95,19 @@ export default function AddLeadModal({ proId, onClose, onAdded }: AddLeadModalPr
     else setErr(d.error || 'Failed to save lead')
   }
 
-  const inputCls = "w-full pl-10 pr-4 py-3 text-[14px] border border-gray-200 rounded-xl outline-none text-gray-900 placeholder-gray-400 transition-all focus:border-teal-600 focus:ring-2 focus:ring-teal-50 bg-white"
+  const cardBg  = dk ? '#1E293B' : 'white'
+  const cardBdr = dk ? '#334155' : '#E5E7EB'
+  const textPri = dk ? '#F1F5F9' : '#111827'
+  const textMut = dk ? '#94A3B8' : '#6B7280'
+  const inputBg = dk ? '#0F172A' : 'white'
+  const inputCls = `w-full pl-10 pr-4 py-3 text-[14px] rounded-xl outline-none transition-all focus:border-teal-600 focus:ring-2 focus:ring-teal-50`
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl"
-        onClick={e => e.stopPropagation()} style={{ maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl"
+        onClick={e => e.stopPropagation()} style={{ maxHeight: '95vh', display: 'flex', flexDirection: 'column', background: cardBg, color: textPri }}>
 
         {/* ── Header ── */}
         <div className="flex items-center gap-4 px-6 py-5">
