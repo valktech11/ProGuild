@@ -600,13 +600,25 @@ export default function OverviewPage() {
         {/* ── Empty state ──────────────────────────────────────────────────── */}
         {leads.length === 0 && reviews.length === 0 && (
           <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-            <div className="text-5xl mb-4">🏗️</div>
-            <h3 className="text-lg font-bold mb-2" style={{ color: textMain }}>Welcome to ProGuild</h3>
-            <p className="text-sm mb-5" style={{ color: MUTED_D }}>Add your first lead to start tracking your pipeline.</p>
+            <div style={{ width:64, height:64, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E,#0D9488)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:28 }}>🏗️</div>
+            <h3 className="text-lg font-bold mb-2" style={{ color: textMain }}>Welcome to ProGuild, {firstName}!</h3>
+            <p className="text-sm mb-2" style={{ color: BODY }}>You're all set up. Here's how to get started:</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:8, maxWidth:320, margin:'12px auto 24px', textAlign:'left' }}>
+              {[
+                { num:'1', text:'Add your first lead from a customer enquiry' },
+                { num:'2', text:'Create an estimate and send it for approval' },
+                { num:'3', text:'Schedule the job and generate an invoice' },
+              ].map(s => (
+                <div key={s.num} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:10, background: dk ? '#1E293B' : '#F9F8F6', border:`1px solid ${BORDER}` }}>
+                  <div style={{ width:24, height:24, borderRadius:'50%', background:'#0F766E', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, flexShrink:0 }}>{s.num}</div>
+                  <span style={{ fontSize:13, color: dk ? '#CBD5E1' : '#374151' }}>{s.text}</span>
+                </div>
+              ))}
+            </div>
             <button onClick={() => setShowAddLead(true)}
-              className="hidden md:inline-flex px-6 py-3 rounded-xl text-sm font-semibold"
-              style={{ backgroundColor: TEAL, color: 'white' }}>
-              Add First Lead
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold"
+              style={{ backgroundColor: TEAL, color: 'white', border:'none', cursor:'pointer' }}>
+              + Add First Lead
             </button>
           </div>
         )}

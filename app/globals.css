@@ -73,3 +73,43 @@ th, thead td { color: #374151; font-weight: 600; }
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ── Page transition ────────────────────────────────────────────────────── */
+/* Smooth fade-in on every page mount */
+main, [data-page] {
+  animation: pgFadeIn 0.18s ease-out both;
+}
+@keyframes pgFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Skeleton shimmer ───────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, #1E293B 25%, #263347 50%, #1E293B 75%);
+  background-size: 200% 100%;
+}
+
+/* ── Consistent card radius ─────────────────────────────────────────────── */
+.pg-card {
+  border-radius: 14px;
+  transition: box-shadow 0.15s;
+}
+
+/* ── Focus ring ─────────────────────────────────────────────────────────── */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(15,118,110,0.25);
+}
+
+/* ── Scrollbar styling ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.22); }

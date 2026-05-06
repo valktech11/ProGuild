@@ -142,7 +142,7 @@ export default function ClientsPage() {
           <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, overflow: 'hidden' }}>
             {loading ? (
               <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[1,2,3].map(i => <div key={i} style={{ height: 64, borderRadius: 10, background: t.cardBgAlt, animation: 'pulse 1.5s infinite' }} />)}
+                {[1,2,3].map(i => <div key={i} style={{ height: 64, borderRadius: 10, animation: 'shimmer 1.4s ease-in-out infinite', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%' }} />)}
               </div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '64px 24px' }}>

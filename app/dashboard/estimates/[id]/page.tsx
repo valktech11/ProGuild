@@ -382,7 +382,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       darkMode={dk}
       onToggleDark={toggleDark}
     >
-      <div className={`min-h-screen pb-12 w-full max-w-[100vw] overflow-x-hidden ${dk ? "bg-[#0A1628]" : "bg-[#F5F4F0]"}`}>
+      <div className={`min-h-screen pb-12 md:pb-12 pb-28 w-full max-w-[100vw] overflow-x-hidden ${dk ? "bg-[#0A1628]" : "bg-[#F5F4F0]"}`}>
         <div className="w-full max-w-[1400px] mx-auto px-3 py-4 lg:px-4 lg:py-6 space-y-5 min-w-0">
 
           {/* ── Top action bar ── */}
@@ -1055,6 +1055,56 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         </div>
       )}
     </DashboardShell>
+
+    {/* Mobile sticky bottom CTA — primary action above fold */}
+    {estimate && !['void','declined','invoiced','paid'].includes(estimate.status) && (
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3"
+        style={{ background: dk ? 'rgba(10,22,40,0.96)' : 'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)', borderTop:`1px solid ${dk ? '#334155' : '#E8E2D9'}`, boxShadow:'0 -4px 20px rgba(0,0,0,0.10)' }}>
+        <div className="flex gap-2">
+          {estimate.status === 'draft' && (
+            <button
+              onClick={async () => {
+                if (!estimate.contact_email) { setSaveMsg('No email on file — open lead to add email'); setTimeout(() => setSaveMsg(null), 3000); return }
+                if (!estimate.items?.length || estimate.total <= 0) { setSaveMsg('Add at least one item before sending'); setTimeout(() => setSaveMsg(null), 3000); return }
+                const sentAt = new Date().toISOString()
+                await handleSave()
+                const [, sendResult] = await Promise.all([
+                  fetch(`/api/estimates/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...estimate, status:'sent', sent_at: sentAt }) }),
+                  fetch('/api/estimates/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estimateId: id, pro_id: session?.id }) }),
+                ])
+                setEstimate(prev => prev ? { ...prev, status:'sent', timeline: prev.timeline.map(tl => tl.event === 'sent' ? { ...tl, timestamp: sentAt } : tl) } : prev)
+                setSaveMsg(sendResult.ok ? 'Estimate sent ✓' : 'Status updated — email failed')
+                setTimeout(() => setSaveMsg(null), 4000)
+              }}
+              disabled={saving}
+              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              Send Estimate
+            </button>
+          )}
+          {estimate.status === 'approved' && (
+            <button onClick={openInvoiceModal}
+              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#15803D,#16A34A)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              Create Invoice
+            </button>
+          )}
+          {(estimate.status === 'sent' || estimate.status === 'viewed') && (
+            <button onClick={async () => {
+              if (!estimate.contact_email) { setSaveMsg('No email on file'); setTimeout(() => setSaveMsg(null), 3000); return }
+              const r = await fetch('/api/estimates/send-reminder', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estimateId: id, contactEmail: estimate.contact_email, pro_id: session?.id }) })
+              setSaveMsg(r.ok ? 'Reminder sent ✓' : 'Failed to send reminder')
+              setTimeout(() => setSaveMsg(null), 3000)
+            }}
+              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#7C3AED,#6D28D9)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              Send Reminder
+            </button>
+          )}
+          <button onClick={() => router.back()}
+            style={{ width:48, padding:'13px', borderRadius:12, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background:'transparent', color: dk ? '#94A3B8' : '#6B7280', fontSize:18, cursor:'pointer' }}>
+            ←
+          </button>
+        </div>
+      </div>
+    )}
     </>
   )
 }

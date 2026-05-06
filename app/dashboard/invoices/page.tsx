@@ -132,14 +132,21 @@ export default function InvoicesPage() {
                 {[1,2,3].map(i => <div key={i} style={{ height: 60, borderRadius: 8, background: t.cardBgAlt, marginBottom: 8 }} />)}
               </div>
             ) : filtered.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '64px 24px' }}>
-                <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.2 }}>🧾</div>
-                <p style={{ fontSize: 15, fontWeight: 600, color: t.textPri, margin: '0 0 4px' }}>
+              <div style={{ textAlign: 'center', padding: '56px 24px' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: t.textPri, margin: '0 0 6px' }}>
                   {search || filter !== 'all' ? 'No invoices match' : 'No invoices yet'}
                 </p>
-                <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
-                  {search || filter !== 'all' ? 'Try adjusting your search or filter' : 'Invoices are created from approved estimates'}
+                <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 20px' }}>
+                  {search || filter !== 'all'
+                    ? 'Try adjusting your search or filter'
+                    : 'Invoices are created from approved estimates. Get a client to approve an estimate first.'}
                 </p>
+                {!search && filter === 'all' && (
+                  <a href="/dashboard/estimates" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 20px', borderRadius:10, background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:13, fontWeight:700, textDecoration:'none' }}>
+                    Go to Estimates →
+                  </a>
+                )}
               </div>
             ) : filtered.map((inv, i) => {
               const s = STATUS_STYLES[inv.status]
