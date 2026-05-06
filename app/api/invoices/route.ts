@@ -20,7 +20,16 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ invoices: data || [] })
+
+  // Dedup by id — guard against any duplicate rows from DB/joins
+  const seen = new Set<string>()
+  const invoices = (data || []).filter(inv => {
+    if (seen.has(inv.id)) return false
+    seen.add(inv.id)
+    return true
+  })
+
+  return NextResponse.json({ invoices })
 }
 
 // ── POST /api/invoices ────────────────────────────────────────────────────

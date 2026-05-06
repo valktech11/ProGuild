@@ -7,6 +7,8 @@ import { timeAgo } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 
+import { theme } from '@/lib/theme'
+
 const TEAL   = '#0F766E'
 const NAVY   = '#0A1628'
 const BORDER = '#E8E2D9'
@@ -217,8 +219,12 @@ export default function OverviewPage() {
   const firstName = session?.name?.split(' ')[0] || ''
 
   const cardBg  = dk ? '#1E293B' : 'white'
-  const cardBdr = dk ? '#334155' : BORDER
-  const textMain = dk ? '#F1F5F9' : NAVY
+  const cardBdr = dk ? '#334155' : '#E8E2D9'
+  const textMain = dk ? '#F1F5F9' : '#0A1628'
+  const BORDER  = dk ? '#334155' : '#E8E2D9'
+  const NAVY    = dk ? '#F1F5F9' : '#0A1628'
+  const BODY    = dk ? '#94A3B8' : '#6B7280'
+  const MUTED_D = dk ? '#64748B' : '#9CA3AF'
 
   // Review sentiment
   function sentiment(rating: number) {
@@ -232,7 +238,7 @@ export default function OverviewPage() {
       <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: '#F5F4F0' }}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: TEAL, borderTopColor: 'transparent' }} />
-          <span className="text-sm font-medium" style={{ color: MUTED }}>Loading...</span>
+          <span className="text-sm font-medium" style={{ color: MUTED_D }}>Loading...</span>
         </div>
       </div>
     )
@@ -329,7 +335,7 @@ export default function OverviewPage() {
             </Link>
           </div>
           {leads.length === 0 ? (
-            <p className="text-[13px] py-4 text-center" style={{ color: MUTED }}>No leads yet — add your first lead to get started.</p>
+            <p className="text-[13px] py-4 text-center" style={{ color: MUTED_D }}>No leads yet — add your first lead to get started.</p>
           ) : (
             <div className="flex items-center overflow-x-auto md:justify-between" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', gap: 8 }}>
               <PipeStage iconPath={ICONS.users}     iconBg="#EFF6FF" iconColor="#3B82F6" label="New"       count={newLeads.length}       sub="New leads"       dk={dk} />
@@ -369,7 +375,7 @@ export default function OverviewPage() {
                     {avgRating ? avgRating.toFixed(1) : '4.0'}
                   </div>
                   <Stars rating={avgRating || 4} size={18} />
-                  <div className="text-[12px] mt-1" style={{ color: MUTED }}>({reviews.length || 5} reviews)</div>
+                  <div className="text-[12px] mt-1" style={{ color: MUTED_D }}>({reviews.length || 5} reviews)</div>
                 </div>
 
                 {/* Gamification card */}
@@ -484,7 +490,7 @@ export default function OverviewPage() {
                     </div>
                     <div>
                       <div className="text-[11px] font-bold" style={{ color: '#DC2626' }}>Negative Review Assistant</div>
-                      <div className="text-[12px]" style={{ color: MUTED }}>AI-generated reply for Jessica Lee</div>
+                      <div className="text-[12px]" style={{ color: MUTED_D }}>AI-generated reply for Jessica Lee</div>
                     </div>
                   </div>
                   <p className="text-[12px] italic mb-2" style={{ color: dk ? '#CBD5E1' : '#374151' }}>
@@ -506,7 +512,7 @@ export default function OverviewPage() {
                     </div>
                     <div>
                       <div className="text-[11px] font-bold" style={{ color: '#B45309' }}>Positive Review Booster</div>
-                      <div className="text-[12px]" style={{ color: MUTED }}>AI-generated review request message</div>
+                      <div className="text-[12px]" style={{ color: MUTED_D }}>AI-generated review request message</div>
                     </div>
                   </div>
                   <p className="text-[12px] italic mb-2" style={{ color: dk ? '#CBD5E1' : '#374151' }}>
@@ -576,14 +582,14 @@ export default function OverviewPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-semibold mb-1 leading-snug" style={{ color: textMain }}>{item.q}</p>
                   {item.price && <p className="text-[13px] font-bold mb-0.5" style={{ color: TEAL }}>{item.price}</p>}
-                  {item.sub && <p className="text-[12px]" style={{ color: MUTED }}>{item.sub}</p>}
+                  {item.sub && <p className="text-[12px]" style={{ color: MUTED_D }}>{item.sub}</p>}
                   <div className="flex items-center gap-2 mt-2">
                     <div className="flex -space-x-1">
                       {['#7C3AED','#0EA5E9','#F97316','#16A34A'].map((c, j) => (
                         <div key={j} className="w-5 h-5 rounded-full border-2 border-white" style={{ backgroundColor: c }} />
                       ))}
                     </div>
-                    <span className="text-[12px]" style={{ color: MUTED }}>{item.answers} {item.label}</span>
+                    <span className="text-[12px]" style={{ color: MUTED_D }}>{item.answers} {item.label}</span>
                   </div>
                 </div>
               </Link>
@@ -596,7 +602,7 @@ export default function OverviewPage() {
           <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
             <div className="text-5xl mb-4">🏗️</div>
             <h3 className="text-lg font-bold mb-2" style={{ color: textMain }}>Welcome to ProGuild</h3>
-            <p className="text-sm mb-5" style={{ color: MUTED }}>Add your first lead to start tracking your pipeline.</p>
+            <p className="text-sm mb-5" style={{ color: MUTED_D }}>Add your first lead to start tracking your pipeline.</p>
             <button onClick={() => setShowAddLead(true)}
               className="hidden md:inline-flex px-6 py-3 rounded-xl text-sm font-semibold"
               style={{ backgroundColor: TEAL, color: 'white' }}>

@@ -26,6 +26,7 @@ interface Props {
   onStatusChange: (leadId: string, status: string) => Promise<void>
   onUpdate: (leadId: string, fields: Partial<Lead>) => Promise<void>
   isPaid: boolean
+  dk?: boolean
 }
 
 function daysSince(dateStr: string): number {
@@ -279,12 +280,13 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
 
   return (
     <div onClick={onOpen}
-      className="group bg-white rounded-xl cursor-pointer hover:shadow-md active:scale-[0.98] transition-all"
+      className="group rounded-xl cursor-pointer hover:shadow-md active:scale-[0.98] transition-all"
       style={{
         border: `1px solid ${stage.color}22`,
         borderLeft: `4px solid ${stage.color}`,
         boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
         padding: '12px',
+        background: dk ? '#1E293B' : 'white',
       }}>
 
       {/* Row 1: avatar + name + amount */}
@@ -296,7 +298,7 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
           </div>
           <div className="min-w-0">
             <p className="text-[14px] font-bold truncate" style={{ color: dk ? "#F1F5F9" : "#111827" }}>{capName(lead.contact_name)}</p>
-            <p className="text-[12px] text-gray-500">{timeAgo(lead.created_at)}</p>
+            <p className="text-[12px]" style={{ color: dk ? '#64748B' : '#9CA3AF' }}>{timeAgo(lead.created_at)}</p>
           </div>
         </div>
         {lead.quoted_amount ? (
@@ -347,28 +349,28 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
         <div className="flex md:hidden items-center gap-1">
           {lead.contact_phone && (
             <a href={`tel:${lead.contact_phone}`} onClick={e => e.stopPropagation()}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors" style={{ background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = dk ? "#334155" : "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
               <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={16} c="#6B7280" />
             </a>
           )}
           <button onClick={e => { e.stopPropagation(); onOpen() }}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-colors" style={{ background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = dk ? "#334155" : "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
             <Ic d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" s={16} c="#6B7280" />
           </button>
           {(stage.key === 'Scheduled' || stage.key === 'Paid') ? (
             <button onClick={e => { e.stopPropagation(); onOpen() }}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors" style={{ background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = dk ? "#334155" : "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
               <Ic d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" s={16} c="#6B7280" />
             </button>
           ) : stage.key === 'Quoted' ? (
             <button onClick={openEstimate} disabled={creatingEst}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors disabled:opacity-40"
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-40"
               title="Open Estimate">
               <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={16} c="#7C3AED" />
             </button>
           ) : (
             <button onClick={e => { e.stopPropagation(); onOpen() }}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors" style={{ background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = dk ? "#334155" : "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
               <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={16} c="#6B7280" />
             </button>
           )}
@@ -378,28 +380,28 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
         <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
           {lead.contact_phone && (
             <a href={`tel:${lead.contact_phone}`} onClick={e => e.stopPropagation()}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
               <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={15} c="#6B7280" />
             </a>
           )}
           <button onClick={e => { e.stopPropagation(); onOpen() }}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
             <Ic d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" s={15} c="#6B7280" />
           </button>
           {(stage.key === 'Scheduled' || stage.key === 'Paid') ? (
             <button onClick={e => { e.stopPropagation(); onOpen() }}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
               <Ic d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" s={15} c="#6B7280" />
             </button>
           ) : stage.key === 'Quoted' ? (
             <button onClick={openEstimate} disabled={creatingEst}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-purple-100 transition-colors disabled:opacity-40"
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-40"
               title="Open Estimate">
               <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={15} c="#7C3AED" />
             </button>
           ) : (
             <button onClick={e => { e.stopPropagation(); onOpen() }}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
               <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={15} c="#6B7280" />
             </button>
           )}
@@ -714,16 +716,19 @@ function SlidePanel({ stage, leads, onClose, onOpen }: {
 }
 
 // ── Pipeline column ────────────────────────────────────────────────────────────
-function PipelineColumn({ stage, leads, onOpen }: {
+function PipelineColumn({ stage, leads, onOpen, dk = false }: {
   stage: typeof PIPELINE_STAGES[number]
   leads: Lead[]
   onOpen: (lead: Lead) => void
+  dk?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const [showSlide, setShowSlide] = useState(false)
   const colValue = leads.reduce((s, l) => s + (l.quoted_amount || 0), 0)
   const visibleLeads = expanded ? leads : leads.slice(0, 3)
   const overflow = leads.length - 3
+  const emptyBorder = dk ? '#334155' : '#E8E2D9'
+  const emptyText   = dk ? '#475569' : '#D1D5DB'
 
   return (
     <>
@@ -738,12 +743,12 @@ function PipelineColumn({ stage, leads, onOpen }: {
       <div className="flex flex-col min-w-0" style={{ minWidth: 220 }}>
         {/* Column header */}
         <div className="rounded-xl px-3 py-2.5 mb-2" style={{
-          background: stage.key === 'Paid' ? 'rgba(74,123,74,0.12)' : stage.bg,
+          background: stage.key === 'Paid' ? (dk ? 'rgba(74,123,74,0.20)' : 'rgba(74,123,74,0.12)') : (dk ? stage.bg.replace(')', ',0.15)').replace('rgb','rgba') : stage.bg),
           borderTop: `3px solid ${stage.key === 'Paid' ? '#4A7B4A' : stage.key === 'Completed' ? '#9CA3AF' : stage.color}`
         }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <span className="text-[13px] font-bold" style={{ color: stage.key === 'Paid' ? '#2D5A2D' : stage.color }}>
+              <span className="text-[13px] font-bold" style={{ color: stage.key === 'Paid' ? '#4A7B4A' : stage.color }}>
                 {stage.label}
               </span>
               <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
@@ -752,7 +757,7 @@ function PipelineColumn({ stage, leads, onOpen }: {
               </span>
             </div>
             {colValue > 0 && (
-              <span className="text-[12px] font-bold" style={{ color: stage.key === 'Paid' ? '#2D5A2D' : stage.color }}>
+              <span className="text-[12px] font-bold" style={{ color: stage.key === 'Paid' ? '#4A7B4A' : stage.color }}>
                 ${colValue.toLocaleString()}
               </span>
             )}
@@ -762,14 +767,14 @@ function PipelineColumn({ stage, leads, onOpen }: {
         {/* Cards */}
         <div className="space-y-2 flex-1">
           {leads.length === 0 ? (
-            <div className="flex items-center justify-center py-8 rounded-xl text-[12px] text-gray-300"
-              style={{ border: '1.5px dashed #E8E2D9' }}>
+            <div className="flex items-center justify-center py-8 rounded-xl text-[12px]"
+              style={{ border: `1.5px dashed ${emptyBorder}`, color: emptyText }}>
               Empty
             </div>
           ) : (
             <>
               {visibleLeads.map(lead => (
-                <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => onOpen(lead)} /></div>
+                <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => onOpen(lead)} dk={dk} /></div>
               ))}
               {!expanded && overflow > 0 && (
                 <div className="flex gap-2">
@@ -803,7 +808,7 @@ function PipelineColumn({ stage, leads, onOpen }: {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function LeadPipeline({ leads, onStatusChange, onUpdate }: Props) {
+export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, dk = false }: Props) {
   const router = useRouter()
   const [mobileStage, setMobileStage] = useState<StageKey>('New')
   const [showLost, setShowLost] = useState(false)
@@ -864,7 +869,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate }: Props)
           ? <p className="text-center py-8 text-sm text-gray-500">No leads in {mobileStage}</p>
           : leadsForStage(mobileStage).map(lead => {
               const stage = PIPELINE_STAGES.find(s => s.key === lead.lead_status) || PIPELINE_STAGES[0]
-              return <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => openLead(lead)} /></div>
+              return <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => openLead(lead)} dk={dk} /></div>
             })
         }
       </div>
@@ -873,7 +878,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate }: Props)
       <div className="hidden md:block overflow-x-auto pb-4" style={{ scrollbarWidth: 'thin' }}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(6, minmax(220px, 1fr))', minWidth: 1320 }}>
           {PIPELINE_STAGES.map(stage => (
-            <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} /></div>
+            <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} /></div>
           ))}
         </div>
       </div>

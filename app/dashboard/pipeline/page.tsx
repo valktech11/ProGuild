@@ -226,6 +226,7 @@ export default function PipelinePage() {
             onStatusChange={handleStatusChange}
             onUpdate={handleUpdate}
             isPaid={['Pro','Elite','Pro_Founding','Elite_Founding','Pro_Annual','Elite_Annual','Pro_Founding_Annual','Elite_Founding_Annual'].includes(session.plan)}
+            dk={dk}
           />
         )}
       </div>

@@ -111,7 +111,7 @@ export default function ClientsPage() {
                 <span style={{ color: t.textSubtle }}>/</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: t.textPri }}>Clients</span>
               </div>
-              <h1 style={{ fontSize: 22, fontWeight: 700, color: t.textPri, margin: 0 }}>Client address book</h1>
+              <h1 style={{ fontSize: 24, fontWeight: 700, color: t.textPri, margin: 0 }}>Clients</h1>
               <p style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>
                 {clients.length} client{clients.length !== 1 ? 's' : ''}
                 {totalValue > 0 && ` · $${totalValue.toLocaleString()} lifetime revenue`}
