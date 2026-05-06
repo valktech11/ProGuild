@@ -370,7 +370,7 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
               <path d="M20 6L9 17l-5-5"/>
             </svg>
           )}
-          <span style={{ fontSize:15, fontWeight:700, color:'#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          <span style={{ fontSize:16, fontWeight:700, color:'#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {capName(ev.contact_name)}
           </span>
         </div>
@@ -391,7 +391,7 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
         {/* Call */}
         {ev.contact_phone && (
           <a href={`tel:${ev.contact_phone}`}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'9px 14px', borderRadius:10, background:'white', border:`1.5px solid ${accentColor}44`, color:accentColor, fontSize:12, fontWeight:700, textDecoration:'none' }}>
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'10px 16px', borderRadius:10, background:'white', border:`1.5px solid ${accentColor}44`, color:accentColor, fontSize:14, fontWeight:700, textDecoration:'none' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.2" strokeLinecap="round">
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/>
             </svg>
@@ -402,7 +402,7 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
         {/* Navigate — jobs only */}
         {ev._type === 'job' && (
           <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'9px 14px', borderRadius:10, background:'white', border:'1.5px solid #E5E7EB', color:'#374151', fontSize:12, fontWeight:700, textDecoration:'none' }}>
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'10px 16px', borderRadius:10, background:'white', border:'1.5px solid #E5E7EB', color:'#374151', fontSize:14, fontWeight:700, textDecoration:'none' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2" strokeLinecap="round">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
             </svg>
@@ -413,7 +413,7 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
         {/* Mark Complete — only for Scheduled jobs */}
         {onMarkComplete && !isCompleted && (
           <button onClick={onMarkComplete} disabled={completing}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'9px 14px', borderRadius:10, background: completing ? '#F3F4F6' : '#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:12, fontWeight:700, cursor:'pointer', opacity: completing ? 0.6 : 1 }}>
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'10px 16px', borderRadius:10, background: completing ? '#F3F4F6' : '#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:14, fontWeight:700, cursor:'pointer', opacity: completing ? 0.6 : 1 }}>
             {completing ? '…' : (
               <>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -434,10 +434,10 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
   const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000)
 
   return (
-    <div style={{ marginTop:4 }}>
+    <div style={{ marginTop:16 }}>
       {/* Section header — teal not amber (not urgent, just workflow) */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-        <div style={{ fontSize:12, fontWeight:700, color:'#0F766E' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+        <div style={{ fontSize:16, fontWeight:800, color:'#0F766E' }}>
           Needs scheduling ({leads.length})
         </div>
         {leads.length > 2 && (
@@ -455,11 +455,11 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
 
         return (
           <div key={ev.id}
-            style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px', borderRadius:12, background: dk ? t.cardBg : 'white', border:`1px solid ${t.cardBorder}`, marginBottom:8 }}>
+            style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 18px', borderRadius:14, background: dk ? t.cardBg : 'white', border:`1px solid ${t.cardBorder}`, marginBottom:10 }}>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14, fontWeight:700, color: dk ? t.textPri : '#111827' }}>{capName(ev.contact_name)}</div>
+              <div style={{ fontSize:16, fontWeight:700, color: dk ? t.textPri : '#111827' }}>{capName(ev.contact_name)}</div>
               <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                <span style={{ fontSize:13, fontWeight:500, color: dk ? t.textSubtle : '#6B7280' }}>{ev.lead_status}</span>
+                <span style={{ fontSize:14, fontWeight:500, color: dk ? t.textSubtle : '#6B7280' }}>{ev.lead_status}</span>
                 <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:8, background: urgBg, color: urgColor }}>{days}d ago</span>
               </div>
             </div>
@@ -959,10 +959,10 @@ export default function CalendarPage() {
               </svg>
             </div>
             <div>
-              <div style={{ fontSize:16, fontWeight:800, color: dk ? t.textPri : '#374151', marginBottom:4 }}>
+              <div style={{ fontSize:20, fontWeight:800, color: dk ? t.textPri : '#111827', marginBottom:6 }}>
                 {isToday(selectedDate) ? 'No jobs today' : `Nothing on ${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
               </div>
-              <div style={{ fontSize:13, color: dk ? t.textSubtle : '#6B7280', lineHeight:1.5 }}>
+              <div style={{ fontSize:15, color: dk ? t.textSubtle : '#6B7280', lineHeight:1.6 }}>
                 {events.length === 0 && unscheduled.length === 0 ? 'Your calendar is empty — schedule your first job from the pipeline'
                   : showOverdue ? 'No overdue items'
                   : isToday(selectedDate) ? 'Your day is open — great time to follow up with leads'
@@ -971,20 +971,20 @@ export default function CalendarPage() {
             </div>
             {events.length === 0 && unscheduled.length === 0 && (
               <button onClick={() => router.push('/dashboard/pipeline')}
-                style={{ padding:'11px 22px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                style={{ padding:'14px 28px', borderRadius:14, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:15, fontWeight:700, cursor:'pointer' }}>
                 Go to Pipeline →
               </button>
             )}
             {unscheduled.length > 0 && (
               <button onClick={() => router.push('/dashboard/pipeline')}
-                style={{ width:'100%', padding:'13px', borderRadius:12, border:`2px dashed #0F766E`, background:'transparent', color:'#0F766E', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                style={{ width:'100%', padding:'16px', borderRadius:14, border:`2px dashed #0F766E`, background:'transparent', color:'#0F766E', fontSize:16, fontWeight:700, cursor:'pointer' }}>
                 + Schedule a job on {SHORT_MONTHS[selectedDate.getMonth()]} {selectedDate.getDate()} →
               </button>
             )}
           </div>
         ) : (
           <>
-            <div style={{ fontSize:12, fontWeight:600, color: dk ? t.textSubtle : '#9CA3AF' }}>
+            <div style={{ fontSize:15, fontWeight:700, color: dk ? t.textSubtle : '#4B5563' }}>
               {todayEvents.length} event{todayEvents.length!==1?'s':''} · {isToday(selectedDate) ? 'Today' : `${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
             </div>
             {(todayEvents as CalEvent[]).map((ev: CalEvent) => (
