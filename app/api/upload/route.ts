@@ -55,7 +55,10 @@ export async function POST(req: NextRequest) {
 
   if (uploadError) {
     console.error('Upload error:', uploadError)
-    return NextResponse.json({ error: uploadError.message }, { status: 500 })
+    const msg = uploadError.message?.includes('bucket')
+      ? 'Storage not configured — please contact support'
+      : uploadError.message
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
