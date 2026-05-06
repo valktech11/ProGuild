@@ -318,6 +318,120 @@ function WeekStrip({ selectedDate, dotDates, onSelect, dk }: {
   )
 }
 
+// ─── EventCardMobile — cleaner card without raw message text ──────────────────
+function EventCardMobile({ ev, onClick, dk }: { ev: CalEvent; onClick: () => void; dk: boolean }) {
+  const isFollowup = ev._type === 'followup'
+  const accentColor = isFollowup ? '#D97706' : (STATUS_STYLE[ev.lead_status]?.color || '#0F766E')
+  const accentBg    = isFollowup ? '#FFFBEB' : (STATUS_STYLE[ev.lead_status]?.bg || '#F0FDFA')
+
+  // Format date for display
+  const dateStr = ev._type === 'followup'
+    ? fmt(ev.follow_up_date)
+    : fmt(ev.scheduled_date)
+
+  return (
+    <div onClick={onClick}
+      style={{ background: accentBg, borderLeft:`3px solid ${accentColor}`, borderRadius:12, padding:'12px 14px', cursor:'pointer', border:`1px solid ${accentColor}22`, borderLeftWidth:3 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+          {isFollowup && (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81M1 1l22 22"/>
+            </svg>
+          )}
+          <span style={{ fontSize:15, fontWeight:700, color:'#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {capName(ev.contact_name)}
+          </span>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+          {ev.quoted_amount ? (
+            <span style={{ fontSize:13, fontWeight:700, color:'#0F766E' }}>${ev.quoted_amount.toLocaleString()}</span>
+          ) : null}
+          <span style={{ fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:20,
+            background: isFollowup ? '#FEF3C7' : (STATUS_STYLE[ev.lead_status]?.bg || '#F0FDFA'),
+            color: accentColor }}>
+            {isFollowup ? 'Follow-up' : STATUS_STYLE[ev.lead_status]?.label || ev.lead_status}
+          </span>
+        </div>
+      </div>
+      {/* No raw message — show date + call button */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:8 }}>
+        <span style={{ fontSize:12, color:'#6B7280' }}>{dateStr || 'Today'}</span>
+        {ev.contact_phone && (
+          <a href={`tel:${ev.contact_phone}`} onClick={e => e.stopPropagation()}
+            style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8, background:'white', border:`1.5px solid ${accentColor}44`, color:accentColor, fontSize:12, fontWeight:700, textDecoration:'none' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.2" strokeLinecap="round">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/>
+            </svg>
+            Call
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── UnscheduledList — collapsible, shows age not "Needs date" ────────────────
+function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean; onOpen: (id: string) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const visible = expanded ? leads : leads.slice(0, 2)
+  const t = theme(dk)
+  const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000)
+
+  return (
+    <div style={{ marginTop:4 }}>
+      {/* Section header — teal not amber (not urgent, just workflow) */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:'#0F766E' }}>
+          Needs scheduling ({leads.length})
+        </div>
+        {leads.length > 2 && (
+          <button onClick={() => setExpanded(e => !e)}
+            style={{ fontSize:11, fontWeight:700, color:'#0F766E', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+            {expanded ? 'Show less ∧' : `Show all ${leads.length} ∨`}
+          </button>
+        )}
+      </div>
+
+      {visible.map((ev, i) => {
+        const days = daysSince(ev.created_at)
+        const urgColor = days > 3 ? '#DC2626' : days >= 2 ? '#B45309' : '#059669'
+        const urgBg   = days > 3 ? '#FEE2E2' : days >= 2 ? '#FEF3C7' : '#D1FAE5'
+
+        return (
+          <div key={ev.id}
+            style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px', borderRadius:12, background: dk ? t.cardBg : 'white', border:`1px solid ${t.cardBorder}`, marginBottom:8 }}>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:700, color: dk ? t.textPri : '#111827' }}>{capName(ev.contact_name)}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
+                <span style={{ fontSize:11, color: dk ? t.textSubtle : '#6B7280' }}>{ev.lead_status}</span>
+                <span style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:6, background: urgBg, color: urgColor }}>{days}d ago</span>
+              </div>
+            </div>
+            {/* Call or Add Phone */}
+            {ev.contact_phone ? (
+              <a href={`tel:${ev.contact_phone}`}
+                style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 12px', borderRadius:8, background:'#F0FDFA', border:'1.5px solid #CCFBF1', color:'#0F766E', fontSize:12, fontWeight:700, textDecoration:'none', flexShrink:0 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/>
+                </svg>
+                Call
+              </a>
+            ) : (
+              <span style={{ fontSize:11, color: dk ? t.textSubtle : '#9CA3AF', flexShrink:0 }}>No phone</span>
+            )}
+            {/* Open → */}
+            <button onClick={() => onOpen(ev.id)}
+              style={{ width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8, background: dk ? '#334155' : '#F3F4F6', border:'none', cursor:'pointer', flexShrink:0 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
   const router = useRouter()
@@ -654,17 +768,25 @@ export default function CalendarPage() {
       {/* Day agenda */}
       <div style={{ flex:1, padding:'12px 16px', display:'flex', flexDirection:'column', gap:10 }}>
         {loading ? (
-          [1,2,3].map(i => <div key={i} style={{ height:72, borderRadius:12, background: dk ? t.cardBg : 'white', animation:'pulse 1.5s infinite' }} />)
+          [1,2,3].map(i => <div key={i} style={{ height:72, borderRadius:12, background: dk ? t.cardBg : 'white', animation:'shimmer 1.4s ease-in-out infinite', backgroundSize:'200% 100%' }} />)
         ) : todayEvents.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'32px 20px', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
-            <div style={{ width:64, height:64, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28 }}>📅</div>
+          <div style={{ textAlign:'center', padding:'24px 20px', display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
+            {/* SVG icon — no emoji (emojis show system date like Jul 17) */}
+            <div style={{ width:60, height:60, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+                <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+              </svg>
+            </div>
             <div>
-              <div style={{ fontSize:16, fontWeight:800, color: dk ? t.textPri : '#374151', marginBottom:6 }}>
+              <div style={{ fontSize:16, fontWeight:800, color: dk ? t.textPri : '#374151', marginBottom:4 }}>
                 {isToday(selectedDate) ? 'No jobs today' : `Nothing on ${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
               </div>
-              <div style={{ fontSize:13, color: dk ? t.textSubtle : '#6B7280', lineHeight:1.6 }}>
+              <div style={{ fontSize:13, color: dk ? t.textSubtle : '#6B7280', lineHeight:1.5 }}>
                 {events.length === 0 && unscheduled.length === 0
-                  ? 'Your calendar is empty. Schedule your first job from the pipeline.'
+                  ? 'Your calendar is empty — schedule your first job from the pipeline'
                   : isToday(selectedDate)
                     ? 'Your day is open — a great time to follow up with leads'
                     : 'Nothing scheduled on this day'}
@@ -672,13 +794,15 @@ export default function CalendarPage() {
             </div>
             {events.length === 0 && unscheduled.length === 0 && (
               <button onClick={() => router.push('/dashboard/pipeline')}
-                style={{ padding:'12px 24px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:13, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 14px rgba(15,118,110,0.25)' }}>
+                style={{ padding:'11px 22px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:13, fontWeight:700, cursor:'pointer' }}>
                 Go to Pipeline →
               </button>
             )}
             {unscheduled.length > 0 && (
-              <div style={{ width:'100%', padding:'12px 14px', borderRadius:12, background: dk ? t.cardBg : '#FFFBEB', border:`1px solid ${dk ? t.cardBorder : '#FDE68A'}`, textAlign:'left' }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#D97706', marginBottom:8 }}>💡 {unscheduled.length} lead{unscheduled.length!==1?'s':''} need scheduling</div>
+              <div style={{ width:'100%', padding:'11px 14px', borderRadius:12, background: dk ? t.cardBg : '#FFFBEB', border:`1px solid ${dk ? t.cardBorder : '#FDE68A'}`, textAlign:'left' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#D97706', marginBottom:6 }}>
+                  {unscheduled.length} lead{unscheduled.length!==1?'s':''} need scheduling
+                </div>
                 <button onClick={() => router.push('/dashboard/pipeline')}
                   style={{ fontSize:12, fontWeight:700, color:'#D97706', background:'none', border:'none', cursor:'pointer', padding:0 }}>
                   Schedule from Pipeline →
@@ -688,36 +812,21 @@ export default function CalendarPage() {
           </div>
         ) : (
           <>
-            <div style={{ fontSize:12, fontWeight:700, color: dk ? t.textSubtle : '#6B7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+            {/* Section label — sentence case, not all-caps-screaming */}
+            <div style={{ fontSize:12, fontWeight:600, color: dk ? t.textSubtle : '#9CA3AF' }}>
               {todayEvents.length} event{todayEvents.length!==1?'s':''} · {isToday(selectedDate) ? 'Today' : `${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
             </div>
             {(todayEvents as CalEvent[]).map((ev: CalEvent) => (
               <div key={ev.id+ev._type}>
-                <EventCard ev={ev} onClick={() => { setSelectedEvent(ev) }} dk={dk as boolean} />
+                <EventCardMobile ev={ev} onClick={() => { setSelectedEvent(ev) }} dk={dk as boolean} />
               </div>
             ))}
           </>
         )}
 
-        {/* Unscheduled leads — mobile */}
+        {/* Unscheduled leads — mobile — collapsed by default if >2 */}
         {unscheduled.length > 0 && (
-          <div style={{ marginTop:8 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#D97706', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>
-              Needs Scheduling ({unscheduled.length})
-            </div>
-            {unscheduled.map(ev => (
-              <div key={ev.id}
-                onClick={() => router.push('/dashboard/pipeline/'+ev.id)}
-                style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12, background: dk ? t.cardBg : 'white', border:`1px solid ${t.cardBorder}`, marginBottom:8, cursor:'pointer' }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:700, color: dk ? t.textPri : '#111827' }}>{capName(ev.contact_name)}</div>
-                  <div style={{ fontSize:12, color:'#D97706', marginTop:2 }}>{ev.lead_status} · Needs date</div>
-                </div>
-                {ev.contact_phone && <PhoneBtn phone={ev.contact_phone} />}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? t.textSubtle : '#9CA3AF'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-              </div>
-            ))}
-          </div>
+          <UnscheduledList leads={unscheduled} dk={dk} onOpen={id => router.push('/dashboard/pipeline/'+id)} />
         )}
       </div>
 
