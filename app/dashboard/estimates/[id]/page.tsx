@@ -101,6 +101,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const [confirmDeleteTpl, setConfirmDeleteTpl] = useState<{ id: string; name: string } | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const [creatingInvoice, setCreatingInvoice] = useState(false)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [invoiceTerms, setInvoiceTerms] = useState('due_on_receipt')
+  const [invoiceDueDate, setInvoiceDueDate] = useState('')
   const [showMoreMenu,    setShowMoreMenu]    = useState(false)
   const [showVoidConfirm, setShowVoidConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -138,11 +141,21 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     setIsDirty(true)
   }
 
+  const openInvoiceModal = () => {
+    if (!estimate || !session) return
+    if (estimate.invoice_id) { router.push(`/dashboard/invoices/${estimate.invoice_id}`); return }
+    // Pre-calculate due date for Net 30 default
+    const d = new Date(); d.setDate(d.getDate() + 30)
+    setInvoiceTerms('net_30')
+    setInvoiceDueDate(d.toISOString().split('T')[0])
+    setShowInvoiceModal(true)
+  }
+
   const handleCreateInvoice = async () => {
     if (!estimate || !session || creatingInvoice) return
-    // If invoice already exists, navigate to it
     if (estimate.invoice_id) { router.push(`/dashboard/invoices/${estimate.invoice_id}`); return }
     setCreatingInvoice(true)
+    setShowInvoiceModal(false)
     try {
       const r = await fetch('/api/invoices', {
         method: 'POST',
@@ -156,6 +169,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           contact_name:  estimate.lead_name,
           contact_email: estimate.contact_email,
           contact_phone: estimate.contact_phone,
+          payment_terms: invoiceTerms,
+          due_date:      invoiceDueDate ? new Date(invoiceDueDate + 'T23:59:59').toISOString() : undefined,
         }),
       })
       const d = await r.json()
@@ -291,6 +306,75 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const t = theme(dk)
 
   return (
+    <>
+    {/* ── Create Invoice Modal ─────────────────────────────────────────── */}
+    {showInvoiceModal && estimate && (
+      <div style={{ position:'fixed', inset:0, zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', padding:16, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(2px)' }}
+        onClick={() => setShowInvoiceModal(false)}>
+        <div style={{ background: dk ? '#1E293B' : 'white', borderRadius:20, padding:28, width:'100%', maxWidth:440, boxShadow:'0 24px 48px rgba(0,0,0,0.18)', borderTop:'4px solid #0F766E' }}
+          onClick={e => e.stopPropagation()}>
+          {/* Header */}
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:18, fontWeight:800, color: dk ? '#F1F5F9' : '#111827', marginBottom:4 }}>Create Invoice</div>
+            <div style={{ fontSize:13, color: dk ? '#94A3B8' : '#6B7280' }}>
+              From Estimate #{estimate.estimate_number} · Total <strong style={{ color:'#0F766E' }}>${estimate.total.toLocaleString('en-US', { minimumFractionDigits:2 })}</strong>
+            </div>
+          </div>
+
+          {/* Line items preview */}
+          <div style={{ background: dk ? '#0F172A' : '#F9F8F6', borderRadius:10, padding:'10px 14px', marginBottom:20 }}>
+            {(estimate.items || []).slice(0,3).map((item: any) => (
+              <div key={item.id} style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'4px 0', borderBottom:`1px solid ${dk ? '#1E293B' : '#F3F4F6'}` }}>
+                <span style={{ color: dk ? '#CBD5E1' : '#374151', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'70%' }}>{item.name}</span>
+                <span style={{ color: dk ? '#94A3B8' : '#6B7280', flexShrink:0, marginLeft:8 }}>${(item.qty * item.unit_price).toLocaleString('en-US', { minimumFractionDigits:2 })}</span>
+              </div>
+            ))}
+            {(estimate.items || []).length > 3 && (
+              <div style={{ fontSize:11, color: dk ? '#64748B' : '#9CA3AF', paddingTop:4 }}>+{estimate.items.length - 3} more items</div>
+            )}
+          </div>
+
+          {/* Payment Terms */}
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, fontWeight:700, color: dk ? '#94A3B8' : '#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Payment Terms</label>
+            <select value={invoiceTerms} onChange={e => {
+              const val = e.target.value
+              setInvoiceTerms(val)
+              const days: Record<string,number> = { due_on_receipt:0, net_7:7, net_15:15, net_30:30, net_60:60 }
+              const d = new Date(); d.setDate(d.getDate() + (days[val] ?? 30))
+              setInvoiceDueDate(d.toISOString().split('T')[0])
+            }}
+              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: dk ? '#F1F5F9' : '#111827', fontSize:14, cursor:'pointer' }}>
+              <option value="due_on_receipt">Due on Receipt</option>
+              <option value="net_7">Net 7 days</option>
+              <option value="net_15">Net 15 days</option>
+              <option value="net_30">Net 30 days</option>
+              <option value="net_60">Net 60 days</option>
+            </select>
+          </div>
+
+          {/* Due Date */}
+          <div style={{ marginBottom:24 }}>
+            <label style={{ fontSize:12, fontWeight:700, color: dk ? '#94A3B8' : '#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Due Date</label>
+            <input type="date" value={invoiceDueDate} onChange={e => setInvoiceDueDate(e.target.value)}
+              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: dk ? '#F1F5F9' : '#111827', fontSize:14, boxSizing:'border-box' }} />
+          </div>
+
+          {/* Actions */}
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => setShowInvoiceModal(false)}
+              style={{ flex:1, padding:'11px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background:'transparent', color: dk ? '#94A3B8' : '#6B7280', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              Cancel
+            </button>
+            <button onClick={handleCreateInvoice} disabled={creatingInvoice}
+              style={{ flex:2, padding:'11px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer', opacity: creatingInvoice ? 0.7 : 1 }}>
+              {creatingInvoice ? 'Creating…' : 'Create Invoice →'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <DashboardShell
       session={session}
       newLeads={0}
@@ -573,7 +657,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   status={estimate.status}
                   invoiceId={estimate.invoice_id}
                   onCta={() => {
-                    if (estimate.status === 'approved') handleCreateInvoice()
+                    if (estimate.status === 'approved') openInvoiceModal()
                     else if (estimate.status === 'invoiced' && estimate.invoice_id) router.push(`/dashboard/invoices/${estimate.invoice_id}`)
                   }}
                 />
@@ -971,6 +1055,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         </div>
       )}
     </DashboardShell>
+    </>
   )
 }
 

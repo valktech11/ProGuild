@@ -231,9 +231,26 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                       <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, fontWeight: 600, background: dk ? t.cardBgAlt : ss.bg, color: ss.text }}>{ss.label}</span>
                       {isOverdue && <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, fontWeight: 600, background: '#FEF2F2', color: '#B91C1C' }}>Overdue</span>}
                     </div>
-                    <p style={{ fontSize: 14, color: t.textMuted, margin: '0 0 12px' }}>
-                      {invoice.trade} · {invoice.lead_name}
+                    <p style={{ fontSize: 14, color: t.textMuted, margin: '0 0 4px' }}>
+                      {invoice.lead_id ? (
+                        <span
+                          onClick={() => router.push(`/dashboard/pipeline/${invoice.lead_id}?from=invoices&inv_id=${invoice.id}`)}
+                          style={{ color: '#0F766E', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', textDecorationColor: 'rgba(15,118,110,0.3)' }}
+                          onMouseEnter={e => (e.currentTarget.style.textDecorationColor = '#0F766E')}
+                          onMouseLeave={e => (e.currentTarget.style.textDecorationColor = 'rgba(15,118,110,0.3)')}>
+                          {invoice.lead_name}
+                        </span>
+                      ) : (
+                        <span>{invoice.lead_name}</span>
+                      )}
                     </p>
+                    {invoice.trade && (
+                      <p style={{ fontSize: 12, color: t.textSubtle, margin: '0 0 12px' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: 12, background: dk ? '#1E293B' : '#F3F4F6', border: `1px solid ${t.cardBorder}` }}>
+                          {invoice.trade}
+                        </span>
+                      </p>
+                    )}
                     {invoice.estimate_id && (
                       <p style={{ fontSize: 13, color: t.textSubtle, margin: '0 0 12px' }}>
                         From Estimate · <span style={{ color: '#0F766E', cursor: 'pointer' }} onClick={() => router.push(`/dashboard/estimates/${invoice.estimate_id}`)}>View Estimate</span>

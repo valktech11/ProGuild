@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
     lead_name,
     trade,
     contact_name, contact_email, contact_phone,
+    payment_terms: bodyTerms,
+    due_date: bodyDueDate,
   } = body
 
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
@@ -50,6 +52,11 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (estErr || !est) return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
+
+    // Guard: estimate must be approved before invoicing
+    if (!['approved', 'invoiced', 'paid'].includes(est.status)) {
+      return NextResponse.json({ error: 'Estimate must be approved by the client before creating an invoice' }, { status: 400 })
+    }
 
     // Derive invoice number from estimate number: EST-1009 → INV-1009
     const invoiceNumber = (est.estimate_number || '').replace(/^EST-/, 'INV-')
@@ -93,8 +100,8 @@ export async function POST(req: NextRequest) {
       balance_due:    balanceDue,
       terms:          est.terms,
       notes:          est.notes,
-      payment_terms:  'due_on_receipt',
-      due_date:       dueDate.toISOString(),
+      payment_terms:  bodyTerms || 'due_on_receipt',
+      due_date:       bodyDueDate || dueDate.toISOString(),
       status:         'draft',
     }
   } else {
