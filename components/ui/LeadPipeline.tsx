@@ -240,7 +240,6 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
       })
       const d = await r.json()
       if (d.existed) {
-        // Show choice modal — don't navigate yet
         setExistingEst(d.estimate)
         setCreatingEst(false)
       } else if (d.estimate?.id) {
@@ -257,7 +256,6 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
     setCreatingEst(true)
     try {
       const session = JSON.parse(sessionStorage.getItem('pg_pro') || '{}')
-      // Pass force_new flag — bypass existing draft check
       const r = await fetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -278,135 +276,101 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
     }
   }
 
+  // Stage-specific primary action
+  const primaryAction = () => {
+    if (stage.key === 'Quoted') return openEstimate
+    return (e: React.MouseEvent) => { e.stopPropagation(); onOpen() }
+  }
+
+  const primaryLabel =
+    stage.key === 'New'       ? 'Call' :
+    stage.key === 'Contacted' ? 'Follow Up' :
+    stage.key === 'Quoted'    ? (creatingEst ? 'Opening…' : 'Estimate') :
+    stage.key === 'Scheduled' ? 'Job Day' :
+    stage.key === 'Completed' ? 'Invoice' :
+    stage.key === 'Paid'      ? '✓ Won' : 'Open'
+
+  const urgency = days > 3 ? 'high' : days >= 2 ? 'mid' : 'low'
+  const ageBg   = urgency === 'high' ? '#FEE2E2' : urgency === 'mid' ? '#FEF3C7' : '#D1FAE5'
+  const ageColor= urgency === 'high' ? '#DC2626' : urgency === 'mid' ? '#B45309' : '#065F46'
+
   return (
-    <div onClick={onOpen}
-      className="group rounded-xl cursor-pointer hover:shadow-md active:scale-[0.98] transition-all"
+    <>
+    <div
+      onClick={onOpen}
+      className="rounded-xl cursor-pointer transition-all active:scale-[0.98]"
       style={{
-        border: `1px solid ${stage.color}22`,
-        borderLeft: `4px solid ${stage.color}`,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-        padding: '12px',
+        border: `1px solid ${dk ? stage.color + '33' : stage.color + '22'}`,
+        borderLeft: `3px solid ${stage.color}`,
+        padding: '10px 12px',
         background: dk ? '#1E293B' : 'white',
-      }}>
+        boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.boxShadow = dk ? '0 0 0 1px rgba(15,118,110,0.3)' : '0 3px 10px rgba(0,0,0,0.09)')}
+      onMouseLeave={e => (e.currentTarget.style.boxShadow = dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)')}>
 
-      {/* Row 1: avatar + name + amount */}
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-            style={{ background: bg, color: fg }}>
-            {initials(lead.contact_name)}
-          </div>
-          <div className="min-w-0">
-            <p className="text-[14px] font-bold truncate" style={{ color: dk ? "#F1F5F9" : "#111827" }}>{capName(lead.contact_name)}</p>
-            <p className="text-[12px]" style={{ color: dk ? '#64748B' : '#9CA3AF' }}>{timeAgo(lead.created_at)}</p>
-          </div>
+      {/* Row 1: avatar + name + age */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+          style={{ background: bg, color: fg }}>
+          {initials(lead.contact_name)}
         </div>
-        {lead.quoted_amount ? (
-          <span className="text-[13px] font-bold flex-shrink-0" style={{ color: '#0F766E' }}>
-            ${lead.quoted_amount.toLocaleString()}
-          </span>
-        ) : (
-          <span className="text-[12px] px-2 py-0.5 rounded-lg font-bold flex-shrink-0"
-            style={{ background: days > 3 ? '#FEE2E2' : days >= 2 ? '#FEF3C7' : '#D1FAE5',
-                     color: days > 3 ? '#DC2626' : days >= 2 ? '#B45309' : '#065F46' }}>
-            {days}d
-          </span>
-        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-bold truncate leading-tight" style={{ color: dk ? '#F1F5F9' : '#111827' }}>
+            {capName(lead.contact_name)}
+          </p>
+          {lead.quoted_amount ? (
+            <p className="text-[11px] font-bold" style={{ color: '#0F766E' }}>${lead.quoted_amount.toLocaleString()}</p>
+          ) : (
+            <p className="text-[11px]" style={{ color: dk ? '#64748B' : '#9CA3AF' }}>{timeAgo(lead.created_at)}</p>
+          )}
+        </div>
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
+          style={{ background: ageBg, color: ageColor }}>
+          {days}d
+        </span>
       </div>
 
-      {/* Row 2: Next action pill + icons */}
-      <div className="flex items-center justify-between gap-2">
-        {stage.key === 'Paid' ? (
-          <span className="text-[12px] font-semibold px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0"
-            style={{ background: '#DCFCE7', color: '#15803D', border: '1px solid #86EFAC' }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-            Job Won
-          </span>
-        ) : stage.key === 'Completed' ? (
-          <span className="text-[12px] font-semibold px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0"
-            style={{ background: 'white', color: '#374151', border: '1px solid #E5E7EB' }}>
-            <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={12} c="#374151" />
-            Generate Invoice
-          </span>
-        ) : stage.key === 'Quoted' ? (
-          <button
-            onClick={openEstimate}
-            disabled={creatingEst}
-            className="text-[11px] font-semibold px-2 py-1 rounded-lg flex-shrink-0 transition-opacity hover:opacity-80 disabled:opacity-50"
-            style={{ background: stage.nextBg, color: stage.nextColor }}>
-            {creatingEst ? 'Opening...' : 'Next: Send Estimate'}
-          </button>
+      {/* Row 2: action buttons — always visible, never hidden */}
+      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        {/* Call button — if phone exists */}
+        {lead.contact_phone ? (
+          <a href={`tel:${lead.contact_phone}`}
+            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-opacity hover:opacity-80"
+            style={{ background: '#F0FDFA', color: '#0F766E', border: '1px solid #CCFBF1' }}>
+            <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={11} c="#0F766E" />
+            Call
+          </a>
         ) : (
-          <span className="text-[12px] font-semibold px-3 py-1 rounded-lg flex-shrink-0"
-            style={{ background: stage.nextBg, color: stage.nextColor, border: `1px solid ${stage.nextColor}33` }}>
-            Next: {stage.nextLabel}
-            {stage.key === 'Scheduled' && lead.scheduled_date &&
-              ` · ${new Date(lead.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-          </span>
+          <button onClick={e => { e.stopPropagation(); onOpen() }}
+            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-opacity hover:opacity-80"
+            style={{ background: dk ? '#334155' : '#F9FAFB', color: dk ? '#94A3B8' : '#6B7280', border: `1px solid ${dk ? '#475569' : '#E5E7EB'}` }}>
+            <Ic d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M21 15v2M21 19v2M24 17h-6" s={11} c={dk ? '#94A3B8' : '#6B7280'} />
+            Add Phone
+          </button>
         )}
 
-        {/* Bottom icons — always visible on mobile, hover-reveal on desktop */}
-        <div className="flex md:hidden items-center gap-1">
-          {lead.contact_phone && (
-            <a href={`tel:${lead.contact_phone}`} onClick={e => e.stopPropagation()}
-              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors" style={{ background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = dk ? "#334155" : "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={16} c="#6B7280" />
-            </a>
-          )}
-          <button onClick={e => { e.stopPropagation(); onOpen() }}
-            className="w-9 h-9 flex items-center justify-center rounded-full transition-colors" style={{ background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = dk ? "#334155" : "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-            <Ic d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" s={16} c="#6B7280" />
-          </button>
-          {(stage.key === 'Scheduled' || stage.key === 'Paid') ? (
-            <button onClick={e => { e.stopPropagation(); onOpen() }}
-              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors" style={{ background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = dk ? "#334155" : "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              <Ic d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" s={16} c="#6B7280" />
-            </button>
-          ) : stage.key === 'Quoted' ? (
-            <button onClick={openEstimate} disabled={creatingEst}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-40"
-              title="Open Estimate">
-              <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={16} c="#7C3AED" />
-            </button>
-          ) : (
-            <button onClick={e => { e.stopPropagation(); onOpen() }}
-              className="w-9 h-9 flex items-center justify-center rounded-full transition-colors" style={{ background: "transparent" }} onMouseEnter={e => (e.currentTarget.style.background = dk ? "#334155" : "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={16} c="#6B7280" />
-            </button>
-          )}
-        </div>
+        {/* Primary stage action */}
+        <button
+          onClick={primaryAction()}
+          disabled={creatingEst}
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 min-w-0"
+          style={{ background: stage.nextBg, color: stage.nextColor, border: `1px solid ${stage.nextColor}33` }}>
+          {primaryLabel}
+        </button>
 
-        {/* Desktop: hover-reveal icon row */}
-        <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-          {lead.contact_phone && (
-            <a href={`tel:${lead.contact_phone}`} onClick={e => e.stopPropagation()}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
-              <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={15} c="#6B7280" />
-            </a>
-          )}
-          <button onClick={e => { e.stopPropagation(); onOpen() }}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
-            <Ic d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" s={15} c="#6B7280" />
-          </button>
-          {(stage.key === 'Scheduled' || stage.key === 'Paid') ? (
-            <button onClick={e => { e.stopPropagation(); onOpen() }}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
-              <Ic d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" s={15} c="#6B7280" />
-            </button>
-          ) : stage.key === 'Quoted' ? (
-            <button onClick={openEstimate} disabled={creatingEst}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-40"
-              title="Open Estimate">
-              <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={15} c="#7C3AED" />
-            </button>
-          ) : (
-            <button onClick={e => { e.stopPropagation(); onOpen() }}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
-              <Ic d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" s={15} c="#6B7280" />
-            </button>
-          )}
-        </div>
+        {/* Open detail arrow */}
+        <button
+          onClick={e => { e.stopPropagation(); onOpen() }}
+          className="w-7 h-7 flex items-center justify-center rounded-lg flex-shrink-0 transition-colors"
+          style={{ background: dk ? '#334155' : '#F3F4F6', color: dk ? '#94A3B8' : '#6B7280' }}
+          title="Open lead detail">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
       </div>
+    </div>
 
       {/* ── Existing estimate modal — rendered via portal to escape card onClick ── */}
       {existingEst && typeof document !== 'undefined' && createPortal(
@@ -462,11 +426,138 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
         </div>,
         document.body
       )}
+    </>
+  )
+}
+
+// ── Lead List View — full sortable table for dense triage ──────────────────────
+function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean }) {
+  const router = useRouter()
+  const [sort, setSort] = useState<'age' | 'name' | 'stage' | 'value'>('age')
+  const [asc,  setAsc]  = useState(false)
+  const [search, setSearch] = useState('')
+
+  const filtered = leads
+    .filter(l => !search || l.contact_name.toLowerCase().includes(search.toLowerCase()) || (l.contact_phone||'').includes(search))
+    .sort((a, b) => {
+      let v = 0
+      if (sort === 'age')   v = new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      if (sort === 'name')  v = a.contact_name.localeCompare(b.contact_name)
+      if (sort === 'stage') v = (STAGE_ORDER[a.lead_status]||0) - (STAGE_ORDER[b.lead_status]||0)
+      if (sort === 'value') v = (b.quoted_amount||0) - (a.quoted_amount||0)
+      return asc ? -v : v
+    })
+
+  function toggleSort(col: typeof sort) {
+    if (sort === col) setAsc(a => !a)
+    else { setSort(col); setAsc(false) }
+  }
+
+  const thStyle = (col: typeof sort): React.CSSProperties => ({
+    fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+    color: sort === col ? '#0F766E' : (dk ? '#64748B' : '#9CA3AF'),
+    cursor: 'pointer', padding: '10px 14px', whiteSpace: 'nowrap' as const,
+    userSelect: 'none' as const,
+  })
+
+  const arrow = (col: typeof sort) => sort === col ? (asc ? ' ↑' : ' ↓') : ''
+
+  return (
+    <div style={{ background: dk ? '#1E293B' : 'white', borderRadius: 14, border: `1px solid ${dk ? '#334155' : '#E8E2D9'}`, overflow: 'hidden' }}>
+      {/* Search bar */}
+      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${dk ? '#334155' : '#F3F4F6'}` }}>
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or phone…"
+          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#0F172A' : '#F9FAFB', color: dk ? '#F1F5F9' : '#111827', fontSize: 13, boxSizing: 'border-box' as const }} />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ padding: '40px', textAlign: 'center', color: dk ? '#64748B' : '#9CA3AF', fontSize: 14 }}>No leads match</div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${dk ? '#334155' : '#F3F4F6'}` }}>
+                <th style={thStyle('name')}    onClick={() => toggleSort('name')}>Name{arrow('name')}</th>
+                <th style={thStyle('stage')}   onClick={() => toggleSort('stage')}>Stage{arrow('stage')}</th>
+                <th style={thStyle('age')}     onClick={() => toggleSort('age')}>Age{arrow('age')}</th>
+                <th style={thStyle('value')}   onClick={() => toggleSort('value')}>Value{arrow('value')}</th>
+                <th style={{ ...thStyle('age'), cursor: 'default' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((lead, i) => {
+                const stage = PIPELINE_STAGES.find(s => s.key === lead.lead_status) || PIPELINE_STAGES[0]
+                const days  = daysSince(lead.created_at)
+                const [avBg, avFg] = avatarColor(lead.contact_name)
+                const urgency = days > 3 ? '#DC2626' : days >= 2 ? '#B45309' : '#059669'
+                const urgBg   = days > 3 ? '#FEE2E2' : days >= 2 ? '#FEF3C7' : '#D1FAE5'
+
+                return (
+                  <tr key={lead.id}
+                    style={{ borderBottom: `1px solid ${dk ? '#1E293B' : '#F9F8F6'}`, background: i % 2 === 1 ? (dk ? '#0F172A' : '#FAFAF8') : 'transparent', cursor: 'pointer', transition: 'background 0.1s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = dk ? '#1a2940' : '#F0FAFA')}
+                    onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 1 ? (dk ? '#0F172A' : '#FAFAF8') : 'transparent')}
+                    onClick={() => onOpen(lead)}>
+
+                    {/* Name */}
+                    <td style={{ padding: '11px 14px', minWidth: 160 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: avBg, color: avFg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                          {initials(lead.contact_name)}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: dk ? '#F1F5F9' : '#111827' }}>{capName(lead.contact_name)}</div>
+                          {lead.contact_phone && <div style={{ fontSize: 11, color: dk ? '#64748B' : '#9CA3AF' }}>{lead.contact_phone}</div>}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Stage */}
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: stage.bg, color: stage.color, whiteSpace: 'nowrap' }}>
+                        {stage.label}
+                      </span>
+                    </td>
+
+                    {/* Age */}
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 7px', borderRadius: 6, background: urgBg, color: urgency }}>{days}d</span>
+                    </td>
+
+                    {/* Value */}
+                    <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: 700, color: lead.quoted_amount ? '#0F766E' : (dk ? '#475569' : '#D1D5DB') }}>
+                      {lead.quoted_amount ? `$${lead.quoted_amount.toLocaleString()}` : '—'}
+                    </td>
+
+                    {/* Actions */}
+                    <td style={{ padding: '11px 14px' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {lead.contact_phone && (
+                          <a href={`tel:${lead.contact_phone}`}
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 7, background: '#F0FDFA', color: '#0F766E', border: '1px solid #CCFBF1', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                            <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={11} c="#0F766E" />
+                            Call
+                          </a>
+                        )}
+                        <button onClick={() => onOpen(lead)}
+                          style={{ padding: '5px 10px', borderRadius: 7, background: dk ? '#334155' : '#F3F4F6', color: dk ? '#CBD5E1' : '#374151', border: 'none', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          Open →
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
 
-// ── Lead Quick View drawer ─────────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────────────────────
 function LeadQuickView({ leadId, onClose, onFullDetail }: {
   leadId: string
   onClose: () => void
@@ -679,32 +770,45 @@ function SlidePanel({ stage, leads, onClose, onOpen }: {
           ) : filtered.map((lead, i) => {
             const [bg, fg] = avatarColor(lead.contact_name)
             const days = daysSince(lead.created_at)
+            const urgBg    = days > 3 ? '#FEE2E2' : '#FEF3C7'
+            const urgColor = days > 3 ? '#DC2626' : '#B45309'
             return (
-              <div key={lead.id} onClick={() => { onClose(); onOpen(lead) }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors"
-                style={{ background: i % 2 === 1 ? '#F9F8F6' : 'transparent' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#F0FAFA')}
-                onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 1 ? '#F9F8F6' : 'transparent')}>
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+              <div key={lead.id}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
+                style={{ background: i % 2 === 1 ? '#F9F8F6' : 'transparent' }}>
+                {/* Avatar */}
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                   style={{ background: bg, color: fg }}>
                   {initials(lead.contact_name)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold text-gray-900 truncate">{capName(lead.contact_name)}</div>
+                {/* Name + time */}
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { onClose(); onOpen(lead) }}>
+                  <div className="text-[13px] font-semibold truncate" style={{ color: '#111827' }}>{capName(lead.contact_name)}</div>
                   <div className="text-[11px] text-gray-400">{timeAgo(lead.created_at)}</div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {lead.quoted_amount ? (
-                    <span className="text-[12px] font-bold" style={{ color: stage.key === 'Paid' ? '#2D5A2D' : stage.color }}>
-                      ${lead.quoted_amount.toLocaleString()}
-                    </span>
-                  ) : (
-                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md"
-                      style={{ background: days > 3 ? '#FEE2E2' : '#FEF3C7', color: days > 3 ? '#DC2626' : '#B45309' }}>
-                      {days}d
-                    </span>
+                {/* Age badge */}
+                {!lead.quoted_amount && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
+                    style={{ background: urgBg, color: urgColor }}>{days}d</span>
+                )}
+                {lead.quoted_amount ? (
+                  <span className="text-[12px] font-bold flex-shrink-0" style={{ color: stage.color }}>
+                    ${lead.quoted_amount.toLocaleString()}
+                  </span>
+                ) : null}
+                {/* Inline actions */}
+                <div className="flex gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                  {lead.contact_phone && (
+                    <a href={`tel:${lead.contact_phone}`}
+                      style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '4px 9px', borderRadius: 7, background: '#F0FDFA', color: '#0F766E', border: '1px solid #CCFBF1', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}>
+                      <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={10} c="#0F766E" />
+                      Call
+                    </a>
                   )}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                  <button onClick={() => { onClose(); onOpen(lead) }}
+                    style={{ padding: '4px 9px', borderRadius: 7, background: '#F3F4F6', color: '#374151', border: 'none', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                    Open →
+                  </button>
                 </div>
               </div>
             )
@@ -812,19 +916,10 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const router = useRouter()
   const [mobileStage, setMobileStage] = useState<StageKey>('New')
   const [showLost, setShowLost] = useState(false)
-  const [quickViewId, setQuickViewId] = useState<string | null>(null)
+  const [listView, setListView] = useState(false)
 
   function openLead(lead: Lead) {
-    // Mobile: navigate directly. Desktop: open quick view drawer.
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      router.push('/dashboard/pipeline/' + lead.id)
-    } else {
-      setQuickViewId(lead.id)
-    }
-  }
-
-  function goFullDetail(id: string) {
-    router.push('/dashboard/pipeline/' + id)
+    router.push('/dashboard/pipeline/' + lead.id)
   }
 
   function leadsForStage(key: string) {
@@ -835,17 +930,24 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
 
   return (
     <>
-    {/* Quick view drawer — desktop only */}
-    {quickViewId && (
-      <LeadQuickView
-        leadId={quickViewId}
-        onClose={() => setQuickViewId(null)}
-        onFullDetail={() => { setQuickViewId(null); goFullDetail(quickViewId) }}
-      />
-    )}
-
-
-
+    {/* ── List / Board toggle bar — desktop only ── */}
+    <div className="hidden md:flex items-center gap-2 mb-3 px-1">
+      <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: dk ? '#334155' : '#E8E2D9' }}>
+        {([['board', 'Board'], ['list', 'List']] as const).map(([v, label]) => (
+          <button key={v} onClick={() => setListView(v === 'list')}
+            className="px-4 py-1.5 text-[13px] font-semibold transition-all"
+            style={{
+              background: (v === 'list') === listView ? '#0F766E' : (dk ? '#1E293B' : 'white'),
+              color: (v === 'list') === listView ? 'white' : (dk ? '#94A3B8' : '#6B7280'),
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <span className="text-[12px]" style={{ color: dk ? '#64748B' : '#9CA3AF' }}>
+        {leads.length} lead{leads.length !== 1 ? 's' : ''}
+      </span>
+    </div>
       {/* ── Mobile tab strip ── */}
       <div className="md:hidden relative mb-3">
       <div className="flex gap-1 overflow-x-auto pb-1 px-4" style={{ scrollbarWidth: 'none' }}>
@@ -874,8 +976,15 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         }
       </div>
 
+      {/* ── Desktop list view ── */}
+      {listView && (
+        <div className="hidden md:block">
+          <LeadListView leads={leads} onOpen={openLead} dk={dk} />
+        </div>
+      )}
+
       {/* ── Desktop: all 6 columns, horizontal scroll ── */}
-      <div className="hidden md:block overflow-x-auto pb-4" style={{ scrollbarWidth: 'thin' }}>
+      <div className={`${listView ? 'hidden' : 'hidden md:block'} overflow-x-auto pb-4`} style={{ scrollbarWidth: 'thin' }}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(6, minmax(220px, 1fr))', minWidth: 1320 }}>
           {PIPELINE_STAGES.map(stage => (
             <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} /></div>
