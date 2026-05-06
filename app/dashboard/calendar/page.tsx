@@ -346,82 +346,84 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
   const isFollowup = ev._type === 'followup'
   const isCompleted = ev.lead_status === 'Completed' || ev.lead_status === 'Paid'
   const accentColor = isCompleted ? '#15803D' : isFollowup ? '#D97706' : (STATUS_STYLE[ev.lead_status]?.color || '#0F766E')
-  const accentBg    = isCompleted ? '#F0FDF4' : isFollowup ? '#FFFBEB' : (STATUS_STYLE[ev.lead_status]?.bg || '#F0FDFA')
 
-  const dateStr = ev._type === 'followup' ? fmt(ev.follow_up_date) : fmt(ev.scheduled_date)
-
-  // Build Google Maps URL from city/message (best effort without full address)
   const mapsQuery = encodeURIComponent(ev.message?.slice(0,50) || ev.contact_name)
   const mapsUrl = `https://maps.google.com/?q=${mapsQuery}`
 
   return (
     <div onClick={onClick}
-      style={{ background: accentBg, borderLeft:`3px solid ${accentColor}`, borderRadius:12, padding:'12px 14px', cursor:'pointer', border:`1px solid ${accentColor}22`, borderLeftWidth:3, opacity: isCompleted ? 0.75 : 1 }}>
-      {/* Row 1: name + amount + status */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:7, minWidth:0 }}>
+      style={{
+        background: dk ? '#1E293B' : 'white',
+        borderLeft: `4px solid ${accentColor}`,
+        borderRadius: 12,
+        padding: '12px 14px',
+        cursor: 'pointer',
+        border: `1px solid ${dk ? '#334155' : '#E8E2D9'}`,
+        borderLeftWidth: 4,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        opacity: isCompleted ? 0.7 : 1,
+      }}>
+
+      {/* Single row: name + amount + action buttons */}
+      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        {/* Left: icon + name */}
+        <div style={{ display:'flex', alignItems:'center', gap:6, flex:1, minWidth:0 }}>
           {isFollowup && (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81M1 1l22 22"/>
             </svg>
           )}
           {isCompleted && (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
               <path d="M20 6L9 17l-5-5"/>
             </svg>
           )}
-          <span style={{ fontSize:16, fontWeight:700, color:'#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {capName(ev.contact_name)}
-          </span>
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:7, flexShrink:0 }}>
-          {ev.quoted_amount ? (
-            <span style={{ fontSize:13, fontWeight:700, color:'#0F766E' }}>${ev.quoted_amount.toLocaleString()}</span>
-          ) : null}
-          <span style={{ fontSize:13, fontWeight:700, padding:'4px 10px', borderRadius:20, background: accentBg, color: accentColor, border:`1px solid ${accentColor}33` }}>
-            {isFollowup ? 'Follow-up' : (STATUS_STYLE[ev.lead_status]?.label || ev.lead_status)}
-          </span>
-        </div>
-      </div>
-
-      {/* Row 2: date + action buttons */}
-      <div style={{ display:'flex', alignItems:'center', gap:6 }} onClick={e => e.stopPropagation()}>
-        <span style={{ fontSize:13, color:'#6B7280', flex:1 }}>{dateStr || (isToday(new Date()) ? 'Today' : '')}</span>
-
-        {/* Call */}
-        {ev.contact_phone && (
-          <a href={`tel:${ev.contact_phone}`}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'10px 16px', borderRadius:10, background:'white', border:`1.5px solid ${accentColor}44`, color:accentColor, fontSize:14, fontWeight:700, textDecoration:'none' }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.2" strokeLinecap="round">
-              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/>
-            </svg>
-            Call
-          </a>
-        )}
-
-        {/* Navigate — jobs only */}
-        {ev._type === 'job' && (
-          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'10px 16px', borderRadius:10, background:'white', border:'1.5px solid #E5E7EB', color:'#374151', fontSize:14, fontWeight:700, textDecoration:'none' }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2" strokeLinecap="round">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-            </svg>
-            Nav
-          </a>
-        )}
-
-        {/* Mark Complete — only for Scheduled jobs */}
-        {onMarkComplete && !isCompleted && (
-          <button onClick={onMarkComplete} disabled={completing}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'10px 16px', borderRadius:10, background: completing ? '#F3F4F6' : '#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:14, fontWeight:700, cursor:'pointer', opacity: completing ? 0.6 : 1 }}>
-            {completing ? '…' : (
-              <>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-                Done
-              </>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontSize:16, fontWeight:700, color: dk ? '#F1F5F9' : '#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              {capName(ev.contact_name)}
+            </div>
+            {ev.quoted_amount ? (
+              <div style={{ fontSize:13, fontWeight:700, color: accentColor, marginTop:1 }}>${ev.quoted_amount.toLocaleString()}</div>
+            ) : (
+              <div style={{ fontSize:12, color: dk ? '#64748B' : '#9CA3AF', marginTop:1 }}>
+                {isFollowup ? 'Follow-up reminder' : STATUS_STYLE[ev.lead_status]?.label || ev.lead_status}
+              </div>
             )}
-          </button>
-        )}
+          </div>
+        </div>
+
+        {/* Right: action buttons — compact */}
+        <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
+          {ev.contact_phone && (
+            <a href={`tel:${ev.contact_phone}`}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'8px 12px', borderRadius:9, background: dk ? '#0F2A22' : '#F0FDFA', border:`1.5px solid ${accentColor}55`, color:accentColor, fontSize:13, fontWeight:700, textDecoration:'none' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.2" strokeLinecap="round">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/>
+              </svg>
+              Call
+            </a>
+          )}
+          {ev._type === 'job' && (
+            <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'8px 12px', borderRadius:9, background: dk ? '#1E293B' : '#F9FAFB', border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, color: dk ? '#CBD5E1' : '#374151', fontSize:13, fontWeight:700, textDecoration:'none' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+              Nav
+            </a>
+          )}
+          {onMarkComplete && !isCompleted && (
+            <button onClick={onMarkComplete} disabled={completing}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'8px 12px', borderRadius:9, background: completing ? '#F3F4F6' : '#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:13, fontWeight:700, cursor:'pointer', opacity: completing ? 0.6 : 1 }}>
+              {completing ? '…' : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  Done
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -477,8 +479,8 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
             )}
             {/* Open → */}
             <button onClick={() => onOpen(ev.id)}
-              style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:12, background: dk ? '#334155' : '#F3F4F6', border:'none', cursor:'pointer', flexShrink:0 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+              style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:12, background: dk ? '#334155' : '#F0F0EC', border:`1.5px solid ${dk ? '#475569' : '#D1D5DB'}`, cursor:'pointer', flexShrink:0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#CBD5E1' : '#374151'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
             </button>
           </div>
         )
