@@ -208,11 +208,12 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
 }
 
 // ── Lead card ──────────────────────────────────────────────────────────────────
-function LeadCard({ lead, stage, onOpen, dk = false }: {
+function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   lead: Lead
   stage: typeof PIPELINE_STAGES[number]
   onOpen: () => void
   dk?: boolean
+  onStatusChange?: (leadId: string, status: string) => Promise<void>
 }) {
   const router = useRouter()
   const [bg, fg] = avatarColor(lead.contact_name)
@@ -283,12 +284,34 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
   }
 
   const primaryLabel =
-    stage.key === 'New'       ? 'Call' :
-    stage.key === 'Contacted' ? 'Follow Up' :
-    stage.key === 'Quoted'    ? (creatingEst ? 'Opening…' : 'Estimate') :
-    stage.key === 'Scheduled' ? 'Job Day' :
+    stage.key === 'New'       ? 'Mark Contacted' :
+    stage.key === 'Contacted' ? 'Send Estimate' :
+    stage.key === 'Quoted'    ? (creatingEst ? 'Opening…' : 'Estimate →') :
+    stage.key === 'Scheduled' ? 'View Job' :
     stage.key === 'Completed' ? 'Invoice' :
     stage.key === 'Paid'      ? '✓ Won' : 'Open'
+
+  // Smart primary action handler
+  async function handlePrimaryAction(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (stage.key === 'New') {
+      // Mark as Contacted — 1-tap stage advance
+      if (onStatusChange) await onStatusChange(lead.id, 'Contacted')
+      return
+    }
+    if (stage.key === 'Contacted') {
+      // Open/create estimate directly
+      openEstimate(e)
+      return
+    }
+    if (stage.key === 'Quoted') {
+      openEstimate(e)
+      return
+    }
+    // All other stages — open lead detail
+    e.stopPropagation()
+    onOpen()
+  }
 
   const urgency = days > 3 ? 'high' : days >= 2 ? 'mid' : 'low'
   const ageBg   = urgency === 'high' ? '#FEE2E2' : urgency === 'mid' ? '#FEF3C7' : '#D1FAE5'
@@ -350,12 +373,19 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
           </button>
         )}
 
-        {/* Primary stage action */}
+        {/* Primary stage action — smart, not duplicate of Call */}
         <button
-          onClick={primaryAction()}
+          onClick={handlePrimaryAction}
           disabled={creatingEst}
           className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 min-w-0"
-          style={{ background: stage.nextBg, color: stage.nextColor, border: `1px solid ${stage.nextColor}33` }}>
+          style={{
+            background: stage.key === 'New' ? '#DBEAFE' : stage.nextBg,
+            color: stage.key === 'New' ? '#1D4ED8' : stage.nextColor,
+            border: `1px solid ${stage.key === 'New' ? '#BFDBFE' : stage.nextColor + '33'}`
+          }}>
+          {stage.key === 'New' && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+          )}
           {primaryLabel}
         </button>
 
@@ -434,7 +464,7 @@ function LeadCard({ lead, stage, onOpen, dk = false }: {
 function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean }) {
   const router = useRouter()
   const [sort, setSort] = useState<'age' | 'name' | 'stage' | 'value'>('age')
-  const [asc,  setAsc]  = useState(false)
+  const [asc,  setAsc]  = useState(true)  // oldest first = most urgent at top
   const [search, setSearch] = useState('')
 
   const filtered = leads
@@ -820,11 +850,12 @@ function SlidePanel({ stage, leads, onClose, onOpen }: {
 }
 
 // ── Pipeline column ────────────────────────────────────────────────────────────
-function PipelineColumn({ stage, leads, onOpen, dk = false }: {
+function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
   stage: typeof PIPELINE_STAGES[number]
   leads: Lead[]
   onOpen: (lead: Lead) => void
   dk?: boolean
+  onStatusChange?: (leadId: string, status: string) => Promise<void>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [showSlide, setShowSlide] = useState(false)
@@ -878,7 +909,7 @@ function PipelineColumn({ stage, leads, onOpen, dk = false }: {
           ) : (
             <>
               {visibleLeads.map(lead => (
-                <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => onOpen(lead)} dk={dk} /></div>
+                <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => onOpen(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
               ))}
               {!expanded && overflow > 0 && (
                 <div className="flex gap-2">
@@ -923,7 +954,21 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   }
 
   function leadsForStage(key: string) {
-    return leads.filter(l => l.lead_status === key)
+    const stageleads = leads.filter(l => l.lead_status === key)
+    return stageleads.sort((a, b) => {
+      // Scheduled: soonest job date first
+      if (key === 'Scheduled') {
+        const da = a.scheduled_date ? new Date(a.scheduled_date).getTime() : Infinity
+        const db = b.scheduled_date ? new Date(b.scheduled_date).getTime() : Infinity
+        return da - db
+      }
+      // Job Won (Paid): newest first — celebrate recent wins at top
+      if (key === 'Paid') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
+      // All active stages (New, Contacted, Quoted, Completed): oldest first — most urgent
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    })
   }
 
   const lostLeads = leads.filter(l => l.lead_status === 'Lost')
@@ -971,7 +1016,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           ? <p className="text-center py-8 text-sm text-gray-500">No leads in {mobileStage}</p>
           : leadsForStage(mobileStage).map(lead => {
               const stage = PIPELINE_STAGES.find(s => s.key === lead.lead_status) || PIPELINE_STAGES[0]
-              return <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => openLead(lead)} dk={dk} /></div>
+              return <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
             })
         }
       </div>
@@ -987,7 +1032,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       <div className={`${listView ? 'hidden' : 'hidden md:block'} overflow-x-auto pb-4`} style={{ scrollbarWidth: 'thin' }}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(6, minmax(220px, 1fr))', minWidth: 1320 }}>
           {PIPELINE_STAGES.map(stage => (
-            <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} /></div>
+            <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
           ))}
         </div>
       </div>
