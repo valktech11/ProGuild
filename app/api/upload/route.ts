@@ -33,10 +33,14 @@ export async function POST(req: NextRequest) {
 
     // Save avatar URL to DB
     if (bucket === 'avatars') {
-      await getSupabaseAdmin().from('pros').update({ profile_photo_url: publicUrl }).eq('id', proId)
+      const { error: dbErr } = await getSupabaseAdmin()
+        .from('pros')
+        .update({ profile_photo_url: publicUrl })
+        .eq('id', proId)
+      if (dbErr) console.error('Failed to save photo URL to DB:', dbErr.message, 'proId:', proId)
     }
 
-    return NextResponse.json({ url: publicUrl, key })
+    return NextResponse.json({ url: publicUrl, key, proId })
 
   } catch (err: any) {
     console.error('R2 upload error:', err)
