@@ -295,7 +295,7 @@ function WeekStrip({ selectedDate, dotDates, onSelect, dk }: {
   const weekStart = startOfWeek(selectedDate)
   const days = Array.from({length:7}, (_,i) => addDays(weekStart, i))
   return (
-    <div style={{ display:'flex', gap:4, overflowX:'auto', paddingBottom:4 }} className="hide-scrollbar">
+    <div style={{ display:'flex', gap:3 }} className="hide-scrollbar">
       {days.map(d => {
         const key = toDateKey(d)
         const isSelected = isSameDay(d, selectedDate)
@@ -303,14 +303,34 @@ function WeekStrip({ selectedDate, dotDates, onSelect, dk }: {
         const hasDot = dotDates.has(key)
         return (
           <button key={key} onClick={() => onSelect(d)}
-            style={{ flex:1, minWidth:42, display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'8px 4px', borderRadius:12, border:'none', cursor:'pointer', background: isSelected ? '#0F766E' : isTod ? '#CCFBF1' : 'transparent', transition:'all 0.15s' }}>
-            <span style={{ fontSize:10, fontWeight:600, color: isSelected ? 'rgba(255,255,255,0.8)' : dk ? t.textSubtle : '#9CA3AF' }}>
+            style={{
+              flex:1, minWidth:0,
+              display:'flex', flexDirection:'column', alignItems:'center', gap:1,
+              padding:'8px 2px 6px',
+              borderRadius:12, border:'none', cursor:'pointer',
+              background: isSelected ? '#0F766E' : isTod ? '#CCFBF1' : 'transparent',
+              transition:'all 0.12s',
+              minHeight:54,  // minimum thumb-friendly height
+            }}>
+            {/* Day letter — larger, bolder, high contrast */}
+            <span style={{
+              fontSize:12, fontWeight:700, letterSpacing:'0.02em',
+              color: isSelected ? 'rgba(255,255,255,0.85)' : isTod ? '#0F766E' : dk ? '#94A3B8' : '#6B7280'
+            }}>
               {DAYS[d.getDay()].slice(0,1)}
             </span>
-            <span style={{ fontSize:15, fontWeight:700, color: isSelected ? 'white' : isTod ? '#0F766E' : dk ? t.textPri : '#374151' }}>
+            {/* Date number — larger for readability in bright light */}
+            <span style={{
+              fontSize:17, fontWeight:800, lineHeight:1,
+              color: isSelected ? 'white' : isTod ? '#0F766E' : dk ? '#F1F5F9' : '#111827'
+            }}>
               {d.getDate()}
             </span>
-            {hasDot && <div style={{ width:4, height:4, borderRadius:'50%', background: isSelected ? 'rgba(255,255,255,0.7)' : '#0F766E' }} />}
+            {/* Dot indicator */}
+            {hasDot
+              ? <div style={{ width:5, height:5, borderRadius:'50%', background: isSelected ? 'rgba(255,255,255,0.75)' : '#0F766E', marginTop:1 }} />
+              : <div style={{ width:5, height:5 }} /> /* spacer to keep height consistent */
+            }
           </button>
         )
       })}
@@ -732,23 +752,87 @@ export default function CalendarPage() {
     <div style={{ minHeight:'100vh', background: dk ? t.pageBg : '#F5F4F0', display:'flex', flexDirection:'column' }}>
 
       {/* Mobile header */}
-      <div style={{ padding:'16px 16px 12px', background: dk ? t.cardBg : 'white', borderBottom:`1px solid ${t.cardBorder}`, flexShrink:0 }}>
-        {/* Month nav */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-          <button onClick={() => navWeek(-1)} style={{ background:'none', border:'none', cursor:'pointer', color: dk ? t.textMuted : '#6B7280', fontSize:20, padding:'4px 8px' }}>‹</button>
-          <div style={{ textAlign:'center' }}>
-            <div style={{ fontSize:16, fontWeight:800, color: dk ? t.textPri : '#111827' }}>
-              {MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+      <div style={{ padding:'14px 16px 12px', background: dk ? t.cardBg : 'white', borderBottom:`1px solid ${t.cardBorder}`, flexShrink:0 }}>
+
+        {/* Row 1: Month nav — large thumb-friendly buttons */}
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+
+          {/* Prev week — big pill button */}
+          <button onClick={() => navWeek(-1)}
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', width:48, height:48, borderRadius:14, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#1E293B' : '#F9FAFB', cursor:'pointer', flexShrink:0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={dk ? '#CBD5E1' : '#374151'} strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+
+          {/* Center: month + date + Today button */}
+          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+            {/* Month + year — tappable to go to today */}
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:18, fontWeight:800, color: dk ? '#F1F5F9' : '#111827', letterSpacing:'-0.3px' }}>
+                {MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+              </span>
+              {!isToday(selectedDate) && (
+                <button onClick={goToday}
+                  style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20, border:'none', background:'#0F766E', color:'white', cursor:'pointer' }}>
+                  Today
+                </button>
+              )}
             </div>
-            <div style={{ fontSize:12, color: dk ? t.textSubtle : '#6B7280', marginTop:1 }}>
+            <span style={{ fontSize:13, fontWeight:600, color: dk ? '#64748B' : '#6B7280' }}>
               {isToday(selectedDate) ? 'Today' : `${DAYS[selectedDate.getDay()]}, ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
               {todayJobs.length > 0 && ` · ${todayJobs.length} job${todayJobs.length!==1?'s':''}`}
-            </div>
+            </span>
           </div>
-          <button onClick={() => navWeek(1)} style={{ background:'none', border:'none', cursor:'pointer', color: dk ? t.textMuted : '#6B7280', fontSize:20, padding:'4px 8px' }}>›</button>
+
+          {/* Next week — big pill button */}
+          <button onClick={() => navWeek(1)}
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', width:48, height:48, borderRadius:14, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#1E293B' : '#F9FAFB', cursor:'pointer', flexShrink:0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={dk ? '#CBD5E1' : '#374151'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
         </div>
-        {/* Week strip */}
-        <WeekStrip selectedDate={selectedDate} dotDates={dotDates} onSelect={selectDay} dk={dk} />
+
+        {/* Row 2: Month jump strip — prev/next month buttons flanking the week strip */}
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          {/* Jump prev month */}
+          <button
+            onClick={() => {
+              const d = new Date(selectedDate)
+              d.setMonth(d.getMonth() - 1)
+              d.setDate(1)
+              selectDay(d)
+            }}
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', width:36, height:36, borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#1E293B' : '#F9FAFB', cursor:'pointer', flexShrink:0 }}
+            title="Previous month">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft:-8 }}>
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+
+          {/* Week strip — fills remaining space */}
+          <div style={{ flex:1 }}>
+            <WeekStrip selectedDate={selectedDate} dotDates={dotDates} onSelect={selectDay} dk={dk} />
+          </div>
+
+          {/* Jump next month */}
+          <button
+            onClick={() => {
+              const d = new Date(selectedDate)
+              d.setMonth(d.getMonth() + 1)
+              d.setDate(1)
+              selectDay(d)
+            }}
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', width:36, height:36, borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#1E293B' : '#F9FAFB', cursor:'pointer', flexShrink:0 }}
+            title="Next month">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft:-8 }}>
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Today earnings strip */}
