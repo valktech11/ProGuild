@@ -656,14 +656,35 @@ export default function CalendarPage() {
         {loading ? (
           [1,2,3].map(i => <div key={i} style={{ height:72, borderRadius:12, background: dk ? t.cardBg : 'white', animation:'pulse 1.5s infinite' }} />)
         ) : todayEvents.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'40px 20px' }}>
-            <div style={{ fontSize:32, marginBottom:8 }}>📅</div>
-            <div style={{ fontSize:15, fontWeight:700, color: dk ? t.textPri : '#374151', marginBottom:4 }}>
-              {isToday(selectedDate) ? 'No jobs today' : 'Nothing scheduled'}
+          <div style={{ textAlign:'center', padding:'32px 20px', display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+            <div style={{ width:64, height:64, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28 }}>📅</div>
+            <div>
+              <div style={{ fontSize:16, fontWeight:800, color: dk ? t.textPri : '#374151', marginBottom:6 }}>
+                {isToday(selectedDate) ? 'No jobs today' : `Nothing on ${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
+              </div>
+              <div style={{ fontSize:13, color: dk ? t.textSubtle : '#6B7280', lineHeight:1.6 }}>
+                {events.length === 0 && unscheduled.length === 0
+                  ? 'Your calendar is empty. Schedule your first job from the pipeline.'
+                  : isToday(selectedDate)
+                    ? 'Your day is open — a great time to follow up with leads'
+                    : 'Nothing scheduled on this day'}
+              </div>
             </div>
-            <div style={{ fontSize:13, color: dk ? t.textSubtle : '#6B7280' }}>
-              Your schedule is open{isToday(selectedDate) ? ' — a great day to follow up with leads' : ''}
-            </div>
+            {events.length === 0 && unscheduled.length === 0 && (
+              <button onClick={() => router.push('/dashboard/pipeline')}
+                style={{ padding:'12px 24px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:13, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 14px rgba(15,118,110,0.25)' }}>
+                Go to Pipeline →
+              </button>
+            )}
+            {unscheduled.length > 0 && (
+              <div style={{ width:'100%', padding:'12px 14px', borderRadius:12, background: dk ? t.cardBg : '#FFFBEB', border:`1px solid ${dk ? t.cardBorder : '#FDE68A'}`, textAlign:'left' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#D97706', marginBottom:8 }}>💡 {unscheduled.length} lead{unscheduled.length!==1?'s':''} need scheduling</div>
+                <button onClick={() => router.push('/dashboard/pipeline')}
+                  style={{ fontSize:12, fontWeight:700, color:'#D97706', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                  Schedule from Pipeline →
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>

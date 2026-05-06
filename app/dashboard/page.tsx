@@ -365,6 +365,41 @@ export default function OverviewPage() {
             <h2 className="text-[16px] font-bold" style={{ color: textMain }}>Reviews &amp; Growth</h2>
           </div>
 
+          {reviews.length === 0 ? (
+            /* ── Empty state for new pros ── */
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 rounded-xl p-6 flex flex-col items-center justify-center gap-4 text-center"
+                style={{ background: dk ? '#0F172A' : '#F9F8F6', border: `2px dashed ${dk ? '#334155' : '#E8E2D9'}`, minHeight: 220 }}>
+                <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl" style={{ background: 'linear-gradient(135deg,#0F766E22,#14B8A622)' }}>⭐</div>
+                <div>
+                  <h3 className="text-[15px] font-bold mb-1.5" style={{ color: textMain }}>No reviews yet</h3>
+                  <p className="text-[13px] leading-relaxed max-w-xs" style={{ color: BODY }}>Reviews build trust and help you win more jobs. Complete your first job and ask for a review.</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 w-full max-w-sm">
+                  {[['✅','Complete a job'],['💬','Ask for review'],['🏆','Build reputation']].map(([icon, text]) => (
+                    <div key={text} className="flex flex-col items-center gap-1.5 p-3 rounded-xl" style={{ background: dk ? '#1E293B' : 'white', border: `1px solid ${BORDER}` }}>
+                      <span className="text-xl">{icon}</span>
+                      <span className="text-[10px] font-semibold" style={{ color: BODY }}>{text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="w-full md:w-72 flex flex-col gap-3">
+                <div className="rounded-xl p-4" style={{ background: dk ? '#0F172A' : '#F0FDFA', border: `1px solid ${dk ? '#1E3A2F' : '#CCFBF1'}` }}>
+                  <h3 className="text-[14px] font-bold mb-1.5" style={{ color: textMain }}>Request a review</h3>
+                  <p className="text-[12px] mb-3" style={{ color: BODY }}>Ask right after a job — response rates drop 80% after 48 hours.</p>
+                  <button className="w-full py-2.5 rounded-xl text-[13px] font-bold" style={{ background: `linear-gradient(135deg,${TEAL},#0D9488)`, color: 'white', border: 'none', cursor: 'pointer' }}>
+                    + Request a Review
+                  </button>
+                </div>
+                <div className="rounded-xl p-4 text-center" style={{ background: dk ? '#1E293B' : '#FFFBEB', border: `1px solid ${dk ? '#334155' : '#FDE68A'}` }}>
+                  <div className="text-2xl mb-1">🏆</div>
+                  <div className="text-[13px] font-bold mb-1" style={{ color: textMain }}>Unlock Top Pro</div>
+                  <div className="text-[11px]" style={{ color: BODY }}>Get 10 reviews with 4.5+ rating to win 30% more leads</div>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Col 1: Rating + gamification + AI insight + recent reviews */}
             <div className="lg:col-span-2">
@@ -528,6 +563,7 @@ export default function OverviewPage() {
               </div>
             </div>
           </div>
+          )} {/* end reviews.length > 0 */}
         </div>
 
         {/* ── Community Insights ───────────────────────────────────────────── */}
@@ -573,7 +609,9 @@ export default function OverviewPage() {
                 price: null, sub: null, answers: 6, label: 'replies',
               },
             ].map((item, i) => (
-              <Link key={i} href="/community" className="rounded-xl p-4 flex gap-3 transition-all hover:shadow-sm"
+              <button key={i}
+                onClick={() => alert('Community feed coming soon — stay tuned!')}
+                className="rounded-xl p-4 flex gap-3 transition-all hover:shadow-md text-left group w-full"
                 style={{ border: `1px solid ${cardBdr}`, backgroundColor: cardBg }}>
                 <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: item.iconBg }}>
@@ -583,16 +621,19 @@ export default function OverviewPage() {
                   <p className="text-[13px] font-semibold mb-1 leading-snug" style={{ color: textMain }}>{item.q}</p>
                   {item.price && <p className="text-[13px] font-bold mb-0.5" style={{ color: TEAL }}>{item.price}</p>}
                   {item.sub && <p className="text-[12px]" style={{ color: MUTED_D }}>{item.sub}</p>}
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="flex -space-x-1">
-                      {['#7C3AED','#0EA5E9','#F97316','#16A34A'].map((c, j) => (
-                        <div key={j} className="w-5 h-5 rounded-full border-2 border-white" style={{ backgroundColor: c }} />
-                      ))}
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-1">
+                        {['#7C3AED','#0EA5E9','#F97316','#16A34A'].map((c, j) => (
+                          <div key={j} className="w-5 h-5 rounded-full border-2 border-white" style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                      <span className="text-[12px]" style={{ color: MUTED_D }}>{item.answers} {item.label}</span>
                     </div>
-                    <span className="text-[12px]" style={{ color: MUTED_D }}>{item.answers} {item.label}</span>
+                    <span className="text-[12px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: TEAL }}>View →</span>
                   </div>
                 </div>
-              </Link>
+              </button>
             ))}
           </div>
         </div>

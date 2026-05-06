@@ -220,6 +220,30 @@ export default function PipelinePage() {
           </div>
         )}
 
+        {session && leads.length === 0 && !dataLoading && (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'64px 24px', textAlign:'center' }}>
+            <div style={{ width:72, height:72, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32, marginBottom:20 }}>📋</div>
+            <h3 style={{ fontSize:20, fontWeight:800, color: t.textPri, margin:'0 0 10px' }}>Your pipeline is empty</h3>
+            <p style={{ fontSize:14, color: t.textBody, marginBottom:28, maxWidth:340, lineHeight:1.6 }}>
+              Start tracking your leads — add enquiries from calls, texts, social media, or anywhere you get job requests.
+            </p>
+            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
+              <button onClick={() => setShowAddLead(true)}
+                style={{ padding:'14px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 14px rgba(15,118,110,0.3)' }}>
+                + Add Your First Lead
+              </button>
+              <div style={{ display:'flex', gap:8 }}>
+                {[['📞','Missed call'],['💬','Text enquiry'],['📱','Social DM']].map(([icon, label]) => (
+                  <div key={label} style={{ flex:1, padding:'10px 6px', borderRadius:10, background: t.cardBg, border:`1px solid ${t.cardBorder}`, textAlign:'center' }}>
+                    <div style={{ fontSize:18, marginBottom:4 }}>{icon}</div>
+                    <div style={{ fontSize:10, fontWeight:600, color: t.textMuted }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {session && (
           <LeadPipeline
             leads={filteredLeads}

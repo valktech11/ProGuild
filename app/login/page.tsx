@@ -95,7 +95,7 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               placeholder="you@example.com"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-stone-50 focus:outline-none focus:border-teal-400 focus:bg-white transition-colors" />
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-50 transition-all shadow-sm" />
           </div>
           <button onClick={handleLogin} disabled={loading}
             className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50">
@@ -142,6 +142,13 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
   const [cities, setCities] = useState<string[]>([])
   const [citiesLoading, setCitiesLoading] = useState(false)
+
+  function formatPhone(val: string) {
+    const digits = val.replace(/\D/g, '').slice(0, 10)
+    if (digits.length <= 3) return digits
+    if (digits.length <= 6) return `(${digits.slice(0,3)}) ${digits.slice(3)}`
+    return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
+  }
 
   async function handleSignup() {
     if (!fname || !lname || !email || !phone || !trade || !city) {
@@ -206,13 +213,22 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
       {[
         { label: 'Email', value: email, set: setEmail, placeholder: 'you@example.com', type: 'email' },
-        { label: 'Phone', value: phone, set: setPhone, placeholder: '(555) 000-0000', type: 'tel' },
       ].map(f => (
         <div key={f.label} className="mb-4">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">{f.label}</label>
           <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} className={inp()} />
         </div>
       ))}
+
+      <div className="mb-4">
+        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Phone</label>
+        <input type="tel" value={phone}
+          onChange={e => setPhone(formatPhone(e.target.value))}
+          placeholder="(555) 000-0000"
+          maxLength={14}
+          className={inp()} />
+        <p className="text-[11px] text-gray-400 mt-1">Format: (xxx) xxx-xxxx</p>
+      </div>
 
       <div className="mb-4">
         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Trade</label>
@@ -259,5 +275,5 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 }
 
 function inp() {
-  return 'w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-stone-50 focus:outline-none focus:border-teal-400 focus:bg-white transition-colors'
+  return 'w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-50 transition-all shadow-sm'
 }
