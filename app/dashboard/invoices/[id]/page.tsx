@@ -1,8 +1,8 @@
 'use client'
 
-import React, { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Send, CreditCard, Link2, Check } from 'lucide-react'
+import React, { use, useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Send, CreditCard, Link2, Check } from 'lucide-react'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { theme } from '@/lib/theme'
@@ -59,6 +59,30 @@ const STATUS_STYLES: Record<Invoice['status'], { bg: string; text: string; label
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
+}
+
+type ThemeType = ReturnType<typeof theme>
+const ThemeCtx = React.createContext<{ t: ThemeType; dk: boolean }>({ t: theme(false), dk: false })
+
+// ── SearchParams reader (must be in Suspense per App Router rules) ─────────────
+function BackNav({ router }: { router: ReturnType<typeof useRouter> }) {
+  const params = useSearchParams()
+  const from   = params.get('from')
+  const leadId = params.get('lead_id')
+  const estId  = params.get('est_id')
+  const { t }  = React.useContext(ThemeCtx)
+
+  const { label, href } =
+    from === 'pipeline' && leadId ? { label: '← Back to Lead',     href: `/dashboard/pipeline/${leadId}` } :
+    from === 'estimates' && estId ? { label: '← Back to Estimate', href: `/dashboard/estimates/${estId}` } :
+                                    { label: '← Back to Invoices', href: '/dashboard/invoices' }
+
+  return (
+    <button onClick={() => router.push(href)}
+      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20 }}>
+      {label}
+    </button>
+  )
 }
 
 export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -187,10 +211,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           )}
 
           {/* Back nav */}
-          <button onClick={() => router.push('/dashboard/invoices')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', marginBottom: 20 }}>
-            <ArrowLeft size={16} /> Back to Invoices
-          </button>
+          <ThemeCtx.Provider value={{ t, dk }}>
+            <Suspense fallback={<div style={{ height: 36 }} />}>
+              <BackNav router={router} />
+            </Suspense>
+          </ThemeCtx.Provider>
 
           <div className="xl:flex xl:gap-6 xl:items-start">
             {/* ── Left column ── */}
