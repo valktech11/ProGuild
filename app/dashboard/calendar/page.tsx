@@ -314,14 +314,14 @@ function WeekStrip({ selectedDate, dotDates, onSelect, dk }: {
             }}>
             {/* Day letter — larger, bolder, high contrast */}
             <span style={{
-              fontSize:12, fontWeight:700, letterSpacing:'0.02em',
-              color: isSelected ? 'rgba(255,255,255,0.85)' : isTod ? '#0F766E' : dk ? '#94A3B8' : '#6B7280'
+              fontSize:13, fontWeight:800, letterSpacing:'0.02em',
+              color: isSelected ? 'rgba(255,255,255,0.9)' : isTod ? '#0F766E' : dk ? '#94A3B8' : '#374151'
             }}>
               {DAYS[d.getDay()].slice(0,1)}
             </span>
             {/* Date number — larger for readability in bright light */}
             <span style={{
-              fontSize:17, fontWeight:800, lineHeight:1,
+              fontSize:19, fontWeight:900, lineHeight:1,
               color: isSelected ? 'white' : isTod ? '#0F766E' : dk ? '#F1F5F9' : '#111827'
             }}>
               {d.getDate()}
@@ -378,7 +378,7 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
           {ev.quoted_amount ? (
             <span style={{ fontSize:13, fontWeight:700, color:'#0F766E' }}>${ev.quoted_amount.toLocaleString()}</span>
           ) : null}
-          <span style={{ fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:20, background: accentBg, color: accentColor, border:`1px solid ${accentColor}33` }}>
+          <span style={{ fontSize:13, fontWeight:700, padding:'4px 10px', borderRadius:20, background: accentBg, color: accentColor, border:`1px solid ${accentColor}33` }}>
             {isFollowup ? 'Follow-up' : (STATUS_STYLE[ev.lead_status]?.label || ev.lead_status)}
           </span>
         </div>
@@ -386,12 +386,12 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
 
       {/* Row 2: date + action buttons */}
       <div style={{ display:'flex', alignItems:'center', gap:6 }} onClick={e => e.stopPropagation()}>
-        <span style={{ fontSize:12, color:'#6B7280', flex:1 }}>{dateStr || (isToday(new Date()) ? 'Today' : '')}</span>
+        <span style={{ fontSize:13, color:'#6B7280', flex:1 }}>{dateStr || (isToday(new Date()) ? 'Today' : '')}</span>
 
         {/* Call */}
         {ev.contact_phone && (
           <a href={`tel:${ev.contact_phone}`}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 12px', borderRadius:8, background:'white', border:`1.5px solid ${accentColor}44`, color:accentColor, fontSize:12, fontWeight:700, textDecoration:'none' }}>
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'9px 14px', borderRadius:10, background:'white', border:`1.5px solid ${accentColor}44`, color:accentColor, fontSize:12, fontWeight:700, textDecoration:'none' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.2" strokeLinecap="round">
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/>
             </svg>
@@ -402,7 +402,7 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
         {/* Navigate — jobs only */}
         {ev._type === 'job' && (
           <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 12px', borderRadius:8, background:'white', border:'1.5px solid #E5E7EB', color:'#374151', fontSize:12, fontWeight:700, textDecoration:'none' }}>
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'9px 14px', borderRadius:10, background:'white', border:'1.5px solid #E5E7EB', color:'#374151', fontSize:12, fontWeight:700, textDecoration:'none' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2" strokeLinecap="round">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
             </svg>
@@ -413,7 +413,7 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
         {/* Mark Complete — only for Scheduled jobs */}
         {onMarkComplete && !isCompleted && (
           <button onClick={onMarkComplete} disabled={completing}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 12px', borderRadius:8, background: completing ? '#F3F4F6' : '#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:12, fontWeight:700, cursor:'pointer', opacity: completing ? 0.6 : 1 }}>
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'9px 14px', borderRadius:10, background: completing ? '#F3F4F6' : '#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:12, fontWeight:700, cursor:'pointer', opacity: completing ? 0.6 : 1 }}>
             {completing ? '…' : (
               <>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -442,7 +442,7 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
         </div>
         {leads.length > 2 && (
           <button onClick={() => setExpanded(e => !e)}
-            style={{ fontSize:11, fontWeight:700, color:'#0F766E', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+            style={{ fontSize:13, fontWeight:700, color:'#0F766E', background:'#F0FDFA', border:'1.5px solid #CCFBF1', cursor:'pointer', padding:'6px 12px', borderRadius:20 }}>
             {expanded ? 'Show less ∧' : `Show all ${leads.length} ∨`}
           </button>
         )}
@@ -459,25 +459,25 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:14, fontWeight:700, color: dk ? t.textPri : '#111827' }}>{capName(ev.contact_name)}</div>
               <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                <span style={{ fontSize:11, color: dk ? t.textSubtle : '#6B7280' }}>{ev.lead_status}</span>
-                <span style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:6, background: urgBg, color: urgColor }}>{days}d ago</span>
+                <span style={{ fontSize:13, fontWeight:500, color: dk ? t.textSubtle : '#6B7280' }}>{ev.lead_status}</span>
+                <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:8, background: urgBg, color: urgColor }}>{days}d ago</span>
               </div>
             </div>
             {/* Call or Add Phone */}
             {ev.contact_phone ? (
               <a href={`tel:${ev.contact_phone}`}
-                style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 12px', borderRadius:8, background:'#F0FDFA', border:'1.5px solid #CCFBF1', color:'#0F766E', fontSize:12, fontWeight:700, textDecoration:'none', flexShrink:0 }}>
+                style={{ display:'flex', alignItems:'center', gap:4, padding:'11px 16px', borderRadius:12, background:'#F0FDFA', border:'1.5px solid #CCFBF1', color:'#0F766E', fontSize:13, fontWeight:700, textDecoration:'none', flexShrink:0 }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.2" strokeLinecap="round">
                   <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/>
                 </svg>
                 Call
               </a>
             ) : (
-              <span style={{ fontSize:11, color: dk ? t.textSubtle : '#9CA3AF', flexShrink:0 }}>No phone</span>
+              <span style={{ fontSize:13, color: dk ? t.textSubtle : '#9CA3AF', flexShrink:0 }}>No phone</span>
             )}
             {/* Open → */}
             <button onClick={() => onOpen(ev.id)}
-              style={{ width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8, background: dk ? '#334155' : '#F3F4F6', border:'none', cursor:'pointer', flexShrink:0 }}>
+              style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:12, background: dk ? '#334155' : '#F3F4F6', border:'none', cursor:'pointer', flexShrink:0 }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
             </button>
           </div>
@@ -872,47 +872,45 @@ export default function CalendarPage() {
         {/* Row 2: Month jump + Week strip */}
         <div style={{ display:'flex', alignItems:'center', gap:4, marginBottom:10 }}>
           <button onClick={() => { const d=new Date(selectedDate); d.setMonth(d.getMonth()-1); d.setDate(1); selectDay(d) }}
-            style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 6px', minWidth:32, borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#1E293B' : '#F9FAFB', cursor:'pointer', flexShrink:0, gap:1 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-            <span style={{ fontSize:8, fontWeight:700, color: dk ? '#64748B' : '#9CA3AF', lineHeight:1 }}>
-              {SHORT_MONTHS[(selectedDate.getMonth()-1+12)%12]}
-            </span>
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', width:40, height:44, borderRadius:12, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#1E293B' : '#F9FAFB', cursor:'pointer', flexShrink:0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={dk ? '#CBD5E1' : '#374151'} strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
           <div style={{ flex:1 }}>
             <WeekStrip selectedDate={selectedDate} dotDates={dotDates} onSelect={selectDay} dk={dk} />
           </div>
           <button onClick={() => { const d=new Date(selectedDate); d.setMonth(d.getMonth()+1); d.setDate(1); selectDay(d) }}
-            style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4px 6px', minWidth:32, borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#1E293B' : '#F9FAFB', cursor:'pointer', flexShrink:0, gap:1 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#6B7280'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-            <span style={{ fontSize:8, fontWeight:700, color: dk ? '#64748B' : '#9CA3AF', lineHeight:1 }}>
-              {SHORT_MONTHS[(selectedDate.getMonth()+1)%12]}
-            </span>
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', width:40, height:44, borderRadius:12, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background: dk ? '#1E293B' : '#F9FAFB', cursor:'pointer', flexShrink:0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={dk ? '#CBD5E1' : '#374151'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
           </button>
         </div>
 
-        {/* Row 3: Today link + Week/Month toggle + filter chips */}
-        <div style={{ display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
+        {/* Row 3a: Today link + Week/Month toggle */}
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
           {!isToday(selectedDate) && (
             <button onClick={goToday}
-              style={{ fontSize:12, fontWeight:700, padding:'5px 12px', borderRadius:20, border:`1.5px solid #0F766E`, background:'transparent', color:'#0F766E', cursor:'pointer', flexShrink:0 }}>
+              style={{ fontSize:13, fontWeight:700, padding:'8px 16px', borderRadius:22, border:`1.5px solid #0F766E`, background:'transparent', color:'#0F766E', cursor:'pointer', flexShrink:0 }}>
               ← Today
             </button>
           )}
-          <div style={{ display:'flex', borderRadius:20, overflow:'hidden', border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, flexShrink:0 }}>
+          <div style={{ display:'flex', borderRadius:22, overflow:'hidden', border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}` }}>
             {(['week','month'] as const).map(v => (
               <button key={v} onClick={() => setMobileView(v)}
-                style={{ padding:'5px 11px', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, background: mobileView===v ? '#0F766E' : 'transparent', color: mobileView===v ? 'white' : (dk ? '#94A3B8' : '#6B7280'), textTransform:'capitalize' }}>
+                style={{ padding:'9px 18px', border:'none', cursor:'pointer', fontSize:13, fontWeight:700, background: mobileView===v ? '#0F766E' : 'transparent', color: mobileView===v ? 'white' : (dk ? '#94A3B8' : '#6B7280'), textTransform:'capitalize' }}>
                 {v}
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Row 3b: Filter chips */}
+        <div style={{ display:'flex', gap:8 }}>
           {([
-            { k:'jobs', label:'Jobs', active:showJobs, set:()=>setShowJobs(v=>!v) },
+            { k:'jobs', label:'Jobs',       active:showJobs,      set:()=>setShowJobs(v=>!v) },
             { k:'fu',   label:'Follow-ups', active:showFollowups, set:()=>setShowFollowups(v=>!v) },
-            { k:'ov',   label:'Overdue', active:showOverdue, set:()=>setShowOverdue(v=>!v) },
+            { k:'ov',   label:'Overdue',    active:showOverdue,   set:()=>setShowOverdue(v=>!v) },
           ] as const).map(chip => (
             <button key={chip.k} onClick={chip.set}
-              style={{ fontSize:10, fontWeight:700, padding:'5px 8px', borderRadius:20, border:`1.5px solid ${chip.active ? '#0F766E' : (dk ? '#334155' : '#E8E2D9')}`, background: chip.active ? '#0F766E' : 'transparent', color: chip.active ? 'white' : (dk ? '#94A3B8' : '#6B7280'), cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+              style={{ fontSize:13, fontWeight:700, padding:'9px 14px', borderRadius:22, border:`1.5px solid ${chip.active ? '#0F766E' : (dk ? '#334155' : '#E8E2D9')}`, background: chip.active ? '#0F766E' : 'transparent', color: chip.active ? 'white' : (dk ? '#94A3B8' : '#6B7280'), cursor:'pointer', whiteSpace:'nowrap' }}>
               {chip.active ? '✓ ' : ''}{chip.label}
             </button>
           ))}
@@ -946,7 +944,7 @@ export default function CalendarPage() {
       )}
 
       {/* Day agenda — swipeable */}
-      <div style={{ flex:1, padding:'12px 16px', display:'flex', flexDirection:'column', gap:10, overflowY:'auto' }}
+      <div style={{ flex:1, padding:'12px 20px', display:'flex', flexDirection:'column', gap:12, overflowY:'auto' }}
         onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {loading ? (
           [1,2,3].map(i => <div key={i} style={{ height:72, borderRadius:12, background: dk ? t.cardBg : 'white', animation:'shimmer 1.4s ease-in-out infinite', backgroundSize:'200% 100%' }} />)
