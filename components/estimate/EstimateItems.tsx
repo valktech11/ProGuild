@@ -78,13 +78,19 @@ export default function EstimateItems({
   function addItem() {
     const item: EstimateItem = { id: uid(), name: '', description: '', qty: 1, unit_price: 0, amount: 0 }
     const items = [...estimate.items, item]
-    setEstimate(prev => prev ? { ...prev, items, ...recalc(items, prev.tax_rate, prev.discount) } : prev)
+    // P3-6: If discount type is %, recalculate flat discount from new subtotal
+    const newSubtotal = items.reduce((s, i) => s + i.qty * i.unit_price, 0)
+    const newDiscount = discountType === '%' ? newSubtotal * (discountInput / 100) : estimate.discount
+    setEstimate(prev => prev ? { ...prev, items, discount: newDiscount, ...recalc(items, prev.tax_rate, newDiscount) } : prev)
     setDraft({ name: '', description: '', qty: 1, unit_price: 0 })
     setEditingId(item.id)
   }
   function duplicate(item: EstimateItem) {
     const items = [...estimate.items, { ...item, id: uid() }]
-    setEstimate(prev => prev ? { ...prev, items, ...recalc(items, prev.tax_rate, prev.discount) } : prev)
+    // P3-6: Recalculate % discount on duplicate too
+    const newSubtotal = items.reduce((s, i) => s + i.qty * i.unit_price, 0)
+    const newDiscount = discountType === '%' ? newSubtotal * (discountInput / 100) : estimate.discount
+    setEstimate(prev => prev ? { ...prev, items, discount: newDiscount, ...recalc(items, prev.tax_rate, newDiscount) } : prev)
   }
   function remove(id: string) {
     if (editingId === id) cancelEdit()

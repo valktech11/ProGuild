@@ -1054,26 +1054,44 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           {showLost && (
             <div className="mt-2 space-y-2">
               {lostLeads.map(lead => {
-                const stage = PIPELINE_STAGES.find(s => s.key === 'New') || PIPELINE_STAGES[0]
+                const [avBg, avFg] = avatarColor(lead.contact_name)
                 return (
-                  <div key={lead.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl"
-                    style={{ background: 'white', border: '1px solid #E5E7EB', opacity: 0.75 }}>
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div key={lead.id} className="rounded-xl overflow-hidden"
+                    style={{ background: dk ? '#1E293B' : 'white', border: '1px solid #E5E7EB', opacity: 0.85 }}>
+                    {/* Lead info row */}
+                    <div className="flex items-center gap-2 px-4 py-3">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-                        style={{ background: '#F3F4F6', color: '#6B7280' }}>
-                        {lead.contact_name?.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase()}
+                        style={{ background: avBg, color: avFg }}>
+                        {initials(lead.contact_name)}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-gray-700 truncate">{lead.contact_name}</p>
-                        <p className="text-[11px] text-gray-400">{timeAgo(lead.created_at)}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold truncate" style={{ color: dk ? '#F1F5F9' : '#374151' }}>{capName(lead.contact_name)}</p>
+                        <p className="text-[11px]" style={{ color: dk ? '#64748B' : '#9CA3AF' }}>{timeAgo(lead.created_at)} · Lost</p>
                       </div>
+                      <button onClick={() => openLead(lead)}
+                        className="text-[11px] font-medium px-2 py-1 rounded-lg flex-shrink-0"
+                        style={{ color: dk ? '#64748B' : '#9CA3AF', border: `1px solid ${dk ? '#334155' : '#E5E7EB'}`, background: 'transparent' }}>
+                        Open
+                      </button>
                     </div>
-                    <button
-                      onClick={() => openLead(lead)}
-                      className="text-[12px] font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
-                      style={{ background: '#F0FDFA', color: '#0F766E', border: '1px solid #99F6E4' }}>
-                      Reopen
-                    </button>
+                    {/* Stage move actions */}
+                    <div className="flex border-t" style={{ borderColor: dk ? '#334155' : '#F3F4F6' }}>
+                      {(['New', 'Contacted'] as const).map((stageName, i) => (
+                        <button key={stageName}
+                          onClick={async () => { await onStatusChange(lead.id, stageName) }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-semibold transition-opacity hover:opacity-70"
+                          style={{
+                            background: 'transparent',
+                            color: stageName === 'New' ? '#D97706' : '#2563EB',
+                            borderRight: i === 0 ? `1px solid ${dk ? '#334155' : '#F3F4F6'}` : 'none',
+                            borderTop: 'none', borderLeft: 'none', borderBottom: 'none',
+                            cursor: 'pointer',
+                          }}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                          Move to {stageName}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )
               })}

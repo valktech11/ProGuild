@@ -104,6 +104,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [invoiceTerms, setInvoiceTerms] = useState('due_on_receipt')
   const [invoiceDueDate, setInvoiceDueDate] = useState('')
+  const [depositCollected, setDepositCollected] = useState(false)
   const [showMoreMenu,    setShowMoreMenu]    = useState(false)
   const [showVoidConfirm, setShowVoidConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -112,6 +113,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const [duplicating,     setDuplicating]     = useState(false)
   const [activeTab, setActiveTab] = useState<'items' | 'notes'>('items')
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [previewTpl, setPreviewTpl] = useState<string | null>(null)
   const [showSaveTemplate,   setShowSaveTemplate]   = useState(false)
   const [templateName,       setTemplateName]       = useState('')
   const [savingTemplate,     setSavingTemplate]     = useState(false)
@@ -171,6 +173,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           contact_phone: estimate.contact_phone,
           payment_terms: invoiceTerms,
           due_date:      invoiceDueDate ? new Date(invoiceDueDate + 'T23:59:59').toISOString() : undefined,
+          deposit_paid:  depositCollected ? (estimate.total * (estimate.deposit_percent || 50) / 100) : 0,
         }),
       })
       const d = await r.json()
@@ -354,11 +357,31 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           </div>
 
           {/* Due Date */}
-          <div style={{ marginBottom:24 }}>
+          <div style={{ marginBottom:16 }}>
             <label style={{ fontSize:12, fontWeight:700, color: dk ? '#94A3B8' : '#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Due Date</label>
             <input type="date" value={invoiceDueDate} onChange={e => setInvoiceDueDate(e.target.value)}
               style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: dk ? '#F1F5F9' : '#111827', fontSize:14, boxSizing:'border-box' }} />
           </div>
+
+          {/* Deposit collected */}
+          {estimate.require_deposit && (
+            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: dk ? '#0F172A' : '#F9FAFB', border:`1.5px solid ${depositCollected ? '#0F766E' : (dk ? '#334155' : '#E5E7EB')}` }}>
+              <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+                <div onClick={() => setDepositCollected(v => !v)}
+                  style={{ width:20, height:20, borderRadius:6, border:`2px solid ${depositCollected ? '#0F766E' : (dk ? '#475569' : '#D1D5DB')}`, background: depositCollected ? '#0F766E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer', transition:'all 0.15s' }}>
+                  {depositCollected && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>}
+                </div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600, color: dk ? '#F1F5F9' : '#111827' }}>
+                    Deposit already collected
+                  </div>
+                  <div style={{ fontSize:11, color: dk ? '#64748B' : '#6B7280', marginTop:1 }}>
+                    {estimate.deposit_percent || 50}% deposit = ${((estimate.total || 0) * (estimate.deposit_percent || 50) / 100).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 })} will be credited
+                  </div>
+                </div>
+              </label>
+            </div>
+          )}
 
           {/* Actions */}
           <div style={{ display:'flex', gap:10 }}>
@@ -972,21 +995,44 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   <p className={`text-xs mt-1 ${muted}`}>Build an estimate and click "Save as Template" to reuse it.</p>
                 </div>
               ) : templates.map(tpl => (
-                <div key={tpl.id} className={`flex items-center border-b last:border-b-0 ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
-                  <button onClick={() => applyTemplate(tpl)}
-                    className={`flex-1 text-left px-5 py-3.5 transition-colors ${dk ? 'hover:bg-[#0F172A]' : 'hover:bg-[#F9FAFB]'}`}>
-                    <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>{tpl.name}</p>
-                    <p className={`text-xs mt-0.5 ${muted}`}>{tpl.items.length} item{tpl.items.length !== 1 ? 's' : ''}</p>
-                  </button>
-                  {/* D7: delete template */}
-                  <button onClick={e => {
-                    e.stopPropagation()
-                    setConfirmDeleteTpl({ id: tpl.id, name: tpl.name })
-                  }}
-                    title="Delete template"
-                    className="px-4 py-3.5 shrink-0 text-gray-400 hover:text-red-500 transition-colors">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                  </button>
+                <div key={tpl.id} className={`border-b last:border-b-0 ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
+                  <div className={`flex items-center`}>
+                    <button onClick={() => applyTemplate(tpl)}
+                      className={`flex-1 text-left px-5 py-3.5 transition-colors ${dk ? 'hover:bg-[#0F172A]' : 'hover:bg-[#F9FAFB]'}`}>
+                      <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>{tpl.name}</p>
+                      <p className={`text-xs mt-0.5 ${muted}`}>{tpl.items.length} item{tpl.items.length !== 1 ? 's' : ''} · ${tpl.items.reduce((s: number, i: any) => s + i.qty * i.unit_price, 0).toLocaleString()}</p>
+                    </button>
+                    {/* Preview toggle */}
+                    <button onClick={e => { e.stopPropagation(); setPreviewTpl(previewTpl === tpl.id ? null : tpl.id) }}
+                      className={`px-3 py-3.5 shrink-0 transition-colors ${dk ? 'text-slate-400 hover:text-slate-200' : 'text-gray-400 hover:text-gray-700'}`}
+                      title="Preview items">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        {previewTpl === tpl.id ? <path d="M18 15l-6-6-6 6"/> : <path d="M6 9l6 6 6-6"/>}
+                      </svg>
+                    </button>
+                    {/* Delete */}
+                    <button onClick={e => { e.stopPropagation(); setConfirmDeleteTpl({ id: tpl.id, name: tpl.name }) }}
+                      title="Delete template"
+                      className="px-4 py-3.5 shrink-0 text-gray-400 hover:text-red-500 transition-colors">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                    </button>
+                  </div>
+                  {/* Item preview — expands on chevron click */}
+                  {previewTpl === tpl.id && (
+                    <div className={`px-5 pb-3 ${dk ? 'bg-[#0F172A]' : 'bg-[#F9FAFB]'}`}>
+                      {tpl.items.map((item: any, idx: number) => (
+                        <div key={idx} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderBottom: idx < tpl.items.length-1 ? `1px solid ${dk ? '#1E293B' : '#E8E2D9'}` : 'none' }}>
+                          <span className={`text-xs ${dk ? 'text-slate-300' : 'text-gray-700'}`}>{item.name || 'Unnamed item'}</span>
+                          <span className={`text-xs font-semibold ${dk ? 'text-slate-400' : 'text-gray-500'}`}>{item.qty} × ${item.unit_price?.toLocaleString()}</span>
+                        </div>
+                      ))}
+                      <button onClick={() => applyTemplate(tpl)}
+                        className="w-full mt-2 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                        style={{ background: '#0F766E', color: 'white', border: 'none', cursor: 'pointer' }}>
+                        Use this template →
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
