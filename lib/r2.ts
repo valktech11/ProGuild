@@ -56,10 +56,20 @@ export async function deleteFromR2(key: string): Promise<void> {
 }
 
 // Get public URL for a key
+// R2 public bucket URL: https://pub-{hash}.r2.dev/{key}
+// OR custom domain if R2_PUBLIC_URL is set
+// OR fall back to account endpoint (requires bucket public access enabled)
 export function getR2PublicUrl(key: string): string {
-  if (PUBLIC_URL) return `${PUBLIC_URL}/${key}`
-  // Fallback to R2 public bucket URL pattern
-  return `https://${ACCOUNT_ID}.r2.cloudflarestorage.com/${BUCKET_NAME}/${key}`
+  if (process.env.R2_PUBLIC_URL) {
+    return `${process.env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`
+  }
+  // R2 dev subdomain — set R2_PUBLIC_BUCKET_URL in env from Cloudflare dashboard
+  // R2 bucket → Settings → Public Access → Enable → copy the r2.dev URL
+  if (process.env.R2_PUBLIC_BUCKET_URL) {
+    return `${process.env.R2_PUBLIC_BUCKET_URL.replace(/\/$/, '')}/${key}`
+  }
+  // Fallback: account endpoint (only works if bucket has public access enabled)
+  return `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${process.env.R2_BUCKET_NAME}/${key}`
 }
 
 // Key generators — consistent naming across the app

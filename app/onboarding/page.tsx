@@ -31,6 +31,11 @@ export default function OnboardingPage() {
     const file = e.target.files?.[0]
     if (!file || !session) return
     setUploading(true); setUploadError('')
+
+    // Show preview immediately from local file — don't wait for upload
+    const localPreview = URL.createObjectURL(file)
+    setPhotoUrl(localPreview)
+
     const form = new FormData()
     form.append('file', file)
     form.append('pro_id', session.id)
@@ -38,8 +43,13 @@ export default function OnboardingPage() {
     const r = await fetch('/api/upload', { method: 'POST', body: form })
     const d = await r.json()
     setUploading(false)
-    if (r.ok) { setPhotoUrl(d.url); setStep(2) }
-    else setUploadError(d.error || 'Upload failed. Try again.')
+    if (r.ok) {
+      setPhotoUrl(d.url)  // replace local preview with permanent R2 URL
+      setStep(2)
+    } else {
+      setPhotoUrl('')  // clear preview on failure
+      setUploadError(d.error || 'Upload failed. Try again.')
+    }
   }
 
   async function handleFinish() {
