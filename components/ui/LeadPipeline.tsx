@@ -106,6 +106,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
   }
 
   const currentStage = PIPELINE_STAGES.find(s => s.key === status)
+  const currentStageSS = stageStyle(status)
 
   return (
     <>
@@ -126,8 +127,8 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
               <h2 className="text-xl font-bold text-gray-900">{lead.contact_name}</h2>
               <p className="text-sm text-gray-500 mt-0.5">{timeAgo(lead.created_at)} · {lead.lead_source?.replace(/_/g, ' ')}</p>
               <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
-                style={{ background: currentStage?.bg, color: currentStage?.color }}>
-                <div className="w-2 h-2 rounded-full" style={{ background: currentStage?.dot }} />
+                style={{ background: currentStageSS.bg, color: currentStageSS.color }}>
+                <div className="w-2 h-2 rounded-full" style={{ background: currentStageSS.chipBg }} />
                 {currentStage?.label}
               </div>
             </div>
