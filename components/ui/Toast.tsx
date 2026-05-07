@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useState } from 'react'
 import { T } from '@/lib/tokens'
 
 export interface ToastItem {
@@ -78,17 +78,16 @@ export function Toast({ toasts, onDismiss }: ToastProps) {
 
 /** Hook to manage toasts — use this in any page */
 export function useToast() {
-  const { useState } = require('react')
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
   function showToast(message: string, type: ToastItem['type'] = 'success', action?: ToastItem['action']) {
     const id = Date.now()
-    setToasts((t: ToastItem[]) => [...t, { id, message, type, action }])
-    setTimeout(() => setToasts((t: ToastItem[]) => t.filter((x: ToastItem) => x.id !== id)), 4000)
+    setToasts(t => [...t, { id, message, type, action }])
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000)
   }
 
   function dismissToast(id: number) {
-    setToasts((t: ToastItem[]) => t.filter((x: ToastItem) => x.id !== id))
+    setToasts(t => t.filter(x => x.id !== id))
   }
 
   return { toasts, showToast, dismissToast }

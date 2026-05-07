@@ -11,6 +11,8 @@ import SmartNudges from '@/components/estimate/SmartNudges'
 import EstimateProgressBar from '@/components/estimate/EstimateProgressBar'
 import { Session } from '@/types'
 import { theme, T } from '@/lib/tokens'
+import { estimateStatusStyle } from '@/lib/design'
+import { timeAgo } from '@/lib/utils'
 
 export type EstimateItem = {
   id: string
@@ -295,10 +297,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
   if (!session) return null
 
-  // NOTE: card and muted are now color values (not Tailwind classes)
-  // Use as: style={{ color: muted }} or style={{ background: cardBg }}
+  // Theme tokens — must be declared before any usage
+  const t     = theme(dk)
   const muted = t.textMuted   // color value for inline styles
-  const t = theme(dk)
 
   return (
     <>
