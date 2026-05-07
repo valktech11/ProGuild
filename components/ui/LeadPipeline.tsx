@@ -4,15 +4,16 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Lead } from '@/types'
 import { initials, avatarColor, timeAgo, capName } from '@/lib/utils'
+import { stageStyle } from '@/lib/design'
 
 // ── Stage definitions ──────────────────────────────────────────────────────────
 export const PIPELINE_STAGES = [
-  { key: 'New',       label: 'New',       color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B', subLabel: 'Not yet contacted',  nextLabel: 'Call',          nextColor: '#D97706', nextBg: '#FEF3C7' },
-  { key: 'Contacted', label: 'Contacted', color: '#2563EB', bg: '#EFF6FF', dot: '#3B82F6', subLabel: 'In conversation',    nextLabel: 'Follow Up',     nextColor: '#2563EB', nextBg: '#DBEAFE' },
-  { key: 'Quoted',    label: 'Quoted',    color: '#7C3AED', bg: '#F5F3FF', dot: '#8B5CF6', subLabel: 'Proposal sent',      nextLabel: 'Send Estimate', nextColor: '#7C3AED', nextBg: '#EDE9FE' },
-  { key: 'Scheduled', label: 'Scheduled', color: '#0F766E', bg: '#F0FDFA', dot: '#14B8A6', subLabel: 'Job confirmed',      nextLabel: 'Job Day',       nextColor: '#0F766E', nextBg: '#CCFBF1' },
-  { key: 'Completed', label: 'Completed', color: '#374151', bg: '#F9FAFB', dot: '#6B7280', subLabel: 'Job completed',      nextLabel: 'Generate Invoice', nextColor: '#059669', nextBg: '#D1FAE5' },
-  { key: 'Paid',      label: 'Job Won',   color: 'white',   bg: '#4A7B4A', dot: 'white',   subLabel: 'Payment received',   nextLabel: '✓ Job Won',     nextColor: '#059669', nextBg: '#DCFCE7' },
+  { key: 'New',       label: 'New',       subLabel: 'Not yet contacted',  nextLabel: 'Call' },
+  { key: 'Contacted', label: 'Contacted', subLabel: 'In conversation',    nextLabel: 'Follow Up' },
+  { key: 'Quoted',    label: 'Quoted',    subLabel: 'Proposal sent',      nextLabel: 'Send Estimate' },
+  { key: 'Scheduled', label: 'Scheduled', subLabel: 'Job confirmed',      nextLabel: 'Job Day' },
+  { key: 'Completed', label: 'Completed', subLabel: 'Job completed',      nextLabel: 'Generate Invoice' },
+  { key: 'Paid',      label: 'Job Won',   subLabel: 'Payment received',   nextLabel: '✓ Job Won' },
 ] as const
 
 type StageKey = typeof PIPELINE_STAGES[number]['key']
@@ -323,8 +324,8 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
       onClick={onOpen}
       className="rounded-xl cursor-pointer transition-all active:scale-[0.98]"
       style={{
-        border: `1px solid ${dk ? stage.color + '33' : stage.color + '22'}`,
-        borderLeft: `3px solid ${stage.color}`,
+        border: `1px solid ${dk ? stageStyle(stage.key).color + '33' : stageStyle(stage.key).color + '22'}`,
+        borderLeft: `3px solid ${stageStyle(stage.key).color}`,
         padding: '10px 12px',
         background: dk ? '#1E293B' : 'white',
         boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
@@ -379,9 +380,9 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
           disabled={creatingEst}
           className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 min-w-0"
           style={{
-            background: stage.key === 'New' ? '#DBEAFE' : stage.nextBg,
-            color: stage.key === 'New' ? '#1D4ED8' : stage.nextColor,
-            border: `1px solid ${stage.key === 'New' ? '#BFDBFE' : stage.nextColor + '33'}`
+            background: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).bg,
+            color: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).color,
+            border: `1px solid ${stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).chipBg}`
           }}>
           {stage.key === 'New' && (
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -545,7 +546,7 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
 
                     {/* Stage */}
                     <td style={{ padding: '11px 14px' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: stage.bg, color: stage.color, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: stageStyle(stage.key).bg, color: stageStyle(stage.key).color, whiteSpace: 'nowrap' }}>
                         {stage.label}
                       </span>
                     </td>
@@ -636,11 +637,11 @@ function LeadQuickView({ leadId, onClose, onFullDetail }: {
       <div className="flex-1" />
       <div
         className="flex flex-col h-full bg-white shadow-2xl overflow-y-auto"
-        style={{ width: '100%', maxWidth: 380, borderLeft: `4px solid ${stage.color}` }}
+        style={{ width: '100%', maxWidth: 380, borderLeft: `4px solid ${stageStyle(stage.key).color}` }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F3F4F6', background: stage.key === 'Paid' ? 'rgba(74,123,74,0.08)' : stage.bg, flexShrink: 0 }}>
+        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F3F4F6', background: stageStyle(stage.key).bg, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 40, height: 40, borderRadius: '50%', background: avBg, color: avFg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
@@ -649,7 +650,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail }: {
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>{lead ? capName(lead.contact_name) : '…'}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: stage.key === 'Paid' ? '#4A7B4A' : stage.color, color: 'white' }}>{stage.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: stageStyle(stage.key).color, color: 'white' }}>{stage.label}</span>
                   <span style={{ fontSize: 11, color: '#6B7280' }}>{days}d ago</span>
                 </div>
               </div>
@@ -769,13 +770,13 @@ function SlidePanel({ stage, leads, onClose, onOpen }: {
       style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
       onClick={onClose}>
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-        style={{ maxHeight: '80vh', borderTop: `4px solid ${stage.key === 'Paid' ? '#4A7B4A' : stage.color}` }}
+        style={{ maxHeight: '80vh', borderTop: `4px solid ${stageStyle(stage.key).color}` }}
         onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4"
-          style={{ background: stage.key === 'Paid' ? 'rgba(74,123,74,0.10)' : stage.bg, borderBottom: `1px solid ${stage.color}22` }}>
+          style={{ background: stageStyle(stage.key).bg, borderBottom: `1px solid ${stageStyle(stage.key).color}22` }}>
           <div>
-            <div className="text-[14px] font-bold" style={{ color: stage.key === 'Paid' ? '#2D5A2D' : stage.color }}>
+            <div className="text-[14px] font-bold" style={{ color: stageStyle(stage.key).color }}>
               {stage.label} · {leads.length} leads
             </div>
             <div className="text-[11px] mt-0.5" style={{ color: '#6B7280' }}>Tap a lead to open</div>
@@ -822,7 +823,7 @@ function SlidePanel({ stage, leads, onClose, onOpen }: {
                     style={{ background: urgBg, color: urgColor }}>{days}d</span>
                 )}
                 {lead.quoted_amount ? (
-                  <span className="text-[12px] font-bold flex-shrink-0" style={{ color: stage.color }}>
+                  <span className="text-[12px] font-bold flex-shrink-0" style={{ color: stageStyle(stage.key).color }}>
                     ${lead.quoted_amount.toLocaleString()}
                   </span>
                 ) : null}
@@ -878,21 +879,21 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
       <div className="flex flex-col min-w-0" style={{ minWidth: 220 }}>
         {/* Column header */}
         <div className="rounded-xl px-3 py-2.5 mb-2" style={{
-          background: stage.key === 'Paid' ? (dk ? 'rgba(74,123,74,0.20)' : 'rgba(74,123,74,0.12)') : (dk ? stage.bg.replace(')', ',0.15)').replace('rgb','rgba') : stage.bg),
-          borderTop: `3px solid ${stage.key === 'Paid' ? '#4A7B4A' : stage.key === 'Completed' ? '#9CA3AF' : stage.color}`
+          background: stage.key === 'Paid' ? (dk ? 'rgba(74,123,74,0.20)' : 'rgba(74,123,74,0.12)') : (dk ? stageStyle(stage.key).bg.replace(')', ',0.15)').replace('rgb','rgba') : stageStyle(stage.key).bg),
+          borderTop: `3px solid ${stageStyle(stage.key).color}`
         }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <span className="text-[13px] font-bold" style={{ color: stage.key === 'Paid' ? '#4A7B4A' : stage.color }}>
+              <span className="text-[13px] font-bold" style={{ color: stageStyle(stage.key).color }}>
                 {stage.label}
               </span>
               <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
-                style={{ background: stage.key === 'Paid' ? '#4A7B4A' : stage.color, color: 'white' }}>
+                style={{ background: stageStyle(stage.key).color, color: 'white' }}>
                 {leads.length}
               </span>
             </div>
             {colValue > 0 && (
-              <span className="text-[12px] font-bold" style={{ color: stage.key === 'Paid' ? '#4A7B4A' : stage.color }}>
+              <span className="text-[12px] font-bold" style={{ color: stageStyle(stage.key).color }}>
                 ${colValue.toLocaleString()}
               </span>
             )}
@@ -915,14 +916,14 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
                 <div className="flex gap-2">
                   <button onClick={() => setExpanded(true)}
                     className="flex-1 py-2 text-[12px] font-semibold rounded-xl border transition-colors hover:opacity-80"
-                    style={{ borderColor: stage.color + '44', color: stage.color, background: stage.bg }}>
+                    style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: stageStyle(stage.key).bg }}>
                     + {overflow} more leads ∨
                   </button>
                   {leads.length > 3 && (
                     <button onClick={() => setShowSlide(true)}
                       className="w-8 h-8 flex items-center justify-center rounded-xl border transition-colors hover:opacity-80 flex-shrink-0"
-                      style={{ borderColor: stage.color + '44', color: stage.color, background: stage.bg }}>
-                      <Ic d="M9 18l6-6-6-6" s={14} c={stage.color} />
+                      style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: stageStyle(stage.key).bg }}>
+                      <Ic d="M9 18l6-6-6-6" s={14} c={stageStyle(stage.key).color} />
                     </button>
                   )}
                 </div>
@@ -930,7 +931,7 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
               {expanded && (
                 <button onClick={() => setExpanded(false)}
                   className="w-full py-2 text-[12px] font-semibold rounded-xl border transition-colors hover:opacity-80"
-                  style={{ borderColor: stage.color + '44', color: stage.color, background: stage.bg }}>
+                  style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: stageStyle(stage.key).bg }}>
                   Show less ∧
                 </button>
               )}

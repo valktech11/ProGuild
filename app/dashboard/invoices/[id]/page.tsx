@@ -6,6 +6,7 @@ import { Send, CreditCard, Link2, Check } from 'lucide-react'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { theme } from '@/lib/theme'
+import { invoiceStatusStyle } from '@/lib/design'
 
 type InvoiceItem = { id: string; name: string; description: string; qty: number; unit_price: number; amount: number }
 
@@ -48,14 +49,7 @@ const PAYMENT_TERMS: Record<string, string> = {
   net_30: 'Net 30',
 }
 
-const STATUS_STYLES: Record<Invoice['status'], { bg: string; text: string; label: string }> = {
-  draft:           { bg: '#F3F4F6', text: '#4B5563', label: 'Draft' },
-  sent:            { bg: '#EFF6FF', text: '#1D4ED8', label: 'Sent' },
-  viewed:          { bg: '#F5F3FF', text: '#6D28D9', label: 'Viewed' },
-  partial_payment: { bg: '#FFFBEB', text: '#B45309', label: 'Partial' },
-  paid:            { bg: '#F0FDF4', text: '#15803D', label: 'Paid' },
-  void:            { bg: '#F9FAFB', text: '#9CA3AF', label: 'Void' },
-}
+
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
@@ -194,7 +188,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     </DashboardShell>
   )
 
-  const ss        = STATUS_STYLES[invoice.status]
+  const ss        = invoiceStatusStyle(invoice.status)
   const isPaid    = invoice.status === 'paid'
   const isOverdue = invoice.due_date && new Date(invoice.due_date) < new Date() && !isPaid
 

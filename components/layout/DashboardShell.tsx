@@ -157,7 +157,7 @@ function Logo() {
 function MobileNav({ nl, onAdd, onMore }: { nl: number; onAdd: () => void; onMore: () => void }) {
   const p = usePathname()
   const left  = [{ label: 'Home', href: '/dashboard', icon: icon.overview, exact: true, badge: 0 }, { label: 'Pipeline', href: '/dashboard/pipeline', icon: icon.pipeline, badge: nl }]
-  const right = [{ label: 'Clients', href: '/dashboard/clients', icon: icon.clients, badge: 0 }]
+  const right = [{ label: 'Calendar', href: '/dashboard/calendar', icon: icon.calendar, badge: 0 }]
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50"

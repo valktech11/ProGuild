@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect, use, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, use, useCallback, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Lead, Session, LeadStatus } from '@/types'
 import { avatarColor, initials, timeAgo, capName } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
@@ -79,9 +79,11 @@ function CopyBtn({ text, color }: { text: string; color: string }) {
   )
 }
 
-export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
+function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromCalendar = searchParams.get('from') === 'calendar'
 
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
@@ -632,9 +634,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             <>
               {/* Top nav */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                <button onClick={() => router.push('/dashboard/pipeline')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 'auto' }}>
+                <button onClick={() => router.push(fromCalendar ? '/dashboard/calendar' : '/dashboard/pipeline')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 'auto' }}>
                   <Ic color={ts}><polyline points="15 18 9 12 15 6"/></Ic>
-                  Back to Pipeline
+                  {fromCalendar ? 'Back to Calendar' : 'Back to Pipeline'}
                 </button>
                 {lead.contact_phone ? (
                   <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
@@ -928,5 +930,13 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         })()}
       </div>
     </DashboardShell>
+  )
+}
+
+export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={null}>
+      <LeadDetailInner params={params} />
+    </Suspense>
   )
 }

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { theme } from '@/lib/theme'
+import { invoiceStatusStyle } from '@/lib/design'
 import { timeAgo, capName } from '@/lib/utils'
 
 type InvoiceSummary = {
@@ -19,14 +20,7 @@ type InvoiceSummary = {
   created_at: string
 }
 
-const STATUS_STYLES: Record<InvoiceSummary['status'], { bg: string; text: string; label: string }> = {
-  draft:           { bg: '#F3F4F6', text: '#4B5563', label: 'Draft' },
-  sent:            { bg: '#EFF6FF', text: '#1D4ED8', label: 'Sent' },
-  viewed:          { bg: '#F5F3FF', text: '#6D28D9', label: 'Viewed' },
-  partial_payment: { bg: '#FFFBEB', text: '#B45309', label: 'Partial' },
-  paid:            { bg: '#F0FDF4', text: '#15803D', label: 'Paid' },
-  void:            { bg: '#F9FAFB', text: '#9CA3AF', label: 'Void' },
-}
+
 
 export default function InvoicesPage() {
   const router = useRouter()
@@ -149,7 +143,7 @@ export default function InvoicesPage() {
                 )}
               </div>
             ) : filtered.map((inv, i) => {
-              const s = STATUS_STYLES[inv.status]
+              const s = invoiceStatusStyle(inv.status)
               const isOverdue = inv.due_date && new Date(inv.due_date) < new Date() && ['sent','viewed','partial_payment'].includes(inv.status)
               return (
                 <Link key={inv.id} href={`/dashboard/invoices/${inv.id}`}
