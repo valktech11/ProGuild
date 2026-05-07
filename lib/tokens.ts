@@ -10,6 +10,12 @@
 
 // ─── Typography scale ─────────────────────────────────────────────────────────
 // Desktop values. Mobile subtract 1–2px via isMobile prop or CSS.
+/** Canonical page content max-width — use on every dashboard page */
+export const PAGE_MAX_W = 1200
+
+/** Canonical page padding — use on every dashboard page */
+export const PAGE_PAD = 'px-4 md:px-8 py-6 md:py-8'
+
 export const T = {
   // Font sizes (px) — 9 semantic slots only
   fontBadge:    11,   // status chips, timestamps, uppercase micro-labels
@@ -139,8 +145,8 @@ export function theme(dk: boolean) {
     calColWeekend:   dk ? 'rgba(255,255,255,0.02)' : '#FAFAFA',
     calColSelected:  dk ? 'rgba(15,118,110,0.08)' : '#F9FEFE',
     calDayHeader:    dk ? '#111827' : '#FFFFFF',
-    calCellBorder:   dk ? '#2D3A4A' : '#F0EEE9',   // visible — matches cardBorder
-    calEmptyText:    dk ? '#2D3A4A' : '#D1D5DB',
+    calCellBorder:   dk ? '#3D4E60' : '#F0EEE9',   // visible contrast against #0E1118 pageBg
+    calEmptyText:    dk ? '#3D4E60' : '#D1D5DB',
     calAgendaBg:     dk ? '#111827' : '#F7F6F3',
 
     // ── Overdue alert ─────────────────────────────────────────────────────────
@@ -150,6 +156,18 @@ export function theme(dk: boolean) {
 
     // ── Filter toggles ────────────────────────────────────────────────────────
     filterTrackOff: dk ? '#2D3A4A' : '#E5E7EB',
+
+    // ── Accent colours for non-stage semantic use ─────────────────────────
+    accentPurpleBg:   dk ? '#1A1A3E' : '#F5F3FF',
+    accentPurpleBorder: dk ? '#2D2D5E' : '#DDD6FE',
+    accentPurpleText: dk ? '#A5B4FC' : '#7C3AED',
+    accentGreen:      '#22C55E',
+    accentRed:        '#EF4444',
+    accentAmber:      '#F59E0B',
+
+    // ── Table/list alternating rows ────────────────────────────────────────
+    tableRowOdd:     dk ? '#1A2130' : '#F9F8F6',   // every other row
+    tableRowHover2:  dk ? '#1F2B3A' : '#F0FAFA',   // hover
 
     // ── Convenience shorthands (brand colours don't change) ─────────────────
     teal:  BRAND.teal,

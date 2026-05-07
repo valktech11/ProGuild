@@ -2,7 +2,7 @@
 import React from 'react'
 import { theme, T } from '@/lib/tokens'
 import { eventStyle, ICON_PATH } from '@/lib/design'
-import { capName } from '@/lib/utils'
+import { capName, fmtCurrency } from '@/lib/utils'
 
 export interface CalEvent {
   id: string

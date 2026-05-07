@@ -465,8 +465,8 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
   const [statusOpen, setStatusOpen] = React.useState(false)
   const [userOpen,   setUserOpen]   = React.useState(false)
   const current = STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0]
-  const bg  = dk ? '#1E293B' : 'white'
-  const bdr = dk ? '#334155' : '#E8E2D9'
+  const bg  = t.cardBg
+  const bdr = t.cardBorder
   const txt = dk ? '#F1F5F9' : '#0A1628'
 
   function handleLogout() {
@@ -722,7 +722,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
 
         {/* ── MOBILE ───────────────────────────────────────────────────────── */}
         <div className="md:hidden" suppressHydrationWarning>
-          <main className="pb-[68px] min-h-screen" style={{ backgroundColor: dk ? '#0E1118' : '#F5F4F0' }}>
+          <main className="pb-[68px] min-h-screen" style={{ backgroundColor: t.pageBg }}>
             {children}
           </main>
           <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} />

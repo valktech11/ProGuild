@@ -53,6 +53,17 @@ export async function POST(req: NextRequest) {
   let invoiceData: Record<string, unknown> = { pro_id, lead_id, lead_name, trade, contact_name, contact_email, contact_phone }
 
   if (estimate_id) {
+    // Guard: check if an invoice already exists for this estimate
+    const { data: existingInv } = await sb
+      .from('invoices')
+      .select('id, invoice_number')
+      .eq('estimate_id', estimate_id)
+      .neq('status', 'void')
+      .single()
+    if (existingInv) {
+      return NextResponse.json({ invoice: existingInv, existed: true }, { status: 200 })
+    }
+
     // Auto-fill from estimate
     const { data: est, error: estErr } = await sb
       .from('estimates')

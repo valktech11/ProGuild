@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Lead } from '@/types'
-import { initials, avatarColor, timeAgo, capName } from '@/lib/utils'
+import { initials, avatarColor, timeAgo, capName, fmtCurrency } from '@/lib/utils'
 import { stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
 
@@ -125,7 +125,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
 
           <div className="flex items-start justify-between px-6 py-5" style={{ borderBottom: '1px solid #E5E7EB' }}>
             <div className="flex-1 min-w-0 pr-4">
-              <h2 className="text-xl font-bold text-gray-900">{lead.contact_name}</h2>
+              <h2 className="text-xl font-bold text-gray-900">{capName(lead.contact_name)}</h2>
               <p className="text-sm text-gray-500 mt-0.5">{timeAgo(lead.created_at)} · {lead.lead_source?.replace(/_/g, ' ')}</p>
               <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
                 style={{ background: currentStageSS.bg, color: currentStageSS.color }}>
@@ -397,7 +397,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
         <button
           onClick={e => { e.stopPropagation(); onOpen() }}
           className="w-7 h-7 flex items-center justify-center rounded-lg flex-shrink-0 transition-colors"
-          style={{ background: dk ? '#334155' : '#F3F4F6', color: t.textMuted }}
+          style={{ background: t.cardBorder, color: t.textMuted }}
           title="Open lead detail">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M9 18l6-6-6-6"/>
@@ -419,7 +419,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
           >
             <h3 className="font-bold text-gray-900 text-base mb-1">Active estimate exists</h3>
             <p className="text-sm text-gray-500 mb-4">
-              An estimate already exists for <span className="font-semibold text-gray-700">{lead.contact_name}</span>. Open it or create a new version.
+              An estimate already exists for <span className="font-semibold text-gray-700">{capName(lead.contact_name)}</span>. Open it or create a new version.
             </p>
 
             <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-5 flex items-center justify-between">
@@ -500,10 +500,10 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
   return (
     <div style={{ background: t.cardBg, borderRadius: 14, border: `1px solid ${t.cardBorder}`, overflow: 'hidden' }}>
       {/* Search bar */}
-      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${dk ? '#334155' : '#F3F4F6'}` }}>
+      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${t.cardBorder}` }}>
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by name or phone…"
-          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.cardBorder}`, background: dk ? '#0F172A' : '#F9FAFB', color: t.textPri, fontSize: 14, boxSizing: 'border-box' as const }} />
+          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.cardBorder}`, background: t.cardBgAlt, color: t.textPri, fontSize: 14, boxSizing: 'border-box' as const }} />
       </div>
 
       {filtered.length === 0 ? (
@@ -512,7 +512,7 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${dk ? '#334155' : '#F3F4F6'}` }}>
+              <tr style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
                 <th style={thStyle('name')}    onClick={() => toggleSort('name')}>Name{arrow('name')}</th>
                 <th style={thStyle('stage')}   onClick={() => toggleSort('stage')}>Stage{arrow('stage')}</th>
                 <th style={thStyle('age')}     onClick={() => toggleSort('age')}>Age{arrow('age')}</th>
@@ -562,7 +562,7 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
 
                     {/* Value */}
                     <td style={{ padding: '11px 14px', fontSize: 14, fontWeight: 700, color: lead.quoted_amount ? '#0F766E' : (t.inputBorder) }}>
-                      {lead.quoted_amount ? `$${lead.quoted_amount.toLocaleString()}` : '—'}
+                      {lead.quoted_amount ? `${fmtCurrency(lead.quoted_amount)}` : '—'}
                     </td>
 
                     {/* Actions */}
@@ -576,7 +576,7 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
                           </a>
                         )}
                         <button onClick={() => onOpen(lead)}
-                          style={{ padding: '5px 10px', borderRadius: T.radSm, background: dk ? '#334155' : '#F3F4F6', color: t.textBody, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          style={{ padding: '5px 10px', borderRadius: T.radSm, background: t.cardBorder, color: t.textBody, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           Open →
                         </button>
                       </div>
@@ -1082,7 +1082,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                       </button>
                     </div>
                     {/* Stage move actions */}
-                    <div className="flex border-t" style={{ borderColor: dk ? '#334155' : '#F3F4F6' }}>
+                    <div className="flex border-t" style={{ borderColor: t.cardBorder }}>
                       {(['New', 'Contacted'] as const).map((stageName, i) => (
                         <button key={stageName}
                           onClick={async () => { await onStatusChange(lead.id, stageName) }}
@@ -1090,7 +1090,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                           style={{
                             background: 'transparent',
                             color: stageName === 'New' ? '#D97706' : '#2563EB',
-                            borderRight: i === 0 ? `1px solid ${dk ? '#334155' : '#F3F4F6'}` : 'none',
+                            borderRight: i === 0 ? `1px solid ${t.cardBorder}` : 'none',
                             borderTop: 'none', borderLeft: 'none', borderBottom: 'none',
                             cursor: 'pointer',
                           }}>

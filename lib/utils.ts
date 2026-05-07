@@ -7,10 +7,6 @@ export function isBusinessName(name: string): boolean {
   return BUSINESS_SUFFIXES.test(name)
 }
 
-// Returns a friendly first name for a pro — handles business names gracefully
-// e.g. "James Miller" → "James"
-//      "Infinity Roofing LLC" → "the team"
-//      "A&R Electric Inc" → "the team"
 export function proFirstName(name: string): string {
   if (!name) return 'the team'
   if (isBusinessName(name)) return 'the team'
@@ -19,12 +15,8 @@ export function proFirstName(name: string): string {
 
 export function initials(name: string): string {
   if (!name) return '?'
-  // For business names: strip suffixes, take first letters of first 2 meaningful words
   if (isBusinessName(name)) {
-    const stripped = name
-      .replace(BUSINESS_SUFFIXES, '')
-      .replace(/[&,\.]/g, ' ')
-      .trim()
+    const stripped = name.replace(BUSINESS_SUFFIXES, '').replace(/[&,\.]/g, ' ').trim()
     const words = stripped.split(/\s+/).filter(w => w.length > 1)
     if (words.length === 0) return name.slice(0, 2).toUpperCase()
     if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
@@ -55,7 +47,6 @@ export function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
-// For reviews — always show full date, never relative. "Apr 17, 2026"
 export function formatReviewDate(dateStr: string): string {
   if (!dateStr) return ''
   const ts = new Date(dateStr).getTime()
@@ -77,8 +68,6 @@ export function planLabel(plan: PlanTier): string {
   return 'Free'
 }
 
-// Capitalize each word in a contact name — fixes DB-stored lowercase names
-// e.g. "neha patel" → "Neha Patel", "JOHN DOE" → "John Doe"
 export function capName(name: string): string {
   if (!name) return ''
   return name.split(' ')
@@ -90,6 +79,39 @@ export function greetingText(name: string): string {
   const hour = new Date().getHours()
   const time = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
   return `Good ${time}, ${name.split(' ')[0]}!`
+}
+
+/** Format a currency value: fmtCurrency(1234.5) → "$1,234.50" */
+export function fmtCurrency(n: number | null | undefined, opts?: { compact?: boolean }): string {
+  if (n == null || isNaN(n)) return '—'
+  if (opts?.compact && n >= 1000) {
+    return '$' + (n / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + 'k'
+  }
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+/** Format a short date: "May 7" */
+export function fmtDateShort(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+/** Format a long date: "May 7, 2026" */
+export function fmtDateLong(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+/** Format a phone number: "1234567890" → "(123) 456-7890" */
+export function fmtPhone(p: string | null | undefined): string {
+  if (!p) return '—'
+  const digits = p.replace(/\D/g, '')
+  if (digits.length === 10) return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
+  return p
 }
 
 export const AVATAR_COLORS: [string, string][] = [
@@ -144,24 +166,16 @@ export const CITIES_BY_STATE: Record<string, string[]> = {
   CO: ['Denver','Colorado Springs','Aurora','Fort Collins','Lakewood','Thornton','Arvada','Westminster','Pueblo','Boulder'],
 }
 
-// Default cities for states not in the map (fallback only)
 export function getCities(state: string): string[] {
   return CITIES_BY_STATE[state] || []
 }
 
-// Fetch cities from free API for any state
-// Returns array of city names sorted alphabetically
 export async function fetchCitiesForState(stateCode: string): Promise<string[]> {
-  // Map state code to full name for the API
   const stateEntry = US_STATES.find(([code]) => code === stateCode)
   if (!stateEntry) return []
   const stateName = stateEntry[1]
-
-  // First try hardcoded list (instant)
   const hardcoded = CITIES_BY_STATE[stateCode]
   if (hardcoded && hardcoded.length > 0) return hardcoded
-
-  // Fall back to free API
   try {
     const r = await fetch('https://countriesnow.space/api/v0.1/countries/state/cities', {
       method: 'POST',
@@ -173,6 +187,6 @@ export async function fetchCitiesForState(stateCode: string): Promise<string[]> 
     if (d.error || !d.data) return []
     return (d.data as string[]).sort()
   } catch {
-    return [] // empty → show "Other (type below)" option
+    return []
   }
 }

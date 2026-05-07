@@ -1,4 +1,5 @@
 'use client'
+import { fmtCurrency } from '@/lib/utils'
 
 // StatStrip — clickable on mobile (scroll-to), display-only on desktop.
 // Uses md:pointer-events-none so desktop users don't get cursor:pointer on a stat card.
@@ -41,7 +42,7 @@ export default function StatStrip({
     },
     {
       label: 'Pipeline',
-      value: loading ? '—' : pipelineValue > 0 ? `$${pipelineValue.toLocaleString()}` : '$0',
+      value: loading ? '—' : pipelineValue > 0 ? `${fmtCurrency(pipelineValue)}` : '$0',
       sub: 'quoted value',
       highlight: false,
       onClick: onLeadsClick,

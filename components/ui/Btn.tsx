@@ -76,7 +76,7 @@ export function Btn({
     },
     ghost: {
       background: dk ? '#243044' : '#F3F4F6',
-      color:      dk ? '#CBD5E1' : '#374151',
+      color:      t.textBody,
       border:     `1.5px solid ${dk ? '#2D3A4A' : '#D1D5DB'}`,
       boxShadow:  'none',
     },

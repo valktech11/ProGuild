@@ -1,6 +1,7 @@
 'use client'
 
 import { Dispatch, SetStateAction, useState } from 'react'
+import { theme, T } from '@/lib/tokens'
 import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import { Estimate, EstimateItem } from '@/app/dashboard/estimates/[id]/page'
 
@@ -46,15 +47,16 @@ export default function EstimateItems({
   })
 
   // ── Design tokens ────────────────────────────────────────────────────────
-  const border   = dk ? '#334155' : '#D1D5DB'          // visible borders
+  const t        = theme(dk)
+  const border   = t.inputBorder          // visible borders
   const borderSoft = dk ? '#1e293b' : '#E8E2D9'        // table inner dividers
-  const bgCard   = dk ? '#1E293B' : '#ffffff'
-  const bgEdit   = dk ? '#1a2e44' : '#F0FDF9'
-  const bgInput  = dk ? '#0f172a' : '#ffffff'
-  const col      = dk ? '#f1f5f9' : '#111827'          // primary text
-  const colBody  = dk ? '#cbd5e1' : '#374151'          // body text / values
-  const colMuted = dk ? '#94a3b8' : '#6B7280'          // labels
-  const colSub   = dk ? '#64748b' : '#6B7280'          // column headers — same as muted, not #9CA3AF
+  const bgCard   = t.cardBg
+  const bgEdit   = t.cardBgEdit
+  const bgInput  = t.inputBg
+  const col      = t.textPri          // primary text
+  const colBody  = t.textBody          // body text / values
+  const colMuted = t.textMuted          // labels
+  const colSub   = t.textSubtle          // column headers — same as muted, not #9CA3AF
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   function startEdit(item: EstimateItem) {
@@ -252,7 +254,7 @@ export default function EstimateItems({
 
         {/* Tax row — mobile, hidden when locked */}
         {!locked && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 14px', border: `1.5px solid ${border}`, borderRadius: 10, background: dk ? '#1a2030' : '#FAFAF9', marginTop: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 14px', border: `1.5px solid ${border}`, borderRadius: 10, background: t.cardBgAlt, marginTop: 8 }}>
           <div>
             <span style={{ fontSize: 14, color: colMuted }}>Sales Tax</span>
             {estimate.tax_rate > 0 && <span style={{ fontSize: 12, marginLeft: 6, color: '#d97706', background: '#fef3c7', padding: '1px 6px', borderRadius: 8 }}>Base rate</span>}
@@ -311,7 +313,7 @@ export default function EstimateItems({
               <div style={{
                 display: 'grid', gridTemplateColumns: GRID, gap: '0 12px',
                 alignItems: 'center', padding: '14px 8px',
-                background: isEditing ? bgEdit : (idx % 2 === 1 ? (dk ? '#1a2535' : '#F9F8F6') : bgCard),
+                background: isEditing ? bgEdit : (idx % 2 === 1 ? (t.tableRowOdd) : bgCard),
               }}>
                 <GripVertical size={13} style={{ color: colMuted, opacity: 0.4, cursor: 'grab' }} />
                 <span style={{ fontSize: 14, color: colMuted, fontWeight: 500 }}>{idx + 1}</span>
@@ -481,7 +483,7 @@ export default function EstimateItems({
         )}
 
         {/* Tax row — always visible (auto-filled from state) */}
-        <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: '0 12px', alignItems: 'center', padding: '10px 8px', borderBottom: `1px solid ${borderSoft}`, background: dk ? '#1a2030' : '#FAFAF9' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: '0 12px', alignItems: 'center', padding: '10px 8px', borderBottom: `1px solid ${borderSoft}`, background: t.cardBgAlt }}>
           <span /><span />
           <div>
             <span style={{ fontSize: 14, color: colMuted }}>Sales Tax</span>

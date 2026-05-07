@@ -213,7 +213,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
                     style={{
                       background: active ? STAGE_BGS[s] : (dk ? '#1E293B' : '#F3F4F6'),
                       color: active ? STAGE_COLORS[s] : muted,
-                      border: active ? `1.5px solid ${STAGE_COLORS[s]}` : `1.5px solid ${dk ? '#334155' : '#E5E7EB'}`,
+                      border: active ? `1.5px solid ${STAGE_COLORS[s]}` : `1.5px solid ${t.cardBorder}`,
                     }}
                   >
                     <span
@@ -240,7 +240,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
                     style={{
                       background: active ? '#F0FDFA' : (dk ? '#1E293B' : '#F3F4F6'),
                       color: active ? '#0F766E' : muted,
-                      border: active ? '1.5px solid #0F766E' : `1.5px solid ${dk ? '#334155' : '#E5E7EB'}`,
+                      border: active ? '1.5px solid #0F766E' : `1.5px solid ${t.cardBorder}`,
                     }}
                   >
                     {label}
@@ -257,13 +257,13 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
               className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[13px] font-semibold text-left transition-all"
               style={{
                 background: filters.needsAttention ? '#FFF7ED' : (dk ? '#1E293B' : '#F9FAFB'),
-                border: filters.needsAttention ? '1.5px solid #F59E0B' : `1.5px solid ${dk ? '#334155' : '#E5E7EB'}`,
+                border: filters.needsAttention ? '1.5px solid #F59E0B' : `1.5px solid ${t.cardBorder}`,
                 color: filters.needsAttention ? '#B45309' : muted,
               }}
             >
               <span className="text-base">🔥</span>
               <span>Needs attention</span>
-              <span className="ml-auto text-[12px] font-normal" style={{ color: dk ? '#64748B' : '#6B7280' }}>
+              <span className="ml-auto text-[12px] font-normal" style={{ color: t.textSubtle }}>
                 New or Quoted &gt; 3 days
               </span>
               {filters.needsAttention && (
@@ -287,7 +287,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
                   className="w-full pl-7 pr-3 py-2.5 rounded-xl text-[13px] font-medium"
                   style={{
                     background: inputBg,
-                    border: `1.5px solid ${filters.minValue ? '#0F766E' : (dk ? '#334155' : '#E5E7EB')}`,
+                    border: `1.5px solid ${filters.minValue ? '#0F766E' : (t.cardBorder)}`,
                     color: text,
                     outline: 'none',
                   }}
@@ -304,7 +304,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
                   className="w-full pl-7 pr-3 py-2.5 rounded-xl text-[13px] font-medium"
                   style={{
                     background: inputBg,
-                    border: `1.5px solid ${filters.maxValue ? '#0F766E' : (dk ? '#334155' : '#E5E7EB')}`,
+                    border: `1.5px solid ${filters.maxValue ? '#0F766E' : (t.cardBorder)}`,
                     color: text,
                     outline: 'none',
                   }}
@@ -392,7 +392,7 @@ function PillGroup({ options, value, onChange, dk, overdueRed }: {
               color: active ? (isRed ? '#B91C1C' : '#0F766E') : '#9CA3AF',
               border: active
                 ? `1.5px solid ${isRed ? '#FCA5A5' : '#0F766E'}`
-                : `1.5px solid ${dk ? '#334155' : '#E5E7EB'}`,
+                : `1.5px solid ${t.cardBorder}`,
             }}
           >
             {label}

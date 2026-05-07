@@ -405,9 +405,9 @@ export default function EstimatesPage() {
                     className={`w-full text-left transition-colors border-b last:border-b-0 ${
                       dk ? 'border-[#334155]' : 'border-[#E8E2D9]'
                     }`}
-                    style={{ background: i % 2 === 1 ? (dk ? '#1a2535' : '#F9F8F6') : 'transparent' }}
-                    onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = dk ? '#1a2940' : '#F0FAFA')}
-                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = i % 2 === 1 ? (dk ? '#1a2535' : '#F9F8F6') : 'transparent')}
+                    style={{ background: i % 2 === 1 ? (t.tableRowOdd) : 'transparent' }}
+                    onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = t.cardBgHover)}
+                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = i % 2 === 1 ? (t.tableRowOdd) : 'transparent')}
                   >
                     {/* Mobile layout */}
                     <div className="flex items-center gap-3 px-4 py-3.5 md:hidden">
@@ -557,7 +557,7 @@ export default function EstimatesPage() {
                           {lead.contact_name?.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>{lead.contact_name}</p>
+                          <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>{capName(lead.contact_name)}</p>
                           <p className={`text-xs mt-0.5 ${dk ? 'text-slate-400' : 'text-[#6B7280]'}`}>
                             {(lead.lead_source || '').replace(/_/g, ' ')}
                             {lead.contact_phone ? ` · ${lead.contact_phone}` : ''}

@@ -1,4 +1,5 @@
 'use client'
+import { fmtCurrency } from '@/lib/utils'
 
 import React, { use, useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -195,7 +196,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{ background: t.pageBg, minHeight: '100vh', padding: '16px 20px 60px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
           {/* Toast */}
           {saveMsg && (

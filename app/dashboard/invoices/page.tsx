@@ -6,7 +6,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { theme, T } from '@/lib/tokens'
 import { invoiceStatusStyle } from '@/lib/design'
-import { timeAgo, capName } from '@/lib/utils'
+import { timeAgo, capName, fmtCurrency } from '@/lib/utils'
 
 type InvoiceSummary = {
   id: string
@@ -79,8 +79,8 @@ export default function InvoicesPage() {
 
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
-      <div style={{ background: t.pageBg, minHeight: '100vh', padding: '28px 20px' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      <div style={{ background: t.pageBg, minHeight: '100vh', padding: '24px 16px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
           {/* Header */}
           <div style={{ marginBottom: 24 }}>

@@ -89,6 +89,7 @@ export default function SmartNudges({ darkMode, status, invoiceId, onCta }: {
   invoiceId?: string
   onCta?: () => void
 }) {
+  const t = theme(dk)
   const t    = theme(darkMode)
   const dk   = darkMode
   const nudge = getNudge(status, invoiceId)
@@ -114,7 +115,7 @@ export default function SmartNudges({ darkMode, status, invoiceId, onCta }: {
           {nudge.emoji}
         </div>
         <div>
-          <p style={{ fontSize: 14, fontWeight: 600, color: dk ? '#F1F5F9' : '#1F2937', margin: 0, marginBottom: 2 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: t.textPri, margin: 0, marginBottom: 2 }}>
             {nudge.title}
           </p>
           <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>

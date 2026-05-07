@@ -54,16 +54,7 @@ export type Estimate = {
   timeline: { event: string; label: string; timestamp: string | null }[]
 }
 
-const STATUS_STYLES: Record<Estimate['status'], { bg: string; text: string; label: string }> = {
-  draft:    { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Draft' },
-  sent:     { bg: 'bg-blue-50',    text: 'text-blue-600',   label: 'Sent' },
-  viewed:   { bg: 'bg-purple-50',  text: 'text-purple-600', label: 'Viewed' },
-  approved: { bg: 'bg-teal-50',    text: 'text-teal-700',   label: 'Approved' },
-  declined: { bg: 'bg-red-50',     text: 'text-red-600',    label: 'Declined' },
-  invoiced: { bg: 'bg-orange-50',  text: 'text-orange-700', label: 'Invoiced' },
-  paid:     { bg: 'bg-green-50',   text: 'text-green-700',  label: 'Paid' },
-  void:     { bg: 'bg-gray-100',   text: 'text-gray-400',   label: 'Void' },
-}
+// Status styles: use estimateStatusStyle() from @/lib/design
 
 // Whether line items should be locked (post-approval)
 function isLocked(status: Estimate['status']) {
@@ -347,7 +338,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               const d = new Date(); d.setDate(d.getDate() + (days[val] ?? 30))
               setInvoiceDueDate(d.toISOString().split('T')[0])
             }}
-              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, cursor:'pointer' }}>
+              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${t.cardBorder}`, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, cursor:'pointer' }}>
               <option value="due_on_receipt">Due on Receipt</option>
               <option value="net_7">Net 7 days</option>
               <option value="net_15">Net 15 days</option>
@@ -360,12 +351,12 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           <div style={{ marginBottom:16 }}>
             <label style={{ fontSize: 13, fontWeight:700, color: t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Due Date</label>
             <input type="date" value={invoiceDueDate} onChange={e => setInvoiceDueDate(e.target.value)}
-              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, boxSizing:'border-box' }} />
+              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${t.cardBorder}`, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, boxSizing:'border-box' }} />
           </div>
 
           {/* Deposit collected */}
           {estimate.require_deposit && (
-            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: t.cardBgAlt, border:`1.5px solid ${depositCollected ? '#0F766E' : (dk ? '#334155' : '#E5E7EB')}` }}>
+            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: t.cardBgAlt, border:`1.5px solid ${depositCollected ? '#0F766E' : (t.cardBorder)}` }}>
               <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
                 <div onClick={() => setDepositCollected(v => !v)}
                   style={{ width:20, height:20, borderRadius:6, border:`2px solid ${depositCollected ? '#0F766E' : (t.inputBorder)}`, background: depositCollected ? '#0F766E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer', transition:'all 0.15s' }}>
@@ -386,7 +377,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           {/* Actions */}
           <div style={{ display:'flex', gap:10 }}>
             <button onClick={() => setShowInvoiceModal(false)}
-              style={{ flex:1, padding:'11px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background:'transparent', color: t.textMuted, fontSize: 15, fontWeight:600, cursor:'pointer' }}>
+              style={{ flex:1, padding:'11px', borderRadius:10, border:`1.5px solid ${t.cardBorder}`, background:'transparent', color: t.textMuted, fontSize: 15, fontWeight:600, cursor:'pointer' }}>
               Cancel
             </button>
             <button onClick={handleCreateInvoice} disabled={creatingInvoice}
@@ -406,7 +397,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       onToggleDark={toggleDark}
     >
       <div className={`min-h-screen pb-12 md:pb-12 pb-28 w-full max-w-[100vw] overflow-x-hidden ${dk ? "bg-[#0A1628]" : "bg-[#F5F4F0]"}`}>
-        <div className="w-full max-w-[1400px] mx-auto px-3 py-4 lg:px-4 lg:py-6 space-y-5 min-w-0">
+        <div className="w-full max-w-[1200px] mx-auto px-3 py-4 lg:px-4 lg:py-6 space-y-5 min-w-0">
 
           {/* ── Top action bar ── */}
           <div className="flex items-center justify-between">
@@ -452,7 +443,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap" style={{ fontSize: 14 }}>
                       <span style={{ fontWeight: 600, color: t.textBody }}>#{estimate.estimate_number}</span>
                       <span style={{ opacity: 0.35 }}>·</span>
-                      <span className={`font-semibold ${STATUS_STYLES[estimate.status].text}`}>{STATUS_STYLES[estimate.status].label}</span>
+                      <span className={` style={{ color: estimateStatusStyle(estimate.status, dk).text, fontWeight: 600 }}>{estimateStatusStyle(estimate.status, dk).label}</span>
                       {estimate.trade && <><span style={{ opacity: 0.35 }}>·</span><span style={{ color: t.textMuted }}>{estimate.trade}</span></>}
                       <span style={{ opacity: 0.35 }}>·</span>
                       <span style={{ fontSize: 13, color: t.textSubtle }}>Last edited {timeAgo(estimate.updated_at || estimate.created_at)}</span>
@@ -760,7 +751,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         {saveMsg ? (
                           <span style={{ fontSize: 14, fontWeight: 500, color: saveMsg.includes('✓') ? '#0F766E' : '#EF4444' }}>{saveMsg}</span>
                         ) : (
-                          <span style={{ fontSize: 14, color: dk ? '#FCD34D' : '#92400E' }}>You have unsaved changes</span>
+                          <span style={{ fontSize: 14, color: t.textBody }}>You have unsaved changes</span>
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1232,16 +1223,6 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
   )
 }
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins} min${mins > 1 ? 's' : ''} ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs} hr${hrs > 1 ? 's' : ''} ago`
-  const days = Math.floor(hrs / 24)
-  return `${days} day${days > 1 ? 's' : ''} ago`
-}
 
 function EstimateSkeleton({ dk }: { dk: boolean }) {
   const shimmer = dk ? 'bg-[#1E293B] animate-pulse' : 'bg-gray-100 animate-pulse'

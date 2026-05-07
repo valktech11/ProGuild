@@ -1,4 +1,6 @@
 'use client'
+import { theme, T } from '@/lib/tokens'
+import { capName } from '@/lib/utils'
 import { useState } from 'react'
 
 const SOURCES = [
@@ -95,10 +97,10 @@ export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: Ad
     else setErr(d.error || 'Failed to save lead')
   }
 
-  const cardBg  = dk ? '#1E293B' : 'white'
-  const cardBdr = dk ? '#334155' : '#E5E7EB'
-  const textPri = dk ? '#F1F5F9' : '#111827'
-  const textMut = dk ? '#94A3B8' : '#6B7280'
+  const cardBg  = t.cardBg
+  const cardBdr = t.cardBorder
+  const textPri = t.textPri
+  const textMut = t.textMuted
   const inputBg = dk ? '#0F172A' : 'white'
   const inputCls = `w-full pl-10 pr-4 py-3 text-[14px] rounded-xl outline-none transition-all focus:border-teal-600 focus:ring-2 focus:ring-teal-50`
 

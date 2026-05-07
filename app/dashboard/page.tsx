@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session, Lead, Review } from '@/types'
-import { timeAgo } from '@/lib/utils'
+import { timeAgo, fmtCurrency } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 
@@ -128,7 +128,7 @@ function PipeStage({ iconPath, iconBg, iconColor, label, count, sub, dk, showDas
   const t     = theme(dk)
   const txt   = t.textPri
   const sub_c = t.textMuted
-  const countColor = count > 0 ? iconColor : (dk ? '#475569' : '#D1D5DB')
+  const countColor = count > 0 ? iconColor : (t.inputBorder)
   const displayCount = showDash && count === 0 ? '—' : count
   return (
     <Link href="/dashboard/pipeline" className="flex items-center gap-2.5 flex-shrink-0">

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
-import { initials, avatarColor, timeAgo } from '@/lib/utils'
+import { initials, avatarColor, timeAgo, fmtCurrency } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
@@ -101,7 +101,7 @@ export default function ClientsPage() {
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{ background: t.pageBg, minHeight: '100vh', padding: '16px 16px 28px' }}>
-        <div style={{ maxWidth: 896, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
@@ -114,7 +114,7 @@ export default function ClientsPage() {
               <h1 style={{ fontSize: 24, fontWeight: 700, color: t.textPri, margin: 0 }}>Clients</h1>
               <p style={{ fontSize: 14, color: t.textMuted, marginTop: 2 }}>
                 {clients.length} client{clients.length !== 1 ? 's' : ''}
-                {totalValue > 0 && ` · $${totalValue.toLocaleString()} lifetime revenue`}
+                {totalValue > 0 && ` · ${fmtCurrency(totalValue)} lifetime revenue`}
               </p>
             </div>
             <button onClick={() => setShowAdd(true)}
