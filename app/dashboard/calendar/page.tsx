@@ -982,10 +982,27 @@ function CalendarInner() {
               </div>
             </div>
             {unscheduled.length>0 && (
-              <button onClick={() => router.push('/dashboard/pipeline?filter=unscheduled')}
-                style={{ padding:'13px 28px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer' }}>
-                Schedule {unscheduled.length} lead{unscheduled.length!==1?'s':''} →
-              </button>
+              <div style={{ width:'100%', marginTop:4 }}>
+                <div style={{ fontSize: 13, fontWeight:700, color:'#D97706', marginBottom:10, textAlign:'center' }}>
+                  Needs scheduling ({unscheduled.length})
+                </div>
+                {unscheduled.slice(0,5).map(ev => (
+                  <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id+'?from=calendar')}
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px', borderRadius:12, background:t.cardBg, border:'1px solid #FDE68A', marginBottom:8, cursor:'pointer' }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize: 14, fontWeight:700, color:t.textPri, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{capName(ev.contact_name)}</div>
+                      <div style={{ fontSize: 12, color:'#D97706', marginTop:2 }}>{ev.lead_status} · No date set</div>
+                    </div>
+                    <Svg path={ICON_PATH.chevronR} size={12} color="#D97706" sw={2.5}/>
+                  </div>
+                ))}
+                {unscheduled.length>5 && (
+                  <button onClick={() => router.push('/dashboard/pipeline?filter=unscheduled')}
+                    style={{ width:'100%', padding:'11px', borderRadius:11, border:'1.5px dashed #0F766E', background:'transparent', color:'#0F766E', fontSize: 14, fontWeight:700, cursor:'pointer' }}>
+                    +{unscheduled.length-5} more → Pipeline
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ) : (
