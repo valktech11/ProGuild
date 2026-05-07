@@ -249,49 +249,65 @@ export default function EditProfilePage() {
 
   const t = theme(dk)
 
-  // ── Shared style helpers — all use t.* tokens, zero Tailwind ──────────────
+  // ── Design system — research-based, built once, used everywhere ─────────────
+  // iOS HIG: min tap target 44pt, primary text 17pt min, weight > size for hierarchy
+  // Baymard: label above field, single column, borders visible not decorative
+  // Pattern: section header floats above card (not inside), rows breathe at 48px min
+
+  const INPUT_BORDER = dk ? '#3D4E60' : '#C4BAB0'   // darker than t.inputBorder for visibility
+  const INPUT_BG     = dk ? '#1A2130' : '#FAFAF9'
+
   const inputSt = (err?: string): React.CSSProperties => ({
-    width: '100%', padding: '11px 14px',
-    border: `1.5px solid ${err ? '#FCA5A5' : t.inputBorder}`,
-    borderRadius: 10, background: t.inputBg,
-    color: t.textPri, fontSize: 14, outline: 'none',
+    width: '100%', padding: '13px 14px',
+    minHeight: 48,                                    // iOS HIG 44pt minimum
+    border: `1.5px solid ${err ? '#FCA5A5' : INPUT_BORDER}`,
+    borderRadius: 10, background: INPUT_BG,
+    color: t.textPri, fontSize: 15, outline: 'none', // 15px — readable, above iOS 14pt minimum
     boxSizing: 'border-box', fontFamily: 'inherit',
-    WebkitAppearance: 'none',
+    WebkitAppearance: 'none', lineHeight: 1.4,
   })
   const selectSt = (err?: string): React.CSSProperties => ({
     ...inputSt(err), cursor: 'pointer',
   })
+  // Labels: 13px medium weight, color t.textBody — readable, not muted whispers
   const labelSt: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, color: t.textMuted,
-    textTransform: 'uppercase', letterSpacing: '0.07em',
-    display: 'block', marginBottom: 6,
+    fontSize: 12, fontWeight: 600, color: t.textBody,
+    display: 'block', marginBottom: 7,
   }
+  // Section titles: float above card, teal left accent bar
   const sectionTitleSt: React.CSSProperties = {
-    fontSize: 12, fontWeight: 700, color: t.textMuted,
-    textTransform: 'uppercase', letterSpacing: '0.08em',
-    borderLeft: '3px solid #0F766E', paddingLeft: 10,
-    marginBottom: 20,
+    fontSize: 11, fontWeight: 700, color: t.textMuted,
+    textTransform: 'uppercase', letterSpacing: '0.09em',
+    borderLeft: '3px solid #0F766E', paddingLeft: 9,
+    marginBottom: 10, marginTop: 4,
   }
   const hintSt: React.CSSProperties = {
-    fontSize: 12, color: t.textSubtle, marginTop: 5, lineHeight: 1.4,
+    fontSize: 12, color: t.textSubtle, marginTop: 5, lineHeight: 1.5,
   }
-  const fieldSt: React.CSSProperties = { marginBottom: 20 }
+  const fieldSt: React.CSSProperties = { marginBottom: 18 }
+  // Cards: softer shadow replaces flat border — creates depth, not prison bars
   const cardSt: React.CSSProperties = {
-    background: t.cardBg, border: `1px solid ${t.cardBorder}`,
-    borderRadius: 16, padding: '20px 16px', marginBottom: 12,
+    background: t.cardBg,
+    border: `1px solid ${t.cardBorder}`,
+    borderRadius: 14,
+    padding: '18px 16px',
+    marginBottom: 4,
+    boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.06)',
   }
   const tealBtn: React.CSSProperties = {
     background: 'linear-gradient(135deg,#0F766E,#0D9488)',
     color: 'white', border: 'none', borderRadius: 10,
-    padding: '12px 20px', fontSize: 14, fontWeight: 700,
+    padding: '13px 20px', fontSize: 14, fontWeight: 700,
     cursor: 'pointer', display: 'flex', alignItems: 'center',
     gap: 8, whiteSpace: 'nowrap',
   }
   const ghostBtn: React.CSSProperties = {
-    background: 'none', border: `1.5px solid ${t.cardBorder}`,
-    color: t.textBody, borderRadius: 10, padding: '11px 20px',
+    background: 'none', border: `1.5px solid ${INPUT_BORDER}`,
+    color: t.textBody, borderRadius: 10, padding: '12px 20px',
     fontSize: 14, fontWeight: 600, cursor: 'pointer',
   }
+  // Section spacer — breathing room between sections
+  const sectionGap: React.CSSProperties = { marginBottom: 20 }
 
   function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: React.ReactNode }) {
     return (
@@ -335,14 +351,19 @@ export default function EditProfilePage() {
               <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: '' })) }}
                 placeholder="(555) 000-0000" style={inputSt(errors.phone)} />
             </Field>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
-              {([['Cell', phoneCell, setPhoneCell], ['Work', phoneWork, setPhoneWork], ['Cell 2', phoneCell2, setPhoneCell2]] as const).map(([lbl, val, setter]) => (
-                <div key={lbl}>
-                  <label style={labelSt}>{lbl}</label>
-                  <input value={val} onChange={e => (setter as any)(e.target.value)} placeholder={lbl}
-                    style={{ ...inputSt(), padding: '10px 10px', fontSize: 13 }} />
-                </div>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+              <div>
+                <label style={labelSt}>Cell</label>
+                <input value={phoneCell} onChange={e => setPhoneCell(e.target.value)} placeholder="Cell number" style={inputSt()} />
+              </div>
+              <div>
+                <label style={labelSt}>Work / Office</label>
+                <input value={phoneWork} onChange={e => setPhoneWork(e.target.value)} placeholder="Work number" style={inputSt()} />
+              </div>
+            </div>
+            <div style={fieldSt}>
+              <label style={labelSt}>Cell 2</label>
+              <input value={phoneCell2} onChange={e => setPhoneCell2(e.target.value)} placeholder="Secondary cell" style={{ ...inputSt(), maxWidth: 240 }} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Trade" hint="Primary category">
@@ -668,6 +689,9 @@ export default function EditProfilePage() {
                 style={{ ...tealBtn, padding: '11px 14px' }}>Add</button>
             </div>
 
+          </div>
+
+          <div style={cardSt}>
             <div style={sectionTitleSt}>Pricing signal</div>
             <p style={{ ...hintSt, marginBottom: 12 }}>Sets expectations and increases contact rate.</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
@@ -681,7 +705,10 @@ export default function EditProfilePage() {
             <input value={pricingNote} onChange={e => setPricingNote(e.target.value)}
               placeholder='Or type your own pricing note...' style={{ ...inputSt(), marginBottom: 20 }} />
 
-            <div style={sectionTitleSt}>Counties served (Florida)</div>
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Counties served</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 200, overflowY: 'auto', paddingRight: 2 }}>
               {FL_COUNTIES.map(county => {
                 const selected = counties.includes(county)
@@ -736,7 +763,7 @@ export default function EditProfilePage() {
         <div style={{ display: 'flex', gap: 0 }}>
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              style={{ flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500, background: 'transparent', color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.6)', borderBottom: activeTab === tab.key ? '2.5px solid white' : '2.5px solid transparent', transition: 'all 0.15s' }}>
+              style={{ flex: 1, padding: '12px 8px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 500, background: 'transparent', color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.65)', borderBottom: activeTab === tab.key ? '3px solid white' : '3px solid transparent', transition: 'all 0.15s', letterSpacing: '-0.1px' }}>
               {tab.icon} {tab.label}
             </button>
           ))}
@@ -824,7 +851,7 @@ export default function EditProfilePage() {
             <div style={{ display: 'flex', gap: 4, background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: 4, marginBottom: 20 }}>
               {tabs.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  style={{ flex: 1, padding: '9px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500, background: activeTab === tab.key ? '#0F766E' : 'transparent', color: activeTab === tab.key ? 'white' : t.textMuted, transition: 'all 0.15s' }}>
+                  style={{ flex: 1, padding: '10px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 500, background: activeTab === tab.key ? '#0F766E' : 'transparent', color: activeTab === tab.key ? 'white' : t.textBody, transition: 'all 0.15s' }}>
                   {tab.icon} {tab.label}
                 </button>
               ))}
