@@ -51,21 +51,18 @@ export async function GET(req: NextRequest) {
   if (followupRes.error)    return NextResponse.json({ error: followupRes.error.message }, { status: 500 })
   if (unscheduledRes.error) return NextResponse.json({ error: unscheduledRes.error.message }, { status: 500 })
 
-  // Merge scheduled + followup, dedup by id
+  // Merge scheduled + followup — dedup by id+type so a lead with both dates
+  // appears once as a job (on scheduled_date) and once as a followup (on follow_up_date)
   const seen = new Set<string>()
   const events: any[] = []
 
   for (const lead of (scheduledRes.data || [])) {
-    if (!seen.has(lead.id)) { seen.add(lead.id); events.push({ ...lead, _type: 'job' }) }
+    const key = lead.id + ':job'
+    if (!seen.has(key)) { seen.add(key); events.push({ ...lead, _type: 'job' }) }
   }
   for (const lead of (followupRes.data || [])) {
-    if (!seen.has(lead.id)) {
-      seen.add(lead.id)
-      events.push({ ...lead, _type: 'followup' })
-    } else {
-      // Lead appears in both — also emit a followup entry
-      events.push({ ...lead, _type: 'followup' })
-    }
+    const key = lead.id + ':followup'
+    if (!seen.has(key)) { seen.add(key); events.push({ ...lead, _type: 'followup' }) }
   }
 
   return NextResponse.json({
