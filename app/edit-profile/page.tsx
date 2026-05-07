@@ -316,77 +316,9 @@ export default function EditProfilePage() {
     { key: 'preferences' as const, icon: '⚙️', label: 'Preferences' },
   ]
 
-  return (
-    <div style={{ minHeight: '100vh', background: t.pageBg, paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
-
-      {/* ── Teal hero header ─────────────────────────────────────────────── */}
-      <div style={{ background: '#0F766E', padding: '16px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <a href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-            Dashboard
-          </a>
-          <a href={`/pro/${session?.id}`} style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
-            View profile →
-          </a>
-        </div>
-
-        {/* Profile identity row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            {photoUrl
-              ? <img src={photoUrl} alt={fullName} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.3)' }} />
-              : <div style={{ width: 64, height: 64, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, border: '3px solid rgba(255,255,255,0.3)' }}>{initials(fullName || 'A')}</div>
-            }
-            <button onClick={() => fileRef.current?.click()} disabled={uploading}
-              style={{ position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: '50%', background: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handlePhotoUpload} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName || 'Your Name'}</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>{trade ? categories.find(c => c.id === trade)?.category_name || 'Trade not set' : 'Tap to set your trade'}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'rgba(255,255,255,0.2)', color: 'white' }}>{session?.plan || 'Free'}</span>
-              {license && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>✓ Licensed</span>}
-            </div>
-          </div>
-        </div>
-
-        {/* Tab bar — part of teal header */}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 0 }}>
-          {tabs.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              style={{
-                flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500,
-                background: 'transparent',
-                color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.6)',
-                borderBottom: activeTab === tab.key ? '2.5px solid white' : '2.5px solid transparent',
-                transition: 'all 0.15s',
-              }}>
-              {tab.icon} {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Toast ─────────────────────────────────────────────────────────── */}
-      {saved && (
-        <div style={{ margin: '12px 16px 0', padding: '12px 16px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, color: '#15803D' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-          Profile saved
-        </div>
-      )}
-      {errors.submit && (
-        <div style={{ margin: '12px 16px 0', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, fontSize: 14, color: '#DC2626' }}>{errors.submit}</div>
-      )}
-
-      {/* ── Tab content ───────────────────────────────────────────────────── */}
-      <div style={{ padding: '16px 16px 0' }}>
-
-        {/* ══════════ BASIC ══════════ */}
+  const TabContent = (
+    <>
+{/* ══════════ BASIC ══════════ */}
         {activeTab === 'basic' && (<>
 
           <div style={cardSt}>
@@ -765,18 +697,156 @@ export default function EditProfilePage() {
           </div>
 
         </>)}
+    </>
+  )
 
+  // Mobile layout — single column, teal hero header, sticky footer
+  const MobileLayout = (
+    <div style={{ minHeight: '100vh', background: t.pageBg, paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
+
+      {/* Teal hero header */}
+      <div style={{ background: '#0F766E', padding: '16px 16px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <a href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+            Dashboard
+          </a>
+          <a href={`/pro/${session?.id}`} style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>View profile →</a>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            {photoUrl
+              ? <img src={photoUrl} alt={fullName} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.3)' }} />
+              : <div style={{ width: 64, height: 64, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, border: '3px solid rgba(255,255,255,0.3)' }}>{initials(fullName || 'A')}</div>
+            }
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}
+              style={{ position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: '50%', background: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName || 'Your Name'}</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>{trade ? categories.find(c => c.id === trade)?.category_name || 'Trade not set' : 'Tap to set your trade'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'rgba(255,255,255,0.2)', color: 'white' }}>{session?.plan || 'Free'}</span>
+              {license && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>✓ Licensed</span>}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 0 }}>
+          {tabs.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              style={{ flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500, background: 'transparent', color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.6)', borderBottom: activeTab === tab.key ? '2.5px solid white' : '2.5px solid transparent', transition: 'all 0.15s' }}>
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── Sticky footer — Save / Cancel ─────────────────────────────────── */}
+      {saved && <div style={{ margin: '12px 16px 0', padding: '12px 16px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, color: '#15803D' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>Profile saved</div>}
+      {errors.submit && <div style={{ margin: '12px 16px 0', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, fontSize: 14, color: '#DC2626' }}>{errors.submit}</div>}
+
+      <div style={{ padding: '16px 16px 0' }}>{TabContent}</div>
+
+      {/* Sticky footer */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40, background: t.cardBg, borderTop: `1px solid ${t.cardBorder}`, padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', gap: 10 }}>
-        <a href="/dashboard" style={{ ...ghostBtn, textDecoration: 'none', textAlign: 'center', flex: 0, padding: '12px 20px' }}>Cancel</a>
+        <a href="/dashboard" style={{ ...ghostBtn, textDecoration: 'none', textAlign: 'center' as const, padding: '12px 20px' }}>Cancel</a>
         <button onClick={handleSave} disabled={saving} style={{ ...tealBtn, flex: 1, justifyContent: 'center', opacity: saving ? 0.7 : 1 }}>
           {saving ? (<><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.5)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/> Saving...</>) : 'Save changes'}
         </button>
       </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
+  )
+
+  // Desktop layout — sidebar + main content
+  const DesktopLayout = (
+    <div style={{ minHeight: '100vh', background: t.pageBg }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+          <div>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: t.textPri, margin: 0 }}>Edit profile</h1>
+            <p style={{ fontSize: 13, color: t.textMuted, marginTop: 4 }}>Keep your profile up to date to attract more homeowners.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <a href="/dashboard" style={{ fontSize: 14, color: t.textMuted, textDecoration: 'none', fontWeight: 500 }}>← Dashboard</a>
+            <a href={`/pro/${session?.id}`} style={{ fontSize: 14, color: '#0F766E', textDecoration: 'none', fontWeight: 600 }}>View profile →</a>
+          </div>
+        </div>
+
+        {saved && <div style={{ marginBottom: 20, padding: '12px 16px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, color: '#15803D' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>Profile saved successfully</div>}
+        {errors.submit && <div style={{ marginBottom: 20, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, fontSize: 14, color: '#DC2626' }}>{errors.submit}</div>}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24, alignItems: 'start' }}>
+          {/* Sticky sidebar */}
+          <div style={{ position: 'sticky', top: 24 }}>
+            <div style={{ ...cardSt }}>
+              <div style={{ position: 'relative', width: 80, height: 80, margin: '0 auto 16px' }}>
+                {photoUrl
+                  ? <img src={photoUrl} alt={fullName} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} />
+                  : <div style={{ width: 80, height: 80, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 800 }}>{initials(fullName || 'A')}</div>
+                }
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', background: '#0F766E', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handlePhotoUpload} />
+              </div>
+              <div style={{ textAlign: 'center' as const, marginBottom: 16 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: t.textPri }}>{fullName || 'Your Name'}</div>
+                <div style={{ fontSize: 13, color: t.textSubtle, marginTop: 3 }}>{trade ? categories.find(c => c.id === trade)?.category_name || '' : 'Trade not set'}</div>
+              </div>
+              <div style={{ borderTop: `1px solid ${t.cardBorder}`, paddingTop: 12, display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, color: t.textMuted }}>Plan</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: t.textPri }}>{session?.plan || 'Free'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, color: t.textMuted }}>Member since</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: t.textPri }}>2026</span>
+                </div>
+              </div>
+              <a href="/upgrade" style={{ display: 'block', marginTop: 14, padding: '10px', textAlign: 'center' as const, background: 'linear-gradient(135deg,#0F766E,#0D9488)', color: 'white', borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>Upgrade plan →</a>
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${t.cardBorder}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Cover photo</div>
+                <div style={{ width: '100%', height: 64, borderRadius: 10, overflow: 'hidden', background: t.cardBgAlt, border: `2px dashed ${coverUrl ? 'transparent' : t.cardBorder}`, marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {coverUrl ? <img src={coverUrl} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 12, color: t.textSubtle }}>No cover photo</span>}
+                </div>
+                <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} id="cover-upload-desk" onChange={handleCoverUpload} />
+                <label htmlFor="cover-upload-desk" style={{ display: 'block', width: '100%', padding: '8px', textAlign: 'center' as const, border: `1px solid ${t.cardBorder}`, borderRadius: 8, fontSize: 12, fontWeight: 600, color: t.textBody, cursor: 'pointer', background: t.cardBgAlt, boxSizing: 'border-box' as const }}>
+                  {uploadingCover ? 'Uploading...' : coverUrl ? 'Change cover' : 'Upload cover'}
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Main content */}
+          <div>
+            <div style={{ display: 'flex', gap: 4, background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: 4, marginBottom: 20 }}>
+              {tabs.map(tab => (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                  style={{ flex: 1, padding: '9px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500, background: activeTab === tab.key ? '#0F766E' : 'transparent', color: activeTab === tab.key ? 'white' : t.textMuted, transition: 'all 0.15s' }}>
+                  {tab.icon} {tab.label}
+                </button>
+              ))}
+            </div>
+            {TabContent}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, paddingTop: 20, borderTop: `1px solid ${t.cardBorder}`, marginTop: 8 }}>
+              <a href="/dashboard" style={{ fontSize: 14, color: t.textMuted, textDecoration: 'none', fontWeight: 500 }}>Cancel</a>
+              <button onClick={handleSave} disabled={saving} style={{ ...tealBtn, opacity: saving ? 0.7 : 1 }}>
+                {saving ? (<><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.5)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/> Saving...</>) : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <style>{'@keyframes spin { to { transform: rotate(360deg) } }'}</style>
+    </div>
+  )
+
+  return (
+    <>
+      <div className="md:hidden">{MobileLayout}</div>
+      <div className="hidden md:block">{DesktopLayout}</div>
+    </>
   )
 }
