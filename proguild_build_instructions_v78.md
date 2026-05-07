@@ -71,8 +71,8 @@ Vercel deploys automatically — no login needed, no clicking. Build takes ~35 s
 
 ## Step 6: Git commit and push — EXACT COMMANDS
 
-> ⚠️ CRITICAL: The previous token (`ghp_eyJFR1T...`) was read-only and could NOT push.
-> The current token (`ghp_n1w6xR6...`) has write scope and is confirmed working.
+> ⚠️ CRITICAL: The previous token (`OLD_READ_ONLY_TOKEN`) was read-only and could NOT push.
+> The current token (`CURRENT_WRITE_TOKEN`) has write scope and is confirmed working.
 
 > ⚠️ CRITICAL: In Claude's environment, `git push origin dev` does NOT work because
 > git cannot prompt for credentials interactively. You MUST use the full token URL.
@@ -314,7 +314,7 @@ psql "..." -f v77-prod-migration.sql
 | Gotcha | What happens | Fix |
 |---|---|---|
 | `git push origin dev` in Claude | Fails — no interactive TTY for credential prompt | Always use full token URL: `git push https://TOKEN@github.com/...` |
-| Old read-only token `ghp_eyJFR1T...` | Push returns 401 on write | Use `ghp_YOUR_WRITE_TOKEN_HERE` |
+| Old read-only token `OLD_READ_ONLY_TOKEN` | Push returns 401 on write | Use `ghp_YOUR_WRITE_TOKEN_HERE` |
 | `&&` on commit+push | Push silently skipped (TS exits code 1) | Always separate commands |
 | Vercel TS strict | Build fails on errors local filtered check ignored | Run unfiltered check on changed files |
 | `lead.contact_name` raw | Shows lowercase | Always wrap in `capName()` |
