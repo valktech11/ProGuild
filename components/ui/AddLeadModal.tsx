@@ -64,6 +64,7 @@ const TEAL = '#0F766E'
 const NAVY = '#0A1628'
 
 export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: AddLeadModalProps) {
+  const t = theme(dk)
   const [name,   setName]   = useState('')
   const [phone,  setPhone]  = useState('')
   const [email,  setEmail]  = useState('')

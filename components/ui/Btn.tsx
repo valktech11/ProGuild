@@ -1,5 +1,5 @@
 import React from 'react'
-import { T, BRAND } from '@/lib/tokens'
+import { theme, T, BRAND } from '@/lib/tokens'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size    = 'sm' | 'md' | 'lg'
@@ -32,6 +32,7 @@ export function Btn({
   style,
   ...rest
 }: BtnProps) {
+  const t = theme(dk)
   const padding: Record<Size, string> = {
     sm: `${T.sp2}px ${T.sp3}px`,
     md: `${T.sp3}px ${T.sp5}px`,

@@ -1,4 +1,5 @@
 'use client'
+import { capName } from '@/lib/utils'
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'

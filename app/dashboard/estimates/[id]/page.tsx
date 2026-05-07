@@ -319,7 +319,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           {/* Line items preview */}
           <div style={{ background: t.cardBgAlt, borderRadius:10, padding:'10px 14px', marginBottom:20 }}>
             {(estimate.items || []).slice(0,3).map((item: any) => (
-              <div key={item.id} style={{ display:'flex', justifyContent:'space-between', fontSize: 14, padding:'4px 0', borderBottom:`1px solid ${t.cardBgAlt}` }}>
+              <div key={item.id} style={{ display:'flex', justifyContent:'space-between', fontSize: 14, padding:'4px 0', borderBottom: '1px solid ' + t.cardBgAlt }}>
                 <span style={{ color: t.textBody, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'70%' }}>{item.name}</span>
                 <span style={{ color: t.textMuted, flexShrink:0, marginLeft:8 }}>${(item.qty * item.unit_price).toLocaleString('en-US', { minimumFractionDigits:2 })}</span>
               </div>
@@ -339,7 +339,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               const d = new Date(); d.setDate(d.getDate() + (days[val] ?? 30))
               setInvoiceDueDate(d.toISOString().split('T')[0])
             }}
-              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${t.cardBorder}`, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, cursor:'pointer' }}>
+              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border: '1.5px solid ' + t.cardBorder, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, cursor:'pointer' }}>
               <option value="due_on_receipt">Due on Receipt</option>
               <option value="net_7">Net 7 days</option>
               <option value="net_15">Net 15 days</option>
@@ -352,15 +352,15 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           <div style={{ marginBottom:16 }}>
             <label style={{ fontSize: 13, fontWeight:700, color: t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Due Date</label>
             <input type="date" value={invoiceDueDate} onChange={e => setInvoiceDueDate(e.target.value)}
-              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${t.cardBorder}`, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, boxSizing:'border-box' }} />
+              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border: '1.5px solid ' + t.cardBorder, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, boxSizing:'border-box' }} />
           </div>
 
           {/* Deposit collected */}
           {estimate.require_deposit && (
-            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: t.cardBgAlt, border:`1.5px solid ${depositCollected ? '#0F766E' : (t.cardBorder)}` }}>
+            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: t.cardBgAlt, border: '1.5px solid ' + depositCollected ? '#0F766E' : (t.cardBorder) }}>
               <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
                 <div onClick={() => setDepositCollected(v => !v)}
-                  style={{ width:20, height:20, borderRadius:6, border:`2px solid ${depositCollected ? '#0F766E' : (t.inputBorder)}`, background: depositCollected ? '#0F766E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer', transition:'all 0.15s' }}>
+                  style={{ width:20, height:20, borderRadius:6, border: '2px solid ' + depositCollected ? '#0F766E' : (t.inputBorder), background: depositCollected ? '#0F766E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer', transition:'all 0.15s' }}>
                   {depositCollected && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>}
                 </div>
                 <div>
@@ -378,7 +378,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           {/* Actions */}
           <div style={{ display:'flex', gap:10 }}>
             <button onClick={() => setShowInvoiceModal(false)}
-              style={{ flex:1, padding:'11px', borderRadius:10, border:`1.5px solid ${t.cardBorder}`, background:'transparent', color: t.textMuted, fontSize: 15, fontWeight:600, cursor:'pointer' }}>
+              style={{ flex:1, padding:'11px', borderRadius:10, border: '1.5px solid ' + t.cardBorder, background:'transparent', color: t.textMuted, fontSize: 15, fontWeight:600, cursor:'pointer' }}>
               Cancel
             </button>
             <button onClick={handleCreateInvoice} disabled={creatingInvoice}
@@ -426,7 +426,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           ) : estimate ? (
             <>
               {/* ── Estimate header ── */}
-              <div style={{ borderRadius: 12, border: `1px solid ${t.cardBorder}`, padding: '20px 24px', background: t.cardBg }}>
+              <div style={{ borderRadius: 12, border: '1px solid ' + t.cardBorder, padding: '20px 24px', background: t.cardBg }}>
                 <div className="flex flex-col xl:flex-row xl:items-start xl:gap-6 gap-3">
                   {/* Col 1: Name H1 + EST# line 2 */}
                   <div className="xl:flex-1 min-w-0">
@@ -444,7 +444,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap" style={{ fontSize: 14 }}>
                       <span style={{ fontWeight: 600, color: t.textBody }}>#{estimate.estimate_number}</span>
                       <span style={{ opacity: 0.35 }}>·</span>
-                      <span className={` style={{ color: estimateStatusStyle(estimate.status, dk).text, fontWeight: 600 }}>{estimateStatusStyle(estimate.status, dk).label}</span>
+                      <span style={{ color: estimateStatusStyle(estimate.status, dk).text, fontWeight: 600 }}>{estimateStatusStyle(estimate.status, dk).label}</span>
                       {estimate.trade && <><span style={{ opacity: 0.35 }}>·</span><span style={{ color: t.textMuted }}>{estimate.trade}</span></>}
                       <span style={{ opacity: 0.35 }}>·</span>
                       <span style={{ fontSize: 13, color: t.textSubtle }}>Last edited {timeAgo(estimate.updated_at || estimate.created_at)}</span>
@@ -476,10 +476,10 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       <div style={{ position: 'relative' }}>
                         <button
                           onClick={() => setShowMoreMenu(m => !m)}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer', fontSize: 18, letterSpacing: 1 }}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 8, border: '1.5px solid ' + t.inputBorder, background: 'transparent', color: t.textBody, cursor: 'pointer', fontSize: 18, letterSpacing: 1 }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E' }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = t.inputBorder }}>
-                          ···
+                          {'···'}
                         </button>
                         {/* D4: backdrop for outside-click close */}
                         {showMoreMenu && (
@@ -487,7 +487,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         )}
                         {showMoreMenu && (
                           <div
-                            style={{ position: 'fixed', top: 'auto', left: '50%', transform: 'translateX(-50%)', bottom: 'auto', zIndex: 50, background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', minWidth: 220, width: '90vw', maxWidth: 280, overflow: 'hidden' }}>
+                            style={{ position: 'fixed', top: 'auto', left: '50%', transform: 'translateX(-50%)', bottom: 'auto', zIndex: 50, background: t.cardBg, border: '1px solid ' + t.cardBorder, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', minWidth: 220, width: '90vw', maxWidth: 280, overflow: 'hidden' }}>
                             {[
                               {
                                 label: 'Download PDF', icon: '↓',
@@ -547,7 +547,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       {estimate.status !== 'void' && (
                         <button
                           onClick={() => window.open(`${window.location.origin}/estimate/${id}`, '_blank')}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: '1.5px solid ' + t.inputBorder, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = t.inputBorder; e.currentTarget.style.color = t.textBody }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -617,7 +617,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       {estimate.status === 'void' && (
                         <button onClick={handleDuplicate} disabled={duplicating}
                           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-60 whitespace-nowrap"
-                          style={{ border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody }}>
+                          style={{ border: '1.5px solid ' + t.inputBorder, background: 'transparent', color: t.textBody }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                           {duplicating ? 'Creating...' : 'Start New Estimate'}
                         </button>
@@ -685,8 +685,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 <div className="flex-1 min-w-0 space-y-5 min-w-0">
 
                   {/* ── Tab strip — matches reference: tabs left, buttons right ── */}
-                  <div style={{ borderRadius: 12, border: `1px solid ${t.cardBorder}`, background: t.cardBg }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${t.cardBorder}` }}>
+                  <div style={{ borderRadius: 12, border: '1px solid ' + t.cardBorder, background: t.cardBg }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid ' + t.cardBorder }}>
                       {/* Tabs */}
                       <div style={{ display: 'flex' }}>
                         {(['items', 'notes'] as const).map(tab => (
@@ -703,7 +703,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       {activeTab === 'items' && (
                         <div style={{ paddingRight: 16 }}>
                           <button onClick={openTemplatePicker}
-                            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${t.btnBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, padding: '7px 14px', borderRadius: 8, border: '1.5px solid ' + t.btnBorder, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = t.btnBorder; e.currentTarget.style.color = t.textMuted }}
                           >
@@ -801,13 +801,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   )}
 
                   {/* ── Terms & Conditions — editable ── */}
-                  <div style={{ borderRadius: 12, border: `1px solid ${t.cardBorder}`, background: t.cardBg, padding: '20px 24px' }}>
+                  <div style={{ borderRadius: 12, border: '1px solid ' + t.cardBorder, background: t.cardBg, padding: '20px 24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <h3 style={{ fontSize: 15, fontWeight: 600, color: t.textPri }}>Terms & Conditions</h3>
                       {!editingTerms && (
                         <button
                           onClick={() => { setTermsValue(estimate.terms); setEditingTerms(true) }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px', borderRadius: 8, border: `1.5px solid ${t.btnBorder}`, background: 'transparent', color: t.btnText, cursor: 'pointer' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px', borderRadius: 8, border: '1.5px solid ' + t.btnBorder, background: 'transparent', color: t.btnText, cursor: 'pointer' }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = t.btnBorder; e.currentTarget.style.color = t.btnText }}
                         >
@@ -826,7 +826,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         />
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                           <button onClick={() => setEditingTerms(false)}
-                            style={{ padding: '6px 14px', fontSize: 14, borderRadius: 8, border: `1.5px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
+                            style={{ padding: '6px 14px', fontSize: 14, borderRadius: 8, border: '1.5px solid ' + t.cardBorder, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
                             Cancel
                           </button>
                           <button
@@ -860,7 +860,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         } catch { setSaveMsg('PDF generation failed') }
                         setTimeout(() => setSaveMsg(null), 4000)
                       }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: '1.5px solid ' + t.inputBorder, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = t.inputBorder; e.currentTarget.style.color = t.textBody }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -883,7 +883,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           })
                           setSaveMsg('Marked as sent ✓'); setTimeout(() => setSaveMsg(null), 3000)
                         }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: '1.5px solid ' + t.inputBorder, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = t.inputBorder; e.currentTarget.style.color = t.textBody }}>
                         <Send size={13} /> Mark as Sent
@@ -905,7 +905,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </>
           ) : (
-            <div style={{ borderRadius: 12, border: `1px solid ${t.cardBorder}`, padding: "48px 24px", textAlign: "center" as const, background: t.cardBg, color: muted }}>
+            <div style={{ borderRadius: 12, border: '1px solid ' + t.cardBorder, padding: "48px 24px", textAlign: "center" as const, background: t.cardBg, color: muted }}>
               Estimate not found.
             </div>
           )}
@@ -925,7 +925,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setShowDeleteConfirm(false)}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: 12, borderRadius: 12, border: '2px solid ' + t.cardBorder, background: 'transparent', color: t.textMuted, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                 Cancel
               </button>
               <button onClick={async () => {
@@ -954,11 +954,11 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               placeholder="Reason (optional) — e.g. Wrong price, job cancelled"
               value={voidReason}
               onChange={e => setVoidReason(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 16 }}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid ' + t.inputBorder, background: t.inputBg, color: t.textPri, fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 16 }}
             />
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setShowVoidConfirm(false)}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: 12, borderRadius: 12, border: '2px solid ' + t.cardBorder, background: 'transparent', color: t.textMuted, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                 Cancel
               </button>
               <button onClick={handleVoid} disabled={voiding}
@@ -1013,7 +1013,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   {previewTpl === tpl.id && (
                     <div className={`px-5 pb-3 ${dk ? 'bg-[#0F172A]' : 'bg-[#F9FAFB]'}`}>
                       {tpl.items.map((item: any, idx: number) => (
-                        <div key={idx} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderBottom: idx < tpl.items.length-1 ? `1px solid ${dk ? '#1E293B' : '#E8E2D9'}` : 'none' }}>
+                        <div key={idx} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderBottom: idx < tpl.items.length-1 ? '1px solid ' + t.divider : 'none' }}>
                           <span className={`text-xs ${dk ? 'text-slate-300' : 'text-gray-700'}`}>{item.name || 'Unnamed item'}</span>
                           <span className={`text-xs font-semibold ${dk ? 'text-slate-400' : 'text-gray-500'}`}>{item.qty} × ${item.unit_price?.toLocaleString()}</span>
                         </div>
@@ -1097,7 +1097,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     {/* Mobile sticky bottom CTA — primary action above fold */}
     {estimate && !['void','declined','invoiced','paid'].includes(estimate.status) && (
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3"
-        style={{ background: dk ? 'rgba(10,22,40,0.96)' : 'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)', borderTop:`1px solid ${t.cardBorder}`, boxShadow:'0 -4px 20px rgba(0,0,0,0.10)' }}>
+        style={{ background: dk ? 'rgba(10,22,40,0.96)' : 'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)', borderTop: '1px solid ' + t.cardBorder, boxShadow:'0 -4px 20px rgba(0,0,0,0.10)' }}>
         <div className="flex gap-2">
           {estimate.status === 'draft' && (
             <button
@@ -1137,7 +1137,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             </button>
           )}
           <button onClick={() => router.back()}
-            style={{ width:48, padding:'13px', borderRadius:12, border:`1.5px solid ${t.cardBorder}`, background:'transparent', color: t.textMuted, fontSize: 18, cursor:'pointer' }}>
+            style={{ width:48, padding:'13px', borderRadius:12, border: '1.5px solid ' + t.cardBorder, background:'transparent', color: t.textMuted, fontSize: 18, cursor:'pointer' }}>
             ←
           </button>
         </div>
@@ -1194,7 +1194,7 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
           rows={5}
           style={{
             width: '100%', padding: '12px 14px', fontSize: 15, borderRadius: 10,
-            border: `1.5px solid ${border}`, background: dk ? '#0f172a' : '#f9fafb',
+            border: '1.5px solid ' + border, background: dk ? '#0f172a' : '#f9fafb',
             color: col, resize: 'vertical', outline: 'none', lineHeight: 1.6, boxSizing: 'border-box' as const,
           }}
           onFocus={e => (e.target.style.borderColor = '#0F766E')}
@@ -1210,13 +1210,13 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
       </div>
 
       {/* Attachments placeholder */}
-      <div style={{ border: `1.5px dashed ${border}`, borderRadius: 12, padding: '28px 20px', textAlign: 'center' as const }}>
+      <div style={{ border: '1.5px dashed ' + border, borderRadius: 12, padding: '28px 20px', textAlign: 'center' as const }}>
         <div style={{ width: 44, height: 44, borderRadius: 10, background: dk ? '#0f172a' : '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
         </div>
         <p style={{ fontSize: 15, fontWeight: 600, color: col, marginBottom: 4 }}>File Attachments</p>
         <p style={{ fontSize: 14, color: colMuted, marginBottom: 12 }}>Attach photos, contracts, or reference documents to this estimate.</p>
-        <button style={{ padding: '8px 18px', fontSize: 14, fontWeight: 500, borderRadius: 8, border: `1.5px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'not-allowed', opacity: 0.5 }}>
+        <button style={{ padding: '8px 18px', fontSize: 14, fontWeight: 500, borderRadius: 8, border: '1.5px solid ' + border, background: 'transparent', color: colMuted, cursor: 'not-allowed', opacity: 0.5 }}>
           Upload Files — coming in v76
         </button>
       </div>

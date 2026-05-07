@@ -89,9 +89,8 @@ export default function SmartNudges({ darkMode, status, invoiceId, onCta }: {
   invoiceId?: string
   onCta?: () => void
 }) {
-  const t = theme(dk)
-  const t    = theme(darkMode)
   const dk   = darkMode
+  const t    = theme(dk)
   const nudge = getNudge(status, invoiceId)
   if (!nudge) return null
 

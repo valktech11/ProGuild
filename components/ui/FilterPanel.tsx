@@ -377,6 +377,7 @@ function PillGroup({ options, value, onChange, dk, overdueRed }: {
   dk: boolean
   overdueRed?: boolean
 }) {
+  const t = theme(dk)
   return (
     <div className="flex gap-2 flex-wrap">
       {options.map(({ key, label }) => {

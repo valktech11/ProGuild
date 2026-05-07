@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Session, isPaidPlan } from '@/types'
 import { initials, avatarColor, planLabel } from '@/lib/utils'
+import { theme, T } from '@/lib/tokens'
 
 type NavItem  = { label: string; href: string; icon: (a: boolean) => React.ReactNode; badge?: number | null; soon?: boolean; exact?: boolean }
 type NavGroup = { title: string; items: NavItem[] }
@@ -464,6 +465,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
   const [status,     setStatus]     = React.useState('available')
   const [statusOpen, setStatusOpen] = React.useState(false)
   const [userOpen,   setUserOpen]   = React.useState(false)
+  const t   = theme(dk)
   const current = STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0]
   const bg  = t.cardBg
   const bdr = t.cardBorder
@@ -620,6 +622,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   const [sheetOpen, setSheetOpen] = useState(false)
   const isA = (h: string, ex?: boolean) => ex ? p === h : p === h
   const dk = darkMode ?? false
+  const t  = theme(dk)
 
   return (
     <>
