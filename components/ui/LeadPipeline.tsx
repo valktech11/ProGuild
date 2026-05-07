@@ -154,7 +154,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, dk = false }: {
                     <button key={s.key} onClick={() => handleStageClick(s.key)}
                       className="py-2.5 rounded-xl text-xs font-bold border-2 transition-all"
                       style={status === s.key
-                        ? { background: stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
+                        ? { background: dk ? stageStyle(s.key).color + '20' : stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
                         : { background: theme(dk).cardBg, color: theme(dk).textMuted, borderColor: theme(dk).cardBorder }}>
                       {s.label}
                     </button>
@@ -319,8 +319,8 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   }
 
   const urgency = days > 3 ? 'high' : days >= 2 ? 'mid' : 'low'
-  const ageBg   = urgency === 'high' ? '#FEE2E2' : urgency === 'mid' ? '#FEF3C7' : '#D1FAE5'
-  const ageColor= urgency === 'high' ? '#DC2626' : urgency === 'mid' ? '#B45309' : '#065F46'
+  const ageBg   = dk ? 'rgba(0,0,0,0.0)' : (urgency === 'high' ? '#FEE2E2' : urgency === 'mid' ? '#FEF3C7' : '#D1FAE5')
+  const ageColor= urgency === 'high' ? '#EF4444' : urgency === 'mid' ? '#F59E0B' : '#34D399'
   const t       = theme(dk)
 
   return (
@@ -366,7 +366,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
         {lead.contact_phone ? (
           <a href={`tel:${lead.contact_phone}`}
             className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-opacity hover:opacity-80"
-            style={{ background: '#F0FDFA', color: '#0F766E', border: '1px solid #CCFBF1' }}>
+            style={{ background: dk ? 'rgba(15,118,110,0.15)' : '#F0FDFA', color: '#0F766E', border: `1px solid ${dk ? 'rgba(15,118,110,0.3)' : '#CCFBF1'}` }}>
             <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={11} c="#0F766E" />
             Call
           </a>
@@ -385,9 +385,13 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
           disabled={creatingEst}
           className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 min-w-0"
           style={{
-            background: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).bg,
+            background: dk
+              ? stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).color + '20'
+              : stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).bg,
             color: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).color,
-            border: `1px solid ${stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).chipBg}`
+            border: `1px solid ${dk
+              ? stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).color + '44'
+              : stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).chipBg}`
           }}>
           {stage.key === 'New' && (
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -416,7 +420,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
           onClick={e => { e.stopPropagation(); e.preventDefault(); setExistingEst(null) }}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl"
+            style={{ background: theme(dk).cardBg, borderRadius: 16, width: "100%", maxWidth: 384, padding: 24, boxShadow: "0 24px 48px rgba(0,0,0,0.3)" }}
             onClick={e => { e.stopPropagation(); e.preventDefault() }}
           >
             <h3 className="font-bold text-gray-900 text-base mb-1">Active estimate exists</h3>
@@ -887,7 +891,9 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
       <div className="flex flex-col min-w-0" style={{ minWidth: 220 }}>
         {/* Column header */}
         <div className="rounded-xl px-3 py-2.5 mb-2" style={{
-          background: stage.key === 'Paid' ? (dk ? 'rgba(74,123,74,0.20)' : 'rgba(74,123,74,0.12)') : (dk ? stageStyle(stage.key).bg.replace(')', ',0.15)').replace('rgb','rgba') : stageStyle(stage.key).bg),
+          background: dk
+            ? (stage.key === 'Paid' ? 'rgba(74,123,74,0.18)' : stageStyle(stage.key).color + '1A')
+            : (stage.key === 'Paid' ? 'rgba(74,123,74,0.10)' : stageStyle(stage.key).bg),
           borderTop: `3px solid ${stageStyle(stage.key).color}`
         }}>
           <div className="flex items-center justify-between">
@@ -924,13 +930,13 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
                 <div className="flex gap-2">
                   <button onClick={() => setExpanded(true)}
                     className="flex-1 py-2 text-[12px] font-semibold rounded-xl border transition-colors hover:opacity-80"
-                    style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: stageStyle(stage.key).bg }}>
+                    style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: dk ? stageStyle(stage.key).color + '18' : stageStyle(stage.key).bg }}>
                     + {overflow} more leads ∨
                   </button>
                   {leads.length > 3 && (
                     <button onClick={() => setShowSlide(true)}
                       className="w-8 h-8 flex items-center justify-center rounded-xl border transition-colors hover:opacity-80 flex-shrink-0"
-                      style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: stageStyle(stage.key).bg }}>
+                      style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: dk ? stageStyle(stage.key).color + '18' : stageStyle(stage.key).bg }}>
                       <Ic d="M9 18l6-6-6-6" s={14} c={stageStyle(stage.key).color} />
                     </button>
                   )}
@@ -1012,7 +1018,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
             <button key={s.key} onClick={() => setMobileStage(s.key as StageKey)}
               className="flex-shrink-0 px-4 py-2.5 rounded-full text-[13px] font-bold border transition-all"
               style={mobileStage === s.key
-                ? { background: stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
+                ? { background: dk ? stageStyle(s.key).color + '20' : stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
                 : { background: 'white', color: '#374151', borderColor: '#C8C3BC' }}>
               {s.label} {cnt > 0 && `(${cnt})`}
             </button>
@@ -1053,7 +1059,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           <button
             onClick={() => setShowLost(v => !v)}
             className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[13px] font-medium transition-all"
-            style={{ background: 'rgba(0,0,0,0.04)', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+            style={{ background: dk ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', color: t.textSubtle, border: `1px solid ${t.cardBorder}` }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               {showLost
                 ? <polyline points="18 15 12 9 6 15"/>
@@ -1067,7 +1073,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                 const [avBg, avFg] = avatarColor(lead.contact_name)
                 return (
                   <div key={lead.id} className="rounded-xl overflow-hidden"
-                    style={{ background: t.cardBg, border: '1px solid #E5E7EB', opacity: 0.85 }}>
+                    style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, opacity: 0.85 }}>
                     {/* Lead info row */}
                     <div className="flex items-center gap-2 px-4 py-3">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
@@ -1075,7 +1081,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                         {initials(lead.contact_name)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-semibold truncate" style={{ color: dk ? '#F1F5F9' : '#374151' }}>{capName(lead.contact_name)}</p>
+                        <p className="text-[14px] font-semibold truncate" style={{ color: t.textBody }}>{capName(lead.contact_name)}</p>
                         <p className="text-[12px]" style={{ color: t.textSubtle }}>{timeAgo(lead.created_at)} · Lost</p>
                       </div>
                       <button onClick={() => openLead(lead)}
