@@ -269,8 +269,8 @@ function ElasticTimeGrid({ events, dk, onEventClick, today0 }: {
 }
 
 // ─── Mobile week dot grid ─────────────────────────────────────────────────────
-function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk }: {
-  selectedDate:Date; events:CalEvent[]; today0:Date; onSelect:(d:Date)=>void; dk:boolean
+function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk, onTeal = false }: {
+  selectedDate:Date; events:CalEvent[]; today0:Date; onSelect:(d:Date)=>void; dk:boolean; onTeal?: boolean
 }) {
   const weekStart = startOfWeek(selectedDate)
   const days = Array.from({length:7},(_,i)=>addDays(weekStart,i))
@@ -284,20 +284,24 @@ function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk }: {
         const jobCount      = dayEvs.filter(ev=>ev._type==='job').length
         const followupCount = dayEvs.filter(ev=>ev._type==='followup').length
         const overdueCount  = dayEvs.filter(ev=>isOverdueEvent(ev,today0)).length
+        // Text colours — adapt for teal background
+        const dayLetterColor = isSel?'rgba(255,255,255,0.85)':isTod?'#0F766E':d.getDay()===0?(onTeal?'#FCA5A5':'#DC2626'):onTeal?'rgba(255,255,255,0.65)':dk?'#94A3B8':'#6B7280'
+        const dayNumColor    = isSel?'white':isTod?'#0F766E':d.getDay()===0?(onTeal?'#FCA5A5':'#DC2626'):onTeal?'white':dk?'#F1F5F9':'#111827'
+        const selBg          = isSel?'rgba(255,255,255,0.25)':isTod?(onTeal?'rgba(255,255,255,0.15)':dk?'#166534':'#BBF7D0'):'transparent'
         return (
           <button key={key} onClick={() => onSelect(d)}
-            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'8px 2px 6px', borderRadius:10, border:'none', cursor:'pointer', background:isSel?'#0F766E':isTod?(dk?'#166534':'#BBF7D0'):'transparent', minHeight:64 }}>
-            <span style={{ fontSize: 12, fontWeight:700, color:isSel?'rgba(255,255,255,0.85)':isTod?'#0F766E':d.getDay()===0?'#DC2626':dk?'#94A3B8':'#6B7280' }}>
+            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'8px 2px 6px', borderRadius:10, border:'none', cursor:'pointer', background:selBg, minHeight:64 }}>
+            <span style={{ fontSize: 12, fontWeight:700, color:dayLetterColor }}>
               {DAYS[d.getDay()].slice(0,1)}
             </span>
-            <span style={{ fontSize: 17, fontWeight:900, lineHeight:1, color:isSel?'white':isTod?'#0F766E':d.getDay()===0?'#DC2626':dk?'#F1F5F9':'#111827' }}>
+            <span style={{ fontSize: 17, fontWeight:900, lineHeight:1, color:dayNumColor }}>
               {d.getDate()}
             </span>
-            {/* Coloured dots: teal=job, amber=followup, red=overdue */}
+            {/* Coloured dots */}
             <div style={{ display:'flex', gap:2, minHeight:6, alignItems:'center' }}>
-              {overdueCount>0  && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel?'rgba(255,255,255,0.8)':'#DC2626' }}/>}
-              {jobCount>0      && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel?'rgba(255,255,255,0.8)':'#0F766E' }}/>}
-              {followupCount>0 && overdueCount===0 && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel?'rgba(255,255,255,0.8)':'#D97706' }}/>}
+              {overdueCount>0  && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel||onTeal?'rgba(255,255,255,0.9)':'#DC2626' }}/>}
+              {jobCount>0      && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel||onTeal?'rgba(255,255,255,0.9)':'#0F766E' }}/>}
+              {followupCount>0 && overdueCount===0 && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel||onTeal?'rgba(255,255,255,0.9)':'#D97706' }}/>}
             </div>
           </button>
         )
@@ -948,8 +952,8 @@ function CalendarInner() {
 
         {/* Row 3: week strip — Day mode only (week mode has its own grouped view) */}
         {mobileView==='agenda' && (
-          <div style={{ padding:'0 12px 10px' }}>
-            <MobileWeekGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => selectDay(d)} dk={dk}/>
+          <div style={{ padding:'0 12px 10px', background:'#0F766E' }}>
+            <MobileWeekGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => selectDay(d)} dk={dk} onTeal={true}/>
           </div>
         )}
         {mobileView==='month' && (
@@ -968,27 +972,6 @@ function CalendarInner() {
           </span>
         </div>
       )}
-
-      {/* Stats strip — Day mode only, always visible */}
-      {mobileView==='agenda' && (() => {
-        const dayJobs2      = selectedDayEvs.filter(ev => ev._type==='job')
-        const dayCompleted2 = dayJobs2.filter(ev => ev.lead_status==='Completed'||ev.lead_status==='Paid')
-        const dayValue2     = dayJobs2.reduce((s,ev)=>s+(ev.quoted_amount||0),0)
-        return (
-          <div style={{ flexShrink:0, display:'flex', background:'#0F766E', borderBottom:'1px solid rgba(255,255,255,0.15)' }}>
-            {[
-              { label:"Today's Value", value: dayValue2>0?'$'+dayValue2.toLocaleString():'$0' },
-              { label:'Jobs',          value: String(dayJobs2.length) },
-              { label:'Done',          value: String(dayCompleted2.length) },
-            ].map((s,i) => (
-              <div key={s.label} style={{ flex:1, padding:'10px 8px', borderRight: i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
-                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.65)', marginBottom:3 }}>{s.label}</div>
-                <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
-        )
-      })()}
 
       {/* Stats strip — Day view always visible */}
       {mobileView==='agenda' && (() => {
