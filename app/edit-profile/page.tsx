@@ -248,507 +248,535 @@ export default function EditProfilePage() {
   }
 
   const t = theme(dk)
+
+  // ── Shared style helpers — all use t.* tokens, zero Tailwind ──────────────
+  const inputSt = (err?: string): React.CSSProperties => ({
+    width: '100%', padding: '11px 14px',
+    border: `1.5px solid ${err ? '#FCA5A5' : t.inputBorder}`,
+    borderRadius: 10, background: t.inputBg,
+    color: t.textPri, fontSize: 14, outline: 'none',
+    boxSizing: 'border-box', fontFamily: 'inherit',
+    WebkitAppearance: 'none',
+  })
+  const selectSt = (err?: string): React.CSSProperties => ({
+    ...inputSt(err), cursor: 'pointer',
+  })
+  const labelSt: React.CSSProperties = {
+    fontSize: 11, fontWeight: 700, color: t.textMuted,
+    textTransform: 'uppercase', letterSpacing: '0.07em',
+    display: 'block', marginBottom: 6,
+  }
+  const sectionTitleSt: React.CSSProperties = {
+    fontSize: 12, fontWeight: 700, color: t.textMuted,
+    textTransform: 'uppercase', letterSpacing: '0.08em',
+    borderLeft: '3px solid #0F766E', paddingLeft: 10,
+    marginBottom: 20,
+  }
+  const hintSt: React.CSSProperties = {
+    fontSize: 12, color: t.textSubtle, marginTop: 5, lineHeight: 1.4,
+  }
+  const fieldSt: React.CSSProperties = { marginBottom: 20 }
+  const cardSt: React.CSSProperties = {
+    background: t.cardBg, border: `1px solid ${t.cardBorder}`,
+    borderRadius: 16, padding: '20px 16px', marginBottom: 12,
+  }
+  const tealBtn: React.CSSProperties = {
+    background: 'linear-gradient(135deg,#0F766E,#0D9488)',
+    color: 'white', border: 'none', borderRadius: 10,
+    padding: '12px 20px', fontSize: 14, fontWeight: 700,
+    cursor: 'pointer', display: 'flex', alignItems: 'center',
+    gap: 8, whiteSpace: 'nowrap',
+  }
+  const ghostBtn: React.CSSProperties = {
+    background: 'none', border: `1.5px solid ${t.cardBorder}`,
+    color: t.textBody, borderRadius: 10, padding: '11px 20px',
+    fontSize: 14, fontWeight: 600, cursor: 'pointer',
+  }
+
+  function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: React.ReactNode }) {
+    return (
+      <div style={fieldSt}>
+        <label style={labelSt}>{label}</label>
+        {children}
+        {hint && !error && <p style={hintSt}>{hint}</p>}
+        {error && <p style={{ ...hintSt, color: '#EF4444' }}>{error}</p>}
+      </div>
+    )
+  }
+
   if (loading) return (
     <div style={{ minHeight: '100vh', background: t.pageBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      <div style={{ width: 32, height: 32, border: '2.5px solid #0F766E', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
     </div>
   )
 
   const tabs = [
-    { key: 'basic' as const,       label: '📋 Basic info' },
-    { key: 'credentials' as const, label: '🏅 Credentials' },
-    { key: 'preferences' as const, label: '⚙️ Preferences' },
+    { key: 'basic' as const,       icon: '📋', label: 'Basic' },
+    { key: 'credentials' as const, icon: '🏅', label: 'Credentials' },
+    { key: 'preferences' as const, icon: '⚙️', label: 'Preferences' },
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: t.pageBg }}>
-      <div className="max-w-4xl mx-auto px-4 py-10">
+    <div style={{ minHeight: '100vh', background: t.pageBg, paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: t.textPri }}>Edit profile</h1>
-            <p style={{ fontSize: 13, color: t.textMuted, marginTop: 4 }}>Keep your profile up to date to attract more homeowners.</p>
+      {/* ── Teal hero header ─────────────────────────────────────────────── */}
+      <div style={{ background: '#0F766E', padding: '16px 16px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <a href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+            Dashboard
+          </a>
+          <a href={`/pro/${session?.id}`} style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+            View profile →
+          </a>
+        </div>
+
+        {/* Profile identity row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            {photoUrl
+              ? <img src={photoUrl} alt={fullName} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.3)' }} />
+              : <div style={{ width: 64, height: 64, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, border: '3px solid rgba(255,255,255,0.3)' }}>{initials(fullName || 'A')}</div>
+            }
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}
+              style={{ position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: '50%', background: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handlePhotoUpload} />
           </div>
-          <div className="flex gap-3 text-sm">
-            <Link href="/dashboard" className="text-gray-400 hover:text-gray-700">← Dashboard</Link>
-            <Link href={`/pro/${session?.id}`} className="text-teal-600 hover:text-teal-700">View profile →</Link>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName || 'Your Name'}</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>{trade ? categories.find(c => c.id === trade)?.category_name || 'Trade not set' : 'Tap to set your trade'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'rgba(255,255,255,0.2)', color: 'white' }}>{session?.plan || 'Free'}</span>
+              {license && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>✓ Licensed</span>}
+            </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 mb-6">
+        {/* Tab bar — part of teal header */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 0 }}>
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.key ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>
-              {tab.label}
+              style={{
+                flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500,
+                background: 'transparent',
+                color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.6)',
+                borderBottom: activeTab === tab.key ? '2.5px solid white' : '2.5px solid transparent',
+                transition: 'all 0.15s',
+              }}>
+              {tab.icon} {tab.label}
             </button>
           ))}
         </div>
-
-        {saved && (
-          <div className="mb-6 flex items-center gap-3 bg-teal-50 border border-teal-200 text-teal-800 text-sm font-medium px-4 py-3 rounded-xl">
-            <span>✓</span> Profile saved successfully
-          </div>
-        )}
-        {errors.submit && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{errors.submit}</div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-
-          {/* LEFT — Photo (always visible) */}
-          <div>
-            <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 24, textAlign: 'center' as const }}>
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">Profile photo</div>
-              <div className="relative w-24 h-24 mx-auto mb-4">
-                {photoUrl
-                  ? <img src={photoUrl} alt={fullName} className="w-24 h-24 rounded-full object-cover" />
-                  : <div className="w-24 h-24 rounded-full flex items-center justify-center font-serif text-3xl" style={{ background: bg, color: fg }}>{initials(fullName || 'A')}</div>
-                }
-                {uploading && (
-                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  </div>
-                )}
-              </div>
-              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoUpload} />
-              <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="w-full py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors disabled:opacity-50">
-                {uploading ? 'Uploading...' : photoUrl ? 'Change photo' : 'Upload photo'}
-              </button>
-              {errors.photo && <p className="text-xs text-red-500 mt-2">{errors.photo}</p>}
-              <p className="text-xs text-gray-400 mt-2">JPG, PNG or WebP · Max 5MB</p>
-              <div className="border-t border-gray-100 mt-5 pt-5 text-left space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Plan</span>
-                  <span className="font-medium text-gray-700">{session?.plan || 'Free'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Member since</span>
-                  <span className="font-medium text-gray-700">2026</span>
-                </div>
-              </div>
-              <Link href="/upgrade" className="mt-4 block w-full py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition-colors text-center">
-                Upgrade plan
-              </Link>
-              <div className="border-t border-gray-100 mt-5 pt-5">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Cover photo</div>
-                <div className="relative w-full h-20 rounded-xl overflow-hidden bg-[#152a23] mb-2">
-                  {coverUrl && <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />}
-                  {!coverUrl && <div className="absolute inset-0 flex items-center justify-center text-xs text-teal-400/50">No cover photo</div>}
-                </div>
-                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" id="cover-upload"
-                  onChange={handleCoverUpload} />
-                <label htmlFor="cover-upload"
-                  className="block w-full py-1.5 text-center border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-colors cursor-pointer">
-                  {uploadingCover ? 'Uploading...' : coverUrl ? 'Change cover' : 'Upload cover'}
-                </label>
-                <p className="text-xs text-gray-400 mt-1.5 text-center">Shows behind your name on your profile</p>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT — Tab content */}
-          <div className="lg:col-span-2 space-y-5">
-
-            {/* ══════════ BASIC TAB ══════════ */}
-            {activeTab === 'basic' && (<>
-
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Basic information</div>
-                <Field label="Full name" error={errors.fullName}>
-                  <input value={fullName} onChange={e => { setFullName(e.target.value); setErrors(p => ({ ...p, fullName: '' })) }}
-                    placeholder="James Harrington" className={inp(errors.fullName)} />
-                </Field>
-                <Field label="Business name" hint="Your company or trading name (optional)">
-                  <input value={businessName} onChange={e => setBusinessName(e.target.value)}
-                    placeholder="e.g. Johnson Electrical LLC" className={inp()} />
-                </Field>
-                <Field label="Phone (primary)" error={errors.phone} hint="Shown to Pro and Elite plan subscribers">
-                  <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: '' })) }}
-                    placeholder="(555) 000-0000" className={inp(errors.phone)} />
-                </Field>
-                <div className="grid grid-cols-3 gap-3 mb-5">
-                  {[['Cell', phoneCell, setPhoneCell], ['Work / Office', phoneWork, setPhoneWork], ['Cell 2', phoneCell2, setPhoneCell2]].map(([lbl, val, setter]) => (
-                    <div key={lbl as string}>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">{lbl as string}</label>
-                      <input value={val as string} onChange={e => (setter as any)(e.target.value)} placeholder={`${lbl} number`} className={inp()} />
-                    </div>
-                  ))}
-                </div>
-                <Field label="Trade" hint="Your primary trade category">
-                  <select value={trade} onChange={e => setTrade(e.target.value)} className={inp()}>
-                    <option value="">Select your trade...</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
-                  </select>
-                </Field>
-                <Field label="Years of experience">
-                  <input type="number" value={yrs} onChange={e => setYrs(e.target.value)}
-                    placeholder="e.g. 10" min="0" max="60" className={inp() + ' max-w-xs'} />
-                </Field>
-                <Field label="License number" hint="Optional — adds a verified badge to your profile">
-                  <input value={license} onChange={e => setLicense(e.target.value)}
-                    placeholder="e.g. EC13004123" className={inp()} />
-                </Field>
-              </div>
-
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">About you</div>
-                <Field label="Bio" hint="Tell homeowners about your experience and why they should hire you">
-                  <textarea value={bio} onChange={e => setBio(e.target.value)}
-                    placeholder="I've been a licensed electrician for 12 years, specializing in panel upgrades..."
-                    rows={5} className={inp() + ' resize-none'} />
-                </Field>
-                <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>A good bio is 2–4 sentences</span><span>{bio.length} chars</span>
-                </div>
-              </div>
-
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Location</div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="State">
-                    <select value={state} onChange={e => { setState(e.target.value); setCity('') }} className={inp()}>
-                      <option value="">Select state...</option>
-                      {US_STATES.map(([code, name]) => <option key={code} value={code}>{code} — {name}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="City">
-                    <select value={city} onChange={e => setCity(e.target.value)} disabled={!state} className={inp()}>
-                      <option value="">{!state ? 'Select state first' : citiesLoading ? 'Loading cities...' : 'Select city...'}</option>
-                      {cities.map(c => <option key={c} value={c}>{c}</option>)}
-                      <option value="__other__">Other (type below)</option>
-                    </select>
-                    {city === '__other__' && (
-                      <input value={otherCity} onChange={e => setOtherCity(e.target.value)}
-                        placeholder="Type your city..." className={inp() + ' mt-2'} />
-                    )}
-                  </Field>
-                </div>
-                <Field label="Zip code" hint="Helps homeowners find you in searches">
-                  <input value={zip} onChange={e => setZip(e.target.value)} placeholder="33101" className={inp() + ' max-w-xs'} />
-                </Field>
-              </div>
-
-            </>)}
-
-            {/* ══════════ CREDENTIALS TAB ══════════ */}
-            {activeTab === 'credentials' && (<>
-
-              {/* License expiry */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">License expiry</div>
-                <Field label="License expiry date" hint="We'll alert you before it expires">
-                  <input type="date" value={licenseExpiry} onChange={e => setLicenseExpiry(e.target.value)} className={inp()} />
-                </Field>
-                {licenseExpiry && (
-                  <div className="mt-3 text-xs text-gray-400">
-                    Expires: <span className="font-semibold text-gray-700">{new Date(licenseExpiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* OSHA */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">OSHA certification (self-reported)</div>
-                <Field label="OSHA card type">
-                  <select value={oshaType} onChange={e => setOshaType(e.target.value)} className={inp()}>
-                    <option value="">None / not certified</option>
-                    {['OSHA-10','OSHA-30','OSHA-500','OSHA-510'].map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </Field>
-                {oshaType && (<>
-                  <Field label="Card number" hint="Optional — for your records">
-                    <input value={oshaNumber} onChange={e => setOshaNumber(e.target.value)} placeholder="e.g. 12345678" className={inp()} />
-                  </Field>
-                  <Field label="Expiry date">
-                    <input type="date" value={oshaExpiry} onChange={e => setOshaExpiry(e.target.value)} className={inp()} />
-                  </Field>
-                  <div className="mt-2 flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 w-fit">
-                    <span>🦺</span><span className="text-sm font-semibold text-blue-700">{oshaType} certified</span>
-                  </div>
-                </>)}
-              </div>
-
-              {/* Equipment */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Equipment &amp; tool proficiency</div>
-                <p className="text-xs text-gray-400 mb-4">Add equipment and tools you're proficient with.</p>
-                <div className="flex gap-2 mb-4">
-                  <input type="text" value={newEquip} onChange={e => setNewEquip(e.target.value)}
-                    onKeyDown={async e => { if (e.key === 'Enter') { e.preventDefault(); if (!newEquip.trim() || !session) return; setAddingEquip(true); const r = await fetch('/api/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newEquip.trim(), certified: false }) }); const d = await r.json(); if (r.ok) { setEquipment(eq => [...eq, d.item]); setNewEquip('') } setAddingEquip(false) } }}
-                    placeholder="e.g. Nail gun, Laser level..." className={inp() + ' flex-1'} />
-                  <button onClick={async () => { if (!newEquip.trim() || !session) return; setAddingEquip(true); const r = await fetch('/api/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newEquip.trim(), certified: false }) }); const d = await r.json(); if (r.ok) { setEquipment(eq => [...eq, d.item]); setNewEquip('') } setAddingEquip(false) }}
-                    disabled={addingEquip || !newEquip.trim()}
-                    className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">{addingEquip ? '...' : '+ Add'}</button>
-                </div>
-                {equipment.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {equipment.map(eq => (
-                      <span key={eq.id} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border bg-stone-50 text-gray-700 border-gray-200">
-                        {eq.name}
-                        <button onClick={async () => { if (!session) return; await fetch('/api/equipment', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: eq.id }) }); setEquipment(prev => prev.filter(e => e.id !== eq.id)) }} className="text-gray-400 hover:text-red-500 transition-colors text-xs font-bold">×</button>
-                      </span>
-                    ))}
-                  </div>
-                ) : <p className="text-xs text-gray-300">No equipment added yet.</p>}
-              </div>
-
-              {/* Multiple licenses */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Licenses</div>
-                <p className="text-xs text-gray-400 mb-4">Add all your DBPR licenses. Each appears with its own badge on your profile.</p>
-                {proLicenses.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {proLicenses.map(lic => (
-                      <div key={lic.id} className="flex items-center justify-between p-3 bg-stone-50 border border-gray-100 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${lic.license_status === 'active' ? 'bg-green-500' : lic.license_status === 'expiring_soon' ? 'bg-amber-400' : 'bg-red-500'}`} />
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">{lic.trade_name}</div>
-                            <div className="text-sm text-gray-400">{lic.license_number}{lic.license_expiry_date ? ` · exp ${new Date(lic.license_expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</div>
-                          </div>
-                          {lic.is_primary && <span className="text-xs px-2 py-0.5 bg-teal-50 text-teal-700 rounded-full font-semibold">Primary</span>}
-                        </div>
-                        <button onClick={async () => { if (!session) return; await fetch('/api/pro-licenses', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: lic.id }) }); setProLicenses(prev => prev.filter(l => l.id !== lic.id)) }} className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none">×</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="space-y-3 p-4 bg-stone-50 border border-gray-100 rounded-xl">
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Add a license</div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-xs text-gray-500 block mb-1">Trade / service</label><input value={newLicTrade} onChange={e => setNewLicTrade(e.target.value)} placeholder="e.g. Air conditioning" className={inp()} /></div>
-                    <div><label className="text-xs text-gray-500 block mb-1">License number</label><input value={newLicNumber} onChange={e => setNewLicNumber(e.target.value)} placeholder="e.g. CAC1817585" className={inp()} /></div>
-                  </div>
-                  <div><label className="text-xs text-gray-500 block mb-1">Expiry date (optional)</label><input type="date" value={newLicExpiry} onChange={e => setNewLicExpiry(e.target.value)} className={inp() + ' max-w-xs'} /></div>
-                  <button disabled={addingLic || !newLicTrade.trim() || !newLicNumber.trim()}
-                    onClick={async () => { if (!session) return; setAddingLic(true); const r = await fetch('/api/pro-licenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, trade_name: newLicTrade.trim(), license_number: newLicNumber.trim(), license_expiry_date: newLicExpiry || null, is_primary: proLicenses.length === 0 }) }); const d = await r.json(); if (r.ok) { setProLicenses(prev => [...prev, d.license]); setNewLicTrade(''); setNewLicNumber(''); setNewLicExpiry('') } setAddingLic(false) }}
-                    className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">{addingLic ? 'Adding...' : '+ Add license'}</button>
-                </div>
-              </div>
-
-              {/* Memberships */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Associations &amp; memberships</div>
-                <p className="text-xs text-gray-400 mb-4">List trade associations you belong to.</p>
-                <div className="flex gap-2 mb-4">
-                  <input type="text" value={newMembership} onChange={e => setNewMembership(e.target.value)}
-                    onKeyDown={async e => { if (e.key === 'Enter') { e.preventDefault(); if (!newMembership.trim() || !session) return; setAddingMembership(true); const r = await fetch('/api/memberships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newMembership.trim() }) }); const d = await r.json(); if (r.ok) { setMemberships(m => [...m, d.membership]); setNewMembership('') } setAddingMembership(false) } }}
-                    placeholder="e.g. Florida Roofing & Sheet Metal Assoc., NARI..." className={inp() + ' flex-1'} />
-                  <button onClick={async () => { if (!newMembership.trim() || !session) return; setAddingMembership(true); const r = await fetch('/api/memberships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newMembership.trim() }) }); const d = await r.json(); if (r.ok) { setMemberships(m => [...m, d.membership]); setNewMembership('') } setAddingMembership(false) }}
-                    disabled={addingMembership || !newMembership.trim()}
-                    className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors whitespace-nowrap">{addingMembership ? '...' : '+ Add'}</button>
-                </div>
-                {memberships.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {memberships.map(m => (
-                      <span key={m.id} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border bg-blue-50 text-blue-700 border-blue-100">
-                        🏛️ {m.name}
-                        <button onClick={async () => { if (!session) return; await fetch('/api/memberships', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: m.id }) }); setMemberships(prev => prev.filter(x => x.id !== m.id)) }} className="text-blue-400 hover:text-red-500 transition-colors text-xs font-bold">×</button>
-                      </span>
-                    ))}
-                  </div>
-                ) : <p className="text-xs text-gray-300">No memberships added yet.</p>}
-              </div>
-
-              {/* COI Insurance */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Certificate of Insurance (COI)</div>
-                <p className="text-xs text-gray-400 mb-4">Upload your insurance certificate. AI extracts the expiry date automatically and shows a 🛡️ verified badge on your profile.</p>
-
-                {coiError && <div className="mb-3 p-2.5 bg-red-50 text-red-600 text-xs rounded-lg">{coiError}</div>}
-
-
-                {insurance.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {insurance.map(ins => {
-                      const expiryStr = ins.expiry_date ? new Date(ins.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
-                      const statusColor = ins.insurance_status === 'active' ? 'bg-teal-50 text-teal-700 border-teal-200'
-                        : ins.insurance_status === 'expiring_soon' ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : ins.insurance_status === 'expired' ? 'bg-orange-50 text-orange-700 border-orange-200'
-                        : 'bg-gray-50 text-gray-600 border-gray-200'
-                      return (
-                        <div key={ins.id} className={`flex items-start justify-between p-3 rounded-xl border ${statusColor}`}>
-                          <div>
-                            <div className="text-sm font-semibold">{ins.insurer_name || 'Insurance document'}</div>
-                            <div className="text-xs opacity-70 mt-0.5">
-                              {ins.coverage_type && <span>{ins.coverage_type} · </span>}
-                              {ins.policy_number && <span>#{ins.policy_number} · </span>}
-                              {expiryStr ? <span>Expires {expiryStr}</span> : <span>Expiry unknown</span>}
-                            </div>
-                          </div>
-                          <button onClick={async () => { if (!session) return; await fetch('/api/insurance', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: ins.id }) }); setInsurance(prev => prev.filter(x => x.id !== ins.id)) }} className="text-current opacity-40 hover:opacity-80 text-lg leading-none ml-2">×</button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-
-                <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${uploadingCOI ? 'border-teal-300 bg-teal-50' : 'border-gray-200 hover:border-teal-300 hover:bg-teal-50'}`}>
-                  <input type="file" className="hidden" accept="image/*,.pdf" onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file || !session) return
-                    setUploadingCOI(true); setCOIError('')
-                    const form = new FormData()
-                    form.append('file', file); form.append('pro_id', session.id); form.append('bucket', 'insurance')
-                    const upRes = await fetch('/api/upload', { method: 'POST', body: form })
-                    const upData = await upRes.json()
-                    if (!upRes.ok) { setCOIError(upData.error || 'Upload failed'); setUploadingCOI(false); return }
-                    const insRes = await fetch('/api/insurance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, file_url: upData.url }) })
-                    const insData = await insRes.json()
-                    if (insRes.ok) setInsurance(prev => [insData.insurance, ...prev])
-                    else setCOIError(insData.error || 'Could not process document')
-                    setUploadingCOI(false)
-                  }} />
-                  {uploadingCOI
-                    ? <><div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /><span className="text-sm text-teal-600">Uploading &amp; extracting...</span></>
-                    : <><span>🛡️</span><span className="text-sm text-gray-500">Upload COI (PDF or image)</span></>}
-                </label>
-              </div>
-
-            </>)}
-
-            {/* ══════════ PREFERENCES TAB ══════════ */}
-            {activeTab === 'preferences' && (<>
-
-              {/* Availability */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Availability</div>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">Available for new work</div>
-                    <div className="text-sm text-gray-400 mt-0.5">Shows a green badge on your profile and in search results</div>
-                  </div>
-                  <button onClick={() => setAvailable(a => !a)} className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${available ? 'bg-teal-600' : 'bg-gray-200'}`}>
-                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${available ? 'left-6' : 'left-0.5'}`} />
-                  </button>
-                </div>
-                {available && (<>
-                  <Field label="Availability note" hint="Optional">
-                    <input value={availableNote} onChange={e => setAvailableNote(e.target.value)}
-                      placeholder="e.g. Available weekends, free for small jobs this month..." className={inp()} />
-                  </Field>
-                  <div className="mt-2 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 w-fit">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-sm font-semibold text-green-700">Available for work</span>
-                    {availableNote && <span className="text-xs text-green-600">· {availableNote}</span>}
-                  </div>
-                </>)}
-              </div>
-
-              {/* Preferred language */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Preferred language</div>
-                <div className="flex gap-3">
-                  {[['en','🇺🇸 English'],['es','🇪🇸 Spanish']].map(([val, label]) => (
-                    <button key={val} onClick={() => setLanguage(val)}
-                      className={`flex-1 py-3 rounded-xl border text-sm font-semibold transition-all ${language === val ? 'bg-teal-50 border-teal-400 text-teal-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Counties served */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 28 }}>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Services Offered</div>
-                <p className="text-xs text-gray-400 mb-4">Add specific services you offer — shown on your profile as tags. e.g. "Panel upgrades", "EV charger install", "Generator hookup"</p>
-
-                {/* Service tags */}
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {services.map(svc => (
-                    <span key={svc} className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full"
-                      style={{ background: 'rgba(15,118,110,0.08)', color: '#0C5F57', border: '1px solid rgba(15,118,110,0.2)' }}>
-                      ✓ {svc}
-                      <button onClick={() => setServices(prev => prev.filter(s => s !== svc))}
-                        className="ml-0.5 hover:opacity-70 text-sm">×</button>
-                    </span>
-                  ))}
-                </div>
-
-                {/* Add service input */}
-                <div className="flex gap-2 mb-8">
-                  <input
-                    value={serviceInput}
-                    onChange={e => setServiceInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && serviceInput.trim()) {
-                        e.preventDefault()
-                        if (!services.includes(serviceInput.trim())) {
-                          setServices(prev => [...prev, serviceInput.trim()])
-                        }
-                        setServiceInput('')
-                      }
-                    }}
-                    placeholder='Type a service and press Enter — e.g. "Panel upgrades"'
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-teal-400"
-                  />
-                  <button
-                    onClick={() => {
-                      if (serviceInput.trim() && !services.includes(serviceInput.trim())) {
-                        setServices(prev => [...prev, serviceInput.trim()])
-                        setServiceInput('')
-                      }
-                    }}
-                    className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
-                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                    Add
-                  </button>
-                </div>
-
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 pb-3 border-b border-gray-100">Pricing</div>
-                <p className="text-xs text-gray-400 mb-3">Give homeowners a pricing signal — helps set expectations and increases contact rate.</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-                  {['Free estimates', 'Free consultations', 'Starting at $75/hr', 'Starting at $150/hr', 'Starting at $500', 'Contact for pricing'].map(opt => (
-                    <button key={opt}
-                      onClick={() => setPricingNote(opt)}
-                      className="px-3 py-2 text-xs font-medium rounded-xl border text-left transition-all"
-                      style={pricingNote === opt
-                        ? { background: 'rgba(15,118,110,0.08)', color: '#0C5F57', borderColor: 'rgba(15,118,110,0.3)' }
-                        : { background: '#F9F8F5', color: '#6B7280', borderColor: '#E8E2D9' }}>
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  value={pricingNote}
-                  onChange={e => setPricingNote(e.target.value)}
-                  placeholder='Or type your own — e.g. "Starting at $200 for most jobs"'
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-teal-400 mb-8"
-                />
-
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5 pb-3 border-b border-gray-100">Counties served</div>
-                <p className="text-xs text-gray-400 mb-4">Select all Florida counties you serve. Shown on your public profile.</p>
-                <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pr-1">
-                  {FL_COUNTIES.map(county => {
-                    const selected = counties.includes(county)
-                    return (
-                      <button key={county} onClick={() => setCounties(prev => selected ? prev.filter(c => c !== county) : [...prev, county])}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-all ${selected ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-500 hover:border-teal-300 hover:bg-teal-50'}`}>
-                        {county}
-                      </button>
-                    )
-                  })}
-                </div>
-                {counties.length > 0 && <p className="text-xs text-teal-600 mt-3 font-medium">{counties.length} count{counties.length === 1 ? 'y' : 'ies'} selected</p>}
-              </div>
-
-            </>)}
-
-            {/* Save — always visible */}
-            <div className="flex items-center justify-between pt-2">
-              <Link href="/dashboard" className="text-sm text-gray-400 hover:text-gray-700 transition-colors">Cancel</Link>
-              <button onClick={handleSave} disabled={saving}
-                className="px-8 py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2">
-                {saving ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>) : 'Save changes'}
-              </button>
-            </div>
-
-          </div>
-        </div>
       </div>
+
+      {/* ── Toast ─────────────────────────────────────────────────────────── */}
+      {saved && (
+        <div style={{ margin: '12px 16px 0', padding: '12px 16px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, color: '#15803D' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Profile saved
+        </div>
+      )}
+      {errors.submit && (
+        <div style={{ margin: '12px 16px 0', padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, fontSize: 14, color: '#DC2626' }}>{errors.submit}</div>
+      )}
+
+      {/* ── Tab content ───────────────────────────────────────────────────── */}
+      <div style={{ padding: '16px 16px 0' }}>
+
+        {/* ══════════ BASIC ══════════ */}
+        {activeTab === 'basic' && (<>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Basic information</div>
+            <Field label="Full name" error={errors.fullName}>
+              <input value={fullName} onChange={e => { setFullName(e.target.value); setErrors(p => ({ ...p, fullName: '' })) }}
+                placeholder="Your full name" style={inputSt(errors.fullName)} />
+            </Field>
+            <Field label="Business name" hint="Your company or trading name (optional)">
+              <input value={businessName} onChange={e => setBusinessName(e.target.value)}
+                placeholder="e.g. Johnson Electrical LLC" style={inputSt()} />
+            </Field>
+            <Field label="Phone (primary)" error={errors.phone} hint="Shown to Pro and Elite plan subscribers">
+              <input type="tel" value={phone} onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: '' })) }}
+                placeholder="(555) 000-0000" style={inputSt(errors.phone)} />
+            </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
+              {([['Cell', phoneCell, setPhoneCell], ['Work', phoneWork, setPhoneWork], ['Cell 2', phoneCell2, setPhoneCell2]] as const).map(([lbl, val, setter]) => (
+                <div key={lbl}>
+                  <label style={labelSt}>{lbl}</label>
+                  <input value={val} onChange={e => (setter as any)(e.target.value)} placeholder={lbl}
+                    style={{ ...inputSt(), padding: '10px 10px', fontSize: 13 }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Trade" hint="Primary category">
+                <select value={trade} onChange={e => setTrade(e.target.value)} style={selectSt()}>
+                  <option value="">Select trade...</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
+                </select>
+              </Field>
+              <Field label="Years experience">
+                <input type="number" value={yrs} onChange={e => setYrs(e.target.value)}
+                  placeholder="e.g. 10" min="0" max="60" style={inputSt()} />
+              </Field>
+            </div>
+            <Field label="License number" hint="Optional — adds a verified badge to your profile">
+              <input value={license} onChange={e => setLicense(e.target.value)}
+                placeholder="e.g. EC13004123" style={inputSt()} />
+            </Field>
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>About you</div>
+            <Field label="Bio" hint="Tell homeowners about your experience and why they should hire you">
+              <textarea value={bio} onChange={e => setBio(e.target.value)}
+                placeholder="I've been a licensed electrician for 12 years, specializing in panel upgrades..."
+                rows={4} style={{ ...inputSt(), resize: 'vertical', lineHeight: 1.6, minHeight: 100 }} />
+            </Field>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: t.textSubtle, marginTop: -12, marginBottom: 4 }}>
+              <span>2–4 sentences works best</span>
+              <span style={{ color: bio.length > 400 ? '#EF4444' : t.textSubtle }}>{bio.length} chars</span>
+            </div>
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Location</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="State">
+                <select value={state} onChange={e => { setState(e.target.value); setCity('') }} style={selectSt()}>
+                  <option value="">State...</option>
+                  {US_STATES.map(([code, name]) => <option key={code} value={code}>{code} — {name}</option>)}
+                </select>
+              </Field>
+              <Field label="City">
+                <select value={city} onChange={e => setCity(e.target.value)} disabled={!state} style={selectSt()}>
+                  <option value="">{!state ? 'State first' : citiesLoading ? 'Loading...' : 'City...'}</option>
+                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option value="__other__">Other...</option>
+                </select>
+                {city === '__other__' && (
+                  <input value={otherCity} onChange={e => setOtherCity(e.target.value)}
+                    placeholder="Type your city..." style={{ ...inputSt(), marginTop: 8 }} />
+                )}
+              </Field>
+            </div>
+            <Field label="Zip code" hint="Helps homeowners find you in searches">
+              <input value={zip} onChange={e => setZip(e.target.value)} placeholder="33101"
+                style={{ ...inputSt(), maxWidth: 160 }} />
+            </Field>
+          </div>
+
+          {/* Cover photo — in Basic tab, more discoverable */}
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Cover photo</div>
+            <div style={{ position: 'relative', width: '100%', height: 100, borderRadius: 12, overflow: 'hidden', background: t.cardBgAlt, border: `2px dashed ${coverUrl ? 'transparent' : t.cardBorder}`, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {coverUrl
+                ? <img src={coverUrl} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ textAlign: 'center', color: t.textSubtle }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 4px', display: 'block' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    <div style={{ fontSize: 12 }}>No cover photo</div>
+                  </div>
+              }
+            </div>
+            <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} id="cover-upload" onChange={handleCoverUpload} />
+            <label htmlFor="cover-upload" style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'center', border: `1.5px solid ${t.cardBorder}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: t.textBody, cursor: 'pointer', background: t.cardBgAlt, boxSizing: 'border-box' }}>
+              {uploadingCover ? 'Uploading...' : coverUrl ? 'Change cover photo' : 'Upload cover photo'}
+            </label>
+            <p style={{ ...hintSt, textAlign: 'center', marginTop: 6 }}>Shows behind your name on your public profile</p>
+          </div>
+
+          {/* Plan card */}
+          <div style={{ ...cardSt, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 2 }}>Current plan</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: t.textPri }}>{session?.plan || 'Free'}</div>
+            </div>
+            <a href="/upgrade" style={{ ...tealBtn, textDecoration: 'none', fontSize: 13, padding: '10px 16px' }}>
+              Upgrade →
+            </a>
+          </div>
+
+        </>)}
+
+        {/* ══════════ CREDENTIALS ══════════ */}
+        {activeTab === 'credentials' && (<>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>License expiry</div>
+            <Field label="License expiry date" hint="We'll alert you before it expires">
+              <input type="date" value={licenseExpiry} onChange={e => setLicenseExpiry(e.target.value)} style={inputSt()} />
+            </Field>
+            {licenseExpiry && (
+              <div style={{ fontSize: 13, color: t.textMuted, marginTop: -12 }}>
+                Expires: <span style={{ fontWeight: 600, color: t.textPri }}>{new Date(licenseExpiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+            )}
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>OSHA certification</div>
+            <Field label="OSHA card type">
+              <select value={oshaType} onChange={e => setOshaType(e.target.value)} style={selectSt()}>
+                <option value="">None / not certified</option>
+                {['OSHA-10','OSHA-30','OSHA-500','OSHA-510'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </Field>
+            {oshaType && (<>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Card number" hint="Optional">
+                  <input value={oshaNumber} onChange={e => setOshaNumber(e.target.value)} placeholder="e.g. 12345678" style={inputSt()} />
+                </Field>
+                <Field label="Expiry date">
+                  <input type="date" value={oshaExpiry} onChange={e => setOshaExpiry(e.target.value)} style={inputSt()} />
+                </Field>
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(29,78,216,0.08)', border: '1px solid rgba(29,78,216,0.2)', borderRadius: 20, padding: '6px 14px' }}>
+                <span>🦺</span><span style={{ fontSize: 13, fontWeight: 700, color: '#1D4ED8' }}>{oshaType} certified</span>
+              </div>
+            </>)}
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Equipment &amp; tools</div>
+            <p style={{ ...hintSt, marginBottom: 12 }}>Add equipment and tools you're proficient with.</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input type="text" value={newEquip} onChange={e => setNewEquip(e.target.value)}
+                onKeyDown={async e => { if (e.key === 'Enter') { e.preventDefault(); if (!newEquip.trim() || !session) return; setAddingEquip(true); const r = await fetch('/api/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newEquip.trim(), certified: false }) }); const d = await r.json(); if (r.ok) { setEquipment(eq => [...eq, d.item]); setNewEquip('') } setAddingEquip(false) } }}
+                placeholder="e.g. Nail gun, Laser level..." style={{ ...inputSt(), flex: 1 }} />
+              <button onClick={async () => { if (!newEquip.trim() || !session) return; setAddingEquip(true); const r = await fetch('/api/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newEquip.trim(), certified: false }) }); const d = await r.json(); if (r.ok) { setEquipment(eq => [...eq, d.item]); setNewEquip('') } setAddingEquip(false) }}
+                disabled={addingEquip || !newEquip.trim()} style={{ ...tealBtn, padding: '11px 16px', opacity: (addingEquip || !newEquip.trim()) ? 0.5 : 1 }}>+ Add</button>
+            </div>
+            {equipment.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {equipment.map(eq => (
+                  <span key={eq.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px', borderRadius: 20, background: t.cardBgAlt, color: t.textBody, border: `1px solid ${t.cardBorder}` }}>
+                    {eq.name}
+                    <button onClick={async () => { if (!session) return; await fetch('/api/equipment', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: eq.id }) }); setEquipment(prev => prev.filter(e => e.id !== eq.id)) }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textSubtle, fontSize: 16, lineHeight: 1, padding: 0, fontWeight: 700 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            ) : <p style={{ ...hintSt, fontStyle: 'italic' }}>No equipment added yet.</p>}
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Licenses</div>
+            {proLicenses.length > 0 && (
+              <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {proLicenses.map(lic => (
+                  <div key={lic.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: t.cardBgAlt, border: `1px solid ${t.cardBorder}`, borderRadius: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: lic.license_status === 'active' ? '#22C55E' : lic.license_status === 'expiring_soon' ? '#F59E0B' : '#EF4444' }} />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri }}>{lic.trade_name}</div>
+                        <div style={{ fontSize: 12, color: t.textSubtle }}>{lic.license_number}{lic.license_expiry_date ? ` · exp ${new Date(lic.license_expiry_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}</div>
+                      </div>
+                      {lic.is_primary && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'rgba(15,118,110,0.1)', color: '#0F766E' }}>Primary</span>}
+                    </div>
+                    <button onClick={async () => { if (!session) return; await fetch('/api/pro-licenses', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: lic.id }) }); setProLicenses(prev => prev.filter(l => l.id !== lic.id)) }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textSubtle, fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ padding: '14px', background: t.cardBgAlt, border: `1px solid ${t.cardBorder}`, borderRadius: 12 }}>
+              <div style={{ ...labelSt, marginBottom: 12 }}>Add a license</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                <div>
+                  <label style={labelSt}>Trade / service</label>
+                  <input value={newLicTrade} onChange={e => setNewLicTrade(e.target.value)} placeholder="e.g. Air conditioning" style={inputSt()} />
+                </div>
+                <div>
+                  <label style={labelSt}>License number</label>
+                  <input value={newLicNumber} onChange={e => setNewLicNumber(e.target.value)} placeholder="e.g. CAC1817585" style={inputSt()} />
+                </div>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={labelSt}>Expiry date (optional)</label>
+                <input type="date" value={newLicExpiry} onChange={e => setNewLicExpiry(e.target.value)} style={{ ...inputSt(), maxWidth: 180 }} />
+              </div>
+              <button disabled={addingLic || !newLicTrade.trim() || !newLicNumber.trim()}
+                onClick={async () => { if (!session) return; setAddingLic(true); const r = await fetch('/api/pro-licenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, trade_name: newLicTrade.trim(), license_number: newLicNumber.trim(), license_expiry_date: newLicExpiry || null, is_primary: proLicenses.length === 0 }) }); const d = await r.json(); if (r.ok) { setProLicenses(prev => [...prev, d.license]); setNewLicTrade(''); setNewLicNumber(''); setNewLicExpiry('') } setAddingLic(false) }}
+                style={{ ...tealBtn, opacity: (addingLic || !newLicTrade.trim() || !newLicNumber.trim()) ? 0.5 : 1 }}>
+                {addingLic ? 'Adding...' : '+ Add license'}
+              </button>
+            </div>
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Associations &amp; memberships</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <input type="text" value={newMembership} onChange={e => setNewMembership(e.target.value)}
+                onKeyDown={async e => { if (e.key === 'Enter') { e.preventDefault(); if (!newMembership.trim() || !session) return; setAddingMembership(true); const r = await fetch('/api/memberships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newMembership.trim() }) }); const d = await r.json(); if (r.ok) { setMemberships(m => [...m, d.membership]); setNewMembership('') } setAddingMembership(false) } }}
+                placeholder="e.g. Florida Roofing Assoc., NARI..." style={{ ...inputSt(), flex: 1 }} />
+              <button onClick={async () => { if (!newMembership.trim() || !session) return; setAddingMembership(true); const r = await fetch('/api/memberships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newMembership.trim() }) }); const d = await r.json(); if (r.ok) { setMemberships(m => [...m, d.membership]); setNewMembership('') } setAddingMembership(false) }}
+                disabled={addingMembership || !newMembership.trim()} style={{ ...tealBtn, padding: '11px 14px', opacity: (addingMembership || !newMembership.trim()) ? 0.5 : 1 }}>+ Add</button>
+            </div>
+            {memberships.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {memberships.map(m => (
+                  <span key={m.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px', borderRadius: 20, background: 'rgba(29,78,216,0.08)', color: '#1D4ED8', border: '1px solid rgba(29,78,216,0.15)' }}>
+                    🏛️ {m.name}
+                    <button onClick={async () => { if (!session) return; await fetch('/api/memberships', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: m.id }) }); setMemberships(prev => prev.filter(x => x.id !== m.id)) }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#93C5FD', fontSize: 16, lineHeight: 1, padding: 0, fontWeight: 700 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            ) : <p style={{ ...hintSt, fontStyle: 'italic' }}>No memberships added yet.</p>}
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Certificate of Insurance</div>
+            <p style={{ ...hintSt, marginBottom: 14 }}>Upload your COI. AI extracts the expiry date and adds a 🛡️ verified badge to your profile.</p>
+            {coiError && <div style={{ marginBottom: 12, padding: '10px 14px', background: '#FEF2F2', color: '#DC2626', fontSize: 13, borderRadius: 10 }}>{coiError}</div>}
+            {insurance.length > 0 && (
+              <div style={{ marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {insurance.map(ins => {
+                  const expiryStr = ins.expiry_date ? new Date(ins.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+                  const stBg = ins.insurance_status === 'active' ? 'rgba(15,118,110,0.08)' : ins.insurance_status === 'expiring_soon' ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'
+                  const stColor = ins.insurance_status === 'active' ? '#0F766E' : ins.insurance_status === 'expiring_soon' ? '#B45309' : '#DC2626'
+                  return (
+                    <div key={ins.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 14px', background: stBg, border: `1px solid ${stColor}33`, borderRadius: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri }}>{ins.insurer_name || 'Insurance document'}</div>
+                        <div style={{ fontSize: 12, color: t.textSubtle, marginTop: 2 }}>
+                          {ins.coverage_type && <span>{ins.coverage_type} · </span>}
+                          {expiryStr ? <span>Expires {expiryStr}</span> : <span>Expiry unknown</span>}
+                        </div>
+                      </div>
+                      <button onClick={async () => { if (!session) return; await fetch('/api/insurance', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: ins.id }) }); setInsurance(prev => prev.filter(x => x.id !== ins.id)) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textSubtle, fontSize: 20, lineHeight: 1, padding: 0, marginLeft: 8 }}>×</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '16px', border: `2px dashed ${uploadingCOI ? '#0F766E' : t.cardBorder}`, borderRadius: 12, cursor: 'pointer', background: uploadingCOI ? 'rgba(15,118,110,0.05)' : 'transparent', boxSizing: 'border-box', transition: 'all 0.15s' }}>
+              <input type="file" style={{ display: 'none' }} accept="image/*,.pdf" onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file || !session) return
+                setUploadingCOI(true); setCOIError('')
+                const form = new FormData(); form.append('file', file); form.append('pro_id', session.id); form.append('bucket', 'insurance')
+                const upRes = await fetch('/api/upload', { method: 'POST', body: form }); const upData = await upRes.json()
+                if (!upRes.ok) { setCOIError(upData.error || 'Upload failed'); setUploadingCOI(false); return }
+                const insRes = await fetch('/api/insurance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, file_url: upData.url }) }); const insData = await insRes.json()
+                if (insRes.ok) setInsurance(prev => [insData.insurance, ...prev]); else setCOIError(insData.error || 'Could not process document')
+                setUploadingCOI(false)
+              }} />
+              {uploadingCOI
+                ? <><div style={{ width: 16, height: 16, border: '2px solid #0F766E', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/><span style={{ fontSize: 14, color: '#0F766E' }}>Uploading &amp; extracting...</span></>
+                : <><span>🛡️</span><span style={{ fontSize: 14, color: t.textMuted }}>Upload COI (PDF or image)</span></>}
+            </label>
+          </div>
+
+        </>)}
+
+        {/* ══════════ PREFERENCES ══════════ */}
+        {activeTab === 'preferences' && (<>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Availability</div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: available ? 16 : 0 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri }}>Available for new work</div>
+                <div style={{ fontSize: 13, color: t.textSubtle, marginTop: 3, lineHeight: 1.4 }}>Shows a green badge on your profile and in search</div>
+              </div>
+              <button onClick={() => setAvailable(a => !a)}
+                style={{ position: 'relative', width: 48, height: 26, borderRadius: 13, border: 'none', background: available ? '#0F766E' : t.filterTrackOff, cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}>
+                <div style={{ position: 'absolute', top: 3, left: available ? 25 : 3, width: 20, height: 20, borderRadius: '50%', background: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+              </button>
+            </div>
+            {available && (<>
+              <Field label="Availability note" hint="Optional — shown on your profile">
+                <input value={availableNote} onChange={e => setAvailableNote(e.target.value)}
+                  placeholder="e.g. Available weekends, free for small jobs..." style={inputSt()} />
+              </Field>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 20, padding: '6px 14px' }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22C55E' }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#15803D' }}>Available for work</span>
+                {availableNote && <span style={{ fontSize: 12, color: '#16A34A' }}>· {availableNote}</span>}
+              </div>
+            </>)}
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Preferred language</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[['en','🇺🇸 English'],['es','🇪🇸 Spanish']].map(([val, label]) => (
+                <button key={val} onClick={() => setLanguage(val)}
+                  style={{ padding: '14px 12px', borderRadius: 12, border: `1.5px solid ${language === val ? '#0F766E' : t.cardBorder}`, background: language === val ? 'rgba(15,118,110,0.08)' : t.cardBgAlt, fontSize: 14, fontWeight: language === val ? 700 : 500, color: language === val ? '#0F766E' : t.textBody, cursor: 'pointer' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={cardSt}>
+            <div style={sectionTitleSt}>Services offered</div>
+            <p style={{ ...hintSt, marginBottom: 12 }}>Add specific services — shown as tags on your profile.</p>
+            {services.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                {services.map(svc => (
+                  <span key={svc} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, padding: '6px 12px', borderRadius: 20, background: 'rgba(15,118,110,0.08)', color: '#0C5F57', border: '1px solid rgba(15,118,110,0.2)' }}>
+                    ✓ {svc}
+                    <button onClick={() => setServices(prev => prev.filter(s => s !== svc))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0F766E', fontSize: 15, lineHeight: 1, padding: 0, opacity: 0.6 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <input value={serviceInput} onChange={e => setServiceInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && serviceInput.trim()) { e.preventDefault(); if (!services.includes(serviceInput.trim())) setServices(prev => [...prev, serviceInput.trim()]); setServiceInput('') } }}
+                placeholder='e.g. "Panel upgrades"' style={{ ...inputSt(), flex: 1 }} />
+              <button onClick={() => { if (serviceInput.trim() && !services.includes(serviceInput.trim())) { setServices(prev => [...prev, serviceInput.trim()]); setServiceInput('') } }}
+                style={{ ...tealBtn, padding: '11px 14px' }}>Add</button>
+            </div>
+
+            <div style={sectionTitleSt}>Pricing signal</div>
+            <p style={{ ...hintSt, marginBottom: 12 }}>Sets expectations and increases contact rate.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+              {['Free estimates','Free consultations','Starting at $75/hr','Starting at $150/hr','Starting at $500','Contact for pricing'].map(opt => (
+                <button key={opt} onClick={() => setPricingNote(opt)}
+                  style={{ padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${pricingNote === opt ? '#0F766E' : t.cardBorder}`, background: pricingNote === opt ? 'rgba(15,118,110,0.08)' : t.cardBgAlt, fontSize: 13, fontWeight: pricingNote === opt ? 700 : 400, color: pricingNote === opt ? '#0F766E' : t.textBody, cursor: 'pointer', textAlign: 'left' as const }}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+            <input value={pricingNote} onChange={e => setPricingNote(e.target.value)}
+              placeholder='Or type your own pricing note...' style={{ ...inputSt(), marginBottom: 20 }} />
+
+            <div style={sectionTitleSt}>Counties served (Florida)</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 200, overflowY: 'auto', paddingRight: 2 }}>
+              {FL_COUNTIES.map(county => {
+                const selected = counties.includes(county)
+                return (
+                  <button key={county} onClick={() => setCounties(prev => selected ? prev.filter(c => c !== county) : [...prev, county])}
+                    style={{ fontSize: 12, padding: '5px 12px', borderRadius: 20, border: `1.5px solid ${selected ? '#0F766E' : t.cardBorder}`, background: selected ? '#0F766E' : t.cardBgAlt, color: selected ? 'white' : t.textBody, cursor: 'pointer', fontWeight: selected ? 700 : 400 }}>
+                    {county}
+                  </button>
+                )
+              })}
+            </div>
+            {counties.length > 0 && <p style={{ ...hintSt, color: '#0F766E', fontWeight: 600, marginTop: 8 }}>{counties.length} count{counties.length === 1 ? 'y' : 'ies'} selected</p>}
+          </div>
+
+        </>)}
+
+      </div>
+
+      {/* ── Sticky footer — Save / Cancel ─────────────────────────────────── */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40, background: t.cardBg, borderTop: `1px solid ${t.cardBorder}`, padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', gap: 10 }}>
+        <a href="/dashboard" style={{ ...ghostBtn, textDecoration: 'none', textAlign: 'center', flex: 0, padding: '12px 20px' }}>Cancel</a>
+        <button onClick={handleSave} disabled={saving} style={{ ...tealBtn, flex: 1, justifyContent: 'center', opacity: saving ? 0.7 : 1 }}>
+          {saving ? (<><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.5)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/> Saving...</>) : 'Save changes'}
+        </button>
+      </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }
