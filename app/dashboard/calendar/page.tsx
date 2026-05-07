@@ -326,7 +326,7 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk, onTeal = 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:2 }}>
         {DAYS.map((d,i) => (
           <div key={d} style={{ textAlign:'center', fontSize: 11, fontWeight:700,
-            color: i===0?(onTeal?'#FCA5A5':'#DC2626'):(onTeal?'rgba(255,255,255,0.6)':t.textMuted),
+            color: i===0?(onTeal?'#FCA5A5':'#DC2626'):(onTeal?'rgba(255,255,255,0.75)':t.textMuted),
             padding:'3px 0', textTransform:'uppercase' as const, letterSpacing:'0.05em' }}>
             {d.slice(0,1)}
           </div>
@@ -913,7 +913,7 @@ function CalendarInner() {
                 : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
               }
             </div>
-            <div style={{ fontSize: mobileView==='month'?12:13, color:'rgba(255,255,255,0.65)', marginTop:2 }}>
+            <div style={{ fontSize: mobileView==='month'?12:13, color:'rgba(255,255,255,0.85)', marginTop:2 }}>
               {mobileView==='agenda' && (isToday(selectedDate)
                 ? `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}${todayJobs.length>0?` · ${todayJobs.length} jobs`:''}`
                 : selectedDate.getFullYear().toString()
@@ -993,7 +993,7 @@ function CalendarInner() {
           <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
             {[{ label:"Today's Value", value:dv>0?'$'+dv.toLocaleString():'$0' },{ label:'Jobs', value:String(dj.length) },{ label:'Done', value:String(dc.length) }].map((s,i)=>(
               <div key={s.label} style={{ flex:1, padding:'11px 8px', borderRight:i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
-                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.65)', marginBottom:3 }}>{s.label}</div>
+                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.80)', marginBottom:3 }}>{s.label}</div>
                 <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
               </div>
             ))}
@@ -1274,7 +1274,7 @@ function CalendarInner() {
                 style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:11, background:t.cardBg, border:`1px solid ${t.cardBorder}`, marginBottom:8, cursor:'pointer' }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize: 15, fontWeight:700, color:t.textPri }}>{capName(ev.contact_name)}</div>
-                  <div style={{ fontSize: 13, color:'rgba(255,255,255,0.65)', marginTop:2 }}>{ev.lead_status}</div>
+                  <div style={{ fontSize: 13, color:'rgba(255,255,255,0.85)', marginTop:2 }}>{ev.lead_status}</div>
                 </div>
                 <Svg path={ICON_PATH.chevronR} size={12} color={t.textSubtle} sw={2.5}/>
               </div>
