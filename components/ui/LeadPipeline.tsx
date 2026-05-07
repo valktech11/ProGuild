@@ -151,7 +151,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
                     <button key={s.key} onClick={() => handleStageClick(s.key)}
                       className="py-2.5 rounded-xl text-xs font-bold border-2 transition-all"
                       style={status === s.key
-                        ? { background: s.bg, color: s.color, borderColor: s.color }
+                        ? { background: stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
                         : { background: 'white', color: '#6B7280', borderColor: '#E5E7EB' }}>
                       {s.label}
                     </button>
@@ -1004,7 +1004,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
             <button key={s.key} onClick={() => setMobileStage(s.key as StageKey)}
               className="flex-shrink-0 px-4 py-2.5 rounded-full text-[13px] font-bold border transition-all"
               style={mobileStage === s.key
-                ? { background: s.bg, color: s.color, borderColor: s.color }
+                ? { background: stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
                 : { background: 'white', color: '#374151', borderColor: '#C8C3BC' }}>
               {s.label} {cnt > 0 && `(${cnt})`}
             </button>
