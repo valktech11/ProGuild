@@ -913,7 +913,7 @@ function CalendarInner() {
                 : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
               }
             </div>
-            <div style={{ fontSize: mobileView==='month'?12:13, color:'rgba(255,255,255,0.85)', marginTop:2 }}>
+            <div style={{ fontSize: mobileView==='month'?12:14, fontWeight:500, color:'rgba(255,255,255,0.92)', marginTop:2 }}>
               {mobileView==='agenda' && (isToday(selectedDate)
                 ? `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}${todayJobs.length>0?` · ${todayJobs.length} jobs`:''}`
                 : selectedDate.getFullYear().toString()
