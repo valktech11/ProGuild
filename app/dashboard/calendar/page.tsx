@@ -41,7 +41,6 @@ function toDateKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 function parseLocal(s: string) {
-  // Parse YYYY-MM-DD as local date (avoid UTC shift)
   const [y,m,d] = s.split('T')[0].split('-').map(Number)
   return new Date(y, m-1, d)
 }
@@ -86,7 +85,7 @@ function groupByDay(events: CalEvent[], days: Date[]): Record<string, CalEvent[]
   return map
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── PhoneBtn ─────────────────────────────────────────────────────────────────
 function PhoneBtn({ phone, size = 'sm' }: { phone: string; size?: 'sm' | 'md' }) {
   const p = size === 'md' ? '10px 18px' : '6px 12px'
   const fs = size === 'md' ? 13 : 12
@@ -111,15 +110,20 @@ function StatusPill({ status }: { status: string }) {
   )
 }
 
-// Job card used in agenda + week view
-function EventCard({ ev, onClick, dk }: { ev: CalEvent; onClick: () => void; dk: boolean }) {
+// ─── Desktop EventCard ────────────────────────────────────────────────────────
+function EventCard({ ev, onClick, dk, onMarkComplete, completing }: {
+  ev: CalEvent; onClick: () => void; dk: boolean
+  onMarkComplete?: () => void; completing?: boolean
+}) {
   const t = theme(dk)
-  const isFollowup = ev._type === 'followup'
-  const accentColor = isFollowup ? '#D97706' : (STATUS_STYLE[ev.lead_status]?.color || '#0F766E')
-  const accentBg    = isFollowup ? '#FFFBEB' : (STATUS_STYLE[ev.lead_status]?.bg || '#F0FDFA')
+  const isFollowup  = ev._type === 'followup'
+  const isCompleted = ev.lead_status === 'Completed' || ev.lead_status === 'Paid'
+  const accentColor = isCompleted ? '#15803D' : isFollowup ? '#D97706' : (STATUS_STYLE[ev.lead_status]?.color || '#0F766E')
+  const accentBg    = isCompleted ? '#DCFCE7'  : isFollowup ? '#FFFBEB' : (STATUS_STYLE[ev.lead_status]?.bg || '#F0FDFA')
+
   return (
     <div onClick={onClick}
-      style={{ background: dk ? t.cardBg : accentBg, borderLeft:`3px solid ${accentColor}`, borderRadius:10, padding:'10px 12px', cursor:'pointer', transition:'all 0.15s', border:`1px solid ${accentColor}22`, borderLeftWidth:3 }}
+      style={{ background: dk ? t.cardBg : accentBg, borderLeft:`3px solid ${accentColor}`, borderRadius:10, padding:'10px 12px', cursor:'pointer', transition:'all 0.15s', border:`1px solid ${accentColor}22`, borderLeftWidth:3, opacity: isCompleted ? 0.75 : 1 }}
       onMouseEnter={e => (e.currentTarget.style.transform='translateY(-1px)', e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)')}
       onMouseLeave={e => (e.currentTarget.style.transform='', e.currentTarget.style.boxShadow='')}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
@@ -128,6 +132,11 @@ function EventCard({ ev, onClick, dk }: { ev: CalEvent; onClick: () => void; dk:
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81"/>
               <path d="M1 1l22 22"/>
+            </svg>
+          )}
+          {isCompleted && (
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
+              <path d="M20 6L9 17l-5-5"/>
             </svg>
           )}
           <span style={{ fontSize:13, fontWeight:700, color: dk ? t.textPri : '#111827', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -144,25 +153,41 @@ function EventCard({ ev, onClick, dk }: { ev: CalEvent; onClick: () => void; dk:
           }
         </div>
       </div>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:6 }}>
-        <span style={{ fontSize:11, color: dk ? t.textSubtle : '#6B7280' }}>
-          {isFollowup ? 'Follow-up reminder' : (ev.message ? ev.message.slice(0,40)+(ev.message.length>40?'…':'') : 'Tap to open')}
+      {/* Bottom row: subtext + actions */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:6, gap:6 }}>
+        <span style={{ fontSize:11, color: dk ? t.textSubtle : '#6B7280', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {isFollowup ? 'Follow-up reminder' : (ev.message ? ev.message.slice(0,36)+(ev.message.length>36?'…':'') : 'Tap to open')}
         </span>
-        {ev.contact_phone && <PhoneBtn phone={ev.contact_phone} />}
+        <div style={{ display:'flex', gap:4, flexShrink:0 }} onClick={e => e.stopPropagation()}>
+          {ev.contact_phone && <PhoneBtn phone={ev.contact_phone} />}
+          {onMarkComplete && !isCompleted && (
+            <button onClick={onMarkComplete} disabled={completing}
+              style={{ display:'flex', alignItems:'center', gap:3, padding:'4px 8px', borderRadius:6, background:'#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:11, fontWeight:700, cursor:'pointer', opacity: completing ? 0.6 : 1, whiteSpace:'nowrap' }}>
+              {completing ? '…' : (
+                <>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  Done
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 // ─── Detail panel (right side on desktop, bottom sheet on mobile) ─────────────
-function DetailPanel({ ev, onClose, onOpenLead, dk }: { ev: CalEvent; onClose: () => void; onOpenLead: (id: string) => void; dk: boolean }) {
+function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing }: {
+  ev: CalEvent; onClose: () => void; onOpenLead: (id: string) => void; dk: boolean
+  onMarkComplete?: () => void; completing?: boolean
+}) {
   const t = theme(dk)
-  const isFollowup = ev._type === 'followup'
-  const accentColor = isFollowup ? '#D97706' : (STATUS_STYLE[ev.lead_status]?.color || '#0F766E')
+  const isFollowup  = ev._type === 'followup'
+  const isCompleted = ev.lead_status === 'Completed' || ev.lead_status === 'Paid'
+  const accentColor = isCompleted ? '#15803D' : isFollowup ? '#D97706' : (STATUS_STYLE[ev.lead_status]?.color || '#0F766E')
   const phone = fmtPhone(ev.contact_phone)
-  const dateStr = ev._type === 'followup'
-    ? fmt(ev.follow_up_date)
-    : fmt(ev.scheduled_date)
+  const dateStr = ev._type === 'followup' ? fmt(ev.follow_up_date) : fmt(ev.scheduled_date)
 
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column', background: dk ? t.cardBg : '#fff', borderLeft: `4px solid ${accentColor}` }}>
@@ -196,11 +221,22 @@ function DetailPanel({ ev, onClose, onOpenLead, dk }: { ev: CalEvent; onClose: (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
           </button>
         </div>
+        {/* Mark Complete CTA — only for Scheduled jobs */}
+        {ev._type === 'job' && ev.lead_status === 'Scheduled' && onMarkComplete && (
+          <button onClick={onMarkComplete} disabled={completing}
+            style={{ width:'100%', marginTop:8, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:10, background: completing ? '#F3F4F6' : '#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:13, fontWeight:700, cursor:'pointer', opacity: completing ? 0.6 : 1 }}>
+            {completing ? 'Marking complete…' : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                Mark Job Complete
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Details */}
       <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:14 }}>
-        {/* Info rows */}
         <div style={{ background: dk ? t.cardBgAlt : '#F9FAFB', borderRadius:12, padding:'14px 16px' }}>
           <div style={{ fontSize:10, fontWeight:700, color: dk ? t.textSubtle : '#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Details</div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -219,7 +255,6 @@ function DetailPanel({ ev, onClose, onOpenLead, dk }: { ev: CalEvent; onClose: (
           </div>
         </div>
 
-        {/* Message */}
         {ev.message && (
           <div style={{ background: dk ? '#1a1f2e' : '#FFFBEB', borderRadius:12, padding:'14px 16px', border:`1px solid ${dk ? '#334155' : '#FDE68A'}` }}>
             <div style={{ fontSize:10, fontWeight:700, color:'#92400E', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Message</div>
@@ -227,7 +262,6 @@ function DetailPanel({ ev, onClose, onOpenLead, dk }: { ev: CalEvent; onClose: (
           </div>
         )}
 
-        {/* Notes */}
         {ev.notes && (
           <div style={{ background: dk ? '#0f1e1a' : '#F0FDFA', borderRadius:12, padding:'14px 16px', border:`1px solid ${dk ? '#1a3a2e' : '#CCFBF1'}` }}>
             <div style={{ fontSize:10, fontWeight:700, color:'#0F766E', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Notes</div>
@@ -239,59 +273,10 @@ function DetailPanel({ ev, onClose, onOpenLead, dk }: { ev: CalEvent; onClose: (
   )
 }
 
-// ─── Mini month calendar ───────────────────────────────────────────────────────
-function MiniMonth({ year, month, selectedDate, dotDates, onSelect, onMonthChange, dk }: {
-  year: number; month: number; selectedDate: Date
-  dotDates: Set<string>; onSelect: (d: Date) => void; onMonthChange: (y: number, m: number) => void; dk: boolean
-}) {
-  const t = theme(dk)
-  const firstDay = new Date(year, month, 1).getDay()
-  const daysInMonth = new Date(year, month+1, 0).getDate()
-  const cells: (number|null)[] = Array(firstDay).fill(null)
-  for (let i=1; i<=daysInMonth; i++) cells.push(i)
-  while (cells.length % 7 !== 0) cells.push(null)
-
-  function prev() { month === 0 ? onMonthChange(year-1, 11) : onMonthChange(year, month-1) }
-  function next() { month === 11 ? onMonthChange(year+1, 0) : onMonthChange(year, month+1) }
-
-  return (
-    <div style={{ background: dk ? t.cardBg : 'white', borderRadius:14, padding:16, border:`1px solid ${t.cardBorder}` }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-        <button onClick={prev} style={{ background:'none', border:'none', cursor:'pointer', color: dk ? t.textMuted : '#6B7280', padding:'4px 6px', borderRadius:6, fontSize:14 }}>‹</button>
-        <span style={{ fontSize:13, fontWeight:700, color: dk ? t.textPri : '#111827' }}>{MONTHS[month]} {year}</span>
-        <button onClick={next} style={{ background:'none', border:'none', cursor:'pointer', color: dk ? t.textMuted : '#6B7280', padding:'4px 6px', borderRadius:6, fontSize:14 }}>›</button>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:4 }}>
-        {['S','M','T','W','T','F','S'].map((d,i) => (
-          <div key={i} style={{ textAlign:'center', fontSize:10, fontWeight:700, color: dk ? t.textSubtle : '#9CA3AF', padding:'2px 0' }}>{d}</div>
-        ))}
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2 }}>
-        {cells.map((day, i) => {
-          if (!day) return <div key={i} />
-          const d = new Date(year, month, day)
-          const key = toDateKey(d)
-          const isSelected = isSameDay(d, selectedDate)
-          const isTod = isToday(d)
-          const hasDot = dotDates.has(key)
-          return (
-            <button key={i} onClick={() => onSelect(d)}
-              style={{ width:'100%', aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', borderRadius:8, border:'none', cursor:'pointer', background: isSelected ? '#0F766E' : isTod ? '#CCFBF1' : 'transparent', color: isSelected ? 'white' : isTod ? '#0F766E' : dk ? t.textPri : '#374151', fontSize:12, fontWeight: isTod || isSelected ? 700 : 400, position:'relative', gap:1 }}>
-              {day}
-              {hasDot && <div style={{ width:4, height:4, borderRadius:'50%', background: isSelected ? 'rgba(255,255,255,0.8)' : '#0F766E', flexShrink:0 }} />}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 // ─── Week strip (mobile) ──────────────────────────────────────────────────────
 function WeekStrip({ selectedDate, dotDates, onSelect, dk }: {
   selectedDate: Date; dotDates: Set<string>; onSelect: (d: Date) => void; dk: boolean
 }) {
-  const t = theme(dk)
   const weekStart = startOfWeek(selectedDate)
   const days = Array.from({length:7}, (_,i) => addDays(weekStart, i))
   return (
@@ -310,26 +295,17 @@ function WeekStrip({ selectedDate, dotDates, onSelect, dk }: {
               borderRadius:12, border:'none', cursor:'pointer',
               background: isSelected ? '#0F766E' : isTod ? '#CCFBF1' : 'transparent',
               transition:'all 0.12s',
-              minHeight:54,  // minimum thumb-friendly height
+              minHeight:54,
             }}>
-            {/* Day letter — larger, bolder, high contrast */}
-            <span style={{
-              fontSize:13, fontWeight:800, letterSpacing:'0.02em',
-              color: isSelected ? 'rgba(255,255,255,0.9)' : isTod ? '#0F766E' : dk ? '#94A3B8' : '#374151'
-            }}>
+            <span style={{ fontSize:13, fontWeight:800, letterSpacing:'0.02em', color: isSelected ? 'rgba(255,255,255,0.9)' : isTod ? '#0F766E' : dk ? '#94A3B8' : '#374151' }}>
               {DAYS[d.getDay()].slice(0,1)}
             </span>
-            {/* Date number — larger for readability in bright light */}
-            <span style={{
-              fontSize:19, fontWeight:900, lineHeight:1,
-              color: isSelected ? 'white' : isTod ? '#0F766E' : dk ? '#F1F5F9' : '#111827'
-            }}>
+            <span style={{ fontSize:19, fontWeight:900, lineHeight:1, color: isSelected ? 'white' : isTod ? '#0F766E' : dk ? '#F1F5F9' : '#111827' }}>
               {d.getDate()}
             </span>
-            {/* Dot indicator */}
             {hasDot
               ? <div style={{ width:5, height:5, borderRadius:'50%', background: isSelected ? 'rgba(255,255,255,0.75)' : '#0F766E', marginTop:1 }} />
-              : <div style={{ width:5, height:5 }} /> /* spacer to keep height consistent */
+              : <div style={{ width:5, height:5 }} />
             }
           </button>
         )
@@ -338,15 +314,14 @@ function WeekStrip({ selectedDate, dotDates, onSelect, dk }: {
   )
 }
 
-// ─── EventCardMobile — cleaner card without raw message text ──────────────────
+// ─── EventCardMobile ──────────────────────────────────────────────────────────
 function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
   ev: CalEvent; onClick: () => void; dk: boolean
   onMarkComplete?: () => void; completing?: boolean
 }) {
-  const isFollowup = ev._type === 'followup'
+  const isFollowup  = ev._type === 'followup'
   const isCompleted = ev.lead_status === 'Completed' || ev.lead_status === 'Paid'
   const accentColor = isCompleted ? '#15803D' : isFollowup ? '#D97706' : (STATUS_STYLE[ev.lead_status]?.color || '#0F766E')
-
   const mapsQuery = encodeURIComponent(ev.message?.slice(0,50) || ev.contact_name)
   const mapsUrl = `https://maps.google.com/?q=${mapsQuery}`
 
@@ -363,10 +338,7 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         opacity: isCompleted ? 0.7 : 1,
       }}>
-
-      {/* Single row: name + amount + action buttons */}
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        {/* Left: icon + name */}
         <div style={{ display:'flex', alignItems:'center', gap:6, flex:1, minWidth:0 }}>
           {isFollowup && (
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
@@ -391,8 +363,6 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
             )}
           </div>
         </div>
-
-        {/* Right: action buttons — compact */}
         <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
           {ev.contact_phone && (
             <a href={`tel:${ev.contact_phone}`}
@@ -428,7 +398,8 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
     </div>
   )
 }
-// ─── UnscheduledList — collapsible, shows age not "Needs date" ────────────────
+
+// ─── UnscheduledList ──────────────────────────────────────────────────────────
 function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean; onOpen: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const visible = expanded ? leads : leads.slice(0, 2)
@@ -437,7 +408,6 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
 
   return (
     <div style={{ marginTop:16 }}>
-      {/* Section header — teal not amber (not urgent, just workflow) */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
         <div style={{ fontSize:16, fontWeight:800, color:'#0F766E' }}>
           Needs scheduling ({leads.length})
@@ -449,12 +419,10 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
           </button>
         )}
       </div>
-
-      {visible.map((ev, i) => {
+      {visible.map((ev) => {
         const days = daysSince(ev.created_at)
         const urgColor = days > 3 ? '#DC2626' : days >= 2 ? '#B45309' : '#059669'
         const urgBg   = days > 3 ? '#FEE2E2' : days >= 2 ? '#FEF3C7' : '#D1FAE5'
-
         return (
           <div key={ev.id}
             style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 18px', borderRadius:14, background: dk ? t.cardBg : 'white', border:`1px solid ${t.cardBorder}`, marginBottom:10 }}>
@@ -465,7 +433,6 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
                 <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:8, background: urgBg, color: urgColor }}>{days}d ago</span>
               </div>
             </div>
-            {/* Call or Add Phone */}
             {ev.contact_phone ? (
               <a href={`tel:${ev.contact_phone}`}
                 style={{ display:'flex', alignItems:'center', gap:4, padding:'11px 16px', borderRadius:12, background:'#F0FDFA', border:'1.5px solid #CCFBF1', color:'#0F766E', fontSize:13, fontWeight:700, textDecoration:'none', flexShrink:0 }}>
@@ -477,7 +444,6 @@ function UnscheduledList({ leads, dk, onOpen }: { leads: CalEvent[]; dk: boolean
             ) : (
               <span style={{ fontSize:13, color: dk ? t.textSubtle : '#9CA3AF', flexShrink:0 }}>No phone</span>
             )}
-            {/* Open → */}
             <button onClick={() => onOpen(ev.id)}
               style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:12, background: dk ? '#334155' : '#F0F0EC', border:`1.5px solid ${dk ? '#475569' : '#D1D5DB'}`, cursor:'pointer', flexShrink:0 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#CBD5E1' : '#374151'} strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
@@ -497,7 +463,6 @@ export default function CalendarPage() {
 
   const [view, setView] = useState<'week'|'month'>('week')
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [miniMonth, setMiniMonth] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() })
 
   const [events, setEvents] = useState<CalEvent[]>([])
   const [unscheduled, setUnscheduled] = useState<CalEvent[]>([])
@@ -505,10 +470,13 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null)
   const [mobileView, setMobileView] = useState<'week'|'month'>('week')
 
-  // Filter chips state
+  // Filters — shared between desktop and mobile
   const [showJobs,      setShowJobs]      = useState(true)
   const [showFollowups, setShowFollowups] = useState(true)
   const [showOverdue,   setShowOverdue]   = useState(false)
+
+  // Month view — day agenda selection on desktop
+  const [monthAgendaDate, setMonthAgendaDate] = useState<Date | null>(null)
 
   // Swipe gesture state
   const [touchStartX, setTouchStartX] = useState<number|null>(null)
@@ -527,7 +495,7 @@ export default function CalendarPage() {
     setDk(localStorage.getItem('pg_darkmode') === '1')
   }, [router])
 
-  // Fetch events for current window
+  // Fetch events
   const fetchEvents = useCallback(async (session: Session, center: Date) => {
     setLoading(true)
     const from = toDateKey(addDays(center, -30))
@@ -545,27 +513,24 @@ export default function CalendarPage() {
     if (session) fetchEvents(session, selectedDate)
   }, [session, fetchEvents])
 
-  // Week days for current view
+  // Week days
   const weekStart = startOfWeek(selectedDate)
   const weekDays  = Array.from({length:7}, (_,i) => addDays(weekStart, i))
 
   // Month grid
-  const firstDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).getDay()
+  const firstDay    = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).getDay()
   const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth()+1, 0).getDate()
 
-  // Dot dates (all dates that have events)
+  // Dot dates
   const dotDates = new Set(events.map(ev => {
     const d = getEventDate(ev)
     return d ? toDateKey(d) : null
   }).filter(Boolean) as string[])
 
-  // Events for selected day (mobile agenda) — computed below with filters
-  const selectedDayKey = toDateKey(selectedDate)
-
-  // Week grouped
+  // Week grouped (unfiltered — for grid display)
   const weekGrouped = groupByDay(events, weekDays)
 
-  // Today stats — scheduled value, not just paid
+  // Today stats
   const todayKey = toDateKey(new Date())
   const todayJobs = events.filter(ev => {
     const d = getEventDate(ev)
@@ -573,7 +538,14 @@ export default function CalendarPage() {
   })
   const todayScheduledValue = todayJobs.reduce((sum, ev) => sum + (ev.quoted_amount || 0), 0)
 
-  // Overdue follow-ups — follow_up_date is in the past and not completed/paid
+  // Week value (all jobs this week with quoted_amount)
+  const weekValue = weekDays.reduce((sum, d) => {
+    const key = toDateKey(d)
+    const dayEvs = weekGrouped[key] || []
+    return sum + dayEvs.filter(ev => ev._type === 'job').reduce((s, ev) => s + (ev.quoted_amount || 0), 0)
+  }, 0)
+
+  // Overdue follow-ups
   const today0 = new Date(); today0.setHours(0,0,0,0)
   const overdueFollowups = events.filter(ev => {
     if (ev._type !== 'followup') return false
@@ -582,46 +554,59 @@ export default function CalendarPage() {
     return d < today0 && !['Completed','Paid'].includes(ev.lead_status)
   })
 
-  // Apply filters to selected day events
+  // Apply filters — shared between desktop week view and mobile agenda
+  function applyFilters(evs: CalEvent[]): CalEvent[] {
+    if (showOverdue) {
+      return evs.filter(ev => {
+        const d = getEventDate(ev)
+        return d && d < today0 && !['Completed','Paid'].includes(ev.lead_status)
+      })
+    }
+    return evs.filter(ev => {
+      if (ev._type === 'job'      && !showJobs)      return false
+      if (ev._type === 'followup' && !showFollowups) return false
+      return true
+    })
+  }
+
+  // Week grouped with filters applied
+  const weekGroupedFiltered = Object.fromEntries(
+    weekDays.map(d => [toDateKey(d), applyFilters(weekGrouped[toDateKey(d)] || [])])
+  )
+
+  // Selected day events (mobile + month detail)
+  const selectedDayKey = toDateKey(selectedDate)
   const selectedDayEventsRaw = events.filter(ev => {
     const d = getEventDate(ev)
     return d && toDateKey(d) === selectedDayKey
   })
-  const todayEvents = selectedDayEventsRaw.filter(ev => {
-    if (showOverdue) {
-      const d = getEventDate(ev)
-      if (!d) return false
-      return d < today0
-    }
-    if (ev._type === 'job' && !showJobs) return false
-    if (ev._type === 'followup' && !showFollowups) return false
-    return true
-  })
+  const todayEvents = applyFilters(selectedDayEventsRaw)
+
+  // Month agenda date events
+  const agendaDate     = monthAgendaDate || selectedDate
+  const agendaDateKey  = toDateKey(agendaDate)
+  const agendaEvents   = applyFilters(
+    events.filter(ev => { const d = getEventDate(ev); return d && toDateKey(d) === agendaDateKey })
+  )
 
   function navWeek(dir: number) {
     const next = addDays(selectedDate, dir * 7)
     setSelectedDate(next)
-    setMiniMonth({ year: next.getFullYear(), month: next.getMonth() })
   }
   function navDay(dir: number) {
-    const next = addDays(selectedDate, dir)
-    setSelectedDate(next)
-    setMiniMonth({ year: next.getFullYear(), month: next.getMonth() })
+    setSelectedDate(addDays(selectedDate, dir))
   }
   function goToday() {
-    const now = new Date()
-    setSelectedDate(now)
-    setMiniMonth({ year: now.getFullYear(), month: now.getMonth() })
+    setSelectedDate(new Date())
+    setMonthAgendaDate(null)
   }
   function selectDay(d: Date) {
     setSelectedDate(d)
-    setMiniMonth({ year: d.getFullYear(), month: d.getMonth() })
     setSelectedEvent(null)
+    setMonthAgendaDate(d)
   }
 
-  function handleTouchStart(e: React.TouchEvent) {
-    setTouchStartX(e.touches[0].clientX)
-  }
+  function handleTouchStart(e: React.TouchEvent) { setTouchStartX(e.touches[0].clientX) }
   function handleTouchEnd(e: React.TouchEvent) {
     if (touchStartX === null) return
     const dx = e.changedTouches[0].clientX - touchStartX
@@ -639,38 +624,86 @@ export default function CalendarPage() {
         body: JSON.stringify({ pro_id: session.id, lead_status: 'Completed' }),
       })
       setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, lead_status: 'Completed' } : e))
+      setSelectedEvent(null)
     } finally { setCompleting(null) }
   }
 
   if (!session) return null
 
+  // ── Shared filter chips (desktop toolbar + mobile header) ────────────────────
+  const FilterChips = ({ compact = false }: { compact?: boolean }) => (
+    <div style={{ display:'flex', gap: compact ? 6 : 8, alignItems:'center', flexWrap:'nowrap' }}>
+      {([
+        { k:'jobs', label:'Jobs',       active:showJobs,      toggle:()=>{ setShowOverdue(false); setShowJobs(v=>!v) } },
+        { k:'fu',   label:'Follow-ups', active:showFollowups, toggle:()=>{ setShowOverdue(false); setShowFollowups(v=>!v) } },
+        {
+          k:'ov',
+          label: overdueFollowups.length > 0 ? `Overdue (${overdueFollowups.length})` : 'Overdue',
+          active: showOverdue,
+          toggle: () => { setShowOverdue(v => !v); if (!showOverdue) { setShowJobs(true); setShowFollowups(true) } },
+          accent: overdueFollowups.length > 0,
+        },
+      ] as const).map((chip: any) => {
+        const isOverdue = chip.k === 'ov'
+        const hasOverdue = isOverdue && chip.accent && !showOverdue
+        return (
+          <button key={chip.k} onClick={chip.toggle}
+            style={{
+              fontSize: compact ? 12 : 13,
+              fontWeight: 700,
+              padding: compact ? '6px 11px' : '7px 14px',
+              borderRadius: 20,
+              border: `1.5px solid ${chip.active ? (isOverdue ? '#DC2626' : '#0F766E') : hasOverdue ? '#FECACA' : (dk ? '#334155' : '#E8E2D9')}`,
+              background: chip.active ? (isOverdue ? '#DC2626' : '#0F766E') : hasOverdue ? '#FEF2F2' : 'transparent',
+              color: chip.active ? 'white' : hasOverdue ? '#DC2626' : (dk ? '#94A3B8' : '#6B7280'),
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+            {chip.active && (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+            )}
+            {hasOverdue && (
+              <div style={{ width:6, height:6, borderRadius:'50%', background:'#DC2626', flexShrink:0 }} />
+            )}
+            {chip.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
   // ── Desktop layout ──────────────────────────────────────────────────────────
   const DesktopView = (
     <div style={{ display:'flex', height:'calc(100vh - 56px)', overflow:'hidden' }}>
 
-      {/* Left panel — mini cal + filters */}
-      <div style={{ width:220, flexShrink:0, borderRight:`1px solid ${t.cardBorder}`, overflowY:'auto', padding:16, display:'flex', flexDirection:'column', gap:16, background: dk ? t.cardBgAlt : '#FAFAF8' }}>
-        <MiniMonth
-          year={miniMonth.year} month={miniMonth.month}
-          selectedDate={selectedDate} dotDates={dotDates}
-          onSelect={selectDay}
-          onMonthChange={(y,m) => setMiniMonth({year:y,month:m})}
-          dk={dk}
-        />
+      {/* Left sidebar — compact action panel, no mini calendar */}
+      <div style={{ width:200, flexShrink:0, borderRight:`1px solid ${t.cardBorder}`, overflowY:'auto', padding:16, display:'flex', flexDirection:'column', gap:12, background: dk ? t.cardBgAlt : '#FAFAF8' }}>
 
-        {/* Today's summary */}
+        {/* Today stats — 3 numbers */}
         <div style={{ background: dk ? t.cardBg : 'white', borderRadius:14, padding:14, border:`1px solid ${t.cardBorder}` }}>
           <div style={{ fontSize:11, fontWeight:700, color: dk ? t.textSubtle : '#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Today</div>
-          <div style={{ display:'flex', gap:12 }}>
-            <div style={{ flex:1, textAlign:'center' }}>
-              <div style={{ fontSize:22, fontWeight:800, color:'#0F766E' }}>{todayJobs.length}</div>
-              <div style={{ fontSize:10, color: dk ? t.textSubtle : '#6B7280', marginTop:2 }}>Jobs</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span style={{ fontSize:12, color: dk ? t.textSubtle : '#6B7280' }}>Jobs</span>
+              <span style={{ fontSize:20, fontWeight:800, color:'#0F766E' }}>{todayJobs.length}</span>
             </div>
-            <div style={{ width:1, background: t.cardBorder }} />
-            <div style={{ flex:1, textAlign:'center' }}>
-              <div style={{ fontSize:22, fontWeight:800, color:'#15803D' }}>${todayScheduledValue > 0 ? todayScheduledValue.toLocaleString() : '0'}</div>
-              <div style={{ fontSize:10, color: dk ? t.textSubtle : '#6B7280', marginTop:2 }}>Scheduled</div>
+            <div style={{ height:1, background: t.cardBorder }} />
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span style={{ fontSize:12, color: dk ? t.textSubtle : '#6B7280' }}>Value</span>
+              <span style={{ fontSize:16, fontWeight:800, color:'#15803D' }}>${todayScheduledValue > 0 ? todayScheduledValue.toLocaleString() : '0'}</span>
             </div>
+            {overdueFollowups.length > 0 && (
+              <>
+                <div style={{ height:1, background: t.cardBorder }} />
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontSize:12, color:'#B91C1C' }}>Overdue</span>
+                  <span style={{ fontSize:16, fontWeight:800, color:'#DC2626' }}>{overdueFollowups.length}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -678,13 +711,13 @@ export default function CalendarPage() {
         {unscheduled.length > 0 && (
           <div style={{ background: dk ? t.cardBg : 'white', borderRadius:14, padding:14, border:`1px solid ${t.cardBorder}` }}>
             <div style={{ fontSize:11, fontWeight:700, color:'#D97706', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>
-              Needs Scheduling ({unscheduled.length})
+              Needs Date ({unscheduled.length})
             </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {unscheduled.map(ev => (
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {unscheduled.slice(0, 5).map(ev => (
                 <div key={ev.id}
                   onClick={() => router.push('/dashboard/pipeline/'+ev.id)}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 10px', borderRadius:8, background: dk ? t.cardBgAlt : '#FFFBEB', cursor:'pointer', border:'1px solid #FDE68A' }}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 9px', borderRadius:8, background: dk ? t.cardBgAlt : '#FFFBEB', cursor:'pointer', border:'1px solid #FDE68A' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#FEF3C7')}
                   onMouseLeave={e => (e.currentTarget.style.background = dk ? t.cardBgAlt : '#FFFBEB')}>
                   <div style={{ minWidth:0 }}>
@@ -694,33 +727,53 @@ export default function CalendarPage() {
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
                 </div>
               ))}
+              {unscheduled.length > 5 && (
+                <div style={{ fontSize:11, color: dk ? t.textSubtle : '#9CA3AF', textAlign:'center', paddingTop:2 }}>+{unscheduled.length-5} more</div>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Center — week/month view */}
+      {/* Center — calendar grid */}
       <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column' }}>
+
         {/* Toolbar */}
-        <div style={{ padding:'12px 20px', borderBottom:`1px solid ${t.cardBorder}`, display:'flex', alignItems:'center', gap:10, background: dk ? t.cardBg : 'white', flexShrink:0, position:'sticky', top:0, zIndex:10 }}>
+        <div style={{ padding:'10px 16px', borderBottom:`1px solid ${t.cardBorder}`, display:'flex', alignItems:'center', gap:8, background: dk ? t.cardBg : 'white', flexShrink:0, position:'sticky', top:0, zIndex:10 }}>
+          {/* Nav */}
           <button onClick={goToday}
-            style={{ padding:'6px 14px', borderRadius:8, border:`1.5px solid ${t.inputBorder}`, background: dk ? t.cardBgAlt : '#F9FAFB', color: dk ? t.textPri : '#374151', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+            style={{ padding:'6px 14px', borderRadius:8, border:`1.5px solid ${t.inputBorder}`, background: dk ? t.cardBgAlt : '#F9FAFB', color: dk ? t.textPri : '#374151', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
             Today
           </button>
           <div style={{ display:'flex', gap:4 }}>
             <button onClick={() => navWeek(-1)} style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8, border:`1.5px solid ${t.inputBorder}`, background:'transparent', color: dk ? t.textMuted : '#6B7280', cursor:'pointer', fontSize:16 }}>‹</button>
             <button onClick={() => navWeek(1)}  style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8, border:`1.5px solid ${t.inputBorder}`, background:'transparent', color: dk ? t.textMuted : '#6B7280', cursor:'pointer', fontSize:16 }}>›</button>
           </div>
-          <span style={{ fontSize:15, fontWeight:700, color: dk ? t.textPri : '#111827', flex:1 }}>
+
+          {/* Date range */}
+          <span style={{ fontSize:15, fontWeight:700, color: dk ? t.textPri : '#111827' }}>
             {view === 'week'
               ? `${SHORT_MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getDate()} – ${SHORT_MONTHS[weekDays[6].getMonth()]} ${weekDays[6].getDate()}, ${weekDays[6].getFullYear()}`
               : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
             }
           </span>
+
+          {/* Week value */}
+          {view === 'week' && weekValue > 0 && (
+            <span style={{ fontSize:13, fontWeight:700, color:'#15803D', background:'#DCFCE7', padding:'4px 10px', borderRadius:20, border:'1px solid #86EFAC' }}>
+              ${weekValue.toLocaleString()} this week
+            </span>
+          )}
+
+          <div style={{ flex:1 }} />
+
+          {/* Filter chips */}
+          <FilterChips compact />
+
           {/* View toggle */}
-          <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1.5px solid ${t.inputBorder}` }}>
+          <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1.5px solid ${t.inputBorder}`, flexShrink:0 }}>
             {(['week','month'] as const).map(v => (
-              <button key={v} onClick={() => setView(v)}
+              <button key={v} onClick={() => { setView(v); if (v === 'month') setMonthAgendaDate(selectedDate) }}
                 style={{ padding:'5px 14px', border:'none', cursor:'pointer', fontSize:12, fontWeight:600, background: view===v ? '#0F766E' : 'transparent', color: view===v ? 'white' : dk ? t.textMuted : '#6B7280', textTransform:'capitalize' }}>
                 {v}
               </button>
@@ -731,7 +784,8 @@ export default function CalendarPage() {
         {loading ? (
           <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color: dk ? t.textSubtle : '#9CA3AF', fontSize:14 }}>Loading…</div>
         ) : view === 'week' ? (
-          /* Week view */
+
+          /* ── Week view ── */
           <div style={{ flex:1, overflowX:'auto' }}>
             {/* Day headers */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:`1px solid ${t.cardBorder}`, background: dk ? t.cardBg : 'white', position:'sticky', top:0, zIndex:9 }}>
@@ -740,7 +794,7 @@ export default function CalendarPage() {
                 const isSel = isSameDay(d, selectedDate)
                 return (
                   <div key={toDateKey(d)} onClick={() => selectDay(d)}
-                    style={{ padding:'10px 8px', textAlign:'center', borderRight:`1px solid ${t.cardBorder}`, cursor:'pointer', background: isSel ? '#F0FDFA' : 'transparent' }}>
+                    style={{ padding:'10px 8px', textAlign:'center', borderRight:`1px solid ${t.cardBorder}`, cursor:'pointer', background: isTod ? (dk ? 'rgba(15,118,110,0.12)' : '#F0FDFA') : isSel ? (dk ? 'rgba(15,118,110,0.06)' : '#F9FEFE') : 'transparent' }}>
                     <div style={{ fontSize:10, fontWeight:600, color: dk ? t.textSubtle : '#9CA3AF', textTransform:'uppercase', letterSpacing:'0.06em' }}>{DAYS[d.getDay()]}</div>
                     <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'4px auto 0', background: isTod ? '#0F766E' : 'transparent' }}>
                       <span style={{ fontSize:14, fontWeight:700, color: isTod ? 'white' : isSel ? '#0F766E' : dk ? t.textPri : '#374151' }}>{d.getDate()}</span>
@@ -753,16 +807,19 @@ export default function CalendarPage() {
               })}
             </div>
 
-            {/* Event rows per day */}
+            {/* Event cells */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', alignItems:'start', padding:'12px 8px', gap:0 }}>
               {weekDays.map(d => {
-                const key = toDateKey(d)
-                const dayEvs = weekGrouped[key] || []
-                const isSel = isSameDay(d, selectedDate)
+                const key    = toDateKey(d)
+                const isTod  = isToday(d)
+                const isSel  = isSameDay(d, selectedDate)
+                const dayEvs = weekGroupedFiltered[key] || []
+                const allEvs = weekGrouped[key] || []
+                const hiddenCount = allEvs.length - dayEvs.length
                 return (
                   <div key={key}
-                    style={{ padding:'0 4px', borderRight:`1px solid ${t.divider}`, minHeight:80, background: isSel ? (dk ? 'rgba(15,118,110,0.06)' : '#F9FEFE') : 'transparent' }}>
-                    {dayEvs.length === 0 ? (
+                    style={{ padding:'0 4px', borderRight:`1px solid ${t.divider}`, minHeight:80, background: isTod ? (dk ? 'rgba(15,118,110,0.04)' : '#FAFFFE') : isSel ? (dk ? 'rgba(15,118,110,0.03)' : '#F9FEFE') : 'transparent' }}>
+                    {dayEvs.length === 0 && hiddenCount === 0 ? (
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:60, color: dk ? t.textSubtle : '#D1D5DB', fontSize:20 }}>·</div>
                     ) : (
                       <div style={{ display:'flex', flexDirection:'column', gap:4, paddingTop:4 }}>
@@ -784,6 +841,11 @@ export default function CalendarPage() {
                             {ev.quoted_amount ? ` · $${ev.quoted_amount.toLocaleString()}` : ''}
                           </div>
                         ))}
+                        {hiddenCount > 0 && (
+                          <div style={{ fontSize:10, color: dk ? t.textSubtle : '#9CA3AF', paddingLeft:4, fontStyle:'italic' }}>
+                            {hiddenCount} hidden by filter
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -791,44 +853,86 @@ export default function CalendarPage() {
               })}
             </div>
           </div>
+
         ) : (
-          /* Month view */
-          <div style={{ padding:16 }}>
-            {/* Month grid header */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:4 }}>
-              {DAYS.map(d => (
-                <div key={d} style={{ textAlign:'center', fontSize:11, fontWeight:700, color: dk ? t.textSubtle : '#9CA3AF', padding:'4px 0', textTransform:'uppercase', letterSpacing:'0.06em' }}>{d}</div>
-              ))}
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2 }}>
-              {Array(firstDay).fill(null).map((_,i) => <div key={'e'+i} />)}
-              {Array.from({length:daysInMonth},(_,i)=>i+1).map(day => {
-                const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day)
-                const key = toDateKey(d)
-                const dayEvs = events.filter(ev => { const ed=getEventDate(ev); return ed && toDateKey(ed)===key })
-                const isTod = isToday(d)
-                const isSel = isSameDay(d, selectedDate)
-                return (
-                  <div key={day} onClick={() => selectDay(d)}
-                    style={{ minHeight:80, padding:'6px', borderRadius:8, cursor:'pointer', border:`1px solid ${isSel ? '#0F766E' : t.divider}`, background: isTod ? (dk ? '#0f2a1a' : '#F0FDFA') : dk ? t.cardBg : 'white', transition:'background 0.1s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = dk ? '#1a2940' : '#F9FEFE')}
-                    onMouseLeave={e => (e.currentTarget.style.background = isTod ? (dk ? '#0f2a1a' : '#F0FDFA') : dk ? t.cardBg : 'white')}>
-                    <div style={{ fontSize:12, fontWeight: isTod ? 800 : 500, color: isTod ? '#0F766E' : dk ? t.textPri : '#374151', marginBottom:4 }}>{day}</div>
-                    <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                      {dayEvs.slice(0,3).map(ev => (
-                        <div key={ev.id+ev._type}
-                          onClick={e => { e.stopPropagation(); setSelectedEvent(ev) }}
-                          style={{ fontSize:9, fontWeight:700, padding:'2px 4px', borderRadius:4, background: ev._type==='followup' ? '#FEF3C7' : (STATUS_STYLE[ev.lead_status]?.bg||'#F0FDFA'), color: ev._type==='followup' ? '#92400E' : (STATUS_STYLE[ev.lead_status]?.color||'#0F766E'), overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                          {capName(ev.contact_name)}
-                        </div>
-                      ))}
-                      {dayEvs.length > 3 && (
-                        <div style={{ fontSize:9, color: dk ? t.textSubtle : '#9CA3AF', paddingLeft:4 }}>+{dayEvs.length-3} more</div>
-                      )}
+
+          /* ── Month view ── */
+          <div style={{ display:'flex', flexDirection:'column', flex:1, overflow:'hidden' }}>
+            {/* Month grid */}
+            <div style={{ padding:'16px 16px 8px' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:4 }}>
+                {DAYS.map(d => (
+                  <div key={d} style={{ textAlign:'center', fontSize:11, fontWeight:700, color: dk ? t.textSubtle : '#9CA3AF', padding:'4px 0', textTransform:'uppercase', letterSpacing:'0.06em' }}>{d}</div>
+                ))}
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2 }}>
+                {Array(firstDay).fill(null).map((_,i) => <div key={'e'+i} />)}
+                {Array.from({length:daysInMonth},(_,i)=>i+1).map(day => {
+                  const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day)
+                  const key = toDateKey(d)
+                  const dayEvs = events.filter(ev => { const ed=getEventDate(ev); return ed && toDateKey(ed)===key })
+                  const filteredEvs = applyFilters(dayEvs)
+                  const isTod = isToday(d)
+                  const isSel = monthAgendaDate ? isSameDay(d, monthAgendaDate) : isSameDay(d, selectedDate)
+                  return (
+                    <div key={day} onClick={() => { selectDay(d); setMonthAgendaDate(d) }}
+                      style={{ minHeight:76, padding:'6px', borderRadius:8, cursor:'pointer', border:`1.5px solid ${isSel ? '#0F766E' : t.divider}`, background: isTod ? (dk ? '#0f2a1a' : '#F0FDFA') : dk ? t.cardBg : 'white', transition:'background 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = dk ? '#1a2940' : '#F9FEFE')}
+                      onMouseLeave={e => (e.currentTarget.style.background = isTod ? (dk ? '#0f2a1a' : '#F0FDFA') : dk ? t.cardBg : 'white')}>
+                      <div style={{ fontSize:12, fontWeight: isTod ? 800 : 500, color: isTod ? '#0F766E' : dk ? t.textPri : '#374151', marginBottom:3 }}>{day}</div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                        {filteredEvs.slice(0,2).map(ev => (
+                          <div key={ev.id+ev._type}
+                            onClick={e => { e.stopPropagation(); setMonthAgendaDate(d); setSelectedEvent(ev) }}
+                            style={{ fontSize:9, fontWeight:700, padding:'2px 4px', borderRadius:4, background: ev._type==='followup' ? '#FEF3C7' : (STATUS_STYLE[ev.lead_status]?.bg||'#F0FDFA'), color: ev._type==='followup' ? '#92400E' : (STATUS_STYLE[ev.lead_status]?.color||'#0F766E'), overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {capName(ev.contact_name)}
+                          </div>
+                        ))}
+                        {filteredEvs.length > 2 && (
+                          <button
+                            onClick={e => { e.stopPropagation(); selectDay(d); setMonthAgendaDate(d) }}
+                            style={{ fontSize:9, color: dk ? t.textSubtle : '#9CA3AF', paddingLeft:4, background:'none', border:'none', cursor:'pointer', textAlign:'left', fontWeight:600 }}>
+                            +{filteredEvs.length-2} more
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Day agenda strip — auto-updates on cell click */}
+            <div style={{ flex:1, borderTop:`1px solid ${t.cardBorder}`, overflowY:'auto', background: dk ? t.cardBgAlt : '#FAFAF8' }}>
+              <div style={{ padding:'14px 16px', borderBottom:`1px solid ${t.cardBorder}`, background: dk ? t.cardBg : 'white', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <span style={{ fontSize:14, fontWeight:700, color: dk ? t.textPri : '#111827' }}>
+                  {isToday(agendaDate) ? 'Today' : `${DAYS[agendaDate.getDay()]}, ${SHORT_MONTHS[agendaDate.getMonth()]} ${agendaDate.getDate()}`}
+                  {agendaEvents.length > 0 && (
+                    <span style={{ marginLeft:8, fontSize:12, fontWeight:600, color: dk ? t.textSubtle : '#6B7280' }}>
+                      {agendaEvents.length} event{agendaEvents.length!==1?'s':''}
+                    </span>
+                  )}
+                </span>
+                {agendaEvents.length > 0 && (
+                  <span style={{ fontSize:13, fontWeight:700, color:'#15803D' }}>
+                    ${agendaEvents.filter(ev=>ev._type==='job').reduce((s,ev)=>s+(ev.quoted_amount||0),0).toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:8 }}>
+                {agendaEvents.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:'20px 0', color: dk ? t.textSubtle : '#9CA3AF', fontSize:13 }}>
+                    No events on this day
                   </div>
-                )
-              })}
+                ) : (
+                  agendaEvents.map(ev => (
+                    <EventCard key={ev.id+ev._type} ev={ev} dk={dk}
+                      onClick={() => setSelectedEvent(ev)}
+                      onMarkComplete={ev._type === 'job' && ev.lead_status === 'Scheduled' ? () => markComplete(ev) : undefined}
+                      completing={completing === ev.id} />
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -837,7 +941,14 @@ export default function CalendarPage() {
       {/* Right panel — detail */}
       <div style={{ width: selectedEvent ? 320 : 0, flexShrink:0, borderLeft: selectedEvent ? `1px solid ${t.cardBorder}` : 'none', overflow:'hidden', transition:'width 0.2s ease' }}>
         {selectedEvent && (
-          <DetailPanel ev={selectedEvent} onClose={() => setSelectedEvent(null)} onOpenLead={id => router.push('/dashboard/pipeline/'+id)} dk={dk} />
+          <DetailPanel
+            ev={selectedEvent}
+            onClose={() => setSelectedEvent(null)}
+            onOpenLead={id => router.push('/dashboard/pipeline/'+id)}
+            dk={dk}
+            onMarkComplete={selectedEvent._type === 'job' && selectedEvent.lead_status === 'Scheduled' ? () => markComplete(selectedEvent) : undefined}
+            completing={completing === selectedEvent.id}
+          />
         )}
       </div>
     </div>
@@ -886,7 +997,7 @@ export default function CalendarPage() {
           </button>
         </div>
 
-        {/* Row 3a: Today link + Week/Month toggle */}
+        {/* Row 3: Today link + Week/Month toggle */}
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
           {!isToday(selectedDate) && (
             <button onClick={goToday}
@@ -904,18 +1015,9 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* Row 3b: Filter chips */}
-        <div style={{ display:'flex', gap:8 }}>
-          {([
-            { k:'jobs', label:'Jobs',       active:showJobs,      set:()=>setShowJobs(v=>!v) },
-            { k:'fu',   label:'Follow-ups', active:showFollowups, set:()=>setShowFollowups(v=>!v) },
-            { k:'ov',   label:'Overdue',    active:showOverdue,   set:()=>setShowOverdue(v=>!v) },
-          ] as const).map(chip => (
-            <button key={chip.k} onClick={chip.set}
-              style={{ fontSize:13, fontWeight:700, padding:'9px 14px', borderRadius:22, border:`1.5px solid ${chip.active ? '#0F766E' : (dk ? '#334155' : '#E8E2D9')}`, background: chip.active ? '#0F766E' : 'transparent', color: chip.active ? 'white' : (dk ? '#94A3B8' : '#6B7280'), cursor:'pointer', whiteSpace:'nowrap' }}>
-              {chip.active ? '✓ ' : ''}{chip.label}
-            </button>
-          ))}
+        {/* Row 4: Filter chips */}
+        <div style={{ overflowX:'auto' }} className="hide-scrollbar">
+          <FilterChips />
         </div>
       </div>
 
@@ -945,8 +1047,8 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Day agenda — swipeable */}
-      <div style={{ flex:1, padding:'12px 20px', display:'flex', flexDirection:'column', gap:12, overflowY:'auto' }}
+      {/* Day agenda */}
+      <div style={{ flex:1, padding:'12px 16px', display:'flex', flexDirection:'column', gap:12, overflowY:'auto' }}
         onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {loading ? (
           [1,2,3].map(i => <div key={i} style={{ height:72, borderRadius:12, background: dk ? t.cardBg : 'white', animation:'shimmer 1.4s ease-in-out infinite', backgroundSize:'200% 100%' }} />)
@@ -961,12 +1063,13 @@ export default function CalendarPage() {
               </svg>
             </div>
             <div>
-              <div style={{ fontSize:20, fontWeight:800, color: dk ? t.textPri : '#111827', marginBottom:6 }}>
+              <div style={{ fontSize:18, fontWeight:800, color: dk ? t.textPri : '#111827', marginBottom:6 }}>
                 {isToday(selectedDate) ? 'No jobs today' : `Nothing on ${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
               </div>
-              <div style={{ fontSize:15, color: dk ? t.textSubtle : '#6B7280', lineHeight:1.6 }}>
-                {events.length === 0 && unscheduled.length === 0 ? 'Your calendar is empty — schedule your first job from the pipeline'
-                  : showOverdue ? 'No overdue items'
+              <div style={{ fontSize:14, color: dk ? t.textSubtle : '#6B7280', lineHeight:1.6 }}>
+                {showOverdue ? 'No overdue items'
+                  : unscheduled.length > 0 ? `${unscheduled.length} lead${unscheduled.length!==1?'s':''} waiting to be scheduled`
+                  : events.length === 0 ? 'Your calendar is empty — schedule your first job from the pipeline'
                   : isToday(selectedDate) ? 'Your day is open — great time to follow up with leads'
                   : 'Nothing scheduled on this day'}
               </div>
@@ -979,14 +1082,14 @@ export default function CalendarPage() {
             )}
             {unscheduled.length > 0 && (
               <button onClick={() => router.push('/dashboard/pipeline')}
-                style={{ width:'100%', padding:'16px', borderRadius:14, border:`2px dashed #0F766E`, background:'transparent', color:'#0F766E', fontSize:16, fontWeight:700, cursor:'pointer' }}>
-                + Schedule a job on {SHORT_MONTHS[selectedDate.getMonth()]} {selectedDate.getDate()} →
+                style={{ width:'100%', padding:'16px', borderRadius:14, border:`2px dashed #0F766E`, background:'transparent', color:'#0F766E', fontSize:15, fontWeight:700, cursor:'pointer' }}>
+                Schedule {unscheduled.length} lead{unscheduled.length!==1?'s':''} →
               </button>
             )}
           </div>
         ) : (
           <>
-            <div style={{ fontSize:15, fontWeight:700, color: dk ? t.textSubtle : '#4B5563' }}>
+            <div style={{ fontSize:14, fontWeight:700, color: dk ? t.textSubtle : '#4B5563' }}>
               {todayEvents.length} event{todayEvents.length!==1?'s':''} · {isToday(selectedDate) ? 'Today' : `${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
             </div>
             {(todayEvents as CalEvent[]).map((ev: CalEvent) => (
@@ -999,7 +1102,6 @@ export default function CalendarPage() {
           </>
         )}
 
-        {/* Unscheduled leads — mobile — collapsed by default if >2 */}
         {unscheduled.length > 0 && (
           <UnscheduledList leads={unscheduled} dk={dk} onOpen={id => router.push('/dashboard/pipeline/'+id)} />
         )}
@@ -1010,14 +1112,20 @@ export default function CalendarPage() {
         <div style={{ position:'fixed', inset:0, zIndex:50, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
           onClick={() => setSelectedEvent(null)}>
           <div style={{ background:'rgba(0,0,0,0.4)', position:'absolute', inset:0 }} />
-          <div style={{ position:'relative', maxHeight:'75vh', borderRadius:'20px 20px 0 0', overflow:'hidden', background: dk ? t.cardBg : 'white', zIndex:1 }}
+          <div style={{ position:'relative', maxHeight:'80vh', borderRadius:'20px 20px 0 0', overflow:'hidden', background: dk ? t.cardBg : 'white', zIndex:1 }}
             onClick={e => e.stopPropagation()}>
-            {/* Drag handle */}
             <div style={{ display:'flex', justifyContent:'center', padding:'10px 0 0' }}>
               <div style={{ width:36, height:4, borderRadius:2, background: dk ? t.cardBorder : '#E5E7EB' }} />
             </div>
-            <div style={{ maxHeight:'calc(75vh - 20px)', overflowY:'auto' }}>
-              <DetailPanel ev={selectedEvent} onClose={() => setSelectedEvent(null)} onOpenLead={id => { setSelectedEvent(null); router.push('/dashboard/pipeline/'+id) }} dk={dk} />
+            <div style={{ maxHeight:'calc(80vh - 20px)', overflowY:'auto' }}>
+              <DetailPanel
+                ev={selectedEvent}
+                onClose={() => setSelectedEvent(null)}
+                onOpenLead={id => { setSelectedEvent(null); router.push('/dashboard/pipeline/'+id) }}
+                dk={dk}
+                onMarkComplete={selectedEvent._type === 'job' && selectedEvent.lead_status === 'Scheduled' ? () => markComplete(selectedEvent) : undefined}
+                completing={completing === selectedEvent.id}
+              />
             </div>
           </div>
         </div>
@@ -1032,9 +1140,7 @@ export default function CalendarPage() {
         session={session} newLeads={0} onAddLead={() => {}}
         darkMode={dk} onToggleDark={() => { const n=!dk; localStorage.setItem('pg_darkmode',n?'1':'0'); setDk(n) }}
       >
-        {/* Desktop */}
         <div className="hidden md:block">{DesktopView}</div>
-        {/* Mobile */}
         <div className="md:hidden">{MobileView}</div>
       </DashboardShell>
     </>
