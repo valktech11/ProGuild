@@ -272,6 +272,37 @@ export default function OverviewPage() {
           </div>
         )}
 
+        {/* ── Welcome card — shown at TOP for fresh accounts with no leads ── */}
+        {leads.length === 0 && reviews.length === 0 && (
+          <div className="rounded-2xl mb-5 overflow-hidden" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}`, boxShadow: '0 2px 12px rgba(15,118,110,0.08)' }}>
+            {/* Teal gradient header band */}
+            <div style={{ background: 'linear-gradient(135deg, #0F766E 0%, #0D9488 100%)', padding: '28px 24px 24px', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>🏗️</div>
+              <h3 style={{ fontSize: 22, fontWeight: 800, color: 'white', margin: 0, marginBottom: 6 }}>Welcome to ProGuild, {firstName}!</h3>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)', margin: 0 }}>You&apos;re all set up. Here&apos;s how to get your first job.</p>
+            </div>
+            {/* Steps */}
+            <div style={{ padding: '20px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { num: '1', text: 'Add your first lead from a customer enquiry', icon: '📥' },
+                { num: '2', text: 'Create an estimate and send it for approval', icon: '📄' },
+                { num: '3', text: 'Schedule the job and generate an invoice', icon: '✅' },
+              ].map(s => (
+                <div key={s.num} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', borderRadius: 12, background: dk ? '#1E293B' : '#F9F8F6', border: `1px solid ${BORDER}` }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#0F766E', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{s.num}</div>
+                  <span style={{ fontSize: 14, color: dk ? '#CBD5E1' : '#374151', fontWeight: 500 }}>{s.text}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 20 }}>{s.icon}</span>
+                </div>
+              ))}
+              <button onClick={() => setShowAddLead(true)}
+                className="w-full mt-2 py-4 rounded-xl text-sm font-bold"
+                style={{ backgroundColor: TEAL, color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, letterSpacing: '0.01em' }}>
+                + Add Your First Lead
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Action Center ────────────────────────────────────────────────── */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-3">
@@ -637,32 +668,6 @@ export default function OverviewPage() {
             ))}
           </div>
         </div>
-
-        {/* ── Empty state ──────────────────────────────────────────────────── */}
-        {leads.length === 0 && reviews.length === 0 && (
-          <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-            <div style={{ width:64, height:64, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E,#0D9488)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:28 }}>🏗️</div>
-            <h3 className="text-lg font-bold mb-2" style={{ color: textMain }}>Welcome to ProGuild, {firstName}!</h3>
-            <p className="text-sm mb-2" style={{ color: BODY }}>You're all set up. Here's how to get started:</p>
-            <div style={{ display:'flex', flexDirection:'column', gap:8, maxWidth:320, margin:'12px auto 24px', textAlign:'left' }}>
-              {[
-                { num:'1', text:'Add your first lead from a customer enquiry' },
-                { num:'2', text:'Create an estimate and send it for approval' },
-                { num:'3', text:'Schedule the job and generate an invoice' },
-              ].map(s => (
-                <div key={s.num} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:10, background: dk ? '#1E293B' : '#F9F8F6', border:`1px solid ${BORDER}` }}>
-                  <div style={{ width:24, height:24, borderRadius:'50%', background:'#0F766E', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, flexShrink:0 }}>{s.num}</div>
-                  <span style={{ fontSize:13, color: dk ? '#CBD5E1' : '#374151' }}>{s.text}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setShowAddLead(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold"
-              style={{ backgroundColor: TEAL, color: 'white', border:'none', cursor:'pointer' }}>
-              + Add First Lead
-            </button>
-          </div>
-        )}
 
       </div>
 

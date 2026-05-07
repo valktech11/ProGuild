@@ -522,9 +522,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
         {drawerOpen && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} onClick={() => setDrawerOpen(false)}>
             <div style={{ flex: 1 }} className="hidden md:block" />
-            <div style={{ width: '100%', maxWidth: 420, background: card, borderLeft: `1px solid ${border}`, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: '100%', maxWidth: 420, background: card, borderLeft: `1px solid ${border}`, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
               {/* Drawer header */}
-              <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: tp }}>Edit Lead</div>
                   <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>{capName(lead?.contact_name || 'Unknown')}</div>
@@ -532,47 +532,57 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ts, fontSize: 22, lineHeight: 1, padding: 0, marginTop: 2 }}>×</button>
               </div>
 
-              {/* Drawer form */}
-              <div style={{ padding: '20px 24px', flex: 1 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Phone</label>
-                    <input value={dPhone} onChange={e => setDPhone(e.target.value)} style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Email</label>
-                    <input value={dEmail} onChange={e => setDEmail(e.target.value)} style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>City</label>
-                    <input value={dCity} onChange={e => setDCity(e.target.value)} placeholder="Jacksonville" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>State</label>
-                    <input value={dState} onChange={e => setDState(e.target.value)} placeholder="FL" maxLength={2} style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Scheduled date</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <input type="date" value={dScheduled} onChange={e => setDScheduled(e.target.value)} style={inputStyle} />
-                      <input type="time" value={dScheduledTime} onChange={e => setDScheduledTime(e.target.value)} style={{ ...inputStyle, colorScheme: dk ? 'dark' : 'light' }} placeholder="Time (optional)" />
+              {/* Drawer form — single column, full width */}
+              <div style={{ padding: '16px 20px', flex: 1, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%' }}>
+                  {/* Phone + Email side by side on wider screens, stacked on mobile */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone</label>
+                      <input value={dPhone} onChange={e => setDPhone(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
+                      <input value={dEmail} onChange={e => setDEmail(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                   </div>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Follow-up date</label>
-                    <input type="date" value={dFollowUp} onChange={e => setDFollowUp(e.target.value)} style={inputStyle} />
+                  {/* City + State */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>City</label>
+                      <input value={dCity} onChange={e => setDCity(e.target.value)} placeholder="Jacksonville" style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>State</label>
+                      <input value={dState} onChange={e => setDState(e.target.value)} placeholder="FL" maxLength={2} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
+                    </div>
                   </div>
+                  {/* Scheduled date + time */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Source</label>
-                    <select value={dSource} onChange={e => setDSource(e.target.value)} style={selectStyle}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled date &amp; time</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input type="date" value={dScheduled} onChange={e => setDScheduled(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} />
+                      <input type="time" value={dScheduledTime} onChange={e => setDScheduledTime(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} placeholder="Optional" />
+                    </div>
+                  </div>
+                  {/* Follow-up date */}
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Follow-up date</label>
+                    <input type="date" value={dFollowUp} onChange={e => setDFollowUp(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} />
+                  </div>
+                  {/* Source */}
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source</label>
+                    <select value={dSource} onChange={e => setDSource(e.target.value)} style={{ ...selectStyle, boxSizing: 'border-box', width: '100%' }}>
                       {SOURCE_OPTIONS.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
+                  {/* Estimated value */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Estimated value</label>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated value</label>
                     {leadEstimate ? (
                       <div>
-                        <div style={{ ...inputStyle, background: dk ? '#0f172a' : '#f9fafb', color: '#0F766E', fontWeight: 600, cursor: 'default' }}>
+                        <div style={{ ...inputStyle, background: dk ? '#0f172a' : '#f9fafb', color: '#0F766E', fontWeight: 600, cursor: 'default', boxSizing: 'border-box' }}>
                           ${leadEstimate.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </div>
                         <button onClick={() => router.push(`/dashboard/estimates/${leadEstimate.id}?from=pipeline&lead_id=${id}`)}
@@ -582,42 +592,40 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         </button>
                       </div>
                     ) : (
-                      <input type="number" value={dQuote} onChange={e => setDQuote(e.target.value)} placeholder="0.00" style={inputStyle} />
+                      <input type="number" value={dQuote} onChange={e => setDQuote(e.target.value)} placeholder="0.00" style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     )}
                   </div>
+                  {/* Lead status */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Lead status</label>
-                    <select value={dStatus} onChange={e => setDStatus(e.target.value as LeadStatus)} style={selectStyle}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead status</label>
+                    <select value={dStatus} onChange={e => setDStatus(e.target.value as LeadStatus)} style={{ ...selectStyle, boxSizing: 'border-box', width: '100%' }}>
                       {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Lead owner</label>
-                    <input value={session.name} disabled style={{ ...inputStyle, opacity: 0.6, cursor: 'not-allowed' }} />
-                  </div>
-                </div>
 
-                <div style={{ marginTop: 14 }}>
-                  <label style={{ fontSize: 12, color: ts, display: 'block', marginBottom: 5 }}>Notes</label>
-                  <textarea value={dNotes} onChange={e => setDNotes(e.target.value)} rows={3} maxLength={500} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 100 }} />
-                  <div style={{ fontSize: 12, color: ts, textAlign: 'right', marginTop: 3 }}>{dNotes.length}/500</div>
+                  {/* Notes */}
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes</label>
+                    <textarea value={dNotes} onChange={e => setDNotes(e.target.value)} rows={4} maxLength={500} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 100, boxSizing: 'border-box', width: '100%' }} />
+                    <div style={{ fontSize: 12, color: ts, textAlign: 'right', marginTop: 3 }}>{dNotes.length}/500</div>
+                  </div>
                 </div>
 
                 {/* Drawer footer buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
-                  <button onClick={() => setDrawerOpen(false)} style={{ padding: '12px', borderRadius: 10, border: `1.5px solid ${border}`, background: dk ? '#1E293B' : '#F3F4F6', color: tp, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cancel</button>
-                  <button onClick={handleSaveDrawer} disabled={savingDrawer} style={{ padding: '12px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
+                  <button onClick={() => setDrawerOpen(false)} style={{ padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`, background: dk ? '#1E293B' : '#F3F4F6', color: tp, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cancel</button>
+                  <button onClick={handleSaveDrawer} disabled={savingDrawer} style={{ padding: '13px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
                     {savingDrawer ? 'Saving…' : 'Save Changes'}
                   </button>
                 </div>
 
                 {/* Audit trail */}
                 {lead && (
-                  <div style={{ marginTop: 28, paddingTop: 20, borderTop: `1px solid ${border}` }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: tp, marginBottom: 10 }}>Lead created</div>
-                    <div style={{ fontSize: 13, color: ts, marginBottom: 4 }}>{new Date(lead.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at {new Date(lead.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
-                    <div style={{ fontSize: 13, color: ts, marginBottom: 4 }}>Created by <span style={{ color: tp, fontWeight: 500 }}>{session.name}</span></div>
-                    <div style={{ fontSize: 13, color: ts }}>Source · <span style={{ color: tp }}>{(lead.lead_source || 'Unknown').replace(/_/g,' ')}{lead.message ? ` · "${lead.message.slice(0,40)}…"` : ''}</span></div>
+                  <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${border}` }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: ts, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead info</div>
+                    <div style={{ fontSize: 13, color: ts, marginBottom: 4 }}>Created {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                    <div style={{ fontSize: 13, color: ts, marginBottom: 4 }}>By <span style={{ color: tp, fontWeight: 500 }}>{session.name}</span></div>
+                    <div style={{ fontSize: 13, color: ts }}>Source · <span style={{ color: tp }}>{(lead.lead_source || 'Unknown').replace(/_/g,' ')}</span></div>
                   </div>
                 )}
               </div>
@@ -640,62 +648,43 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 </button>
                 {lead.contact_phone ? (
                   <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, fontSize: 14, textDecoration: 'none' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, fontSize: 14, textDecoration: 'none', fontWeight: 500 }}>
                     <Ic color={tp}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
                     Call
                   </a>
-                ) : (
-                  <button
-                    onClick={openDrawer}
-                    title="Add contact info"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, border: `1px dashed ${border}`, background: 'transparent', color: '#0F766E', fontSize: 14, cursor: 'pointer' }}>
-                    <Ic color="#0F766E"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
-                    Add contact
-                  </button>
-                )}
-                <button onClick={handleSaveDrawer} disabled={savingDrawer}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', fontSize: 14, fontWeight: 500, cursor: savingDrawer ? 'wait' : 'pointer', opacity: savingDrawer ? 0.7 : 1 }}>
-                  {savingDrawer ? 'Saving…' : 'Save Changes'}
-                </button>
+                ) : null}
               </div>
 
-              {/* Hero */}
+              {/* Hero — clean mobile-first layout */}
               <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '16px 20px', marginBottom: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
-                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: avBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 500, color: avFg, flexShrink: 0 }}>
+                {/* Row 1: avatar + name + edit button */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: avBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 600, color: avFg, flexShrink: 0 }}>
                     {initials(lead.contact_name)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 5 }}>
-                      <span style={{ fontSize: 22, fontWeight: 700, color: tp, wordBreak: 'break-word' }}>{capName(lead.contact_name)}</span>
-                      <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#EEEDFE', color: '#3C3489', fontWeight: 500 }}>{currentStage}</span>
-                      <span style={{ fontSize: 14, color: ts }}>· {timeAgo(lead.created_at)}</span>
-                      {overdueFU && <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>Overdue</span>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 20, fontWeight: 700, color: tp, wordBreak: 'break-word' }}>{capName(lead.contact_name)}</span>
+                      {overdueFU && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 600 }}>Overdue</span>}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: ts, flexWrap: 'wrap' }}>
-                      {lead.lead_source && <span style={{ background: dk ? '#1E293B' : '#F3F4F6', padding: '2px 8px', borderRadius: 6, fontSize: 12, fontWeight: 500 }}>{lead.lead_source.replace(/_/g,' ')}</span>}
-                      {lead.quoted_amount != null && <span style={{ color: '#0F766E', fontWeight: 600, fontSize: 14 }}>${Number(lead.quoted_amount).toLocaleString()}</span>}
-                      <span className="hidden md:inline" style={{ opacity: 0.4, fontSize: 12 }}>#{shortId(lead.id)}</span>
-                    </div>
-                  </div>
-                  {/* Last activity + Status — full width on mobile, inline right on xl+ */}
-                  <div className="w-full xl:w-auto xl:flex-shrink-0">
-                    <div style={{ display: 'flex', gap: 0, border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', marginTop: 2 }}>
-                      <div style={{ padding: '10px 16px', borderRight: `1px solid ${border}` }}>
-                        <div style={{ fontSize: 11, color: ts, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 3 }}>Last activity</div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: tp, whiteSpace: 'nowrap' }}>
-                          {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(lead.updated_at || lead.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                        </div>
-                      </div>
-                      <div style={{ padding: '10px 16px' }}>
-                        <div style={{ fontSize: 11, color: ts, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 3 }}>Status</div>
-                        <div style={{ fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, color: nbaData.urgent ? '#C2410C' : '#0F766E', whiteSpace: 'nowrap' }}>
-                          <span>{nbaData.urgent ? '🔥' : '✓'}</span>
-                          <span>{nbaData.urgent ? 'Needs attention' : 'On track'}</span>
-                        </div>
-                      </div>
+                    {/* Row 2: stage + amount + source + time */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#EEEDFE', color: '#3C3489', fontWeight: 600 }}>{currentStage}</span>
+                      {lead.quoted_amount != null && <span style={{ color: '#0F766E', fontWeight: 700, fontSize: 14 }}>${Number(lead.quoted_amount).toLocaleString()}</span>}
+                      {lead.lead_source && <span style={{ background: dk ? '#1E293B' : '#F3F4F6', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500, color: ts }}>{lead.lead_source.replace(/_/g,' ')}</span>}
+                      <span style={{ fontSize: 12, color: ts, opacity: 0.7 }}>{timeAgo(lead.created_at)}</span>
                     </div>
                   </div>
+                  {/* Edit button */}
+                  <button onClick={openDrawer} style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 8, border: `1.5px solid ${border}`, background: 'none', color: ts, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit
+                  </button>
+                </div>
+                {/* Last activity — desktop only, compact */}
+                <div className="hidden md:flex" style={{ gap: 16, fontSize: 12, color: ts, paddingTop: 10, borderTop: `1px solid ${border}` }}>
+                  <span>Last updated: <strong style={{ color: tp }}>{new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong></span>
+                  <span style={{ color: nbaData.urgent ? '#C2410C' : '#0F766E', fontWeight: 600 }}>{nbaData.urgent ? '🔥 Needs attention' : '✓ On track'}</span>
                 </div>
               </div>
 
@@ -782,10 +771,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                       Call Now
                     </button>
                   )}
-                  <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: card, color: '#0F766E', border: '1.5px solid #0F766E', borderRadius: 9, fontSize: 14, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    <Ic color="'#0F766E'" size={14}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></Ic>
-                    Send Reminder SMS
-                  </button>
                 </div>
               </div>
 

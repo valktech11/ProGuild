@@ -219,10 +219,20 @@ function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: ()
     }
   }, [open])
 
+  // Lock body scroll when drawer is open
+  React.useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
   function handleClose() {
     setClosing(true)
     setVisible(false)
-    setTimeout(onClose, 320)
+    setTimeout(() => { setClosing(false); onClose() }, 320)
   }
 
   if (!open && !closing) return null
@@ -230,8 +240,9 @@ function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: ()
   const tradeCity = [session?.trade, session?.city].filter(Boolean).join(' · ')
 
   return (
-    <div className="md:hidden fixed inset-0 z-[60]">
-      {/* Backdrop — fades in/out */}
+    // pointerEvents none once invisible — content underneath is immediately tappable
+    <div className="md:hidden fixed inset-0 z-[60]" style={{ pointerEvents: visible ? 'auto' : 'none' }}>
+      {/* Backdrop — fades in/out. Only right side (20%+) is tappable to close */}
       <div className="absolute inset-0" onClick={handleClose}
         style={{
           background: 'rgba(4,12,24,.82)',
@@ -710,7 +721,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
         </div>
 
         {/* ── MOBILE ───────────────────────────────────────────────────────── */}
-        <div className="md:hidden">
+        <div className="md:hidden" suppressHydrationWarning>
           <main className="pb-[68px] min-h-screen" style={{ backgroundColor: '#F5F4F0' }}>
             {children}
           </main>
