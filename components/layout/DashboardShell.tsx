@@ -241,21 +241,21 @@ function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: ()
           transition: 'opacity 0.28s ease',
         }} />
 
-      {/* Sheet — slides up/down */}
-      <div className="absolute bottom-0 left-0 right-0 rounded-t-[32px] flex flex-col"
+      {/* Sheet — slides in from left, Gmail-style */}
+      <div className="absolute top-0 left-0 bottom-0 flex flex-col"
         style={{
           background: 'linear-gradient(180deg, #0F2847 0%, #091525 60%, #060D18 100%)',
-          maxHeight: '92vh',
-          boxShadow: '0 -8px 40px rgba(0,0,0,.6)',
+          width: '80vw',
+          maxWidth: 320,
+          boxShadow: '4px 0 40px rgba(0,0,0,.6)',
           paddingBottom: 'env(safe-area-inset-bottom)',
-          transform: visible ? 'translateY(0)' : 'translateY(100%)',
+          transform: visible ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform 0.32s cubic-bezier(0.32, 0.72, 0, 1)',
+          overflowY: 'auto',
         }}>
 
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-[5px] rounded-full" style={{ background: 'rgba(255,255,255,.22)' }} />
-        </div>
+        {/* Top spacer for status bar */}
+        <div className="flex-shrink-0" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }} />
 
         {/* User identity card */}
         {session && (
@@ -303,7 +303,7 @@ function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: ()
         )}
 
         {/* Nav groups — scrollable */}
-        <div className="flex-1 overflow-y-auto px-3 pt-3 pb-6" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex-1 overflow-y-auto px-3 pt-3 pb-16" style={{ scrollbarWidth: 'none' }}>
           {buildNav(nl).map((g, gi) => (
             <div key={g.title} className={gi > 0 ? 'mt-8' : 'mt-2'}>
               {/* Section header with line */}

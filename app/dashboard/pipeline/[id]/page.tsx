@@ -428,7 +428,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={() => { const n = !dk; setDk(n); localStorage.setItem('pg_darkmode', n ? '1' : '0') }}>
-      <div style={{ background: bg, minHeight: '100vh', padding: '12px 16px', paddingBottom: 60, overflowX: 'hidden', maxWidth: '100vw' }}>
+      <div style={{ background: bg, minHeight: '100vh', padding: '12px 16px', paddingBottom: 'calc(80px + env(safe-area-inset-bottom))', overflowX: 'hidden', maxWidth: '100vw' }}>
 
         {/* Toasts */}
         <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 400, display: 'flex', flexDirection: 'column', gap: 10, pointerEvents: 'none', alignItems: 'center' }}>

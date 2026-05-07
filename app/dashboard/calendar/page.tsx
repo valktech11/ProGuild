@@ -363,7 +363,7 @@ function FilterSheet({ open, onClose, showJobs, showFollowups, onToggleJobs, onT
     <div style={{ position:'fixed', inset:0, zIndex:60, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
       onClick={onClose}>
       <div style={{ background:'rgba(0,0,0,0.45)', position:'absolute', inset:0 }}/>
-      <div style={{ position:'relative', background:t.cardBg, borderRadius:'20px 20px 0 0', padding:'16px 20px 32px', zIndex:1 }}
+      <div style={{ position:'relative', background:t.cardBg, borderRadius:'20px 20px 0 0', padding:'16px 20px', paddingBottom:'calc(80px + env(safe-area-inset-bottom))', zIndex:1 }}
         onClick={e => e.stopPropagation()}>
         <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}>
           <div style={{ width:36, height:4, borderRadius:2, background:t.cardBorder }}/>
