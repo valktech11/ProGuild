@@ -311,8 +311,8 @@ function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk, onTeal = f
 }
 
 // ─── Mobile month dot grid ────────────────────────────────────────────────────
-function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk }: {
-  selectedDate:Date; events:CalEvent[]; today0:Date; onSelect:(d:Date)=>void; dk:boolean
+function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk, onTeal = false }: {
+  selectedDate:Date; events:CalEvent[]; today0:Date; onSelect:(d:Date)=>void; dk:boolean; onTeal?: boolean
 }) {
   const t = theme(dk)
   const firstDay    = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1).getDay()
@@ -321,7 +321,9 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk }: {
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:2 }}>
         {DAYS.map((d,i) => (
-          <div key={d} style={{ textAlign:'center', fontSize: 11, fontWeight:700, color:i===0?'#DC2626':t.textMuted, padding:'3px 0', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+          <div key={d} style={{ textAlign:'center', fontSize: 11, fontWeight:700,
+            color: i===0?(onTeal?'#FCA5A5':'#DC2626'):(onTeal?'rgba(255,255,255,0.6)':t.textMuted),
+            padding:'3px 0', textTransform:'uppercase' as const, letterSpacing:'0.05em' }}>
             {d.slice(0,1)}
           </div>
         ))}
@@ -337,16 +339,18 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk }: {
           const hasJob     = dayEvs.some(ev=>ev._type==='job')
           const hasFU      = dayEvs.some(ev=>ev._type==='followup'&&!isOverdueEvent(ev,today0))
           const hasOverdue = dayEvs.some(ev=>isOverdueEvent(ev,today0))
+          const selBg      = isSel?'rgba(255,255,255,0.92)':isTod?(onTeal?'rgba(255,255,255,0.18)':t.calColToday):'transparent'
+          const numColor   = isSel?(onTeal?'#0F766E':'white'):isTod?'#0F766E':d.getDay()===0?(onTeal?'#FCA5A5':'#DC2626'):(onTeal?'white':dk?'#F1F5F9':'#111827')
           return (
             <button key={day} onClick={() => onSelect(d)}
-              style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'5px 2px', borderRadius:8, border:'none', cursor:'pointer', background:isSel?'#0F766E':isTod?t.calColToday:'transparent', minHeight:42 }}>
-              <span style={{ fontSize: 14, fontWeight:isTod?800:500, color:isSel?'white':isTod?'#0F766E':d.getDay()===0?'#DC2626':dk?'#F1F5F9':'#111827', lineHeight:1.2 }}>
+              style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'5px 2px', borderRadius:8, border:'none', cursor:'pointer', background:selBg, minHeight:42 }}>
+              <span style={{ fontSize: 14, fontWeight:isTod||isSel?800:500, color:numColor, lineHeight:1.2 }}>
                 {day}
               </span>
               <div style={{ display:'flex', gap:2, minHeight:5, alignItems:'center' }}>
-                {hasOverdue && <div style={{ width:4, height:4, borderRadius:'50%', background:isSel?'rgba(255,255,255,0.8)':'#DC2626' }}/>}
-                {hasJob     && <div style={{ width:4, height:4, borderRadius:'50%', background:isSel?'rgba(255,255,255,0.8)':'#0F766E' }}/>}
-                {hasFU      && <div style={{ width:4, height:4, borderRadius:'50%', background:isSel?'rgba(255,255,255,0.8)':'#D97706' }}/>}
+                {hasOverdue && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
+                {hasJob     && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
+                {hasFU      && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
               </div>
             </button>
           )
@@ -880,23 +884,23 @@ function CalendarInner() {
 
       {/* Sticky header */}
       <div style={{ flexShrink:0, position:'sticky', top:0, zIndex:20,
-        background: mobileView==='agenda' ? '#0F766E' : t.cardBg,
-        borderBottom: mobileView==='agenda' ? 'none' : `1px solid ${t.cardBorder}`,
+        background: '#0F766E',
+        borderBottom: 'none',
       }}>
 
         {/* Row 1: nav + date + filter */}
         <div style={{ display:'flex', alignItems:'center', gap:8, padding: mobileView==='agenda'?'14px 14px 8px':'10px 14px 8px' }}>
           <button onClick={() => handleMobileNav(-1)}
             style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
-              border: mobileView==='agenda'?'1.5px solid rgba(255,255,255,0.25)':`1.5px solid ${t.cardBorder}`,
-              background: mobileView==='agenda'?'rgba(255,255,255,0.12)':t.cardBgAlt, cursor:'pointer', flexShrink:0 }}>
-            <Svg path={ICON_PATH.chevronL} size={17} color={mobileView==='agenda'?'white':t.textBody} sw={2.5}/>
+              border: '1.5px solid rgba(255,255,255,0.25)',
+              background: 'rgba(255,255,255,0.12)', cursor:'pointer', flexShrink:0 }}>
+            <Svg path={ICON_PATH.chevronL} size={17} color='white' sw={2.5}/>
           </button>
 
           <div style={{ flex:1, textAlign:'center' }}>
             <div style={{ fontSize: mobileView==='agenda'?22:17, fontWeight:800, color: mobileView==='agenda'?'white':t.textPri, letterSpacing:'-0.3px' }}>
               {mobileView==='agenda'
-                ? isToday(selectedDate) ? 'Today' : `${DAYS[selectedDate.getDay()]}, ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`
+                ? isToday(selectedDate) ? `Today · ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}` : `${DAYS[selectedDate.getDay()]}, ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`
                 : mobileView==='week'
                 ? `${SHORT_MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getDate()} – ${SHORT_MONTHS[weekDays[6].getMonth()]} ${weekDays[6].getDate()}`
                 : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
@@ -915,36 +919,36 @@ function CalendarInner() {
           <div style={{ display:'flex', gap:6, flexShrink:0 }}>
             <button onClick={() => setFilterSheetOpen(true)}
               style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
-                border: mobileView==='agenda'?'1.5px solid rgba(255,255,255,0.25)':`1.5px solid ${(!showJobs||!showFollowups)?'#0F766E':t.cardBorder}`,
-                background: mobileView==='agenda'?'rgba(255,255,255,0.12)':((!showJobs||!showFollowups)?'#F0FDFA':t.cardBgAlt), cursor:'pointer' }}>
+                border: '1.5px solid rgba(255,255,255,0.25)',
+                background: (!showJobs||!showFollowups)?'rgba(255,255,255,0.25)':'rgba(255,255,255,0.12)', cursor:'pointer' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke={mobileView==='agenda'?'white':((!showJobs||!showFollowups)?'#0F766E':t.textBody)}
+                stroke='white'
                 strokeWidth="2.2" strokeLinecap="round">
                 <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
               </svg>
             </button>
             <button onClick={() => handleMobileNav(1)}
               style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
-                border: mobileView==='agenda'?'1.5px solid rgba(255,255,255,0.25)':`1.5px solid ${t.cardBorder}`,
-                background: mobileView==='agenda'?'rgba(255,255,255,0.12)':t.cardBgAlt, cursor:'pointer' }}>
-              <Svg path={ICON_PATH.chevronR} size={17} color={mobileView==='agenda'?'white':t.textBody} sw={2.5}/>
+                border: '1.5px solid rgba(255,255,255,0.25)',
+                background: 'rgba(255,255,255,0.12)', cursor:'pointer' }}>
+              <Svg path={ICON_PATH.chevronR} size={17} color='white' sw={2.5}/>
             </button>
           </div>
         </div>
 
         {/* Row 2: view selector + Today chip */}
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0 14px 8px' }}>
-          <div style={{ display:'flex', borderRadius:22, overflow:'hidden', border: mobileView==='agenda'?'1.5px solid rgba(255,255,255,0.25)':`1.5px solid ${t.cardBorder}`, flexShrink:0 }}>
+          <div style={{ display:'flex', borderRadius:22, overflow:'hidden', border: '1.5px solid rgba(255,255,255,0.25)', flexShrink:0 }}>
             {(['agenda','week','month'] as const).map(v => (
               <button key={v} onClick={() => setMobileView(v)}
-                style={{ padding:'7px 13px', border:'none', cursor:'pointer', fontSize: 13, fontWeight:700, background:mobileView===v?'#0F766E':(mobileView==='agenda'?'rgba(255,255,255,0.12)':'transparent'), color:mobileView===v?'white':(mobileView==='agenda'?'rgba(255,255,255,0.7)':t.textMuted) }}>
+                style={{ padding:'7px 13px', border:'none', cursor:'pointer', fontSize: 13, background:mobileView===v?'rgba(255,255,255,0.2)':'transparent', color:'white', fontWeight:mobileView===v?800:500 }}>
                 {v==='agenda'?'Day':v==='week'?'Week':'Month'}
               </button>
             ))}
           </div>
           {notOnToday && (
             <button onClick={goToday}
-              style={{ fontSize: 13, fontWeight:700, padding:'7px 13px', borderRadius:22, border:`1.5px solid #0F766E`, background:'transparent', color:'#0F766E', cursor:'pointer', flexShrink:0 }}>
+              style={{ fontSize: 13, fontWeight:700, padding:'7px 13px', borderRadius:22, border:'1.5px solid rgba(255,255,255,0.5)', background:'rgba(255,255,255,0.2)', color:'white', cursor:'pointer', flexShrink:0 }}>
               ← Today
             </button>
           )}
@@ -952,13 +956,13 @@ function CalendarInner() {
 
         {/* Row 3: week strip — Day mode only (week mode has its own grouped view) */}
         {mobileView==='agenda' && (
-          <div style={{ padding:'0 12px 10px', background:'#0F766E' }}>
+          <div style={{ padding:'0 12px 10px' }}>
             <MobileWeekGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => selectDay(d)} dk={dk} onTeal={true}/>
           </div>
         )}
         {mobileView==='month' && (
-          <div style={{ padding:'0 12px 10px' }}>
-            <MobileMonthGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => { selectDay(d) }} dk={dk}/>
+          <div style={{ padding:'0 12px 10px', background:'#0F766E' }}>
+            <MobileMonthGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => { selectDay(d) }} dk={dk} onTeal={true}/>
           </div>
         )}
       </div>
