@@ -284,10 +284,14 @@ function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk, onTeal = f
         const jobCount      = dayEvs.filter(ev=>ev._type==='job').length
         const followupCount = dayEvs.filter(ev=>ev._type==='followup').length
         const overdueCount  = dayEvs.filter(ev=>isOverdueEvent(ev,today0)).length
-        // Text colours — adapt for teal background
-        const dayLetterColor = isSel?'rgba(255,255,255,0.85)':isTod?'#0F766E':d.getDay()===0?(onTeal?'#FCA5A5':'#DC2626'):onTeal?'rgba(255,255,255,0.65)':dk?'#94A3B8':'#6B7280'
-        const dayNumColor    = isSel?'white':isTod?'#0F766E':d.getDay()===0?(onTeal?'#FCA5A5':'#DC2626'):onTeal?'white':dk?'#F1F5F9':'#111827'
-        const selBg          = isSel?'rgba(255,255,255,0.25)':isTod?(onTeal?'rgba(255,255,255,0.15)':dk?'#166534':'#BBF7D0'):'transparent'
+        // Text colours — past/today/future contrast
+        const isPast = d < today0 && !isTod
+        const isFuture = d > today0
+        const baseOpacity = isPast ? 0.35 : isFuture ? 0.85 : 1
+        const sunRed = d.getDay()===0
+        const dayLetterColor = isSel?'rgba(255,255,255,0.85)':isTod?'#0F766E':sunRed?(onTeal?`rgba(252,165,165,${baseOpacity})`:'#DC2626'):onTeal?`rgba(255,255,255,${baseOpacity})`:dk?'#94A3B8':'#6B7280'
+        const dayNumColor    = isSel?'white':isTod?'#0F766E':sunRed?(onTeal?`rgba(252,165,165,${baseOpacity})`:'#DC2626'):onTeal?`rgba(255,255,255,${baseOpacity})`:dk?'#F1F5F9':'#111827'
+        const selBg          = isSel?'rgba(255,255,255,0.25)':isTod?(onTeal?'rgba(255,255,255,0.18)':dk?'#166534':'#BBF7D0'):'transparent'
         return (
           <button key={key} onClick={() => onSelect(d)}
             style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'8px 2px 6px', borderRadius:10, border:'none', cursor:'pointer', background:selBg, minHeight:64 }}>
@@ -339,12 +343,15 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk, onTeal = 
           const hasJob     = dayEvs.some(ev=>ev._type==='job')
           const hasFU      = dayEvs.some(ev=>ev._type==='followup'&&!isOverdueEvent(ev,today0))
           const hasOverdue = dayEvs.some(ev=>isOverdueEvent(ev,today0))
+          const hasEvents  = hasJob||hasFU||hasOverdue
+          const isDatePast = d < today0 && !isTod
+          const dateOpacity = isDatePast ? 0.3 : 1
           const selBg      = isSel?'rgba(255,255,255,0.92)':isTod?(onTeal?'rgba(255,255,255,0.18)':t.calColToday):'transparent'
-          const numColor   = isSel?(onTeal?'#0F766E':'white'):isTod?'#0F766E':d.getDay()===0?(onTeal?'#FCA5A5':'#DC2626'):(onTeal?'white':dk?'#F1F5F9':'#111827')
+          const numColor   = isSel?(onTeal?'#0F766E':'white'):isTod?'#0F766E':d.getDay()===0?(onTeal?`rgba(252,165,165,${dateOpacity})`:'#DC2626'):(onTeal?`rgba(255,255,255,${dateOpacity})`:dk?'#F1F5F9':'#111827')
           return (
             <button key={day} onClick={() => onSelect(d)}
               style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'5px 2px', borderRadius:8, border:'none', cursor:'pointer', background:selBg, minHeight:42 }}>
-              <span style={{ fontSize: 14, fontWeight:isTod||isSel?800:500, color:numColor, lineHeight:1.2 }}>
+              <span style={{ fontSize: 14, fontWeight:isTod||isSel?800:hasEvents?600:400, color:numColor, lineHeight:1.2 }}>
                 {day}
               </span>
               <div style={{ display:'flex', gap:2, minHeight:5, alignItems:'center' }}>
@@ -898,7 +905,7 @@ function CalendarInner() {
           </button>
 
           <div style={{ flex:1, textAlign:'center' }}>
-            <div style={{ fontSize: mobileView==='agenda'?22:17, fontWeight:800, color: mobileView==='agenda'?'white':t.textPri, letterSpacing:'-0.3px' }}>
+            <div style={{ fontSize: mobileView==='agenda'?22:18, fontWeight:800, color:'white', letterSpacing:'-0.3px' }}>
               {mobileView==='agenda'
                 ? isToday(selectedDate) ? `Today · ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}` : `${DAYS[selectedDate.getDay()]}, ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`
                 : mobileView==='week'
@@ -906,7 +913,7 @@ function CalendarInner() {
                 : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
               }
             </div>
-            <div style={{ fontSize: mobileView==='month'?12:13, color: mobileView==='agenda'?'rgba(255,255,255,0.70)':t.textSubtle, marginTop:2 }}>
+            <div style={{ fontSize: mobileView==='month'?12:13, color:'rgba(255,255,255,0.65)', marginTop:2 }}>
               {mobileView==='agenda' && (isToday(selectedDate)
                 ? `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}${todayJobs.length>0?` · ${todayJobs.length} jobs`:''}`
                 : selectedDate.getFullYear().toString()
@@ -1267,7 +1274,7 @@ function CalendarInner() {
                 style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:11, background:t.cardBg, border:`1px solid ${t.cardBorder}`, marginBottom:8, cursor:'pointer' }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize: 15, fontWeight:700, color:t.textPri }}>{capName(ev.contact_name)}</div>
-                  <div style={{ fontSize: 13, color: mobileView==='agenda'?'rgba(255,255,255,0.70)':t.textSubtle, marginTop:2 }}>{ev.lead_status}</div>
+                  <div style={{ fontSize: 13, color:'rgba(255,255,255,0.65)', marginTop:2 }}>{ev.lead_status}</div>
                 </div>
                 <Svg path={ICON_PATH.chevronR} size={12} color={t.textSubtle} sw={2.5}/>
               </div>
