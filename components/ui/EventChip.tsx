@@ -135,8 +135,6 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
 
   // ── full — mobile agenda card ─────────────────────────────────────────────
   const phone = fmtPhone(ev.contact_phone)
-  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(ev.message?.slice(0, 50) || ev.contact_name)}`
-
   return (
     <div
       onClick={onClick}
@@ -195,13 +193,7 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
             Call
           </a>
         )}
-        {ev._type === 'job' && (
-          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-            style={{ flex: phone ? 0 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 14px', borderRadius: 9, background: t.cardBgAlt, border: `1.5px solid ${t.cardBorder}`, color: t.textBody, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-            <Svg path={ICON_PATH.mapPin} size={12} color={t.textBody} sw={2.2} />
-            Nav
-          </a>
-        )}
+
         {onMarkComplete && !isCompleted && (
           <button onClick={onMarkComplete} disabled={completing}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 0', borderRadius: 9, background: completing ? t.cardBgAlt : '#DCFCE7', border: '1.5px solid #86EFAC', color: '#15803D', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: completing ? 0.6 : 1 }}>
