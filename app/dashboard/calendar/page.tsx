@@ -996,7 +996,7 @@ function CalendarInner() {
                       paddingLeft: isTod?9:9,
                       paddingTop: di===0?0:hasEvents?12:6,
                       paddingBottom: hasEvents?12:6,
-                      borderBottom: `1px solid ${t.divider}`,
+                      borderBottom: `1px solid ${t.cardBorder}`,
                       opacity: isWeekend && !hasEvents ? 0.55 : 1,
                     }}>
                       {/* Left: day badge — fixed 48px */}
