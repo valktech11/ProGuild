@@ -154,7 +154,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, dk = false }: {
                     <button key={s.key} onClick={() => handleStageClick(s.key)}
                       className="py-2.5 rounded-xl text-xs font-bold border-2 transition-all"
                       style={status === s.key
-                        ? { background: dk ? stageStyle(s.key).color + '20' : stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
+                        ? { background: stageStyle(s.key, dk).bg, color: stageStyle(s.key, dk).color, borderColor: stageStyle(s.key, dk).color }
                         : { background: theme(dk).cardBg, color: theme(dk).textMuted, borderColor: theme(dk).cardBorder }}>
                       {s.label}
                     </button>
@@ -329,8 +329,8 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
       onClick={onOpen}
       className="rounded-xl cursor-pointer transition-all active:scale-[0.98]"
       style={{
-        border: `1px solid ${dk ? stageStyle(stage.key).color + '33' : stageStyle(stage.key).color + '22'}`,
-        borderLeft: `3px solid ${stageStyle(stage.key).color}`,
+        border: `1px solid ${stageStyle(stage.key, dk).color}${dk ? '33' : '22'}`,
+        borderLeft: `3px solid ${stageStyle(stage.key, dk).color}`,
         padding: '10px 12px',
         background: t.cardBg,
         boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
@@ -385,13 +385,9 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
           disabled={creatingEst}
           className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 min-w-0"
           style={{
-            background: dk
-              ? stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).color + '20'
-              : stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).bg,
-            color: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).color,
-            border: `1px solid ${dk
-              ? stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).color + '44'
-              : stageStyle(stage.key === 'New' ? 'Contacted' : stage.key).chipBg}`
+            background: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key, dk).bg,
+            color: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key, dk).color,
+            border: `1px solid ${stageStyle(stage.key === 'New' ? 'Contacted' : stage.key, dk).chipBg}`
           }}>
           {stage.key === 'New' && (
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -556,7 +552,7 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
 
                     {/* Stage */}
                     <td style={{ padding: '11px 14px' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: stageStyle(stage.key).bg, color: stageStyle(stage.key).color, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: stageStyle(stage.key, dk).bg, color: stageStyle(stage.key, dk).color, whiteSpace: 'nowrap' }}>
                         {stage.label}
                       </span>
                     </td>
@@ -651,7 +647,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail, dk = false }: {
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F3F4F6', background: stageStyle(stage.key).bg, flexShrink: 0 }}>
+        <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${theme(dk).cardBorder}`, background: stageStyle(stage.key, dk).bg, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 40, height: 40, borderRadius: '50%', background: avBg, color: avFg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
@@ -785,7 +781,7 @@ function SlidePanel({ stage, leads, onClose, onOpen, dk = false }: {
         onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4"
-          style={{ background: stageStyle(stage.key).bg, borderBottom: `1px solid ${stageStyle(stage.key).color}22` }}>
+          style={{ background: stageStyle(stage.key, dk).bg, borderBottom: `1px solid ${stageStyle(stage.key, dk).color}22` }}>
           <div>
             <div className="text-[14px] font-bold" style={{ color: stageStyle(stage.key).color }}>
               {stage.label} · {leads.length} leads
@@ -891,9 +887,7 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
       <div className="flex flex-col min-w-0" style={{ minWidth: 220 }}>
         {/* Column header */}
         <div className="rounded-xl px-3 py-2.5 mb-2" style={{
-          background: dk
-            ? (stage.key === 'Paid' ? 'rgba(74,123,74,0.18)' : stageStyle(stage.key).color + '1A')
-            : (stage.key === 'Paid' ? 'rgba(74,123,74,0.10)' : stageStyle(stage.key).bg),
+          background: stageStyle(stage.key, dk).bg,
           borderTop: `3px solid ${stageStyle(stage.key).color}`
         }}>
           <div className="flex items-center justify-between">
@@ -930,13 +924,13 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
                 <div className="flex gap-2">
                   <button onClick={() => setExpanded(true)}
                     className="flex-1 py-2 text-[12px] font-semibold rounded-xl border transition-colors hover:opacity-80"
-                    style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: dk ? stageStyle(stage.key).color + '18' : stageStyle(stage.key).bg }}>
+                    style={{ borderColor: stageStyle(stage.key, dk).color + '44', color: stageStyle(stage.key, dk).color, background: stageStyle(stage.key, dk).bg }}>
                     + {overflow} more leads ∨
                   </button>
                   {leads.length > 3 && (
                     <button onClick={() => setShowSlide(true)}
                       className="w-8 h-8 flex items-center justify-center rounded-xl border transition-colors hover:opacity-80 flex-shrink-0"
-                      style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: dk ? stageStyle(stage.key).color + '18' : stageStyle(stage.key).bg }}>
+                      style={{ borderColor: stageStyle(stage.key, dk).color + '44', color: stageStyle(stage.key, dk).color, background: stageStyle(stage.key, dk).bg }}>
                       <Ic d="M9 18l6-6-6-6" s={14} c={stageStyle(stage.key).color} />
                     </button>
                   )}
@@ -945,7 +939,7 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
               {expanded && (
                 <button onClick={() => setExpanded(false)}
                   className="w-full py-2 text-[12px] font-semibold rounded-xl border transition-colors hover:opacity-80"
-                  style={{ borderColor: stageStyle(stage.key).color + '44', color: stageStyle(stage.key).color, background: stageStyle(stage.key).bg }}>
+                  style={{ borderColor: stageStyle(stage.key, dk).color + '44', color: stageStyle(stage.key, dk).color, background: stageStyle(stage.key, dk).bg }}>
                   Show less ∧
                 </button>
               )}
@@ -1018,7 +1012,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
             <button key={s.key} onClick={() => setMobileStage(s.key as StageKey)}
               className="flex-shrink-0 px-4 py-2.5 rounded-full text-[13px] font-bold border transition-all"
               style={mobileStage === s.key
-                ? { background: dk ? stageStyle(s.key).color + '20' : stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
+                ? { background: stageStyle(s.key, dk).bg, color: stageStyle(s.key, dk).color, borderColor: stageStyle(s.key, dk).color }
                 : { background: 'white', color: '#374151', borderColor: '#C8C3BC' }}>
               {s.label} {cnt > 0 && `(${cnt})`}
             </button>

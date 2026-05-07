@@ -143,7 +143,7 @@ export default function InvoicesPage() {
                 )}
               </div>
             ) : filtered.map((inv, i) => {
-              const s = invoiceStatusStyle(inv.status)
+              const s = invoiceStatusStyle(inv.status, dk)
               const isOverdue = inv.due_date && new Date(inv.due_date) < new Date() && ['sent','viewed','partial_payment'].includes(inv.status)
               return (
                 <Link key={inv.id} href={`/dashboard/invoices/${inv.id}`}

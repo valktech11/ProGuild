@@ -29,7 +29,7 @@ export function Badge({ status, type = 'stage', dk = false, bg, color, size = 's
 
   if (!bg || !color) {
     if (type === 'stage') {
-      const s = stageStyle(status)
+      const s = stageStyle(status, dk)
       resolvedBg    = s.chipBg
       resolvedColor = s.color
       label         = s.label

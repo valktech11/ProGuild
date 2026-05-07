@@ -2,12 +2,11 @@
  * ProGuild Design System
  * ─────────────────────
  * Single source of truth for ALL semantic colours.
- * Replaces all local STATUS_STYLES objects in individual pages.
  *
  * Rules:
- *  - 4 urgency colours: teal (job), amber (follow-up), red (overdue), gray (done)
- *  - Dark mode: use cardBg background + coloured border. No tinted status backgrounds.
- *  - Icons differentiate type; colour differentiates urgency.
+ *  - stageStyle(status, dk) — always pass dk. Returns correct bg/chipBg for the mode.
+ *  - Dark mode stages: transparent tinted bg derived from the accent colour. No hardcoded hex.
+ *  - estimateStatusStyle / invoiceStatusStyle — same pattern.
  */
 
 import { BRAND } from './tokens'
@@ -59,56 +58,89 @@ export function eventStyle(
 // ─── Lead pipeline stage colours ─────────────────────────────────────────────
 
 export type StageStyle = {
-  color:  string   // primary accent (text, border, icon)
-  bg:     string   // light background tint (light mode only)
+  color:  string   // primary accent — text, border, icon. Same in light and dark.
+  bg:     string   // surface background — light tint in light, dark tint in dark
   chipBg: string   // pill/badge background
   label:  string   // display label
 }
 
-const STAGE_STYLES: Record<string, StageStyle> = {
-  New:       { color: '#D97706', bg: '#FFFBEB', chipBg: '#FEF3C7', label: 'New'       },
-  Contacted: { color: '#2563EB', bg: '#EFF6FF', chipBg: '#DBEAFE', label: 'Contacted' },
-  Quoted:    { color: '#7C3AED', bg: '#F5F3FF', chipBg: '#EDE9FE', label: 'Quoted'    },
-  Scheduled: { color: BRAND.teal,bg: '#F0FDFA', chipBg: '#CCFBF1', label: 'Scheduled' },
-  Completed: { color: '#374151', bg: '#F9FAFB', chipBg: '#F3F4F6', label: 'Completed' },
-  Paid:      { color: '#15803D', bg: '#DCFCE7', chipBg: '#BBF7D0', label: 'Job Won'   },
-  Lost:      { color: '#9CA3AF', bg: '#F9FAFB', chipBg: '#F3F4F6', label: 'Lost'      },
+// Light-mode base definitions — only `color` and `label` are invariant
+const STAGE_BASE: Record<string, { color: string; lightBg: string; lightChip: string; label: string }> = {
+  New:       { color: '#D97706', lightBg: '#FFFBEB', lightChip: '#FEF3C7', label: 'New'       },
+  Contacted: { color: '#2563EB', lightBg: '#EFF6FF', lightChip: '#DBEAFE', label: 'Contacted' },
+  Quoted:    { color: '#7C3AED', lightBg: '#F5F3FF', lightChip: '#EDE9FE', label: 'Quoted'    },
+  Scheduled: { color: BRAND.teal, lightBg: '#F0FDFA', lightChip: '#CCFBF1', label: 'Scheduled' },
+  Completed: { color: '#374151', lightBg: '#F9FAFB', lightChip: '#F3F4F6', label: 'Completed' },
+  Paid:      { color: '#15803D', lightBg: '#DCFCE7', lightChip: '#BBF7D0', label: 'Job Won'   },
+  Lost:      { color: '#9CA3AF', lightBg: '#F9FAFB', lightChip: '#F3F4F6', label: 'Lost'      },
 }
 
-export function stageStyle(status: string): StageStyle {
-  return STAGE_STYLES[status] || STAGE_STYLES['New']
+/**
+ * Returns stage colours appropriate for the current mode.
+ * Dark mode: bg and chipBg are derived transparently from the accent colour.
+ * Always pass dk so dark mode works automatically everywhere.
+ */
+export function stageStyle(status: string, dk = false): StageStyle {
+  const base = STAGE_BASE[status] || STAGE_BASE['New']
+  if (dk) {
+    return {
+      color:  base.color,
+      bg:     base.color + '1A',   // 10% opacity tint — visible but not garish
+      chipBg: base.color + '33',   // 20% opacity for pills/chips
+      label:  base.label,
+    }
+  }
+  return {
+    color:  base.color,
+    bg:     base.lightBg,
+    chipBg: base.lightChip,
+    label:  base.label,
+  }
 }
 
 // ─── Invoice status ───────────────────────────────────────────────────────────
 
 export type StatusStyle = { bg: string; text: string; label: string }
 
+// Same pattern: accent colour is invariant, bg is derived in dark mode
+const INVOICE_BASE: Record<string, { lightBg: string; text: string; darkText: string; label: string }> = {
+  draft:           { lightBg: '#F3F4F6', text: '#4B5563', darkText: '#94A3B8', label: 'Draft'   },
+  sent:            { lightBg: '#EFF6FF', text: '#1D4ED8', darkText: '#93C5FD', label: 'Sent'    },
+  viewed:          { lightBg: '#F5F3FF', text: '#6D28D9', darkText: '#C4B5FD', label: 'Viewed'  },
+  partial_payment: { lightBg: '#FFFBEB', text: '#B45309', darkText: '#FCD34D', label: 'Partial' },
+  paid:            { lightBg: '#F0FDF4', text: '#15803D', darkText: '#6EE7B7', label: 'Paid'    },
+  void:            { lightBg: '#F9FAFB', text: '#9CA3AF', darkText: '#475569', label: 'Void'    },
+}
+
 export function invoiceStatusStyle(status: string, dk = false): StatusStyle {
-  const map: Record<string, StatusStyle> = {
-    draft:           { bg: dk ? '#1A2130' : '#F3F4F6', text: dk ? '#94A3B8' : '#4B5563', label: 'Draft'   },
-    sent:            { bg: dk ? '#1A2130' : '#EFF6FF', text: dk ? '#93C5FD' : '#1D4ED8', label: 'Sent'    },
-    viewed:          { bg: dk ? '#1A2130' : '#F5F3FF', text: dk ? '#C4B5FD' : '#6D28D9', label: 'Viewed'  },
-    partial_payment: { bg: dk ? '#1A2130' : '#FFFBEB', text: dk ? '#FCD34D' : '#B45309', label: 'Partial' },
-    paid:            { bg: dk ? '#1A2130' : '#F0FDF4', text: dk ? '#6EE7B7' : '#15803D', label: 'Paid'    },
-    void:            { bg: dk ? '#1A2130' : '#F9FAFB', text: dk ? '#475569' : '#9CA3AF', label: 'Void'    },
+  const base = INVOICE_BASE[status] || INVOICE_BASE['draft']
+  return {
+    bg:   dk ? base.darkText + '1A' : base.lightBg,
+    text: dk ? base.darkText        : base.text,
+    label: base.label,
   }
-  return map[status] || map['draft']
 }
 
 // ─── Estimate status ──────────────────────────────────────────────────────────
 
+const ESTIMATE_BASE: Record<string, { lightBg: string; text: string; darkText: string; label: string }> = {
+  draft:    { lightBg: '#F3F4F6', text: '#4B5563', darkText: '#94A3B8', label: 'Draft'    },
+  sent:     { lightBg: '#EFF6FF', text: '#1D4ED8', darkText: '#93C5FD', label: 'Sent'     },
+  viewed:   { lightBg: '#F5F3FF', text: '#6D28D9', darkText: '#C4B5FD', label: 'Viewed'   },
+  approved: { lightBg: '#F0FDF4', text: '#15803D', darkText: '#6EE7B7', label: 'Approved' },
+  declined: { lightBg: '#FEF2F2', text: '#DC2626', darkText: '#FCA5A5', label: 'Declined' },
+  invoiced: { lightBg: '#FFFBEB', text: '#B45309', darkText: '#FCD34D', label: 'Invoiced' },
+  paid:     { lightBg: '#DCFCE7', text: '#15803D', darkText: '#6EE7B7', label: 'Paid'     },
+  void:     { lightBg: '#F9FAFB', text: '#9CA3AF', darkText: '#475569', label: 'Void'     },
+}
+
 export function estimateStatusStyle(status: string, dk = false): StatusStyle {
-  const map: Record<string, StatusStyle> = {
-    draft:    { bg: dk ? '#1A2130' : '#F3F4F6', text: dk ? '#94A3B8' : '#4B5563', label: 'Draft'    },
-    sent:     { bg: dk ? '#1A2130' : '#EFF6FF', text: dk ? '#93C5FD' : '#1D4ED8', label: 'Sent'     },
-    viewed:   { bg: dk ? '#1A2130' : '#F5F3FF', text: dk ? '#C4B5FD' : '#6D28D9', label: 'Viewed'   },
-    approved: { bg: dk ? '#1A2130' : '#F0FDF4', text: dk ? '#6EE7B7' : '#15803D', label: 'Approved' },
-    declined: { bg: dk ? '#1A2130' : '#FEF2F2', text: dk ? '#FCA5A5' : '#DC2626', label: 'Declined' },
-    invoiced: { bg: dk ? '#1A2130' : '#FFFBEB', text: dk ? '#FCD34D' : '#B45309', label: 'Invoiced' },
-    paid:     { bg: dk ? '#1A2130' : '#DCFCE7', text: dk ? '#6EE7B7' : '#15803D', label: 'Paid'     },
-    void:     { bg: dk ? '#1A2130' : '#F9FAFB', text: dk ? '#475569' : '#9CA3AF', label: 'Void'     },
+  const base = ESTIMATE_BASE[status] || ESTIMATE_BASE['draft']
+  return {
+    bg:    dk ? base.darkText + '1A' : base.lightBg,
+    text:  dk ? base.darkText        : base.text,
+    label: base.label,
   }
-  return map[status] || map['draft']
 }
 
 // ─── SVG icon paths ───────────────────────────────────────────────────────────

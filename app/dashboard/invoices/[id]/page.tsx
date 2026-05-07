@@ -189,7 +189,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     </DashboardShell>
   )
 
-  const ss        = invoiceStatusStyle(invoice.status)
+  const ss        = invoiceStatusStyle(invoice.status, dk)
   const isPaid    = invoice.status === 'paid'
   const isOverdue = invoice.due_date && new Date(invoice.due_date) < new Date() && !isPaid
 
