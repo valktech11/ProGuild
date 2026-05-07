@@ -205,10 +205,7 @@ export default function EstimatesPage() {
   if (!session) return null
 
   const t       = theme(dk)
-  const card    = `border rounded-xl` // use t.cardBg inline
-  const textMain = 'font-semibold' // use t.textPri inline
-  const muted   = '' // use t.textMuted inline
-  const pageBg  = '' // use t.pageBg inline
+  const muted   = dk ? 'text-slate-400' : 'text-[#6B7280]'
 
   // E1+E2+E3: filter, sort, archive
   const archivedStatuses = ['void', 'declined']
@@ -267,7 +264,7 @@ export default function EstimatesPage() {
       darkMode={dk}
       onToggleDark={toggleDark}
     >
-      <div className={`min-h-screen pb-12 ${pageBg}`}>
+      <div className={`min-h-screen pb-12 `}>
         <div className="max-w-[1200px] mx-auto px-4 py-6 space-y-6">
 
           {/* Reads ?voided= param — must be in Suspense per Next.js App Router rules */}
@@ -287,8 +284,8 @@ export default function EstimatesPage() {
           {/* ── Header ── */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className={`text-2xl font-bold tracking-tight ${textMain}`}>Estimates</h1>
-              <p className={`text-sm mt-0.5 hidden md:block ${muted}`}>Create and send professional estimates to your leads</p>
+              <h1 className={`text-2xl font-bold tracking-tight `}>Estimates</h1>
+              <p className={`text-sm mt-0.5 hidden md:block `}>Create and send professional estimates to your leads</p>
             </div>
             <button
               onClick={handleCreate}
@@ -307,9 +304,9 @@ export default function EstimatesPage() {
               { label: 'Sent / In Review', value: sentCount.toString() },
               { label: 'Active Estimates Value', value: fmt(totalValue) },
             ].map(stat => (
-              <div key={stat.label} className={`rounded-xl border p-3 md:p-4 ${card}`}>
-                <p className={`text-[12px] font-bold uppercase tracking-wide ${muted}`}>{stat.label}</p>
-                <p className={`text-xl md:text-2xl font-bold mt-1 ${textMain}`}>{stat.value}</p>
+              <div key={stat.label} className={`rounded-xl border p-3 md:p-4 `}>
+                <p className={`text-[12px] font-bold uppercase tracking-wide `}>{stat.label}</p>
+                <p className={`text-xl md:text-2xl font-bold mt-1 `}>{stat.value}</p>
               </div>
             ))}
           </div>
@@ -324,16 +321,16 @@ export default function EstimatesPage() {
 
           {/* ── Search + Sort ── */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 flex-1 ${card}`}>
+            <div className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 flex-1 `}>
               <Search size={16} className={muted} />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search by client name or estimate number..."
-                className={`flex-1 bg-transparent text-sm focus:outline-none ${textMain} placeholder:text-[#9CA3AF]`}
+                className={`flex-1 bg-transparent text-sm focus:outline-none  placeholder:text-[#9CA3AF]`}
               />
               {search && (
-                <button onClick={() => setSearch('')} className={`text-xs ${muted} hover:text-red-400`}>✕</button>
+                <button onClick={() => setSearch('')} className={`text-xs  hover:text-red-400`}>✕</button>
               )}
             </div>
             </div>
@@ -354,9 +351,9 @@ export default function EstimatesPage() {
           </div>
 
           {/* ── Estimates table ── */}
-          <div className={`rounded-xl border overflow-hidden ${card}`}>
+          <div className={`rounded-xl border overflow-hidden `}>
             {/* Table header */}
-            <div className={`hidden md:grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide ${muted} ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
+            <div className={`hidden md:grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide  ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
               {/* Client — sortable by name */}
               <button onClick={() => toggleSort('name')} className={`flex items-center gap-1 text-left hover:text-[#0F766E] transition-colors ${sortCol === 'name' ? 'text-[#0F766E]' : ''}`}>
                 Client / Estimate {sortCol === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
@@ -380,7 +377,7 @@ export default function EstimatesPage() {
             {loading ? (
               <div className="space-y-0">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className={`h-16 border-b animate-pulse ${dk ? 'bg-[#1E293B] border-[#334155]' : 'bg-gray-50 border-[#E8E2D9]'}`} />
+                  <div key={i} style={{ height: 64, borderBottom: `1px solid ${t.cardBorder}`, background: t.cardBgAlt }} />
                 ))}
               </div>
             ) : filtered.length === 0 ? (
@@ -413,13 +410,13 @@ export default function EstimatesPage() {
                     {/* Mobile layout */}
                     <div className="flex items-center gap-3 px-4 py-3.5 md:hidden">
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold truncate ${textMain}`}>{est.lead_name}</p>
-                        <p className={`text-xs mt-0.5 ${muted}`}>#{est.estimate_number}</p>
+                        <p className={`text-sm font-semibold truncate `}>{est.lead_name}</p>
+                        <p className={`text-xs mt-0.5 `}>#{est.estimate_number}</p>
                       </div>
                       <span style={{ background: estimateStatusStyle(est.status, dk).bg, color: estimateStatusStyle(est.status, dk).text, padding: '2px 10px', borderRadius: 20, fontSize: T.fontBadge, fontWeight: 600, display: 'inline-flex', flexShrink: 0 }}>
                         {estimateStatusStyle(est.status, dk).label}
                       </span>
-                      <div className={`text-sm font-bold shrink-0 ${textMain}`}>
+                      <div className={`text-sm font-bold shrink-0 `}>
                         {fmt(est.total)}
                       </div>
                       <button
@@ -433,19 +430,19 @@ export default function EstimatesPage() {
                     {/* Desktop layout */}
                     <div className="hidden md:grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-4">
                       <div>
-                        <p className={`text-sm font-semibold ${textMain}`}>{est.lead_name}</p>
-                        <p className={`text-xs mt-0.5 ${muted}`}>#{est.estimate_number}</p>
+                        <p className={`text-sm font-semibold `}>{est.lead_name}</p>
+                        <p className={`text-xs mt-0.5 `}>#{est.estimate_number}</p>
                       </div>
-                      <div className={`text-sm self-center truncate ${muted}`}>{est.trade}</div>
+                      <div className={`text-sm self-center truncate `}>{est.trade}</div>
                       <div className="self-center">
                         <span style={{ background: estimateStatusStyle(est.status, dk).bg, color: estimateStatusStyle(est.status, dk).text, padding: '2px 10px', borderRadius: 20, fontSize: T.fontBadge, fontWeight: 600, display: 'inline-flex' }}>
                           {estimateStatusStyle(est.status, dk).label}
                         </span>
                       </div>
-                      <div className={`text-sm font-semibold self-center text-right ${textMain}`}>
+                      <div className={`text-sm font-semibold self-center text-right `}>
                         {fmt(est.total)}
                       </div>
-                      <div className={`text-xs self-center text-right ${muted}`}>
+                      <div className={`text-xs self-center text-right `}>
                         {new Date(est.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </div>
                       <button
@@ -466,7 +463,7 @@ export default function EstimatesPage() {
           {archivedCount > 0 && (
             <div className="text-center py-2">
               <button onClick={() => setShowArchived(v => !v)}
-                className={`text-xs font-medium transition-colors ${muted} hover:text-[#0F766E]`}>
+                className={`text-xs font-medium transition-colors  hover:text-[#0F766E]`}>
                 {showArchived ? `Hide archived (${archivedCount})` : `Show archived — void & declined (${archivedCount})`}
               </button>
             </div>
@@ -632,7 +629,7 @@ function EmptyState({ dk, onCreate, creating }: { dk: boolean; onCreate: () => v
         <FileText size={24} className="text-[#0F766E]" />
       </div>
       <p className={`font-semibold text-base ${dk ? 'text-white' : 'text-gray-900'}`}>No estimates yet</p>
-      <p className={`text-sm mt-1 mb-5 ${muted}`}>Create your first estimate and send it to a client in minutes.</p>
+      <p className={`text-sm mt-1 mb-5 `}>Create your first estimate and send it to a client in minutes.</p>
       <button
         onClick={onCreate}
         disabled={creating}

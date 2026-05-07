@@ -714,7 +714,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
             )}
           </aside>
 
-          <main className="pg-main flex-1 overflow-y-auto flex flex-col" style={{ backgroundColor: dk ? '#0F172A' : '#ECEAE5', color: dk ? '#F1F5F9' : undefined }}>
+          <main className="pg-main flex-1 overflow-y-auto flex flex-col" style={{ backgroundColor: t.pageBg, color: dk ? '#F1F5F9' : undefined }}>
             {/* ── Top header bar ─────────────────────────────────────────── */}
             <TopHeader session={session} dk={dk} onAddLead={onAddLead} onToggleDark={onToggleDark} />
             <div className="flex-1">

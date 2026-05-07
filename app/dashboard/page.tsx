@@ -238,7 +238,7 @@ export default function OverviewPage() {
 
   if (!session || dataLoading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: '#F5F4F0' }}>
+      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: t.pageBg }}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: TEAL, borderTopColor: 'transparent' }} />
           <span className="text-sm font-medium" style={{ color: MUTED_D }}>Loading...</span>

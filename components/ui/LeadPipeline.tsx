@@ -45,27 +45,28 @@ function Ic({ d, s = 14, sw = 2.0, c = 'currentColor' }: { d: string; s?: number
 }
 
 // ── Backward confirmation ──────────────────────────────────────────────────────
-function BackwardConfirm({ fromStage, toStage, isPaidMove, onConfirm, onCancel }: {
-  fromStage: string; toStage: string; isPaidMove: boolean; onConfirm: () => void; onCancel: () => void
+function BackwardConfirm({ fromStage, toStage, isPaidMove, onConfirm, onCancel, dk = false }: {
+  fromStage: string; toStage: string; isPaidMove: boolean; onConfirm: () => void; onCancel: () => void; dk?: boolean
 }) {
+  const t = theme(dk)
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onCancel}>
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-4 mx-auto">
+      <div style={{ background: t.cardBg, borderRadius: 16, width: '100%', maxWidth: 384, padding: 24, boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: t.warningBg, border: `1px solid ${t.warningBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, margin: '0 auto 16px' }}>
           <Ic d="M12 9v4M12 16.5v1M2 12a10 10 0 1020 0 10 10 0 00-20 0" s={26} sw={2.2} c="#D97706" />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Move back to {toStage}?</h3>
-        <p className="text-sm text-gray-500 text-center mb-3">
-          This lead is <span className="font-semibold text-gray-800">{fromStage}</span>. Moving it back is allowed but tracked.
+        <h3 style={{ fontSize: 17, fontWeight: 700, color: t.textPri, textAlign: 'center', marginBottom: 8 }}>Move back to {toStage}?</h3>
+        <p style={{ fontSize: 14, color: t.textMuted, textAlign: 'center', marginBottom: 12, lineHeight: 1.5 }}>
+          This lead is <span style={{ fontWeight: 600, color: t.textBody }}>{fromStage}</span>. Moving it back is allowed but tracked.
         </p>
         {isPaidMove && (
-          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center mb-3">
+          <p style={{ fontSize: 13, color: '#92400E', background: t.warningBg, border: `1px solid ${t.warningBorder}`, borderRadius: 12, padding: '10px 16px', textAlign: 'center', marginBottom: 12 }}>
             ⚠️ Moving a <strong>Job Won</strong> lead back will affect your revenue stats.
           </p>
         )}
-        <div className="flex gap-3 mt-4">
-          <button onClick={onCancel} className="flex-1 py-3 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-600 hover:bg-gray-50">Cancel</button>
-          <button onClick={onConfirm} className="flex-1 py-3 rounded-xl text-sm font-bold text-white" style={{ background: '#0F766E' }}>Yes, move back</button>
+        <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 700, border: `1.5px solid ${t.cardBorder}`, background: t.cardBgAlt, color: t.textBody, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 700, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer' }}>Yes, move back</button>
         </div>
       </div>
     </div>
@@ -73,10 +74,11 @@ function BackwardConfirm({ fromStage, toStage, isPaidMove, onConfirm, onCancel }
 }
 
 // ── Lead detail modal ──────────────────────────────────────────────────────────
-function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
+function LeadModal({ lead, onClose, onStatusChange, onUpdate, dk = false }: {
   lead: Lead; onClose: () => void
   onStatusChange: (id: string, status: string) => Promise<void>
   onUpdate: (id: string, fields: Partial<Lead>) => Promise<void>
+  dk?: boolean
 }) {
   const [notes, setNotes]         = useState(lead.notes || '')
   const [amount, setAmount]       = useState(lead.quoted_amount?.toString() || '')
@@ -120,10 +122,10 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
       )}
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
         style={{ background: 'rgba(0,0,0,0.65)' }} onClick={onClose}>
-        <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
-          onClick={e => e.stopPropagation()} style={{ maxHeight: '92vh' }}>
+        <div style={{ background: theme(dk).cardBg, width: "100%", maxWidth: 512, borderRadius: "24px 24px 0 0", boxShadow: "0 -8px 40px rgba(0,0,0,0.3)", overflow: "hidden", maxHeight: '92vh' }} className="sm:rounded-3xl"
+          onClick={e => e.stopPropagation()}>
 
-          <div className="flex items-start justify-between px-6 py-5" style={{ borderBottom: '1px solid #E5E7EB' }}>
+          <div className="flex items-start justify-between px-6 py-5" style={{ borderBottom: `1px solid ${theme(dk).cardBorder}` }}>
             <div className="flex-1 min-w-0 pr-4">
               <h2 className="text-xl font-bold text-gray-900">{capName(lead.contact_name)}</h2>
               <p className="text-sm text-gray-500 mt-0.5">{timeAgo(lead.created_at)} · {lead.lead_source?.replace(/_/g, ' ')}</p>
@@ -153,7 +155,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
                       className="py-2.5 rounded-xl text-xs font-bold border-2 transition-all"
                       style={status === s.key
                         ? { background: stageStyle(s.key).bg, color: stageStyle(s.key).color, borderColor: stageStyle(s.key).color }
-                        : { background: 'white', color: '#6B7280', borderColor: '#E5E7EB' }}>
+                        : { background: theme(dk).cardBg, color: theme(dk).textMuted, borderColor: theme(dk).cardBorder }}>
                       {s.label}
                     </button>
                   ))}
@@ -593,10 +595,11 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-function LeadQuickView({ leadId, onClose, onFullDetail }: {
+function LeadQuickView({ leadId, onClose, onFullDetail, dk = false }: {
   leadId: string
   onClose: () => void
   onFullDetail: () => void
+  dk?: boolean
 }) {
   const [lead, setLead] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -640,8 +643,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail }: {
     <div className="fixed inset-0 z-50 flex" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }} onClick={onClose}>
       <div className="flex-1" />
       <div
-        className="flex flex-col h-full bg-white shadow-2xl overflow-y-auto"
-        style={{ width: '100%', maxWidth: 380, borderLeft: `4px solid ${stageStyle(stage.key).color}` }}
+        style={{ display: "flex", flexDirection: "column" as const, height: "100%", background: theme(dk).cardBg, boxShadow: "4px 0 40px rgba(0,0,0,0.2)", overflowY: "auto" as const, width: "100%", maxWidth: 380, borderLeft: `4px solid ${stageStyle(stage.key).color}` }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -665,7 +667,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail }: {
           <div style={{ display: 'flex', gap: 8 }}>
             {lead?.contact_phone && (
               <a href={`tel:${lead.contact_phone}`} onClick={e => e.stopPropagation()}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 0', borderRadius: 10, background: 'white', border: '1.5px solid #E5E7EB', fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', cursor: 'pointer' }}>
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 0', borderRadius: 10, background: theme(dk).cardBgAlt, border: `1.5px solid ${theme(dk).cardBorder}`, fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', cursor: 'pointer' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/></svg>
                 Call
               </a>
@@ -680,13 +682,13 @@ function LeadQuickView({ leadId, onClose, onFullDetail }: {
 
         {loading ? (
           <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[1,2,3].map(i => <div key={i} style={{ height: 48, borderRadius: 10, background: '#F3F4F6', animation: 'pulse 1.5s infinite' }} />)}
+            {[1,2,3].map(i => <div key={i} style={{ height: 48, borderRadius: 10, background: theme(dk).cardBgAlt, animation: 'pulse 1.5s infinite' }} />)}
           </div>
         ) : lead ? (
           <div style={{ padding: '16px 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Contact info */}
-            <div style={{ background: '#F9FAFB', borderRadius: 12, padding: '14px 16px' }}>
+            <div style={{ background: theme(dk).cardBgAlt, borderRadius: 12, padding: "14px 16px" }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Contact</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {lead.contact_phone && (
@@ -738,7 +740,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail }: {
                 onChange={e => setNote(e.target.value)}
                 placeholder="Type a quick note…"
                 rows={3}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #E5E7EB', fontSize: 14, color: '#111827', background: 'white', outline: 'none', resize: 'none', lineHeight: 1.5, boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #E5E7EB', fontSize: 14, color: '#111827', background: theme(dk).inputBg, outline: 'none', resize: 'none' as const, lineHeight: 1.5, boxSizing: 'border-box' }}
               />
               <button
                 onClick={saveNote}
@@ -758,11 +760,12 @@ function LeadQuickView({ leadId, onClose, onFullDetail }: {
 }
 
 
-function SlidePanel({ stage, leads, onClose, onOpen }: {
+function SlidePanel({ stage, leads, onClose, onOpen, dk = false }: {
   stage: typeof PIPELINE_STAGES[number]
   leads: Lead[]
   onClose: () => void
   onOpen: (lead: Lead) => void
+  dk?: boolean
 }) {
   const [search, setSearch] = useState('')
   const filtered = leads.filter(l =>

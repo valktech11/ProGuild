@@ -13,6 +13,7 @@ interface ReviewCardProps {
 const FLAG_REASONS = ['Inappropriate', 'Fake', 'Wrong pro'] as const
 type FlagReason = typeof FLAG_REASONS[number]
 
+import { theme } from '@/lib/tokens'
 export default function ReviewCard({ review, proId }: ReviewCardProps) {
   const comment = review.comment || (review as any).review_text || ''
   const isOffensive = containsProfanity(comment)
