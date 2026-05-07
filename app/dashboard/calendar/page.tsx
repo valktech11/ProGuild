@@ -918,7 +918,14 @@ function CalendarInner() {
                 ? `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}${todayJobs.length>0?` · ${todayJobs.length} jobs`:''}`
                 : selectedDate.getFullYear().toString()
               )}
-              {mobileView==='week' && `${selectedDate.getFullYear()}${weekValue>0?` · $${weekValue.toLocaleString()}`:''}` }
+              {mobileView==='week' && (
+                <span>
+                  {selectedDate.getFullYear()}
+                  {weekValue>0 && (
+                    <> · <span style={{ fontWeight:800, color:'white', fontSize:15 }}>${weekValue.toLocaleString()}</span></>
+                  )}
+                </span>
+              )}
               {mobileView==='month' && ''}
             </div>
           </div>
