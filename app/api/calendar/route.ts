@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   // Fetch leads with scheduled_date in range
   const scheduledQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,follow_up_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('pro_id', proId)
     .not('scheduled_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   // Fetch leads with follow_up_date in range
   const followupQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,follow_up_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('pro_id', proId)
     .not('follow_up_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   // Unscheduled leads (Quoted or Contacted — need scheduling)
   const unscheduledQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,follow_up_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('pro_id', proId)
     .in('lead_status', ['Quoted', 'Contacted'])
     .is('scheduled_date', null)

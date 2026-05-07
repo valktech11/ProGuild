@@ -109,6 +109,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [dState, setDState] = useState('')
   const [dSource, setDSource] = useState('')
   const [dScheduled, setDScheduled] = useState('')
+  const [dScheduledTime, setDScheduledTime] = useState('')
   const [dFollowUp, setDFollowUp] = useState('')
   const [dJobType, setDJobType] = useState('')
   const [dQuote, setDQuote] = useState('')
@@ -188,6 +189,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     setDState(lead.contact_state || '')
     setDSource((lead.lead_source || '').replace(/_/g,' '))
     setDScheduled(lead.scheduled_date || '')
+    setDScheduledTime((lead as any).scheduled_time || '')
     setDFollowUp(lead.follow_up_date || '')
     setDJobType((lead as any).job_type || '')
     setDQuote(lead.quoted_amount != null ? String(lead.quoted_amount) : '')
@@ -261,6 +263,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       contact_state: dState || null,
       lead_source: sourceRaw || null,
       scheduled_date: dScheduled || null,
+      scheduled_time: dScheduledTime || null,
       follow_up_date: dFollowUp || null,
       // C3+C4 FIX: when estimate linked, do NOT overwrite estimate-synced quoted_amount
       quoted_amount: leadEstimate ? undefined : (dQuote ? parseFloat(dQuote) : null),
@@ -548,7 +551,10 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                   </div>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Scheduled date</label>
-                    <input type="date" value={dScheduled} onChange={e => setDScheduled(e.target.value)} style={inputStyle} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input type="date" value={dScheduled} onChange={e => setDScheduled(e.target.value)} style={inputStyle} />
+                      <input type="time" value={dScheduledTime} onChange={e => setDScheduledTime(e.target.value)} style={{ ...inputStyle, colorScheme: dk ? 'dark' : 'light' }} placeholder="Time (optional)" />
+                    </div>
                   </div>
                   <div>
                     <label style={{ fontSize: 13, fontWeight: 500, color: ts, display: 'block', marginBottom: 6 }}>Follow-up date</label>

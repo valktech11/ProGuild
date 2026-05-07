@@ -28,13 +28,14 @@ export async function PATCH(
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const body = await req.json()
-  const { lead_status, notes, quoted_amount, scheduled_date, follow_up_date, client_id } = body
+  const { lead_status, notes, quoted_amount, scheduled_date, scheduled_time, follow_up_date, client_id } = body
 
   const updateFields: Record<string, any> = {}
   if (lead_status    !== undefined) updateFields.lead_status    = lead_status
   if (notes          !== undefined) updateFields.notes          = notes
   if (quoted_amount  !== undefined) updateFields.quoted_amount  = quoted_amount
   if (scheduled_date !== undefined) updateFields.scheduled_date = scheduled_date
+  if (scheduled_time !== undefined) updateFields.scheduled_time = scheduled_time
   if (follow_up_date !== undefined) updateFields.follow_up_date = follow_up_date
   if (client_id      !== undefined) updateFields.client_id      = client_id
   updateFields.updated_at = new Date().toISOString()

@@ -16,6 +16,7 @@ interface CalEvent {
   lead_source: string | null
   quoted_amount: number | null
   scheduled_date: string | null
+  scheduled_time: string | null
   follow_up_date: string | null
   notes: string | null
   message: string | null
@@ -54,6 +55,14 @@ function isSameDay(a: Date, b: Date) {
 }
 function isToday(d: Date) { return isSameDay(d, new Date()) }
 function isWeekend(d: Date) { return d.getDay()===0||d.getDay()===6 }
+
+function fmtTime(t: string | null): string {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const ampm = h >= 12 ? 'pm' : 'am'
+  const hour = h % 12 || 12
+  return m === 0 ? `${hour}${ampm}` : `${hour}:${String(m).padStart(2,'0')}${ampm}`
+}
 
 function getEventDate(ev: CalEvent): Date | null {
   const ds = ev._type==='followup'?(ev.follow_up_date||ev.scheduled_date):(ev.scheduled_date||ev.follow_up_date)
@@ -98,7 +107,7 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing }
   const isCompleted = ev.lead_status === 'Completed' || ev.lead_status === 'Paid'
   const sc = statusColors(ev.lead_status, isFollowup, dk)
   const phone = fmtPhone(ev.contact_phone)
-  const dateStr = ev._type==='followup' ? fmt(ev.follow_up_date) : fmt(ev.scheduled_date)
+  const dateStr = ev._type==='followup' ? fmt(ev.follow_up_date) : (fmt(ev.scheduled_date) + (ev.scheduled_time ? ` at ${fmtTime(ev.scheduled_time)}` : ''))
 
   return (
     <div style={{ height:'100%', display:'flex', flexDirection:'column', background: t.cardBg, borderLeft:`4px solid ${sc.border}` }}>
@@ -223,8 +232,8 @@ function EventCardMobile({ ev, onClick, dk, onMarkComplete, completing }: {
           <div style={{ minWidth:0 }}>
             <div style={{ fontSize:16, fontWeight:700, color: t.textPri, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{capName(ev.contact_name)}</div>
             {ev.quoted_amount
-              ? <div style={{ fontSize:13, fontWeight:700, color: sc.border, marginTop:1 }}>${ev.quoted_amount.toLocaleString()}</div>
-              : <div style={{ fontSize:12, color: t.textSubtle, marginTop:1 }}>{isFollowup?'Follow-up':ev.lead_status==='Paid'?'Job Won':ev.lead_status}</div>
+              ? <div style={{ fontSize:13, fontWeight:700, color: sc.border, marginTop:1 }}>{ev.scheduled_time ? fmtTime(ev.scheduled_time)+' · ' : ''}${ev.quoted_amount.toLocaleString()}</div>
+              : <div style={{ fontSize:12, color: t.textSubtle, marginTop:1 }}>{ev.scheduled_time ? fmtTime(ev.scheduled_time)+' · ' : ''}{isFollowup?'Follow-up':ev.lead_status==='Paid'?'Job Won':ev.lead_status}</div>
             }
           </div>
         </div>
@@ -559,10 +568,11 @@ export default function CalendarPage() {
           <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color: t.textSubtle, fontSize:14 }}>Loading…</div>
         ) : view==='week' ? (
 
-          /* ── Week view ── */
+          /* ── Week view with time slots ── */
           <div style={{ flex:1, overflowX:'auto' }}>
-            {/* Day headers */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:`1px solid ${t.cardBorder}`, background: t.calDayHeader, position:'sticky', top:0, zIndex:9 }}>
+            {/* Sticky day headers */}
+            <div style={{ display:'grid', gridTemplateColumns:'52px repeat(7,1fr)', borderBottom:`1px solid ${t.cardBorder}`, background: t.calDayHeader, position:'sticky', top:0, zIndex:9 }}>
+              <div style={{ borderRight:`1px solid ${t.calCellBorder}` }} />{/* time axis header spacer */}
               {weekDays.map(d => {
                 const isTod  = isToday(d)
                 const isSel  = isSameDay(d, selectedDate)
@@ -580,60 +590,120 @@ export default function CalendarPage() {
               })}
             </div>
 
-            {/* Event rows */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', alignItems:'start', padding:'10px 6px', gap:0 }}>
-              {weekDays.map(d => {
-                const key     = toDateKey(d)
-                const isTod   = isToday(d)
-                const isSel   = isSameDay(d, selectedDate)
-                const isWknd  = isWeekend(d)
-                const dayEvs  = weekGroupedFiltered[key]||[]
-                const allEvs  = weekGrouped[key]||[]
-                const hidden  = allEvs.length - dayEvs.length
-                return (
-                  <div key={key}
-                    style={{ padding:'0 4px', borderRight:`1px solid ${t.calCellBorder}`, minHeight:100, background: isTod?t.calColToday:isWknd?t.calColWeekend:isSel?t.calColSelected:'transparent' }}>
-                    {dayEvs.length===0 && hidden===0 ? (
-                      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:80, flexDirection:'column', gap:4 }}>
-                        <div style={{ fontSize:18, color: t.calEmptyText, lineHeight:1 }}>·</div>
-                        {isWknd && <div style={{ fontSize:9, color: t.calEmptyText, fontWeight:500, textTransform:'uppercase', letterSpacing:'0.05em' }}>Free</div>}
+            {/* Time slot grid */}
+            {(() => {
+              const HOURS = [7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+              const SLOT_H = 64 // px per hour slot
+
+              // Separate timed vs untimed events per day
+              const timedByDay: Record<string, CalEvent[]>   = {}
+              const untimedByDay: Record<string, CalEvent[]> = {}
+              weekDays.forEach(d => {
+                const key = toDateKey(d)
+                const evs = weekGroupedFiltered[key] || []
+                timedByDay[key]   = evs.filter(ev => ev._type === 'job' && ev.scheduled_time)
+                untimedByDay[key] = evs.filter(ev => !(ev._type === 'job' && ev.scheduled_time))
+              })
+
+              return (
+                <div>
+                  {/* All-day / unscheduled row — only if any day has untimed events */}
+                  {weekDays.some(d => untimedByDay[toDateKey(d)].length > 0) && (
+                    <div style={{ display:'grid', gridTemplateColumns:'52px repeat(7,1fr)', borderBottom:`2px solid ${t.cardBorder}` }}>
+                      <div style={{ padding:'6px 4px', borderRight:`1px solid ${t.calCellBorder}`, display:'flex', alignItems:'flex-start', justifyContent:'flex-end', paddingRight:6 }}>
+                        <span style={{ fontSize:9, fontWeight:600, color: t.textSubtle, textTransform:'uppercase', letterSpacing:'0.05em', marginTop:6 }}>All day</span>
                       </div>
-                    ) : (
-                      <div style={{ display:'flex', flexDirection:'column', gap:4, paddingTop:6 }}>
-                        {dayEvs.map(ev => {
-                          const sc = statusColors(ev.lead_status, ev._type==='followup', dk)
-                          const isDashed = ev._type==='followup'
-                          return (
-                            <div key={ev.id+ev._type}
-                              onClick={() => { selectDay(d); setSelectedEvent(ev) }}
-                              style={{
-                                padding:'6px 8px', borderRadius:7, cursor:'pointer',
-                                background: sc.bg,
-                                borderLeft:`3px ${isDashed?'dashed':'solid'} ${sc.border}`,
-                                transition:'transform 0.1s, box-shadow 0.1s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 3px 8px rgba(0,0,0,0.12)' }}
-                              onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='' }}>
-                              <div style={{ fontSize:12, fontWeight:700, color: sc.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                {capName(ev.contact_name)}
+                      {weekDays.map(d => {
+                        const key    = toDateKey(d)
+                        const isTod  = isToday(d)
+                        const isWknd = isWeekend(d)
+                        const evs    = untimedByDay[key] || []
+                        const allEvs = weekGrouped[key] || []
+                        const hidden = allEvs.filter(ev => !(ev._type==='job'&&ev.scheduled_time)).length - evs.length
+                        return (
+                          <div key={key} style={{ padding:'4px', borderRight:`1px solid ${t.calCellBorder}`, minHeight:36, background: isTod?t.calColToday:isWknd?t.calColWeekend:'transparent' }}>
+                            {evs.length===0 ? (
+                              isWknd ? <div style={{ fontSize:9, color: t.calEmptyText, textAlign:'center', paddingTop:10, fontWeight:500, textTransform:'uppercase', letterSpacing:'0.04em' }}>Free</div> : null
+                            ) : (
+                              <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                                {evs.map(ev => {
+                                  const sc = statusColors(ev.lead_status, ev._type==='followup', dk)
+                                  return (
+                                    <div key={ev.id+ev._type}
+                                      onClick={() => { selectDay(d); setSelectedEvent(ev) }}
+                                      style={{ padding:'4px 6px', borderRadius:6, cursor:'pointer', background: sc.bg, borderLeft:`3px ${ev._type==='followup'?'dashed':'solid'} ${sc.border}`, transition:'transform 0.1s' }}
+                                      onMouseEnter={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 3px 8px rgba(0,0,0,0.1)' }}
+                                      onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='' }}>
+                                      <div style={{ fontSize:11, fontWeight:700, color: sc.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                        {capName(ev.contact_name)}{ev.quoted_amount?` · $${ev.quoted_amount.toLocaleString()}`:''}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                                {hidden>0 && <div style={{ fontSize:9, color: t.textSubtle, paddingLeft:4, fontStyle:'italic' }}>{hidden} hidden</div>}
                               </div>
-                              {ev.quoted_amount && (
-                                <div style={{ fontSize:11, fontWeight:600, color: sc.border, marginTop:2 }}>
-                                  ${ev.quoted_amount.toLocaleString()}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                        {hidden>0 && (
-                          <div style={{ fontSize:10, color: t.textSubtle, paddingLeft:4, fontStyle:'italic' }}>{hidden} hidden by filter</div>
-                        )}
-                      </div>
-                    )}
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Hourly rows */}
+                  <div style={{ position:'relative' }}>
+                    {HOURS.map(hour => {
+                      const label = hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour-12}pm`
+                      return (
+                        <div key={hour} style={{ display:'grid', gridTemplateColumns:'52px repeat(7,1fr)', height:SLOT_H, borderBottom:`1px solid ${t.calCellBorder}` }}>
+                          {/* Time label */}
+                          <div style={{ borderRight:`1px solid ${t.calCellBorder}`, display:'flex', alignItems:'flex-start', justifyContent:'flex-end', paddingRight:8, paddingTop:4 }}>
+                            <span style={{ fontSize:10, fontWeight:600, color: t.textSubtle }}>{label}</span>
+                          </div>
+                          {/* Day columns */}
+                          {weekDays.map(d => {
+                            const key    = toDateKey(d)
+                            const isTod  = isToday(d)
+                            const isSel  = isSameDay(d, selectedDate)
+                            const isWknd = isWeekend(d)
+                            // Events that start in this hour slot
+                            const slotEvs = (timedByDay[key]||[]).filter(ev => {
+                              if (!ev.scheduled_time) return false
+                              const h = parseInt(ev.scheduled_time.split(':')[0])
+                              return h === hour
+                            })
+                            return (
+                              <div key={key} style={{ borderRight:`1px solid ${t.calCellBorder}`, background: isTod?t.calColToday:isWknd?t.calColWeekend:isSel?t.calColSelected:'transparent', position:'relative', padding:'2px 3px' }}>
+                                {slotEvs.map(ev => {
+                                  const sc = statusColors(ev.lead_status, false, dk)
+                                  const timeLabel = fmtTime(ev.scheduled_time)
+                                  return (
+                                    <div key={ev.id}
+                                      onClick={() => { selectDay(d); setSelectedEvent(ev) }}
+                                      style={{ padding:'5px 7px', borderRadius:7, cursor:'pointer', background: sc.bg, borderLeft:`3px solid ${sc.border}`, height: SLOT_H-8, overflow:'hidden', transition:'transform 0.1s, box-shadow 0.1s', display:'flex', flexDirection:'column', justifyContent:'space-between' }}
+                                      onMouseEnter={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 3px 10px rgba(0,0,0,0.14)' }}
+                                      onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='' }}>
+                                      <div>
+                                        <div style={{ fontSize:11, fontWeight:700, color: sc.border, marginBottom:1 }}>{timeLabel}</div>
+                                        <div style={{ fontSize:12, fontWeight:700, color: sc.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                          {capName(ev.contact_name)}
+                                        </div>
+                                      </div>
+                                      {ev.quoted_amount && (
+                                        <div style={{ fontSize:11, fontWeight:700, color: sc.border }}>${ev.quoted_amount.toLocaleString()}</div>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
+                </div>
+              )
+            })()}
           </div>
 
         ) : (
