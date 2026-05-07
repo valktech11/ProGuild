@@ -936,10 +936,10 @@ function CalendarInner() {
           )}
         </div>
 
-        {/* Row 3: week strip (agenda + week modes) or month grid */}
-        {(mobileView==='agenda' || mobileView==='week') && (
+        {/* Row 3: week strip — Day mode only (week mode has its own grouped view) */}
+        {mobileView==='agenda' && (
           <div style={{ padding:'0 12px 10px' }}>
-            <MobileWeekGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => { selectDay(d); if(mobileView==='week') {} }} dk={dk}/>
+            <MobileWeekGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => selectDay(d)} dk={dk}/>
           </div>
         )}
         {mobileView==='month' && (
@@ -964,6 +964,83 @@ function CalendarInner() {
         onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {loading ? (
           [1,2,3].map(i => <div key={i} style={{ height:80, borderRadius:12, background:t.cardBg }}/>)
+        ) : mobileView==='week' ? (
+          /* ── WEEK VIEW: 7-day grouped list ─────────────────────────────── */
+          (() => {
+            const weekStart2 = startOfWeek(selectedDate)
+            const weekDaysList = Array.from({length:7},(_,i)=>addDays(weekStart2,i))
+            const hasAnyEvents = weekDaysList.some(d => {
+              const k = toDateKey(d)
+              return events.some(ev => { const ed=getEventDate(ev); return ed&&toDateKey(ed)===k })
+            })
+            return (
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {weekDaysList.map(d => {
+                  const k = toDateKey(d)
+                  const isTod = isToday(d)
+                  const isSun = d.getDay()===0
+                  const dayEvs2 = events.filter(ev => {
+                    if (!showJobs && ev._type==='job') return false
+                    if (!showFollowups && ev._type==='followup') return false
+                    const ed=getEventDate(ev); return ed&&toDateKey(ed)===k
+                  })
+                  return (
+                    <div key={k}>
+                      {/* Day header */}
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 2px 5px', borderBottom:`1px solid ${t.divider}`, marginBottom:6 }}>
+                        <div style={{ width:34, height:34, borderRadius:'50%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:isTod?'#0F766E':'transparent', flexShrink:0 }}>
+                          <span style={{ fontSize:9, fontWeight:700, textTransform:'uppercase' as const, lineHeight:1, color:isTod?'rgba(255,255,255,0.8)':isSun?'#DC2626':t.textMuted }}>{DAYS[d.getDay()]}</span>
+                          <span style={{ fontSize:16, fontWeight:800, lineHeight:1.1, color:isTod?'white':isSun?'#DC2626':t.textPri }}>{d.getDate()}</span>
+                        </div>
+                        {dayEvs2.length>0 && (
+                          <span style={{ fontSize:11, color:t.textSubtle }}>
+                            {dayEvs2.length} event{dayEvs2.length!==1?'s':''}
+                            {(() => { const val=dayEvs2.reduce((s,ev)=>s+(ev.quoted_amount||0),0); return val>0?` · $${val.toLocaleString()}`:'' })()}
+                          </span>
+                        )}
+                      </div>
+                      {/* Events for this day */}
+                      {dayEvs2.length>0 ? (
+                        <div style={{ display:'flex', flexDirection:'column', gap:6, paddingBottom:4 }}>
+                          {dayEvs2.map(ev => (
+                            <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="full"
+                              onClick={() => setSelectedEvent(ev)}
+                              onMarkComplete={ev._type==='job'&&ev.lead_status==='Scheduled'?()=>markComplete(ev):undefined}
+                              completing={completing===ev.id}
+                              isOverdue={isOverdueEvent(ev,today0)}/>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ paddingBottom:8, paddingLeft:42, fontSize:12, color:t.textSubtle }}>No events</div>
+                      )}
+                    </div>
+                  )
+                })}
+                {/* Unscheduled leads at bottom of week view */}
+                {unscheduled.length>0 && (
+                  <div style={{ marginTop:8, paddingTop:12, borderTop:`1.5px dashed #FDE68A` }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#D97706', marginBottom:8 }}>Needs scheduling ({unscheduled.length})</div>
+                    {unscheduled.slice(0,3).map(ev => (
+                      <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id+'?from=calendar')}
+                        style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:11, background:t.cardBg, border:'1px solid #FDE68A', marginBottom:8, cursor:'pointer' }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:14, fontWeight:700, color:t.textPri, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' as const }}>{capName(ev.contact_name)}</div>
+                          <div style={{ fontSize:12, color:'#D97706', marginTop:2 }}>{ev.lead_status} · No date set</div>
+                        </div>
+                        <Svg path={ICON_PATH.chevronR} size={12} color="#D97706" sw={2.5}/>
+                      </div>
+                    ))}
+                    {unscheduled.length>3 && (
+                      <button onClick={() => router.push('/dashboard/pipeline?filter=unscheduled')}
+                        style={{ width:'100%', padding:'10px', borderRadius:11, border:'1.5px dashed #0F766E', background:'transparent', color:'#0F766E', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                        +{unscheduled.length-3} more → Pipeline
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })()
         ) : selectedDayEvs.length===0 ? (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:14, paddingTop:28 }}>
             <div style={{ width:52, height:52, borderRadius:'50%', background:dk?'rgba(15,118,110,0.15)':'#F0FDFA', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -975,17 +1052,13 @@ function CalendarInner() {
               <div style={{ fontSize: 16, fontWeight:800, color:t.textPri, marginBottom:5 }}>
                 {isToday(selectedDate)?'Nothing today':'Nothing on this day'}
               </div>
-              <div style={{ fontSize: 14, color:t.textSubtle, lineHeight:1.5 }}>
-                {unscheduled.length>0
-                  ? `${unscheduled.length} lead${unscheduled.length!==1?'s':''} waiting to be scheduled`
-                  : 'No jobs or follow-ups scheduled'}
-              </div>
+              {unscheduled.length===0 && (
+                <div style={{ fontSize: 14, color:t.textSubtle, lineHeight:1.5 }}>No jobs or follow-ups scheduled</div>
+              )}
             </div>
             {unscheduled.length>0 && (
               <div style={{ width:'100%', marginTop:4 }}>
-                <div style={{ fontSize: 13, fontWeight:700, color:'#D97706', marginBottom:10, textAlign:'center' }}>
-                  Needs scheduling ({unscheduled.length})
-                </div>
+
                 {unscheduled.slice(0,5).map(ev => (
                   <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id+'?from=calendar')}
                     style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px', borderRadius:12, background:t.cardBg, border:'1px solid #FDE68A', marginBottom:8, cursor:'pointer' }}>
