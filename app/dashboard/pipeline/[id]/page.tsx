@@ -117,6 +117,15 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
   // drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
+
+  // Lock body scroll when drawer is open — prevents main content scrolling through backdrop
+  useEffect(() => {
+    if (drawerOpen) {
+      const prev = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = prev }
+    }
+  }, [drawerOpen])
   const [dPhone, setDPhone] = useState('')
   const [dEmail, setDEmail] = useState('')
   const [dCity, setDCity] = useState('')
@@ -535,8 +544,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
         {drawerOpen && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} onClick={() => setDrawerOpen(false)}>
             <div style={{ flex: 1 }} className="hidden md:block" />
-            <div style={{ width: '100%', maxWidth: 420, background: card, borderLeft: `1px solid ${border}`, height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
-              {/* Drawer header */}
+            <div style={{ width: '100%', maxWidth: 420, background: card, borderLeft: `1px solid ${border}`, height: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
+              {/* Drawer header — never scrolls */}
               <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: tp }}>Edit Lead</div>
@@ -545,8 +554,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ts, fontSize: 22, lineHeight: 1, padding: 0, marginTop: 2 }}>×</button>
               </div>
 
-              {/* Drawer form — single column, full width */}
-              <div style={{ padding: '16px 20px', flex: 1, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+              {/* Drawer scroll area — ONLY form fields scroll, buttons stay fixed at bottom */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', paddingBottom: 8 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%' }}>
                   {/* Phone + Email side by side on wider screens, stacked on mobile */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
@@ -623,22 +632,21 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     <div style={{ fontSize: 13, color: ts, textAlign: 'right', marginTop: 3 }}>{dNotes.length}/500</div>
                   </div>
                 </div>
+              </div>
 
-                {/* Drawer footer buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
+              {/* Sticky footer — never scrolls, always visible at bottom of drawer */}
+              <div style={{ flexShrink: 0, padding: '16px 20px', borderTop: `1px solid ${border}`, background: card, paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                   <button onClick={() => setDrawerOpen(false)} style={{ padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`, background: t.cardBgAlt, color: tp, cursor: 'pointer', fontSize: 15, fontWeight: 600 }}>Cancel</button>
                   <button onClick={handleSaveDrawer} disabled={savingDrawer} style={{ padding: '13px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', cursor: 'pointer', fontSize: 15, fontWeight: 700, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
                     {savingDrawer ? 'Saving…' : 'Save Changes'}
                   </button>
                 </div>
-
-                {/* Audit trail */}
+                {/* Audit trail — compact, below buttons */}
                 {lead && (
-                  <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${border}` }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: ts, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead info</div>
-                    <div style={{ fontSize: 14, color: ts, marginBottom: 4 }}>Created {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
-                    <div style={{ fontSize: 14, color: ts, marginBottom: 4 }}>By <span style={{ color: tp, fontWeight: 500 }}>{session.name}</span></div>
-                    <div style={{ fontSize: 14, color: ts }}>Source · <span style={{ color: tp }}>{(lead.lead_source || 'Unknown').replace(/_/g,' ')}</span></div>
+                  <div style={{ fontSize: 12, color: ts, display: 'flex', flexWrap: 'wrap', gap: '2px 16px', opacity: 0.8 }}>
+                    <span>Created {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    <span>· {(lead.lead_source || 'Unknown').replace(/_/g,' ')}</span>
                   </div>
                 )}
               </div>
