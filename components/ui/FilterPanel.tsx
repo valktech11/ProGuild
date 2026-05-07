@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import { Lead } from '@/types'
+import { theme, T } from '@/lib/tokens'
 
 export interface FilterState {
   stages: string[]
@@ -134,6 +135,7 @@ interface Props {
 
 export default function FilterPanel({ open, filters, onChange, onClose, onClear, dk }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const t = theme(dk)
 
   // Close on Escape only — no document mousedown listener (caused close-on-pill-click bug)
   useEffect(() => {
@@ -147,12 +149,12 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
     return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
   }
 
-  const card  = dk ? '#1E293B' : '#ffffff'
-  const bg    = dk ? '#0F172A' : '#F8FAFC'
-  const border = dk ? '#334155' : '#E8E2D9'
-  const text  = dk ? '#F1F5F9' : '#111827'
-  const muted = dk ? '#94A3B8' : '#6B7280'
-  const inputBg = dk ? '#0F172A' : '#F9FAFB'
+  const card    = t.cardBg
+  const bg      = t.cardBgAlt
+  const border  = t.cardBorder
+  const text    = t.textPri
+  const muted   = t.textMuted
+  const inputBg = t.inputBg
 
   if (!open) return null
 
@@ -181,7 +183,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
             {isFilterActive(filters) && (
               <button
                 onClick={onClear}
-                className="text-[12px] font-semibold px-3 py-1 rounded-lg"
+                className="text-[14px] font-semibold px-3 py-1 rounded-lg"
                 style={{ color: '#0F766E', background: '#F0FDFA' }}
               >
                 Clear all
@@ -291,7 +293,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
                   }}
                 />
               </div>
-              <span className="text-[12px]" style={{ color: muted }}>to</span>
+              <span className="text-[14px]" style={{ color: muted }}>to</span>
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]" style={{ color: muted }}>$</span>
                 <input
@@ -360,7 +362,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
 function Section({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[12px] font-bold uppercase tracking-wider mb-2.5" style={{ color: '#6B7280' }}>
+      <div className="text-[14px] font-bold uppercase tracking-wider mb-2.5" style={{ color: '#6B7280' }}>
         {label}
       </div>
       {children}

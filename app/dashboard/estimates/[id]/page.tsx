@@ -10,7 +10,7 @@ import PaymentPanel from '@/components/estimate/PaymentPanel'
 import SmartNudges from '@/components/estimate/SmartNudges'
 import EstimateProgressBar from '@/components/estimate/EstimateProgressBar'
 import { Session } from '@/types'
-import { theme } from '@/lib/theme'
+import { theme, T } from '@/lib/tokens'
 
 export type EstimateItem = {
   id: string
@@ -314,32 +314,32 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     {showInvoiceModal && estimate && (
       <div style={{ position:'fixed', inset:0, zIndex:60, display:'flex', alignItems:'center', justifyContent:'center', padding:16, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(2px)' }}
         onClick={() => setShowInvoiceModal(false)}>
-        <div style={{ background: dk ? '#1E293B' : 'white', borderRadius:20, padding:28, width:'100%', maxWidth:440, boxShadow:'0 24px 48px rgba(0,0,0,0.18)', borderTop:'4px solid #0F766E' }}
+        <div style={{ background: t.cardBg, borderRadius:20, padding:28, width:'100%', maxWidth:440, boxShadow:'0 24px 48px rgba(0,0,0,0.18)', borderTop:'4px solid #0F766E' }}
           onClick={e => e.stopPropagation()}>
           {/* Header */}
           <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:18, fontWeight:800, color: dk ? '#F1F5F9' : '#111827', marginBottom:4 }}>Create Invoice</div>
-            <div style={{ fontSize:13, color: dk ? '#94A3B8' : '#6B7280' }}>
+            <div style={{ fontSize: 18, fontWeight:800, color: t.textPri, marginBottom:4 }}>Create Invoice</div>
+            <div style={{ fontSize: 14, color: t.textMuted }}>
               From Estimate #{estimate.estimate_number} · Total <strong style={{ color:'#0F766E' }}>${estimate.total.toLocaleString('en-US', { minimumFractionDigits:2 })}</strong>
             </div>
           </div>
 
           {/* Line items preview */}
-          <div style={{ background: dk ? '#0F172A' : '#F9F8F6', borderRadius:10, padding:'10px 14px', marginBottom:20 }}>
+          <div style={{ background: t.cardBgAlt, borderRadius:10, padding:'10px 14px', marginBottom:20 }}>
             {(estimate.items || []).slice(0,3).map((item: any) => (
-              <div key={item.id} style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'4px 0', borderBottom:`1px solid ${dk ? '#1E293B' : '#F3F4F6'}` }}>
-                <span style={{ color: dk ? '#CBD5E1' : '#374151', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'70%' }}>{item.name}</span>
-                <span style={{ color: dk ? '#94A3B8' : '#6B7280', flexShrink:0, marginLeft:8 }}>${(item.qty * item.unit_price).toLocaleString('en-US', { minimumFractionDigits:2 })}</span>
+              <div key={item.id} style={{ display:'flex', justifyContent:'space-between', fontSize: 14, padding:'4px 0', borderBottom:`1px solid ${t.cardBgAlt}` }}>
+                <span style={{ color: t.textBody, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'70%' }}>{item.name}</span>
+                <span style={{ color: t.textMuted, flexShrink:0, marginLeft:8 }}>${(item.qty * item.unit_price).toLocaleString('en-US', { minimumFractionDigits:2 })}</span>
               </div>
             ))}
             {(estimate.items || []).length > 3 && (
-              <div style={{ fontSize:11, color: dk ? '#64748B' : '#9CA3AF', paddingTop:4 }}>+{estimate.items.length - 3} more items</div>
+              <div style={{ fontSize: 12, color: t.textSubtle, paddingTop:4 }}>+{estimate.items.length - 3} more items</div>
             )}
           </div>
 
           {/* Payment Terms */}
           <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:12, fontWeight:700, color: dk ? '#94A3B8' : '#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Payment Terms</label>
+            <label style={{ fontSize: 13, fontWeight:700, color: t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Payment Terms</label>
             <select value={invoiceTerms} onChange={e => {
               const val = e.target.value
               setInvoiceTerms(val)
@@ -347,7 +347,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               const d = new Date(); d.setDate(d.getDate() + (days[val] ?? 30))
               setInvoiceDueDate(d.toISOString().split('T')[0])
             }}
-              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: dk ? '#F1F5F9' : '#111827', fontSize:14, cursor:'pointer' }}>
+              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, cursor:'pointer' }}>
               <option value="due_on_receipt">Due on Receipt</option>
               <option value="net_7">Net 7 days</option>
               <option value="net_15">Net 15 days</option>
@@ -358,24 +358,24 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
           {/* Due Date */}
           <div style={{ marginBottom:16 }}>
-            <label style={{ fontSize:12, fontWeight:700, color: dk ? '#94A3B8' : '#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Due Date</label>
+            <label style={{ fontSize: 13, fontWeight:700, color: t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>Due Date</label>
             <input type="date" value={invoiceDueDate} onChange={e => setInvoiceDueDate(e.target.value)}
-              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: dk ? '#F1F5F9' : '#111827', fontSize:14, boxSizing:'border-box' }} />
+              style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, boxSizing:'border-box' }} />
           </div>
 
           {/* Deposit collected */}
           {estimate.require_deposit && (
-            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: dk ? '#0F172A' : '#F9FAFB', border:`1.5px solid ${depositCollected ? '#0F766E' : (dk ? '#334155' : '#E5E7EB')}` }}>
+            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: t.cardBgAlt, border:`1.5px solid ${depositCollected ? '#0F766E' : (dk ? '#334155' : '#E5E7EB')}` }}>
               <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
                 <div onClick={() => setDepositCollected(v => !v)}
-                  style={{ width:20, height:20, borderRadius:6, border:`2px solid ${depositCollected ? '#0F766E' : (dk ? '#475569' : '#D1D5DB')}`, background: depositCollected ? '#0F766E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer', transition:'all 0.15s' }}>
+                  style={{ width:20, height:20, borderRadius:6, border:`2px solid ${depositCollected ? '#0F766E' : (t.inputBorder)}`, background: depositCollected ? '#0F766E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer', transition:'all 0.15s' }}>
                   {depositCollected && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>}
                 </div>
                 <div>
-                  <div style={{ fontSize:13, fontWeight:600, color: dk ? '#F1F5F9' : '#111827' }}>
+                  <div style={{ fontSize: 14, fontWeight:600, color: t.textPri }}>
                     Deposit already collected
                   </div>
-                  <div style={{ fontSize:11, color: dk ? '#64748B' : '#6B7280', marginTop:1 }}>
+                  <div style={{ fontSize: 12, color: t.textSubtle, marginTop:1 }}>
                     {estimate.deposit_percent || 50}% deposit = ${((estimate.total || 0) * (estimate.deposit_percent || 50) / 100).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 })} will be credited
                   </div>
                 </div>
@@ -386,11 +386,11 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           {/* Actions */}
           <div style={{ display:'flex', gap:10 }}>
             <button onClick={() => setShowInvoiceModal(false)}
-              style={{ flex:1, padding:'11px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background:'transparent', color: dk ? '#94A3B8' : '#6B7280', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              style={{ flex:1, padding:'11px', borderRadius:10, border:`1.5px solid ${dk ? '#334155' : '#E5E7EB'}`, background:'transparent', color: t.textMuted, fontSize: 15, fontWeight:600, cursor:'pointer' }}>
               Cancel
             </button>
             <button onClick={handleCreateInvoice} disabled={creatingInvoice}
-              style={{ flex:2, padding:'11px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer', opacity: creatingInvoice ? 0.7 : 1 }}>
+              style={{ flex:2, padding:'11px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer', opacity: creatingInvoice ? 0.7 : 1 }}>
               {creatingInvoice ? 'Creating…' : 'Create Invoice →'}
             </button>
           </div>
@@ -449,13 +449,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       )}
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-100 shrink-0">Lead</span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap" style={{ fontSize: 13 }}>
-                      <span style={{ fontWeight: 600, color: dk ? '#CBD5E1' : '#374151' }}>#{estimate.estimate_number}</span>
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap" style={{ fontSize: 14 }}>
+                      <span style={{ fontWeight: 600, color: t.textBody }}>#{estimate.estimate_number}</span>
                       <span style={{ opacity: 0.35 }}>·</span>
                       <span className={`font-semibold ${STATUS_STYLES[estimate.status].text}`}>{STATUS_STYLES[estimate.status].label}</span>
-                      {estimate.trade && <><span style={{ opacity: 0.35 }}>·</span><span style={{ color: dk ? '#94A3B8' : '#6B7280' }}>{estimate.trade}</span></>}
+                      {estimate.trade && <><span style={{ opacity: 0.35 }}>·</span><span style={{ color: t.textMuted }}>{estimate.trade}</span></>}
                       <span style={{ opacity: 0.35 }}>·</span>
-                      <span style={{ fontSize: 12, color: dk ? '#64748B' : '#9CA3AF' }}>Last edited {timeAgo(estimate.updated_at || estimate.created_at)}</span>
+                      <span style={{ fontSize: 13, color: t.textSubtle }}>Last edited {timeAgo(estimate.updated_at || estimate.created_at)}</span>
                     </div>
                   </div>
 
@@ -467,7 +467,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       { label: 'Valid Until', value: new Date(estimate.valid_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), amber: true },
                     ].map(({ label, value, amber }, i) => (
                       <div key={label} className="flex items-center gap-0">
-                        {i > 0 && <span className="hidden xl:block mx-5 select-none" style={{ color: dk ? '#334155' : '#D1D5DB' }}>|</span>}
+                        {i > 0 && <span className="hidden xl:block mx-5 select-none" style={{ color: t.inputBorder }}>|</span>}
                         <div>
                           <p className={`text-[10px] font-semibold uppercase tracking-wider leading-none ${muted}`}>{label}</p>
                           <p className={`text-sm font-bold mt-1 ${amber ? 'text-amber-500' : (dk ? 'text-white' : 'text-gray-900')}`}>{value}</p>
@@ -540,10 +540,10 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                               }] : []),
                             ].map(item => (
                               <button key={item.label} onClick={item.action}
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', fontSize: 13, fontWeight: 500, background: 'transparent', border: 'none', color: (item as any).danger ? '#EF4444' : t.textBody, cursor: 'pointer', textAlign: 'left' }}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', fontSize: 14, fontWeight: 500, background: 'transparent', border: 'none', color: (item as any).danger ? '#EF4444' : t.textBody, cursor: 'pointer', textAlign: 'left' }}
                                 onMouseEnter={e => { e.currentTarget.style.background = dk ? '#1a2940' : '#F9FAFB' }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-                                <span style={{ fontSize: 14, width: 16, textAlign: 'center' }}>{item.icon}</span>
+                                <span style={{ fontSize: 15, width: 16, textAlign: 'center' }}>{item.icon}</span>
                                 {item.label}
                               </button>
                             ))}
@@ -555,7 +555,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       {estimate.status !== 'void' && (
                         <button
                           onClick={() => window.open(`${window.location.origin}/estimate/${id}`, '_blank')}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = t.inputBorder; e.currentTarget.style.color = t.textBody }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -643,13 +643,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderRadius: 14, border: '1px solid #FECACA', background: dk ? 'rgba(239,68,68,0.08)' : '#FEF2F2' }}>
                   <span style={{ fontSize: 18 }}>⛔</span>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: '#DC2626', margin: 0 }}>This estimate has been voided</p>
-                    <p style={{ fontSize: 12, color: dk ? '#FDA4AF' : '#9F1239', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 15, fontWeight: 600, color: '#DC2626', margin: 0 }}>This estimate has been voided</p>
+                    <p style={{ fontSize: 13, color: dk ? '#FDA4AF' : '#9F1239', margin: '2px 0 0' }}>
                       {estimate.void_reason ? `Reason: ${estimate.void_reason}` : 'No reason provided.'}
                     </p>
                   </div>
                   <button onClick={handleDuplicate} disabled={duplicating}
-                    style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1.5px solid #FECACA', background: 'transparent', color: '#DC2626', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: '1.5px solid #FECACA', background: 'transparent', color: '#DC2626', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     {duplicating ? 'Creating...' : 'Start New Estimate'}
                   </button>
                 </div>
@@ -658,13 +658,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderRadius: 14, border: '1px solid #FECACA', background: dk ? 'rgba(239,68,68,0.08)' : '#FFF1F1' }}>
                   <span style={{ fontSize: 18 }}>❌</span>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: '#DC2626', margin: 0 }}>Client declined this estimate</p>
-                    <p style={{ fontSize: 12, color: dk ? '#FDA4AF' : '#9F1239', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 15, fontWeight: 600, color: '#DC2626', margin: 0 }}>Client declined this estimate</p>
+                    <p style={{ fontSize: 13, color: dk ? '#FDA4AF' : '#9F1239', margin: '2px 0 0' }}>
                       {estimate.decline_reason ? `"${estimate.decline_reason}"` : 'No reason provided.'}
                     </p>
                   </div>
                   <button onClick={handleDuplicate} disabled={duplicating}
-                    style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', background: '#DC2626', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', background: '#DC2626', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     {duplicating ? 'Creating...' : 'Revise & Resend'}
                   </button>
                 </div>
@@ -699,7 +699,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       <div style={{ display: 'flex' }}>
                         {(['items', 'notes'] as const).map(tab => (
                           <button key={tab} onClick={() => setActiveTab(tab)}
-                            style={{ padding: '12px 24px', fontSize: 13, fontWeight: 500, position: 'relative', border: 'none', background: 'transparent', cursor: 'pointer',
+                            style={{ padding: '12px 24px', fontSize: 14, fontWeight: 500, position: 'relative', border: 'none', background: 'transparent', cursor: 'pointer',
                               color: activeTab === tab ? '#0F766E' : t.textMuted,
                               borderBottom: activeTab === tab ? '2px solid #0F766E' : '2px solid transparent',
                             }}>
@@ -711,7 +711,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       {activeTab === 'items' && (
                         <div style={{ paddingRight: 16 }}>
                           <button onClick={openTemplatePicker}
-                            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${t.btnBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${t.btnBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = t.btnBorder; e.currentTarget.style.color = t.textMuted }}
                           >
@@ -727,7 +727,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           {isLocked(estimate.status) && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: dk ? 'rgba(245,158,11,0.08)' : '#FFFBEB', border: '1px solid #FCD34D', marginBottom: 16 }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                              <p style={{ fontSize: 12, color: '#92400E', margin: 0 }}>
+                              <p style={{ fontSize: 13, color: '#92400E', margin: 0 }}>
                                 {estimate.status === 'approved'
                                   ? `Items locked — client approved on ${estimate.timeline.find(t => t.event === 'approved')?.timestamp ? new Date(estimate.timeline.find(t => t.event === 'approved')!.timestamp!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'this date'}. Create an invoice to proceed.`
                                   : 'Items are locked — this estimate has been invoiced.'}
@@ -758,9 +758,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
                         {saveMsg ? (
-                          <span style={{ fontSize: 13, fontWeight: 500, color: saveMsg.includes('✓') ? '#0F766E' : '#EF4444' }}>{saveMsg}</span>
+                          <span style={{ fontSize: 14, fontWeight: 500, color: saveMsg.includes('✓') ? '#0F766E' : '#EF4444' }}>{saveMsg}</span>
                         ) : (
-                          <span style={{ fontSize: 13, color: dk ? '#FCD34D' : '#92400E' }}>You have unsaved changes</span>
+                          <span style={{ fontSize: 14, color: dk ? '#FCD34D' : '#92400E' }}>You have unsaved changes</span>
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -769,7 +769,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           if (isDirty) await handleSave()
                           setShowSaveTemplate(true)
                         }}
-                          style={{ fontSize: 12, color: dk ? '#94A3B8' : '#6B7280', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }}
+                          style={{ fontSize: 13, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }}
                           onMouseEnter={e => (e.currentTarget.style.textDecorationColor = 'currentColor')}
                           onMouseLeave={e => (e.currentTarget.style.textDecorationColor = 'transparent')}>
                           Save as template
@@ -777,7 +777,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         <button
                           onClick={handleSave}
                           disabled={saving}
-                          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+                          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
                           <Save size={13} />
                           {saving ? 'Saving...' : 'Save Changes'}
                         </button>
@@ -788,7 +788,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   {activeTab === 'items' && !isDirty && saveMsg && saveMsg.includes('✓') && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 12, border: `1px solid #99F6E4`, background: dk ? 'rgba(15,118,110,0.1)' : '#F0FDFA' }}>
                       <Check size={14} color="#0F766E" />
-                      <span style={{ fontSize: 13, color: '#0F766E', fontWeight: 500 }}>{saveMsg}</span>
+                      <span style={{ fontSize: 14, color: '#0F766E', fontWeight: 500 }}>{saveMsg}</span>
                     </div>
                   )}
 
@@ -799,7 +799,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           if (estimate.items.length === 0) { setSaveMsg('Add items before saving a template'); setTimeout(() => setSaveMsg(null), 3000); return }
                           setShowSaveTemplate(true)
                         }}
-                        style={{ fontSize: 12, color: t.textSubtle, background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                        style={{ fontSize: 13, color: t.textSubtle, background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
                         onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
                         onMouseLeave={e => (e.currentTarget.style.color = t.textSubtle)}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
@@ -811,11 +811,11 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   {/* ── Terms & Conditions — editable ── */}
                   <div style={{ borderRadius: 12, border: `1px solid ${t.cardBorder}`, background: t.cardBg, padding: '20px 24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <h3 style={{ fontSize: 14, fontWeight: 600, color: t.textPri }}>Terms & Conditions</h3>
+                      <h3 style={{ fontSize: 15, fontWeight: 600, color: t.textPri }}>Terms & Conditions</h3>
                       {!editingTerms && (
                         <button
                           onClick={() => { setTermsValue(estimate.terms); setEditingTerms(true) }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 12px', borderRadius: 8, border: `1.5px solid ${t.btnBorder}`, background: 'transparent', color: t.btnText, cursor: 'pointer' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px', borderRadius: 8, border: `1.5px solid ${t.btnBorder}`, background: 'transparent', color: t.btnText, cursor: 'pointer' }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = t.btnBorder; e.currentTarget.style.color = t.btnText }}
                         >
@@ -830,22 +830,22 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           value={termsValue}
                           onChange={e => setTermsValue(e.target.value)}
                           rows={4}
-                          style={{ width: '100%', fontSize: 13, borderRadius: 8, padding: '10px 12px', lineHeight: 1.6, resize: 'vertical', background: t.inputBg, color: t.textPri, boxSizing: 'border-box', boxShadow: '0 0 0 1.5px #0F766E', border: 'none', outline: 'none' }}
+                          style={{ width: '100%', fontSize: 14, borderRadius: 8, padding: '10px 12px', lineHeight: 1.6, resize: 'vertical', background: t.inputBg, color: t.textPri, boxSizing: 'border-box', boxShadow: '0 0 0 1.5px #0F766E', border: 'none', outline: 'none' }}
                         />
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                           <button onClick={() => setEditingTerms(false)}
-                            style={{ padding: '6px 14px', fontSize: 13, borderRadius: 8, border: `1.5px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
+                            style={{ padding: '6px 14px', fontSize: 14, borderRadius: 8, border: `1.5px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
                             Cancel
                           </button>
                           <button
                             onClick={() => { setEstimate(prev => prev ? { ...prev, terms: termsValue } : prev); setEditingTerms(false); setIsDirty(true) }}
-                            style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer' }}>
+                            style={{ padding: '6px 14px', fontSize: 14, fontWeight: 500, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer' }}>
                             Save Terms
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <p style={{ fontSize: 13, lineHeight: 1.6, color: t.textMuted, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{estimate.terms}</p>
+                      <p style={{ fontSize: 14, lineHeight: 1.6, color: t.textMuted, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{estimate.terms}</p>
                     )}
                   </div>
 
@@ -868,7 +868,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         } catch { setSaveMsg('PDF generation failed') }
                         setTimeout(() => setSaveMsg(null), 4000)
                       }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = t.inputBorder; e.currentTarget.style.color = t.textBody }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -876,7 +876,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     </button>
                     {/* Mark as Sent / Sent state */}
                     {['sent','viewed','approved','invoiced','paid'].includes(estimate.status) ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, color: '#0F766E', background: '#F0FDFA', border: '1px solid #99F6E4' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, color: '#0F766E', background: '#F0FDFA', border: '1px solid #99F6E4' }}>
                         <Check size={13} /> Marked as Sent
                       </div>
                     ) : (
@@ -891,7 +891,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           })
                           setSaveMsg('Marked as sent ✓'); setTimeout(() => setSaveMsg(null), 3000)
                         }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, border: `1.5px solid ${t.inputBorder}`, background: 'transparent', color: t.textBody, cursor: 'pointer' }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = t.inputBorder; e.currentTarget.style.color = t.textBody }}>
                         <Send size={13} /> Mark as Sent
@@ -928,12 +928,12 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             <h3 style={{ fontSize: 18, fontWeight: 700, color: '#EF4444', marginBottom: 6 }}>
               Delete {estimate?.estimate_number}?
             </h3>
-            <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>
+            <p style={{ fontSize: 14, color: t.textMuted, marginBottom: 20 }}>
               This will permanently remove the estimate and all its line items. This cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setShowDeleteConfirm(false)}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: 12, borderRadius: 12, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                 Cancel
               </button>
               <button onClick={async () => {
@@ -941,7 +941,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 await fetch(`/api/estimates/${id}`, { method: 'DELETE' })
                 router.push('/dashboard/estimates')
               }}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: '#EF4444', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: '#EF4444', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
                 Delete Estimate
               </button>
             </div>
@@ -956,21 +956,21 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           <div style={{ background: t.cardBg, borderRadius: 20, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
             onClick={e => e.stopPropagation()}>
             <h3 style={{ fontSize: 18, fontWeight: 700, color: t.textPri, marginBottom: 6 }}>Void this estimate?</h3>
-            <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>This cannot be undone. You can duplicate it to start a new estimate.</p>
+            <p style={{ fontSize: 14, color: t.textMuted, marginBottom: 16 }}>This cannot be undone. You can duplicate it to start a new estimate.</p>
             <input
               type="text"
               placeholder="Reason (optional) — e.g. Wrong price, job cancelled"
               value={voidReason}
               onChange={e => setVoidReason(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 16 }}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 16 }}
             />
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setShowVoidConfirm(false)}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                style={{ flex: 1, padding: 12, borderRadius: 12, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                 Cancel
               </button>
               <button onClick={handleVoid} disabled={voiding}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: '#EF4444', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: voiding ? 0.7 : 1 }}>
+                style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: '#EF4444', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: voiding ? 0.7 : 1 }}>
                 {voiding ? 'Voiding...' : 'Void Estimate'}
               </button>
             </div>
@@ -1105,7 +1105,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     {/* Mobile sticky bottom CTA — primary action above fold */}
     {estimate && !['void','declined','invoiced','paid'].includes(estimate.status) && (
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3"
-        style={{ background: dk ? 'rgba(10,22,40,0.96)' : 'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)', borderTop:`1px solid ${dk ? '#334155' : '#E8E2D9'}`, boxShadow:'0 -4px 20px rgba(0,0,0,0.10)' }}>
+        style={{ background: dk ? 'rgba(10,22,40,0.96)' : 'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)', borderTop:`1px solid ${t.cardBorder}`, boxShadow:'0 -4px 20px rgba(0,0,0,0.10)' }}>
         <div className="flex gap-2">
           {estimate.status === 'draft' && (
             <button
@@ -1123,13 +1123,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 setTimeout(() => setSaveMsg(null), 4000)
               }}
               disabled={saving}
-              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer' }}>
               Send Estimate
             </button>
           )}
           {estimate.status === 'approved' && (
             <button onClick={openInvoiceModal}
-              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#15803D,#16A34A)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#15803D,#16A34A)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer' }}>
               Create Invoice
             </button>
           )}
@@ -1140,12 +1140,12 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               setSaveMsg(r.ok ? 'Reminder sent ✓' : 'Failed to send reminder')
               setTimeout(() => setSaveMsg(null), 3000)
             }}
-              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#7C3AED,#6D28D9)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#7C3AED,#6D28D9)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer' }}>
               Send Reminder
             </button>
           )}
           <button onClick={() => router.back()}
-            style={{ width:48, padding:'13px', borderRadius:12, border:`1.5px solid ${dk ? '#334155' : '#E8E2D9'}`, background:'transparent', color: dk ? '#94A3B8' : '#6B7280', fontSize:18, cursor:'pointer' }}>
+            style={{ width:48, padding:'13px', borderRadius:12, border:`1.5px solid ${t.cardBorder}`, background:'transparent', color: t.textMuted, fontSize: 18, cursor:'pointer' }}>
             ←
           </button>
         </div>
@@ -1162,14 +1162,15 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
   darkMode: boolean
 }) {
   const dk = darkMode
+  const t = theme(dk)
   const [note, setNote] = React.useState(estimate.notes || '')
   const [saving, setSaving] = React.useState(false)
   const [saved,  setSaved]  = React.useState(false)
 
-  const border  = dk ? '#334155' : '#E8E2D9'
-  const bgCard  = dk ? '#1E293B' : '#ffffff'
-  const col     = dk ? '#f1f5f9' : '#111827'
-  const colMuted= dk ? '#94a3b8' : '#6B7280'
+  const border  = t.cardBorder
+  const bgCard  = t.cardBg
+  const col     = t.textPri
+  const colMuted= t.textMuted
 
   // C8 FIX: save to DB, not just local state
   const saveNote = async () => {
@@ -1191,7 +1192,7 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Internal notes */}
       <div>
-        <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#6B7280', marginBottom: 8, display: 'block' }}>
+        <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase' as const, color: '#6B7280', marginBottom: 8, display: 'block' }}>
           Internal Notes
         </label>
         <textarea
@@ -1200,7 +1201,7 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
           placeholder="Add notes visible only to you — job details, client preferences, reminders..."
           rows={5}
           style={{
-            width: '100%', padding: '12px 14px', fontSize: 14, borderRadius: 10,
+            width: '100%', padding: '12px 14px', fontSize: 15, borderRadius: 10,
             border: `1.5px solid ${border}`, background: dk ? '#0f172a' : '#f9fafb',
             color: col, resize: 'vertical', outline: 'none', lineHeight: 1.6, boxSizing: 'border-box' as const,
           }}
@@ -1208,9 +1209,9 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
           onBlur={e => (e.target.style.borderColor = border)}
         />
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, gap: 8, alignItems: 'center' }}>
-          {saved && <span style={{ fontSize: 13, color: '#0F766E' }}>✓ Saved</span>}
+          {saved && <span style={{ fontSize: 14, color: '#0F766E' }}>✓ Saved</span>}
           <button onClick={saveNote} disabled={saving}
-            style={{ padding: '7px 18px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+            style={{ padding: '7px 18px', fontSize: 14, fontWeight: 600, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
             {saving ? 'Saving...' : 'Save Note'}
           </button>
         </div>
@@ -1221,9 +1222,9 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
         <div style={{ width: 44, height: 44, borderRadius: 10, background: dk ? '#0f172a' : '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
         </div>
-        <p style={{ fontSize: 14, fontWeight: 600, color: col, marginBottom: 4 }}>File Attachments</p>
-        <p style={{ fontSize: 13, color: colMuted, marginBottom: 12 }}>Attach photos, contracts, or reference documents to this estimate.</p>
-        <button style={{ padding: '8px 18px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: `1.5px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'not-allowed', opacity: 0.5 }}>
+        <p style={{ fontSize: 15, fontWeight: 600, color: col, marginBottom: 4 }}>File Attachments</p>
+        <p style={{ fontSize: 14, color: colMuted, marginBottom: 12 }}>Attach photos, contracts, or reference documents to this estimate.</p>
+        <button style={{ padding: '8px 18px', fontSize: 14, fontWeight: 500, borderRadius: 8, border: `1.5px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'not-allowed', opacity: 0.5 }}>
           Upload Files — coming in v76
         </button>
       </div>

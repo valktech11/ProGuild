@@ -112,7 +112,7 @@ export default function EstimateItems({
   }
 
   const hdStyle: React.CSSProperties = {
-    fontSize: 13, fontWeight: 700, letterSpacing: '0.07em',
+    fontSize: 14, fontWeight: 700, letterSpacing: '0.07em',
     textTransform: 'uppercase', color: colSub,
   }
   const inputStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
@@ -121,7 +121,7 @@ export default function EstimateItems({
     color: col, outline: 'none', boxSizing: 'border-box', ...extra,
   })
   const labelStyle: React.CSSProperties = {
-    fontSize: 13, fontWeight: 600, letterSpacing: '0.06em',
+    fontSize: 14, fontWeight: 600, letterSpacing: '0.06em',
     textTransform: 'uppercase', color: colMuted, marginBottom: 6, display: 'block',
   }
 
@@ -146,7 +146,7 @@ export default function EstimateItems({
                 {/* Card header row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px 8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 12, color: colMuted, fontWeight: 600, flexShrink: 0 }}>{idx + 1}</span>
+                    <span style={{ fontSize: 13, color: colMuted, fontWeight: 600, flexShrink: 0 }}>{idx + 1}</span>
                     <span style={{ fontSize: 15, fontWeight: 700, color: col, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.name || <span style={{ color: colMuted, fontStyle: 'italic', fontWeight: 400 }}>Unnamed item</span>}
                     </span>
@@ -154,11 +154,11 @@ export default function EstimateItems({
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     {!locked && (<>
                     <button onClick={() => isEditing ? cancelEdit() : startEdit(item)} title="Edit"
-                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${isEditing ? '#0F766E' : border}`, borderRadius: 7, background: isEditing ? '#0F766E' : bgInput, color: isEditing ? '#fff' : colBody, cursor: 'pointer' }}>
+                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${isEditing ? '#0F766E' : border}`, borderRadius: 8, background: isEditing ? '#0F766E' : bgInput, color: isEditing ? '#fff' : colBody, cursor: 'pointer' }}>
                       <Pencil size={13} />
                     </button>
                     <button onClick={() => remove(item.id)} title="Delete"
-                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${border}`, borderRadius: 7, background: bgInput, color: colBody, cursor: 'pointer' }}>
+                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${border}`, borderRadius: 8, background: bgInput, color: colBody, cursor: 'pointer' }}>
                       <Trash2 size={13} />
                     </button>
                     </>)}
@@ -167,7 +167,7 @@ export default function EstimateItems({
                 {/* Card detail row */}
                 {!isEditing && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px 12px' }}>
-                    <span style={{ fontSize: 13, color: colMuted }}>
+                    <span style={{ fontSize: 14, color: colMuted }}>
                       {item.qty} job × {money(item.unit_price)}
                     </span>
                     <span style={{ fontSize: 15, fontWeight: 700, color: col }}>{rowAmount > 0 ? money(rowAmount) : '—'}</span>
@@ -208,12 +208,12 @@ export default function EstimateItems({
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 13, color: colMuted }}>
+                      <span style={{ fontSize: 14, color: colMuted }}>
                         Total: <strong style={{ color: '#0F766E' }}>{money((draft.qty ?? item.qty) * (draft.unit_price ?? item.unit_price))}</strong>
                       </span>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={cancelEdit} style={{ padding: '7px 14px', fontSize: 13, borderRadius: 8, border: `1.5px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'pointer' }}>Cancel</button>
-                        <button onClick={() => commitEdit(item.id)} style={{ padding: '7px 18px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer' }}>✓ Done</button>
+                        <button onClick={cancelEdit} style={{ padding: '7px 14px', fontSize: 14, borderRadius: 8, border: `1.5px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'pointer' }}>Cancel</button>
+                        <button onClick={() => commitEdit(item.id)} style={{ padding: '7px 18px', fontSize: 14, fontWeight: 600, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer' }}>✓ Done</button>
                       </div>
                     </div>
                   </div>
@@ -236,16 +236,16 @@ export default function EstimateItems({
                     updateDiscount(flat)
                     setEstimate(prev => prev ? { ...prev, discount_type: t } : prev)
                   }}
-                    style={{ padding: '2px 7px', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: discountType === t ? '#0F766E' : 'transparent', color: discountType === t ? '#fff' : colMuted }}>{t}</button>
+                    style={{ padding: '2px 7px', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: discountType === t ? '#0F766E' : 'transparent', color: discountType === t ? '#fff' : colMuted }}>{t}</button>
                 ))}
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="number" min={0} value={discountInput || ''} onChange={e => { const v = Number(e.target.value); setDiscountInput(v); updateDiscount(discountType === '%' ? estimate.subtotal * (v / 100) : v) }}
                 onFocus={e => e.currentTarget.select()}
-                placeholder="0" style={{ width: 80, padding: '5px 8px', fontSize: 13, borderRadius: 7, border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', textAlign: 'right' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#16a34a' }}>{estimate.discount > 0 ? `− ${money(estimate.discount)}` : '—'}</span>
-              <button onClick={() => { setShowDiscount(false); setDiscountInput(0); updateDiscount(0) }} style={{ fontSize: 12, color: colMuted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                placeholder="0" style={{ width: 80, padding: '5px 8px', fontSize: 14, borderRadius: 8, border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', textAlign: 'right' }} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#16a34a' }}>{estimate.discount > 0 ? `− ${money(estimate.discount)}` : '—'}</span>
+              <button onClick={() => { setShowDiscount(false); setDiscountInput(0); updateDiscount(0) }} style={{ fontSize: 13, color: colMuted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
             </div>
           </div>
         )}
@@ -255,15 +255,15 @@ export default function EstimateItems({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 14px', border: `1.5px solid ${border}`, borderRadius: 10, background: dk ? '#1a2030' : '#FAFAF9', marginTop: 8 }}>
           <div>
             <span style={{ fontSize: 14, color: colMuted }}>Sales Tax</span>
-            {estimate.tax_rate > 0 && <span style={{ fontSize: 11, marginLeft: 6, color: '#d97706', background: '#fef3c7', padding: '1px 6px', borderRadius: 8 }}>Base rate</span>}
+            {estimate.tax_rate > 0 && <span style={{ fontSize: 12, marginLeft: 6, color: '#d97706', background: '#fef3c7', padding: '1px 6px', borderRadius: 8 }}>Base rate</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ position: 'relative' }}>
               <input type="number" min={0} max={30} step={0.25} value={estimate.tax_rate || ''} onChange={e => updateTaxRate(Number(e.target.value))} onFocus={e => e.currentTarget.select()} placeholder="0"
-                style={{ width: 72, padding: '5px 24px 5px 8px', fontSize: 13, borderRadius: 7, border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', textAlign: 'right' }} />
-              <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 12, pointerEvents: 'none' }}>%</span>
+                style={{ width: 72, padding: '5px 24px 5px 8px', fontSize: 14, borderRadius: 8, border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', textAlign: 'right' }} />
+              <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 13, pointerEvents: 'none' }}>%</span>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: colBody, minWidth: 60, textAlign: 'right' }}>{estimate.tax_amount > 0 ? money(estimate.tax_amount) : '—'}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: colBody, minWidth: 60, textAlign: 'right' }}>{estimate.tax_amount > 0 ? money(estimate.tax_amount) : '—'}</span>
           </div>
         </div>
         )}
@@ -314,32 +314,32 @@ export default function EstimateItems({
                 background: isEditing ? bgEdit : (idx % 2 === 1 ? (dk ? '#1a2535' : '#F9F8F6') : bgCard),
               }}>
                 <GripVertical size={13} style={{ color: colMuted, opacity: 0.4, cursor: 'grab' }} />
-                <span style={{ fontSize: 13, color: colMuted, fontWeight: 500 }}>{idx + 1}</span>
+                <span style={{ fontSize: 14, color: colMuted, fontWeight: 500 }}>{idx + 1}</span>
 
                 {/* Name + description */}
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: col, lineHeight: 1.3 }}>
                     {item.name || <span style={{ color: colMuted, fontStyle: 'italic' }}>Unnamed item</span>}
                   </div>
-                  {item.description && <div style={{ fontSize: 12, color: colMuted, marginTop: 2 }}>{item.description}</div>}
+                  {item.description && <div style={{ fontSize: 13, color: colMuted, marginTop: 2 }}>{item.description}</div>}
                 </div>
 
                 {/* QTY — bordered box */}
                 <div style={{ textAlign: 'center' }}>
                   <div style={{
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 38, height: 32, borderRadius: 7,
+                    width: 38, height: 32, borderRadius: 8,
                     border: `1.5px solid ${border}`, background: bgInput,
                     fontSize: 14, fontWeight: 500, color: colBody,
                   }}>{item.qty}</div>
-                  <div style={{ fontSize: 10, color: colMuted, marginTop: 2 }}>job</div>
+                  <div style={{ fontSize: 11, color: colMuted, marginTop: 2 }}>job</div>
                 </div>
 
                 {/* Unit price — bordered box (same as QTY) */}
                 <div style={{ textAlign: 'right' }}>
                   <div style={{
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end',
-                    padding: '4px 10px', borderRadius: 7,
+                    padding: '4px 10px', borderRadius: 8,
                     border: `1.5px solid ${border}`, background: bgInput,
                     fontSize: 14, fontWeight: 500, color: colBody, minWidth: 80,
                   }}>
@@ -408,16 +408,16 @@ export default function EstimateItems({
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: colMuted }}>
+                    <span style={{ fontSize: 14, color: colMuted }}>
                       Line total: <strong style={{ color: '#0F766E' }}>{money((draft.qty ?? item.qty) * (draft.unit_price ?? item.unit_price))}</strong>
                     </span>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={cancelEdit}
-                        style={{ padding: '7px 16px', fontSize: 13, borderRadius: 8, border: `1.5px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'pointer' }}>
+                        style={{ padding: '7px 16px', fontSize: 14, borderRadius: 8, border: `1.5px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'pointer' }}>
                         Cancel
                       </button>
                       <button onClick={() => commitEdit(item.id)}
-                        style={{ padding: '7px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer' }}>
+                        style={{ padding: '7px 20px', fontSize: 14, fontWeight: 600, borderRadius: 8, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer' }}>
                         ✓ Done
                       </button>
                     </div>
@@ -443,7 +443,7 @@ export default function EstimateItems({
                     updateDiscount(flat)
                     setEstimate(prev => prev ? { ...prev, discount_type: t } : prev)
                   }}
-                    style={{ padding: '2px 7px', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+                    style={{ padding: '2px 7px', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
                       background: discountType === t ? '#0F766E' : 'transparent',
                       color: discountType === t ? '#fff' : colMuted }}>
                     {t}
@@ -463,10 +463,10 @@ export default function EstimateItems({
                 }}
                 onFocus={e => e.currentTarget.select()}
                 placeholder={discountType === '%' ? '0' : '0.00'}
-                style={{ width: '100%', padding: `5px ${discountType === '%' ? '22px' : '8px'} 5px 8px`, fontSize: 13, borderRadius: 7,
+                style={{ width: '100%', padding: `5px ${discountType === '%' ? '22px' : '8px'} 5px 8px`, fontSize: 14, borderRadius: 8,
                   border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', boxSizing: 'border-box' as const, textAlign: 'right' }} />
               {discountType === '%' && (
-                <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 12, pointerEvents: 'none' }}>%</span>
+                <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 13, pointerEvents: 'none' }}>%</span>
               )}
             </div>
             <div style={{ textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#16a34a' }}>
@@ -474,7 +474,7 @@ export default function EstimateItems({
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => { setShowDiscount(false); setDiscountInput(0); updateDiscount(0) }}
-                style={{ fontSize: 12, color: colMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+                style={{ fontSize: 13, color: colMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
                 title="Remove discount">✕</button>
             </div>
           </div>
@@ -486,7 +486,7 @@ export default function EstimateItems({
           <div>
             <span style={{ fontSize: 14, color: colMuted }}>Sales Tax</span>
             {estimate.tax_rate > 0 && (
-              <span style={{ fontSize: 11, marginLeft: 8, color: '#d97706', background: '#fef3c7', padding: '1px 7px', borderRadius: 10 }}>
+              <span style={{ fontSize: 12, marginLeft: 8, color: '#d97706', background: '#fef3c7', padding: '1px 7px', borderRadius: 10 }}>
                 Base state rate — adjust for your county
               </span>
             )}
@@ -497,8 +497,8 @@ export default function EstimateItems({
               onChange={e => updateTaxRate(Number(e.target.value))}
               onFocus={e => e.currentTarget.select()}
               placeholder="0"
-              style={{ width: '100%', padding: '5px 28px 5px 8px', fontSize: 13, borderRadius: 7, border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', boxSizing: 'border-box', textAlign: 'right' }} />
-            <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 12, pointerEvents: 'none' }}>%</span>
+              style={{ width: '100%', padding: '5px 28px 5px 8px', fontSize: 14, borderRadius: 8, border: `1.5px solid ${border}`, background: bgInput, color: col, outline: 'none', boxSizing: 'border-box', textAlign: 'right' }} />
+            <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: colMuted, fontSize: 13, pointerEvents: 'none' }}>%</span>
           </div>
           <div style={{ textAlign: 'right', fontSize: 14, fontWeight: 600, color: colBody }}>
             {estimate.tax_amount > 0 ? money(estimate.tax_amount) : '—'}
@@ -529,7 +529,7 @@ export default function EstimateItems({
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         {!showDiscount && (
           <button onClick={() => setShowDiscount(true)}
-            style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, border: `1px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'pointer' }}
+            style={{ fontSize: 13, padding: '4px 12px', borderRadius: 20, border: `1px solid ${border}`, background: 'transparent', color: colMuted, cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = colMuted }}>
             + Discount

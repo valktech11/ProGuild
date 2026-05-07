@@ -169,7 +169,7 @@ function MobileNav({ nl, onAdd, onMore }: { nl: number; onAdd: () => void; onMor
             <Link key={t.href} href={t.href} className="flex flex-col items-center gap-[3px] flex-1 py-2 relative">
               <span style={{ color: a ? '#0F766E' : '#7C756E' }}>{t.icon(a)}</span>
               <span className="text-[11.5px] font-semibold" style={{ color: a ? '#0F766E' : '#7C756E' }}>{t.label}</span>
-              {t.badge > 0 && <span className="absolute top-1.5 right-3 w-[15px] h-[15px] rounded-full flex items-center justify-center" style={{ background: '#0F766E', color: '#fff', fontSize: 8.5, fontWeight: 700 }}>{t.badge}</span>}
+              {t.badge > 0 && <span className="absolute top-1.5 right-3 w-[15px] h-[15px] rounded-full flex items-center justify-center" style={{ background: '#0F766E', color: '#fff', fontSize: 11.5, fontWeight: 700 }}>{t.badge}</span>}
             </Link>
           )
         })}
@@ -286,9 +286,9 @@ function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: ()
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-white leading-tight truncate" style={{ fontSize: 17 }}>{session.name}</div>
                   {tradeCity && (
-                    <div className="mt-0.5 truncate" style={{ fontSize: 12, color: 'rgba(255,255,255,.62)' }}>{tradeCity}</div>
+                    <div className="mt-0.5 truncate" style={{ fontSize: 13, color: 'rgba(255,255,255,.62)' }}>{tradeCity}</div>
                   )}
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.38)', marginTop: 2, letterSpacing: '0.03em' }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.38)', marginTop: 2, letterSpacing: '0.03em' }}>
                     {planLabel(session.plan)} Plan
                   </div>
                 </div>
@@ -319,7 +319,7 @@ function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: ()
             <div key={g.title} className={gi > 0 ? 'mt-8' : 'mt-2'}>
               {/* Section header with line */}
               <div className="flex items-center gap-3 px-2 mb-2">
-                <span className="text-[12px] font-black tracking-[.15em] uppercase flex-shrink-0"
+                <span className="text-[14px] font-black tracking-[.15em] uppercase flex-shrink-0"
                   style={{ color: 'rgba(45,212,191,0.8)' }}>{g.title}</span>
                 <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, rgba(45,212,191,0.4) 0%, rgba(45,212,191,0.08) 100%)' }} />
               </div>
@@ -335,7 +335,7 @@ function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: ()
           {/* Account section */}
           <div className="mt-7">
             <div className="flex items-center gap-3 px-2 mb-2">
-              <span className="text-[12px] font-bold tracking-[.12em] uppercase flex-shrink-0"
+              <span className="text-[14px] font-bold tracking-[.12em] uppercase flex-shrink-0"
                 style={{ color: 'rgba(45,212,191,0.8)' }}>ACCOUNT</span>
               <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, rgba(45,212,191,0.4) 0%, rgba(45,212,191,0.08) 100%)' }} />
             </div>
@@ -396,7 +396,7 @@ function DrawerNavLink({ item, active, onNav }: { item: NavItem; active: boolean
 
       {/* Soon pill — styled intentionally, not as an error */}
       {item.soon && (
-        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 tracking-wider"
+        <span className="text-[14px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 tracking-wider"
           style={{
             background: 'rgba(99,102,241,0.15)',
             color: 'rgba(165,180,252,0.7)',
@@ -427,7 +427,7 @@ function QuickSheet({ open, onClose, onAddLead }: { open: boolean; onClose: () =
       <div className="absolute bottom-0 left-0 right-0 rounded-t-[28px] bg-white" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex justify-center pt-3"><div className="w-10 h-1 rounded-full bg-gray-200" /></div>
         <div className="px-5 pt-3 pb-2">
-          <p className="text-[11px] font-bold tracking-[.1em] uppercase mb-4" style={{ color: '#7A746E' }}>What would you like to add?</p>
+          <p className="text-[14px] font-bold tracking-[.1em] uppercase mb-4" style={{ color: '#7A746E' }}>What would you like to add?</p>
           <div className="grid grid-cols-2 gap-3 mb-4">
             {opts.map(o => (
               <button key={o.label} onClick={o.fn} disabled={o.soon}
@@ -435,8 +435,8 @@ function QuickSheet({ open, onClose, onAddLead }: { open: boolean; onClose: () =
                 style={{ backgroundColor: o.soon ? '#FAFAF9' : '#F5F4F0', border: `1px solid ${o.soon ? '#EDE9E4' : '#DDD8D2'}`, opacity: o.soon ? .4 : 1 }}>
                 <span style={{ color: '#0F766E' }}>{o.icon(false)}</span>
                 <div>
-                  <div className="text-[13px] font-semibold" style={{ color: '#0A1628' }}>{o.label}</div>
-                  <div className="text-[12px] mt-0.5" style={{ color: '#7A746E' }}>{o.sub}</div>
+                  <div className="text-[14px] font-semibold" style={{ color: '#0A1628' }}>{o.label}</div>
+                  <div className="text-[14px] mt-0.5" style={{ color: '#7A746E' }}>{o.sub}</div>
                 </div>
               </button>
             ))}
@@ -511,8 +511,8 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:opacity-70 transition-opacity">
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: opt.dot }} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold" style={{ color: txt }}>{opt.label}</div>
-                  <div className="text-[11px]" style={{ color: '#9CA3AF' }}>{opt.sub}</div>
+                  <div className="text-[14px] font-semibold" style={{ color: txt }}>{opt.label}</div>
+                  <div className="text-[14px]" style={{ color: '#9CA3AF' }}>{opt.sub}</div>
                 </div>
                 {opt.value === status && (
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round">
@@ -551,7 +551,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
           <button onClick={() => { setUserOpen(o => !o); setStatusOpen(false) }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <Av s={session} px={28} />
-            <span className="text-[13px] font-semibold" style={{ color: txt }}>{session.name?.split(' ')[0]}</span>
+            <span className="text-[14px] font-semibold" style={{ color: txt }}>{session.name?.split(' ')[0]}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="2.5" strokeLinecap="round">
               <path d="M6 9l6 6 6-6" />
             </svg>
@@ -563,8 +563,8 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
 
               {/* User info */}
               <div className="px-4 py-3 border-b" style={{ borderColor: bdr }}>
-                <div className="text-[13px] font-bold" style={{ color: txt }}>{session.name}</div>
-                <div className="text-[11px] mt-0.5" style={{ color: '#9CA3AF' }}>{session.email}</div>
+                <div className="text-[14px] font-bold" style={{ color: txt }}>{session.name}</div>
+                <div className="text-[14px] mt-0.5" style={{ color: '#9CA3AF' }}>{session.email}</div>
               </div>
 
               {/* Dark mode toggle */}
@@ -574,7 +574,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="1.8" strokeLinecap="round">
                     <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
                   </svg>
-                  <span className="text-[13px] font-medium" style={{ color: txt }}>Dark Mode</span>
+                  <span className="text-[14px] font-medium" style={{ color: txt }}>Dark Mode</span>
                 </div>
                 {/* Toggle switch */}
                 <div className="w-9 h-5 rounded-full relative transition-colors"
@@ -590,7 +590,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="1.8" strokeLinecap="round">
                   <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8" />
                 </svg>
-                <span className="text-[13px] font-medium" style={{ color: txt }}>Profile</span>
+                <span className="text-[14px] font-medium" style={{ color: txt }}>Profile</span>
               </a>
 
               {/* Logout */}
@@ -600,7 +600,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.8" strokeLinecap="round">
                   <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
                 </svg>
-                <span className="text-[13px] font-medium" style={{ color: '#EF4444' }}>Log out</span>
+                <span className="text-[14px] font-medium" style={{ color: '#EF4444' }}>Log out</span>
               </button>
             </div>
           )}
@@ -637,7 +637,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
               <Logo />
               <div className="flex items-baseline gap-[1px]">
                 <span className="font-serif text-[15px] font-bold text-white tracking-tight">ProGuild</span>
-                <span className="text-[13px] font-semibold" style={{ color: '#2DD4BF' }}>.ai</span>
+                <span className="text-[14px] font-semibold" style={{ color: '#2DD4BF' }}>.ai</span>
               </div>
             </Link>
 
@@ -659,7 +659,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
                 <div key={g.title} className={gi > 0 ? 'mt-5' : ''}>
                   {/* Section header — teal label + gradient rule line (matches mobile drawer) */}
                   <div className="flex items-center gap-2 px-2 pb-2">
-                    <span className="text-[10px] font-bold tracking-[.15em] uppercase flex-shrink-0"
+                    <span className="text-[14px] font-bold tracking-[.15em] uppercase flex-shrink-0"
                       style={{ color: 'rgba(45,212,191,0.80)' }}>{g.title}</span>
                     <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(45,212,191,0.35),rgba(45,212,191,0.04))' }} />
                   </div>
@@ -674,7 +674,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
               {/* Account */}
               <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
                 <div className="flex items-center gap-2 px-2 pb-2">
-                  <span className="text-[10px] font-bold tracking-[.15em] uppercase flex-shrink-0"
+                  <span className="text-[14px] font-bold tracking-[.15em] uppercase flex-shrink-0"
                     style={{ color: 'rgba(45,212,191,0.80)' }}>ACCOUNT</span>
                   <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(45,212,191,0.35),rgba(45,212,191,0.04))' }} />
                 </div>
@@ -701,8 +701,8 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
                     <Av s={session} px={28} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-bold text-white truncate">{session.name}</div>
-                    <div className="text-[11px] mt-px truncate" style={{ color: 'rgba(255,255,255,.45)' }}>
+                    <div className="text-[14px] font-bold text-white truncate">{session.name}</div>
+                    <div className="text-[14px] mt-px truncate" style={{ color: 'rgba(255,255,255,.45)' }}>
                       {session.trade || planLabel(session.plan)}{session.city ? ` · ${session.city}` : ''}
                     </div>
                   </div>
@@ -722,7 +722,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
 
         {/* ── MOBILE ───────────────────────────────────────────────────────── */}
         <div className="md:hidden" suppressHydrationWarning>
-          <main className="pb-[68px] min-h-screen" style={{ backgroundColor: '#F5F4F0' }}>
+          <main className="pb-[68px] min-h-screen" style={{ backgroundColor: dk ? '#0E1118' : '#F5F4F0' }}>
             {children}
           </main>
           <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} />

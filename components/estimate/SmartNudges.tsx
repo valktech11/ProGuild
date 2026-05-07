@@ -1,6 +1,6 @@
 'use client'
 
-import { theme } from '@/lib/theme'
+import { theme } from '@/lib/tokens'
 
 type NudgeConfig = {
   emoji: string
@@ -117,7 +117,7 @@ export default function SmartNudges({ darkMode, status, invoiceId, onCta }: {
           <p style={{ fontSize: 14, fontWeight: 600, color: dk ? '#F1F5F9' : '#1F2937', margin: 0, marginBottom: 2 }}>
             {nudge.title}
           </p>
-          <p style={{ fontSize: 12, color: t.textMuted, margin: 0 }}>
+          <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
             {nudge.sub}
           </p>
         </div>
@@ -129,7 +129,7 @@ export default function SmartNudges({ darkMode, status, invoiceId, onCta }: {
             onClick={onCta}
             style={{
               padding: isApproved ? '10px 20px' : '7px 14px',
-              borderRadius: 9,
+              borderRadius: 8,
               fontSize: isApproved ? 14 : 12,
               fontWeight: 600,
               cursor: 'pointer',
@@ -143,7 +143,7 @@ export default function SmartNudges({ darkMode, status, invoiceId, onCta }: {
           </button>
         )}
         {nudge.secondaryLabel && (
-          <span style={{ fontSize: 11, color: t.textMuted }}>{nudge.secondaryLabel}</span>
+          <span style={{ fontSize: 12, color: t.textMuted }}>{nudge.secondaryLabel}</span>
         )}
       </div>
     </div>

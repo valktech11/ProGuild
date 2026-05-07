@@ -3,6 +3,7 @@ import { useState, useEffect, use, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Lead, Session, LeadStatus } from '@/types'
 import { avatarColor, initials, timeAgo, capName } from '@/lib/utils'
+import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 
 const STAGES: LeadStatus[] = ['New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid']
@@ -318,13 +319,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
   }
 
   // theme
-  const bg = dk ? '#0A1628' : '#F5F4F0'
-  const card = dk ? '#1E293B' : '#FFFFFF'
-  const border = dk ? '#2D3748' : '#E8E2D9'
-  const tp = dk ? '#F1F5F9' : '#111827'
-  const ts = dk ? '#94A3B8' : '#6B7280'
-  const inputBg = dk ? '#0F172A' : '#F9FAFB'
-  const inputStyle = { fontSize: 14, padding: '8px 10px', borderRadius: 7, border: `1px solid ${border}`, background: inputBg, color: tp, width: '100%', fontFamily: 'inherit', outline: 'none' }
+  const t = theme(dk)
+  const bg = t.pageBg
+  const card = t.cardBg
+  const border = t.cardBorder
+  const tp = t.textPri
+  const ts = t.textMuted
+  const inputBg = t.cardBgAlt
+  const inputStyle = { fontSize: 15, padding: '8px 10px', borderRadius: T.radSm, border: `1px solid ${border}`, background: inputBg, color: tp, width: '100%', fontFamily: 'inherit', outline: 'none' }
   const selectStyle = { ...inputStyle }
 
   if (!session) return null
@@ -435,7 +437,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
           {toasts.map(t => (
             <div key={t.id} style={{ pointerEvents: 'all', background: t.type === 'error' ? '#FEF2F2' : '#F0FDF4', border: `1.5px solid ${t.type === 'error' ? '#FECACA' : '#BBF7D0'}`, borderRadius: 12, padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 12, fontSize: 15, fontWeight: 500, color: t.type === 'error' ? '#991B1B' : '#166534', minWidth: 280, maxWidth: 420, boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}>
               <span style={{ flex: 1 }}>{t.message}</span>
-              {t.prevStage && t.type === 'success' && <button onClick={() => handleUndo(t.id, t.prevStage!)} style={{ fontSize: 14, color: '#0F766E', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, whiteSpace: 'nowrap' }}>Undo</button>}
+              {t.prevStage && t.type === 'success' && <button onClick={() => handleUndo(t.id, t.prevStage!)} style={{ fontSize: 15, color: '#0F766E', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, whiteSpace: 'nowrap' }}>Undo</button>}
               <button onClick={() => dismissToast(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ts, fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
             </div>
           ))}
@@ -452,12 +454,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 </div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: tp }}>No approved estimate</div>
-                  <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>This lead hasn't been quoted yet.</div>
+                  <div style={{ fontSize: 14, color: ts, marginTop: 2 }}>This lead hasn't been quoted yet.</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-                <button onClick={() => { setWarnScheduled(false); createEstimate() }} style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>Create Estimate First</button>
-                <button onClick={proceedToScheduled} style={{ padding: '9px 16px', borderRadius: 10, border: `1.5px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>Schedule Anyway</button>
+                <button onClick={() => { setWarnScheduled(false); createEstimate() }} style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>Create Estimate First</button>
+                <button onClick={proceedToScheduled} style={{ padding: '9px 16px', borderRadius: 10, border: `1.5px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 14, fontWeight: 500 }}>Schedule Anyway</button>
               </div>
             </div>
           </div>
@@ -473,12 +475,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 </div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: tp }}>No invoice created</div>
-                  <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>Create an invoice before marking complete.</div>
+                  <div style={{ fontSize: 14, color: ts, marginTop: 2 }}>Create an invoice before marking complete.</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-                <button onClick={() => { setWarnCompleted(false); createInvoice() }} style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>Create Invoice First</button>
-                <button onClick={proceedToCompleted} style={{ padding: '9px 16px', borderRadius: 10, border: `1.5px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>Mark Complete Anyway</button>
+                <button onClick={() => { setWarnCompleted(false); createInvoice() }} style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>Create Invoice First</button>
+                <button onClick={proceedToCompleted} style={{ padding: '9px 16px', borderRadius: 10, border: `1.5px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 14, fontWeight: 500 }}>Mark Complete Anyway</button>
               </div>
             </div>
           </div>
@@ -494,12 +496,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 </div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: tp }}>Lead not yet contacted</div>
-                  <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>Sending an estimate before making contact has lower acceptance rates.</div>
+                  <div style={{ fontSize: 14, color: ts, marginTop: 2 }}>Sending an estimate before making contact has lower acceptance rates.</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-                <button onClick={() => { setWarnNewEstimate(false); handleStageClick('Contacted') }} style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>Contact First</button>
-                <button onClick={proceedCreateEstimate} style={{ padding: '9px 16px', borderRadius: 10, border: `1.5px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>Send Anyway</button>
+                <button onClick={() => { setWarnNewEstimate(false); handleStageClick('Contacted') }} style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>Contact First</button>
+                <button onClick={proceedCreateEstimate} style={{ padding: '9px 16px', borderRadius: 10, border: `1.5px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 14, fontWeight: 500 }}>Send Anyway</button>
               </div>
             </div>
           </div>
@@ -509,10 +511,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setConfirmBack(null)}>
             <div style={{ background: card, borderRadius: 16, padding: 24, maxWidth: 360, width: '100%', border: `1px solid ${border}` }} onClick={e => e.stopPropagation()}>
               <p style={{ fontSize: 16, fontWeight: 500, color: tp, marginBottom: 8 }}>Move back to {confirmBack}?</p>
-              <p style={{ fontSize: 14, color: ts, marginBottom: 20 }}>This lead is currently <strong>{currentStage}</strong>. Moving backward is allowed but recorded.</p>
+              <p style={{ fontSize: 15, color: ts, marginBottom: 20 }}>This lead is currently <strong>{currentStage}</strong>. Moving backward is allowed but recorded.</p>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <button onClick={() => setConfirmBack(null)} style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 14 }}>Cancel</button>
-                <button onClick={handleConfirmBack} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}>Move back</button>
+                <button onClick={() => setConfirmBack(null)} style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${border}`, background: 'none', color: ts, cursor: 'pointer', fontSize: 15 }}>Cancel</button>
+                <button onClick={handleConfirmBack} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontSize: 15, fontWeight: 500 }}>Move back</button>
               </div>
             </div>
           </div>
@@ -527,7 +529,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
               <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: tp }}>Edit Lead</div>
-                  <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>{capName(lead?.contact_name || 'Unknown')}</div>
+                  <div style={{ fontSize: 14, color: ts, marginTop: 2 }}>{capName(lead?.contact_name || 'Unknown')}</div>
                 </div>
                 <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ts, fontSize: 22, lineHeight: 1, padding: 0, marginTop: 2 }}>×</button>
               </div>
@@ -538,28 +540,28 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   {/* Phone + Email side by side on wider screens, stacked on mobile */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone</label>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone</label>
                       <input value={dPhone} onChange={e => setDPhone(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
                       <input value={dEmail} onChange={e => setDEmail(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                   </div>
                   {/* City + State */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 12 }}>
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>City</label>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>City</label>
                       <input value={dCity} onChange={e => setDCity(e.target.value)} placeholder="Jacksonville" style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>State</label>
+                      <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>State</label>
                       <input value={dState} onChange={e => setDState(e.target.value)} placeholder="FL" maxLength={2} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                   </div>
                   {/* Scheduled date + time */}
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled date &amp; time</label>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled date &amp; time</label>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <input type="date" value={dScheduled} onChange={e => setDScheduled(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} />
                       <input type="time" value={dScheduledTime} onChange={e => setDScheduledTime(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} placeholder="Optional" />
@@ -567,26 +569,26 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                   {/* Follow-up date */}
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Follow-up date</label>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Follow-up date</label>
                     <input type="date" value={dFollowUp} onChange={e => setDFollowUp(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} />
                   </div>
                   {/* Source */}
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source</label>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source</label>
                     <select value={dSource} onChange={e => setDSource(e.target.value)} style={{ ...selectStyle, boxSizing: 'border-box', width: '100%' }}>
                       {SOURCE_OPTIONS.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
                   {/* Estimated value */}
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated value</label>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated value</label>
                     {leadEstimate ? (
                       <div>
                         <div style={{ ...inputStyle, background: dk ? '#0f172a' : '#f9fafb', color: '#0F766E', fontWeight: 600, cursor: 'default', boxSizing: 'border-box' }}>
                           ${leadEstimate.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </div>
                         <button onClick={() => router.push(`/dashboard/estimates/${leadEstimate.id}?from=pipeline&lead_id=${id}`)}
-                          style={{ fontSize: 12, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 0', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          style={{ fontSize: 13, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 0', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                           From estimate #{leadEstimate.estimate_number} →
                         </button>
@@ -597,7 +599,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                   {/* Lead status */}
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead status</label>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead status</label>
                     <select value={dStatus} onChange={e => setDStatus(e.target.value as LeadStatus)} style={{ ...selectStyle, boxSizing: 'border-box', width: '100%' }}>
                       {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
                     </select>
@@ -605,16 +607,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
                   {/* Notes */}
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes</label>
+                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes</label>
                     <textarea value={dNotes} onChange={e => setDNotes(e.target.value)} rows={4} maxLength={500} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 100, boxSizing: 'border-box', width: '100%' }} />
-                    <div style={{ fontSize: 12, color: ts, textAlign: 'right', marginTop: 3 }}>{dNotes.length}/500</div>
+                    <div style={{ fontSize: 13, color: ts, textAlign: 'right', marginTop: 3 }}>{dNotes.length}/500</div>
                   </div>
                 </div>
 
                 {/* Drawer footer buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
-                  <button onClick={() => setDrawerOpen(false)} style={{ padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`, background: dk ? '#1E293B' : '#F3F4F6', color: tp, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Cancel</button>
-                  <button onClick={handleSaveDrawer} disabled={savingDrawer} style={{ padding: '13px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
+                  <button onClick={() => setDrawerOpen(false)} style={{ padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`, background: t.cardBgAlt, color: tp, cursor: 'pointer', fontSize: 15, fontWeight: 600 }}>Cancel</button>
+                  <button onClick={handleSaveDrawer} disabled={savingDrawer} style={{ padding: '13px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', cursor: 'pointer', fontSize: 15, fontWeight: 700, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
                     {savingDrawer ? 'Saving…' : 'Save Changes'}
                   </button>
                 </div>
@@ -622,10 +624,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 {/* Audit trail */}
                 {lead && (
                   <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${border}` }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: ts, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead info</div>
-                    <div style={{ fontSize: 13, color: ts, marginBottom: 4 }}>Created {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
-                    <div style={{ fontSize: 13, color: ts, marginBottom: 4 }}>By <span style={{ color: tp, fontWeight: 500 }}>{session.name}</span></div>
-                    <div style={{ fontSize: 13, color: ts }}>Source · <span style={{ color: tp }}>{(lead.lead_source || 'Unknown').replace(/_/g,' ')}</span></div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: ts, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead info</div>
+                    <div style={{ fontSize: 14, color: ts, marginBottom: 4 }}>Created {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                    <div style={{ fontSize: 14, color: ts, marginBottom: 4 }}>By <span style={{ color: tp, fontWeight: 500 }}>{session.name}</span></div>
+                    <div style={{ fontSize: 14, color: ts }}>Source · <span style={{ color: tp }}>{(lead.lead_source || 'Unknown').replace(/_/g,' ')}</span></div>
                   </div>
                 )}
               </div>
@@ -633,8 +635,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
           </div>
         )}
 
-        {loading && <div style={{ textAlign: 'center', padding: 80, color: ts, fontSize: 14 }}>Loading...</div>}
-        {notFound && <div style={{ textAlign: 'center', padding: 80, color: ts, fontSize: 14 }}>Lead not found.</div>}
+        {loading && <div style={{ textAlign: 'center', padding: 80, color: ts, fontSize: 15 }}>Loading...</div>}
+        {notFound && <div style={{ textAlign: 'center', padding: 80, color: ts, fontSize: 15 }}>Lead not found.</div>}
 
         {!loading && !notFound && lead && (() => {
           const nbaData = getNBA(lead, currentStage)
@@ -642,13 +644,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
             <>
               {/* Top nav */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                <button onClick={() => router.push(fromCalendar ? '/dashboard/calendar' : '/dashboard/pipeline')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 'auto' }}>
+                <button onClick={() => router.push(fromCalendar ? '/dashboard/calendar' : '/dashboard/pipeline')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 'auto' }}>
                   <Ic color={ts}><polyline points="15 18 9 12 15 6"/></Ic>
                   {fromCalendar ? 'Back to Calendar' : 'Back to Pipeline'}
                 </button>
                 {lead.contact_phone ? (
                   <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, fontSize: 14, textDecoration: 'none', fontWeight: 500 }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, fontSize: 15, textDecoration: 'none', fontWeight: 500 }}>
                     <Ic color={tp}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
                     Call
                   </a>
@@ -664,25 +666,25 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 20, fontWeight: 700, color: tp, wordBreak: 'break-word' }}>{capName(lead.contact_name)}</span>
-                      {overdueFU && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 600 }}>Overdue</span>}
+                      <span style={{ fontSize: T.fontHeading, fontWeight: 800, color: tp, wordBreak: 'break-word' }}>{capName(lead.contact_name)}</span>
+                      {overdueFU && <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 600 }}>Overdue</span>}
                     </div>
                     {/* Row 2: stage + amount + source + time */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#EEEDFE', color: '#3C3489', fontWeight: 600 }}>{currentStage}</span>
-                      {lead.quoted_amount != null && <span style={{ color: '#0F766E', fontWeight: 700, fontSize: 14 }}>${Number(lead.quoted_amount).toLocaleString()}</span>}
-                      {lead.lead_source && <span style={{ background: dk ? '#1E293B' : '#F3F4F6', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500, color: ts }}>{lead.lead_source.replace(/_/g,' ')}</span>}
-                      <span style={{ fontSize: 12, color: ts, opacity: 0.7 }}>{timeAgo(lead.created_at)}</span>
+                      <span style={{ fontSize: 13, padding: '3px 10px', borderRadius: 20, background: '#EEEDFE', color: '#3C3489', fontWeight: 600 }}>{currentStage}</span>
+                      {lead.quoted_amount != null && <span style={{ color: '#0F766E', fontWeight: 700, fontSize: 15 }}>${Number(lead.quoted_amount).toLocaleString()}</span>}
+                      {lead.lead_source && <span style={{ background: t.cardBgAlt, padding: '2px 8px', borderRadius: T.radXs, fontSize: 12, fontWeight: 500, color: ts }}>{lead.lead_source.replace(/_/g,' ')}</span>}
+                      <span style={{ fontSize: 13, color: ts, opacity: 0.7 }}>{timeAgo(lead.created_at)}</span>
                     </div>
                   </div>
                   {/* Edit button */}
-                  <button onClick={openDrawer} style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 8, border: `1.5px solid ${border}`, background: 'none', color: ts, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <button onClick={openDrawer} style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 8, border: `1.5px solid ${border}`, background: 'none', color: ts, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     Edit
                   </button>
                 </div>
                 {/* Last activity — desktop only, compact */}
-                <div className="hidden md:flex" style={{ gap: 16, fontSize: 12, color: ts, paddingTop: 10, borderTop: `1px solid ${border}` }}>
+                <div className="hidden md:flex" style={{ gap: 16, fontSize: 13, color: ts, paddingTop: 10, borderTop: `1px solid ${border}` }}>
                   <span>Last updated: <strong style={{ color: tp }}>{new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong></span>
                   <span style={{ color: nbaData.urgent ? '#C2410C' : '#0F766E', fontWeight: 600 }}>{nbaData.urgent ? '🔥 Needs attention' : '✓ On track'}</span>
                 </div>
@@ -700,9 +702,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         disabled={stageSaving}
                         ref={active ? activePillRef : undefined}
                         style={{
-                          padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
+                          padding: '6px 14px', borderRadius: 20, fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap',
                           background: done ? '#DCFCE7' : 'transparent',
-                          border: `1.5px solid ${done ? '#22C55E' : active ? '#7C3AED' : (dk ? '#4B5563' : '#D1D5DB')}`,
+                          border: `1.5px solid ${done ? '#22C55E' : active ? '#7C3AED' : (t.inputBorder)}`,
                           color: done ? '#166534' : active ? '#7C3AED' : ts,
                           cursor: stageSaving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5,
                         }}
@@ -721,7 +723,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
               </div>
 
               {/* Next Action card */}
-              <div style={{ background: dk ? '#1A1A3E' : '#F0EFFF', border: `1px solid ${dk ? '#2D2D5E' : '#D4D0F7'}`, borderRadius: 14, padding: '16px 20px', marginBottom: 10, display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ background: t.infoBg, border: `1px solid ${t.infoBorder}`, borderRadius: 14, padding: '16px 20px', marginBottom: 10, display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
                 <div style={{ width: 44, height: 44, borderRadius: '50%', background: dk ? '#2D2D5E' : '#DDD9FC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Ic color="#7C3AED" size={22}>
                     {nbaData.icon === 'bell'  && <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>}
@@ -732,21 +734,21 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   </Ic>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Next action</div>
+                  <div style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Next action</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: dk ? '#E0DEFF' : '#1E1B4B', marginBottom: 4 }}>{nbaData.label}</div>
-                  <div style={{ fontSize: 13, color: dk ? '#A5B4FC' : '#6D6494' }}>{nbaData.sub}</div>
+                  <div style={{ fontSize: 14, color: dk ? '#A5B4FC' : '#6D6494' }}>{nbaData.sub}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: '100%' }}>
                   {(currentStage === 'Contacted' || currentStage === 'Quoted') ? (
                     leadEstimate ? (
                       <button onClick={() => router.push(`/dashboard/estimates/${leadEstimate.id}?from=pipeline&lead_id=${id}`)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
                         View Estimate #{leadEstimate.estimate_number}
                       </button>
                     ) : (
                       <button onClick={createEstimate} disabled={creatingEst}
-                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 500, cursor: creatingEst ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: creatingEst ? 0.7 : 1 }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: creatingEst ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: creatingEst ? 0.7 : 1 }}>
                         <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
                         {creatingEst ? 'Creating...' : 'Create Estimate'}
                       </button>
@@ -754,19 +756,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   ) : currentStage === 'Completed' ? (
                     leadInvoice ? (
                       <button onClick={() => router.push(`/dashboard/invoices/${leadInvoice.id}`)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
                         View Invoice #{leadInvoice.invoice_number}
                       </button>
                     ) : (
                       <button onClick={createInvoice} disabled={creatingInv}
-                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 500, cursor: creatingInv ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: creatingInv ? 0.7 : 1 }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: creatingInv ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: creatingInv ? 0.7 : 1 }}>
                         <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
                         {creatingInv ? 'Creating...' : '📄 Generate Invoice'}
                       </button>
                     )
                   ) : (
-                    <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 9, fontSize: 14, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                       <Ic color="white" size={14}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
                       Call Now
                     </button>
@@ -788,8 +790,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     value: lead.follow_up_date
                       ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           {fmt(lead.follow_up_date)}
-                          {tomorrowFU && <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: '#FEF3C7', color: '#92400E', fontWeight: 500 }}>Tomorrow</span>}
-                          {overdueFU && !tomorrowFU && <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>Overdue</span>}
+                          {tomorrowFU && <span style={{ fontSize: 12, padding: '1px 7px', borderRadius: 20, background: '#FEF3C7', color: '#92400E', fontWeight: 500 }}>Tomorrow</span>}
+                          {overdueFU && !tomorrowFU && <span style={{ fontSize: 12, padding: '1px 7px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>Overdue</span>}
                         </span>
                       : '—',
                     copy: null
@@ -807,9 +809,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                           {cell.icon === 'followup' && <><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></>}
                         </Ic>
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: ts }}>{cell.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: ts }}>{cell.label}</span>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: tp, display: 'flex', alignItems: 'center', gap: 4, wordBreak: 'break-word' }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: tp, display: 'flex', alignItems: 'center', gap: 4, wordBreak: 'break-word' }}>
                       {cell.value}
                       {cell.copy && typeof cell.copy === 'string' && <CopyBtn text={cell.copy} color={ts} />}
                     </div>
@@ -818,7 +820,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 </div>
                 {/* Edit pencil */}
                 <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', borderTop: `1px solid ${border}` }}>
-                  <button onClick={openDrawer} title="Edit lead info" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  <button onClick={openDrawer} title="Edit lead info" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                     <Ic color="#0F766E" size={14}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Ic>
                     Edit Lead
                   </button>
@@ -833,7 +835,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
                 {/* Activity feed */}
                 {activity.length === 0
-                  ? <div style={{ textAlign: 'center', padding: '32px 0', color: ts, fontSize: 14 }}>No activity yet.</div>
+                  ? <div style={{ textAlign: 'center', padding: '32px 0', color: ts, fontSize: 15 }}>No activity yet.</div>
                   : activity.map((item, i) => {
                     const iconColor = item.type === 'note' ? '#854F0B' : item.type === 'quote' ? '#3C3489' : item.type === 'scheduled' ? '#0F766E' : '#0F766E'
                     const iconBg = item.type === 'note' ? '#FAEEDA' : item.type === 'quote' ? '#EEEDFE' : '#E1F5EE'
@@ -849,11 +851,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 15, fontWeight: 500, color: tp }}>{item.title}</div>
-                          <div style={{ fontSize: 14, color: ts, marginTop: 3 }}>{item.sub}</div>
+                          <div style={{ fontSize: 15, color: ts, marginTop: 3 }}>{item.sub}</div>
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: 13, color: ts }}>{new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                          <div style={{ fontSize: 13, color: ts }}>{new Date(item.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                          <div style={{ fontSize: 14, color: ts }}>{new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                          <div style={{ fontSize: 14, color: ts }}>{new Date(item.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
                         </div>
                       </div>
                     )
@@ -869,7 +871,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                       onChange={e => setComposerText(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && composerText.trim()) { e.preventDefault(); handleAddNote() } }}
                       placeholder="Add a note or send a message..."
-                      style={{ width: '100%', fontSize: 14, background: 'transparent', color: tp, border: 'none', outline: 'none', fontFamily: 'inherit' }}
+                      style={{ width: '100%', fontSize: 15, background: 'transparent', color: tp, border: 'none', outline: 'none', fontFamily: 'inherit' }}
                     />
                   </div>
                   {/* Action buttons row — equal width, all visible */}
@@ -888,7 +890,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                           disabled={isNote && (savingNote || !composerText.trim())}
                           style={{
                             flex: isNote ? 2 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            padding: '11px 4px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                            padding: '11px 4px', borderRadius: 10, fontSize: 14, fontWeight: 600,
                             cursor: isNote && !composerText.trim() ? 'default' : 'pointer',
                             border: isNote ? '1.5px solid #16A34A' : `1px solid ${border}`,
                             background: isNote ? '#F0FDF4' : (dk ? '#1E293B' : '#FAFAFA'),

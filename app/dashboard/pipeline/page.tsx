@@ -7,7 +7,7 @@ import LeadPipeline from '@/components/ui/LeadPipeline'
 import ActionAlert from '@/components/ui/ActionAlert'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
-import { theme } from '@/lib/theme'
+import { theme, T } from '@/lib/tokens'
 
 export default function PipelinePage() {
   const router = useRouter()
@@ -131,16 +131,16 @@ export default function PipelinePage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, padding: '16px 20px', borderRadius: 16, background: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.06)', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
             <div style={{ paddingRight: 24 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Total Leads</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Total Leads</div>
               <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1, color: textMain }}>
                 {filteredLeads.length}
                 {activeFilterCount > 0 && (
-                  <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 8, color: t.textSubtle }}>of {leads.length}</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, marginLeft: 8, color: t.textSubtle }}>of {leads.length}</span>
                 )}
               </div>
             </div>
             <div style={{ paddingLeft: 24, borderLeft: `1px solid ${t.cardBorder}` }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Lead Pipeline Value</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Lead Pipeline Value</div>
               <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1, color: textMain }}>
                 ${filteredLeads.filter(l => l.quoted_amount && !['Lost','Archived','Paid','Completed'].includes(l.lead_status)).reduce((s, l) => s + (l.quoted_amount || 0), 0).toLocaleString()}
               </div>
@@ -166,7 +166,7 @@ export default function PipelinePage() {
                 {filters.followUpDue && (
                   <Chip label={`Follow-up: ${{ overdue: 'Overdue', today: 'Today', week: 'This week' }[filters.followUpDue] || ''}`} onRemove={() => setFilters(f => ({ ...f, followUpDue: '' }))} />
                 )}
-                <button onClick={() => setFilters(DEFAULT_FILTERS)} style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer' }}>
+                <button onClick={() => setFilters(DEFAULT_FILTERS)} style={{ fontSize: 13, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer' }}>
                   Clear all
                 </button>
               </div>
@@ -177,7 +177,7 @@ export default function PipelinePage() {
             onClick={() => setShowFilter(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '10px 18px', borderRadius: 12, fontSize: 14, fontWeight: 700,
+              padding: '10px 18px', borderRadius: 12, fontSize: 15, fontWeight: 700,
               cursor: 'pointer', flexShrink: 0,
               border: `1.5px solid ${activeFilterCount > 0 ? '#0F766E' : t.inputBorder}`,
               color: activeFilterCount > 0 ? '#0F766E' : t.textBody,
@@ -192,7 +192,7 @@ export default function PipelinePage() {
             </svg>
             Filter
             {activeFilterCount > 0 && (
-              <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#0F766E', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 8px rgba(15,118,110,0.4)' }}>
+              <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#0F766E', color: '#fff', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 8px rgba(15,118,110,0.4)' }}>
                 {activeFilterCount}
               </span>
             )}
@@ -222,21 +222,21 @@ export default function PipelinePage() {
 
         {session && leads.length === 0 && !dataLoading && (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'64px 24px', textAlign:'center' }}>
-            <div style={{ width:72, height:72, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32, marginBottom:20 }}>📋</div>
-            <h3 style={{ fontSize:20, fontWeight:800, color: t.textPri, margin:'0 0 10px' }}>Your pipeline is empty</h3>
-            <p style={{ fontSize:14, color: t.textBody, marginBottom:28, maxWidth:340, lineHeight:1.6 }}>
+            <div style={{ width:72, height:72, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 32, marginBottom:20 }}>📋</div>
+            <h3 style={{ fontSize: 20, fontWeight:800, color: t.textPri, margin:'0 0 10px' }}>Your pipeline is empty</h3>
+            <p style={{ fontSize: 15, color: t.textBody, marginBottom:28, maxWidth:340, lineHeight:1.6 }}>
               Start tracking your leads — add enquiries from calls, texts, social media, or anywhere you get job requests.
             </p>
             <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
               <button onClick={() => setShowAddLead(true)}
-                style={{ padding:'14px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 14px rgba(15,118,110,0.3)' }}>
+                style={{ padding:'14px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 14px rgba(15,118,110,0.3)' }}>
                 + Add Your First Lead
               </button>
               <div style={{ display:'flex', gap:8 }}>
                 {[['📞','Missed call'],['💬','Text enquiry'],['📱','Social DM']].map(([icon, label]) => (
                   <div key={label} style={{ flex:1, padding:'10px 6px', borderRadius:10, background: t.cardBg, border:`1px solid ${t.cardBorder}`, textAlign:'center' }}>
-                    <div style={{ fontSize:18, marginBottom:4 }}>{icon}</div>
-                    <div style={{ fontSize:10, fontWeight:600, color: t.textMuted }}>{label}</div>
+                    <div style={{ fontSize: 18, marginBottom:4 }}>{icon}</div>
+                    <div style={{ fontSize: 10, fontWeight:600, color: t.textMuted }}>{label}</div>
                   </div>
                 ))}
               </div>

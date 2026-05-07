@@ -5,7 +5,7 @@ import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { initials, avatarColor, timeAgo } from '@/lib/utils'
-import { theme } from '@/lib/theme'
+import { theme, T } from '@/lib/tokens'
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   Residential: { bg: '#EFF6FF', text: '#1D4ED8' },
@@ -93,7 +93,7 @@ export default function ClientsPage() {
   const t = theme(dk)
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 14px', fontSize: 13, borderRadius: 10,
+    width: '100%', padding: '10px 14px', fontSize: 14, borderRadius: 10,
     border: `1.5px solid ${t.inputBorder}`, background: t.inputBg,
     color: t.textPri, outline: 'none', boxSizing: 'border-box',
   }
@@ -107,18 +107,18 @@ export default function ClientsPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Link href="/dashboard" style={{ fontSize: 13, color: t.textMuted, textDecoration: 'none' }}>Dashboard</Link>
+                <Link href="/dashboard" style={{ fontSize: 14, color: t.textMuted, textDecoration: 'none' }}>Dashboard</Link>
                 <span style={{ color: t.textSubtle }}>/</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: t.textPri }}>Clients</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: t.textPri }}>Clients</span>
               </div>
               <h1 style={{ fontSize: 24, fontWeight: 700, color: t.textPri, margin: 0 }}>Clients</h1>
-              <p style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>
+              <p style={{ fontSize: 14, color: t.textMuted, marginTop: 2 }}>
                 {clients.length} client{clients.length !== 1 ? 's' : ''}
                 {totalValue > 0 && ` · $${totalValue.toLocaleString()} lifetime revenue`}
               </p>
             </div>
             <button onClick={() => setShowAdd(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 13, fontWeight: 700, color: '#fff', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0C5F57)', cursor: 'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 14, fontWeight: 700, color: '#fff', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0C5F57)', cursor: 'pointer' }}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add client
             </button>
           </div>
@@ -147,15 +147,15 @@ export default function ClientsPage() {
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '64px 24px' }}>
                 <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.2 }}>👥</div>
-                <p style={{ fontSize: 15, fontWeight: 600, color: t.textPri, marginBottom: 4 }}>
+                <p style={{ fontSize: 16, fontWeight: 600, color: t.textPri, marginBottom: 4 }}>
                   {search ? 'No clients match your search' : 'No clients yet'}
                 </p>
-                <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>
+                <p style={{ fontSize: 14, color: t.textMuted, marginBottom: 16 }}>
                   {search ? 'Try a different name or phone number' : 'Add your first client or save one from a lead'}
                 </p>
                 {!search && (
                   <button onClick={() => setShowAdd(true)}
-                    style={{ fontSize: 13, fontWeight: 600, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                    style={{ fontSize: 14, fontWeight: 600, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                     + Add your first client
                   </button>
                 )}
@@ -169,29 +169,29 @@ export default function ClientsPage() {
                   onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = t.tableRowHover)}
                   onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = i % 2 === 1 ? t.tableRowAlt : 'transparent')}
                 >
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0, background: bg, color: fg }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0, background: bg, color: fg }}>
                     {initials(client.full_name)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: t.textPri }}>{client.full_name}</span>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: t.textPri }}>{client.full_name}</span>
                       {(client.tags || []).map((tag: string) => {
                         const tc = TAG_COLORS[tag] || { bg: t.cardBgAlt, text: t.textMuted }
                         return (
-                          <span key={tag} style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: tc.bg, color: tc.text }}>{tag}</span>
+                          <span key={tag} style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: tc.bg, color: tc.text }}>{tag}</span>
                         )
                       })}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 2 }}>
-                      {client.phone && <span style={{ fontSize: 13, color: t.textMuted }}>{client.phone}</span>}
-                      {client.email && <span style={{ fontSize: 13, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.email}</span>}
+                      {client.phone && <span style={{ fontSize: 14, color: t.textMuted }}>{client.phone}</span>}
+                      {client.email && <span style={{ fontSize: 14, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.email}</span>}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     {client.lifetime_value > 0 && (
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#0F766E' }}>${client.lifetime_value.toLocaleString()}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#0F766E' }}>${client.lifetime_value.toLocaleString()}</div>
                     )}
-                    <div style={{ fontSize: 12, color: t.textSubtle }}>
+                    <div style={{ fontSize: 13, color: t.textSubtle }}>
                       {client.job_count} job{client.job_count !== 1 ? 's' : ''} · {timeAgo(client.last_contact || client.created_at)}
                     </div>
                   </div>
@@ -210,15 +210,15 @@ export default function ClientsPage() {
               <div style={{ background: t.cardBg, borderRadius: 20, width: '100%', maxWidth: 360, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
                 onClick={e => e.stopPropagation()}>
                 <h3 style={{ fontSize: 17, fontWeight: 700, color: t.textPri, textAlign: 'center', marginBottom: 8 }}>Delete {deleteTarget.full_name}?</h3>
-                <p style={{ fontSize: 13, color: t.textMuted, textAlign: 'center', marginBottom: 4 }}>This removes them from your client book permanently.</p>
-                <p style={{ fontSize: 12, color: t.textSubtle, textAlign: 'center', marginBottom: 20 }}>Their job history will remain in your pipeline.</p>
+                <p style={{ fontSize: 14, color: t.textMuted, textAlign: 'center', marginBottom: 4 }}>This removes them from your client book permanently.</p>
+                <p style={{ fontSize: 13, color: t.textSubtle, textAlign: 'center', marginBottom: 20 }}>Their job history will remain in your pipeline.</p>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setDeleteTarget(null)}
-                    style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
+                    style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
                     Cancel
                   </button>
                   <button onClick={deleteClient}
-                    style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: 'none', background: '#EF4444', color: '#fff', cursor: 'pointer' }}>
+                    style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, border: 'none', background: '#EF4444', color: '#fff', cursor: 'pointer' }}>
                     Delete
                   </button>
                 </div>
@@ -244,7 +244,7 @@ export default function ClientsPage() {
                     { label: 'Email', value: newEmail, set: setNewEmail, placeholder: 'john@example.com', type: 'email' },
                   ].map(f => (
                     <div key={f.label}>
-                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>{f.label}</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>{f.label}</p>
                       <input value={f.value} onChange={e => f.set(e.target.value)}
                         placeholder={f.placeholder} type={f.type}
                         style={inputStyle}
@@ -253,18 +253,18 @@ export default function ClientsPage() {
                     </div>
                   ))}
                   <div>
-                    <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Tags</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Tags</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {['Residential','Commercial','Repeat','VIP'].map(tag => (
                         <button key={tag} onClick={() => toggleTag(tag)}
-                          style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 20, cursor: 'pointer', border: `1.5px solid ${newTags.includes(tag) ? '#0F766E' : t.inputBorder}`, background: newTags.includes(tag) ? '#0F766E' : 'transparent', color: newTags.includes(tag) ? '#fff' : t.textMuted }}>
+                          style={{ fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 20, cursor: 'pointer', border: `1.5px solid ${newTags.includes(tag) ? '#0F766E' : t.inputBorder}`, background: newTags.includes(tag) ? '#0F766E' : 'transparent', color: newTags.includes(tag) ? '#fff' : t.textMuted }}>
                           {tag}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Notes</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Notes</p>
                     <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)}
                       placeholder="Gate code 1234, has two dogs, prefers morning appointments..."
                       rows={3}
@@ -272,14 +272,14 @@ export default function ClientsPage() {
                       onFocus={e => (e.target.style.borderColor = '#0F766E')}
                       onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
                   </div>
-                  {err && <p style={{ fontSize: 13, color: '#EF4444' }}>{err}</p>}
+                  {err && <p style={{ fontSize: 14, color: '#EF4444' }}>{err}</p>}
                   <div style={{ display: 'flex', gap: 10, paddingTop: 8 }}>
                     <button onClick={() => setShowAdd(false)}
-                      style={{ flex: 1, padding: '13px', borderRadius: 14, fontSize: 13, fontWeight: 700, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
+                      style={{ flex: 1, padding: '13px', borderRadius: 14, fontSize: 14, fontWeight: 700, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
                       Cancel
                     </button>
                     <button onClick={addClient} disabled={saving}
-                      style={{ flex: 1, padding: '13px', borderRadius: 14, fontSize: 13, fontWeight: 700, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0C5F57)', color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+                      style={{ flex: 1, padding: '13px', borderRadius: 14, fontSize: 14, fontWeight: 700, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0C5F57)', color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
                       {saving ? 'Saving...' : 'Save client'}
                     </button>
                   </div>

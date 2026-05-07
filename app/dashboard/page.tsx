@@ -7,7 +7,7 @@ import { timeAgo } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 
-import { theme } from '@/lib/theme'
+import { theme, T, BRAND } from '@/lib/tokens'
 
 const TEAL   = '#0F766E'
 const NAVY   = '#0A1628'
@@ -78,10 +78,11 @@ function ActionCard({ iconPath, count, label, sub, iconBg, iconColor, ctaLabel, 
   iconPath: string; count: number | string; label: string; sub: string
   iconBg: string; iconColor: string; ctaLabel: string; ctaHref: string; dk: boolean
 }) {
-  const bg  = dk ? '#1E293B' : 'white'
-  const bdr = dk ? '#334155' : '#F1F5F9'
-  const txt = dk ? '#F1F5F9' : NAVY
-  const sub_color = dk ? '#94A3B8' : '#4B5563'
+  const t = theme(dk)
+  const bg  = t.cardBg
+  const bdr = t.cardBorder
+  const txt = t.textPri
+  const sub_color = t.textMuted
   return (
     <Link href={ctaHref} className="block rounded-2xl transition-all active:scale-[.98]"
       style={{ backgroundColor: bg, boxShadow: '0 1px 4px rgba(0,0,0,0.07)', border: `1px solid ${bdr}` }}>
@@ -92,7 +93,7 @@ function ActionCard({ iconPath, count, label, sub, iconBg, iconColor, ctaLabel, 
           <SvgIcon d={iconPath} s={18} sw={1.9} color={iconColor} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[24px] font-bold leading-none" style={{ color: txt }}>{count}</div>
+          <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: txt }}>{count}</div>
           <div className="text-[12px] font-semibold leading-tight mt-0.5" style={{ color: sub_color }}>{label}</div>
         </div>
         <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={sub_color} />
@@ -105,7 +106,7 @@ function ActionCard({ iconPath, count, label, sub, iconBg, iconColor, ctaLabel, 
             <SvgIcon d={iconPath} s={21} sw={1.9} color={iconColor} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[32px] font-bold leading-none mb-0.5" style={{ color: txt }}>{count}</div>
+            <div style={{ fontSize: T.fontStat, fontWeight: 800, lineHeight: 1, marginBottom: 2, color: txt }}>{count}</div>
             <div className="text-[14px] font-semibold leading-tight" style={{ color: txt }}>{label}</div>
             <div className="text-[13px] mt-0.5" style={{ color: sub_color }}>{sub}</div>
           </div>
@@ -124,8 +125,9 @@ function PipeStage({ iconPath, iconBg, iconColor, label, count, sub, dk, showDas
   iconPath: string; iconBg: string; iconColor: string
   label: string; count: number; sub: string; dk: boolean; showDash?: boolean
 }) {
-  const txt   = dk ? '#F1F5F9' : NAVY
-  const sub_c = dk ? '#94A3B8' : '#6B7280'
+  const t     = theme(dk)
+  const txt   = t.textPri
+  const sub_c = t.textMuted
   const countColor = count > 0 ? iconColor : (dk ? '#475569' : '#D1D5DB')
   const displayCount = showDash && count === 0 ? '—' : count
   return (
@@ -137,7 +139,7 @@ function PipeStage({ iconPath, iconBg, iconColor, label, count, sub, dk, showDas
       <div>
         <div className="text-[13px] font-semibold" style={{ color: txt }}>{label}</div>
         <div className="text-[22px] font-bold leading-tight" style={{ color: countColor }}>{displayCount}</div>
-        <div className="text-[12px]" style={{ color: sub_c }}>{sub}</div>
+        <div className="text-[13px]" style={{ color: sub_c }}>{sub}</div>
       </div>
     </Link>
   )
@@ -214,17 +216,18 @@ export default function OverviewPage() {
   const pipeline = activeLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null
 
+  const t        = theme(dk)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = session?.name?.split(' ')[0] || ''
 
-  const cardBg  = dk ? '#1E293B' : 'white'
-  const cardBdr = dk ? '#334155' : '#E8E2D9'
-  const textMain = dk ? '#F1F5F9' : '#0A1628'
-  const BORDER  = dk ? '#334155' : '#E8E2D9'
-  const NAVY    = dk ? '#F1F5F9' : '#0A1628'
-  const BODY    = dk ? '#94A3B8' : '#6B7280'
-  const MUTED_D = dk ? '#64748B' : '#9CA3AF'
+  const cardBg  = t.cardBg
+  const cardBdr = t.cardBorder
+  const textMain = t.textPri
+  const BORDER  = t.cardBorder
+  const NAVY    = t.textPri
+  const BODY    = t.textMuted
+  const MUTED_D = t.textSubtle
 
   // Review sentiment
   function sentiment(rating: number) {
@@ -251,7 +254,7 @@ export default function OverviewPage() {
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: textMain }}>{greeting}, {firstName}! 👋</h1>
+            <h1 style={{ fontSize: T.fontTitle, fontWeight: 800, color: textMain }}>{greeting}, {firstName}! 👋</h1>
             <p className="hidden md:block text-[13px] mt-0.5" style={{ color: BODY }}>Here&apos;s what&apos;s happening with your business today.</p>
           </div>
 
@@ -260,14 +263,14 @@ export default function OverviewPage() {
         {/* ── Hero strip — mobile only, above Action Center ── */}
         {pipeline > 0 && (
           <div className="flex md:hidden items-center justify-between px-4 py-3 rounded-2xl mb-4"
-            style={{ backgroundColor: dk ? '#1E293B' : 'white', border: `1px solid ${dk ? '#334155' : '#F1F5F9'}`, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+            style={{ backgroundColor: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider mb-0.5" style={{ color: dk ? '#94A3B8' : '#6B7280' }}>Pipeline Value</div>
-              <div className="text-[28px] font-bold leading-none" style={{ color: textMain }}>${pipeline.toLocaleString()}</div>
+              <div className="text-[12px] font-bold uppercase tracking-wider mb-0.5" style={{ color: t.textMuted }}>Pipeline Value</div>
+              <div style={{ fontSize: T.fontStat, fontWeight: 800, lineHeight: 1, color: textMain }}>${pipeline.toLocaleString()}</div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] font-bold uppercase tracking-wider mb-0.5" style={{ color: dk ? '#94A3B8' : '#6B7280' }}>Active Leads</div>
-              <div className="text-[28px] font-bold leading-none" style={{ color: textMain }}>{activeLeads.length}</div>
+              <div className="text-[12px] font-bold uppercase tracking-wider mb-0.5" style={{ color: t.textMuted }}>Active Leads</div>
+              <div style={{ fontSize: T.fontStat, fontWeight: 800, lineHeight: 1, color: textMain }}>{activeLeads.length}</div>
             </div>
           </div>
         )}
@@ -288,9 +291,9 @@ export default function OverviewPage() {
                 { num: '2', text: 'Create an estimate and send it for approval', icon: '📄' },
                 { num: '3', text: 'Schedule the job and generate an invoice', icon: '✅' },
               ].map(s => (
-                <div key={s.num} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', borderRadius: 12, background: dk ? '#1E293B' : '#F9F8F6', border: `1px solid ${BORDER}` }}>
+                <div key={s.num} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', borderRadius: 12, background: t.cardBgAlt, border: `1px solid ${BORDER}` }}>
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#0F766E', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{s.num}</div>
-                  <span style={{ fontSize: 14, color: dk ? '#CBD5E1' : '#374151', fontWeight: 500 }}>{s.text}</span>
+                  <span style={{ fontSize: 14, color: t.textBody, fontWeight: 500 }}>{s.text}</span>
                   <span style={{ marginLeft: 'auto', fontSize: 20 }}>{s.icon}</span>
                 </div>
               ))}
@@ -307,7 +310,7 @@ export default function OverviewPage() {
         <div className="mb-5">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-[16px] font-bold" style={{ color: textMain }}>Action Center</h2>
+              <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain }}>Action Center</h2>
               <p className="hidden md:block text-[12px]" style={{ color: BODY }}>Top items that need your attention</p>
             </div>
             <Link href="/dashboard/pipeline" className="text-[13px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
@@ -340,7 +343,7 @@ export default function OverviewPage() {
               iconPath={ICONS.calCheck}
               iconBg="#DCFCE7" iconColor="#16A34A"
               count={scheduledLeads.length} label="Jobs Scheduled" sub="This week"
-              ctaLabel="View Calendar" ctaHref="/dashboard/pipeline"
+              ctaLabel="View Calendar" ctaHref="/dashboard/calendar"
               dk={dk}
             />
             {/* Draft Estimates — wired to real data */}
@@ -359,7 +362,7 @@ export default function OverviewPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <div>
               <h2 className="text-[16px] font-bold inline mr-2" style={{ color: textMain }}>Pipeline</h2>
-              <span className="text-[12px]" style={{ color: BODY }}>Track your leads at every stage</span>
+              <span className="text-[13px]" style={{ color: BODY }}>Track your leads at every stage</span>
             </div>
             <Link href="/dashboard/pipeline" className="text-[13px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
               Open Full Pipeline <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={TEAL} />
@@ -381,8 +384,8 @@ export default function OverviewPage() {
               {pipeline > 0 && (
                 <div className="text-right border-l pl-6 flex-shrink-0 min-w-[160px]" style={{ borderColor: cardBdr }}>
                   <div className="text-[12px] font-medium mb-0.5" style={{ color: BODY }}>Total Pipeline Value</div>
-                  <div className="text-[28px] font-bold" style={{ color: textMain }}>${pipeline.toLocaleString()}</div>
-                  <div className="text-[12px]" style={{ color: BODY }}>Potential Revenue</div>
+                  <div style={{ fontSize: T.fontStat, fontWeight: 800, color: textMain }}>${pipeline.toLocaleString()}</div>
+                  <div className="text-[13px]" style={{ color: BODY }}>Potential Revenue</div>
                 </div>
               )}
             </div>
@@ -393,14 +396,14 @@ export default function OverviewPage() {
         <div className="rounded-2xl p-4 md:p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
           <div className="flex items-center gap-2 mb-6">
             <span className="text-lg">⭐</span>
-            <h2 className="text-[16px] font-bold" style={{ color: textMain }}>Reviews &amp; Growth</h2>
+            <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain }}>Reviews &amp; Growth</h2>
           </div>
 
           {reviews.length === 0 ? (
             /* ── Empty state for new pros ── */
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 rounded-xl p-6 flex flex-col items-center justify-center gap-4 text-center"
-                style={{ background: dk ? '#0F172A' : '#F9F8F6', border: `2px dashed ${dk ? '#334155' : '#E8E2D9'}`, minHeight: 220 }}>
+                style={{ background: t.cardBgAlt, border: `2px dashed ${t.cardBorder}`, minHeight: 220 }}>
                 <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl" style={{ background: 'linear-gradient(135deg,#0F766E22,#14B8A622)' }}>⭐</div>
                 <div>
                   <h3 className="text-[15px] font-bold mb-1.5" style={{ color: textMain }}>No reviews yet</h3>
@@ -408,7 +411,7 @@ export default function OverviewPage() {
                 </div>
                 <div className="grid grid-cols-3 gap-2 w-full max-w-sm">
                   {[['✅','Complete a job'],['💬','Ask for review'],['🏆','Build reputation']].map(([icon, text]) => (
-                    <div key={text} className="flex flex-col items-center gap-1.5 p-3 rounded-xl" style={{ background: dk ? '#1E293B' : 'white', border: `1px solid ${BORDER}` }}>
+                    <div key={text} className="flex flex-col items-center gap-1.5 p-3 rounded-xl" style={{ background: t.cardBg, border: `1px solid ${BORDER}` }}>
                       <span className="text-xl">{icon}</span>
                       <span className="text-[10px] font-semibold" style={{ color: BODY }}>{text}</span>
                     </div>
@@ -416,14 +419,14 @@ export default function OverviewPage() {
                 </div>
               </div>
               <div className="w-full md:w-72 flex flex-col gap-3">
-                <div className="rounded-xl p-4" style={{ background: dk ? '#0F172A' : '#F0FDFA', border: `1px solid ${dk ? '#1E3A2F' : '#CCFBF1'}` }}>
+                <div className="rounded-xl p-4" style={{ background: t.successBg, border: `1px solid ${t.successBorder}` }}>
                   <h3 className="text-[14px] font-bold mb-1.5" style={{ color: textMain }}>Request a review</h3>
                   <p className="text-[12px] mb-3" style={{ color: BODY }}>Ask right after a job — response rates drop 80% after 48 hours.</p>
                   <button className="w-full py-2.5 rounded-xl text-[13px] font-bold" style={{ background: `linear-gradient(135deg,${TEAL},#0D9488)`, color: 'white', border: 'none', cursor: 'pointer' }}>
                     + Request a Review
                   </button>
                 </div>
-                <div className="rounded-xl p-4 text-center" style={{ background: dk ? '#1E293B' : '#FFFBEB', border: `1px solid ${dk ? '#334155' : '#FDE68A'}` }}>
+                <div className="rounded-xl p-4 text-center" style={{ background: t.warningBg, border: `1px solid ${t.warningBorder}` }}>
                   <div className="text-2xl mb-1">🏆</div>
                   <div className="text-[13px] font-bold mb-1" style={{ color: textMain }}>Unlock Top Pro</div>
                   <div className="text-[11px]" style={{ color: BODY }}>Get 10 reviews with 4.5+ rating to win 30% more leads</div>
@@ -445,19 +448,19 @@ export default function OverviewPage() {
                 </div>
 
                 {/* Gamification card */}
-                <div className="w-full md:flex-1 rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#F0FDF4', borderTop: `1px solid ${dk ? '#334155' : '#BBF7D0'}`, borderRight: `1px solid ${dk ? '#334155' : '#BBF7D0'}`, borderBottom: `1px solid ${dk ? '#334155' : '#BBF7D0'}`, borderLeft: `3px solid ${dk ? '#22C55E' : '#16A34A'}` }}>
+                <div className="w-full md:flex-1 rounded-xl p-3" style={{ backgroundColor: t.successBg, borderTop: `1px solid ${t.successBorder}`, borderRight: `1px solid ${t.successBorder}`, borderBottom: `1px solid ${t.successBorder}`, borderLeft: `3px solid ${dk ? '#22C55E' : '#16A34A'}` }}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="text-[12px] font-bold mb-1" style={{ color: textMain }}>
                         🏆 Get 2 more 5⭐ reviews
                       </div>
-                      <div className="text-[12px]" style={{ color: dk ? '#94A3B8' : '#374151' }}>to unlock Top Pro badge and win 30% more jobs</div>
+                      <div className="text-[13px]" style={{ color: dk ? '#94A3B8' : '#374151' }}>to unlock Top Pro badge and win 30% more jobs</div>
                     </div>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
                       style={{ backgroundColor: '#FEF3C7' }}>🥇</div>
                   </div>
                   <div className="mt-3">
-                    <div className="flex justify-between text-[12px] mb-1" style={{ color: dk ? '#94A3B8' : '#6B7280' }}>
+                    <div className="flex justify-between text-[12px] mb-1" style={{ color: t.textMuted }}>
                       <span>Progress</span><span>{reviews.length || 5} / 10 reviews</span>
                     </div>
                     <div className="h-1.5 rounded-full" style={{ backgroundColor: '#E8E2D9' }}>
@@ -467,12 +470,12 @@ export default function OverviewPage() {
                 </div>
 
                 {/* AI Insight card */}
-                <div className="w-full md:flex-1 rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#F5F3FF', borderTop: `1px solid ${dk ? '#334155' : '#DDD6FE'}`, borderRight: `1px solid ${dk ? '#334155' : '#DDD6FE'}`, borderBottom: `1px solid ${dk ? '#334155' : '#DDD6FE'}`, borderLeft: `3px solid ${dk ? '#8B5CF6' : '#7C3AED'}` }}>
+                <div className="w-full md:flex-1 rounded-xl p-3" style={{ backgroundColor: t.infoBg, borderTop: `1px solid ${t.infoBorder}`, borderRight: `1px solid ${t.infoBorder}`, borderBottom: `1px solid ${t.infoBorder}`, borderLeft: `3px solid ${dk ? '#8B5CF6' : '#7C3AED'}` }}>
                   <div className="flex items-center gap-1.5 mb-2">
                     <SvgIcon d={ICONS.sparkle} s={14} sw={1.5} color="#7C3AED" />
                     <span className="text-[12px] font-bold" style={{ color: textMain }}>AI Insight</span>
                   </div>
-                  <p className="text-[12px] mb-2" style={{ color: dk ? '#CBD5E1' : '#374151' }}>
+                  <p className="text-[12px] mb-2" style={{ color: t.textBody }}>
                     Customers love your work quality but mention slow response. Respond within 15 mins to increase win rate by 25%.
                   </p>
                   <button className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
@@ -488,16 +491,16 @@ export default function OverviewPage() {
                   {reviews.slice(0, 4).map(review => {
                     const s = sentiment(review.rating)
                     return (
-                      <div key={review.id} className="rounded-xl p-4" style={{ border: `1px solid ${dk ? '#334155' : '#E2DDD8'}`, backgroundColor: dk ? '#0F172A' : '#FAFAF8' }}>
+                      <div key={review.id} className="rounded-xl p-4" style={{ border: `1px solid ${t.cardBorder}`, backgroundColor: dk ? '#0F172A' : '#FAFAF8' }}>
                         <div className="flex items-center gap-2 mb-1.5">
                           <AvatarInitials name={review.reviewer_name || 'A'} size={36} />
                           <div>
                             <div className="text-[15px] font-bold" style={{ color: textMain }}>{review.reviewer_name}</div>
                             <Stars rating={review.rating} size={16} />
                           </div>
-                          <div className="ml-auto text-[12px] font-medium" style={{ color: dk ? '#64748B' : '#6B7280' }}>{new Date(review.reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div className="ml-auto text-[12px] font-medium" style={{ color: t.textSubtle }}>{new Date(review.reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                         </div>
-                        {review.comment && <p className="text-[14px] line-clamp-2 mb-2.5 leading-snug" style={{ color: dk ? '#CBD5E1' : '#374151' }}>{review.comment}</p>}
+                        {review.comment && <p className="text-[14px] line-clamp-2 mb-2.5 leading-snug" style={{ color: t.textBody }}>{review.comment}</p>}
                         <span className="inline-block text-[12px] font-semibold px-3 py-0.5 rounded-full"
                           style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span>
                       </div>
@@ -512,7 +515,7 @@ export default function OverviewPage() {
               {/* Request reviews panel */}
               <div className="rounded-xl p-4" style={{ border: `1px solid ${cardBdr}`, backgroundColor: cardBg }}>
                 <div className="text-[13px] font-bold mb-0.5" style={{ color: textMain }}>Request reviews from happy customers</div>
-                <div className="text-[12px] mb-3 flex flex-wrap items-center gap-1" style={{ color: dk ? '#94A3B8' : '#6B7280' }}>
+                <div className="text-[12px] mb-3 flex flex-wrap items-center gap-1" style={{ color: t.textMuted }}>
                   3 customers are likely to give you a
                   <Star filled size={11} />
                   <span>5★ review</span>
@@ -527,7 +530,7 @@ export default function OverviewPage() {
                       style={{ backgroundColor: c.color }}>{c.initials}</div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[12px] font-semibold" style={{ color: textMain }}>{c.name}</div>
-                      <div className="text-[12px]" style={{ color: dk ? '#94A3B8' : '#4B5563' }}>{c.sub}</div>
+                      <div className="text-[13px]" style={{ color: t.textMuted }}>{c.sub}</div>
                     </div>
                     <button className="text-[12px] font-semibold px-4 py-1.5 rounded-xl"
                       style={{ border: `1.5px solid #0F766E`, color: '#0F766E', backgroundColor: '#F0FDFA' }}>Request</button>
@@ -549,17 +552,17 @@ export default function OverviewPage() {
                 </div>
 
                 {/* Negative review reply */}
-                <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: dk ? '#1E293B' : '#FEF2F2', borderTop: `1px solid ${dk ? '#334155' : '#FECACA'}`, borderRight: `1px solid ${dk ? '#334155' : '#FECACA'}`, borderBottom: `1px solid ${dk ? '#334155' : '#FECACA'}`, borderLeft: `3px solid ${dk ? '#EF4444' : '#DC2626'}` }}>
+                <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: t.dangerBg, borderTop: `1px solid ${t.dangerBorder}`, borderRight: `1px solid ${t.dangerBorder}`, borderBottom: `1px solid ${t.dangerBorder}`, borderLeft: `3px solid ${dk ? '#EF4444' : '#DC2626'}` }}>
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEE2E2' }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                     </div>
                     <div>
                       <div className="text-[11px] font-bold" style={{ color: '#DC2626' }}>Negative Review Assistant</div>
-                      <div className="text-[12px]" style={{ color: MUTED_D }}>AI-generated reply for Jessica Lee</div>
+                      <div className="text-[13px]" style={{ color: MUTED_D }}>AI-generated reply for Jessica Lee</div>
                     </div>
                   </div>
-                  <p className="text-[12px] italic mb-2" style={{ color: dk ? '#CBD5E1' : '#374151' }}>
+                  <p className="text-[12px] italic mb-2" style={{ color: t.textBody }}>
                     &ldquo;Hi Jessica, thank you for your feedback. We&apos;re sorry for the delay in response. We appreciate your patience and are glad you liked our work. We&apos;ll do better next time!&rdquo;
                   </p>
                   <div className="flex gap-2">
@@ -571,17 +574,17 @@ export default function OverviewPage() {
                 </div>
 
                 {/* Positive review booster */}
-                <div className="rounded-xl p-3" style={{ backgroundColor: dk ? '#1E293B' : '#FFFBEB', borderTop: `1px solid ${dk ? '#334155' : '#FDE68A'}`, borderRight: `1px solid ${dk ? '#334155' : '#FDE68A'}`, borderBottom: `1px solid ${dk ? '#334155' : '#FDE68A'}`, borderLeft: `3px solid ${dk ? '#F59E0B' : '#D97706'}` }}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: t.warningBg, borderTop: `1px solid ${t.warningBorder}`, borderRight: `1px solid ${t.warningBorder}`, borderBottom: `1px solid ${t.warningBorder}`, borderLeft: `3px solid ${dk ? '#F59E0B' : '#D97706'}` }}>
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEF3C7' }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     </div>
                     <div>
                       <div className="text-[11px] font-bold" style={{ color: '#B45309' }}>Positive Review Booster</div>
-                      <div className="text-[12px]" style={{ color: MUTED_D }}>AI-generated review request message</div>
+                      <div className="text-[13px]" style={{ color: MUTED_D }}>AI-generated review request message</div>
                     </div>
                   </div>
-                  <p className="text-[12px] italic mb-2" style={{ color: dk ? '#CBD5E1' : '#374151' }}>
+                  <p className="text-[12px] italic mb-2" style={{ color: t.textBody }}>
                     Hi [Name], thanks again for choosing us! If you&apos;re happy with the work, would you mind leaving us a quick 5⭐ review?
                   </p>
                   <div className="flex gap-2">
@@ -602,7 +605,7 @@ export default function OverviewPage() {
           <div className="flex flex-col gap-3 mb-5">
             {/* Row 1: title + trending pill */}
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-[16px] font-bold" style={{ color: textMain }}>Community Insights</h2>
+              <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain }}>Community Insights</h2>
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
                 style={{ backgroundColor: '#CCFBF1', color: TEAL }}>
                 Trending in {session?.city || 'your area'}
@@ -651,7 +654,7 @@ export default function OverviewPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-semibold mb-1 leading-snug" style={{ color: textMain }}>{item.q}</p>
                   {item.price && <p className="text-[13px] font-bold mb-0.5" style={{ color: TEAL }}>{item.price}</p>}
-                  {item.sub && <p className="text-[12px]" style={{ color: MUTED_D }}>{item.sub}</p>}
+                  {item.sub && <p className="text-[13px]" style={{ color: MUTED_D }}>{item.sub}</p>}
                   <div className="flex items-center justify-between gap-2 mt-2">
                     <div className="flex items-center gap-2">
                       <div className="flex -space-x-1">
@@ -659,7 +662,7 @@ export default function OverviewPage() {
                           <div key={j} className="w-5 h-5 rounded-full border-2 border-white" style={{ backgroundColor: c }} />
                         ))}
                       </div>
-                      <span className="text-[12px]" style={{ color: MUTED_D }}>{item.answers} {item.label}</span>
+                      <span className="text-[13px]" style={{ color: MUTED_D }}>{item.answers} {item.label}</span>
                     </div>
                     <span className="text-[12px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: TEAL }}>View →</span>
                   </div>

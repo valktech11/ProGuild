@@ -5,7 +5,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { EventChip, CalEvent } from '@/components/ui/EventChip'
 import { Session } from '@/types'
 import { capName } from '@/lib/utils'
-import { theme } from '@/lib/theme'
+import { theme, T, BRAND } from '@/lib/tokens'
 import { ICON_PATH } from '@/lib/design'
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ function SidebarCard({ title, titleColor, children, dk }: { title:string; titleC
   const t = theme(dk)
   return (
     <div style={{ background:t.cardBg, borderRadius:12, padding:'14px 16px', border:`1px solid ${t.cardBorder}` }}>
-      <div style={{ fontSize:10, fontWeight:700, color:titleColor||(dk?t.textMuted:'#9CA3AF'), textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>{title}</div>
+      <div style={{ fontSize: 11, fontWeight:700, color:titleColor||(dk?t.textMuted:'#9CA3AF'), textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>{title}</div>
       {children}
     </div>
   )
@@ -135,7 +135,7 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
 
   // Border colour: overdue=red, followup=amber, else teal
   const accentColor = overdue ? '#DC2626' : isFollowup ? '#D97706' : '#0F766E'
-  const accentBg    = overdue ? (dk?'#2D0A0A':'#FEF2F2') : isFollowup ? (dk?'#1E293B':'#FFFBEB') : (dk?'#1E293B':'#F0FDFA')
+  const accentBg    = overdue ? (dk?t.overdueAlertBg:'#FEF2F2') : isFollowup ? (dk?'#1E293B':t.warningBg) : (dk?'#1E293B':'#F0FDFA')
 
   // Close on Escape
   useEffect(() => {
@@ -151,32 +151,32 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
               <Svg path={isFollowup?ICON_PATH.phone:ICON_PATH.wrench} size={11} color={accentColor} sw={2}/>
-              <span style={{ fontSize:11, fontWeight:700, color:accentColor, textTransform:'uppercase', letterSpacing:'0.06em' }}>
+              <span style={{ fontSize: 12, fontWeight:700, color:accentColor, textTransform:'uppercase', letterSpacing:'0.06em' }}>
                 {isFollowup?'Follow-up':ev.lead_status==='Paid'?'Job Won':ev.lead_status}
               </span>
-              {overdue && <span style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:8, background:'#FEE2E2', color:'#DC2626' }}>Overdue</span>}
+              {overdue && <span style={{ fontSize: 11, fontWeight:700, padding:'1px 6px', borderRadius:8, background:t.dangerBg, color:'#DC2626' }}>Overdue</span>}
             </div>
-            <div style={{ fontSize:18, fontWeight:800, color:t.textPri }}>{capName(ev.contact_name)}</div>
-            {fullDate && <div style={{ fontSize:12, color:t.textMuted, marginTop:3 }}>{fullDate}</div>}
+            <div style={{ fontSize: 18, fontWeight:800, color:t.textPri }}>{capName(ev.contact_name)}</div>
+            {fullDate && <div style={{ fontSize: 13, color:t.textMuted, marginTop:3 }}>{fullDate}</div>}
           </div>
-          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:t.textMuted, fontSize:22, lineHeight:1, padding:0, marginTop:-2 }}>×</button>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:t.textMuted, fontSize: 22, lineHeight:1, padding:0, marginTop:-2 }}>×</button>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
           <div style={{ display:'flex', gap:8 }}>
             {phone && (
               <a href={`tel:${ev.contact_phone}`}
-                style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:10, background:t.cardBg, border:`1.5px solid ${accentColor}44`, color:accentColor, fontSize:13, fontWeight:700, textDecoration:'none' }}>
+                style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:10, background:t.cardBg, border:`1.5px solid ${accentColor}44`, color:accentColor, fontSize: 14, fontWeight:700, textDecoration:'none' }}>
                 <Svg path={ICON_PATH.phone} size={13} color={accentColor} sw={2.2}/>{phone}
               </a>
             )}
             <button onClick={() => onOpenLead(ev.id)}
-              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:10, background:'linear-gradient(135deg,#0F766E,#0D9488)', border:'none', color:'white', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:10, background:'linear-gradient(135deg,#0F766E,#0D9488)', border:'none', color:'white', fontSize: 14, fontWeight:700, cursor:'pointer' }}>
               Open Lead <Svg path={ICON_PATH.chevronR} size={12} color="white" sw={2.5}/>
             </button>
           </div>
           {ev._type==='job' && ev.lead_status==='Scheduled' && onMarkComplete && (
             <button onClick={onMarkComplete} disabled={completing}
-              style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:10, background:completing?t.cardBgAlt:'#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize:13, fontWeight:700, cursor:'pointer', opacity:completing?0.6:1 }}>
+              style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:10, background:completing?t.cardBgAlt:'#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize: 14, fontWeight:700, cursor:'pointer', opacity:completing?0.6:1 }}>
               {completing ? 'Marking complete…' : (<><Svg path={ICON_PATH.check} size={13} color="#15803D" sw={2.5}/>Mark Job Complete</>)}
             </button>
           )}
@@ -184,7 +184,7 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
       </div>
       <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:12 }}>
         <div style={{ background:t.cardBgAlt, borderRadius:12, padding:'14px 16px' }}>
-          <div style={{ fontSize:10, fontWeight:700, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Details</div>
+          <div style={{ fontSize: 11, fontWeight:700, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Details</div>
           {[
             { label:'Date',   value: fullDate||'—' },
             { label:'Phone',  value: phone||'—' },
@@ -192,22 +192,22 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
             { label:'Source', value: (ev.lead_source||'Unknown').replace(/_/g,' ') },
             { label:'Value',  value: ev.quoted_amount?`$${ev.quoted_amount.toLocaleString()}`:'—' },
           ].map(({label,value}) => (
-            <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:13, marginBottom:8 }}>
+            <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize: 14, marginBottom:8 }}>
               <span style={{ color:t.textSubtle }}>{label}</span>
               <span style={{ color:t.textPri, fontWeight:500, textAlign:'right', maxWidth:'60%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{value}</span>
             </div>
           ))}
         </div>
         {ev.message && (
-          <div style={{ background:dk?'#1a1f2e':'#FFFBEB', borderRadius:12, padding:'12px 14px', border:`1px solid ${dk?'#334155':'#FDE68A'}` }}>
-            <div style={{ fontSize:10, fontWeight:700, color:'#92400E', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Message</div>
-            <p style={{ fontSize:13, color:t.textBody, lineHeight:1.6, margin:0 }}>{ev.message}</p>
+          <div style={{ background:dk?'#1a1f2e':t.warningBg, borderRadius:12, padding:'12px 14px', border:`1px solid ${dk?'#334155':t.warningBorder}` }}>
+            <div style={{ fontSize: 11, fontWeight:700, color:'#92400E', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Message</div>
+            <p style={{ fontSize: 14, color:t.textBody, lineHeight:1.6, margin:0 }}>{ev.message}</p>
           </div>
         )}
         {ev.notes && (
-          <div style={{ background:dk?'#0f1e1a':'#F0FDFA', borderRadius:12, padding:'12px 14px', border:`1px solid ${dk?'#1a3a2e':'#CCFBF1'}` }}>
-            <div style={{ fontSize:10, fontWeight:700, color:'#0F766E', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Notes</div>
-            <p style={{ fontSize:13, color:t.textBody, lineHeight:1.6, margin:0, whiteSpace:'pre-wrap' }}>{ev.notes}</p>
+          <div style={{ background:dk?'#0f1e1a':'#F0FDFA', borderRadius:12, padding:'12px 14px', border:`1px solid ${dk?'#1a3a2e':t.successBorder}` }}>
+            <div style={{ fontSize: 11, fontWeight:700, color:'#0F766E', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Notes</div>
+            <p style={{ fontSize: 14, color:t.textBody, lineHeight:1.6, margin:0, whiteSpace:'pre-wrap' }}>{ev.notes}</p>
           </div>
         )}
       </div>
@@ -233,14 +233,14 @@ function ElasticTimeGrid({ events, dk, onEventClick, today0 }: {
   const SLOT_H = 64
 
   if (timedEvs.length===0 && untimedEvs.length===0) {
-    return <div style={{ padding:'40px 20px', textAlign:'center', color:t.textSubtle, fontSize:13 }}>No events on this day</div>
+    return <div style={{ padding:'40px 20px', textAlign:'center', color:t.textSubtle, fontSize: 14 }}>No events on this day</div>
   }
 
   return (
     <div>
       {untimedEvs.length>0 && (
         <div style={{ borderBottom:`2px solid ${t.cardBorder}`, padding:'8px 12px', background:t.calGridBg }}>
-          <div style={{ fontSize:10, fontWeight:600, color:t.textSubtle, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>All day</div>
+          <div style={{ fontSize: 11, fontWeight:600, color:t.textSubtle, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>All day</div>
           <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
             {untimedEvs.map(ev => (
               <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="compact" onClick={() => onEventClick(ev)} isOverdue={isOverdueEvent(ev,today0)}/>
@@ -254,7 +254,7 @@ function ElasticTimeGrid({ events, dk, onEventClick, today0 }: {
         return (
           <div key={hour} style={{ display:'grid', gridTemplateColumns:'44px 1fr', height:SLOT_H, borderBottom:`1px solid ${t.calCellBorder}` }}>
             <div style={{ borderRight:`1px solid ${t.calCellBorder}`, display:'flex', alignItems:'flex-start', justifyContent:'flex-end', paddingRight:8, paddingTop:4 }}>
-              <span style={{ fontSize:10, fontWeight:600, color:t.textSubtle }}>{label}</span>
+              <span style={{ fontSize: 11, fontWeight:600, color:t.textSubtle }}>{label}</span>
             </div>
             <div style={{ padding:'2px 6px', display:'flex', flexDirection:'column', gap:3 }}>
               {slotEvs.map(ev => (
@@ -286,11 +286,11 @@ function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk }: {
         const overdueCount  = dayEvs.filter(ev=>isOverdueEvent(ev,today0)).length
         return (
           <button key={key} onClick={() => onSelect(d)}
-            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'8px 2px 6px', borderRadius:10, border:'none', cursor:'pointer', background:isSel?'#0F766E':isTod?'#CCFBF1':'transparent', minHeight:64 }}>
-            <span style={{ fontSize:11, fontWeight:700, color:isSel?'rgba(255,255,255,0.85)':isTod?'#0F766E':dk?'#94A3B8':'#6B7280' }}>
+            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'8px 2px 6px', borderRadius:10, border:'none', cursor:'pointer', background:isSel?'#0F766E':isTod?(dk?'#166534':'#BBF7D0'):'transparent', minHeight:64 }}>
+            <span style={{ fontSize: 12, fontWeight:700, color:isSel?'rgba(255,255,255,0.85)':isTod?'#0F766E':dk?'#94A3B8':'#6B7280' }}>
               {DAYS[d.getDay()].slice(0,1)}
             </span>
-            <span style={{ fontSize:17, fontWeight:900, lineHeight:1, color:isSel?'white':isTod?'#0F766E':dk?'#F1F5F9':'#111827' }}>
+            <span style={{ fontSize: 17, fontWeight:900, lineHeight:1, color:isSel?'white':isTod?'#0F766E':dk?'#F1F5F9':'#111827' }}>
               {d.getDate()}
             </span>
             {/* Coloured dots: teal=job, amber=followup, red=overdue */}
@@ -317,7 +317,7 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk }: {
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:2 }}>
         {DAYS.map(d => (
-          <div key={d} style={{ textAlign:'center', fontSize:10, fontWeight:700, color:t.textMuted, padding:'3px 0', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+          <div key={d} style={{ textAlign:'center', fontSize: 11, fontWeight:700, color:t.textMuted, padding:'3px 0', textTransform:'uppercase', letterSpacing:'0.05em' }}>
             {d.slice(0,1)}
           </div>
         ))}
@@ -336,7 +336,7 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk }: {
           return (
             <button key={day} onClick={() => onSelect(d)}
               style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'5px 2px', borderRadius:8, border:'none', cursor:'pointer', background:isSel?'#0F766E':isTod?t.calColToday:'transparent', minHeight:42 }}>
-              <span style={{ fontSize:13, fontWeight:isTod?800:500, color:isSel?'white':isTod?'#0F766E':dk?'#F1F5F9':'#111827', lineHeight:1.2 }}>
+              <span style={{ fontSize: 14, fontWeight:isTod?800:500, color:isSel?'white':isTod?'#0F766E':dk?'#F1F5F9':'#111827', lineHeight:1.2 }}>
                 {day}
               </span>
               <div style={{ display:'flex', gap:2, minHeight:5, alignItems:'center' }}>
@@ -368,7 +368,7 @@ function FilterSheet({ open, onClose, showJobs, showFollowups, onToggleJobs, onT
         <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}>
           <div style={{ width:36, height:4, borderRadius:2, background:t.cardBorder }}/>
         </div>
-        <div style={{ fontSize:16, fontWeight:800, color:t.textPri, marginBottom:20 }}>Filter Calendar</div>
+        <div style={{ fontSize: 16, fontWeight:800, color:t.textPri, marginBottom:20 }}>Filter Calendar</div>
         {[
           { label:'Jobs', sub:'Scheduled work', color:'#0F766E', on:showJobs, toggle:onToggleJobs },
           { label:'Follow-ups', sub:'Reminders to follow up', color:'#D97706', on:showFollowups, toggle:onToggleFU },
@@ -377,15 +377,15 @@ function FilterSheet({ open, onClose, showJobs, showFollowups, onToggleJobs, onT
             <div style={{ display:'flex', alignItems:'center', gap:12 }}>
               <div style={{ width:12, height:12, borderRadius:3, background:item.color, flexShrink:0 }}/>
               <div>
-                <div style={{ fontSize:15, fontWeight:700, color:t.textPri }}>{item.label}</div>
-                <div style={{ fontSize:12, color:t.textSubtle, marginTop:1 }}>{item.sub}</div>
+                <div style={{ fontSize: 15, fontWeight:700, color:t.textPri }}>{item.label}</div>
+                <div style={{ fontSize: 13, color:t.textSubtle, marginTop:1 }}>{item.sub}</div>
               </div>
             </div>
             <ToggleSwitch on={item.on} onChange={item.toggle} dk={dk}/>
           </div>
         ))}
         <button onClick={onClose}
-          style={{ width:'100%', padding:'14px', borderRadius:14, border:'none', background:'#0F766E', color:'white', fontSize:15, fontWeight:700, cursor:'pointer' }}>
+          style={{ width:'100%', padding:'14px', borderRadius:14, border:'none', background:'#0F766E', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer' }}>
           Done
         </button>
       </div>
@@ -559,7 +559,7 @@ function CalendarInner() {
           <div key={item.label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
               <div style={{ width:9, height:9, borderRadius:2, background:item.color, flexShrink:0 }}/>
-              <span style={{ fontSize:13, fontWeight:600, color:t.textPri }}>{item.label}</span>
+              <span style={{ fontSize: 14, fontWeight:600, color:t.textPri }}>{item.label}</span>
             </div>
             <ToggleSwitch on={item.on} onChange={item.set} dk={dk}/>
           </div>
@@ -580,15 +580,15 @@ function CalendarInner() {
           <div style={{ background:t.overdueAlertBg, border:`1px solid ${t.overdueAlertBorder}`, borderRadius:12, padding:'11px 13px' }}>
             <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
               <div style={{ width:7, height:7, borderRadius:'50%', background:'#DC2626', flexShrink:0, boxShadow:'0 0 0 2px rgba(220,38,38,0.2)' }}/>
-              <span style={{ fontSize:12, fontWeight:800, color:t.overdueText }}>{overdueEvs.length} overdue follow-up{overdueEvs.length!==1?'s':''}</span>
+              <span style={{ fontSize: 13, fontWeight:800, color:t.overdueText }}>{overdueEvs.length} overdue follow-up{overdueEvs.length!==1?'s':''}</span>
             </div>
             {overdueEvs.slice(0,3).map(ev => (
               <div key={ev.id} onClick={() => setSelectedEvent(ev)}
-                style={{ fontSize:12, color:t.overdueText, fontWeight:600, cursor:'pointer', padding:'2px 0 2px 13px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                style={{ fontSize: 13, color:t.overdueText, fontWeight:600, cursor:'pointer', padding:'2px 0 2px 13px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 → {capName(ev.contact_name)}
               </div>
             ))}
-            {overdueEvs.length>3 && <div style={{ fontSize:11, color:t.overdueText, opacity:0.7, paddingLeft:13 }}>+{overdueEvs.length-3} more</div>}
+            {overdueEvs.length>3 && <div style={{ fontSize: 12, color:t.overdueText, opacity:0.7, paddingLeft:13 }}>+{overdueEvs.length-3} more</div>}
           </div>
         )}
 
@@ -597,20 +597,20 @@ function CalendarInner() {
         <SidebarCard title="Today" dk={dk}>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <span style={{ fontSize:12, color:t.textSubtle }}>Jobs</span>
-              <span style={{ fontSize:20, fontWeight:800, color:'#0F766E' }}>{todayJobs.length}</span>
+              <span style={{ fontSize: 13, color:t.textSubtle }}>Jobs</span>
+              <span style={{ fontSize: 20, fontWeight:800, color:'#0F766E' }}>{todayJobs.length}</span>
             </div>
             <div style={{ height:1, background:t.cardBorder }}/>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <span style={{ fontSize:12, color:t.textSubtle }}>Value</span>
-              <span style={{ fontSize:16, fontWeight:800, color:'#15803D' }}>${todayValue>0?todayValue.toLocaleString():'0'}</span>
+              <span style={{ fontSize: 13, color:t.textSubtle }}>Value</span>
+              <span style={{ fontSize: 16, fontWeight:800, color:'#15803D' }}>${todayValue>0?todayValue.toLocaleString():'0'}</span>
             </div>
             {overdueEvs.length>0 && (
               <>
                 <div style={{ height:1, background:t.cardBorder }}/>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:12, color:'#B91C1C' }}>Overdue</span>
-                  <span style={{ fontSize:16, fontWeight:800, color:'#DC2626' }}>{overdueEvs.length}</span>
+                  <span style={{ fontSize: 13, color:'#B91C1C' }}>Overdue</span>
+                  <span style={{ fontSize: 16, fontWeight:800, color:'#DC2626' }}>{overdueEvs.length}</span>
                 </div>
               </>
             )}
@@ -622,17 +622,17 @@ function CalendarInner() {
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
               {unscheduled.slice(0,5).map(ev => (
                 <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id)}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 9px', borderRadius:8, background:dk?'#2D1F00':'#FFFBEB', cursor:'pointer', border:'1px solid #FDE68A' }}
-                  onMouseEnter={e => (e.currentTarget.style.background='#FEF3C7')}
-                  onMouseLeave={e => (e.currentTarget.style.background=dk?'#2D1F00':'#FFFBEB')}>
+                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 9px', borderRadius:8, background:dk?t.warningBg:t.warningBg, cursor:'pointer', border:'1px solid #FDE68A' }}
+                  onMouseEnter={e => (e.currentTarget.style.background=t.warningBorder)}
+                  onMouseLeave={e => (e.currentTarget.style.background=dk?t.warningBg:t.warningBg)}>
                   <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:t.textPri, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{capName(ev.contact_name)}</div>
-                    <div style={{ fontSize:10, color:'#D97706', marginTop:1 }}>{ev.lead_status}</div>
+                    <div style={{ fontSize: 13, fontWeight:700, color:t.textPri, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{capName(ev.contact_name)}</div>
+                    <div style={{ fontSize: 11, color:'#D97706', marginTop:1 }}>{ev.lead_status}</div>
                   </div>
                   <Svg path={ICON_PATH.chevronR} size={11} color="#D97706" sw={2.5}/>
                 </div>
               ))}
-              {unscheduled.length>5 && <div style={{ fontSize:11, color:t.textSubtle, textAlign:'center' }}>+{unscheduled.length-5} more</div>}
+              {unscheduled.length>5 && <div style={{ fontSize: 12, color:t.textSubtle, textAlign:'center' }}>+{unscheduled.length-5} more</div>}
             </div>
           </SidebarCard>
         )}
@@ -643,14 +643,14 @@ function CalendarInner() {
         {/* Toolbar */}
         <div style={{ padding:'10px 16px', borderBottom:`1px solid ${t.cardBorder}`, display:'flex', alignItems:'center', gap:8, background:t.calToolbar, flexShrink:0, position:'sticky', top:0, zIndex:10 }}>
           <button onClick={goToday}
-            style={{ padding:'6px 14px', borderRadius:8, border:`1.5px solid ${t.cardBorder}`, background:t.cardBgAlt, color:t.textPri, fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+            style={{ padding:'6px 14px', borderRadius:8, border:`1.5px solid ${t.cardBorder}`, background:t.cardBgAlt, color:t.textPri, fontSize: 14, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
             Today
           </button>
           <div style={{ display:'flex', gap:5 }}>
             <NavBtn dir="prev" onClick={() => handleNav(-1)} dk={dk}/>
             <NavBtn dir="next" onClick={() => handleNav(1)} dk={dk}/>
           </div>
-          <span style={{ fontSize:15, fontWeight:700, color:t.textPri }}>
+          <span style={{ fontSize: 15, fontWeight:700, color:t.textPri }}>
             {desktopView==='day'
               ? `${DAYS[selectedDate.getDay()]}, ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}, ${selectedDate.getFullYear()}`
               : desktopView==='week'
@@ -659,7 +659,7 @@ function CalendarInner() {
             }
           </span>
           {(desktopView==='day'||desktopView==='week') && (
-            <span style={{ fontSize:12, fontWeight:700, color:'#15803D', background:dk?'#052E16':'#DCFCE7', padding:'4px 10px', borderRadius:20, border:`1px solid ${dk?'#166534':'#86EFAC'}` }}>
+            <span style={{ fontSize: 13, fontWeight:700, color:'#15803D', background:dk?t.successBg:'#DCFCE7', padding:'4px 10px', borderRadius:20, border:`1px solid ${dk?'#166534':t.successBorder}` }}>
               ${desktopView==='day' ? selectedDayValue.toLocaleString() : weekValue.toLocaleString()} {desktopView==='day'?'today':'this week'}
             </span>
           )}
@@ -667,7 +667,7 @@ function CalendarInner() {
           <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1.5px solid ${t.cardBorder}`, flexShrink:0 }}>
             {(['day','week','month'] as const).map(v => (
               <button key={v} onClick={() => { setDesktopView(v); if(v==='month') setMonthAgendaDate(selectedDate) }}
-                style={{ padding:'5px 12px', border:'none', cursor:'pointer', fontSize:12, fontWeight:600, background:desktopView===v?'#0F766E':'transparent', color:desktopView===v?'white':t.textMuted, textTransform:'capitalize' }}>
+                style={{ padding:'5px 12px', border:'none', cursor:'pointer', fontSize: 13, fontWeight:600, background:desktopView===v?'#0F766E':'transparent', color:desktopView===v?'white':t.textMuted, textTransform:'capitalize' }}>
                 {v}
               </button>
             ))}
@@ -675,7 +675,7 @@ function CalendarInner() {
         </div>
 
         {loading ? (
-          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:t.textSubtle, fontSize:14 }}>Loading…</div>
+          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:t.textSubtle, fontSize: 15 }}>Loading…</div>
         ) : desktopView==='day' ? (
 
           /* ── Day view ── */
@@ -694,9 +694,9 @@ function CalendarInner() {
                 return (
                   <div key={toDateKey(d)} onClick={() => { selectDay(d); setDesktopView('day') }}
                     style={{ padding:'10px 8px', textAlign:'center', borderRight:`1px solid ${t.calCellBorder}`, cursor:'pointer', background:isTod?t.calColToday:isWknd?t.calColWeekend:isSel?t.calColSelected:'transparent' }}>
-                    <div style={{ fontSize:10, fontWeight:700, color:isTod?'#0F766E':isWknd?t.textSubtle:t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em' }}>{DAYS[d.getDay()]}</div>
+                    <div style={{ fontSize: 11, fontWeight:700, color:isTod?'#0F766E':isWknd?t.textSubtle:t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em' }}>{DAYS[d.getDay()]}</div>
                     <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'3px auto 0', background:isTod?'#0F766E':'transparent' }}>
-                      <span style={{ fontSize:14, fontWeight:700, color:isTod?'white':isSel?'#0F766E':t.textPri }}>{d.getDate()}</span>
+                      <span style={{ fontSize: 15, fontWeight:700, color:isTod?'white':isSel?'#0F766E':t.textPri }}>{d.getDate()}</span>
                     </div>
                   </div>
                 )
@@ -726,7 +726,7 @@ function CalendarInner() {
                   {hasUntimed && (
                     <div style={{ display:'grid', gridTemplateColumns:'44px repeat(7,1fr)', borderBottom:`2px solid ${t.cardBorder}` }}>
                       <div style={{ borderRight:`1px solid ${t.calCellBorder}`, padding:'6px 4px', display:'flex', alignItems:'flex-start', justifyContent:'flex-end' }}>
-                        <span style={{ fontSize:9, fontWeight:600, color:t.textSubtle, textTransform:'uppercase', marginTop:6 }}>All day</span>
+                        <span style={{ fontSize: 11, fontWeight:600, color:t.textSubtle, textTransform:'uppercase', marginTop:6 }}>All day</span>
                       </div>
                       {weekDays.map(d => {
                         const key=toDateKey(d); const evs=untimedByDay[key]||[]
@@ -748,7 +748,7 @@ function CalendarInner() {
                     return (
                       <div key={hour} style={{ display:'grid', gridTemplateColumns:'44px repeat(7,1fr)', height:SLOT_H, borderBottom:`1px solid ${t.calCellBorder}` }}>
                         <div style={{ borderRight:`1px solid ${t.calCellBorder}`, display:'flex', alignItems:'flex-start', justifyContent:'flex-end', paddingRight:7, paddingTop:4 }}>
-                          <span style={{ fontSize:10, fontWeight:600, color:t.textSubtle }}>{label}</span>
+                          <span style={{ fontSize: 11, fontWeight:600, color:t.textSubtle }}>{label}</span>
                         </div>
                         {weekDays.map(d => {
                           const key=toDateKey(d)
@@ -777,7 +777,7 @@ function CalendarInner() {
                         return (
                           <div key={key} onClick={() => { selectDay(d); setDesktopView('day') }}
                             style={{ borderRight:`1px solid ${t.calCellBorder}`, minHeight:120, background:isTod?t.calColToday:isWknd?t.calColWeekend:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
-                            {isWknd && <span style={{ fontSize:10, color:t.calEmptyText, textTransform:'uppercase', fontWeight:500, letterSpacing:'0.04em' }}>Free</span>}
+                            {isWknd && <span style={{ fontSize: 11, color:t.calEmptyText, textTransform:'uppercase', fontWeight:500, letterSpacing:'0.04em' }}>Free</span>}
                           </div>
                         )
                       })}
@@ -794,7 +794,7 @@ function CalendarInner() {
           <div style={{ display:'flex', flexDirection:'column', flex:1, overflow:'hidden' }}>
             <div style={{ padding:'14px 14px 6px' }}>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:4 }}>
-                {DAYS.map(d => <div key={d} style={{ textAlign:'center', fontSize:11, fontWeight:700, color:t.textMuted, padding:'4px 0', textTransform:'uppercase', letterSpacing:'0.06em' }}>{d}</div>)}
+                {DAYS.map(d => <div key={d} style={{ textAlign:'center', fontSize: 12, fontWeight:700, color:t.textMuted, padding:'4px 0', textTransform:'uppercase', letterSpacing:'0.06em' }}>{d}</div>)}
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2 }}>
                 {Array(firstDay).fill(null).map((_,i)=><div key={'e'+i}/>)}
@@ -809,7 +809,7 @@ function CalendarInner() {
                       style={{ minHeight:70, padding:'5px', borderRadius:7, cursor:'pointer', border:`1.5px solid ${isSel?'#0F766E':t.calCellBorder}`, background:isTod?t.calColToday:t.cardBg, transition:'background 0.1s' }}
                       onMouseEnter={e => (e.currentTarget.style.background=t.calColSelected)}
                       onMouseLeave={e => (e.currentTarget.style.background=isTod?t.calColToday:t.cardBg)}>
-                      <div style={{ fontSize:12, fontWeight:isTod?800:500, color:isTod?'#0F766E':t.textPri, marginBottom:3 }}>{day}</div>
+                      <div style={{ fontSize: 13, fontWeight:isTod?800:500, color:isTod?'#0F766E':t.textPri, marginBottom:3 }}>{day}</div>
                       <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
                         {dayEvs.slice(0,2).map(ev => (
                           <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="micro"
@@ -818,7 +818,7 @@ function CalendarInner() {
                         ))}
                         {dayEvs.length>2 && (
                           <button onClick={e => { e.stopPropagation(); selectDay(d); setMonthAgendaDate(d) }}
-                            style={{ fontSize:9, color:t.textSubtle, paddingLeft:4, background:'none', border:'none', cursor:'pointer', textAlign:'left', fontWeight:600 }}>
+                            style={{ fontSize: 11, color:t.textSubtle, paddingLeft:4, background:'none', border:'none', cursor:'pointer', textAlign:'left', fontWeight:600 }}>
                             +{dayEvs.length-2} more
                           </button>
                         )}
@@ -831,19 +831,19 @@ function CalendarInner() {
             {/* Month agenda strip */}
             <div style={{ flex:1, borderTop:`1px solid ${t.cardBorder}`, overflowY:'auto', background:t.calAgendaBg }}>
               <div style={{ padding:'11px 16px', borderBottom:`1px solid ${t.cardBorder}`, background:t.calToolbar, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:14, fontWeight:700, color:t.textPri }}>
+                <span style={{ fontSize: 15, fontWeight:700, color:t.textPri }}>
                   {isToday(agendaDate)?'Today':`${DAYS[agendaDate.getDay()]}, ${SHORT_MONTHS[agendaDate.getMonth()]} ${agendaDate.getDate()}`}
-                  {agendaEvs.length>0 && <span style={{ marginLeft:8, fontSize:12, color:t.textSubtle }}>{agendaEvs.length} event{agendaEvs.length!==1?'s':''}</span>}
+                  {agendaEvs.length>0 && <span style={{ marginLeft:8, fontSize: 13, color:t.textSubtle }}>{agendaEvs.length} event{agendaEvs.length!==1?'s':''}</span>}
                 </span>
                 {agendaEvs.length>0 && (
-                  <span style={{ fontSize:13, fontWeight:700, color:'#15803D' }}>
+                  <span style={{ fontSize: 14, fontWeight:700, color:'#15803D' }}>
                     ${agendaEvs.filter(ev=>ev._type==='job').reduce((s,ev)=>s+(ev.quoted_amount||0),0).toLocaleString()}
                   </span>
                 )}
               </div>
               <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap:7 }}>
                 {agendaEvs.length===0
-                  ? <div style={{ textAlign:'center', padding:'20px 0', color:t.textSubtle, fontSize:13 }}>No events on this day</div>
+                  ? <div style={{ textAlign:'center', padding:'20px 0', color:t.textSubtle, fontSize: 14 }}>No events on this day</div>
                   : agendaEvs.map(ev => (
                       <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="compact"
                         onClick={() => setSelectedEvent(ev)} isOverdue={isOverdueEvent(ev,today0)}/>
@@ -885,7 +885,7 @@ function CalendarInner() {
           </button>
 
           <div style={{ flex:1, textAlign:'center' }}>
-            <div style={{ fontSize:15, fontWeight:800, color:t.textPri, letterSpacing:'-0.2px' }}>
+            <div style={{ fontSize: 15, fontWeight:800, color:t.textPri, letterSpacing:'-0.2px' }}>
               {mobileView==='agenda'
                 ? isToday(selectedDate) ? 'Today' : `${DAYS[selectedDate.getDay()]}, ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`
                 : mobileView==='week'
@@ -893,7 +893,7 @@ function CalendarInner() {
                 : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
               }
             </div>
-            <div style={{ fontSize:11, color:t.textSubtle, marginTop:1 }}>
+            <div style={{ fontSize: 12, color:t.textSubtle, marginTop:1 }}>
               {mobileView==='agenda' && (isToday(selectedDate)
                 ? `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}${todayJobs.length>0?` · ${todayJobs.length} jobs`:''}`
                 : selectedDate.getFullYear().toString()
@@ -923,14 +923,14 @@ function CalendarInner() {
           <div style={{ display:'flex', borderRadius:22, overflow:'hidden', border:`1.5px solid ${t.cardBorder}`, flexShrink:0 }}>
             {(['agenda','week','month'] as const).map(v => (
               <button key={v} onClick={() => setMobileView(v)}
-                style={{ padding:'7px 13px', border:'none', cursor:'pointer', fontSize:12, fontWeight:700, background:mobileView===v?'#0F766E':'transparent', color:mobileView===v?'white':t.textMuted }}>
+                style={{ padding:'7px 13px', border:'none', cursor:'pointer', fontSize: 13, fontWeight:700, background:mobileView===v?'#0F766E':'transparent', color:mobileView===v?'white':t.textMuted }}>
                 {v==='agenda'?'Day':v==='week'?'Week':'Month'}
               </button>
             ))}
           </div>
           {notOnToday && (
             <button onClick={goToday}
-              style={{ fontSize:12, fontWeight:700, padding:'7px 13px', borderRadius:22, border:`1.5px solid #0F766E`, background:'transparent', color:'#0F766E', cursor:'pointer', flexShrink:0 }}>
+              style={{ fontSize: 13, fontWeight:700, padding:'7px 13px', borderRadius:22, border:`1.5px solid #0F766E`, background:'transparent', color:'#0F766E', cursor:'pointer', flexShrink:0 }}>
               ← Today
             </button>
           )}
@@ -953,7 +953,7 @@ function CalendarInner() {
       {overdueEvs.length>0 && (
         <div style={{ flexShrink:0, margin:'8px 14px 0', padding:'9px 13px', background:t.overdueAlertBg, border:`1px solid ${t.overdueAlertBorder}`, borderRadius:10, display:'flex', alignItems:'center', gap:8 }}>
           <div style={{ width:7, height:7, borderRadius:'50%', background:'#DC2626', flexShrink:0 }}/>
-          <span style={{ fontSize:13, fontWeight:700, color:t.overdueText, flex:1 }}>
+          <span style={{ fontSize: 14, fontWeight:700, color:t.overdueText, flex:1 }}>
             {overdueEvs.length} overdue follow-up{overdueEvs.length!==1?'s':''} — {overdueEvs.slice(0,2).map(e=>capName(e.contact_name)).join(', ')}{overdueEvs.length>2?` +${overdueEvs.length-2}`:''}
           </span>
         </div>
@@ -972,25 +972,25 @@ function CalendarInner() {
               </svg>
             </div>
             <div style={{ textAlign:'center' }}>
-              <div style={{ fontSize:16, fontWeight:800, color:t.textPri, marginBottom:5 }}>
+              <div style={{ fontSize: 16, fontWeight:800, color:t.textPri, marginBottom:5 }}>
                 {isToday(selectedDate)?'Nothing today':'Nothing on this day'}
               </div>
-              <div style={{ fontSize:13, color:t.textSubtle, lineHeight:1.5 }}>
+              <div style={{ fontSize: 14, color:t.textSubtle, lineHeight:1.5 }}>
                 {unscheduled.length>0
                   ? `${unscheduled.length} lead${unscheduled.length!==1?'s':''} waiting to be scheduled`
                   : 'No jobs or follow-ups scheduled'}
               </div>
             </div>
             {unscheduled.length>0 && (
-              <button onClick={() => router.push('/dashboard/pipeline')}
-                style={{ padding:'13px 28px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              <button onClick={() => router.push('/dashboard/pipeline?filter=unscheduled')}
+                style={{ padding:'13px 28px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer' }}>
                 Schedule {unscheduled.length} lead{unscheduled.length!==1?'s':''} →
               </button>
             )}
           </div>
         ) : (
           <>
-            <div style={{ fontSize:12, fontWeight:600, color:t.textSubtle }}>
+            <div style={{ fontSize: 13, fontWeight:600, color:t.textSubtle }}>
               {selectedDayEvs.length} event{selectedDayEvs.length!==1?'s':''} · {isToday(selectedDate)?'Today':`${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
               {selectedDayValue>0 && <span style={{ color:'#15803D', marginLeft:8, fontWeight:700 }}>${selectedDayValue.toLocaleString()}</span>}
             </div>
@@ -1007,20 +1007,20 @@ function CalendarInner() {
         {/* Unscheduled */}
         {unscheduled.length>0 && selectedDayEvs.length>0 && (
           <div style={{ marginTop:6 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#0F766E', marginBottom:8 }}>Needs scheduling ({unscheduled.length})</div>
+            <div style={{ fontSize: 13, fontWeight:700, color:'#0F766E', marginBottom:8 }}>Needs scheduling ({unscheduled.length})</div>
             {unscheduled.slice(0,3).map(ev => (
               <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id)}
                 style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:11, background:t.cardBg, border:`1px solid ${t.cardBorder}`, marginBottom:8, cursor:'pointer' }}>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:700, color:t.textPri }}>{capName(ev.contact_name)}</div>
-                  <div style={{ fontSize:11, color:t.textSubtle, marginTop:1 }}>{ev.lead_status}</div>
+                  <div style={{ fontSize: 15, fontWeight:700, color:t.textPri }}>{capName(ev.contact_name)}</div>
+                  <div style={{ fontSize: 12, color:t.textSubtle, marginTop:1 }}>{ev.lead_status}</div>
                 </div>
                 <Svg path={ICON_PATH.chevronR} size={12} color={t.textSubtle} sw={2.5}/>
               </div>
             ))}
             {unscheduled.length>3 && (
-              <button onClick={() => router.push('/dashboard/pipeline')}
-                style={{ width:'100%', padding:'11px', borderRadius:11, border:`1.5px dashed #0F766E`, background:'transparent', color:'#0F766E', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              <button onClick={() => router.push('/dashboard/pipeline?filter=unscheduled')}
+                style={{ width:'100%', padding:'11px', borderRadius:11, border:`1.5px dashed #0F766E`, background:'transparent', color:'#0F766E', fontSize: 14, fontWeight:700, cursor:'pointer' }}>
                 +{unscheduled.length-3} more → Pipeline
               </button>
             )}

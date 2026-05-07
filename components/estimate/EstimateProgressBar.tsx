@@ -1,6 +1,6 @@
 'use client'
 
-import { theme } from '@/lib/theme'
+import { theme } from '@/lib/tokens'
 
 type Step = { event: string; label: string; timestamp: string | null }
 
@@ -73,12 +73,12 @@ export default function EstimateProgressBar({ timeline, darkMode }: {
               {/* Label + timestamp */}
               <div style={{ textAlign: 'center', marginTop: 8, paddingLeft: 4, paddingRight: 4 }}>
                 <div style={{
-                  fontSize: 12, fontWeight: 600,
+                  fontSize: 13, fontWeight: 600,
                   color: done ? stepColor : t.textSubtle,
                 }}>
                   {step.label.replace(' to client', '').replace(' by client', '').replace(' created', '')}
                 </div>
-                <div style={{ fontSize: 11, marginTop: 3, color: step.timestamp ? t.textMuted : t.textSubtle }}>
+                <div style={{ fontSize: 12, marginTop: 3, color: step.timestamp ? t.textMuted : t.textSubtle }}>
                   {step.timestamp ? fmtTs(step.timestamp) : 'Not yet'}
                 </div>
               </div>

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
-import { theme } from '@/lib/theme'
+import { theme, T } from '@/lib/tokens'
 import { invoiceStatusStyle } from '@/lib/design'
 import { timeAgo, capName } from '@/lib/utils'
 
@@ -72,7 +72,7 @@ export default function InvoicesPage() {
   const totalPaid        = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0)
 
   const inputStyle: React.CSSProperties = {
-    fontSize: 13, padding: '9px 14px', borderRadius: 10,
+    fontSize: 14, padding: '9px 14px', borderRadius: 10,
     border: `1.5px solid ${t.inputBorder}`, background: t.inputBg,
     color: t.textPri, outline: 'none',
   }
@@ -84,8 +84,8 @@ export default function InvoicesPage() {
 
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: t.textPri, margin: 0 }}>Invoices</h1>
-            <p style={{ fontSize: 13, color: t.textMuted, marginTop: 4 }}>Track and manage client payments</p>
+            <h1 style={{ fontSize: T.fontStat, fontWeight: 800, color: t.textPri, margin: 0 }}>Invoices</h1>
+            <p style={{ fontSize: 14, color: t.textMuted, marginTop: 4 }}>Track and manage client payments</p>
           </div>
 
           {/* Stats */}
@@ -95,8 +95,8 @@ export default function InvoicesPage() {
               { label: 'Collected',   value: fmt(totalPaid),        color: '#15803D', bg: '#F0FDF4' },
             ].map(s => (
               <div key={s.label} style={{ background: dk ? t.cardBg : s.bg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: '14px 20px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: t.textMuted, marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: dk ? t.textPri : s.color }}>{s.value}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: t.textMuted, marginBottom: 4 }}>{s.label}</div>
+                <div style={{ fontSize: T.fontStat, fontWeight: 800, color: dk ? t.textPri : s.color }}>{s.value}</div>
               </div>
             ))}
           </div>
@@ -128,16 +128,16 @@ export default function InvoicesPage() {
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '56px 24px' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
-                <p style={{ fontSize: 15, fontWeight: 700, color: t.textPri, margin: '0 0 6px' }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: t.textPri, margin: '0 0 6px' }}>
                   {search || filter !== 'all' ? 'No invoices match' : 'No invoices yet'}
                 </p>
-                <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 20px' }}>
+                <p style={{ fontSize: 14, color: t.textMuted, margin: '0 0 20px' }}>
                   {search || filter !== 'all'
                     ? 'Try adjusting your search or filter'
                     : 'Invoices are created from approved estimates. Get a client to approve an estimate first.'}
                 </p>
                 {!search && filter === 'all' && (
-                  <a href="/dashboard/estimates" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 20px', borderRadius:10, background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize:13, fontWeight:700, textDecoration:'none' }}>
+                  <a href="/dashboard/estimates" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 20px', borderRadius:10, background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 14, fontWeight:700, textDecoration:'none' }}>
                     Go to Estimates →
                   </a>
                 )}
@@ -161,11 +161,11 @@ export default function InvoicesPage() {
                   {/* Main info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: t.textPri }}>{inv.invoice_number}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: dk ? t.cardBgAlt : s.bg, color: s.text }}>{s.label}</span>
-                      {isOverdue && <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#FEF2F2', color: '#B91C1C' }}>Overdue</span>}
+                      <span style={{ fontSize: 15, fontWeight: 600, color: t.textPri }}>{inv.invoice_number}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: dk ? t.cardBgAlt : s.bg, color: s.text }}>{s.label}</span>
+                      {isOverdue && <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#FEF2F2', color: '#B91C1C' }}>Overdue</span>}
                     </div>
-                    <div style={{ fontSize: 13, color: t.textMuted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: 14, color: t.textMuted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {capName(inv.lead_name)}
                       {inv.due_date && <span> · Due {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                     </div>
@@ -173,10 +173,10 @@ export default function InvoicesPage() {
 
                   {/* Amount */}
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: inv.status === 'paid' ? '#15803D' : t.textPri }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: inv.status === 'paid' ? '#15803D' : t.textPri }}>
                       {fmt(inv.status === 'paid' ? inv.total : (inv.balance_due ?? inv.total))}
                     </div>
-                    <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: t.textSubtle, marginTop: 2 }}>
                       {inv.status === 'paid' ? 'Paid' : 'Balance due'} · {timeAgo(inv.created_at)}
                     </div>
                   </div>

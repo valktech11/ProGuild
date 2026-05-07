@@ -1,60 +1,7 @@
 /**
- * ProGuild Design Tokens
- * Single source of truth for dark/light mode colors.
- * Import and call theme(dk) in any component that accepts a darkMode prop.
+ * ProGuild Theme — re-exports from lib/tokens.ts
+ * Kept for backwards compatibility. Import `theme` from here as before.
+ * New code should also import T and BRAND from lib/tokens.ts
  */
-export function theme(dk: boolean) {
-  return {
-    // Page & card backgrounds
-    pageBg:       dk ? '#0A1628' : '#F5F4F0',
-    cardBg:       dk ? '#1E293B' : '#ffffff',
-    cardBgAlt:    dk ? '#0F172A' : '#F9FAFB',   // slightly recessed areas (tax row, notes bg)
-    cardBgEdit:   dk ? '#1a2e44' : '#F0FDF9',   // edit mode highlight
-
-    // Borders
-    cardBorder:   dk ? '#334155' : '#E8E2D9',   // card / section dividers
-    inputBorder:  dk ? '#475569' : '#D1D5DB',   // inputs, action buttons — must be visible
-    divider:      dk ? '#1E293B' : '#F3F4F6',   // subtle inner table dividers
-
-    // Text
-    textPri:      dk ? '#F1F5F9' : '#111827',   // headings, names, primary values
-    textBody:     dk ? '#CBD5E1' : '#374151',   // body text, amounts, button labels
-    textMuted:    dk ? '#94A3B8' : '#4B5563',   // labels, secondary info, placeholders
-    textSubtle:   dk ? '#64748B' : '#6B7280',   // timestamps, hints — use sparingly
-
-    // Interactive
-    btnBorder:    dk ? '#475569' : '#D1D5DB',   // icon action buttons
-    btnText:      dk ? '#CBD5E1' : '#374151',   // icon action buttons text/icon color
-    btnHoverBg:   dk ? '#334155' : '#F9FAFB',
-
-    // Inputs
-    inputBg:      dk ? '#0F172A' : '#ffffff',
-
-    // Table alternating rows
-    tableRowAlt:  dk ? '#1a2535' : '#F9F8F6',   // odd rows — warm off-white / dark blue-gray
-    tableRowHover:dk ? '#1a2940' : '#F0FAFA',   // hover — light teal tint
-
-    // Misc
-    teal:         '#0F766E',
-    tealL:        '#14B8A6',
-
-    // Calendar — semantic tokens (no hardcoding in calendar components)
-    calSidebar:       dk ? '#0F172A' : '#F7F6F3',
-    calToolbar:       dk ? '#1E293B' : '#ffffff',
-    calGridBg:        dk ? '#0F172A' : '#ffffff',
-    calColToday:      dk ? 'rgba(15,118,110,0.12)' : '#F0FDFA',
-    calColWeekend:    dk ? 'rgba(255,255,255,0.02)' : '#FAFAFA',
-    calColSelected:   dk ? 'rgba(15,118,110,0.07)' : '#F9FEFE',
-    calDayHeader:     dk ? '#1E293B' : '#ffffff',
-    calCellBorder:    dk ? '#1E2D3D' : '#F0EEE9',
-    calEmptyText:     dk ? '#334155' : '#D1D5DB',
-    calAgendaBg:      dk ? '#0A1628' : '#F7F6F3',
-    filterTrackOff:   dk ? '#1E293B' : '#E5E7EB',
-    overdueAlertBg:   dk ? '#2D0A0A' : '#FEF2F2',
-    overdueAlertBorder:dk ? '#7F1D1D' : '#FECACA',
-    overdueText:      dk ? '#FCA5A5' : '#991B1B',
-  }
-}
-
-export type Theme = ReturnType<typeof theme>
-
+export { theme, T, BRAND } from './tokens'
+export type { Theme } from './tokens'

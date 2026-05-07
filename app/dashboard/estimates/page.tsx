@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, FileText, Search, Trash2, X, User } from 'lucide-react'
 import { Session } from '@/types'
 import DashboardShell from '@/components/layout/DashboardShell'
+import { estimateStatusStyle } from '@/lib/design'
+import { theme, T } from '@/lib/tokens'
 
 // Separated out because useSearchParams() requires Suspense boundary in App Router
 function VoidedToast({ onToast }: { onToast: (msg: string) => void }) {
@@ -201,10 +203,11 @@ export default function EstimatesPage() {
 
   if (!session) return null
 
-  const card    = dk ? 'bg-[#1E293B] border-[#334155]' : 'bg-white border-[#E8E2D9]'
-  const textMain = dk ? 'text-white' : 'text-gray-900'
-  const muted   = dk ? 'text-slate-400' : 'text-[#6B7280]'
-  const pageBg  = dk ? 'bg-[#0A1628]' : 'bg-[#F5F4F0]'
+  const t       = theme(dk)
+  const card    = `border rounded-xl` // use t.cardBg inline
+  const textMain = 'font-semibold' // use t.textPri inline
+  const muted   = '' // use t.textMuted inline
+  const pageBg  = '' // use t.pageBg inline
 
   // E1+E2+E3: filter, sort, archive
   const archivedStatuses = ['void', 'declined']
@@ -304,7 +307,7 @@ export default function EstimatesPage() {
               { label: 'Active Estimates Value', value: fmt(totalValue) },
             ].map(stat => (
               <div key={stat.label} className={`rounded-xl border p-3 md:p-4 ${card}`}>
-                <p className={`text-[10px] md:text-xs font-bold uppercase tracking-wide ${muted}`}>{stat.label}</p>
+                <p className={`text-[12px] font-bold uppercase tracking-wide ${muted}`}>{stat.label}</p>
                 <p className={`text-xl md:text-2xl font-bold mt-1 ${textMain}`}>{stat.value}</p>
               </div>
             ))}
@@ -412,8 +415,8 @@ export default function EstimatesPage() {
                         <p className={`text-sm font-semibold truncate ${textMain}`}>{est.lead_name}</p>
                         <p className={`text-xs mt-0.5 ${muted}`}>#{est.estimate_number}</p>
                       </div>
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${STATUS_STYLES[est.status].bg} ${STATUS_STYLES[est.status].text}`}>
-                        {STATUS_STYLES[est.status].label}
+                      <span style={{ background: estimateStatusStyle(est.status, dk).bg, color: estimateStatusStyle(est.status, dk).text, padding: '2px 10px', borderRadius: 20, fontSize: T.fontBadge, fontWeight: 600, display: 'inline-flex', flexShrink: 0 }}>
+                        {estimateStatusStyle(est.status, dk).label}
                       </span>
                       <div className={`text-sm font-bold shrink-0 ${textMain}`}>
                         {fmt(est.total)}
@@ -434,8 +437,8 @@ export default function EstimatesPage() {
                       </div>
                       <div className={`text-sm self-center truncate ${muted}`}>{est.trade}</div>
                       <div className="self-center">
-                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[est.status].bg} ${STATUS_STYLES[est.status].text}`}>
-                          {STATUS_STYLES[est.status].label}
+                        <span style={{ background: estimateStatusStyle(est.status, dk).bg, color: estimateStatusStyle(est.status, dk).text, padding: '2px 10px', borderRadius: 20, fontSize: T.fontBadge, fontWeight: 600, display: 'inline-flex' }}>
+                          {estimateStatusStyle(est.status, dk).label}
                         </span>
                       </div>
                       <div className={`text-sm font-semibold self-center text-right ${textMain}`}>
