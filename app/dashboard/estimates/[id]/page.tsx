@@ -295,8 +295,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
   if (!session) return null
 
-  const card = dk ? 'bg-[#1E293B] text-white border-[#334155]' : 'bg-white text-gray-900 border-[#E8E2D9]'
-  const muted = dk ? 'text-slate-400' : 'text-[#6B7280]'
+  // NOTE: card and muted are now color values (not Tailwind classes)
+  // Use as: style={{ color: muted }} or style={{ background: cardBg }}
+  const muted = t.textMuted   // color value for inline styles
   const t = theme(dk)
 
   return (
@@ -405,7 +406,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               onClick={() => fromPipeline && fromLeadId
                 ? router.push(`/dashboard/pipeline/${fromLeadId}`)
                 : router.push('/dashboard/estimates')}
-              className={`flex items-center gap-1.5 text-sm font-medium ${muted} hover:text-[#0F766E] transition-colors`}
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-[#0F766E] transition-colors" style={{ color: muted }}
             >
               <ArrowLeft size={16} />
               {fromPipeline ? 'Back to Pipeline' : 'Back to Estimates'}
@@ -425,7 +426,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           ) : estimate ? (
             <>
               {/* ── Estimate header ── */}
-              <div className={`rounded-xl border px-6 py-5 ${card}`}>
+              <div style={{ borderRadius: 12, border: `1px solid ${t.cardBorder}`, padding: '20px 24px', background: t.cardBg }}>
                 <div className="flex flex-col xl:flex-row xl:items-start xl:gap-6 gap-3">
                   {/* Col 1: Name H1 + EST# line 2 */}
                   <div className="xl:flex-1 min-w-0">
@@ -460,8 +461,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       <div key={label} className="flex items-center gap-0">
                         {i > 0 && <span className="hidden xl:block mx-5 select-none" style={{ color: t.inputBorder }}>|</span>}
                         <div>
-                          <p className={`text-[10px] font-semibold uppercase tracking-wider leading-none ${muted}`}>{label}</p>
-                          <p className={`text-sm font-bold mt-1 ${amber ? 'text-amber-500' : (dk ? 'text-white' : 'text-gray-900')}`}>{value}</p>
+                          <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.06em", lineHeight: 1, color: muted }}>{label}</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, marginTop: 4, color: amber ? '#F59E0B' : t.textPri }}>{value}</p>
                         </div>
                       </div>
                     ))}
@@ -623,7 +624,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       )}
                     </div>
                     {estimate.status !== 'void' && estimate.status !== 'declined' && (
-                      <p className={`text-[11px] text-right ${muted}`}>Client can approve &amp; pay instantly</p>
+                      <p style={{ fontSize: 11, textAlign: "right" as const, color: muted }}>Client can approve &amp; pay instantly</p>
                     )}
                   </div>
                 </div>
@@ -904,7 +905,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </>
           ) : (
-            <div className={`rounded-xl border p-12 text-center ${card} ${muted}`}>
+            <div style={{ borderRadius: 12, border: `1px solid ${t.cardBorder}`, padding: "48px 24px", textAlign: "center" as const, background: t.cardBg, color: muted }}>
               Estimate not found.
             </div>
           )}
@@ -979,11 +980,11 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             </div>
             <div className="max-h-80 overflow-y-auto">
               {loadingTemplates ? (
-                <div className={`p-8 text-center text-sm ${muted}`}>Loading templates...</div>
+                <div style={{ padding: 32, textAlign: "center" as const, fontSize: 14, color: muted }}>Loading templates...</div>
               ) : templates.length === 0 ? (
                 <div className="p-8 text-center">
                   <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>No templates yet</p>
-                  <p className={`text-xs mt-1 ${muted}`}>Build an estimate and click "Save as Template" to reuse it.</p>
+                  <p style={{ fontSize: 12, marginTop: 4, color: muted }}>Build an estimate and click "Save as Template" to reuse it.</p>
                 </div>
               ) : templates.map(tpl => (
                 <div key={tpl.id} className={`border-b last:border-b-0 ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
@@ -991,7 +992,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     <button onClick={() => applyTemplate(tpl)}
                       className={`flex-1 text-left px-5 py-3.5 transition-colors ${dk ? 'hover:bg-[#0F172A]' : 'hover:bg-[#F9FAFB]'}`}>
                       <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>{tpl.name}</p>
-                      <p className={`text-xs mt-0.5 ${muted}`}>{tpl.items.length} item{tpl.items.length !== 1 ? 's' : ''} · ${tpl.items.reduce((s: number, i: any) => s + i.qty * i.unit_price, 0).toLocaleString()}</p>
+                      <p style={{ fontSize: 12, marginTop: 2, color: muted }}>{tpl.items.length} item{tpl.items.length !== 1 ? 's' : ''} · ${tpl.items.reduce((s: number, i: any) => s + i.qty * i.unit_price, 0).toLocaleString()}</p>
                     </button>
                     {/* Preview toggle */}
                     <button onClick={e => { e.stopPropagation(); setPreviewTpl(previewTpl === tpl.id ? null : tpl.id) }}
@@ -1038,7 +1039,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           <div className={`w-full max-w-sm rounded-2xl shadow-2xl p-6 ${dk ? 'bg-[#1E293B]' : 'bg-white'}`}
             onClick={e => e.stopPropagation()}>
             <h3 className={`font-semibold mb-1 ${dk ? 'text-white' : 'text-gray-900'}`}>Save as Template</h3>
-            <p className={`text-sm mb-4 ${muted}`}>Name this template so you can reuse it on future estimates.</p>
+            <p style={{ fontSize: 14, marginBottom: 16, color: muted }}>Name this template so you can reuse it on future estimates.</p>
             <input autoFocus value={templateName} onChange={e => setTemplateName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveTemplate(); if (e.key === 'Escape') setShowSaveTemplate(false) }}
               placeholder="e.g. Interior Paint 2BHK"
