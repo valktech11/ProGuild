@@ -287,10 +287,10 @@ function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk }: {
         return (
           <button key={key} onClick={() => onSelect(d)}
             style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'8px 2px 6px', borderRadius:10, border:'none', cursor:'pointer', background:isSel?'#0F766E':isTod?(dk?'#166534':'#BBF7D0'):'transparent', minHeight:64 }}>
-            <span style={{ fontSize: 12, fontWeight:700, color:isSel?'rgba(255,255,255,0.85)':isTod?'#0F766E':dk?'#94A3B8':'#6B7280' }}>
+            <span style={{ fontSize: 12, fontWeight:700, color:isSel?'rgba(255,255,255,0.85)':isTod?'#0F766E':d.getDay()===0?'#DC2626':dk?'#94A3B8':'#6B7280' }}>
               {DAYS[d.getDay()].slice(0,1)}
             </span>
-            <span style={{ fontSize: 17, fontWeight:900, lineHeight:1, color:isSel?'white':isTod?'#0F766E':dk?'#F1F5F9':'#111827' }}>
+            <span style={{ fontSize: 17, fontWeight:900, lineHeight:1, color:isSel?'white':isTod?'#0F766E':d.getDay()===0?'#DC2626':dk?'#F1F5F9':'#111827' }}>
               {d.getDate()}
             </span>
             {/* Coloured dots: teal=job, amber=followup, red=overdue */}
@@ -316,8 +316,8 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk }: {
   return (
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:2 }}>
-        {DAYS.map(d => (
-          <div key={d} style={{ textAlign:'center', fontSize: 11, fontWeight:700, color:t.textMuted, padding:'3px 0', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+        {DAYS.map((d,i) => (
+          <div key={d} style={{ textAlign:'center', fontSize: 11, fontWeight:700, color:i===0?'#DC2626':t.textMuted, padding:'3px 0', textTransform:'uppercase', letterSpacing:'0.05em' }}>
             {d.slice(0,1)}
           </div>
         ))}
@@ -336,7 +336,7 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk }: {
           return (
             <button key={day} onClick={() => onSelect(d)}
               style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'5px 2px', borderRadius:8, border:'none', cursor:'pointer', background:isSel?'#0F766E':isTod?t.calColToday:'transparent', minHeight:42 }}>
-              <span style={{ fontSize: 14, fontWeight:isTod?800:500, color:isSel?'white':isTod?'#0F766E':dk?'#F1F5F9':'#111827', lineHeight:1.2 }}>
+              <span style={{ fontSize: 14, fontWeight:isTod?800:500, color:isSel?'white':isTod?'#0F766E':d.getDay()===0?'#DC2626':dk?'#F1F5F9':'#111827', lineHeight:1.2 }}>
                 {day}
               </span>
               <div style={{ display:'flex', gap:2, minHeight:5, alignItems:'center' }}>
@@ -621,7 +621,7 @@ function CalendarInner() {
           <SidebarCard title={`Needs Date (${unscheduled.length})`} titleColor="#D97706" dk={dk}>
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
               {unscheduled.slice(0,5).map(ev => (
-                <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id)}
+                <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id+'?from=calendar')}
                   style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 9px', borderRadius:8, background:dk?t.warningBg:t.warningBg, cursor:'pointer', border:'1px solid #FDE68A' }}
                   onMouseEnter={e => (e.currentTarget.style.background=t.warningBorder)}
                   onMouseLeave={e => (e.currentTarget.style.background=dk?t.warningBg:t.warningBg)}>
@@ -694,9 +694,9 @@ function CalendarInner() {
                 return (
                   <div key={toDateKey(d)} onClick={() => { selectDay(d); setDesktopView('day') }}
                     style={{ padding:'10px 8px', textAlign:'center', borderRight:`1px solid ${t.calCellBorder}`, cursor:'pointer', background:isTod?t.calColToday:isWknd?t.calColWeekend:isSel?t.calColSelected:'transparent' }}>
-                    <div style={{ fontSize: 11, fontWeight:700, color:isTod?'#0F766E':isWknd?t.textSubtle:t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em' }}>{DAYS[d.getDay()]}</div>
+                    <div style={{ fontSize: 11, fontWeight:700, color:isTod?'#0F766E':d.getDay()===0?'#DC2626':isWknd?t.textSubtle:t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em' }}>{DAYS[d.getDay()]}</div>
                     <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'3px auto 0', background:isTod?'#0F766E':'transparent' }}>
-                      <span style={{ fontSize: 15, fontWeight:700, color:isTod?'white':isSel?'#0F766E':t.textPri }}>{d.getDate()}</span>
+                      <span style={{ fontSize: 15, fontWeight:700, color:isTod?'white':isSel?'#0F766E':d.getDay()===0?'#DC2626':t.textPri }}>{d.getDate()}</span>
                     </div>
                   </div>
                 )
@@ -794,7 +794,7 @@ function CalendarInner() {
           <div style={{ display:'flex', flexDirection:'column', flex:1, overflow:'hidden' }}>
             <div style={{ padding:'14px 14px 6px' }}>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:4 }}>
-                {DAYS.map(d => <div key={d} style={{ textAlign:'center', fontSize: 12, fontWeight:700, color:t.textMuted, padding:'4px 0', textTransform:'uppercase', letterSpacing:'0.06em' }}>{d}</div>)}
+                {DAYS.map((d,i) => <div key={d} style={{ textAlign:'center', fontSize: 12, fontWeight:700, color:i===0?'#DC2626':t.textMuted, padding:'4px 0', textTransform:'uppercase', letterSpacing:'0.06em' }}>{d}</div>)}
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2 }}>
                 {Array(firstDay).fill(null).map((_,i)=><div key={'e'+i}/>)}
@@ -809,7 +809,7 @@ function CalendarInner() {
                       style={{ minHeight:70, padding:'5px', borderRadius:7, cursor:'pointer', border:`1.5px solid ${isSel?'#0F766E':t.calCellBorder}`, background:isTod?t.calColToday:t.cardBg, transition:'background 0.1s' }}
                       onMouseEnter={e => (e.currentTarget.style.background=t.calColSelected)}
                       onMouseLeave={e => (e.currentTarget.style.background=isTod?t.calColToday:t.cardBg)}>
-                      <div style={{ fontSize: 13, fontWeight:isTod?800:500, color:isTod?'#0F766E':t.textPri, marginBottom:3 }}>{day}</div>
+                      <div style={{ fontSize: 13, fontWeight:isTod?800:500, color:isTod?'#0F766E':d.getDay()===0?'#DC2626':t.textPri, marginBottom:3 }}>{day}</div>
                       <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
                         {dayEvs.slice(0,2).map(ev => (
                           <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="micro"
@@ -1009,7 +1009,7 @@ function CalendarInner() {
           <div style={{ marginTop:6 }}>
             <div style={{ fontSize: 13, fontWeight:700, color:'#0F766E', marginBottom:8 }}>Needs scheduling ({unscheduled.length})</div>
             {unscheduled.slice(0,3).map(ev => (
-              <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id)}
+              <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id+'?from=calendar')}
                 style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:11, background:t.cardBg, border:`1px solid ${t.cardBorder}`, marginBottom:8, cursor:'pointer' }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize: 15, fontWeight:700, color:t.textPri }}>{capName(ev.contact_name)}</div>

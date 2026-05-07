@@ -205,7 +205,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               </div>
             ) : leads.map((lead, i) => (
               <div key={lead.id}
-                onClick={() => router.push(`/dashboard/pipeline/${lead.id}`)}
+                onClick={() => router.push(`/dashboard/pipeline/${lead.id}?from=clients`)}
                 style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 20px', borderTop: i > 0 ? `1px solid ${t.divider}` : 'none', cursor:'pointer', background: i % 2 === 1 ? t.tableRowAlt : 'transparent', transition:'background 0.1s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = t.tableRowHover)}
                 onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 1 ? t.tableRowAlt : 'transparent')}>

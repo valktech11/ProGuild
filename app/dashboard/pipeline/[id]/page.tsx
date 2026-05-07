@@ -84,7 +84,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const fromCalendar = searchParams.get('from') === 'calendar'
+  const _from      = searchParams.get('from')   // 'calendar' | 'clients' | null
+  const fromCalendar = _from === 'calendar'
+  const fromClients  = _from === 'clients'
+
+  // Back nav — maps `from` param to label + href
+  const _fromEstId = searchParams.get('est_id')
+  function backNav() {
+    if (_from === 'calendar')  return { label: 'Back to Calendar',  href: '/dashboard/calendar' }
+    if (_from === 'clients')   return { label: 'Back to Clients',   href: '/dashboard/clients' }
+    if (_from === 'estimates') return { label: 'Back to Estimate',  href: _fromEstId ? `/dashboard/estimates/${_fromEstId}` : '/dashboard/estimates' }
+    return { label: 'Back to Pipeline', href: '/dashboard/pipeline' }
+  }
 
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
@@ -644,9 +655,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
             <>
               {/* Top nav */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                <button onClick={() => router.push(fromCalendar ? '/dashboard/calendar' : '/dashboard/pipeline')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 'auto' }}>
+                <button onClick={() => router.push(backNav().href)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 'auto' }}>
                   <Ic color={ts}><polyline points="15 18 9 12 15 6"/></Ic>
-                  {fromCalendar ? 'Back to Calendar' : 'Back to Pipeline'}
+                  {backNav().label}
                 </button>
                 {lead.contact_phone ? (
                   <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
@@ -755,7 +766,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     )
                   ) : currentStage === 'Completed' ? (
                     leadInvoice ? (
-                      <button onClick={() => router.push(`/dashboard/invoices/${leadInvoice.id}`)}
+                      <button onClick={() => router.push(`/dashboard/invoices/${leadInvoice.id}?from=pipeline&lead_id=${id}`)}
                         style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
                         View Invoice #{leadInvoice.invoice_number}

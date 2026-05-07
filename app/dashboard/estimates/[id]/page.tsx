@@ -72,8 +72,16 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params)
   const router      = useRouter()
   const searchParams = useSearchParams()
-  const fromPipeline = searchParams.get('from') === 'pipeline'
-  const fromLeadId   = searchParams.get('lead_id')
+  const _from       = searchParams.get('from')   // 'pipeline' | 'calendar' | null
+  const fromLeadId  = searchParams.get('lead_id')
+  const fromPipeline = _from === 'pipeline' || _from === 'calendar'  // calendar goes via pipeline lead
+
+  // Back nav resolver
+  function backNav() {
+    if ((_from === 'pipeline' || _from === 'calendar') && fromLeadId)
+      return { label: 'Back to Lead', href: `/dashboard/pipeline/${fromLeadId}?from=${_from}` }
+    return { label: 'Back to Estimates', href: '/dashboard/estimates' }
+  }
 
   // Read session synchronously to avoid flicker
   const [session] = useState<Session | null>(() => {
@@ -404,13 +412,11 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           {/* ── Top action bar ── */}
           <div className="flex items-center justify-between">
             <button
-              onClick={() => fromPipeline && fromLeadId
-                ? router.push(`/dashboard/pipeline/${fromLeadId}`)
-                : router.push('/dashboard/estimates')}
+              onClick={() => router.push(backNav().href)}
               className="flex items-center gap-1.5 text-sm font-medium hover:text-[#0F766E] transition-colors" style={{ color: muted }}
             >
               <ArrowLeft size={16} />
-              {fromPipeline ? 'Back to Pipeline' : 'Back to Estimates'}
+              {backNav().label}
             </button>
 
             <div className="flex items-center gap-3">
@@ -433,7 +439,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   <div className="xl:flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       {estimate.lead_id ? (
-                        <button onClick={() => router.push(`/dashboard/pipeline/${estimate.lead_id}`)}
+                        <button onClick={() => router.push(`/dashboard/pipeline/${estimate.lead_id}?from=estimates`)}
                           className={`text-[22px] font-bold leading-tight hover:text-[#0F766E] transition-colors text-left ${dk ? 'text-white' : 'text-gray-900'}`}>
                           {estimate.lead_name}
                         </button>
