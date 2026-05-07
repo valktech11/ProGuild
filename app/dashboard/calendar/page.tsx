@@ -875,13 +875,18 @@ function CalendarInner() {
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100%', background:t.pageBg }}>
 
       {/* Sticky header */}
-      <div style={{ flexShrink:0, background:t.cardBg, borderBottom:`1px solid ${t.cardBorder}`, position:'sticky', top:0, zIndex:20 }}>
+      <div style={{ flexShrink:0, position:'sticky', top:0, zIndex:20,
+        background: mobileView==='agenda' ? '#0F766E' : t.cardBg,
+        borderBottom: mobileView==='agenda' ? 'none' : `1px solid ${t.cardBorder}`,
+      }}>
 
         {/* Row 1: nav + date + filter */}
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px 8px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding: mobileView==='agenda'?'14px 14px 8px':'10px 14px 8px' }}>
           <button onClick={() => handleMobileNav(-1)}
-            style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11, border:`1.5px solid ${t.cardBorder}`, background:t.cardBgAlt, cursor:'pointer', flexShrink:0 }}>
-            <Svg path={ICON_PATH.chevronL} size={17} color={t.textBody} sw={2.5}/>
+            style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
+              border: mobileView==='agenda'?'1.5px solid rgba(255,255,255,0.25)':`1.5px solid ${t.cardBorder}`,
+              background: mobileView==='agenda'?'rgba(255,255,255,0.12)':t.cardBgAlt, cursor:'pointer', flexShrink:0 }}>
+            <Svg path={ICON_PATH.chevronL} size={17} color={mobileView==='agenda'?'white':t.textBody} sw={2.5}/>
           </button>
 
           <div style={{ flex:1, textAlign:'center' }}>
@@ -904,26 +909,31 @@ function CalendarInner() {
           </div>
 
           <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-            {/* Filter button */}
             <button onClick={() => setFilterSheetOpen(true)}
-              style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11, border:`1.5px solid ${(!showJobs||!showFollowups)?'#0F766E':t.cardBorder}`, background:(!showJobs||!showFollowups)?'#F0FDFA':t.cardBgAlt, cursor:'pointer' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={(!showJobs||!showFollowups)?'#0F766E':t.textBody} strokeWidth="2.2" strokeLinecap="round">
+              style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
+                border: mobileView==='agenda'?'1.5px solid rgba(255,255,255,0.25)':`1.5px solid ${(!showJobs||!showFollowups)?'#0F766E':t.cardBorder}`,
+                background: mobileView==='agenda'?'rgba(255,255,255,0.12)':((!showJobs||!showFollowups)?'#F0FDFA':t.cardBgAlt), cursor:'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke={mobileView==='agenda'?'white':((!showJobs||!showFollowups)?'#0F766E':t.textBody)}
+                strokeWidth="2.2" strokeLinecap="round">
                 <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
               </svg>
             </button>
             <button onClick={() => handleMobileNav(1)}
-              style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11, border:`1.5px solid ${t.cardBorder}`, background:t.cardBgAlt, cursor:'pointer' }}>
-              <Svg path={ICON_PATH.chevronR} size={17} color={t.textBody} sw={2.5}/>
+              style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
+                border: mobileView==='agenda'?'1.5px solid rgba(255,255,255,0.25)':`1.5px solid ${t.cardBorder}`,
+                background: mobileView==='agenda'?'rgba(255,255,255,0.12)':t.cardBgAlt, cursor:'pointer' }}>
+              <Svg path={ICON_PATH.chevronR} size={17} color={mobileView==='agenda'?'white':t.textBody} sw={2.5}/>
             </button>
           </div>
         </div>
 
         {/* Row 2: view selector + Today chip */}
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0 14px 8px' }}>
-          <div style={{ display:'flex', borderRadius:22, overflow:'hidden', border:`1.5px solid ${t.cardBorder}`, flexShrink:0 }}>
+          <div style={{ display:'flex', borderRadius:22, overflow:'hidden', border: mobileView==='agenda'?'1.5px solid rgba(255,255,255,0.25)':`1.5px solid ${t.cardBorder}`, flexShrink:0 }}>
             {(['agenda','week','month'] as const).map(v => (
               <button key={v} onClick={() => setMobileView(v)}
-                style={{ padding:'7px 13px', border:'none', cursor:'pointer', fontSize: 13, fontWeight:700, background:mobileView===v?'#0F766E':'transparent', color:mobileView===v?'white':t.textMuted }}>
+                style={{ padding:'7px 13px', border:'none', cursor:'pointer', fontSize: 13, fontWeight:700, background:mobileView===v?'#0F766E':(mobileView==='agenda'?'rgba(255,255,255,0.12)':'transparent'), color:mobileView===v?'white':(mobileView==='agenda'?'rgba(255,255,255,0.7)':t.textMuted) }}>
                 {v==='agenda'?'Day':v==='week'?'Week':'Month'}
               </button>
             ))}
@@ -959,7 +969,45 @@ function CalendarInner() {
         </div>
       )}
 
-      {/* Scrollable agenda */}
+      {/* Stats strip — Day mode only, always visible */}
+      {mobileView==='agenda' && (() => {
+        const dayJobs2      = selectedDayEvs.filter(ev => ev._type==='job')
+        const dayCompleted2 = dayJobs2.filter(ev => ev.lead_status==='Completed'||ev.lead_status==='Paid')
+        const dayValue2     = dayJobs2.reduce((s,ev)=>s+(ev.quoted_amount||0),0)
+        return (
+          <div style={{ flexShrink:0, display:'flex', background:'#0F766E', borderBottom:'1px solid rgba(255,255,255,0.15)' }}>
+            {[
+              { label:"Today's Value", value: dayValue2>0?'$'+dayValue2.toLocaleString():'$0' },
+              { label:'Jobs',          value: String(dayJobs2.length) },
+              { label:'Done',          value: String(dayCompleted2.length) },
+            ].map((s,i) => (
+              <div key={s.label} style={{ flex:1, padding:'10px 8px', borderRight: i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
+                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.65)', marginBottom:3 }}>{s.label}</div>
+                <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* Stats strip — Day view always visible */}
+      {mobileView==='agenda' && (() => {
+        const dj = selectedDayEvs.filter(ev => ev._type==='job')
+        const dc = dj.filter(ev => ev.lead_status==='Completed'||ev.lead_status==='Paid')
+        const dv = dj.reduce((s,ev)=>s+(ev.quoted_amount||0),0)
+        return (
+          <div style={{ flexShrink:0, display:'flex', background:'#0F766E', borderBottom:'1px solid rgba(0,0,0,0.08)' }}>
+            {[{ label:"Today's Value", value:dv>0?'$'+dv.toLocaleString():'$0' },{ label:'Jobs', value:String(dj.length) },{ label:'Done', value:String(dc.length) }].map((s,i)=>(
+              <div key={s.label} style={{ flex:1, padding:'11px 8px', borderRight:i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
+                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.65)', marginBottom:3 }}>{s.label}</div>
+                <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+    {/* Scrollable agenda */}
       <div style={{ flex:1, padding:'10px 14px', display:'flex', flexDirection:'column', gap:10, overflowY:'auto' }}
         onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {loading ? (
