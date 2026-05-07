@@ -894,7 +894,7 @@ function CalendarInner() {
           </button>
 
           <div style={{ flex:1, textAlign:'center' }}>
-            <div style={{ fontSize: 15, fontWeight:800, color:t.textPri, letterSpacing:'-0.2px' }}>
+            <div style={{ fontSize: mobileView==='agenda'?22:17, fontWeight:800, color: mobileView==='agenda'?'white':t.textPri, letterSpacing:'-0.3px' }}>
               {mobileView==='agenda'
                 ? isToday(selectedDate) ? 'Today' : `${DAYS[selectedDate.getDay()]}, ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`
                 : mobileView==='week'
@@ -902,7 +902,7 @@ function CalendarInner() {
                 : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
               }
             </div>
-            <div style={{ fontSize: 12, color:t.textSubtle, marginTop:1 }}>
+            <div style={{ fontSize: mobileView==='month'?12:13, color: mobileView==='agenda'?'rgba(255,255,255,0.70)':t.textSubtle, marginTop:2 }}>
               {mobileView==='agenda' && (isToday(selectedDate)
                 ? `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}${todayJobs.length>0?` · ${todayJobs.length} jobs`:''}`
                 : selectedDate.getFullYear().toString()
@@ -979,7 +979,7 @@ function CalendarInner() {
         const dc = dj.filter(ev => ev.lead_status==='Completed'||ev.lead_status==='Paid')
         const dv = dj.reduce((s,ev)=>s+(ev.quoted_amount||0),0)
         return (
-          <div style={{ flexShrink:0, display:'flex', background:'#0F766E', borderBottom:'1px solid rgba(0,0,0,0.08)' }}>
+          <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
             {[{ label:"Today's Value", value:dv>0?'$'+dv.toLocaleString():'$0' },{ label:'Jobs', value:String(dj.length) },{ label:'Done', value:String(dc.length) }].map((s,i)=>(
               <div key={s.label} style={{ flex:1, padding:'11px 8px', borderRight:i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
                 <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.65)', marginBottom:3 }}>{s.label}</div>
@@ -1096,7 +1096,7 @@ function CalendarInner() {
           })()
         ) : selectedDayEvs.length===0 ? (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:14, paddingTop:28 }}>
-            <div style={{ width:52, height:52, borderRadius:'50%', background:dk?'rgba(15,118,110,0.15)':'#F0FDFA', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <div style={{ width:52, height:52, borderRadius:'50%', background:t.cardBg, border:`1px solid ${t.cardBorder}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round">
                 <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
@@ -1263,7 +1263,7 @@ function CalendarInner() {
                 style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:11, background:t.cardBg, border:`1px solid ${t.cardBorder}`, marginBottom:8, cursor:'pointer' }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize: 15, fontWeight:700, color:t.textPri }}>{capName(ev.contact_name)}</div>
-                  <div style={{ fontSize: 12, color:t.textSubtle, marginTop:1 }}>{ev.lead_status}</div>
+                  <div style={{ fontSize: 13, color: mobileView==='agenda'?'rgba(255,255,255,0.70)':t.textSubtle, marginTop:2 }}>{ev.lead_status}</div>
                 </div>
                 <Svg path={ICON_PATH.chevronR} size={12} color={t.textSubtle} sw={2.5}/>
               </div>

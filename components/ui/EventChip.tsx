@@ -123,8 +123,8 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
         <div style={{ fontSize: 13, fontWeight: 700, color: es.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {capName(ev.contact_name)}
         </div>
-        {/* Row 3: amount (if set) */}
-        {ev.quoted_amount && ev.quoted_amount > 0 ? (
+        {/* Row 3: amount — jobs only, not follow-ups */}
+        {ev._type === 'job' && ev.quoted_amount && ev.quoted_amount > 0 ? (
           <div style={{ fontSize: 12, fontWeight: 600, color: es.mutedText }}>
             ${ev.quoted_amount.toLocaleString()}
           </div>
@@ -163,7 +163,7 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
               <span style={{ fontSize: 13, fontWeight: 800, color: es.border }}>{timeLabel}</span>
             </>
           )}
-          {ev.quoted_amount && ev.quoted_amount > 0 ? (
+          {ev._type === 'job' && ev.quoted_amount && ev.quoted_amount > 0 ? (
             <>
               <span style={{ color: t.cardBorder, marginLeft: 'auto' }}>·</span>
               <span style={{ fontSize: 14, fontWeight: 800, color: es.border, marginLeft: 4 }}>
