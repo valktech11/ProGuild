@@ -1101,19 +1101,126 @@ function CalendarInner() {
             )}
           </div>
         ) : (
-          <>
-            <div style={{ fontSize: 13, fontWeight:600, color:t.textSubtle }}>
-              {selectedDayEvs.length} event{selectedDayEvs.length!==1?'s':''} · {isToday(selectedDate)?'Today':`${DAYS[selectedDate.getDay()]} ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
-              {selectedDayValue>0 && <span style={{ color:'#15803D', marginLeft:8, fontWeight:700 }}>${selectedDayValue.toLocaleString()}</span>}
-            </div>
-            {selectedDayEvs.map(ev => (
-              <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="full"
-                onClick={() => setSelectedEvent(ev)}
-                onMarkComplete={ev._type==='job'&&ev.lead_status==='Scheduled'?()=>markComplete(ev):undefined}
-                completing={completing===ev.id}
-                isOverdue={isOverdueEvent(ev,today0)}/>
-            ))}
-          </>
+          /* ── DAY VIEW: time-slot agenda (reference design) ──────────────── */
+          (() => {
+            // Sort: timed events by time, untimed at end
+            const timed   = selectedDayEvs.filter(ev => ev.scheduled_time).sort((a,b) => (a.scheduled_time||'').localeCompare(b.scheduled_time||''))
+            const untimed = selectedDayEvs.filter(ev => !ev.scheduled_time)
+            const ordered = [...timed, ...untimed]
+
+            // Stats for today
+            const dayJobs      = selectedDayEvs.filter(ev => ev._type==='job')
+            const dayCompleted = dayJobs.filter(ev => ev.lead_status === 'Completed' || ev.lead_status === 'Paid')
+            const dayValue     = dayJobs.reduce((s,ev) => s + (ev.quoted_amount||0), 0)
+
+            return (
+              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                {/* Today stats strip */}
+                <div style={{ display:'flex', gap:0, background:t.cardBg, borderRadius:14, border:`1px solid ${t.cardBorder}`, marginBottom:14, overflow:'hidden' }}>
+                  {[
+                    { label: "Today's Value", value: dayValue > 0 ? `$${dayValue.toLocaleString()}` : '$0', color: dayValue>0 ? '#15803D' : t.textMuted },
+                    { label: 'Jobs',      value: String(dayJobs.length),      color: '#0F766E' },
+                    { label: 'Done',      value: String(dayCompleted.length),  color: '#15803D' },
+                  ].map((s,i) => (
+                    <div key={s.label} style={{ flex:1, padding:'12px 10px', borderRight: i<2 ? `1px solid ${t.cardBorder}` : 'none', textAlign:'center' }}>
+                      <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:t.textMuted, marginBottom:3 }}>{s.label}</div>
+                      <div style={{ fontSize:20, fontWeight:800, color:s.color, lineHeight:1 }}>{s.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Time-slot agenda rows */}
+                {ordered.map((ev, idx) => {
+                  const isOverdue2  = isOverdueEvent(ev, today0)
+                  const isFollowup  = ev._type === 'followup'
+                  const isJob       = ev._type === 'job'
+                  const isDone      = ev.lead_status === 'Completed' || ev.lead_status === 'Paid'
+                  const accentColor = isOverdue2 ? '#DC2626' : isFollowup ? '#D97706' : isDone ? '#9CA3AF' : '#0F766E'
+                  const timeLabel   = ev.scheduled_time ? fmtTime(ev.scheduled_time) : (isFollowup ? 'Follow-up' : 'All day')
+                  const statusLabel = isOverdue2 ? 'Overdue' : isDone ? 'Done' : ev.lead_status
+                  const statusBg    = isOverdue2 ? '#FEF2F2' : isFollowup ? '#FFFBEB' : isDone ? '#F3F4F6' : '#F0FDFA'
+                  const statusColor = isOverdue2 ? '#DC2626' : isFollowup ? '#D97706' : isDone ? '#9CA3AF' : '#0F766E'
+                  const phone       = ev.contact_phone
+
+                  return (
+                    <div key={ev.id+ev._type}>
+                      {/* Time label — shown for first event or when time changes */}
+                      {(idx === 0 || ordered[idx-1].scheduled_time !== ev.scheduled_time || (!ev.scheduled_time && ordered[idx-1].scheduled_time)) && (
+                        <div style={{ fontSize:12, fontWeight:700, color:t.textMuted, padding:'10px 0 6px', letterSpacing:'0.02em' }}>
+                          {timeLabel.toUpperCase()}
+                        </div>
+                      )}
+
+                      {/* Event card */}
+                      <div onClick={() => setSelectedEvent(ev)}
+                        style={{ background:t.cardBg, borderRadius:14, border:`1px solid ${t.cardBorder}`, borderLeft:`4px solid ${accentColor}`, marginBottom:10, overflow:'hidden', opacity: isDone ? 0.7 : 1, cursor:'pointer' }}>
+                        {/* Main content */}
+                        <div style={{ padding:'12px 14px 10px' }}>
+                          {/* Row 1: icon + type + amount */}
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:5 }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.2" strokeLinecap="round">
+                                {isFollowup
+                                  ? <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/>
+                                  : isOverdue2
+                                  ? <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>
+                                  : <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+                                }
+                              </svg>
+                              <span style={{ fontSize:11, fontWeight:700, color:accentColor, textTransform:'uppercase' as const, letterSpacing:'0.06em' }}>
+                                {isOverdue2 ? 'Overdue' : isFollowup ? 'Follow-up' : ev.lead_status}
+                              </span>
+                            </div>
+                            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                              {ev.quoted_amount && ev.quoted_amount > 0 && (
+                                <span style={{ fontSize:15, fontWeight:800, color:accentColor }}>${ev.quoted_amount.toLocaleString()}</span>
+                              )}
+                              <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:20, background:statusBg, color:statusColor }}>{statusLabel}</span>
+                            </div>
+                          </div>
+                          {/* Row 2: name */}
+                          <div style={{ fontSize:17, fontWeight:800, color:t.textPri, marginBottom: ev.message ? 3 : 0 }}>{capName(ev.contact_name)}</div>
+                          {/* Row 3: message/notes */}
+                          {ev.message && (
+                            <div style={{ fontSize:13, color:t.textSubtle, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' as const }}>{ev.message}</div>
+                          )}
+                        </div>
+
+                        {/* Action bar — always 2 buttons */}
+                        <div style={{ borderTop:`1px solid ${t.cardBorder}`, display:'flex', gap:0 }}
+                          onClick={e => e.stopPropagation()}>
+                          {phone ? (
+                            <a href={`tel:${phone}`}
+                              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'11px 0', fontSize:14, fontWeight:700, color:accentColor, textDecoration:'none', borderRight:`1px solid ${t.cardBorder}` }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="2.2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6"/></svg>
+                              Call
+                            </a>
+                          ) : (
+                            <button onClick={() => setSelectedEvent(ev)}
+                              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'11px 0', fontSize:14, fontWeight:600, color:t.textMuted, background:'none', border:'none', borderRight:`1px solid ${t.cardBorder}`, cursor:'pointer' }}>
+                              Open
+                            </button>
+                          )}
+                          {isJob && !isDone ? (
+                            <button onClick={() => markComplete(ev)}
+                              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'11px 0', fontSize:14, fontWeight:700, color:'#15803D', background:'none', border:'none', cursor:'pointer' }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                              Done
+                            </button>
+                          ) : (
+                            <button onClick={() => setSelectedEvent(ev)}
+                              style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'11px 0', fontSize:14, fontWeight:600, color:t.textMuted, background:'none', border:'none', cursor:'pointer' }}>
+                              Open
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()
         )}
 
         {/* Unscheduled */}
