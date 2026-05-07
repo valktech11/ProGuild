@@ -183,26 +183,32 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
           </div>
         )}
       </div>
-      {/* Action bar */}
+      {/* Action bar — always 2 buttons, Call is never full-width */}
       <div style={{ borderTop: `1px solid ${t.cardBorder}`, padding: '8px 14px', display: 'flex', gap: 8 }}
         onClick={e => e.stopPropagation()}>
-        {phone && (
+        {/* Primary: Call or Open */}
+        {phone ? (
           <a href={`tel:${ev.contact_phone}`}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 0', borderRadius: 9, background: es.bg, border: `1.5px solid ${es.border}44`, color: es.border, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
             <Svg path={ICON_PATH.phone} size={12} color={es.border} sw={2.2} />
             Call
           </a>
+        ) : (
+          <button onClick={onClick}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '9px 0', borderRadius: 9, background: es.bg, border: `1.5px solid ${es.border}44`, color: es.border, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            Open
+          </button>
         )}
-
-        {onMarkComplete && !isCompleted && (
+        {/* Secondary: Done (scheduled jobs) or Open Lead */}
+        {onMarkComplete && !isCompleted ? (
           <button onClick={onMarkComplete} disabled={completing}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 0', borderRadius: 9, background: completing ? t.cardBgAlt : '#DCFCE7', border: '1.5px solid #86EFAC', color: '#15803D', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: completing ? 0.6 : 1 }}>
-            {completing ? '…' : (
-              <>
-                <Svg path={ICON_PATH.check} size={12} color="#15803D" sw={2.5} />
-                Done
-              </>
-            )}
+            {completing ? '…' : (<><Svg path={ICON_PATH.check} size={12} color="#15803D" sw={2.5} />Done</>)}
+          </button>
+        ) : (
+          <button onClick={onClick}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '9px 0', borderRadius: 9, background: t.cardBgAlt, border: `1px solid ${t.cardBorder}`, color: t.textMuted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            Open
           </button>
         )}
       </div>

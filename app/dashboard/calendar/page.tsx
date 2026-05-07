@@ -965,61 +965,83 @@ function CalendarInner() {
         {loading ? (
           [1,2,3].map(i => <div key={i} style={{ height:80, borderRadius:12, background:t.cardBg }}/>)
         ) : mobileView==='week' ? (
-          /* ── WEEK VIEW: 7-day grouped list ─────────────────────────────── */
+          /* ── WEEK VIEW: two-column layout — compact day badge | events ─── */
           (() => {
             const weekStart2 = startOfWeek(selectedDate)
             const weekDaysList = Array.from({length:7},(_,i)=>addDays(weekStart2,i))
-            const hasAnyEvents = weekDaysList.some(d => {
-              const k = toDateKey(d)
-              return events.some(ev => { const ed=getEventDate(ev); return ed&&toDateKey(ed)===k })
-            })
             return (
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {weekDaysList.map(d => {
+              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                {weekDaysList.map((d,di) => {
                   const k = toDateKey(d)
                   const isTod = isToday(d)
                   const isSun = d.getDay()===0
+                  const isSat = d.getDay()===6
+                  const isWeekend = isSun || isSat
                   const dayEvs2 = events.filter(ev => {
                     if (!showJobs && ev._type==='job') return false
                     if (!showFollowups && ev._type==='followup') return false
                     const ed=getEventDate(ev); return ed&&toDateKey(ed)===k
                   })
+                  const hasEvents = dayEvs2.length > 0
+                  const dayVal = dayEvs2.reduce((s,ev)=>s+(ev.quoted_amount||0),0)
+
+                  // Text colours
+                  const dayNameColor = isTod?'#0F766E':isSun?'#DC2626':isWeekend?t.textSubtle:t.textMuted
+                  const dayNumColor  = isTod?'#0F766E':isSun?'#DC2626':t.textPri
+
                   return (
-                    <div key={k}>
-                      {/* Day header */}
-                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 2px 5px', borderBottom:`1px solid ${t.divider}`, marginBottom:6 }}>
-                        <div style={{ width:34, height:34, borderRadius:'50%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:isTod?'#0F766E':'transparent', flexShrink:0 }}>
-                          <span style={{ fontSize:9, fontWeight:700, textTransform:'uppercase' as const, lineHeight:1, color:isTod?'rgba(255,255,255,0.8)':isSun?'#DC2626':t.textMuted }}>{DAYS[d.getDay()]}</span>
-                          <span style={{ fontSize:16, fontWeight:800, lineHeight:1.1, color:isTod?'white':isSun?'#DC2626':t.textPri }}>{d.getDate()}</span>
+                    <div key={k} style={{
+                      display:'flex', gap:0,
+                      borderLeft: isTod?'3px solid #0F766E':'3px solid transparent',
+                      paddingLeft: isTod?9:9,
+                      paddingTop: di===0?0:hasEvents?12:6,
+                      paddingBottom: hasEvents?12:6,
+                      borderBottom: `1px solid ${t.divider}`,
+                      opacity: isWeekend && !hasEvents ? 0.55 : 1,
+                    }}>
+                      {/* Left: day badge — fixed 48px */}
+                      <div style={{ width:48, flexShrink:0, paddingTop:2 }}>
+                        <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase' as const, color:dayNameColor, letterSpacing:'0.04em', lineHeight:1 }}>
+                          {DAYS[d.getDay()].slice(0,3)}
                         </div>
-                        {dayEvs2.length>0 && (
-                          <span style={{ fontSize:11, color:t.textSubtle }}>
-                            {dayEvs2.length} event{dayEvs2.length!==1?'s':''}
-                            {(() => { const val=dayEvs2.reduce((s,ev)=>s+(ev.quoted_amount||0),0); return val>0?` · $${val.toLocaleString()}`:'' })()}
-                          </span>
+                        <div style={{ fontSize:22, fontWeight:800, lineHeight:1.1, color:dayNumColor, marginTop:1 }}>
+                          {d.getDate()}
+                        </div>
+                        {hasEvents && dayVal>0 && (
+                          <div style={{ fontSize:10, color:'#15803D', fontWeight:700, marginTop:2 }}>
+                            ${dayVal>=1000?(dayVal/1000).toFixed(1)+'k':dayVal.toLocaleString()}
+                          </div>
                         )}
                       </div>
-                      {/* Events for this day */}
-                      {dayEvs2.length>0 ? (
-                        <div style={{ display:'flex', flexDirection:'column', gap:6, paddingBottom:4 }}>
-                          {dayEvs2.map(ev => (
-                            <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="full"
-                              onClick={() => setSelectedEvent(ev)}
-                              onMarkComplete={ev._type==='job'&&ev.lead_status==='Scheduled'?()=>markComplete(ev):undefined}
-                              completing={completing===ev.id}
-                              isOverdue={isOverdueEvent(ev,today0)}/>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ paddingBottom:8, paddingLeft:42, fontSize:12, color:t.textSubtle }}>No events</div>
-                      )}
+
+                      {/* Right: events or empty rule */}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        {hasEvents ? (
+                          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                            {dayEvs2.map(ev => (
+                              <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="full"
+                                onClick={() => setSelectedEvent(ev)}
+                                onMarkComplete={ev._type==='job'&&ev.lead_status==='Scheduled'?()=>markComplete(ev):undefined}
+                                completing={completing===ev.id}
+                                isOverdue={isOverdueEvent(ev,today0)}/>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ display:'flex', alignItems:'center', height:'100%', minHeight:28 }}>
+                            <div style={{ flex:1, height:1, background:t.divider, opacity:0.5, marginTop:14 }}/>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
-                {/* Unscheduled leads at bottom of week view */}
+
+                {/* Unscheduled leads at bottom */}
                 {unscheduled.length>0 && (
-                  <div style={{ marginTop:8, paddingTop:12, borderTop:`1.5px dashed #FDE68A` }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:'#D97706', marginBottom:8 }}>Needs scheduling ({unscheduled.length})</div>
+                  <div style={{ marginTop:16, paddingTop:14, borderTop:'1.5px dashed #FDE68A' }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#D97706', marginBottom:10 }}>
+                      Needs scheduling ({unscheduled.length})
+                    </div>
                     {unscheduled.slice(0,3).map(ev => (
                       <div key={ev.id} onClick={() => router.push('/dashboard/pipeline/'+ev.id+'?from=calendar')}
                         style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:11, background:t.cardBg, border:'1px solid #FDE68A', marginBottom:8, cursor:'pointer' }}>
