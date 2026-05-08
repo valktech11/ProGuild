@@ -881,11 +881,10 @@ export default function EditProfilePage() {
               {tabs.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   style={{ flex: 1, padding: '10px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 500, background: activeTab === tab.key ? '#0F766E' : 'transparent', color: activeTab === tab.key ? 'white' : t.textMuted, transition: 'all 0.15s' }}>
-                  <span style={display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
+                  <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
                     {tabIcons[tab.key]}
                     <span>{tab.label}</span>
-                  bel}</span>
-              </span>
+                  </span>
                 </button>
               ))}
             </div>
