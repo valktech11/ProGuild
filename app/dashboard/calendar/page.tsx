@@ -621,16 +621,22 @@ function CalendarInner() {
 
         {SidebarFilters}
 
-        <SidebarCard title="Today" dk={dk}>
+        <SidebarCard title={desktopView==='day' ? 'Today' : desktopView==='week' ? 'This Week' : 'This Month'} dk={dk}>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span style={{ fontSize: 13, color:t.textSubtle }}>Jobs</span>
-              <span style={{ fontSize: 20, fontWeight:800, color:'#0F766E' }}>{todayJobs.length}</span>
+              <span style={{ fontSize: 20, fontWeight:800, color:'#0F766E' }}>
+                {desktopView==='day' ? todayJobs.length : desktopView==='week' ? weekJobs : monthJobs.length}
+              </span>
             </div>
             <div style={{ height:1, background:t.cardBorder }}/>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span style={{ fontSize: 13, color:t.textSubtle }}>Value</span>
-              <span style={{ fontSize: 16, fontWeight:800, color:'#15803D' }}>${todayValue>0?todayValue.toLocaleString():'0'}</span>
+              <span style={{ fontSize: 16, fontWeight:800, color:'#15803D' }}>
+                ${(desktopView==='day' ? todayValue : desktopView==='week' ? weekValue : monthValue) > 0
+                  ? (desktopView==='day' ? todayValue : desktopView==='week' ? weekValue : monthValue).toLocaleString()
+                  : '0'}
+              </span>
             </div>
             {overdueEvs.length>0 && (
               <>
