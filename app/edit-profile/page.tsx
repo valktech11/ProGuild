@@ -326,10 +326,36 @@ export default function EditProfilePage() {
     </div>
   )
 
+  // Tab icons — Lucide-style SVG paths, 24x24 viewBox, strokeLinecap round
+  const tabIcons: Record<string, React.ReactNode> = {
+    basic: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+    ),
+    credentials: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="6"/>
+        <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
+      </svg>
+    ),
+    preferences: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="4" y1="6" x2="20" y2="6"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="18" x2="20" y2="18"/>
+        <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/>
+        <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/>
+        <circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/>
+      </svg>
+    ),
+  }
+
   const tabs = [
-    { key: 'basic' as const,       icon: '', label: 'Basic info' },
-    { key: 'credentials' as const, icon: '', label: 'Credentials' },
-    { key: 'preferences' as const, icon: '', label: 'Preferences' },
+    { key: 'basic' as const,       label: 'Basic info' },
+    { key: 'credentials' as const, label: 'Credentials' },
+    { key: 'preferences' as const, label: 'Preferences' },
   ]
 
   const TabContent = (
@@ -740,11 +766,11 @@ export default function EditProfilePage() {
           </a>
           <a href={`/pro/${session?.id}`} style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>View profile →</a>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             {photoUrl
-              ? <img src={photoUrl} alt={fullName} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.35)' }} />
-              : <div style={{ width: 80, height: 80, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 800, border: '3px solid rgba(255,255,255,0.35)' }}>{initials(fullName || 'A')}</div>
+              ? <img src={photoUrl} alt={fullName} style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.35)' }} />
+              : <div style={{ width: 96, height: 96, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800, border: '3px solid rgba(255,255,255,0.35)' }}>{initials(fullName || 'A')}</div>
             }
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               style={{ position: 'absolute', bottom: 1, right: 1, width: 26, height: 26, borderRadius: '50%', background: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
@@ -763,8 +789,11 @@ export default function EditProfilePage() {
         <div style={{ display: 'flex', gap: 0 }}>
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              style={{ flex: 1, padding: '12px 8px', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: activeTab === tab.key ? 700 : 500, background: 'transparent', color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.60)', borderBottom: activeTab === tab.key ? '3px solid white' : '3px solid transparent', transition: 'all 0.15s', letterSpacing: '-0.2px' }}>
-              {tab.label}
+              style={{ flex: 1, padding: '12px 8px', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: activeTab === tab.key ? 700 : 500, background: 'transparent', color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.78)', borderBottom: activeTab === tab.key ? '3px solid white' : '3px solid transparent', transition: 'all 0.15s', letterSpacing: '-0.2px' }}>
+              <span style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+                {tabIcons[tab.key]}
+                <span>{tab.label}</span>
+              </span>
             </button>
           ))}
         </div>
@@ -851,8 +880,12 @@ export default function EditProfilePage() {
             <div style={{ display: 'flex', gap: 4, background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: 4, marginBottom: 20 }}>
               {tabs.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  style={{ flex: 1, padding: '10px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 500, background: activeTab === tab.key ? '#0F766E' : 'transparent', color: activeTab === tab.key ? 'white' : t.textBody, transition: 'all 0.15s' }}>
-                  {tab.label}
+                  style={{ flex: 1, padding: '10px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 500, background: activeTab === tab.key ? '#0F766E' : 'transparent', color: activeTab === tab.key ? 'white' : t.textMuted, transition: 'all 0.15s' }}>
+                  <span style={display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
+                    {tabIcons[tab.key]}
+                    <span>{tab.label}</span>
+                  bel}</span>
+              </span>
                 </button>
               ))}
             </div>
