@@ -149,6 +149,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const [leadInvoice,  setLeadInvoice]  = useState<{ id: string; invoice_number: string; status: string; balance_due: number } | null>(null)
   const [creatingEst,  setCreatingEst]  = useState(false)
   const [creatingInv,  setCreatingInv]  = useState(false)
+  const [depositCollected, setDepositCollected] = useState(false)
   const [toastSeq, setToastSeq] = useState(0)
   const stageBarRef = useRef<HTMLDivElement>(null)
   const activePillRef = useRef<HTMLButtonElement>(null)
@@ -436,6 +437,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
           lead_id:       lead.id,
           estimate_id:   leadEstimate?.id || undefined,
           lead_name:     lead.contact_name,
+          deposit_paid:  depositCollected ? (leadEstimate as any)?.deposit_amount || 0 : 0,
           trade:         session.trade || '',
           contact_name:  lead.contact_name,
           contact_email: lead.contact_email || '',
@@ -780,11 +782,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         View Invoice #{leadInvoice.invoice_number}
                       </button>
                     ) : (
-                      <button onClick={createInvoice} disabled={creatingInv}
-                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: creatingInv ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: creatingInv ? 0.7 : 1 }}>
-                        <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
-                        {creatingInv ? 'Creating...' : '📄 Generate Invoice'}
-                      </button>
+                      <>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: t.textBody, cursor: 'pointer', marginBottom: 8 }}>
+                          <input type="checkbox" checked={depositCollected} onChange={e => setDepositCollected(e.target.checked)}
+                            style={{ width: 16, height: 16, accentColor: '#0F766E', cursor: 'pointer' }} />
+                          Deposit already collected
+                        </label>
+                        <button onClick={createInvoice} disabled={creatingInv}
+                          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: creatingInv ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: creatingInv ? 0.7 : 1 }}>
+                          <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
+                          {creatingInv ? 'Creating...' : '📄 Generate Invoice'}
+                        </button>
+                      </>
                     )
                   ) : (
                     <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>

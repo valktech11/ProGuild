@@ -347,6 +347,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               const days: Record<string,number> = { due_on_receipt:0, net_7:7, net_15:15, net_30:30, net_60:60 }
               const d = new Date(); d.setDate(d.getDate() + (days[val] ?? 30))
               setInvoiceDueDate(d.toISOString().split('T')[0])
+              setIsDirty(true)
             }}
               style={{ width:'100%', padding:'10px 12px', borderRadius:10, border: '1.5px solid ' + t.cardBorder, background: dk ? '#0F172A' : 'white', color: t.textPri, fontSize: 15, cursor:'pointer' }}>
               <option value="due_on_receipt">Due on Receipt</option>

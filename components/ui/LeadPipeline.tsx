@@ -1008,13 +1008,14 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       <div className="flex gap-1 overflow-x-auto pb-1 px-4" style={{ scrollbarWidth: 'none' }}>
         {PIPELINE_STAGES.map(s => {
           const cnt = leadsForStage(s.key).length
+          const active = mobileStage === s.key
           return (
             <button key={s.key} onClick={() => setMobileStage(s.key as StageKey)}
-              className="flex-shrink-0 px-4 py-2.5 rounded-full text-[13px] font-bold border transition-all"
-              style={mobileStage === s.key
-                ? { background: stageStyle(s.key, dk).bg, color: stageStyle(s.key, dk).color, borderColor: stageStyle(s.key, dk).color }
-                : { background: 'white', color: '#374151', borderColor: '#C8C3BC' }}>
-              {s.label} {cnt > 0 && `(${cnt})`}
+              className="flex-shrink-0 px-4 py-2.5 rounded-full text-[13px] border transition-all"
+              style={active
+                ? { background: stageStyle(s.key, dk).bg, color: stageStyle(s.key, dk).color, borderColor: stageStyle(s.key, dk).color, fontWeight: 700, boxShadow: `0 0 0 1.5px ${stageStyle(s.key, dk).color}` }
+                : { background: dk ? 'rgba(255,255,255,0.04)' : '#F5F4F0', color: dk ? '#9CA3AF' : '#6B7280', borderColor: dk ? '#334155' : '#D1C9C0', fontWeight: 500 }}>
+              {s.label} {cnt > 0 && <span style={{ fontWeight: active ? 800 : 600 }}>({cnt})</span>}
             </button>
           )
         })}
