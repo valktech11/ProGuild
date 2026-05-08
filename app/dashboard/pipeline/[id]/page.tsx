@@ -637,7 +637,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
               </div>
 
               {/* Sticky footer — never scrolls, always visible at bottom of drawer */}
-              <div style={{ flexShrink: 0, padding: '16px 20px', borderTop: `1px solid ${border}`, background: card, paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
+              <div style={{ flexShrink: 0, padding: '16px 20px', borderTop: `1px solid ${border}`, background: card, paddingBottom: 'calc(76px + env(safe-area-inset-bottom))' }} className="md:!pb-4">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                   <button onClick={() => setDrawerOpen(false)} style={{ padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`, background: t.cardBgAlt, color: tp, cursor: 'pointer', fontSize: 15, fontWeight: 600 }}>Cancel</button>
                   <button onClick={handleSaveDrawer} disabled={savingDrawer} style={{ padding: '13px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', cursor: 'pointer', fontSize: 15, fontWeight: 700, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
