@@ -2,7 +2,7 @@
 import { useState, useEffect, use, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Lead, Session, LeadStatus } from '@/types'
-import { avatarColor, initials, timeAgo, capName } from '@/lib/utils'
+import { avatarColor, initials, timeAgo, capName, US_STATES } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 
@@ -571,14 +571,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     </div>
                   </div>
                   {/* City + State */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 12 }}>
                     <div>
                       <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>City</label>
                       <input value={dCity} onChange={e => setDCity(e.target.value)} placeholder="Jacksonville" style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                     <div>
                       <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>State</label>
-                      <input value={dState} onChange={e => setDState(e.target.value)} placeholder="FL" maxLength={2} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
+                      <select value={dState} onChange={e => setDState(e.target.value)} style={{ ...selectStyle, boxSizing: 'border-box', width: '100%' }}>
+                        <option value="">—</option>
+                        {US_STATES.map(([code, name]) => <option key={code} value={code}>{code} — {name}</option>)}
+                      </select>
                     </div>
                   </div>
                   {/* Scheduled date + time */}

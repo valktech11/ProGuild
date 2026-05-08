@@ -103,7 +103,8 @@ export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: Ad
   const textPri = t.textPri
   const textMut = t.textMuted
   const inputBg = dk ? '#0F172A' : 'white'
-  const inputCls = `w-full pl-10 pr-4 py-3 text-[14px] rounded-xl outline-none transition-all focus:border-teal-600 focus:ring-2 focus:ring-teal-50`
+  const inputCls = `w-full pl-10 pr-4 py-3 text-[14px] rounded-xl outline-none transition-all focus:ring-2 focus:ring-teal-50 bg-white text-gray-900 placeholder-gray-400`
+  const inputStyle = { border: '2px solid #CBD5E1' }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -169,13 +170,16 @@ export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: Ad
           <div className="border-t border-gray-100" />
 
           {/* Lead details */}
-          <div>
-            <p className="text-[14px] font-bold mb-4" style={{ color: NAVY }}>Lead details</p>
+          <div className="rounded-2xl p-4" style={{ background: dk ? '#0F172A' : '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
+            <p className="text-[13px] font-bold mb-4 flex items-center gap-2" style={{ color: NAVY }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Lead details
+            </p>
 
             {/* Name + Phone row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="text-[13px] font-medium text-gray-600 mb-1.5 block">
+                <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
                   Contact name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -184,11 +188,13 @@ export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: Ad
                   </svg>
                   <input value={name} onChange={e => setName(sanitize(e.target.value))}
                     placeholder="John Smith"
-                    className={inputCls} />
+                    className={inputCls} style={inputStyle}
+                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
                 </div>
               </div>
               <div>
-                <label className="text-[13px] font-medium text-gray-600 mb-1.5 block">
+                <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
                   Phone number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -197,28 +203,31 @@ export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: Ad
                   </svg>
                   <input value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
                     placeholder="(555) 555-5555" type="tel" inputMode="numeric" maxLength={12}
-                    className={inputCls} />
+                    className={inputCls} style={inputStyle}
+                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
                 </div>
               </div>
             </div>
 
             {/* Email */}
             <div className="mb-3">
-              <label className="text-[13px] font-medium text-gray-600 mb-1.5 block">Email (optional)</label>
+              <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">Email (optional)</label>
               <div className="relative">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
                 </svg>
                 <input value={email} onChange={e => setEmail(sanitize(e.target.value))}
                   placeholder="john@example.com" type="email"
-                  className={inputCls}
-                  onBlur={e => setEmail(e.target.value.trim().toLowerCase())} />
+                  className={inputCls} style={inputStyle}
+                  onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                  onBlur={e => { setEmail(e.target.value.trim().toLowerCase()); e.target.style.borderColor = '#CBD5E1' }} />
               </div>
             </div>
 
             {/* What they need */}
             <div>
-              <label className="text-[13px] font-medium text-gray-600 mb-1.5 block">
+              <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
                 What do they need? <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -229,7 +238,10 @@ export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: Ad
                 <textarea value={need} onChange={e => setNeed(sanitize(e.target.value))}
                   placeholder="Full interior repaint, 3-bed house, wants it done before Christmas..."
                   rows={3} maxLength={250}
-                  className="w-full pl-10 pr-4 py-3 text-[14px] border border-gray-200 rounded-xl outline-none text-gray-900 placeholder-gray-400 transition-all focus:border-teal-600 focus:ring-2 focus:ring-teal-50 bg-white resize-none" />
+                  className="w-full pl-10 pr-4 py-3 text-[14px] rounded-xl outline-none text-gray-900 placeholder-gray-400 transition-all bg-white resize-none"
+                  style={{ border: '2px solid #CBD5E1' }}
+                  onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                  onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
                 <span className="absolute bottom-2.5 right-3 text-[11px] text-gray-400">{need.length} / 250</span>
               </div>
             </div>

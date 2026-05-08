@@ -252,8 +252,8 @@ export default function EstimateItems({
           </div>
         )}
 
-        {/* Tax row — mobile, hidden when locked */}
-        {!locked && (
+        {/* Tax row — mobile, hidden when locked or no items */}
+        {!locked && estimate.items.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 14px', border: `1.5px solid ${border}`, borderRadius: 10, background: t.cardBgAlt, marginTop: 8 }}>
           <div>
             <span style={{ fontSize: 14, color: colMuted }}>Sales Tax</span>
@@ -482,7 +482,8 @@ export default function EstimateItems({
           </div>
         )}
 
-        {/* Tax row — always visible (auto-filled from state) */}
+        {/* Tax row — hidden when no items */}
+        {estimate.items.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: '0 12px', alignItems: 'center', padding: '10px 8px', borderBottom: `1px solid ${borderSoft}`, background: t.cardBgAlt }}>
           <span /><span />
           <div>
@@ -507,6 +508,7 @@ export default function EstimateItems({
           </div>
           <span />
         </div>
+        )}
 
         {/* + Add Item — hidden when locked */}
         {!locked && (
