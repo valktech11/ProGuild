@@ -1164,20 +1164,6 @@ function CalendarInner() {
 
             return (
               <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-                {/* Today stats strip */}
-                <div style={{ display:'flex', gap:0, background:t.cardBg, borderRadius:14, border:`1px solid ${t.cardBorder}`, marginBottom:14, overflow:'hidden' }}>
-                  {[
-                    { label: "Today's Value", value: dayValue > 0 ? `$${dayValue.toLocaleString()}` : '$0', color: dayValue>0 ? '#15803D' : t.textMuted },
-                    { label: 'Jobs',      value: String(dayJobs.length),      color: '#0F766E' },
-                    { label: 'Done',      value: String(dayCompleted.length),  color: '#15803D' },
-                  ].map((s,i) => (
-                    <div key={s.label} style={{ flex:1, padding:'12px 10px', borderRight: i<2 ? `1px solid ${t.cardBorder}` : 'none', textAlign:'center' }}>
-                      <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:t.textMuted, marginBottom:3 }}>{s.label}</div>
-                      <div style={{ fontSize:20, fontWeight:800, color:s.color, lineHeight:1 }}>{s.value}</div>
-                    </div>
-                  ))}
-                </div>
-
                 {/* Time-slot agenda rows */}
                 {ordered.map((ev, idx) => {
                   const isOverdue2  = isOverdueEvent(ev, today0)
