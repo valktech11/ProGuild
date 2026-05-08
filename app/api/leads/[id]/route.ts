@@ -28,16 +28,24 @@ export async function PATCH(
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const body = await req.json()
-  const { lead_status, notes, quoted_amount, scheduled_date, scheduled_time, follow_up_date, client_id } = body
+  const {
+    lead_status, notes, quoted_amount, scheduled_date, scheduled_time, follow_up_date, client_id,
+    contact_phone, contact_email, contact_city, contact_state, lead_source,
+  } = body
 
   const updateFields: Record<string, any> = {}
-  if (lead_status    !== undefined) updateFields.lead_status    = lead_status
-  if (notes          !== undefined) updateFields.notes          = notes
-  if (quoted_amount  !== undefined) updateFields.quoted_amount  = quoted_amount
-  if (scheduled_date !== undefined) updateFields.scheduled_date = scheduled_date
-  if (scheduled_time !== undefined) updateFields.scheduled_time = scheduled_time
-  if (follow_up_date !== undefined) updateFields.follow_up_date = follow_up_date
-  if (client_id      !== undefined) updateFields.client_id      = client_id
+  if (lead_status     !== undefined) updateFields.lead_status     = lead_status
+  if (notes           !== undefined) updateFields.notes           = notes
+  if (quoted_amount   !== undefined) updateFields.quoted_amount   = quoted_amount
+  if (scheduled_date  !== undefined) updateFields.scheduled_date  = scheduled_date
+  if (scheduled_time  !== undefined) updateFields.scheduled_time  = scheduled_time
+  if (follow_up_date  !== undefined) updateFields.follow_up_date  = follow_up_date
+  if (client_id       !== undefined) updateFields.client_id       = client_id
+  if (contact_phone   !== undefined) updateFields.contact_phone   = contact_phone
+  if (contact_email   !== undefined) updateFields.contact_email   = contact_email
+  if (contact_city    !== undefined) updateFields.contact_city    = contact_city
+  if (contact_state   !== undefined) updateFields.contact_state   = contact_state
+  if (lead_source     !== undefined) updateFields.lead_source     = lead_source
   updateFields.updated_at = new Date().toISOString()
 
   if (Object.keys(updateFields).length === 1) {
