@@ -82,11 +82,21 @@ export async function PATCH(
     }
   }
 
-  // A4 FIX: Only sync quoted_amount from approved/invoiced/paid estimates
+  // Sync quoted_amount and lead_status based on estimate status
   const { data: estimateData } = await sb.from('estimates').select('lead_id').eq('id', id).single()
-  const syncableStatuses = ['approved', 'invoiced', 'paid']
-  if (estimateData?.lead_id && total !== undefined && status && syncableStatuses.includes(status)) {
-    await sb.from('leads').update({ quoted_amount: Math.round(total * 100) / 100 }).eq('id', estimateData.lead_id)
+  if (estimateData?.lead_id && total !== undefined && status) {
+    if (status === 'sent') {
+      // Estimate sent → update quoted_amount AND move lead to Quoted stage
+      await sb.from('leads').update({
+        quoted_amount: Math.round(total * 100) / 100,
+        lead_status: 'Quoted',
+      }).eq('id', estimateData.lead_id)
+    } else if (['approved', 'invoiced', 'paid'].includes(status)) {
+      // Approved/invoiced/paid → update quoted_amount only (pro controls stage)
+      await sb.from('leads').update({
+        quoted_amount: Math.round(total * 100) / 100,
+      }).eq('id', estimateData.lead_id)
+    }
   }
 
   return NextResponse.json({ ok: true })

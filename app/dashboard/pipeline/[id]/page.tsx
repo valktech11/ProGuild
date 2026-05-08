@@ -125,8 +125,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const [dScheduled, setDScheduled] = useState('')
   const [dScheduledTime, setDScheduledTime] = useState('')
   const [dFollowUp, setDFollowUp] = useState('')
-  const [dJobType, setDJobType] = useState('')
-  const [dQuote, setDQuote] = useState('')
   const [dStatus, setDStatus] = useState<LeadStatus>('New')
   const [dNotes, setDNotes] = useState('')
   const [savingDrawer, setSavingDrawer] = useState(false)
@@ -206,8 +204,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
     setDScheduled(lead.scheduled_date || '')
     setDScheduledTime((lead as any).scheduled_time || '')
     setDFollowUp(lead.follow_up_date || '')
-    setDJobType((lead as any).job_type || '')
-    setDQuote(lead.quoted_amount != null ? String(lead.quoted_amount) : '')
     setDStatus(currentStage)
     setDNotes(lead.notes || '')
     setDrawerOpen(true)
@@ -280,8 +276,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
       scheduled_date: dScheduled || null,
       scheduled_time: dScheduledTime || null,
       follow_up_date: dFollowUp || null,
-      // C3+C4 FIX: when estimate linked, do NOT overwrite estimate-synced quoted_amount
-      quoted_amount: leadEstimate ? undefined : (dQuote ? parseFloat(dQuote) : null),
       lead_status: dStatus,
       notes: dNotes || null,
     })
@@ -296,7 +290,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
         lead_source: sourceRaw || null,
         scheduled_date: dScheduled || null,
         follow_up_date: dFollowUp || null,
-        quoted_amount: leadEstimate ? l?.quoted_amount ?? null : (dQuote ? parseFloat(dQuote) : null),
         lead_status: dStatus,
         notes: dNotes || null,
       } : l)
@@ -629,24 +622,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     </select>
                   </div>
 
-                  {/* Estimated value */}
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated value</label>
-                    {leadEstimate ? (
+                  {/* Estimate value — read-only, set by estimate system */}
+                  {leadEstimate && (
+                    <div style={{ padding: '10px 14px', borderRadius: 10, background: dk ? '#0f172a' : '#F0FDFA', border: '1px solid #CCFBF1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div>
-                        <div style={{ ...inputStyle, background: dk ? '#0f172a' : '#f9fafb', color: '#0F766E', fontWeight: 600, cursor: 'default', boxSizing: 'border-box' }}>
-                          ${leadEstimate.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </div>
-                        <button onClick={() => router.push(`/dashboard/estimates/${leadEstimate.id}?from=pipeline&lead_id=${id}`)}
-                          style={{ fontSize: 13, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 0', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                          From estimate #{leadEstimate.estimate_number} →
-                        </button>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Estimate Value</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#0F766E' }}>${leadEstimate.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                       </div>
-                    ) : (
-                      <input type="number" value={dQuote} onChange={e => setDQuote(e.target.value)} placeholder="0.00" style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
-                    )}
-                  </div>
+                      <button onClick={() => router.push(`/dashboard/estimates/${leadEstimate.id}?from=pipeline&lead_id=${id}`)}
+                        style={{ fontSize: 13, color: '#0F766E', background: 'white', border: '1px solid #CCFBF1', borderRadius: 8, cursor: 'pointer', padding: '6px 12px', fontWeight: 600 }}>
+                        #{leadEstimate.estimate_number} →
+                      </button>
+                    </div>
+                  )}
 
                   {/* Lead status */}
                   <div>

@@ -99,7 +99,6 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, dk = false }: {
     setSaving(true)
     await onUpdate(lead.id, {
       notes: notes || null,
-      quoted_amount: amount ? parseFloat(amount) : null,
       scheduled_date: schedDate || null,
       follow_up_date: followUp || null,
       lead_status: status as StageKey,
@@ -349,7 +348,18 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
             {capName(lead.contact_name)}
           </p>
           {lead.quoted_amount ? (
-            <p className="text-[12px] font-bold" style={{ color: '#0F766E' }}>${lead.quoted_amount.toLocaleString()}</p>
+            <p className="text-[12px] font-bold" style={{ color: '#0F766E' }}>
+              ${lead.quoted_amount.toLocaleString()}
+              {lead.lead_status === 'Quoted' && (
+                <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#FEF3C7', color: '#B45309' }}>SENT</span>
+              )}
+              {lead.lead_status === 'Scheduled' && (
+                <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#DCFCE7', color: '#166534' }}>APPROVED</span>
+              )}
+              {lead.lead_status === 'Completed' && (
+                <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#F0FDFA', color: '#0F766E' }}>INVOICED</span>
+              )}
+            </p>
           ) : (
             <p className="text-[12px]" style={{ color: t.textSubtle }}>{timeAgo(lead.created_at)}</p>
           )}
