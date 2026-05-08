@@ -205,7 +205,7 @@ function MobileNav({ nl, onAdd, onMore }: { nl: number; onAdd: () => void; onMor
 }
 
 // ── More drawer ───────────────────────────────────────────────────────────────
-function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: () => void; session: Session | null; nl: number }) {
+function MoreDrawer({ open, onClose, session, nl, dk, onToggleDark }: { open: boolean; onClose: () => void; session: Session | null; nl: number; dk: boolean; onToggleDark?: () => void }) {
   const p = usePathname()
   const [visible, setVisible] = React.useState(false)
   const [closing, setClosing] = React.useState(false)
@@ -341,6 +341,22 @@ function MoreDrawer({ open, onClose, session, nl }: { open: boolean; onClose: ()
               <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, rgba(45,212,191,0.4) 0%, rgba(45,212,191,0.08) 100%)' }} />
             </div>
             <DrawerNavLink item={{ label: 'Profile', href: '/edit-profile', icon: icon.profile }} active={p === '/edit-profile'} onNav={handleClose} />
+            {/* Dark mode toggle */}
+            <button onClick={() => { if (onToggleDark) onToggleDark() }}
+              className="relative flex items-center gap-4 px-4 rounded-2xl w-full mb-[2px]"
+              style={{ paddingTop: 13, paddingBottom: 13, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <span className="flex-shrink-0 flex items-center justify-center w-[28px]" style={{ color: 'rgba(255,255,255,.70)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                </svg>
+              </span>
+              <span className="flex-1 text-left" style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,.85)', letterSpacing: '-0.1px' }}>Dark Mode</span>
+              <div className="w-10 h-[22px] rounded-full relative flex-shrink-0"
+                style={{ background: dk ? '#0F766E' : 'rgba(255,255,255,0.18)', transition: 'background 0.2s' }}>
+                <div className="absolute top-[3px] w-4 h-4 bg-white rounded-full shadow"
+                  style={{ left: dk ? '22px' : '3px', transition: 'left 0.2s' }} />
+              </div>
+            </button>
             <DrawerNavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings, soon: true }} active={false} onNav={handleClose} />
           </div>
         </div>
@@ -729,7 +745,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
             {children}
           </main>
           <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} />
-          <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} session={session} nl={newLeads} />
+          <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} session={session} nl={newLeads} dk={dk} onToggleDark={onToggleDark} />
           <QuickSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onAddLead={() => { if (onAddLead) onAddLead() }} />
         </div>
       </div>

@@ -7,11 +7,13 @@ import { Session } from '@/types'
 import { initials, avatarColor, timeAgo, fmtCurrency } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 
-const TAG_COLORS: Record<string, { bg: string; text: string }> = {
-  Residential: { bg: '#EFF6FF', text: '#1D4ED8' },
-  Commercial:  { bg: '#F5F3FF', text: '#6D28D9' },
-  Repeat:      { bg: '#F0FDF4', text: '#15803D' },
-  VIP:         { bg: '#FFFBEB', text: '#B45309' },
+function TAG_COLORS(dk: boolean): Record<string, { bg: string; text: string }> {
+  return {
+    Residential: { bg: dk ? 'rgba(29,78,216,0.15)' : '#EFF6FF',  text: dk ? '#93C5FD' : '#1D4ED8' },
+    Commercial:  { bg: dk ? 'rgba(109,40,217,0.15)' : '#F5F3FF', text: dk ? '#C4B5FD' : '#6D28D9' },
+    Repeat:      { bg: dk ? 'rgba(21,128,61,0.15)' : '#F0FDF4',  text: dk ? '#86EFAC' : '#15803D' },
+    VIP:         { bg: dk ? 'rgba(180,83,9,0.15)' : '#FFFBEB',   text: dk ? '#FCD34D' : '#B45309' },
+  }
 }
 
 export default function ClientsPage() {
@@ -176,7 +178,7 @@ export default function ClientsPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 16, fontWeight: 700, color: t.textPri }}>{client.full_name}</span>
                       {(client.tags || []).map((tag: string) => {
-                        const tc = TAG_COLORS[tag] || { bg: t.cardBgAlt, text: t.textMuted }
+                        const tc = TAG_COLORS(dk)[tag] || { bg: t.cardBgAlt, text: t.textMuted }
                         return (
                           <span key={tag} style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: tc.bg, color: tc.text }}>{tag}</span>
                         )
