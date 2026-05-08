@@ -254,12 +254,12 @@ export default function EditProfilePage() {
   // Baymard: label above field, single column, borders visible not decorative
   // Pattern: section header floats above card (not inside), rows breathe at 48px min
 
-  const INPUT_BORDER = dk ? '#3D4E60' : '#C4BAB0'   // darker than t.inputBorder for visibility
-  const INPUT_BG     = dk ? '#1A2130' : '#FAFAF9'
+  const INPUT_BORDER = dk ? '#4A5E72' : '#B8AFA6'   // clearly visible border on both bg colors
+  const INPUT_BG     = dk ? '#1A2130' : '#FFFFFF'   // white — distinct from #F5F4F0 page bg
 
   const inputSt = (err?: string): React.CSSProperties => ({
-    width: '100%', padding: '13px 14px',
-    minHeight: 48,                                    // iOS HIG 44pt minimum
+    width: '100%', padding: '13px 16px',
+    minHeight: 50,                                    // iOS HIG 44pt minimum + breathing room
     border: `1.5px solid ${err ? '#FCA5A5' : INPUT_BORDER}`,
     borderRadius: 10, background: INPUT_BG,
     color: t.textPri, fontSize: 15, outline: 'none', // 15px — readable, above iOS 14pt minimum
@@ -271,28 +271,28 @@ export default function EditProfilePage() {
   })
   // Labels: 13px medium weight, color t.textBody — readable, not muted whispers
   const labelSt: React.CSSProperties = {
-    fontSize: 12, fontWeight: 600, color: t.textBody,
-    display: 'block', marginBottom: 7,
+    fontSize: 13, fontWeight: 600, color: t.textPri,
+    display: 'block', marginBottom: 8,
   }
   // Section titles: float above card, teal left accent bar
   const sectionTitleSt: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, color: t.textMuted,
-    textTransform: 'uppercase', letterSpacing: '0.09em',
-    borderLeft: '3px solid #0F766E', paddingLeft: 9,
-    marginBottom: 10, marginTop: 4,
+    fontSize: 12, fontWeight: 700, color: t.textBody,
+    textTransform: 'uppercase', letterSpacing: '0.07em',
+    borderLeft: '3px solid #0F766E', paddingLeft: 10,
+    marginBottom: 16, marginTop: 0,
   }
   const hintSt: React.CSSProperties = {
     fontSize: 12, color: t.textSubtle, marginTop: 5, lineHeight: 1.5,
   }
-  const fieldSt: React.CSSProperties = { marginBottom: 18 }
+  const fieldSt: React.CSSProperties = { marginBottom: 16 }
   // Cards: softer shadow replaces flat border — creates depth, not prison bars
   const cardSt: React.CSSProperties = {
     background: t.cardBg,
-    border: `1px solid ${t.cardBorder}`,
+    border: `1px solid ${dk ? t.cardBorder : '#E2DAD3'}`,
     borderRadius: 14,
     padding: '18px 16px',
     marginBottom: 4,
-    boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.06)',
+    boxShadow: dk ? 'none' : '0 1px 6px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
   }
   const tealBtn: React.CSSProperties = {
     background: 'linear-gradient(135deg,#0F766E,#0D9488)',
@@ -327,9 +327,9 @@ export default function EditProfilePage() {
   )
 
   const tabs = [
-    { key: 'basic' as const,       icon: '📋', label: 'Basic' },
-    { key: 'credentials' as const, icon: '🏅', label: 'Credentials' },
-    { key: 'preferences' as const, icon: '⚙️', label: 'Preferences' },
+    { key: 'basic' as const,       icon: '', label: 'Basic info' },
+    { key: 'credentials' as const, icon: '', label: 'Credentials' },
+    { key: 'preferences' as const, icon: '', label: 'Preferences' },
   ]
 
   const TabContent = (
@@ -732,7 +732,7 @@ export default function EditProfilePage() {
     <div style={{ minHeight: '100vh', background: t.pageBg, paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
 
       {/* Teal hero header */}
-      <div style={{ background: '#0F766E', padding: '16px 16px 0' }}>
+      <div style={{ background: '#0F766E', padding: '14px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <a href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -740,31 +740,31 @@ export default function EditProfilePage() {
           </a>
           <a href={`/pro/${session?.id}`} style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>View profile →</a>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 22 }}>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             {photoUrl
-              ? <img src={photoUrl} alt={fullName} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.3)' }} />
-              : <div style={{ width: 64, height: 64, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, border: '3px solid rgba(255,255,255,0.3)' }}>{initials(fullName || 'A')}</div>
+              ? <img src={photoUrl} alt={fullName} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.35)' }} />
+              : <div style={{ width: 80, height: 80, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 800, border: '3px solid rgba(255,255,255,0.35)' }}>{initials(fullName || 'A')}</div>
             }
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
-              style={{ position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: '50%', background: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
+              style={{ position: 'absolute', bottom: 1, right: 1, width: 26, height: 26, borderRadius: '50%', background: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName || 'Your Name'}</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>{trade ? categories.find(c => c.id === trade)?.category_name || 'Trade not set' : 'Tap to set your trade'}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.3px' }}>{fullName || 'Your Name'}</div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)', marginTop: 3 }}>{trade ? categories.find(c => c.id === trade)?.category_name || 'Trade not set' : 'Tap to set your trade'}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'rgba(255,255,255,0.2)', color: 'white' }}>{session?.plan || 'Free'}</span>
-              {license && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>✓ Licensed</span>}
+              <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'rgba(255,255,255,0.22)', color: 'white', letterSpacing: '0.01em' }}>{session?.plan || 'Free'}</span>
+              {license && <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.82)' }}>✓ Licensed</span>}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 0 }}>
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              style={{ flex: 1, padding: '12px 8px', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 500, background: 'transparent', color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.65)', borderBottom: activeTab === tab.key ? '3px solid white' : '3px solid transparent', transition: 'all 0.15s', letterSpacing: '-0.1px' }}>
-              {tab.icon} {tab.label}
+              style={{ flex: 1, padding: '12px 8px', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: activeTab === tab.key ? 700 : 500, background: 'transparent', color: activeTab === tab.key ? 'white' : 'rgba(255,255,255,0.60)', borderBottom: activeTab === tab.key ? '3px solid white' : '3px solid transparent', transition: 'all 0.15s', letterSpacing: '-0.2px' }}>
+              {tab.label}
             </button>
           ))}
         </div>
@@ -852,7 +852,7 @@ export default function EditProfilePage() {
               {tabs.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   style={{ flex: 1, padding: '10px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 500, background: activeTab === tab.key ? '#0F766E' : 'transparent', color: activeTab === tab.key ? 'white' : t.textBody, transition: 'all 0.15s' }}>
-                  {tab.icon} {tab.label}
+                  {tab.label}
                 </button>
               ))}
             </div>
