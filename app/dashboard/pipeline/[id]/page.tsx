@@ -546,7 +546,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
         {drawerOpen && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} onClick={() => setDrawerOpen(false)}>
             <div style={{ flex: 1 }} className="hidden md:block" />
-            <div style={{ width: '100%', maxWidth: 420, background: card, borderLeft: `1px solid ${border}`, height: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: '100%', maxWidth: 420, background: card, borderLeft: `1px solid ${border}`, height: '100dvh', maxHeight: '100dvh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
               {/* Drawer header — never scrolls */}
               <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
@@ -557,7 +557,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
               </div>
 
               {/* Drawer scroll area — ONLY form fields scroll, buttons stay fixed at bottom */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', paddingBottom: 8 }}>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any, padding: '16px 20px', paddingBottom: 8 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%' }}>
                   {/* Phone + Email side by side on wider screens, stacked on mobile */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
