@@ -117,15 +117,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
   // drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
-
-  // Lock body scroll when drawer is open — prevents main content scrolling through backdrop
-  useEffect(() => {
-    if (drawerOpen) {
-      const prev = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
-      return () => { document.body.style.overflow = prev }
-    }
-  }, [drawerOpen])
   const [dPhone, setDPhone] = useState('')
   const [dEmail, setDEmail] = useState('')
   const [dCity, setDCity] = useState('')
@@ -542,13 +533,41 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
           </div>
         )}
 
-        {/* Edit Lead Drawer */}
+        {/* Edit Lead Drawer — bottom sheet on mobile, side panel on desktop */}
         {drawerOpen && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} onClick={() => setDrawerOpen(false)}>
-            <div style={{ flex: 1 }} className="hidden md:block" />
-            <div style={{ width: '100%', maxWidth: 420, background: card, borderLeft: `1px solid ${border}`, height: '100dvh', maxHeight: '100dvh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
-              {/* Drawer header — never scrolls */}
-              <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
+          <>
+            {/* Backdrop */}
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+              onClick={() => setDrawerOpen(false)}
+            />
+
+            {/* Panel — bottom sheet mobile, right side panel desktop */}
+            <div
+              className="md:top-0 md:bottom-0 md:left-auto md:right-0 md:w-[420px] md:max-h-none md:rounded-none md:border-l"
+              style={{
+                position: 'fixed',
+                zIndex: 501,
+                background: card,
+                display: 'flex',
+                flexDirection: 'column',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                maxHeight: '92dvh',
+                borderRadius: '20px 20px 0 0',
+                boxShadow: '0 -8px 40px rgba(0,0,0,0.18)',
+                borderLeft: `1px solid ${border}`,
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Drag handle — mobile only */}
+              <div className="md:hidden" style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+                <div style={{ width: 40, height: 4, borderRadius: 2, background: border }} />
+              </div>
+
+              {/* Header */}
+              <div style={{ padding: '12px 20px 14px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: tp }}>Edit Lead</div>
                   <div style={{ fontSize: 14, color: ts, marginTop: 2 }}>{capName(lead?.contact_name || 'Unknown')}</div>
@@ -556,57 +575,63 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: ts, fontSize: 22, lineHeight: 1, padding: 0, marginTop: 2 }}>×</button>
               </div>
 
-              {/* Drawer scroll area — ONLY form fields scroll, buttons stay fixed at bottom */}
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' as any, padding: '16px 20px', paddingBottom: 8 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%' }}>
-                  {/* Phone + Email side by side on wider screens, stacked on mobile */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+              {/* Scrollable form area */}
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '16px 20px 12px', WebkitOverflowScrolling: 'touch' as any }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                  {/* Phone + Email */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone</label>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone</label>
                       <input value={dPhone} onChange={e => setDPhone(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
                       <input value={dEmail} onChange={e => setDEmail(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                   </div>
+
                   {/* City + State */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>City</label>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>City</label>
                       <input value={dCity} onChange={e => setDCity(e.target.value)} placeholder="Jacksonville" style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>State</label>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>State</label>
                       <select value={dState} onChange={e => setDState(e.target.value)} style={{ ...selectStyle, boxSizing: 'border-box', width: '100%' }}>
                         <option value="">—</option>
                         {US_STATES.map(([code, name]) => <option key={code} value={code}>{code} — {name}</option>)}
                       </select>
                     </div>
                   </div>
+
                   {/* Scheduled date + time */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled date &amp; time</label>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled date &amp; time</label>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <input type="date" value={dScheduled} onChange={e => setDScheduled(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} />
-                      <input type="time" value={dScheduledTime} onChange={e => setDScheduledTime(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} placeholder="Optional" />
+                      <input type="time" value={dScheduledTime} onChange={e => setDScheduledTime(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} />
                     </div>
                   </div>
+
                   {/* Follow-up date */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Follow-up date</label>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Follow-up date</label>
                     <input type="date" value={dFollowUp} onChange={e => setDFollowUp(e.target.value)} style={{ ...inputStyle, boxSizing: 'border-box', width: '100%', colorScheme: dk ? 'dark' : 'light' }} />
                   </div>
+
                   {/* Source */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source</label>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source</label>
                     <select value={dSource} onChange={e => setDSource(e.target.value)} style={{ ...selectStyle, boxSizing: 'border-box', width: '100%' }}>
                       {SOURCE_OPTIONS.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
+
                   {/* Estimated value */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated value</label>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated value</label>
                     {leadEstimate ? (
                       <div>
                         <div style={{ ...inputStyle, background: dk ? '#0f172a' : '#f9fafb', color: '#0F766E', fontWeight: 600, cursor: 'default', boxSizing: 'border-box' }}>
@@ -622,9 +647,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                       <input type="number" value={dQuote} onChange={e => setDQuote(e.target.value)} placeholder="0.00" style={{ ...inputStyle, boxSizing: 'border-box', width: '100%' }} />
                     )}
                   </div>
+
                   {/* Lead status */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead status</label>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lead status</label>
                     <select value={dStatus} onChange={e => setDStatus(e.target.value as LeadStatus)} style={{ ...selectStyle, boxSizing: 'border-box', width: '100%' }}>
                       {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
                     </select>
@@ -632,31 +658,30 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
                   {/* Notes */}
                   <div>
-                    <label style={{ fontSize: 13, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes</label>
-                    <textarea value={dNotes} onChange={e => setDNotes(e.target.value)} rows={4} maxLength={500} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 100, boxSizing: 'border-box', width: '100%' }} />
-                    <div style={{ fontSize: 13, color: ts, textAlign: 'right', marginTop: 3 }}>{dNotes.length}/500</div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: ts, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes</label>
+                    <textarea value={dNotes} onChange={e => setDNotes(e.target.value)} rows={4} maxLength={500} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 90, boxSizing: 'border-box', width: '100%' }} />
+                    <div style={{ fontSize: 12, color: ts, textAlign: 'right', marginTop: 3 }}>{dNotes.length}/500</div>
                   </div>
+
                 </div>
               </div>
 
-              {/* Sticky footer — never scrolls, always visible at bottom of drawer */}
-              <div style={{ flexShrink: 0, padding: '16px 20px', borderTop: `1px solid ${border}`, background: card, paddingBottom: 'calc(76px + env(safe-area-inset-bottom))' }} className="md:!pb-4">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-                  <button onClick={() => setDrawerOpen(false)} style={{ padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`, background: t.cardBgAlt, color: tp, cursor: 'pointer', fontSize: 15, fontWeight: 600 }}>Cancel</button>
-                  <button onClick={handleSaveDrawer} disabled={savingDrawer} style={{ padding: '13px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', cursor: 'pointer', fontSize: 15, fontWeight: 700, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
+              {/* Sticky footer */}
+              <div style={{ flexShrink: 0, padding: '14px 20px', borderTop: `1px solid ${border}`, background: card, paddingBottom: 'calc(14px + env(safe-area-inset-bottom))' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <button onClick={() => setDrawerOpen(false)} style={{ padding: '12px', borderRadius: 10, border: `1.5px solid ${border}`, background: t.cardBgAlt, color: tp, cursor: 'pointer', fontSize: 15, fontWeight: 600 }}>Cancel</button>
+                  <button onClick={handleSaveDrawer} disabled={savingDrawer} style={{ padding: '12px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', cursor: 'pointer', fontSize: 15, fontWeight: 700, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
                     {savingDrawer ? 'Saving…' : 'Save Changes'}
                   </button>
                 </div>
-                {/* Audit trail — compact, below buttons */}
                 {lead && (
-                  <div style={{ fontSize: 12, color: ts, display: 'flex', flexWrap: 'wrap', gap: '2px 16px', opacity: 0.8 }}>
-                    <span>Created {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    <span>· {(lead.lead_source || 'Unknown').replace(/_/g,' ')}</span>
+                  <div style={{ fontSize: 12, color: ts, opacity: 0.7 }}>
+                    Created {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {(lead.lead_source || 'Unknown').replace(/_/g,' ')}
                   </div>
                 )}
               </div>
             </div>
-          </div>
+          </>
         )}
 
         {loading && <div style={{ textAlign: 'center', padding: 80, color: ts, fontSize: 15 }}>Loading...</div>}
