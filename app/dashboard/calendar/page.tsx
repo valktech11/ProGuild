@@ -505,7 +505,19 @@ function CalendarInner() {
   const weekValue = weekDays.reduce((sum,d) => {
     return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job').reduce((s,ev)=>s+(ev.quoted_amount||0),0)
   }, 0)
+  const weekJobs = weekDays.reduce((sum,d) => {
+    return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job').length
+  }, 0)
   const selectedDayValue = (weekGrouped[toDateKey(selectedDate)]||[]).filter(ev=>ev._type==='job').reduce((s,ev)=>s+(ev.quoted_amount||0),0)
+
+  // Month aggregates
+  const monthJobs  = events.filter(ev => {
+    if (ev._type !== 'job') return false
+    const d = getEventDate(ev); if (!d) return false
+    return d.getFullYear() === selectedDate.getFullYear() && d.getMonth() === selectedDate.getMonth()
+  })
+  const monthValue = monthJobs.reduce((s,ev) => s + (ev.quoted_amount||0), 0)
+  const monthDone  = monthJobs.filter(ev => ev.lead_status==='Completed'||ev.lead_status==='Paid').length
 
   // Month agenda date
   const agendaDate = monthAgendaDate||selectedDate
@@ -673,11 +685,19 @@ function CalendarInner() {
               : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
             }
           </span>
-          {(desktopView==='day'||desktopView==='week') && (
-            <span style={{ fontSize: 13, fontWeight:700, color:'#15803D', background:dk?t.successBg:'#DCFCE7', padding:'4px 10px', borderRadius:20, border:`1px solid ${dk?'#166534':t.successBorder}` }}>
-              ${desktopView==='day' ? selectedDayValue.toLocaleString() : weekValue.toLocaleString()} {desktopView==='day'?'today':'this week'}
-            </span>
-          )}
+          {(desktopView==='day'||desktopView==='week'||desktopView==='month') && (() => {
+            const val  = desktopView==='day' ? selectedDayValue : desktopView==='week' ? weekValue : monthValue
+            const jobs = desktopView==='day'
+              ? (weekGrouped[toDateKey(selectedDate)]||[]).filter(ev=>ev._type==='job').length
+              : desktopView==='week' ? weekJobs : monthJobs.length
+            const label = desktopView==='day' ? 'today' : desktopView==='week' ? 'this week' : 'this month'
+            return (
+              <span style={{ fontSize: 13, fontWeight:700, color:'#15803D', background:dk?t.successBg:'#DCFCE7', padding:'4px 10px', borderRadius:20, border:`1px solid ${dk?'#166534':t.successBorder}`, display:'flex', alignItems:'center', gap:6 }}>
+                <span>${val.toLocaleString()} · {jobs} job{jobs!==1?'s':''}</span>
+                <span style={{ opacity:0.6, fontWeight:500 }}>{label}</span>
+              </span>
+            )
+          })()}
           <div style={{ flex:1 }}/>
           <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:`1.5px solid ${t.cardBorder}`, flexShrink:0 }}>
             {(['day','week','month'] as const).map(v => (
@@ -991,7 +1011,7 @@ function CalendarInner() {
         </div>
       )}
 
-      {/* Stats strip — Day view always visible */}
+      {/* Stats strip — scope matches active view */}
       {mobileView==='agenda' && (() => {
         const dj = selectedDayEvs.filter(ev => ev._type==='job')
         const dc = dj.filter(ev => ev.lead_status==='Completed'||ev.lead_status==='Paid')
@@ -1007,6 +1027,31 @@ function CalendarInner() {
           </div>
         )
       })()}
+      {mobileView==='week' && (() => {
+        const wDone = weekDays.reduce((sum,d) => {
+          return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job'&&(ev.lead_status==='Completed'||ev.lead_status==='Paid')).length
+        }, 0)
+        return (
+          <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
+            {[{ label:"Week's Value", value:weekValue>0?'$'+weekValue.toLocaleString():'$0' },{ label:'Jobs', value:String(weekJobs) },{ label:'Done', value:String(wDone) }].map((s,i)=>(
+              <div key={s.label} style={{ flex:1, padding:'11px 8px', borderRight:i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
+                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.80)', marginBottom:3 }}>{s.label}</div>
+                <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+      {mobileView==='month' && (() => (
+        <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
+          {[{ label:"Month's Value", value:monthValue>0?'$'+monthValue.toLocaleString():'$0' },{ label:'Jobs', value:String(monthJobs.length) },{ label:'Done', value:String(monthDone) }].map((s,i)=>(
+            <div key={s.label} style={{ flex:1, padding:'11px 8px', borderRight:i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
+              <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.80)', marginBottom:3 }}>{s.label}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      ))()}
 
     {/* Scrollable agenda */}
       <div style={{ flex:1, padding:'10px 14px', display:'flex', flexDirection:'column', gap:10, overflowY:'auto' }}
