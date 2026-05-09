@@ -103,6 +103,12 @@ function ProMeasureInner() {
     mapInstanceRef.current = map
     setMapLoaded(true)
 
+    // Force Maps to recalculate size after React finishes painting
+    setTimeout(() => {
+      window.google.maps.event.trigger(map, 'resize')
+      map.setCenter({ lat: 27.9506, lng: -82.4572 })
+    }, 100)
+
     // Click to add polygon vertices
     map.addListener('click', (e: any) => {
       if (!e.latLng) return
@@ -232,7 +238,7 @@ function ProMeasureInner() {
               onKeyDown={e => e.key === 'Enter' && geocodeAddress()}
               placeholder="Enter property address…"
               style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 13 }} />
-            <button onClick={geocodeAddress} disabled={searching || !mapLoaded}
+            <button onClick={geocodeAddress} disabled={searching}
               style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               {searching ? '…' : 'Go'}
             </button>
@@ -257,11 +263,11 @@ function ProMeasureInner() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
           {/* Map */}
-          <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+          <div style={{ flex: 1, position: 'relative', minHeight: 500 }}>
             {mapError ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 32 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 500, gap: 12, padding: 32 }}>
                 <div style={{ fontSize: 40 }}>🗺️</div>
                 <p style={{ fontSize: 15, fontWeight: 700, color: '#DC2626', textAlign: 'center' }}>{mapError}</p>
                 <p style={{ fontSize: 13, color: t.textSubtle, textAlign: 'center', maxWidth: 400 }}>
@@ -269,7 +275,7 @@ function ProMeasureInner() {
                 </p>
               </div>
             ) : (
-              <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 500, position: 'absolute', inset: 0 }} />
+              <div ref={mapRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
             )}
 
             {/* Floating instructions */}
