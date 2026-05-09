@@ -54,5 +54,12 @@ ALTER TABLE pros ADD COLUMN IF NOT EXISTS gbb_templates JSONB;
 -- ── RLS ───────────────────────────────────────────────────────────────────────
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "pro owns properties" ON properties
-  FOR ALL USING (pro_id = auth.uid());
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'properties' AND policyname = 'pro owns properties'
+  ) THEN
+    CREATE POLICY "pro owns properties" ON properties
+      FOR ALL USING (pro_id = auth.uid());
+  END IF;
+END$$;
