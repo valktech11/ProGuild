@@ -66,20 +66,28 @@ function ProMeasureInner() {
     }
 
     function tryInit() {
-      // Retry until the ref is mounted (callback may fire before React paints)
       if (!mapRef.current) { setTimeout(tryInit, 50); return }
       initMap()
     }
 
-    if (window.google?.maps) { tryInit(); return }
+    // Use the recommended bootstrap loader pattern
+    if (window.google?.maps?.Map) { tryInit(); return }
 
-    window.initProMeasureMap = tryInit
-    const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&callback=initProMeasureMap`
-    script.async = true; script.defer = true
-    script.onerror = () => setMapError('Failed to load Google Maps. Check your API key.')
-    document.head.appendChild(script)
-    return () => { window.initProMeasureMap = () => {} }
+    // Inject the bootstrap script (google.maps.importLibrary pattern)
+    const existingScript = document.getElementById('gmap-script')
+    if (!existingScript) {
+      const script = document.createElement('script')
+      script.id = 'gmap-script'
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&loading=async`
+      script.onerror = () => setMapError('Failed to load Google Maps. Check your API key and billing.')
+      script.onload = () => tryInit()
+      document.head.appendChild(script)
+    } else {
+      // Script already in DOM, poll for google.maps to be ready
+      const poll = setInterval(() => {
+        if (window.google?.maps?.Map) { clearInterval(poll); tryInit() }
+      }, 100)
+    }
   }, [])
 
   function initMap() {
@@ -212,7 +220,7 @@ function ProMeasureInner() {
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk}
       onToggleDark={() => { const n = !dk; localStorage.setItem('pg_darkmode', n ? '1' : '0'); setDk(n) }}>
-      <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ height: 'calc(100vh - 128px)', display: 'flex', flexDirection: 'column', margin: '-16px' }}>
 
         {/* Top bar */}
         <div style={{ background: t.cardBg, borderBottom: `1px solid ${t.cardBorder}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', flexShrink: 0 }}>
@@ -254,7 +262,7 @@ function ProMeasureInner() {
 
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           {/* Map */}
-          <div style={{ flex: 1, position: 'relative' }}>
+          <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
             {mapError ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 32 }}>
                 <div style={{ fontSize: 40 }}>🗺️</div>
@@ -264,7 +272,7 @@ function ProMeasureInner() {
                 </p>
               </div>
             ) : (
-              <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />
+              <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 500, position: 'absolute', inset: 0 }} />
             )}
 
             {/* Floating instructions */}
