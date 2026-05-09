@@ -64,9 +64,16 @@ function ProMeasureInner() {
       setMapError('NEXT_PUBLIC_GOOGLE_MAPS_KEY is not set. Add it to your environment variables.')
       return
     }
-    if (window.google?.maps) { initMap(); return }
 
-    window.initProMeasureMap = initMap
+    function tryInit() {
+      // Retry until the ref is mounted (callback may fire before React paints)
+      if (!mapRef.current) { setTimeout(tryInit, 50); return }
+      initMap()
+    }
+
+    if (window.google?.maps) { tryInit(); return }
+
+    window.initProMeasureMap = tryInit
     const script = document.createElement('script')
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&callback=initProMeasureMap`
     script.async = true; script.defer = true
@@ -156,17 +163,19 @@ function ProMeasureInner() {
   }
 
   async function geocodeAddress() {
-    if (!address.trim() || !window.google) return
+    if (!address.trim() || !window.google?.maps) return
     setSearching(true)
     const geocoder = new window.google.maps.Geocoder()
     geocoder.geocode({ address }, (results: any, status: any) => {
       setSearching(false)
       if (status === 'OK' && results?.[0]) {
         const loc = results[0].geometry.location
-        mapInstanceRef.current?.setCenter(loc)
-        mapInstanceRef.current?.setZoom(20)
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setCenter(loc)
+          mapInstanceRef.current.setZoom(20)
+        }
       } else {
-        alert('Address not found. Try a more specific address.')
+        alert('Address not found. Try a more specific address including city and state.')
       }
     })
   }
@@ -255,7 +264,7 @@ function ProMeasureInner() {
                 </p>
               </div>
             ) : (
-              <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+              <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />
             )}
 
             {/* Floating instructions */}
