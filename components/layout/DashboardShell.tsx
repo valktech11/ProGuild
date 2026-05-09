@@ -657,8 +657,8 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
 }
 
 // ── Main shell ────────────────────────────────────────────────────────────────
-export default function DashboardShell({ children, session, newLeads = 0, onAddLead, darkMode, onToggleDark }: {
-  children: React.ReactNode; session: Session | null; newLeads?: number; onAddLead?: () => void; darkMode?: boolean; onToggleDark?: () => void
+export default function DashboardShell({ children, session, newLeads = 0, onAddLead, darkMode, onToggleDark, fullBleed }: {
+  children: React.ReactNode; session: Session | null; newLeads?: number; onAddLead?: () => void; darkMode?: boolean; onToggleDark?: () => void; fullBleed?: boolean
 }) {
   const p   = usePathname()
   const nav = buildNav(newLeads, session?.trade_slug, session?.trade)
@@ -758,10 +758,10 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
             )}
           </aside>
 
-          <main className="pg-main flex-1 overflow-y-auto flex flex-col" style={{ backgroundColor: t.pageBg, color: dk ? '#F1F5F9' : undefined }}>
+          <main className={`pg-main flex-1 flex flex-col ${fullBleed ? 'overflow-hidden' : 'overflow-y-auto'}`} style={{ backgroundColor: t.pageBg, color: dk ? '#F1F5F9' : undefined }}>
             {/* ── Top header bar ─────────────────────────────────────────── */}
             <TopHeader session={session} dk={dk} onAddLead={onAddLead} onToggleDark={onToggleDark} />
-            <div className="flex-1">
+            <div className={fullBleed ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1'}>
               {children}
             </div>
           </main>

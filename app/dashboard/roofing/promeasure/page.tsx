@@ -222,8 +222,9 @@ function ProMeasureInner() {
 
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk}
-      onToggleDark={() => { const n = !dk; localStorage.setItem('pg_darkmode', n ? '1' : '0'); setDk(n) }}>
-      <div style={{ height: 'calc(100vh - 128px)', display: 'flex', flexDirection: 'column', margin: '-16px' }}>
+      onToggleDark={() => { const n = !dk; localStorage.setItem('pg_darkmode', n ? '1' : '0'); setDk(n) }}
+      fullBleed>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 
         {/* Top bar */}
         <div style={{ background: t.cardBg, borderBottom: `1px solid ${t.cardBorder}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', flexShrink: 0 }}>
