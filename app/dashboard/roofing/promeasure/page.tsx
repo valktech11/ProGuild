@@ -94,14 +94,13 @@ function ProMeasureInner() {
     if (!mapRef.current) return
     const map = new window.google.maps.Map(mapRef.current, {
       zoom: 19,
-      center: { lat: 27.9506, lng: -82.4572 }, // Tampa FL default
+      center: { lat: 27.9506, lng: -82.4572 },
       mapTypeId: 'satellite',
       tilt: 0,
-      disableDefaultUI: false,
       mapTypeControl: true,
-      mapTypeControlOptions: { style: window.google.maps.MapTypeControlStyle.DROPDOWN_MENU },
-      streetViewControl: true,
+      streetViewControl: false,
       fullscreenControl: true,
+      zoomControl: true,
     })
     mapInstanceRef.current = map
     setMapLoaded(true)
