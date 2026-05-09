@@ -121,10 +121,11 @@ const ROOFING: TradeConfig = {
   tradeSection: {
     title: 'ROOFING TOOLS',
     items: [
-      { label: 'Takeoffs',       href: '/dashboard/roofing/takeoffs',   iconKey: 'materials', soon: true },
+      { label: 'Properties',     href: '/dashboard/roofing/property',    iconKey: 'overview'   },
+      { label: 'ProMeasure',     href: '/dashboard/roofing/promeasure',  iconKey: 'materials'  },
+      { label: 'Calculator',     href: '/dashboard/roofing/calculator',  iconKey: 'revenue'    },
       { label: 'Warranties',     href: '/dashboard/roofing/warranties',  iconKey: 'compliance', soon: true },
-      { label: 'Permit tracker', href: '/dashboard/roofing/permits',     iconKey: 'permit',    soon: true },
-      { label: 'Storm workflow', href: '/dashboard/roofing/storm',       iconKey: 'ai',        soon: true },
+      { label: 'Storm workflow', href: '/dashboard/roofing/storm',       iconKey: 'ai',         soon: true },
     ],
   },
 }

@@ -119,6 +119,117 @@ export default function PublicEstimatePage({ params }: { params: Promise<{ id: s
   const isDeclined = estimate.status === 'declined' || declined
   const depositAmt = estimate.total * (estimate.deposit_percent / 100)
 
+  // ── Tiered (Good/Better/Best) estimate — separate render path ──────────────
+  if ((estimate as any).estimate_type === 'tiered') {
+    const td = (estimate as any).tiered_data as { squares: number; tiers: [any,any,any] } | null
+    const tiers = td?.tiers
+    const squares = td?.squares ?? 0
+    const TIER_COLORS = [
+      { border: '#9CA3AF', bg: '#F9FAFB', accent: '#4B5563', label: 'GOOD'     },
+      { border: '#0F766E', bg: '#F0FDFA', accent: '#0F766E', label: 'BETTER ★' },
+      { border: '#B45309', bg: '#FFFBEB', accent: '#B45309', label: 'BEST'     },
+    ]
+    return (
+      <div style={{ minHeight: '100vh', background: '#F5F4F0' }}>
+        {/* Top bar */}
+        <div style={{ background: 'white', borderBottom: '1px solid #E8E2D9' }}>
+          <div style={{ maxWidth: 900, margin: '0 auto', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: '#0F766E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: 'white', fontSize: 11, fontWeight: 800 }}>PG</span>
+              </div>
+              <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>ProGuild</span>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: isApproved ? '#F0FDFA' : '#F5F3FF', color: isApproved ? '#0F766E' : '#6D28D9' }}>
+              {isApproved ? '✓ Approved' : 'Choose Your Option'}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 16px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: '0 0 8px' }}>
+              Your Roofing Proposal
+            </h1>
+            <p style={{ fontSize: 16, color: '#6B7280', margin: 0 }}>
+              Hi {estimate.lead_name} — review your three options and select the one that works best for you.
+            </p>
+            {squares > 0 && <p style={{ fontSize: 14, color: '#9CA3AF', margin: '6px 0 0' }}>{squares} squares · {(squares * 100).toLocaleString()} sq ft</p>}
+          </div>
+
+          {isApproved ? (
+            <div style={{ maxWidth: 480, margin: '0 auto 24px', padding: '24px', background: '#F0FDFA', border: '2px solid #14B8A6', borderRadius: 20, textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0F766E', margin: '0 0 8px' }}>You're all set!</h2>
+              <p style={{ fontSize: 15, color: '#374151', margin: 0 }}>Your selection has been confirmed. The contractor will be in touch shortly to schedule your job.</p>
+            </div>
+          ) : tiers ? (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 24 }}>
+                {tiers.map((tier: any, idx: number) => {
+                  const col = TIER_COLORS[idx]
+                  const total = tier.price_per_sq * squares
+                  return (
+                    <div key={idx} style={{ background: col.bg, border: `2px solid ${col.border}`, borderRadius: 20, padding: 22, display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ marginBottom: 14 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20, background: col.border, color: 'white', letterSpacing: '0.05em' }}>
+                          {col.label}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: '0 0 2px' }}>{tier.shingle_brand}</p>
+                      <p style={{ fontSize: 15, color: '#374151', margin: '0 0 8px' }}>{tier.shingle_model}</p>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 8, background: col.border + '22', color: col.accent, display: 'inline-block', marginBottom: 14 }}>
+                        {tier.warranty_term} warranty
+                      </span>
+                      <div style={{ flex: 1, marginBottom: 16 }}>
+                        {tier.includes.map((item: string, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, marginBottom: 6 }}>
+                            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={col.accent} strokeWidth={2.5} strokeLinecap="round" style={{ marginTop: 2, flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+                            <span style={{ fontSize: 14, color: '#374151' }}>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ borderTop: `1px solid ${col.border}55`, paddingTop: 14, marginBottom: 14 }}>
+                        <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 4px' }}>{squares > 0 ? `${squares} squares × $${tier.price_per_sq}/sq` : `$${tier.price_per_sq}/sq`}</p>
+                        <p style={{ fontSize: 28, fontWeight: 900, color: col.accent, margin: 0 }}>{total > 0 ? '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (approving || isApproved) return
+                          setApproving(true)
+                          try {
+                            await fetch(`/api/estimates/public/${id}/approve`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ selected_tier: idx, tier_label: tier.label, tier_total: total }),
+                            })
+                            setApproved(true)
+                            setEstimate((prev: any) => prev ? { ...prev, status: 'approved', total } : prev)
+                          } catch { /* silent */ }
+                          finally { setApproving(false) }
+                        }}
+                        disabled={approving}
+                        style={{ width: '100%', padding: '14px', borderRadius: 13, border: 'none', background: col.accent, color: 'white', fontSize: 15, fontWeight: 800, cursor: approving ? 'wait' : 'pointer', transition: 'opacity 0.15s' }}
+                        onMouseEnter={e => { (e.target as HTMLElement).style.opacity = '0.85' }}
+                        onMouseLeave={e => { (e.target as HTMLElement).style.opacity = '1' }}>
+                        {approving ? 'Confirming…' : `Select ${tier.label || col.label.split(' ')[0]}`}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              <p style={{ textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>
+                Questions? Contact your contractor directly. No payment is collected here.
+              </p>
+            </>
+          ) : (
+            <p style={{ textAlign: 'center', color: '#9CA3AF' }}>Tier data unavailable.</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[#F5F4F0]">
       {/* Top bar */}

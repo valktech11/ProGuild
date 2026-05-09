@@ -43,6 +43,7 @@ export async function PATCH(
     require_deposit, deposit_percent, terms, status, notes,
     contact_phone, contact_email, sent_at,
     voided_at, void_reason, declined_at, decline_reason,
+    estimate_type, tiered_data,
   } = body
 
   const updatePayload: Record<string, unknown> = {
@@ -52,11 +53,13 @@ export async function PATCH(
     contact_email: contact_email || undefined,
     updated_at: new Date().toISOString(),
   }
-  if (sent_at      !== undefined) updatePayload.sent_at      = sent_at
-  if (voided_at    !== undefined) updatePayload.voided_at    = voided_at
-  if (void_reason  !== undefined) updatePayload.void_reason  = void_reason
-  if (declined_at  !== undefined) updatePayload.declined_at  = declined_at
+  if (sent_at        !== undefined) updatePayload.sent_at        = sent_at
+  if (voided_at      !== undefined) updatePayload.voided_at      = voided_at
+  if (void_reason    !== undefined) updatePayload.void_reason    = void_reason
+  if (declined_at    !== undefined) updatePayload.declined_at    = declined_at
   if (decline_reason !== undefined) updatePayload.decline_reason = decline_reason
+  if (estimate_type  !== undefined) updatePayload.estimate_type  = estimate_type
+  if (tiered_data    !== undefined) updatePayload.tiered_data    = tiered_data
 
   const { error: estError } = await sb.from('estimates').update(updatePayload).eq('id', id)
   if (estError) return NextResponse.json({ error: estError.message }, { status: 500 })

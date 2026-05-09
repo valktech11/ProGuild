@@ -287,14 +287,23 @@ export default function EstimatesPage() {
               <h1 className={`text-2xl font-bold tracking-tight `}>Estimates</h1>
               <p className={`text-sm mt-0.5 hidden md:block `}>Create and send professional estimates to your leads</p>
             </div>
-            <button
-              onClick={handleCreate}
-              disabled={creating}
-              className="flex items-center gap-2 bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 whitespace-nowrap"
-            >
-              <Plus size={16} />
-              {creating ? 'Creating...' : 'New Estimate'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.push('/dashboard/estimates/tiered')}
+                className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg whitespace-nowrap"
+                style={{ border: '1.5px solid #0F766E', color: '#0F766E', background: '#F0FDFA' }}
+              >
+                Good/Better/Best
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="flex items-center gap-2 bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 whitespace-nowrap"
+              >
+                <Plus size={16} />
+                {creating ? 'Creating...' : 'New Estimate'}
+              </button>
+            </div>
           </div>
 
           {/* ── Stats bar ── */}

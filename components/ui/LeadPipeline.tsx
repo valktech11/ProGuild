@@ -8,16 +8,45 @@ import { stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
 
 // ── Stage definitions ──────────────────────────────────────────────────────────
-export const PIPELINE_STAGES = [
+
+export type PipelineStage = {
+  key: string
+  label: string
+  subLabel: string
+  nextLabel: string
+}
+
+// Default stages for all trades
+const DEFAULT_STAGES: PipelineStage[] = [
   { key: 'New',       label: 'New',       subLabel: 'Not yet contacted',  nextLabel: 'Call' },
   { key: 'Contacted', label: 'Contacted', subLabel: 'In conversation',    nextLabel: 'Follow Up' },
   { key: 'Quoted',    label: 'Quoted',    subLabel: 'Proposal sent',      nextLabel: 'Send Estimate' },
   { key: 'Scheduled', label: 'Scheduled', subLabel: 'Job confirmed',      nextLabel: 'Job Day' },
   { key: 'Completed', label: 'Completed', subLabel: 'Job completed',      nextLabel: 'Generate Invoice' },
   { key: 'Paid',      label: 'Job Won',   subLabel: 'Payment received',   nextLabel: '✓ Job Won' },
-] as const
+]
 
-type StageKey = typeof PIPELINE_STAGES[number]['key']
+// Roofing-specific stage labels — map onto the same 6 DB statuses
+// Insurance Review + Approved surface via the insurance toggle fields on lead detail
+const ROOFING_STAGES: PipelineStage[] = [
+  { key: 'New',       label: 'Lead In',       subLabel: 'Awaiting inspection',    nextLabel: 'Schedule Inspection' },
+  { key: 'Contacted', label: 'Inspection',    subLabel: 'Inspection scheduled',   nextLabel: 'Run Inspection' },
+  { key: 'Quoted',    label: 'Estimate Sent', subLabel: 'Proposal sent to owner', nextLabel: 'Send Proposal' },
+  { key: 'Scheduled', label: 'Approved',      subLabel: 'Owner/insurer approved', nextLabel: 'Schedule Job' },
+  { key: 'Completed', label: 'In Progress',   subLabel: 'Crew on site',           nextLabel: 'Mark Complete' },
+  { key: 'Paid',      label: 'Signed',        subLabel: 'Job complete & paid',    nextLabel: '✓ Signed' },
+]
+
+/** Returns trade-specific pipeline stages. Pure, safe to call on every render. */
+export function getPipelineStages(tradeSlug?: string | null): PipelineStage[] {
+  if (tradeSlug === 'roofing-contractor') return ROOFING_STAGES
+  return DEFAULT_STAGES
+}
+
+// Keep legacy export for components that import it directly
+export const PIPELINE_STAGES = DEFAULT_STAGES
+
+type StageKey = string
 
 const STAGE_ORDER: Record<string, number> = {
   New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5, Lost: 6,
@@ -28,6 +57,7 @@ interface Props {
   onStatusChange: (leadId: string, status: string) => Promise<void>
   onUpdate: (leadId: string, fields: Partial<Lead>) => Promise<void>
   isPaid: boolean
+  tradeSlug?: string | null
   dk?: boolean
 }
 
@@ -74,10 +104,11 @@ function BackwardConfirm({ fromStage, toStage, isPaidMove, onConfirm, onCancel, 
 }
 
 // ── Lead detail modal ──────────────────────────────────────────────────────────
-function LeadModal({ lead, onClose, onStatusChange, onUpdate, dk = false }: {
+function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = DEFAULT_STAGES, dk = false }: {
   lead: Lead; onClose: () => void
   onStatusChange: (id: string, status: string) => Promise<void>
   onUpdate: (id: string, fields: Partial<Lead>) => Promise<void>
+  stages?: PipelineStage[]
   dk?: boolean
 }) {
   const [notes, setNotes]         = useState(lead.notes || '')
@@ -101,13 +132,13 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, dk = false }: {
       notes: notes || null,
       scheduled_date: schedDate || null,
       follow_up_date: followUp || null,
-      lead_status: status as StageKey,
+      lead_status: status as import('@/types').LeadStatus,
     })
     setSaving(false)
     onClose()
   }
 
-  const currentStage = PIPELINE_STAGES.find(s => s.key === status)
+  const currentStage = stages.find(s => s.key === status)
   const currentStageSS = stageStyle(status)
 
   return (
@@ -149,7 +180,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, dk = false }: {
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Move to stage</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {PIPELINE_STAGES.map(s => (
+                  {stages.map(s => (
                     <button key={s.key} onClick={() => handleStageClick(s.key)}
                       className="py-2.5 rounded-xl text-xs font-bold border-2 transition-all"
                       style={status === s.key
@@ -214,7 +245,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, dk = false }: {
 // ── Lead card ──────────────────────────────────────────────────────────────────
 function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   lead: Lead
-  stage: typeof PIPELINE_STAGES[number]
+  stage: PipelineStage
   onOpen: () => void
   dk?: boolean
   onStatusChange?: (leadId: string, status: string) => Promise<void>
@@ -477,7 +508,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
 }
 
 // ── Lead List View — full sortable table for dense triage ──────────────────────
-function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean }) {
+function LeadListView({ leads, onOpen, dk, stages = DEFAULT_STAGES }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[] }) {
   const router = useRouter()
   const t = theme(dk)
   const [sort, setSort] = useState<'age' | 'name' | 'stage' | 'value'>('age')
@@ -534,7 +565,7 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
             </thead>
             <tbody>
               {filtered.map((lead, i) => {
-                const stage = PIPELINE_STAGES.find(s => s.key === lead.lead_status) || PIPELINE_STAGES[0]
+                const stage = stages.find(s => s.key === lead.lead_status) || stages[0]
                 const days  = daysSince(lead.created_at)
                 const [avBg, avFg] = avatarColor(lead.contact_name)
                 const urgency = days > 3 ? '#DC2626' : days >= 2 ? '#B45309' : '#059669'
@@ -605,10 +636,11 @@ function LeadListView({ leads, onOpen, dk }: { leads: Lead[]; onOpen: (l: Lead) 
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-function LeadQuickView({ leadId, onClose, onFullDetail, dk = false }: {
+function LeadQuickView({ leadId, onClose, onFullDetail, stages = DEFAULT_STAGES, dk = false }: {
   leadId: string
   onClose: () => void
   onFullDetail: () => void
+  stages?: PipelineStage[]
   dk?: boolean
 }) {
   const [lead, setLead] = useState<any>(null)
@@ -645,7 +677,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail, dk = false }: {
     } finally { setSavingNote(false) }
   }
 
-  const stage = lead ? PIPELINE_STAGES.find(s => s.key === lead.lead_status) || PIPELINE_STAGES[0] : PIPELINE_STAGES[0]
+  const stage = lead ? stages.find(s => s.key === lead.lead_status) || stages[0] : stages[0]
   const [avBg, avFg] = lead ? avatarColor(lead.contact_name) : ['#E5E7EB', '#6B7280']
   const days = lead ? Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 86400000) : 0
 
@@ -771,7 +803,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail, dk = false }: {
 
 
 function SlidePanel({ stage, leads, onClose, onOpen, dk = false }: {
-  stage: typeof PIPELINE_STAGES[number]
+  stage: PipelineStage
   leads: Lead[]
   onClose: () => void
   onOpen: (lead: Lead) => void
@@ -869,7 +901,7 @@ function SlidePanel({ stage, leads, onClose, onOpen, dk = false }: {
 
 // ── Pipeline column ────────────────────────────────────────────────────────────
 function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
-  stage: typeof PIPELINE_STAGES[number]
+  stage: PipelineStage
   leads: Lead[]
   onOpen: (lead: Lead) => void
   dk?: boolean
@@ -962,9 +994,10 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, dk = false }: Props) {
+export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false }: Props) {
   const router = useRouter()
   const t = theme(dk)
+  const stages = getPipelineStages(tradeSlug)
   const [mobileStage, setMobileStage] = useState<StageKey>('New')
   const [showLost, setShowLost] = useState(false)
   const [listView, setListView] = useState(false)
@@ -1016,7 +1049,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       {/* ── Mobile tab strip ── */}
       <div className="md:hidden relative mb-3">
       <div className="flex gap-1 overflow-x-auto pb-1 px-4" style={{ scrollbarWidth: 'none' }}>
-        {PIPELINE_STAGES.map(s => {
+        {stages.map(s => {
           const cnt = leadsForStage(s.key).length
           const active = mobileStage === s.key
           return (
@@ -1036,7 +1069,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         {leadsForStage(mobileStage).length === 0
           ? <p className="text-center py-8 text-sm text-gray-500">No leads in {mobileStage}</p>
           : leadsForStage(mobileStage).map(lead => {
-              const stage = PIPELINE_STAGES.find(s => s.key === lead.lead_status) || PIPELINE_STAGES[0]
+              const stage = stages.find(s => s.key === lead.lead_status) || stages[0]
               return <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
             })
         }
@@ -1045,14 +1078,14 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       {/* ── Desktop list view ── */}
       {listView && (
         <div className="hidden md:block">
-          <LeadListView leads={leads} onOpen={openLead} dk={dk} />
+          <LeadListView leads={leads} onOpen={openLead} dk={dk} stages={stages} />
         </div>
       )}
 
       {/* ── Desktop: all 6 columns, horizontal scroll ── */}
       <div className={`${listView ? 'hidden' : 'hidden md:block'} overflow-x-auto pb-4`} style={{ scrollbarWidth: 'thin' }}>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(6, minmax(220px, 1fr))', minWidth: 1320 }}>
-          {PIPELINE_STAGES.map(stage => (
+          {stages.map(stage => (
             <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
           ))}
         </div>

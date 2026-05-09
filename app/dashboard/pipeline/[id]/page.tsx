@@ -5,6 +5,7 @@ import { Lead, Session, LeadStatus } from '@/types'
 import { avatarColor, initials, timeAgo, capName, US_STATES } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
+import { getPipelineStages } from '@/components/ui/LeadPipeline'
 
 const STAGES: LeadStatus[] = ['New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid']
 const STAGE_ORDER: Record<string, number> = { New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5 }
@@ -730,7 +731,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
               {/* Stage pills */}
               <div style={{ position: 'relative', marginBottom: 10 }}>
                 <div ref={stageBarRef} style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' }}>
-                {STAGES.map((stage, i) => {
+                {getPipelineStages(session?.trade_slug).map((stageObj, i) => {
+                  const stage = stageObj.key as LeadStatus
                   const done = i < curIdx; const active = i === curIdx
                   return (
                     <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -748,9 +750,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                       >
                         {done   && <Ic color="#166534" size={12}><polyline points="20 6 9 17 4 12"/></Ic>}
                         {active && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7C3AED', display: 'inline-block' }} />}
-                        {stage}
+                        {stageObj.label}
                       </button>
-                      {i < STAGES.length - 1 && <Ic color={ts} size={12}><polyline points="9 18 15 12 9 6"/></Ic>}
+                      {i < getPipelineStages(session?.trade_slug).length - 1 && <Ic color={ts} size={12}><polyline points="9 18 15 12 9 6"/></Ic>}
                     </div>
                   )
                 })}
