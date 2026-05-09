@@ -92,13 +92,13 @@ function ProMeasureInner() {
     setMapLoaded(true)
 
     // Click to add polygon vertices
-    map.addListener('click', (e: google.maps.MapMouseEvent) => {
+    map.addListener('click', (e: any) => {
       if (!e.latLng) return
       addVertex(e.latLng, map)
     })
   }
 
-  function addVertex(latLng: google.maps.LatLng, map: google.maps.Map) {
+  function addVertex(latLng: any, map: any) {
     // Add marker
     const marker = new window.google.maps.Marker({
       position: latLng, map,
@@ -125,7 +125,7 @@ function ProMeasureInner() {
     setPinCount(markersRef.current.length)
   }
 
-  function rebuildPolygon(map: google.maps.Map) {
+  function rebuildPolygon(map: any) {
     const pts = markersRef.current.map(m => m.getPosition()!).filter(Boolean)
     setPinCount(pts.length)
 
@@ -159,7 +159,7 @@ function ProMeasureInner() {
     if (!address.trim() || !window.google) return
     setSearching(true)
     const geocoder = new window.google.maps.Geocoder()
-    geocoder.geocode({ address }, (results, status) => {
+    geocoder.geocode({ address }, (results: any, status: any) => {
       setSearching(false)
       if (status === 'OK' && results?.[0]) {
         const loc = results[0].geometry.location
