@@ -70,24 +70,22 @@ function ProMeasureInner() {
       initMap()
     }
 
-    // Use the recommended bootstrap loader pattern
+    // Already loaded
     if (window.google?.maps?.Map) { tryInit(); return }
 
-    // Inject the bootstrap script (google.maps.importLibrary pattern)
-    const existingScript = document.getElementById('gmap-script')
-    if (!existingScript) {
+    // Set callback on window BEFORE injecting script
+    window.initProMeasureMap = tryInit
+
+    if (!document.getElementById('gmap-script')) {
       const script = document.createElement('script')
       script.id = 'gmap-script'
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&loading=async`
+      // callback= is the correct pattern; loading=async tells Maps to init async
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&callback=initProMeasureMap&loading=async`
       script.onerror = () => setMapError('Failed to load Google Maps. Check your API key and billing.')
-      script.onload = () => tryInit()
       document.head.appendChild(script)
-    } else {
-      // Script already in DOM, poll for google.maps to be ready
-      const poll = setInterval(() => {
-        if (window.google?.maps?.Map) { clearInterval(poll); tryInit() }
-      }, 100)
     }
+
+    return () => { if (window.initProMeasureMap) window.initProMeasureMap = () => {} }
   }, [])
 
   function initMap() {
