@@ -24,6 +24,7 @@ Run in this exact order. Each file is idempotent (safe to re-run).
 | 2 | `v77-prod-migration.sql` | consolidates v74–v76 (invoices, estimates schema, discount_type) | ✅ | ❌ |
 | 3 | `v78-scheduled-time.sql` | scheduled_time column on leads | ✅ | ❌ |
 | 4 | `v80-hvac-equipment.sql` | hvac_equipment, hvac_refrigerant_log, hvac_maintenance_reminders | ✅ | ❌ |
+| 5 | `v82-roofing-property.sql` | properties table, leads.property_id FK, pros.roofing_material_prices JSONB, pros.gbb_templates JSONB, estimates.estimate_type, estimates.tiered_data JSONB, RLS on properties | ✅ | ❌ |
 
 **Run command (replace PASSWORD):**
 ```bash
@@ -62,7 +63,7 @@ Note: App routes use service role key (bypasses RLS). RLS is defense-in-depth fo
 - [ ] `R2_ACCESS_KEY_ID` = 32-char key (NOT the cfat_... token)
 - [ ] `R2_SECRET_ACCESS_KEY` = from Cloudflare R2
 - [ ] `R2_BUCKET_NAME` = `proguild-media` (production bucket, not staging)
-- [ ] `R2_PUBLIC_BUCKET_URL` = production R2 public URL
+- [ ] `NEXT_PUBLIC_GOOGLE_MAPS_KEY` = from Google Cloud Console (Maps JS API + Geocoding API + Street View — domain-restricted to proguild.ai)
 
 ### Preview/staging env vars (already set — verify)
 - [x] `NEXT_PUBLIC_ENV` = `staging`
@@ -124,13 +125,14 @@ Note: App routes use service role key (bypasses RLS). RLS is defense-in-depth fo
 - [ ] Delete confirmation modal on estimates list (replace browser `confirm()`)
 
 ### P2 — before wave 2 outreach
-- [ ] Roofing trade section live and tested (nav, terminology)
-- [ ] HVAC SQL migration run on production
-- [ ] HVAC: confirm trade_category_name string in Supabase matches resolver map
-- [ ] Update test account trade for HVAC testing:
+- [x] Roofing trade section live and tested (nav, terminology)
+- [x] HVAC SQL migration run on production
+- [x] HVAC: confirm trade_category_name string in Supabase matches resolver map
+- [ ] Run v82-roofing-property.sql on staging DB first, then production
+- [ ] Update test account trade for roofing testing:
   ```sql
   UPDATE pros SET trade_category_id = (
-    SELECT id FROM trade_categories WHERE slug = 'hvac-technician' LIMIT 1
+    SELECT id FROM trade_categories WHERE slug = 'roofing-contractor' LIMIT 1
   ) WHERE email = 'wasimakram@wasim.com';
   ```
 
