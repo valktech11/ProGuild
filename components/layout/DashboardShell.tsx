@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Session, isPaidPlan } from '@/types'
 import { initials, avatarColor, planLabel } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
+import { resolveTradeConfig } from '@/lib/trade-resolver'
 
 type NavItem  = { label: string; href: string; icon: (a: boolean) => React.ReactNode; badge?: number | null; soon?: boolean; exact?: boolean }
 type NavGroup = { title: string; items: NavItem[] }
@@ -42,36 +43,63 @@ const icon = {
 }
 
 // ── Nav config ────────────────────────────────────────────────────────────────
-function buildNav(nl: number): NavGroup[] {
-  return [
+// buildNav consumes TradeConfig from lib/trade-config.ts.
+// Never add trade-specific branches here — edit lib/trade-config.ts instead.
+function buildNav(nl: number, tradeSlug?: string | null, tradeName?: string | null): NavGroup[] {
+  const tc = resolveTradeConfig(tradeSlug, tradeName)
+  const t  = tc.terms
+
+  // Resolve icon safely — falls back to clients icon if key not found in map
+  function navIcon(key: string): (a: boolean) => React.ReactNode {
+    return (icon as Record<string, (a: boolean) => React.ReactNode>)[key] ?? icon.clients
+  }
+
+  const groups: NavGroup[] = [
     { title: 'TODAY', items: [
-      { label: 'Overview',    href: '/dashboard',          icon: icon.overview,   exact: true },
-      { label: 'Pipeline',    href: '/dashboard/pipeline', icon: icon.pipeline,   badge: nl },
-      { label: 'Calendar',    href: '/dashboard/calendar', icon: icon.calendar },
-      { label: 'Messages',    href: '/messages',           icon: icon.messages },
+      { label: t.overview  ?? 'Overview',  href: '/dashboard',          icon: icon.overview,  exact: true },
+      { label: t.pipeline  ?? 'Pipeline',  href: '/dashboard/pipeline', icon: icon.pipeline,  badge: nl },
+      { label: 'Calendar',                 href: '/dashboard/calendar', icon: icon.calendar },
+      { label: 'Messages',                 href: '/messages',           icon: icon.messages },
     ]},
     { title: 'MONEY', items: [
-      { label: 'Estimates',   href: '/dashboard/estimates', icon: icon.estimates },
-      { label: 'Invoices',    href: '/dashboard/invoices',  icon: icon.invoices },
-      { label: 'Revenue',     href: '/dashboard/revenue',   icon: icon.revenue,    soon: true },
-    ]},
-    { title: 'MY BUSINESS', items: [
-      { label: 'Clients',     href: '/dashboard/clients',   icon: icon.clients },
-      { label: 'Photo Vault', href: '/dashboard/photos',    icon: icon.photos,     soon: true },
-      { label: 'Compliance',  href: '/dashboard/compliance',icon: icon.compliance, soon: true },
-    ]},
-    { title: 'TOOLS', items: [
-      { label: 'AI Assistant',   href: '/dashboard/ai',        icon: icon.ai,        soon: true },
-      { label: 'Materials',      href: '/dashboard/materials', icon: icon.materials, soon: true },
-      { label: 'Permit Tracker', href: '/dashboard/permits',   icon: icon.permit,    soon: true },
-      { label: 'Time & Mileage', href: '/dashboard/time',      icon: icon.time,      soon: true },
-    ]},
-    { title: 'THE GUILD', items: [
-      { label: 'Learn',       href: '/dashboard/learn', icon: icon.learn,     soon: true },
-      { label: 'Local Deals', href: '/dashboard/deals', icon: icon.deals,     soon: true },
-      { label: 'Community',   href: '/community',       icon: icon.community },
+      { label: t.estimates ?? 'Estimates', href: '/dashboard/estimates', icon: icon.estimates },
+      { label: 'Invoices',                 href: '/dashboard/invoices',  icon: icon.invoices },
+      { label: 'Revenue',                  href: '/dashboard/revenue',   icon: icon.revenue,   soon: true },
     ]},
   ]
+
+  // Trade-specific section (MY EQUIPMENT, ROOFING TOOLS, GC TOOLS, etc.)
+  if (tc.tradeSection) {
+    groups.push({
+      title: tc.tradeSection.title,
+      items: [
+        // First item is always Clients/Customers/Owners/Properties
+        { label: t.clients ?? 'Clients', href: '/dashboard/clients', icon: icon.clients },
+        // Then trade-specific items from config
+        ...tc.tradeSection.items.map(item => ({
+          label: item.label,
+          href:  item.href,
+          icon:  navIcon(item.iconKey),
+          soon:  item.soon,
+        })),
+      ],
+    })
+  } else {
+    // No trade section — Clients lives in MY BUSINESS (default)
+    groups.push({ title: 'MY BUSINESS', items: [
+      { label: t.clients ?? 'Clients', href: '/dashboard/clients',    icon: icon.clients },
+      { label: 'Photo Vault',          href: '/dashboard/photos',     icon: icon.photos,    soon: true },
+      { label: 'Compliance',           href: '/dashboard/compliance', icon: icon.compliance, soon: true },
+    ]})
+  }
+
+  groups.push({ title: 'THE GUILD', items: [
+    { label: 'Learn',       href: '/dashboard/learn', icon: icon.learn,     soon: true },
+    { label: 'Local Deals', href: '/dashboard/deals', icon: icon.deals,     soon: true },
+    { label: 'Community',   href: '/community',       icon: icon.community },
+  ]})
+
+  return groups
 }
 
 // ── NavLink ───────────────────────────────────────────────────────────────────
@@ -316,7 +344,7 @@ function MoreDrawer({ open, onClose, session, nl, dk, onToggleDark }: { open: bo
 
         {/* Nav groups — scrollable */}
         <div className="flex-1 overflow-y-auto px-3 pt-3 pb-16" style={{ scrollbarWidth: 'none' }}>
-          {buildNav(nl).map((g, gi) => (
+          {buildNav(nl, session?.trade_slug, session?.trade).map((g, gi) => (
             <div key={g.title} className={gi > 0 ? 'mt-8' : 'mt-2'}>
               {/* Section header with line */}
               <div className="flex items-center gap-3 px-2 mb-2">
@@ -633,7 +661,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   children: React.ReactNode; session: Session | null; newLeads?: number; onAddLead?: () => void; darkMode?: boolean; onToggleDark?: () => void
 }) {
   const p   = usePathname()
-  const nav = buildNav(newLeads)
+  const nav = buildNav(newLeads, session?.trade_slug, session?.trade)
   const [moreOpen,  setMoreOpen]  = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const isA = (h: string, ex?: boolean) => ex ? p === h : p === h

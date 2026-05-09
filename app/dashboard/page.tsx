@@ -8,6 +8,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 
 import { theme, T, BRAND } from '@/lib/tokens'
+import { hasFeature, tradeTerm } from '@/lib/trade-resolver'
 
 const TEAL   = '#0F766E'
 const NAVY   = '#0A1628'
@@ -185,18 +186,22 @@ export default function OverviewPage() {
   const [draftCount,  setDraftCount]  = useState(0)
   const [dataLoading, setDataLoading] = useState(true)
   const [showAddLead, setShowAddLead] = useState(false)
+  const [maintenanceReminders, setMaintenanceReminders] = useState<any[]>([])
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
+    const isHVAC = hasFeature(session.trade_slug, session.trade, 'maintenance_reminders')
     Promise.all([
       fetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/reviews?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/estimates?pro_id=${session.id}`).then(r => r.json()),
-    ]).then(([leadsData, reviewsData, estimatesData]) => {
+      isHVAC ? fetch(`/api/hvac/maintenance-reminders?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
+    ]).then(([leadsData, reviewsData, estimatesData, remindersData]) => {
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))
       const allEstimates: { status: string }[] = estimatesData.estimates || []
       setDraftCount(allEstimates.filter(e => e.status === 'draft').length)
+      setMaintenanceReminders(remindersData.reminders || [])
       setDataLoading(false)
     }).catch(() => setDataLoading(false))
   }, [session, router])
@@ -599,6 +604,49 @@ export default function OverviewPage() {
           </div>
           )} {/* end reviews.length > 0 */}
         </div>
+
+        {/* ── HVAC Maintenance Reminders (HVAC pros only) ───────────────── */}
+        {session && hasFeature(session.trade_slug, session.trade, 'maintenance_reminders') && maintenanceReminders.length > 0 && (
+          <div className="rounded-2xl mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}`, overflow:'hidden' }}>
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:`1px solid ${cardBdr}` }}>
+              <div className="flex items-center gap-2">
+                <div style={{ width:32, height:32, borderRadius:8, background:'rgba(15,118,110,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>❄️</div>
+                <div>
+                  <div className="font-bold" style={{ fontSize:15, color: textMain }}>Maintenance Due</div>
+                  <div style={{ fontSize:12, color: t.textSubtle }}>{maintenanceReminders.length} unit{maintenanceReminders.length !== 1 ? 's' : ''} need attention</div>
+                </div>
+              </div>
+              <a href="/dashboard/clients" style={{ fontSize:12, fontWeight:700, color:'#0F766E', textDecoration:'none' }}>View All →</a>
+            </div>
+            <div>
+              {maintenanceReminders.slice(0, 5).map((reminder: any, i: number) => {
+                const daysUntil = Math.ceil((new Date(reminder.due_date).getTime() - Date.now()) / (1000*60*60*24))
+                const overdue = daysUntil < 0
+                return (
+                  <div key={reminder.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 20px', borderTop: i > 0 ? `1px solid ${cardBdr}` : 'none' }}>
+                    <div style={{ fontSize:18, flexShrink:0 }}>
+                      {reminder.hvac_equipment?.equipment_type === 'Furnace' ? '🔥' : reminder.hvac_equipment?.equipment_type === 'Heat_Pump' ? '♻️' : '❄️'}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color: textMain }}>
+                        {reminder.clients?.full_name || 'Unknown Client'}
+                        {reminder.hvac_equipment?.brand ? ` — ${reminder.hvac_equipment.brand}` : ''}
+                        {reminder.hvac_equipment?.equipment_type ? ` ${reminder.hvac_equipment.equipment_type.replace('_',' ')}` : ''}
+                      </div>
+                      <div style={{ fontSize:12, color: overdue ? '#DC2626' : t.textSubtle, fontWeight: overdue ? 700 : 400 }}>
+                        {overdue ? `Overdue by ${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''}` : `Due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''} — ${reminder.due_date}`}
+                      </div>
+                    </div>
+                    <a href={`/dashboard/clients/${reminder.client_id}`}
+                      style={{ fontSize:11, fontWeight:700, padding:'5px 12px', borderRadius:8, background:'#F0FDFA', color:'#0F766E', textDecoration:'none', flexShrink:0, whiteSpace:'nowrap' }}>
+                      Schedule
+                    </a>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Community Insights ───────────────────────────────────────────── */}
         <div className="rounded-2xl p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>

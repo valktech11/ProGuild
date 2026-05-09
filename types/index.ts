@@ -151,6 +151,7 @@ export interface Session {
   email: string
   plan: PlanTier
   trade: string | null
+  trade_slug: string | null    // canonical DB slug: "hvac-technician", "roofing-contractor"
   city: string | null
   state: string | null
   slug: string | null          // vanity URL slug e.g. wasim-akram-painter-jacksonville
