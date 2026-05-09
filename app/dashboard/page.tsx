@@ -285,7 +285,35 @@ export default function OverviewPage() {
           <div className="rounded-2xl mb-5 overflow-hidden" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}`, boxShadow: '0 2px 12px rgba(15,118,110,0.08)' }}>
             {/* Teal gradient header band */}
             <div style={{ background: 'linear-gradient(135deg, #0F766E 0%, #0D9488 100%)', padding: '28px 24px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>🏗️</div>
+              <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
+                <svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Drop shadow */}
+                  <ellipse cx="36" cy="61" rx="22" ry="3" fill="rgba(0,0,0,0.15)"/>
+                  {/* Main roof — clean geometric shape */}
+                  <path d="M4 30L36 4L68 30" fill="white" fillOpacity="0.22" stroke="white" strokeWidth="2.5" strokeLinejoin="round"/>
+                  {/* Roof overhang line */}
+                  <path d="M1 30H71" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.5"/>
+                  {/* House body */}
+                  <rect x="12" y="30" width="48" height="28" rx="2" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="2" strokeLinejoin="round"/>
+                  {/* Door */}
+                  <rect x="29" y="42" width="14" height="16" rx="2" fill="white" fillOpacity="0.3" stroke="white" strokeWidth="1.5"/>
+                  {/* Door knob */}
+                  <circle cx="40" cy="51" r="1.5" fill="white" fillOpacity="0.8"/>
+                  {/* Left window */}
+                  <rect x="16" y="35" width="10" height="9" rx="1.5" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.5"/>
+                  {/* Right window */}
+                  <rect x="46" y="35" width="10" height="9" rx="1.5" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.5"/>
+                  {/* Chimney */}
+                  <rect x="52" y="12" width="7" height="16" rx="1.5" fill="white" fillOpacity="0.3" stroke="white" strokeWidth="1.5"/>
+                  {/* Chimney top detail */}
+                  <rect x="50" y="10" width="11" height="4" rx="1" fill="white" fillOpacity="0.5"/>
+                  {/* Roof ridge cap accent */}
+                  <path d="M24 30L36 18L48 30" fill="white" fillOpacity="0.12"/>
+                  {/* Subtle shingle lines */}
+                  <path d="M14 22L36 4" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.2"/>
+                  <path d="M58 22L36 4" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.2"/>
+                </svg>
+              </div>
               <h3 style={{ fontSize: 22, fontWeight: 800, color: 'white', margin: 0, marginBottom: 6 }}>Welcome to ProGuild, {firstName}!</h3>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)', margin: 0 }}>You&apos;re all set up. Here&apos;s how to get your first job.</p>
             </div>
