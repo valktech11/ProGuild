@@ -52,3 +52,30 @@ export async function POST(req: NextRequest) {
     }
   })
 }
+
+export async function GET(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  const { data: pro, error } = await getSupabaseAdmin()
+    .from('pros')
+    .select(`*, trade_category:trade_categories(id, category_name, slug)`)
+    .eq('id', id)
+    .single()
+
+  if (error || !pro) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  return NextResponse.json({
+    session: {
+      id:         pro.id,
+      name:       pro.full_name,
+      email:      pro.email,
+      plan:       pro.plan_tier,
+      trade:      (pro.trade_category as any)?.category_name || null,
+      trade_slug: (pro.trade_category as any)?.slug || null,
+      city:       pro.city,
+      state:      pro.state,
+      slug:       pro.slug || null,
+    }
+  })
+}

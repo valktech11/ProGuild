@@ -31,6 +31,12 @@ function ProMeasureInner() {
   const searchParams = useSearchParams()
   const initAddress = searchParams.get('address') || ''
 
+  // Restore saved draw state if returning via back navigation
+  const savedDraw = (() => {
+    if (typeof window === 'undefined') return null
+    try { const s = sessionStorage.getItem('pg_pm_draw'); return s ? JSON.parse(s) : null } catch { return null }
+  })()
+
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
     const s = sessionStorage.getItem('pg_pro'); return s ? JSON.parse(s) : null
@@ -72,10 +78,11 @@ function ProMeasureInner() {
   const polyRef    = useRef<any>(null)
   const markers    = useRef<any[]>([])
   const inputRef   = useRef<HTMLInputElement>(null)
+  const saveRecentRef = useRef<(addr: string) => void>(() => {})
 
-  const [address,      setAddress]      = useState(initAddress)
-  const [pitch,        setPitch]        = useState('4/12')
-  const [waste,        setWaste]        = useState(10)
+  const [address,      setAddress]      = useState(initAddress || savedDraw?.address || '')
+  const [pitch,        setPitch]        = useState(savedDraw?.pitch || '4/12')
+  const [waste,        setWaste]        = useState(savedDraw?.waste ?? 10)
   const [pins,         setPins]         = useState(0)
   const [area,         setArea]         = useState<number|null>(null)
   const [perim,        setPerim]        = useState<number|null>(null)
@@ -83,7 +90,7 @@ function ProMeasureInner() {
   const [apiErr,       setApiErr]       = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [colorTarget,  setColorTarget]  = useState<keyof Settings|null>(null)
-  const [regions,      setRegions]      = useState<{name:string;sqFt:number;color:string}[]>([])
+  const [regions,      setRegions]      = useState<{name:string;sqFt:number;color:string}[]>(savedDraw?.regions || [])
   const [showRecent,   setShowRecent]   = useState(false)
   const [recentAddrs,  setRecentAddrs]  = useState<string[]>([])
 
@@ -108,6 +115,7 @@ function ProMeasureInner() {
       return next
     })
   }
+  saveRecentRef.current = saveRecentAddress
 
   function removeRecent(addr: string) {
     setRecentAddrs(prev => {
@@ -142,11 +150,15 @@ function ProMeasureInner() {
     const div = mapDivRef.current
     if (!div || !window.google?.maps?.Map) return
 
+    // Restore saved center/zoom if returning from calculator
+    const saved = (() => { try { const s=sessionStorage.getItem('pg_pm_draw'); return s?JSON.parse(s):null } catch { return null } })()
+
     const map = new window.google.maps.Map(div, {
-      zoom:19, center:{lat:30.3322,lng:-81.6557},
+      zoom: saved?.zoom || 19,
+      center: saved?.center || {lat:30.3322,lng:-81.6557},
       mapTypeId:'satellite', tilt:0,
       streetViewControl:false, mapTypeControl:true,
-      mapTypeControlOptions:{ position: 9 },
+      mapTypeControlOptions:{ position: 9, style: 1 }, // style 1 = HORIZONTAL_BAR (Map/Satellite labels)
       fullscreenControl:true, fullscreenControlOptions:{ position: 7 },
       zoomControl:true, zoomControlOptions:{ position: 7 },
       gestureHandling:'greedy',
@@ -155,6 +167,26 @@ function ProMeasureInner() {
     setMapReady(true)
 
     map.addListener('click', (e:any) => { if (e.latLng) addPin(e.latLng, map) })
+
+    // Restore drawn polygon from saved state
+    if (saved?.latlngs?.length >= 2) {
+      const pts = saved.latlngs.map((ll: any) => new window.google.maps.LatLng(ll.lat, ll.lng))
+      pts.forEach((pt: any) => {
+        const marker = new window.google.maps.Marker({
+          position:pt, map, draggable:true,
+          icon:{ path:window.google.maps.SymbolPath.CIRCLE, scale:7,
+            fillColor:settings.markerColor, fillOpacity:1, strokeColor:'#fff', strokeWeight:2 },
+        })
+        markers.current.push(marker)
+        marker.addListener('drag', () => redraw(map))
+        marker.addListener('dblclick', () => {
+          marker.setMap(null)
+          markers.current = markers.current.filter(m=>m!==marker)
+          redraw(map)
+        })
+      })
+      redraw(map)
+    }
 
     // Autocomplete
     const input = document.getElementById('pm-address-input') as HTMLInputElement
@@ -169,7 +201,7 @@ function ProMeasureInner() {
           map.setZoom(20)
           const addr = place.formatted_address || input.value
           setAddress(addr)
-          saveRecentAddress(addr)
+          saveRecentRef.current(addr)
           setShowRecent(false)
         }
       })
@@ -203,6 +235,18 @@ function ProMeasureInner() {
       strokeColor:settings.borderColor, strokeOpacity:0.95, strokeWeight:settings.borderWidth,
       fillColor:settings.fillColor, fillOpacity:settings.fillOpacity,
     })
+    // Persist latlngs + map position so state survives back navigation
+    const latlngs = pts.map((p:any) => ({ lat: p.lat(), lng: p.lng() }))
+    const center = map.getCenter()
+    sessionStorage.setItem('pg_pm_draw', JSON.stringify({
+      latlngs,
+      zoom: map.getZoom(),
+      center: center ? { lat: center.lat(), lng: center.lng() } : null,
+      address: (document.getElementById('pm-address-input') as HTMLInputElement)?.value || '',
+      pitch: (document.getElementById('pm-pitch-sel') as HTMLSelectElement)?.value || '4/12',
+      waste: Number((document.getElementById('pm-waste-inp') as HTMLInputElement)?.value || 10),
+      regions: [], // saved regions tracked separately
+    }))
     if (pts.length >= 3) {
       setArea(window.google.maps.geometry.spherical.computeArea(pts)*10.7639)
       let p=0
@@ -221,6 +265,7 @@ function ProMeasureInner() {
     markers.current.forEach(m=>m.setMap(null)); markers.current=[]
     if(polyRef.current){polyRef.current.setMap(null);polyRef.current=null}
     setPins(0);setArea(null);setPerim(null)
+    sessionStorage.removeItem('pg_pm_draw')
   }
 
   function saveRegion() {
@@ -416,8 +461,9 @@ function ProMeasureInner() {
         </div>
         <input type="range" min={1} max={8} step={0.5} value={settings.borderWidth}
           onChange={e=>saveSetting('borderWidth',+e.target.value)}
+          onPointerDown={e=>e.stopPropagation()}
           onTouchStart={e=>e.stopPropagation()}
-          style={{width:'100%',accentColor:'#14B8A6',touchAction:'none'}}/>
+          style={{width:'100%',accentColor:'#14B8A6',touchAction:'none',cursor:'pointer'}}/>
       </div>
 
       <div style={{padding:'10px 0'}}>
@@ -427,8 +473,9 @@ function ProMeasureInner() {
         </div>
         <input type="range" min={0} max={1} step={0.05} value={settings.fillOpacity}
           onChange={e=>saveSetting('fillOpacity',+e.target.value)}
+          onPointerDown={e=>e.stopPropagation()}
           onTouchStart={e=>e.stopPropagation()}
-          style={{width:'100%',accentColor:'#14B8A6',touchAction:'none'}}/>
+          style={{width:'100%',accentColor:'#14B8A6',touchAction:'none',cursor:'pointer'}}/>
       </div>
     </div>
   )
@@ -598,9 +645,11 @@ function ProMeasureInner() {
         </div>
 
         {/* ── RIGHT PANEL — measurements always visible, settings appended below ── */}
-        <div style={{width:260,flexShrink:0,background:T.panel,borderLeft:`1px solid ${T.panelBorder}`,display:'flex',flexDirection:'column',overflowY:'auto'}}>
-          <MeasurementsPanel/>
-          {settingsOpen&&<SettingsPanel/>}
+        <div style={{width:260,flexShrink:0,background:T.panel,borderLeft:`1px solid ${T.panelBorder}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          <div style={{flex:1,overflowY:'auto'}}>
+            <MeasurementsPanel/>
+            {settingsOpen&&<SettingsPanel/>}
+          </div>
         </div>
       </div>
 

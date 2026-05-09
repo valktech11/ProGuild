@@ -665,6 +665,22 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   const nav = buildNav(newLeads, session?.trade_slug, session?.trade)
   const [moreOpen,  setMoreOpen]  = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+
+  // Silently refresh session if trade_slug missing (stale sessionStorage from before trade was set)
+  React.useEffect(() => {
+    if (!session?.id || session?.trade_slug) return
+    fetch(`/api/auth?id=${session.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.session?.trade_slug) {
+          sessionStorage.setItem('pg_pro', JSON.stringify(d.session))
+          window.location.reload()
+        }
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id])
+
   const isA = (h: string, ex?: boolean) => ex ? p === h : p === h
   const dk = darkMode ?? false
   const t  = theme(dk)
