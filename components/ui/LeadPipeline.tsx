@@ -116,7 +116,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = DEFAULT_S
   const [schedDate, setSchedDate] = useState(lead.scheduled_date || '')
   const [followUp, setFollowUp]   = useState(lead.follow_up_date || '')
   const [saving, setSaving]       = useState(false)
-  const [status, setStatus]       = useState(lead.lead_status)
+  const [status, setStatus]       = useState<string>(lead.lead_status)
   const [pendingStage, setPendingStage] = useState<string | null>(null)
 
   function handleStageClick(newStage: string) {
