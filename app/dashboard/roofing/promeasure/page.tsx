@@ -146,7 +146,10 @@ function ProMeasureInner() {
       zoom:19, center:{lat:30.3322,lng:-81.6557},
       mapTypeId:'satellite', tilt:0,
       streetViewControl:false, mapTypeControl:true,
-      fullscreenControl:true, zoomControl:true, gestureHandling:'greedy',
+      mapTypeControlOptions:{ position: 9 },
+      fullscreenControl:true, fullscreenControlOptions:{ position: 7 },
+      zoomControl:true, zoomControlOptions:{ position: 7 },
+      gestureHandling:'greedy',
     })
     mapRef.current = map
     setMapReady(true)
@@ -412,7 +415,9 @@ function ProMeasureInner() {
           <span style={{fontSize:13,fontWeight:700,color:'#14B8A6'}}>{settings.borderWidth}px</span>
         </div>
         <input type="range" min={1} max={8} step={0.5} value={settings.borderWidth}
-          onChange={e=>saveSetting('borderWidth',+e.target.value)} style={{width:'100%',accentColor:'#14B8A6'}}/>
+          onChange={e=>saveSetting('borderWidth',+e.target.value)}
+          onTouchStart={e=>e.stopPropagation()}
+          style={{width:'100%',accentColor:'#14B8A6',touchAction:'none'}}/>
       </div>
 
       <div style={{padding:'10px 0'}}>
@@ -421,7 +426,9 @@ function ProMeasureInner() {
           <span style={{fontSize:13,fontWeight:700,color:'#14B8A6'}}>{Math.round(settings.fillOpacity*100)}%</span>
         </div>
         <input type="range" min={0} max={1} step={0.05} value={settings.fillOpacity}
-          onChange={e=>saveSetting('fillOpacity',+e.target.value)} style={{width:'100%',accentColor:'#14B8A6'}}/>
+          onChange={e=>saveSetting('fillOpacity',+e.target.value)}
+          onTouchStart={e=>e.stopPropagation()}
+          style={{width:'100%',accentColor:'#14B8A6',touchAction:'none'}}/>
       </div>
     </div>
   )
@@ -456,8 +463,8 @@ function ProMeasureInner() {
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={T.textSubtle} strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </div>
           <input id="pm-address-input" ref={inputRef}
-            value={address} onChange={e=>setAddress(e.target.value)}
-            onFocus={()=>setShowRecent(recentAddrs.length>0)}
+            value={address} onChange={e=>{setAddress(e.target.value);if(e.target.value)setShowRecent(false)}}
+            onFocus={()=>setShowRecent(!address&&recentAddrs.length>0)}
             onKeyDown={e=>{if(e.key==='Enter'){geocodeAddress(address);setShowRecent(false)}if(e.key==='Escape')setShowRecent(false)}}
             placeholder="Search address — autocomplete enabled"
             style={{width:'100%',padding:'9px 14px 9px 34px',borderRadius:10,border:`1.5px solid ${T.inputBorder}`,background:T.inputBg,color:T.text,fontSize:13,outline:'none',boxSizing:'border-box',transition:'border-color 0.2s'}}
@@ -559,7 +566,7 @@ function ProMeasureInner() {
               )}
 
               {area&&pins>=3&&(
-                <div style={{position:'absolute',top:16,left:16,background:dk?'rgba(15,20,35,0.9)':'rgba(255,255,255,0.95)',backdropFilter:'blur(8px)',border:'1px solid rgba(20,184,166,0.4)',borderRadius:14,padding:'10px 16px',boxShadow:'0 4px 24px rgba(0,0,0,0.15)'}}>
+                <div style={{position:'absolute',top:16,left:16,background:dk?'rgba(15,20,35,0.9)':'rgba(255,255,255,0.95)',backdropFilter:'blur(8px)',border:'1px solid rgba(20,184,166,0.4)',borderRadius:14,padding:'10px 16px',boxShadow:'0 4px 24px rgba(0,0,0,0.15)',pointerEvents:'none'}}>
                   <div style={{fontSize:11,color:'#14B8A6',fontWeight:700,letterSpacing:'0.07em',marginBottom:4}}>ACTIVE REGION</div>
                   <div style={{fontSize:22,fontWeight:800,color:T.text}}>{fmtSq(rawSq)} <span style={{fontSize:13,color:T.textMuted}}>sq</span></div>
                   <div style={{fontSize:12,color:T.textMuted,marginTop:2}}>{fmt(area||0)} sq ft</div>

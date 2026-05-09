@@ -94,9 +94,6 @@ export default function PropertyListPage() {
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 20 }}>
-          <Ic size={14} color={t.textSubtle}>
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </Ic>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by address or city…"
             style={{ width: '100%', padding: '10px 14px 10px 36px', borderRadius: 12, border: `1px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' }} />
           <div style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
