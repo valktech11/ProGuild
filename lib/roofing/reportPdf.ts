@@ -220,15 +220,33 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
           ...(data.proEmail ? [h(Text, { style: S.coverProContact }, data.proEmail)] : []),
           h(Text, { style: { ...S.coverProContact, marginTop: 6 } }, 'Generated ' + data.generatedDate),
           h(Text, { style: { ...S.coverProContact, marginTop: 2 } }, 'Imagery date: ' + data.imageryDate),
-          h(View, { style: {
-            ...S.qualityBadge,
-            backgroundColor: data.imageryQuality === 'HIGH' ? '#F0FDF4' : data.imageryQuality === 'MEDIUM' ? '#FFFBEB' : '#FEF2F2',
-            borderLeft: '3 solid ' + (data.imageryQuality === 'HIGH' ? '#16A34A' : data.imageryQuality === 'MEDIUM' ? AMBER : '#DC2626'),
-          }},
-            h(Text, { style: { ...S.qualityTxt, color: data.imageryQuality === 'HIGH' ? '#15803D' : data.imageryQuality === 'MEDIUM' ? AMBER_B : '#991B1B' } },
-              'Data Quality: ' + data.imageryQuality + (data.imageryQuality === 'BASE' ? ' \u2014 Verify with ProMeasure before ordering' : data.imageryQuality === 'MEDIUM' ? ' \u2014 Review measurements carefully' : ' \u2014 High accuracy')
+          (() => {
+            // Stale = imagery date > 18 months ago
+            let isStale = false
+            if (data.imageryDate && data.imageryDate !== 'Unknown') {
+              const imgMs = new Date(data.imageryDate).getTime()
+              const eighteenMonthsAgo = Date.now() - 18 * 30 * 24 * 60 * 60 * 1000
+              isStale = imgMs < eighteenMonthsAgo
+            }
+            const isBase = data.imageryQuality === 'BASE'
+            const isMedium = data.imageryQuality === 'MEDIUM'
+            // Stale overrides HIGH to amber; BASE stays red
+            const bgColor = isBase ? '#FEF2F2' : (isStale || isMedium) ? '#FFFBEB' : '#F0FDF4'
+            const borderColor = isBase ? '#DC2626' : (isStale || isMedium) ? AMBER : '#16A34A'
+            const textColor = isBase ? '#991B1B' : (isStale || isMedium) ? AMBER_B : '#15803D'
+            const qualityLabel = isBase
+              ? 'Data Quality: BASE \u2014 Verify with ProMeasure before ordering'
+              : isMedium
+                ? 'Data Quality: MEDIUM \u2014 Review measurements carefully'
+                : 'Data Quality: HIGH \u2014 High accuracy'
+            const staleLabel = isStale
+              ? 'Imagery is ' + Math.round((Date.now() - new Date(data.imageryDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000) * 10) / 10 + ' years old \u2014 Verify with site visit or ProMeasure'
+              : null
+            return h(View, { style: { ...S.qualityBadge, backgroundColor: bgColor, borderLeft: '3 solid ' + borderColor } },
+              h(Text, { style: { ...S.qualityTxt, color: textColor } }, qualityLabel),
+              ...(staleLabel ? [h(Text, { style: { ...S.qualityTxt, color: textColor, fontFamily: 'Helvetica', marginTop: 3 } }, staleLabel)] : [])
             )
-          )
+          })()
         )
       ),
       h(View, { style: S.coverFooter },
@@ -448,7 +466,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
             h(Link, {
               src: 'https://maps.google.com/?q=' + data.buildingLat.toFixed(6) + ',' + data.buildingLng.toFixed(6),
               style: S.directionsLink
-            }, 'Open in Google Maps \u2197')
+            }, 'Open in Google Maps ->')
           )
         )
       ),
