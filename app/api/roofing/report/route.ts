@@ -96,9 +96,22 @@ async function fetchSolarData(lat: number, lng: number): Promise<Record<string, 
   return res.json()
 }
 
-/** fetch Maps Static top-down image — force JPEG with &format=jpg */
-async function fetchTopView(lat: number, lng: number): Promise<string> {
-  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x400&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
+/** fetch Maps Static top-down image centred on exact building location.
+ *  Draws yellow bounding box outline to identify the property. */
+async function fetchTopView(
+  lat: number,
+  lng: number,
+  boundingBox: { swLat: number; swLng: number; neLat: number; neLng: number } | null
+): Promise<string> {
+  let url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x400&maptype=satellite&format=jpg`
+  // Draw yellow property outline using bounding box corners
+  if (boundingBox) {
+    const { swLat, swLng, neLat, neLng } = boundingBox
+    // Close the polygon by repeating the first point
+    const path = `path=color:0xFFFF00|weight:3|${swLat},${swLng}|${neLat},${swLng}|${neLat},${neLng}|${swLat},${neLng}|${swLat},${swLng}`
+    url += `&${path}`
+  }
+  url += `&key=${GOOGLE_KEY}`
   return fetchImageBase64(url, 'topView')
 }
 
@@ -126,12 +139,34 @@ function parseSolar(solar: Record<string, unknown>): {
   wasteFactor: number
   pitchBreakdown: PitchRow[]
   imageryDate: string
+  buildingLat: number
+  buildingLng: number
+  boundingBox: { swLat: number; swLng: number; neLat: number; neLng: number } | null
 } {
   // Solar API v1 buildingInsights response structure:
-  // { solarPotential: { wholeRoofStats, roofSegmentStats }, imageryDate: { year, month, day } }
+  // { center: {latitude, longitude}, boundingBox: {sw,ne}, solarPotential: {...}, imageryDate: {...} }
   const potential = (solar.solarPotential as Record<string, unknown>) || {}
   const whole = (potential.wholeRoofStats as Record<string, unknown>) || {}
   const segments = (potential.roofSegmentStats as Record<string, unknown>[]) || []
+
+  // Building exact centroid — use this for all Maps Static calls
+  const centerRaw = solar.center as Record<string, number> | null
+  const buildingLat = centerRaw?.latitude || 0
+  const buildingLng = centerRaw?.longitude || 0
+  console.log('[report] building center from Solar API:', buildingLat, buildingLng)
+
+  // Bounding box — used to draw yellow outline on top view
+  const bbRaw = solar.boundingBox as Record<string, Record<string, number>> | null
+  let boundingBox = null
+  if (bbRaw?.sw && bbRaw?.ne) {
+    boundingBox = {
+      swLat: bbRaw.sw.latitude,
+      swLng: bbRaw.sw.longitude,
+      neLat: bbRaw.ne.latitude,
+      neLng: bbRaw.ne.longitude,
+    }
+    console.log('[report] boundingBox:', JSON.stringify(boundingBox))
+  }
 
   // imageryDate is { year: number, month: number, day: number }
   const imgDateRaw = solar.imageryDate as Record<string, number> | string | null
@@ -172,10 +207,9 @@ function parseSolar(solar: Record<string, unknown>): {
   const dominantPitch = pitchBreakdown[0]?.pitch || '?/12'
   const wasteFactor = wasteFactorFromFacets(facetCount)
 
-  // Log parsed result for debugging
   console.log('[report] parsed: totalSqft=' + totalSqft + ', facets=' + facetCount + ', pitch=' + dominantPitch + ', imageryDate=' + imageryDate)
 
-  return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown, imageryDate }
+  return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown, imageryDate, buildingLat, buildingLng, boundingBox }
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────
@@ -250,14 +284,19 @@ export async function POST(req: NextRequest) {
     const measurements = parseSolar(solarData)
     console.log('[report] measurements:', measurements.totalSquaresRaw, 'sq,', measurements.facetCount, 'facets')
 
+    // Use Solar API building centroid for images — more accurate than geocoded position
+    const imgLat = measurements.buildingLat || lat
+    const imgLng = measurements.buildingLng || lng
+    console.log('[report] using image coords:', imgLat, imgLng, measurements.buildingLat ? '(Solar center)' : '(geocoded fallback)')
+
     // ── 5. Fetch 5 images in parallel ────────────────────────────
     console.log('[report] step 5: fetching 5 images')
     const [imgTopView, imgNorth, imgSouth, imgEast, imgWest] = await Promise.all([
-      fetchTopView(lat, lng),
-      fetchCardinalView(lat, lng, 'N'),
-      fetchCardinalView(lat, lng, 'S'),
-      fetchCardinalView(lat, lng, 'E'),
-      fetchCardinalView(lat, lng, 'W'),
+      fetchTopView(imgLat, imgLng, measurements.boundingBox),
+      fetchCardinalView(imgLat, imgLng, 'N'),
+      fetchCardinalView(imgLat, imgLng, 'S'),
+      fetchCardinalView(imgLat, imgLng, 'E'),
+      fetchCardinalView(imgLat, imgLng, 'W'),
     ])
     console.log('[report] images fetched')
 
