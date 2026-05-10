@@ -143,7 +143,9 @@ function wasteArea(baseSqft: number, pct: number) {
 }
 
 // ── Report Document ────────────────────────────────────────────────────────
-export function RoofReportPDF({ data, reportId }: { data: ReportData; reportId: string }) {
+// Returns a Document JSX element directly — NOT a React component.
+// renderToBuffer requires the Document element itself, not a wrapper component.
+export function buildRoofReportPDF(data: ReportData, reportId: string) {
   const fullAddress = `${data.address}, ${data.city}, ${data.state} ${data.zip}`
   // Only include pitches >3/12 in waste table (EagleView convention)
   const steepSqft = data.pitchBreakdown

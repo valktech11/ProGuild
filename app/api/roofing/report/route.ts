@@ -8,11 +8,10 @@ export const maxDuration = 60  // PDF generation + 7 API calls can take up to 30
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { renderToBuffer } from '@react-pdf/renderer'
-import { RoofReportPDF, ReportData, PitchRow } from '@/lib/roofing/reportPdf'
+import { buildRoofReportPDF, ReportData, PitchRow } from '@/lib/roofing/reportPdf'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import crypto from 'crypto'
-import React from 'react'
 
 // ── R2 client (lazy — avoids module-load crash if env vars missing) ────────
 function getR2Client() {
@@ -261,10 +260,7 @@ export async function POST(req: NextRequest) {
 
     // ── 9. Render PDF ─────────────────────────────────────────────
     console.log('[report] step 9: rendering PDF')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdfBuffer = await renderToBuffer(
-      React.createElement(RoofReportPDF, { data: reportData, reportId }) as any
-    )
+    const pdfBuffer = await renderToBuffer(buildRoofReportPDF(reportData, reportId))
     console.log('[report] PDF rendered, size:', pdfBuffer.length, 'bytes')
 
     // ── 10. Upload to R2 ──────────────────────────────────────────
