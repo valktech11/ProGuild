@@ -176,22 +176,20 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
 
     // ── PAGE 1: COVER ───────────────────────────────────────────────────
     h(Page, { size: 'LETTER', style: S.page },
-      // Navy header
-      h(View, { style: S.coverHeader },
-        h(Text, { style: S.coverTitle }, 'Satellite Roof Measurement Report'),
-        h(Text, { style: S.coverSub }, 'Powered by ProGuild \u00B7 Google Solar API')
+      // flex:1 wrapper — keeps absolute footer from collapsing image layout
+      h(View, { style: { flex: 1 } },
+        h(View, { style: S.coverHeader },
+          h(Text, { style: S.coverTitle }, 'Satellite Roof Measurement Report'),
+          h(Text, { style: S.coverSub }, 'Powered by ProGuild \u00B7 Google Solar API')
+        ),
+        h(Image, { src: data.imgTopView, style: S.coverImg }),
+        h(Text, { style: S.coverAddress }, fullAddress),
+        h(View, { style: S.coverProBox },
+          h(Text, { style: S.coverProName }, data.proName),
+          ...(data.proCompany ? [h(Text, { style: S.coverProCo }, data.proCompany)] : []),
+          h(Text, { style: { ...S.coverProCo, marginTop: 6 } }, 'Generated ' + data.generatedDate)
+        )
       ),
-      // Satellite image
-      h(Image, { src: data.imgTopView, style: S.coverImg }),
-      // Address
-      h(Text, { style: S.coverAddress }, fullAddress),
-      // Pro box
-      h(View, { style: S.coverProBox },
-        h(Text, { style: S.coverProName }, data.proName),
-        ...(data.proCompany ? [h(Text, { style: S.coverProCo }, data.proCompany)] : []),
-        h(Text, { style: { ...S.coverProCo, marginTop: 6 } }, 'Generated ' + data.generatedDate)
-      ),
-      // Footer
       h(View, { style: S.coverFooter },
         h(Text, { style: S.coverFootTxt }, 'Measurements via Google Solar API \u00B7 Images \u00A9 Google'),
         h(Text, { style: S.coverFootTxt }, 'ProGuild.ai \u2014 For bid preparation use')
@@ -201,11 +199,10 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
     // ── PAGE 2: MEASUREMENTS ────────────────────────────────────────────
     h(Page, { size: 'LETTER', style: S.page },
       pageHeader(data.address, reportId),
-      h(View, { style: S.body },
+      // flex:1 wrapper isolates body from absolute footer
+      h(View, { style: { flex: 1, padding: '16 20 20 20' } },
         sectionBar('Roof Measurements'),
-        // Satellite image repeated on data page (EagleView pattern)
         h(Image, { src: data.imgTopView, style: S.dataImg }),
-        // 4 metric boxes
         h(View, { style: S.metricRow },
           h(View, { style: S.metricBox },
             h(Text, { style: S.metricVal }, data.totalSquaresRaw.toFixed(2)),
@@ -228,7 +225,6 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
             h(Text, { style: S.metricSub }, 'Not included in sq')
           )
         ),
-        // Pitch breakdown table
         h(View, { style: S.tbl },
           h(View, { style: S.tblHead },
             h(Text, { style: S.tblHeadCellSm }, 'Pitch'),
@@ -244,7 +240,6 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
               h(Text, { style: S.tblCell }, row.pct + '%')
             )
           ),
-          // Total row
           h(View, { style: S.tblRowTot },
             h(Text, { style: S.tblCellSmTeal }, 'TOTAL'),
             h(Text, { style: S.tblCellTeal }, data.totalSqft.toLocaleString()),
@@ -282,11 +277,10 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
     h(Page, { size: 'LETTER', style: S.page },
       pageHeader(data.address, reportId),
       h(View, { style: S.body },
-        sectionBar('Images \u2014 Oblique Views'),
+        sectionBar('Images \u2014 Cardinal Views'),
         h(Text, { style: { fontSize: 10, color: MUTED, marginBottom: 12 } },
-          'Street-level images showing different angles of this structure for reference.'
+          'Aerial satellite images showing each side of this structure for reference.'
         ),
-        // North + South
         h(View, { style: S.gridRow },
           h(View, { style: S.gridImgWrap },
             h(Image, { src: data.imgNorth, style: S.gridImg }),
@@ -297,7 +291,6 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
             h(Text, { style: S.gridLabel }, 'South Side')
           )
         ),
-        // East + West
         h(View, { style: S.gridRow },
           h(View, { style: S.gridImgWrap },
             h(Image, { src: data.imgEast, style: S.gridImg }),
@@ -309,7 +302,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
           )
         ),
         h(Text, { style: S.footnote },
-          'Street View imagery \u00A9 Google. Views captured at 30\u00B0 pitch angle facing each cardinal direction.'
+          'Imagery \u00A9 Google. Cardinal satellite views offset 50m from property center in each direction.'
         )
       ),
       pageFooter(data.generatedDate)

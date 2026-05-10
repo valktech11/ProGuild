@@ -98,16 +98,19 @@ async function fetchTopView(lat: number, lng: number): Promise<string> {
   return fetchImageBase64(url)
 }
 
-/** fetch Street View image for a cardinal direction (base64)
- *  heading = direction the CAMERA FACES (opposite of the side being shown)
- *  North Side view = camera faces south (heading 180) looking at north face
- *  South Side view = camera faces north (heading 0)
- *  East Side view  = camera faces west (heading 270)
- *  West Side view  = camera faces east (heading 90)
- *  pitch=-10 tilts camera slightly down to show structure better.
- *  No source=outdoor — allows Google to use any nearby panorama. */
-async function fetchStreetView(lat: number, lng: number, heading: number): Promise<string> {
-  const url = `https://maps.googleapis.com/maps/api/streetview?size=640x400&location=${lat},${lng}&heading=${heading}&pitch=-10&fov=90&key=${GOOGLE_KEY}`
+/** fetch satellite image offset 50m in a cardinal direction.
+ *  Uses Maps Static API — guaranteed coverage everywhere unlike Street View.
+ *  OFFSET deg: ~0.00045 lat = ~50m N/S, ~0.00055 lng = ~50m E/W at 30° lat */
+async function fetchCardinalView(lat: number, lng: number, direction: 'N' | 'S' | 'E' | 'W'): Promise<string> {
+  const LAT_OFFSET = 0.00045
+  const LNG_OFFSET = 0.00055
+  let centerLat = lat
+  let centerLng = lng
+  if (direction === 'N') centerLat = lat + LAT_OFFSET
+  if (direction === 'S') centerLat = lat - LAT_OFFSET
+  if (direction === 'E') centerLng = lng + LNG_OFFSET
+  if (direction === 'W') centerLng = lng - LNG_OFFSET
+  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=19&size=640x400&maptype=satellite&key=${GOOGLE_KEY}`
   return fetchImageBase64(url)
 }
 
@@ -249,10 +252,10 @@ export async function POST(req: NextRequest) {
     console.log('[report] step 5: fetching 5 images')
     const [imgTopView, imgNorth, imgSouth, imgEast, imgWest] = await Promise.all([
       fetchTopView(lat, lng),
-      fetchStreetView(lat, lng, 180),  // North Side: camera faces south → sees north face
-      fetchStreetView(lat, lng, 0),    // South Side: camera faces north → sees south face
-      fetchStreetView(lat, lng, 270),  // East Side:  camera faces west  → sees east face
-      fetchStreetView(lat, lng, 90),   // West Side:  camera faces east  → sees west face
+      fetchCardinalView(lat, lng, 'N'),
+      fetchCardinalView(lat, lng, 'S'),
+      fetchCardinalView(lat, lng, 'E'),
+      fetchCardinalView(lat, lng, 'W'),
     ])
     console.log('[report] images fetched')
 
