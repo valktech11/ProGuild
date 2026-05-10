@@ -103,7 +103,7 @@ async function fetchTopView(
   lng: number,
   boundingBox: { swLat: number; swLng: number; neLat: number; neLng: number } | null
 ): Promise<string> {
-  let url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x400&maptype=satellite&format=jpg`
+  let url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=21&size=640x400&maptype=satellite&format=jpg`
   // Draw yellow property outline using bounding box corners
   if (boundingBox) {
     const { swLat, swLng, neLat, neLng } = boundingBox
@@ -251,7 +251,7 @@ export async function POST(req: NextRequest) {
       const age = Date.now() - new Date(cached.fetched_at).getTime()
       if (age < CACHE_TTL_MS) {
         solarData = cached.solar_data_json as Record<string, unknown>
-        console.log('[report] cache hit')
+        console.log('[report] cache hit — using cached Solar data')
       }
     }
 
@@ -260,16 +260,6 @@ export async function POST(req: NextRequest) {
       console.log('[report] step 3: fetching Solar API')
       solarData = await fetchSolarData(lat, lng)
       console.log('[report] solar response keys:', Object.keys(solarData))
-      // Log solarPotential keys for debugging
-      const pot = solarData.solarPotential as Record<string, unknown> | null
-      if (pot) {
-        console.log('[report] solarPotential keys:', Object.keys(pot))
-        const segs = pot.roofSegmentStats as unknown[]
-        console.log('[report] roofSegmentStats count:', segs?.length ?? 0)
-        const whole = pot.wholeRoofStats as Record<string, unknown> | null
-        console.log('[report] wholeRoofStats:', JSON.stringify(whole))
-      }
-      console.log('[report] imageryDate raw:', JSON.stringify(solarData.imageryDate))
       await sb.from('solar_cache').upsert({
         address_hash: hash,
         lat,
@@ -278,6 +268,13 @@ export async function POST(req: NextRequest) {
         fetched_at: new Date().toISOString(),
       }, { onConflict: 'address_hash' })
     }
+
+    // Always log Solar center regardless of cache hit/miss
+    const solarCenter = solarData.center as Record<string, number> | null
+    const solarBB = solarData.boundingBox as Record<string, Record<string, number>> | null
+    console.log('[report] geocoded lat/lng:', lat, lng)
+    console.log('[report] Solar center:', JSON.stringify(solarCenter))
+    console.log('[report] Solar boundingBox:', JSON.stringify(solarBB))
 
     // ── 4. Parse measurements ─────────────────────────────────────
     console.log('[report] step 4: parsing measurements')
@@ -407,6 +404,15 @@ export async function POST(req: NextRequest) {
       reportId,
       reportRowId: reportRow?.id || null,
       url: signedUrl,
+      // Include coords so we can verify correct building without needing Vercel logs
+      debug: {
+        geocodedLat: lat,
+        geocodedLng: lng,
+        buildingLat: measurements.buildingLat,
+        buildingLng: measurements.buildingLng,
+        boundingBox: measurements.boundingBox,
+        formattedAddress,
+      },
       measurements: {
         totalSqft: measurements.totalSqft,
         totalSquaresRaw: measurements.totalSquaresRaw,
