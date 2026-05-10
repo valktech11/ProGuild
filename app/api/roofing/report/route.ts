@@ -442,7 +442,7 @@ Be specific about what you observe. Do not mention the image format or satellite
 Write in the third person as if writing a field note for a roofing contractor.`
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -469,55 +469,55 @@ Write in the third person as if writing a field note for a roofing contractor.`
   }
 }
 
-// ── Historic District Check — US Census Geocoder ──────────────────────────
-// Uses Census Geocoder to get incorporated place name, then checks NPS
-// National Register of Historic Places for a matching listing.
+// ── Historic District Check — US Census Geocoder (TIGER layers) ───────────
+// Single Census Geocoder call with layers=all returns "National Register
+// Historic Districts" as a TIGER layer — coordinate-precise, no NPS API needed.
 // Free, no API key required.
 async function checkHistoricDistrict(lat: number, lng: number, formattedAddress: string): Promise<string | null> {
   try {
-    // Step 1: Census Geocoder reverse geocode → get incorporated place
     const censusUrl = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=all&format=json`
-    console.log('[historic] checking Census Geocoder')
+    console.log('[historic] checking Census Geocoder (layers=all)')
     const censusRes = await fetch(censusUrl, {
       headers: { 'User-Agent': 'ProGuild/1.0' },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(10000),
     })
     if (!censusRes.ok) { console.log('[historic] census error:', censusRes.status); return null }
+
     const censusJson = await censusRes.json() as {
       result?: {
         geographies?: {
           'Incorporated Places'?: Array<{ NAME?: string; GEOID?: string }>
           'Counties'?: Array<{ NAME?: string; STATE?: string }>
+          'National Register Historic Districts'?: Array<{ NAME?: string; GEOID?: string }>
+          // Census sometimes returns it under a slightly different key
+          'National Register of Historic Places'?: Array<{ NAME?: string }>
         }
       }
     }
-    const places = censusJson.result?.geographies?.['Incorporated Places'] || []
-    const counties = censusJson.result?.geographies?.['Counties'] || []
-    const placeName = places[0]?.NAME || ''
-    const countyName = counties[0]?.NAME || ''
-    console.log('[historic] place:', placeName, 'county:', countyName)
 
-    if (!placeName && !countyName) return null
+    const geos = censusJson.result?.geographies || {}
 
-    // Step 2: Check NPS National Register API for historic properties in this place
-    // NPS NRHP text search — free, no key
-    const searchTerm = encodeURIComponent(placeName || countyName)
-    const npsUrl = `https://npgallery.nps.gov/api/v1/asset/search?q=${searchTerm}&type=nrhp&limit=5`
-    console.log('[historic] checking NPS NRHP:', npsUrl)
-    const npsRes = await fetch(npsUrl, {
-      headers: { 'User-Agent': 'ProGuild/1.0' },
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!npsRes.ok) { console.log('[historic] NPS error:', npsRes.status); return null }
-    const npsJson = await npsRes.json() as { total?: number; assets?: Array<{ title?: string }> }
-    console.log('[historic] NPS results:', npsJson.total, 'for', placeName)
+    // Log all returned layer keys for debugging
+    console.log('[historic] Census layer keys:', Object.keys(geos).join(' | '))
 
-    // If NPS has listed properties in this place, flag it
-    if (npsJson.total && npsJson.total > 0) {
-      const districtName = npsJson.assets?.[0]?.title || placeName + ' Historic District'
+    // Primary: TIGER National Register Historic Districts layer (most precise — coordinate in district polygon)
+    const nrhpLayer =
+      geos['National Register Historic Districts'] ||
+      geos['National Register of Historic Places'] ||
+      []
+
+    if (nrhpLayer.length > 0) {
+      const districtName = nrhpLayer[0].NAME || 'Historic District'
+      console.log('[historic] NRHP district hit:', districtName)
       return districtName
     }
+
+    // Log place/county for traceability even when no district found
+    const placeName  = geos['Incorporated Places']?.[0]?.NAME || ''
+    const countyName = geos['Counties']?.[0]?.NAME || ''
+    console.log('[historic] no NRHP district — place:', placeName, 'county:', countyName)
     return null
+
   } catch (e) {
     console.log('[historic] error:', String(e).slice(0, 150))
     return null
