@@ -134,57 +134,69 @@ function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number):
 }
 
 async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent[]> {
+  // NOAA SWDI nx3hail — correct URL format:
+  // GET /swdiws/json/nx3hail?startdate=YYYYMMDD&enddate=YYYYMMDD&bbox=minLon,minLat,maxLon,maxLat&limit=500
+  // bbox: ~0.22 degrees ≈ 15 miles at mid-US latitudes
+  // SWDI has ~120-day latency — query ends 120 days ago
+  // Split into two yearly queries (API limit: 1 year per request)
+
   const now = new Date()
-  // SWDI has ~120-day latency — query up to 120 days ago
   const endDate = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000)
-  const startDate = new Date(now.getFullYear() - 2, now.getMonth(), 1) // 24 months back
+  const startDate = new Date(endDate.getTime() - 2 * 365 * 24 * 60 * 60 * 1000)
 
-  // Build list of YYYYMM strings newest-first
-  const months: string[] = []
-  const cur = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
-  while (cur >= startDate) {
-    months.push(`${cur.getFullYear()}${String(cur.getMonth() + 1).padStart(2, '0')}`)
-    cur.setMonth(cur.getMonth() - 1)
-  }
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
 
-  console.log('[noaa] checking', months.length, 'months for hail near', lat, lng)
+  // ~15-mile bounding box (0.22 deg lat ≈ 15mi, lng adjusted for latitude)
+  const latDelta = 0.22
+  const lngDelta = 0.22 / Math.cos(lat * Math.PI / 180)
+  const bbox = `${(lng - lngDelta).toFixed(4)},${(lat - latDelta).toFixed(4)},${(lng + lngDelta).toFixed(4)},${(lat + latDelta).toFixed(4)}`
 
-  // Query months in batches of 4, newest-first — stop as soon as we find a hit
-  for (let i = 0; i < months.length; i += 4) {
-    const batch = months.slice(i, i + 4)
-    const results = await Promise.all(batch.map(async (ym) => {
-      const url = `https://www.ncei.noaa.gov/swdiws/json/nx3hail/${ym}?radius=15&center=${lng},${lat}`
-      try {
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'ProGuild/1.0' },
-          signal: AbortSignal.timeout(8000),
-        })
-        if (!res.ok) {
-          console.log('[noaa]', ym, 'status:', res.status)
-          return null
-        }
-        const raw = await res.text()
-        console.log('[noaa]', ym, 'response length:', raw.length, 'first 150:', raw.slice(0, 150))
-        let json: { results?: { data?: Array<Record<string, string>> } }
-        try { json = JSON.parse(raw) } catch { return null }
-        const data = json?.results?.data
-        if (!data?.length) return null
-        // Filter: max_size > 1.0 inch (insurance threshold)
-        const qualifying = data.filter(d => parseFloat(d.MAX_SIZE || d.max_size || '0') > 1.0)
-        if (!qualifying.length) return null
-        // Return the most severe event in this month
-        qualifying.sort((a, b) => parseFloat(b.MAX_SIZE || b.max_size || '0') - parseFloat(a.MAX_SIZE || a.max_size || '0'))
-        const ev = qualifying[0]
+  // Mid-point split so neither query exceeds 1-year limit
+  const midDate = new Date((startDate.getTime() + endDate.getTime()) / 2)
+
+  const fetchHail = async (start: Date, end: Date): Promise<NoaaStormEvent[]> => {
+    const url = `https://www.ncdc.noaa.gov/swdiws/json/nx3hail?startdate=${fmt(start)}&enddate=${fmt(end)}&bbox=${bbox}&limit=500`
+    console.log('[noaa] fetching:', url)
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'ProGuild/1.0' },
+        signal: AbortSignal.timeout(10000),
+      })
+      console.log('[noaa] status:', res.status)
+      if (!res.ok) return []
+      const raw = await res.text()
+      console.log('[noaa] response length:', raw.length, 'first 200:', raw.slice(0, 200))
+      let json: { results?: { data?: Array<Record<string, string>>; totalCount?: number } }
+      try { json = JSON.parse(raw) } catch { return [] }
+      const data = json?.results?.data
+      console.log('[noaa] records returned:', data?.length ?? 0, 'totalCount:', json?.results?.totalCount)
+      if (!data?.length) return []
+
+      // Filter: MAXSIZE > 1.0 inch (insurance threshold)
+      const qualifying = data.filter(d => {
+        const size = parseFloat(d.MAXSIZE || d.maxsize || d.MAX_SIZE || d.max_size || '0')
+        return size > 1.0
+      })
+      console.log('[noaa] qualifying hail events (>1"):', qualifying.length)
+      if (!qualifying.length) return []
+
+      // Sort by date desc, return most severe
+      qualifying.sort((a, b) => {
+        const da = a.ZTIME || a.ztime || ''
+        const db = b.ZTIME || b.ztime || ''
+        return db.localeCompare(da)
+      })
+
+      return qualifying.map(ev => {
         const rawTime = ev.ZTIME || ev.ztime || ''
-        // ZTIME format: YYYYMMDDHHmmss
         const eventDate = rawTime.length >= 8
-          ? `${rawTime.slice(0,4)}-${rawTime.slice(4,6)}-${rawTime.slice(6,8)}`
-          : ym.slice(0,4) + '-' + ym.slice(4,6) + '-01'
+          ? `${rawTime.slice(0,4)}-${rawTime.slice(5,7)}-${rawTime.slice(8,10)}`
+          : fmt(start).slice(0,4) + '-' + fmt(start).slice(4,6) + '-01'
         const evLat = parseFloat(ev.LAT || ev.lat || String(lat))
         const evLng = parseFloat(ev.LON || ev.lon || String(lng))
         const dist = haversineMiles(lat, lng, evLat, evLng)
-        const size = parseFloat(ev.MAX_SIZE || ev.max_size || '0').toFixed(2).replace(/\.?0+$/, '')
-        console.log('[noaa]', ym, '— qualifying hail found:', size + '"', 'dist:', dist, 'mi')
+        const size = parseFloat(ev.MAXSIZE || ev.maxsize || ev.MAX_SIZE || ev.max_size || '0').toFixed(2).replace(/\.?0+$/, '')
         return {
           event_type: 'Hail',
           event_date: eventDate,
@@ -194,21 +206,31 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
           state: '',
           distance_miles: dist,
         } as NoaaStormEvent
-      } catch (e) {
-        console.log('[noaa]', ym, 'error:', String(e).slice(0, 100))
-        return null
-      }
-    }))
-    const hits = results.filter(Boolean) as NoaaStormEvent[]
-    if (hits.length) {
-      // Sort by date desc, return most recent
-      hits.sort((a, b) => b.event_date.localeCompare(a.event_date))
-      console.log('[noaa] found', hits.length, 'qualifying event(s), returning most recent:', hits[0].event_date, hits[0].magnitude + '"')
-      return [hits[0]]
+      })
+    } catch (e) {
+      console.log('[noaa] error:', String(e).slice(0, 150))
+      return []
     }
   }
-  console.log('[noaa] no qualifying hail events found')
-  return []
+
+  try {
+    const [recent, older] = await Promise.all([
+      fetchHail(midDate, endDate),
+      fetchHail(startDate, midDate),
+    ])
+    const all = [...recent, ...older]
+    if (!all.length) {
+      console.log('[noaa] no qualifying hail events found')
+      return []
+    }
+    // Return most recent qualifying event
+    all.sort((a, b) => b.event_date.localeCompare(a.event_date))
+    console.log('[noaa] returning most recent qualifying event:', all[0].event_date, all[0].magnitude + '"', all[0].distance_miles + 'mi')
+    return [all[0]]
+  } catch (e) {
+    console.log('[noaa] outer error:', String(e).slice(0, 150))
+    return []
+  }
 }
 
 // ── Nearest Roofing Supplier ──────────────────────────────────────────────
