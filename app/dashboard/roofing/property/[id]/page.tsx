@@ -378,7 +378,22 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
             </div>
 
             {/* ProMeasure, Calculator & Generate Report CTAs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 16 }}>
+            {/* Mobile: 2-col top row + Generate Report full-width below. Desktop: 3-col. */}
+            <style>{`
+              @media (max-width: 600px) {
+                .cta-grid { display: flex !important; flex-direction: column !important; }
+                .cta-top-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+                .report-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+                .report-actions { display: flex !important; flex-direction: row !important; gap: 8px !important; width: 100% !important; }
+                .report-actions a, .report-actions button { flex: 1 !important; text-align: center !important; justify-content: center !important; }
+              }
+              @media (min-width: 601px) {
+                .cta-grid { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: 12px !important; }
+                .cta-top-row { display: contents !important; }
+              }
+            `}</style>
+            <div className="cta-grid" style={{ marginTop: 16, gap: 12 }}>
+              <div className="cta-top-row">
               {/* ProMeasure */}
               <button
                 onClick={() => router.push('/dashboard/roofing/promeasure?address=' + encodeURIComponent(property.address_line1 + (property.city ? ', ' + property.city : '')))}
@@ -419,8 +434,9 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
+              </div>
 
-              {/* Generate Report */}
+              {/* Generate Report — full-width on mobile, 1 col on desktop */}
               <button
                 onClick={generateReport}
                 disabled={generating || (Date.now() - lastReport < 30000 && lastReport > 0)}
@@ -471,26 +487,28 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {reports.map(report => (
-                    <div key={report.id}
+                    <div key={report.id} className="report-row"
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 12, border: `1px solid ${t.cardBorder}`, background: t.cardBgAlt }}>
-                      <div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: 14, fontWeight: 700, color: t.textPri, margin: '0 0 2px' }}>
-                          {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste · {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste
                         </p>
                         <p style={{ fontSize: 12, color: t.textSubtle, margin: 0 }}>
-                          {report.facet_count} facets · Imagery: {report.imagery_date} · {timeAgo(report.created_at)}
+                          {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {report.facet_count} facets · {timeAgo(report.created_at)}
                         </p>
                       </div>
-                      <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
-                        style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                        Download PDF
-                      </a>
-                      <button
-                        onClick={() => deleteReport(report.id)}
-                        disabled={deletingReportId === report.id}
-                        style={{ padding: '7px 10px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#991B1B', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', opacity: deletingReportId === report.id ? 0.5 : 1 }}>
-                        {deletingReportId === report.id ? '…' : 'Delete'}
-                      </button>
+                      <div className="report-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
+                          style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          Download PDF
+                        </a>
+                        <button
+                          onClick={() => deleteReport(report.id)}
+                          disabled={deletingReportId === report.id}
+                          style={{ padding: '7px 10px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#991B1B', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', opacity: deletingReportId === report.id ? 0.5 : 1 }}>
+                          {deletingReportId === report.id ? '…' : 'Delete'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
