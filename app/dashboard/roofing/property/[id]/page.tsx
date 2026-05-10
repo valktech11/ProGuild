@@ -71,6 +71,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   const [reportErr, setReportErr] = useState<string | null>(null)
   const [reports, setReports] = useState<RoofReport[]>([])
   const [reportsLoading, setReportsLoading] = useState(false)
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null)
 
   // Edit form state
   const [form, setForm] = useState<Partial<Property>>({})
@@ -139,6 +140,17 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     } finally {
       setGenerating(false)
     }
+  }
+
+  async function deleteReport(reportId: string) {
+    if (!session) return
+    if (!confirm('Delete this report? This cannot be undone.')) return
+    setDeletingReportId(reportId)
+    try {
+      await fetch(`/api/roofing/reports?id=${reportId}&pro_id=${session.id}`, { method: 'DELETE' })
+      setReports(prev => prev.filter(r => r.id !== reportId))
+    } catch { /* silently ignore — row already gone */ }
+    finally { setDeletingReportId(null) }
   }
 
   async function handleSave() {
@@ -463,7 +475,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 12, border: `1px solid ${t.cardBorder}`, background: t.cardBgAlt }}>
                       <div>
                         <p style={{ fontSize: 14, fontWeight: 700, color: t.textPri, margin: '0 0 2px' }}>
-                          {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste
+                          {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste · {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                         <p style={{ fontSize: 12, color: t.textSubtle, margin: 0 }}>
                           {report.facet_count} facets · Imagery: {report.imagery_date} · {timeAgo(report.created_at)}
@@ -473,6 +485,12 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                         style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                         Download PDF
                       </a>
+                      <button
+                        onClick={() => deleteReport(report.id)}
+                        disabled={deletingReportId === report.id}
+                        style={{ padding: '7px 10px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#991B1B', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', opacity: deletingReportId === report.id ? 0.5 : 1 }}>
+                        {deletingReportId === report.id ? '…' : 'Delete'}
+                      </button>
                     </div>
                   ))}
                 </div>
