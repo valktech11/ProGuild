@@ -2,6 +2,8 @@
 // GET /api/roofing/reports?pro_id=...&property_id=...
 // Returns report history for a property, newest first
 
+export const runtime = 'nodejs'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 

@@ -2,6 +2,9 @@
 // POST /api/roofing/report
 // Pipeline: Geocode → solar_cache → Solar API → 5 images → PDF → R2 → roof_reports row
 
+export const runtime = 'nodejs'
+export const maxDuration = 60  // PDF generation + 7 API calls can take up to 30s
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { renderToBuffer } from '@react-pdf/renderer'
