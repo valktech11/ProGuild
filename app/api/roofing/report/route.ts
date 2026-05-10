@@ -441,27 +441,30 @@ flashing condition, and overall material condition.
 Be specific about what you observe. Do not mention the image format or satellite technology.
 Write in the third person as if writing a field note for a roofing contractor.`
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mimeType, data: base64 } }
-            ]
-          }],
-          generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
-        }),
-        signal: AbortSignal.timeout(20000),
+    // Model fallback chain — 1.5-flash-latest has highest free quota; escalate on 429/404
+    const GEMINI_MODELS = ['gemini-1.5-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash']
+    const geminiBody = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+      generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
+    })
+    let text: string | null = null
+    for (const model of GEMINI_MODELS) {
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody, signal: AbortSignal.timeout(20000) }
+      )
+      console.log(`[gemini] model=${model} status=${geminiRes.status}`)
+      if (geminiRes.status === 429 || geminiRes.status === 404) {
+        const errPreview = (await geminiRes.text()).slice(0, 150)
+        console.log(`[gemini] ${model} quota/not-found, trying next:`, errPreview)
+        continue
       }
-    )
-    if (!geminiRes.ok) { console.log('[gemini] API error:', geminiRes.status, await geminiRes.text()); return null }
-    const geminiJson = await geminiRes.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
-    const text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
-    console.log('[gemini] condition assessment:', text?.slice(0, 100))
+      if (!geminiRes.ok) { console.log(`[gemini] ${model} failed ${geminiRes.status}`); return null }
+      const geminiJson = await geminiRes.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
+      text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
+      console.log(`[gemini] success model=${model}:`, text?.slice(0, 100))
+      break
+    }
     return text
   } catch (e) {
     console.log('[gemini] error:', String(e).slice(0, 150))
@@ -477,11 +480,23 @@ async function checkHistoricDistrict(lat: number, lng: number, formattedAddress:
   try {
     const censusUrl = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=all&format=json`
     console.log('[historic] checking Census Geocoder (layers=all)')
-    const censusRes = await fetch(censusUrl, {
-      headers: { 'User-Agent': 'ProGuild/1.0' },
-      signal: AbortSignal.timeout(10000),
-    })
-    if (!censusRes.ok) { console.log('[historic] census error:', censusRes.status); return null }
+    // Census Geocoder — retry up to 2 times on 5xx (service is occasionally flaky)
+    let censusRes: Response | null = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * attempt))
+      try {
+        censusRes = await fetch(censusUrl, {
+          headers: { 'User-Agent': 'ProGuild/1.0' },
+          signal: AbortSignal.timeout(10000),
+        })
+        if (censusRes.ok || censusRes.status < 500) break  // success or client error — don't retry
+        console.log(`[historic] census attempt ${attempt + 1} got ${censusRes.status}, retrying...`)
+      } catch (fetchErr) {
+        console.log(`[historic] census attempt ${attempt + 1} fetch error:`, String(fetchErr).slice(0, 80))
+        if (attempt === 2) return null
+      }
+    }
+    if (!censusRes || !censusRes.ok) { console.log('[historic] census failed after retries:', censusRes?.status); return null }
 
     const censusJson = await censusRes.json() as {
       result?: {

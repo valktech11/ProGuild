@@ -83,29 +83,31 @@ export async function GET(req: NextRequest) {
 
           const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.`
 
-          const gemRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: base64 } }] }],
-                generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
-              }),
-              signal: AbortSignal.timeout(30000),
+          const GEMINI_MODELS = ['gemini-1.5-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash']
+          const gemBody = JSON.stringify({
+            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: base64 } }] }],
+            generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
+          })
+          for (const model of GEMINI_MODELS) {
+            const gemRes = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+              { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: gemBody, signal: AbortSignal.timeout(30000) }
+            )
+            geminiResult.geminiApiStatus = gemRes.status
+            geminiResult.geminiApiOk = gemRes.ok
+            geminiResult.modelTried = model
+            const gemJson = await gemRes.json() as Record<string, unknown>
+            if (gemRes.status === 429 || gemRes.status === 404) {
+              geminiResult[`${model}_error`] = JSON.stringify(gemJson).slice(0, 200)
+              continue
             }
-          )
-          geminiResult.geminiApiStatus = gemRes.status
-          geminiResult.geminiApiOk = gemRes.ok
-          const gemJson = await gemRes.json() as Record<string, unknown>
-          if (!gemRes.ok) {
-            geminiResult.geminiApiError = JSON.stringify(gemJson).slice(0, 500)
-          } else {
+            if (!gemRes.ok) { geminiResult.geminiApiError = JSON.stringify(gemJson).slice(0, 400); break }
             const candidates = (gemJson.candidates as Array<Record<string, unknown>>) || []
             geminiResult.candidateCount = candidates.length
             const parts = ((candidates[0]?.content as Record<string,unknown>)?.parts as Array<Record<string,string>>) || []
             geminiResult.conditionText = parts[0]?.text?.trim() || null
             geminiResult.finishReason = candidates[0]?.finishReason
+            break
           }
         } else {
           geminiResult.geotiffError = (await imgRes.text()).slice(0, 300)
