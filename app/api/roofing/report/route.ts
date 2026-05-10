@@ -69,8 +69,8 @@ async function fetchImageBase64(url: string): Promise<string> {
   return `data:image/jpeg;base64,${buf.toString('base64')}`
 }
 
-/** geocode address → { lat, lng } */
-async function geocode(address: string): Promise<{ lat: number; lng: number }> {
+/** geocode address → { lat, lng, formattedAddress } */
+async function geocode(address: string): Promise<{ lat: number; lng: number; formattedAddress: string }> {
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_KEY}`
   const res = await fetch(url)
   const json = await res.json()
@@ -78,7 +78,7 @@ async function geocode(address: string): Promise<{ lat: number; lng: number }> {
     throw new Error(`Geocoding failed: ${json.status} — ${address}`)
   }
   const loc = json.results[0].geometry.location
-  return { lat: loc.lat, lng: loc.lng }
+  return { lat: loc.lat, lng: loc.lng, formattedAddress: json.results[0].formatted_address }
 }
 
 /** fetch Solar buildingInsights */
@@ -98,9 +98,11 @@ async function fetchTopView(lat: number, lng: number): Promise<string> {
   return fetchImageBase64(url)
 }
 
-/** fetch Street View image for a cardinal direction (base64) */
-async function fetchStreetView(lat: number, lng: number, heading: number): Promise<string> {
-  const url = `https://maps.googleapis.com/maps/api/streetview?size=640x400&location=${lat},${lng}&heading=${heading}&pitch=30&fov=90&key=${GOOGLE_KEY}`
+/** fetch Street View image for a cardinal direction (base64)
+ *  Uses address string so Google finds nearest available panorama.
+ *  pitch=-10 looks slightly down at the structure, heading faces the building. */
+async function fetchStreetView(address: string, heading: number): Promise<string> {
+  const url = `https://maps.googleapis.com/maps/api/streetview?size=640x400&location=${encodeURIComponent(address)}&heading=${heading}&pitch=-10&fov=90&source=outdoor&key=${GOOGLE_KEY}`
   return fetchImageBase64(url)
 }
 
@@ -115,11 +117,23 @@ function parseSolar(solar: Record<string, unknown>): {
   pitchBreakdown: PitchRow[]
   imageryDate: string
 } {
-  const whole = solar.wholeRoofStats as Record<string, unknown>
-  const segments = (solar.roofSegmentStats as Record<string, unknown>[]) || []
-  const imageryDate = (solar.imageryDate as string) || 'Unknown'
+  // Solar API v1 buildingInsights response structure:
+  // { solarPotential: { wholeRoofStats, roofSegmentStats }, imageryDate: { year, month, day } }
+  const potential = (solar.solarPotential as Record<string, unknown>) || {}
+  const whole = (potential.wholeRoofStats as Record<string, unknown>) || {}
+  const segments = (potential.roofSegmentStats as Record<string, unknown>[]) || []
 
-  const totalM2 = (whole?.areaMeters2 as number) || 0
+  // imageryDate is { year: number, month: number, day: number }
+  const imgDateRaw = solar.imageryDate as Record<string, number> | string | null
+  let imageryDate = 'Unknown'
+  if (imgDateRaw && typeof imgDateRaw === 'object' && 'year' in imgDateRaw) {
+    const { year, month, day } = imgDateRaw
+    imageryDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  } else if (typeof imgDateRaw === 'string') {
+    imageryDate = imgDateRaw
+  }
+
+  const totalM2 = (whole.areaMeters2 as number) || 0
   const totalSqft = Math.round(sqftFromM2(totalM2))
   const totalSquaresRaw = Math.round(toSquaresRaw(totalM2) * 100) / 100
   const totalSquaresOrder = toSquaresOrder(totalSquaresRaw)
@@ -148,6 +162,9 @@ function parseSolar(solar: Record<string, unknown>): {
   const dominantPitch = pitchBreakdown[0]?.pitch || '?/12'
   const wasteFactor = wasteFactorFromFacets(facetCount)
 
+  // Log parsed result for debugging
+  console.log('[report] parsed: totalSqft=' + totalSqft + ', facets=' + facetCount + ', pitch=' + dominantPitch + ', imageryDate=' + imageryDate)
+
   return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown, imageryDate }
 }
 
@@ -171,10 +188,13 @@ export async function POST(req: NextRequest) {
     const sb = getSupabaseAdmin()
 
     // ── 1. Geocode ────────────────────────────────────────────────
-    const { lat, lng } = await geocode(address)
+    console.log('[report] step 1: geocoding', address)
+    const { lat, lng, formattedAddress } = await geocode(address)
+    console.log('[report] geocoded:', lat, lng, '→', formattedAddress)
 
     // ── 2. solar_cache lookup ─────────────────────────────────────
-    const hash = addressHash(address)
+    // Use formattedAddress for cache key (normalised by Google)
+    const hash = addressHash(formattedAddress)
     let solarData: Record<string, unknown> | null = null
 
     const { data: cached } = await sb
@@ -187,13 +207,25 @@ export async function POST(req: NextRequest) {
       const age = Date.now() - new Date(cached.fetched_at).getTime()
       if (age < CACHE_TTL_MS) {
         solarData = cached.solar_data_json as Record<string, unknown>
+        console.log('[report] cache hit')
       }
     }
 
     // ── 3. Solar API (if cache miss) ──────────────────────────────
     if (!solarData) {
+      console.log('[report] step 3: fetching Solar API')
       solarData = await fetchSolarData(lat, lng)
-      // Upsert cache
+      console.log('[report] solar response keys:', Object.keys(solarData))
+      // Log solarPotential keys for debugging
+      const pot = solarData.solarPotential as Record<string, unknown> | null
+      if (pot) {
+        console.log('[report] solarPotential keys:', Object.keys(pot))
+        const segs = pot.roofSegmentStats as unknown[]
+        console.log('[report] roofSegmentStats count:', segs?.length ?? 0)
+        const whole = pot.wholeRoofStats as Record<string, unknown> | null
+        console.log('[report] wholeRoofStats:', JSON.stringify(whole))
+      }
+      console.log('[report] imageryDate raw:', JSON.stringify(solarData.imageryDate))
       await sb.from('solar_cache').upsert({
         address_hash: hash,
         lat,
@@ -212,10 +244,10 @@ export async function POST(req: NextRequest) {
     console.log('[report] step 5: fetching 5 images')
     const [imgTopView, imgNorth, imgSouth, imgEast, imgWest] = await Promise.all([
       fetchTopView(lat, lng),
-      fetchStreetView(lat, lng, 0),    // North
-      fetchStreetView(lat, lng, 180),  // South
-      fetchStreetView(lat, lng, 90),   // East
-      fetchStreetView(lat, lng, 270),  // West
+      fetchStreetView(formattedAddress, 0),    // North — address-based for better coverage
+      fetchStreetView(formattedAddress, 180),  // South
+      fetchStreetView(formattedAddress, 90),   // East
+      fetchStreetView(formattedAddress, 270),  // West
     ])
     console.log('[report] images fetched')
 
