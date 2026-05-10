@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
-import DashboardShell, { IlluIconMeasure, IlluIconCalculator, IlluIconGenerateReport } from '@/components/layout/DashboardShell'
+import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { theme } from '@/lib/tokens'
 import { stageStyle } from '@/lib/design'
@@ -67,6 +67,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
   // Report generation
   const [generating, setGenerating] = useState(false)
+  const [lastReport, setLastReport] = useState(0) // timestamp of last generate click
   const [reportErr, setReportErr] = useState<string | null>(null)
   const [reports, setReports] = useState<RoofReport[]>([])
   const [reportsLoading, setReportsLoading] = useState(false)
@@ -97,6 +98,9 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   }, [id, session])
 
   async function generateReport() {
+    const now = Date.now()
+    if (now - lastReport < 30000) return // 30-second debounce
+    setLastReport(now)
     if (!session || !property) return
     setGenerating(true)
     setReportErr(null)
@@ -366,48 +370,68 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               {/* ProMeasure */}
               <button
                 onClick={() => router.push('/dashboard/roofing/promeasure?address=' + encodeURIComponent(property.address_line1 + (property.city ? ', ' + property.city : '')))}
-                style={{ padding: '18px 16px', borderRadius: 16, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)')}
-                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-                <IlluIconMeasure s={44} />
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, marginBottom: 2 }}>ProMeasure</div>
-                  <div style={{ fontSize: 12, color: t.textSubtle }}>Satellite polygon tool</div>
+                style={{ padding: '16px 14px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'box-shadow 0.15s, border-color 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)'; e.currentTarget.style.borderColor = '#14B8A6' }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.cardBorder }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F0FDFA', border: '1.5px solid #CCFBF1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3a9 9 0 019 9"/><path d="M12 7a5 5 0 015 5"/>
+                    <circle cx="12" cy="12" r="2"/><path d="M12 12l-5 5"/>
+                  </svg>
                 </div>
-                <svg style={{ marginLeft: 'auto', flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginBottom: 1 }}>ProMeasure</div>
+                  <div style={{ fontSize: 11, color: t.textSubtle }}>Satellite polygon tool</div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
 
               {/* Calculator */}
               <button
                 onClick={() => router.push('/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : ''))}
-                style={{ padding: '18px 16px', borderRadius: 16, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)')}
-                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-                <IlluIconCalculator s={44} />
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, marginBottom: 2 }}>Calculator</div>
-                  <div style={{ fontSize: 12, color: t.textSubtle }}>Material quantities</div>
+                style={{ padding: '16px 14px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'box-shadow 0.15s, border-color 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)'; e.currentTarget.style.borderColor = '#14B8A6' }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.cardBorder }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EFF6FF', border: '1.5px solid #BFDBFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2"/>
+                    <line x1="8" y1="6" x2="16" y2="6"/>
+                    <line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/>
+                    <line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/>
+                    <line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/>
+                  </svg>
                 </div>
-                <svg style={{ marginLeft: 'auto', flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginBottom: 1 }}>Calculator</div>
+                  <div style={{ fontSize: 11, color: t.textSubtle }}>Material quantities</div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
 
               {/* Generate Report */}
               <button
                 onClick={generateReport}
-                disabled={generating}
-                style={{ padding: '18px 16px', borderRadius: 16, border: `1.5px solid ${generating ? t.cardBorder : '#0D9488'}`, background: generating ? t.cardBg : 'linear-gradient(135deg,#0F766E 0%,#0D9488 100%)', cursor: generating ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'all 0.15s', opacity: generating ? 0.7 : 1 }}
-                onMouseEnter={e => { if (!generating) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.35)' }}
+                disabled={generating || (Date.now() - lastReport < 30000 && lastReport > 0)}
+                style={{ padding: '16px 14px', borderRadius: 14, border: `1.5px solid ${generating ? t.cardBorder : '#0D9488'}`, background: generating ? t.cardBg : 'linear-gradient(135deg,#0F766E,#0D9488)', cursor: generating ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', opacity: generating ? 0.75 : 1 }}
+                onMouseEnter={e => { if (!generating) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.4)' }}
                 onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-                <IlluIconGenerateReport s={44} />
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: generating ? t.textPri : 'white', marginBottom: 2 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: generating ? t.cardBgAlt : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textMuted : 'white'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="3"/>
+                    <path d="M8 17V13M12 17V9M16 17V11"/>
+                    <circle cx="19" cy="19" r="4" fill={generating ? '#9CA3AF' : '#14B8A6'} stroke="none"/>
+                    <path d="M17.5 19l1 1 2-2" stroke="white" strokeWidth="1.5"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: generating ? t.textPri : 'white', marginBottom: 1 }}>
                     {generating ? 'Generating…' : 'Generate Report'}
                   </div>
-                  <div style={{ fontSize: 12, color: generating ? t.textSubtle : '#99f6e4' }}>
-                    {generating ? 'Fetching satellite data' : 'Squares · pitch · waste PDF'}
+                  <div style={{ fontSize: 11, color: generating ? t.textSubtle : '#99f6e4' }}>
+                    {generating ? 'Fetching satellite data…' : 'Squares · pitch · waste PDF'}
                   </div>
                 </div>
-                <svg style={{ marginLeft: 'auto', flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
 

@@ -363,6 +363,14 @@ export async function POST(req: NextRequest) {
     // ── 10. Upload to R2 ──────────────────────────────────────────
     console.log('[report] step 10: uploading to R2')
     const r2 = getR2Client()
+    // Sanitise address for use as filename: "3919 Highgate Ct, Jacksonville" → "3919_Highgate_Ct"
+    const addrSlug = address
+      .split(',')[0]                          // take street portion only
+      .trim()
+      .replace(/[^a-zA-Z0-9 ]/g, '')         // strip special chars
+      .replace(/\s+/g, '_')                   // spaces to underscores
+      .slice(0, 60)                           // max 60 chars
+    const pdfFilename = `${addrSlug}_ProGuild_${reportId}.pdf`
     const r2Key = `reports/${pro_id}/${property_id || 'no-property'}/${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${reportId}.pdf`
 
     await r2.send(new PutObjectCommand({
@@ -370,6 +378,7 @@ export async function POST(req: NextRequest) {
       Key: r2Key,
       Body: pdfBuffer,
       ContentType: 'application/pdf',
+      ContentDisposition: `attachment; filename="${pdfFilename}"`,
       Metadata: {
         pro_id,
         property_id: property_id || '',
@@ -431,6 +440,7 @@ export async function POST(req: NextRequest) {
         buildingLng: measurements.buildingLng,
         boundingBox: measurements.boundingBox,
         formattedAddress,
+        roofSegmentStats: (solarData?.solarPotential as Record<string,unknown>)?.roofSegmentStats || [],
       },
       measurements: {
         totalSqft: measurements.totalSqft,
