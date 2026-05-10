@@ -51,6 +51,7 @@ export interface ReportData {
   buildingLat: number
   buildingLng: number
   hasLowSlope: boolean
+  hasLowConfidence: boolean
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -145,6 +146,8 @@ const S = StyleSheet.create({
   lowSlopeCell: { flex: 1, padding: '7 10', fontSize: 10, color: AMBER_B },
   lowSlopeAlert: { marginTop: 8, padding: '8 10', backgroundColor: AMBER_L, borderRadius: 6, borderLeft: '3 solid ' + AMBER },
   lowSlopeAlertTxt: { fontSize: 8, color: AMBER_B, lineHeight: 1.5 },
+  confidenceAlert: { marginTop: 8, padding: '8 10', backgroundColor: '#FFF7ED', borderRadius: 6, borderLeft: '3 solid #F97316' },
+  confidenceAlertTxt: { fontSize: 8, color: '#9A3412', lineHeight: 1.5 },
 
   // Footnotes
   footnote:     { fontSize: 8, color: MUTED, marginTop: 10, lineHeight: 1.5 },
@@ -226,10 +229,10 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
             h(Text, { style: { ...S.metricLbl, color: TEAL, fontFamily: 'Helvetica-Bold' } }, 'ORDER QUANTITY'),
             h(Text, { style: S.metricSub }, 'Measured: ' + data.totalSquaresRaw.toFixed(2) + ' sq raw')
           ),
-          h(View, { style: S.metricBox },
-            h(Text, { style: S.metricVal }, data.dominantPitch),
+          h(View, { style: { ...S.metricBox, ...(data.hasLowConfidence ? { borderLeft: '3 solid #F97316' } : {}) } },
+            h(Text, { style: { ...S.metricVal, ...(data.hasLowConfidence ? { color: '#F97316' } : {}) } }, data.dominantPitch),
             h(Text, { style: S.metricLbl }, 'Dominant Pitch'),
-            h(Text, { style: S.metricSub }, data.totalSqft.toLocaleString() + ' sq ft total')
+            h(Text, { style: S.metricSub }, data.hasLowConfidence ? 'Low confidence - verify' : data.totalSqft.toLocaleString() + ' sq ft total')
           ),
           h(View, { style: S.metricBox },
             h(Text, { style: S.metricVal }, String(data.facetCount)),
@@ -271,6 +274,11 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         ...(data.hasLowSlope ? [h(View, { style: S.lowSlopeAlert },
           h(Text, { style: S.lowSlopeAlertTxt },
             '\u26A0 LOW SLOPE DETECTED (* rows): One or more roof areas measure below 3/12 pitch. Standard asphalt shingles require a minimum 2/12 pitch with special low-slope underlayment (ice-and-water shield entire deck). Below 2/12, a membrane system (TPO/EPDM) is typically required. Verify with manufacturer guidelines before ordering materials.'
+          )
+        )] : []),
+        ...(data.hasLowConfidence ? [h(View, { style: S.confidenceAlert },
+          h(Text, { style: S.confidenceAlertTxt },
+            '\u26A0 LOW CONFIDENCE PITCH DATA: The dominant pitch reading appears unusually low for this structure\'s complexity. Tree canopy overhang or satellite occlusion may be affecting accuracy. Manual pitch verification is strongly recommended before ordering materials.'
           )
         )] : []),
         h(Text, { style: S.disclaimer },

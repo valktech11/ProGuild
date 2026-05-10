@@ -46,7 +46,8 @@ function addressHash(address: string): string {
 /** degrees → X/12 pitch string, rounded to nearest whole integer */
 function degreesToPitch(deg: number): string {
   const rise = Math.round(Math.tan((deg * Math.PI) / 180) * 12)
-  return `${Math.max(1, rise)}/12`
+  // Cap at 12/12 (45°) — anything steeper is a chimney face or vertical wall, not a roofable plane
+  return `${Math.min(12, Math.max(1, rise))}/12`
 }
 
 /** m² → squares. Order qty rounds UP to nearest 0.5 (never under-order) */
@@ -135,6 +136,7 @@ function parseSolar(solar: Record<string, unknown>): {
   buildingLng: number
   boundingBox: { swLat: number; swLng: number; neLat: number; neLng: number } | null
   hasLowSlope: boolean
+  hasLowConfidence: boolean
 } {
   // Solar API v1 buildingInsights response structure:
   // { center: {latitude, longitude}, boundingBox: {sw,ne}, solarPotential: {...}, imageryDate: {...} }
@@ -200,35 +202,50 @@ function parseSolar(solar: Record<string, unknown>): {
   const dominantPitch = pitchBreakdown[0]?.pitch || '?/12'
   const wasteFactor = wasteFactorFromFacets(facetCount)
 
-  // Pitch smoothing: snap minority pitches (<8% area, ±1 rise from dominant) into dominant
-  // Reduces API noise from sagging sections, chimney shadows, etc.
-  const dominantRise = parseInt(dominantPitch.split('/')[0])
-  const smoothedBreakdown = pitchBreakdown.reduce((acc, row) => {
-    const rise = parseInt(row.pitch.split('/')[0])
-    if (row.pct < 8 && Math.abs(rise - dominantRise) <= 1) {
-      // Merge into dominant
-      const existing = acc.find(r => r.pitch === dominantPitch)
-      if (existing) {
-        existing.sqft += row.sqft
-        existing.sq = Math.round((existing.sq + row.sq) * 10) / 10
-        existing.pct = Math.min(100, existing.pct + row.pct)
+  // ── Pitch smoothing (multi-pass) ─────────────────────────────────────────
+  // Pass 1: Merge minority rows (< 12% area) within ±2 rise steps of dominant into dominant
+  // Handles chimney shadows, dormer noise, sensor error from tree canopy
+  // Pass 2: Re-run after recalculating pct to catch newly dominant merges
+  function smoothPitches(rows: typeof pitchBreakdown): typeof pitchBreakdown {
+    const dom = rows[0]?.pitch || '?/12'
+    const domRise = parseInt(dom.split('/')[0])
+    const result: typeof pitchBreakdown = []
+    for (const row of rows) {
+      const rise = parseInt(row.pitch.split('/')[0])
+      if (row.pct < 12 && Math.abs(rise - domRise) <= 2) {
+        const existing = result.find(r => r.pitch === dom)
+        if (existing) {
+          existing.sqft += row.sqft
+          existing.sq = Math.round((existing.sq + row.sq) * 10) / 10
+          existing.pct = Math.min(100, existing.pct + row.pct)
+        } else {
+          result.push({ ...row, pitch: dom })
+        }
+      } else {
+        result.push({ ...row })
       }
-      return acc
     }
-    acc.push({ ...row })
-    return acc
-  }, [] as typeof pitchBreakdown)
+    // Recalculate pct
+    const tot = result.reduce((s, r) => s + r.sqft, 0)
+    result.forEach(r => { r.pct = tot > 0 ? Math.round((r.sqft / tot) * 100) : 0 })
+    return result.sort((a, b) => b.sqft - a.sqft)
+  }
 
-  // Recalculate pct after smoothing (ensure sums to 100)
-  const smoothedTotal = smoothedBreakdown.reduce((s, r) => s + r.sqft, 0)
-  smoothedBreakdown.forEach(r => { r.pct = smoothedTotal > 0 ? Math.round((r.sqft / smoothedTotal) * 100) : 0 })
+  // Two passes for cascading merges (e.g. 10/12 merges after 8/12 boosted dominant pct)
+  const pass1 = smoothPitches(pitchBreakdown)
+  const smoothedBreakdown = smoothPitches(pass1)
 
-  // Low slope flag — any pitch < 3/12 means special underlayment territory
+  // Low slope flag — any pitch < 3/12 remains after smoothing
   const hasLowSlope = smoothedBreakdown.some(r => parseInt(r.pitch.split('/')[0]) < 3)
 
-  console.log('[report] parsed: totalSqft=' + totalSqft + ', facets=' + facetCount + ', pitch=' + dominantPitch + ', imageryDate=' + imageryDate + ', hasLowSlope=' + hasLowSlope + ', smoothed pitches=' + smoothedBreakdown.length)
+  // Confidence warning — dominant pitch implausibly low for facet count
+  // If dominant <= 3/12 but facets >= 6, likely tree canopy interference
+  const dominantRise = parseInt(dominantPitch.split('/')[0])
+  const hasLowConfidence = dominantRise <= 3 && facetCount >= 6
 
-  return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown: smoothedBreakdown, imageryDate, buildingLat, buildingLng, boundingBox, hasLowSlope }
+  console.log('[report] parsed: totalSqft=' + totalSqft + ', facets=' + facetCount + ', pitch=' + dominantPitch + ', imageryDate=' + imageryDate + ', hasLowSlope=' + hasLowSlope + ', hasLowConfidence=' + hasLowConfidence + ', smoothed pitches=' + smoothedBreakdown.length)
+
+  return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown: smoothedBreakdown, imageryDate, buildingLat, buildingLng, boundingBox, hasLowSlope, hasLowConfidence }
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────
