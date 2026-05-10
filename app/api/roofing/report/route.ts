@@ -132,6 +132,7 @@ function parseSolar(solar: Record<string, unknown>): {
   wasteFactor: number
   pitchBreakdown: PitchRow[]
   imageryDate: string
+  imageryQuality: string
   buildingLat: number
   buildingLng: number
   boundingBox: { swLat: number; swLng: number; neLat: number; neLng: number } | null
@@ -172,6 +173,8 @@ function parseSolar(solar: Record<string, unknown>): {
   } else if (typeof imgDateRaw === 'string') {
     imageryDate = imgDateRaw
   }
+
+  const imageryQuality = (solar.imageryQuality as string) || 'UNKNOWN'
 
   const totalM2 = (whole.areaMeters2 as number) || 0
   const totalSqft = Math.round(sqftFromM2(totalM2))
@@ -245,7 +248,7 @@ function parseSolar(solar: Record<string, unknown>): {
 
   console.log('[report] parsed: totalSqft=' + totalSqft + ', facets=' + facetCount + ', pitch=' + dominantPitch + ', imageryDate=' + imageryDate + ', hasLowSlope=' + hasLowSlope + ', hasLowConfidence=' + hasLowConfidence + ', smoothed pitches=' + smoothedBreakdown.length)
 
-  return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown: smoothedBreakdown, imageryDate, buildingLat, buildingLng, boundingBox, hasLowSlope, hasLowConfidence }
+  return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown: smoothedBreakdown, imageryDate, imageryQuality, buildingLat, buildingLng, boundingBox, hasLowSlope, hasLowConfidence }
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────

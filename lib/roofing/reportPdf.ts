@@ -12,6 +12,7 @@ import {
   View,
   Text,
   Image,
+  Link,
   StyleSheet,
 } from '@react-pdf/renderer'
 
@@ -33,6 +34,7 @@ export interface ReportData {
   zip:          string
   generatedDate:string
   imageryDate:  string
+  imageryQuality: string
   proName:      string
   proCompany:   string
   totalSqft:          number
@@ -149,6 +151,15 @@ const S = StyleSheet.create({
   confidenceAlert: { marginTop: 8, padding: '8 10', backgroundColor: '#FFF7ED', borderRadius: 6, borderLeft: '3 solid #F97316' },
   confidenceAlertTxt: { fontSize: 8, color: '#9A3412', lineHeight: 1.5 },
 
+  // Quality badge
+  qualityBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
+  qualityTxt:       { fontSize: 9, fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 },
+
+  // Directions link
+  coordsRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  coordsTxt:        { fontSize: 9, color: MUTED },
+  directionsLink:   { fontSize: 9, color: TEAL, textDecoration: 'underline' },
+
   // Footnotes
   footnote:     { fontSize: 8, color: MUTED, marginTop: 10, lineHeight: 1.5 },
   disclaimer:   { fontSize: 8, color: MUTED, marginTop: 8, padding: '8 10', backgroundColor: '#FFF9F0', borderRadius: 6, lineHeight: 1.5 },
@@ -207,7 +218,17 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
           ...(data.proCompany ? [h(Text, { style: S.coverProCo }, data.proCompany)] : []),
           ...(data.proPhone ? [h(Text, { style: S.coverProContact }, data.proPhone)] : []),
           ...(data.proEmail ? [h(Text, { style: S.coverProContact }, data.proEmail)] : []),
-          h(Text, { style: { ...S.coverProContact, marginTop: 6 } }, 'Generated ' + data.generatedDate)
+          h(Text, { style: { ...S.coverProContact, marginTop: 6 } }, 'Generated ' + data.generatedDate),
+          h(Text, { style: { ...S.coverProContact, marginTop: 2 } }, 'Imagery date: ' + data.imageryDate),
+          h(View, { style: {
+            ...S.qualityBadge,
+            backgroundColor: data.imageryQuality === 'HIGH' ? '#F0FDF4' : data.imageryQuality === 'MEDIUM' ? '#FFFBEB' : '#FEF2F2',
+            borderLeft: '3 solid ' + (data.imageryQuality === 'HIGH' ? '#16A34A' : data.imageryQuality === 'MEDIUM' ? AMBER : '#DC2626'),
+          }},
+            h(Text, { style: { ...S.qualityTxt, color: data.imageryQuality === 'HIGH' ? '#15803D' : data.imageryQuality === 'MEDIUM' ? AMBER_B : '#991B1B' } },
+              'Data Quality: ' + data.imageryQuality + (data.imageryQuality === 'BASE' ? ' \u2014 Verify with ProMeasure before ordering' : data.imageryQuality === 'MEDIUM' ? ' \u2014 Review measurements carefully' : ' \u2014 High accuracy')
+            )
+          )
         )
       ),
       h(View, { style: S.coverFooter },
@@ -419,6 +440,15 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
               h(Text, { style: S.summaryLine }, 'Predominant Pitch: ', h(Text, { style: S.summaryVal }, data.dominantPitch)),
               h(Text, { style: S.summaryLine }, 'Suggested Waste: ', h(Text, { style: S.summaryVal }, data.wasteFactor + '%'))
             )
+          ),
+          h(View, { style: S.coordsRow },
+            h(Text, { style: S.coordsTxt },
+              'Coordinates: ' + data.buildingLat.toFixed(6) + ', ' + data.buildingLng.toFixed(6) + '  \u00B7  '
+            ),
+            h(Link, {
+              src: 'https://maps.google.com/?q=' + data.buildingLat.toFixed(6) + ',' + data.buildingLng.toFixed(6),
+              style: S.directionsLink
+            }, 'Open in Google Maps \u2197')
           )
         )
       ),
