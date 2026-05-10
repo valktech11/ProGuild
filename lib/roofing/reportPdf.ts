@@ -68,7 +68,7 @@ const S = StyleSheet.create({
   coverHeader:  { backgroundColor: NAVY, padding: '32 40', alignItems: 'center' },
   coverTitle:   { color: WHITE, fontSize: 22, fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 },
   coverSub:     { color: TEAL_L, fontSize: 12, marginTop: 6 },
-  coverImg:     { marginTop: 28, marginHorizontal: 40, height: 220, borderRadius: 8 },
+  coverImg:     { margin: '28 40 0 40', height: 220, width: 531 },
   coverAddress: { marginTop: 14, textAlign: 'center', fontSize: 13, fontFamily: 'Helvetica-Bold', color: NAVY },
   coverProBox:  { marginTop: 20, marginHorizontal: 60, padding: '14 20', backgroundColor: CREAM, borderRadius: 10, alignItems: 'center' },
   coverProName: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: NAVY },
@@ -96,7 +96,7 @@ const S = StyleSheet.create({
   metricSub:    { fontSize: 8, color: TEAL, marginTop: 2 },
 
   // Data image
-  dataImg:      { height: 180, borderRadius: 8, marginBottom: 14 },
+  dataImg:      { height: 180, width: '100%', marginBottom: 14 },
 
   // Table
   tbl:          { borderRadius: 6, overflow: 'hidden' },
@@ -159,7 +159,7 @@ function pageFooter(date: string) {
 }
 
 function wasteArea(baseSqft: number, pct: number): string {
-  return (Math.round(baseSqft * (1 + pct / 100) / 100 * 2) / 2).toFixed(1)
+  return (Math.ceil(baseSqft * (1 + pct / 100) / 100 * 2) / 2).toFixed(1)
 }
 
 // ── Main builder ──────────────────────────────────────────────────────────
@@ -341,7 +341,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         h(View, { style: { marginTop: 20 } },
           sectionBar('Waste Calculation Table'),
           h(Text, { style: { fontSize: 9, color: MUTED, marginBottom: 8 } },
-            'NOTE: Applies to asphalt shingle areas with pitch \u22653/12 only (' + steepSqft.toLocaleString() + ' sq ft). Ridge, hip, and starter lengths not included.'
+            'NOTE: Applies to asphalt shingle areas with pitch >= 3/12 only (' + steepSqft.toLocaleString() + ' sq ft). Ridge, hip, and starter lengths not included.'
           ),
           h(View, { style: S.wasteTbl },
             // Header row

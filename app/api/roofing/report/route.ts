@@ -49,10 +49,10 @@ function degreesToPitch(deg: number): string {
   return `${Math.max(1, rise)}/12`
 }
 
-/** m² → squares (nearest 0.5) */
+/** m² → squares. Order qty rounds UP to nearest 0.5 (never under-order) */
 function sqftFromM2(m2: number): number { return m2 * 10.764 }
 function toSquaresRaw(m2: number): number { return sqftFromM2(m2) / 100 }
-function toSquaresOrder(raw: number): number { return Math.round(raw * 2) / 2 }
+function toSquaresOrder(raw: number): number { return Math.ceil(raw * 2) / 2 }
 
 /** waste factor from facet count */
 function wasteFactorFromFacets(facets: number): number {
@@ -99,10 +99,15 @@ async function fetchTopView(lat: number, lng: number): Promise<string> {
 }
 
 /** fetch Street View image for a cardinal direction (base64)
- *  Uses address string so Google finds nearest available panorama.
- *  pitch=-10 looks slightly down at the structure, heading faces the building. */
-async function fetchStreetView(address: string, heading: number): Promise<string> {
-  const url = `https://maps.googleapis.com/maps/api/streetview?size=640x400&location=${encodeURIComponent(address)}&heading=${heading}&pitch=-10&fov=90&source=outdoor&key=${GOOGLE_KEY}`
+ *  heading = direction the CAMERA FACES (opposite of the side being shown)
+ *  North Side view = camera faces south (heading 180) looking at north face
+ *  South Side view = camera faces north (heading 0)
+ *  East Side view  = camera faces west (heading 270)
+ *  West Side view  = camera faces east (heading 90)
+ *  pitch=-10 tilts camera slightly down to show structure better.
+ *  No source=outdoor — allows Google to use any nearby panorama. */
+async function fetchStreetView(lat: number, lng: number, heading: number): Promise<string> {
+  const url = `https://maps.googleapis.com/maps/api/streetview?size=640x400&location=${lat},${lng}&heading=${heading}&pitch=-10&fov=90&key=${GOOGLE_KEY}`
   return fetchImageBase64(url)
 }
 
@@ -244,10 +249,10 @@ export async function POST(req: NextRequest) {
     console.log('[report] step 5: fetching 5 images')
     const [imgTopView, imgNorth, imgSouth, imgEast, imgWest] = await Promise.all([
       fetchTopView(lat, lng),
-      fetchStreetView(formattedAddress, 0),    // North — address-based for better coverage
-      fetchStreetView(formattedAddress, 180),  // South
-      fetchStreetView(formattedAddress, 90),   // East
-      fetchStreetView(formattedAddress, 270),  // West
+      fetchStreetView(lat, lng, 180),  // North Side: camera faces south → sees north face
+      fetchStreetView(lat, lng, 0),    // South Side: camera faces north → sees south face
+      fetchStreetView(lat, lng, 270),  // East Side:  camera faces west  → sees east face
+      fetchStreetView(lat, lng, 90),   // West Side:  camera faces east  → sees west face
     ])
     console.log('[report] images fetched')
 
