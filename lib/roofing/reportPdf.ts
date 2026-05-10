@@ -271,16 +271,16 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         h(Text, { style: S.footnote },
           '* Total squares does NOT include waste. Imagery date: ' + data.imageryDate + '.\nMeasurements provided by Google Solar API. Field verification recommended before ordering materials.'
         ),
-        ...(data.hasLowSlope ? [h(View, { style: S.lowSlopeAlert },
-          h(Text, { style: S.lowSlopeAlertTxt },
-            '\u26A0 LOW SLOPE DETECTED (* rows): One or more roof areas measure below 3/12 pitch. Standard asphalt shingles require a minimum 2/12 pitch with special low-slope underlayment (ice-and-water shield entire deck). Below 2/12, a membrane system (TPO/EPDM) is typically required. Verify with manufacturer guidelines before ordering materials.'
+        ...((data.hasLowSlope || data.hasLowConfidence) ? [
+          h(View, { style: { marginTop: 8, padding: '8 10', backgroundColor: '#FFF7ED', borderRadius: 6, borderLeft: '3 solid #F97316' } },
+            ...(data.hasLowSlope ? [h(Text, { style: { ...S.lowSlopeAlertTxt, color: AMBER_B, marginBottom: data.hasLowConfidence ? 6 : 0 } },
+              '\u26A0 LOW SLOPE DETECTED (* rows): One or more roof areas measure below 3/12 pitch. Standard asphalt shingles require a minimum 2/12 pitch with special low-slope underlayment (ice-and-water shield entire deck). Below 2/12, a membrane system (TPO/EPDM) is typically required. Verify with manufacturer guidelines before ordering materials.'
+            )] : []),
+            ...(data.hasLowConfidence ? [h(Text, { style: S.confidenceAlertTxt },
+              '\u26A0 POTENTIAL OBSTRUCTION (Trees/Shadows): The dominant pitch reading appears unusually low for this structure\'s complexity. Tree canopy overhang or satellite occlusion may be affecting accuracy. Manual pitch verification is strongly recommended before ordering materials.'
+            )] : [])
           )
-        )] : []),
-        ...(data.hasLowConfidence ? [h(View, { style: S.confidenceAlert },
-          h(Text, { style: S.confidenceAlertTxt },
-            '\u26A0 LOW CONFIDENCE PITCH DATA: The dominant pitch reading appears unusually low for this structure\'s complexity. Tree canopy overhang or satellite occlusion may be affecting accuracy. Manual pitch verification is strongly recommended before ordering materials.'
-          )
-        )] : []),
+        ] : []),
         h(Text, { style: S.disclaimer },
           '\u26A0 This report is designed for bid preparation and sales use. For insurance claim submissions, a certified measurement report may be required by your carrier.'
         )
