@@ -110,7 +110,7 @@ export interface NoaaStormEvent {
 }
 
 async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent[]> {
-  // Reverse geocode to get county + state via Google (already have the key)
+  // Reverse geocode to get county + state
   const rgUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_KEY}`
   const rgRes = await fetch(rgUrl)
   if (!rgRes.ok) return []
@@ -118,17 +118,19 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
 
   let county = '', state = ''
   for (const comp of (rgJson.results[0]?.address_components || [])) {
-    if (comp.types.includes('administrative_area_level_2')) county = comp.long_name.replace(' County', '').replace(' Parish', '').toUpperCase()
+    if (comp.types.includes('administrative_area_level_2')) county = comp.long_name.replace(/ County$/i, '').replace(/ Parish$/i, '').toUpperCase()
     if (comp.types.includes('administrative_area_level_1')) state = comp.long_name.toUpperCase()
   }
-  if (!county || !state) return []
+  if (!county || !state) {
+    console.log('[noaa] could not extract county/state from reverse geocode')
+    return []
+  }
+  console.log('[noaa] checking storms for county:', county, 'state:', state)
 
   const now = new Date()
   const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate())
-  const fmt = (d: Date) => `${String(d.getMonth() + 1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`
 
-  const params = new URLSearchParams({
-    eventType: 'Hail,Thunderstorm Wind,Tornado',
+  const baseParams = {
     beginDate_mm: String(twoYearsAgo.getMonth() + 1).padStart(2,'0'),
     beginDate_dd: String(twoYearsAgo.getDate()).padStart(2,'0'),
     beginDate_yyyy: String(twoYearsAgo.getFullYear()),
@@ -137,28 +139,45 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
     endDate_yyyy: String(now.getFullYear()),
     county: county,
     state: state,
-    hailSize: '1.00',
     outputFormat: 'json',
-  })
+  }
+
+  const fetchNoaa = async (extraParams: Record<string, string>): Promise<NoaaStormEvent[]> => {
+    const params = new URLSearchParams({ ...baseParams, ...extraParams })
+    const url = `https://www.ncdc.noaa.gov/stormevents/json?${params.toString()}`
+    console.log('[noaa] fetching:', url)
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'ProGuild/1.0 (roofing report generator)' },
+      signal: AbortSignal.timeout(10000),
+    })
+    console.log('[noaa] response status:', res.status)
+    if (!res.ok) return []
+    const raw = await res.text()
+    console.log('[noaa] raw response (first 300):', raw.slice(0, 300))
+    let json: { CurrentItems?: number; CurrentEvents?: Array<Record<string, string>> }
+    try { json = JSON.parse(raw) } catch { return [] }
+    if (!json.CurrentEvents?.length) return []
+    return json.CurrentEvents.map(ev => ({
+      event_type: ev.EVENT_TYPE || ev.event_type || '',
+      event_date: ev.BEGIN_DATE || ev.begin_date || ev.BEGIN_YEARMONTH || '',
+      magnitude: ev.MAGNITUDE || ev.magnitude || '',
+      magnitude_type: ev.MAGNITUDE_TYPE || ev.magnitude_type || '',
+      county: ev.CZ_NAME || ev.cz_name || county,
+      state: ev.STATE || ev.state_name || state,
+    }))
+  }
 
   try {
-    const noaaRes = await fetch(`https://www.ncdc.noaa.gov/stormevents/json?${params.toString()}`, {
-      headers: { 'User-Agent': 'ProGuild/1.0' },
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!noaaRes.ok) return []
-    const noaaJson = await noaaRes.json() as { CurrentItems?: number; CurrentEvents?: Array<Record<string, string>> }
-    if (!noaaJson.CurrentEvents?.length) return []
-
-    return noaaJson.CurrentEvents.slice(0, 5).map(ev => ({
-      event_type: ev.EVENT_TYPE || '',
-      event_date: ev.BEGIN_DATE || '',
-      magnitude: ev.MAGNITUDE || '',
-      magnitude_type: ev.MAGNITUDE_TYPE || '',
-      county: ev.CZ_NAME || county,
-      state: ev.STATE || state,
-    }))
-  } catch {
+    // Two calls: hail (with size threshold) + wind/tornado (separate, no size filter)
+    const [hailEvents, windEvents] = await Promise.all([
+      fetchNoaa({ eventType: 'Hail', hailSize: '1.00' }),
+      fetchNoaa({ eventType: 'Thunderstorm Wind,Tornado' }),
+    ])
+    const all = [...hailEvents, ...windEvents]
+    console.log('[noaa] total events found:', all.length)
+    return all.slice(0, 5)
+  } catch (e) {
+    console.log('[noaa] error:', e)
     return []
   }
 }
