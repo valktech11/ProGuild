@@ -26,6 +26,18 @@ interface LinkedLead {
   quoted_amount: number | null; created_at: string; scheduled_date: string | null
 }
 
+interface RoofReport {
+  id: string
+  created_at: string
+  total_squares_raw: number
+  total_squares_order: number
+  dominant_pitch: string
+  facet_count: number
+  waste_factor: number
+  imagery_date: string
+  r2_url: string
+}
+
 function Ic({ children, size = 16, color = 'currentColor' }: { children: React.ReactNode; size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -53,6 +65,12 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState<string | null>(null)
 
+  // Report generation
+  const [generating, setGenerating] = useState(false)
+  const [reportErr, setReportErr] = useState<string | null>(null)
+  const [reports, setReports] = useState<RoofReport[]>([])
+  const [reportsLoading, setReportsLoading] = useState(false)
+
   // Edit form state
   const [form, setForm] = useState<Partial<Property>>({})
 
@@ -68,6 +86,56 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       })
       .finally(() => setLoading(false))
   }, [id, session])
+
+  useEffect(() => {
+    if (!session) return
+    setReportsLoading(true)
+    fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
+      .then(r => r.json())
+      .then(d => setReports(d.reports || []))
+      .finally(() => setReportsLoading(false))
+  }, [id, session])
+
+  async function generateReport() {
+    if (!session || !property) return
+    setGenerating(true)
+    setReportErr(null)
+    const fullAddress = [
+      property.address_line1,
+      property.city,
+      property.state,
+      property.zip_code,
+    ].filter(Boolean).join(', ')
+
+    try {
+      const r = await fetch('/api/roofing/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: fullAddress, pro_id: session.id, property_id: id }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setReportErr(d.error || 'Report generation failed'); return }
+      // Open PDF in new tab
+      window.open(d.url, '_blank')
+      // Refresh report list
+      const refreshed = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
+      const rd = await refreshed.json()
+      setReports(rd.reports || [])
+      // Auto-push measurements to Calculator via sessionStorage
+      if (d.measurements) {
+        sessionStorage.setItem('pg_roof_measurements', JSON.stringify({
+          squares: d.measurements.totalSquaresOrder,
+          pitch: d.measurements.dominantPitch,
+          source: 'roof_report',
+          address: fullAddress,
+        }))
+      }
+    } catch (e) {
+      setReportErr('Network error — please try again')
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   async function handleSave() {
     if (!session || !property) return
@@ -290,20 +358,74 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               )}
             </div>
 
-            {/* ProMeasure & Calculator CTAs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+            {/* ProMeasure, Calculator & Generate Report CTAs */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 16 }}>
               <button onClick={() => router.push('/dashboard/roofing/promeasure?address=' + encodeURIComponent(property.address_line1 + (property.city ? ', ' + property.city : '')))}
                 style={{ padding: '14px 18px', borderRadius: 14, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 14, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
                 <div style={{ fontSize: 20, marginBottom: 4 }}>📐</div>
-                Measure with ProMeasure
+                ProMeasure
                 <div style={{ fontSize: 12, fontWeight: 400, color: '#14B8A6', marginTop: 2 }}>Satellite polygon tool</div>
               </button>
               <button onClick={() => router.push('/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : ''))}
                 style={{ padding: '14px 18px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
                 <div style={{ fontSize: 20, marginBottom: 4 }}>🔢</div>
-                Roofing Calculator
+                Calculator
                 <div style={{ fontSize: 12, fontWeight: 400, color: t.textSubtle, marginTop: 2 }}>Material quantities</div>
               </button>
+              <button
+                onClick={generateReport}
+                disabled={generating}
+                style={{ padding: '14px 18px', borderRadius: 14, border: `1.5px solid ${generating ? t.cardBorder : '#0F766E'}`, background: generating ? t.cardBgAlt : '#0F766E', color: generating ? t.textMuted : 'white', fontSize: 14, fontWeight: 700, cursor: generating ? 'wait' : 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
+                <div style={{ fontSize: 20, marginBottom: 4 }}>{generating ? '⏳' : '🛰️'}</div>
+                {generating ? 'Generating…' : 'Generate Report'}
+                <div style={{ fontSize: 12, fontWeight: 400, color: generating ? t.textSubtle : '#99f6e4', marginTop: 2 }}>
+                  {generating ? 'Fetching satellite data' : 'Squares · pitch · waste PDF'}
+                </div>
+              </button>
+            </div>
+
+            {/* Report error */}
+            {reportErr && (
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontSize: 13, marginTop: 10 }}>
+                {reportErr}
+              </div>
+            )}
+
+            {/* Report History */}
+            <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20, marginTop: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, margin: 0 }}>
+                  🛰️ Roof Reports ({reports.length})
+                </h2>
+              </div>
+              {reportsLoading ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: t.textSubtle, fontSize: 13 }}>Loading…</div>
+              ) : reports.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: t.textSubtle, fontSize: 14 }}>
+                  No reports yet.<br />
+                  <span style={{ fontSize: 13 }}>Click &ldquo;Generate Report&rdquo; to create your first satellite measurement report.</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {reports.map(report => (
+                    <div key={report.id}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 12, border: `1px solid ${t.cardBorder}`, background: t.cardBgAlt }}>
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: t.textPri, margin: '0 0 2px' }}>
+                          {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste
+                        </p>
+                        <p style={{ fontSize: 12, color: t.textSubtle, margin: 0 }}>
+                          {report.facet_count} facets · Imagery: {report.imagery_date} · {timeAgo(report.created_at)}
+                        </p>
+                      </div>
+                      <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
+                        style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        Download PDF
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
