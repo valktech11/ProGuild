@@ -1,6 +1,9 @@
 // lib/roofing/reportPdf.tsx
 // ProGuild Roof Measurement Report — @react-pdf/renderer v4
 // Mirrors EagleView Bid Perfect layout in ProGuild teal/cream/navy design system
+// PRAGMA: must use classic React.createElement — react-pdf cannot use react/jsx-runtime
+/* @jsxRuntime classic */
+/* @jsx React.createElement */
 
 import React from 'react'
 import {
