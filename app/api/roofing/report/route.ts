@@ -134,6 +134,7 @@ function parseSolar(solar: Record<string, unknown>): {
   buildingLat: number
   buildingLng: number
   boundingBox: { swLat: number; swLng: number; neLat: number; neLng: number } | null
+  hasLowSlope: boolean
 } {
   // Solar API v1 buildingInsights response structure:
   // { center: {latitude, longitude}, boundingBox: {sw,ne}, solarPotential: {...}, imageryDate: {...} }
@@ -199,9 +200,35 @@ function parseSolar(solar: Record<string, unknown>): {
   const dominantPitch = pitchBreakdown[0]?.pitch || '?/12'
   const wasteFactor = wasteFactorFromFacets(facetCount)
 
-  console.log('[report] parsed: totalSqft=' + totalSqft + ', facets=' + facetCount + ', pitch=' + dominantPitch + ', imageryDate=' + imageryDate)
+  // Pitch smoothing: snap minority pitches (<8% area, ±1 rise from dominant) into dominant
+  // Reduces API noise from sagging sections, chimney shadows, etc.
+  const dominantRise = parseInt(dominantPitch.split('/')[0])
+  const smoothedBreakdown = pitchBreakdown.reduce((acc, row) => {
+    const rise = parseInt(row.pitch.split('/')[0])
+    if (row.pct < 8 && Math.abs(rise - dominantRise) <= 1) {
+      // Merge into dominant
+      const existing = acc.find(r => r.pitch === dominantPitch)
+      if (existing) {
+        existing.sqft += row.sqft
+        existing.sq = Math.round((existing.sq + row.sq) * 10) / 10
+        existing.pct = Math.min(100, existing.pct + row.pct)
+      }
+      return acc
+    }
+    acc.push({ ...row })
+    return acc
+  }, [] as typeof pitchBreakdown)
 
-  return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown, imageryDate, buildingLat, buildingLng, boundingBox }
+  // Recalculate pct after smoothing (ensure sums to 100)
+  const smoothedTotal = smoothedBreakdown.reduce((s, r) => s + r.sqft, 0)
+  smoothedBreakdown.forEach(r => { r.pct = smoothedTotal > 0 ? Math.round((r.sqft / smoothedTotal) * 100) : 0 })
+
+  // Low slope flag — any pitch < 3/12 means special underlayment territory
+  const hasLowSlope = smoothedBreakdown.some(r => parseInt(r.pitch.split('/')[0]) < 3)
+
+  console.log('[report] parsed: totalSqft=' + totalSqft + ', facets=' + facetCount + ', pitch=' + dominantPitch + ', imageryDate=' + imageryDate + ', hasLowSlope=' + hasLowSlope + ', smoothed pitches=' + smoothedBreakdown.length)
+
+  return { totalSqft, totalSquaresRaw, totalSquaresOrder, dominantPitch, facetCount, wasteFactor, pitchBreakdown: smoothedBreakdown, imageryDate, buildingLat, buildingLng, boundingBox, hasLowSlope }
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────

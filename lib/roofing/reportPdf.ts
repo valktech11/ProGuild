@@ -50,6 +50,7 @@ export interface ReportData {
   imgZoom21:  string
   buildingLat: number
   buildingLng: number
+  hasLowSlope: boolean
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -62,6 +63,9 @@ const BORDER = '#E8E2D9'
 const MUTED  = '#6B7280'
 const WHITE  = '#FFFFFF'
 const ROW_ALT= '#F9FAFB'
+const AMBER  = '#F59E0B'
+const AMBER_L= '#FFFBEB'
+const AMBER_B= '#92400E'
 
 // ── Styles ─────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
@@ -134,6 +138,13 @@ const S = StyleSheet.create({
   summaryCol:   { gap: 4 },
   summaryLine:  { fontSize: 9, color: MUTED },
   summaryVal:   { fontFamily: 'Helvetica-Bold', color: NAVY },
+
+  // Low slope
+  lowSlopeRow:  { flexDirection: 'row', borderTop: '1 solid #FDE68A', backgroundColor: AMBER_L },
+  lowSlopeCellPitch: { flex: 0.6, padding: '7 10', fontSize: 10, fontFamily: 'Helvetica-Bold', color: AMBER_B },
+  lowSlopeCell: { flex: 1, padding: '7 10', fontSize: 10, color: AMBER_B },
+  lowSlopeAlert: { marginTop: 8, padding: '8 10', backgroundColor: AMBER_L, borderRadius: 6, borderLeft: '3 solid ' + AMBER },
+  lowSlopeAlertTxt: { fontSize: 8, color: AMBER_B, lineHeight: 1.5 },
 
   // Footnotes
   footnote:     { fontSize: 8, color: MUTED, marginTop: 10, lineHeight: 1.5 },
@@ -211,9 +222,9 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         h(Image, { src: data.imgTopView, style: S.dataImg }),
         h(View, { style: S.metricRow },
           h(View, { style: S.metricBox },
-            h(Text, { style: S.metricVal }, data.totalSquaresRaw.toFixed(2)),
-            h(Text, { style: S.metricLbl }, 'Total Squares'),
-            h(Text, { style: S.metricSub }, 'Order qty: ' + data.totalSquaresOrder.toFixed(1) + ' sq')
+            h(Text, { style: { ...S.metricVal, fontSize: 24 } }, data.totalSquaresOrder.toFixed(1) + ' sq'),
+            h(Text, { style: { ...S.metricLbl, color: TEAL, fontFamily: 'Helvetica-Bold' } }, 'ORDER QUANTITY'),
+            h(Text, { style: S.metricSub }, 'Measured: ' + data.totalSquaresRaw.toFixed(2) + ' sq raw')
           ),
           h(View, { style: S.metricBox },
             h(Text, { style: S.metricVal }, data.dominantPitch),
@@ -238,14 +249,15 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
             h(Text, { style: S.tblHeadCell }, 'Squares'),
             h(Text, { style: S.tblHeadCell }, '% of Roof')
           ),
-          ...data.pitchBreakdown.map((row, i) =>
-            h(View, { key: row.pitch, style: i % 2 === 0 ? S.tblRow : S.tblRowAlt },
-              h(Text, { style: S.tblCellSmBold }, row.pitch),
-              h(Text, { style: S.tblCell }, row.sqft.toLocaleString()),
-              h(Text, { style: S.tblCell }, row.sq.toFixed(1)),
-              h(Text, { style: S.tblCell }, row.pct + '%')
+          ...data.pitchBreakdown.map((row, i) => {
+            const isLow = parseInt(row.pitch.split('/')[0]) < 3
+            return h(View, { key: row.pitch, style: isLow ? S.lowSlopeRow : (i % 2 === 0 ? S.tblRow : S.tblRowAlt) },
+              h(Text, { style: isLow ? S.lowSlopeCellPitch : S.tblCellSmBold }, row.pitch + (isLow ? ' *' : '')),
+              h(Text, { style: isLow ? S.lowSlopeCell : S.tblCell }, row.sqft.toLocaleString()),
+              h(Text, { style: isLow ? S.lowSlopeCell : S.tblCell }, row.sq.toFixed(1)),
+              h(Text, { style: isLow ? S.lowSlopeCell : S.tblCell }, row.pct + '%')
             )
-          ),
+          }),
           h(View, { style: S.tblRowTot },
             h(Text, { style: S.tblCellSmTeal }, 'TOTAL'),
             h(Text, { style: S.tblCellTeal }, data.totalSqft.toLocaleString()),
@@ -256,6 +268,11 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         h(Text, { style: S.footnote },
           '* Total squares does NOT include waste. Imagery date: ' + data.imageryDate + '.\nMeasurements provided by Google Solar API. Field verification recommended before ordering materials.'
         ),
+        ...(data.hasLowSlope ? [h(View, { style: S.lowSlopeAlert },
+          h(Text, { style: S.lowSlopeAlertTxt },
+            '\u26A0 LOW SLOPE DETECTED (* rows): One or more roof areas measure below 3/12 pitch. Standard asphalt shingles require a minimum 2/12 pitch with special low-slope underlayment (ice-and-water shield entire deck). Below 2/12, a membrane system (TPO/EPDM) is typically required. Verify with manufacturer guidelines before ordering materials.'
+          )
+        )] : []),
         h(Text, { style: S.disclaimer },
           '\u26A0 This report is designed for bid preparation and sales use. For insurance claim submissions, a certified measurement report may be required by your carrier.'
         )
@@ -320,58 +337,64 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
             h(Text, { style: S.tblHeadCell }, '% of Roof'),
             h(Text, { style: S.tblHeadCell }, 'Squares')
           ),
-          ...data.pitchBreakdown.map((row, i) =>
-            h(View, { key: row.pitch, style: i % 2 === 0 ? S.tblRow : S.tblRowAlt },
-              h(Text, { style: S.tblCellSmBold }, row.pitch),
-              h(Text, { style: S.tblCell }, row.sqft.toLocaleString()),
-              h(Text, { style: S.tblCell }, row.pct + '%'),
-              h(Text, { style: S.tblCell }, row.sq.toFixed(1))
+          ...data.pitchBreakdown.map((row, i) => {
+            const isLow = parseInt(row.pitch.split('/')[0]) < 3
+            return h(View, { key: row.pitch, style: isLow ? S.lowSlopeRow : (i % 2 === 0 ? S.tblRow : S.tblRowAlt) },
+              h(Text, { style: isLow ? S.lowSlopeCellPitch : S.tblCellSmBold }, row.pitch + (isLow ? ' *' : '')),
+              h(Text, { style: isLow ? S.lowSlopeCell : S.tblCell }, row.sqft.toLocaleString()),
+              h(Text, { style: isLow ? S.lowSlopeCell : S.tblCell }, row.pct + '%'),
+              h(Text, { style: isLow ? S.lowSlopeCell : S.tblCell }, row.sq.toFixed(1))
             )
-          )
+          })
         ),
 
         // Waste Calculation Table
         h(View, { style: { marginTop: 20 } },
           sectionBar('Waste Calculation Table'),
-          h(Text, { style: { fontSize: 9, color: MUTED, marginBottom: 8 } },
-            'NOTE: Applies to asphalt shingle areas with pitch >= 3/12 only (' + steepSqft.toLocaleString() + ' sq ft). Ridge, hip, and starter lengths not included.'
-          ),
-          h(View, { style: S.wasteTbl },
-            // Header row
-            h(View, { style: S.tblHead },
-              ...wastePcts.map(pct =>
-                h(Text, {
-                  key: pct,
-                  style: pct === data.wasteFactor ? S.wasteThlHighlight : S.tblHeadCell
-                }, pct + '%' + (pct === data.wasteFactor ? ' \u2605' : ''))
+          steepSqft > 0
+            ? h(View, null,
+                h(Text, { style: { fontSize: 9, color: MUTED, marginBottom: 8 } },
+                  'NOTE: Applies to asphalt shingle areas with pitch >= 3/12 only (' + steepSqft.toLocaleString() + ' sq ft). Ridge, hip, and starter lengths not included.'
+                ),
+                h(View, { style: S.wasteTbl },
+                  h(View, { style: S.tblHead },
+                    ...wastePcts.map(pct =>
+                      h(Text, {
+                        key: pct,
+                        style: pct === data.wasteFactor ? S.wasteThlHighlight : S.tblHeadCell
+                      }, pct + '%' + (pct === data.wasteFactor ? ' \u2605' : ''))
+                    )
+                  ),
+                  h(View, { style: S.tblRow },
+                    ...wastePcts.map((pct, i) =>
+                      h(Text, {
+                        key: pct,
+                        style: pct === data.wasteFactor
+                          ? { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL }
+                          : i % 2 !== 0 ? { ...S.tblCell, backgroundColor: ROW_ALT } : S.tblCell
+                      }, Math.round(steepSqft * (1 + pct / 100)).toLocaleString() + ' ft\u00B2')
+                    )
+                  ),
+                  h(View, { style: S.tblRowAlt },
+                    ...wastePcts.map(pct =>
+                      h(Text, {
+                        key: pct,
+                        style: pct === data.wasteFactor
+                          ? { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL }
+                          : S.tblCell
+                      }, wasteArea(steepSqft, pct) + ' sq')
+                    )
+                  )
+                ),
+                h(Text, { style: { ...S.footnote, marginTop: 8 } },
+                  '\u2605 Suggested waste factor based on roof complexity (' + data.facetCount + ' facets). Actual percentages may differ based on installation techniques and crew experience.'
+                )
               )
-            ),
-            // Area row
-            h(View, { style: S.tblRow },
-              ...wastePcts.map((pct, i) =>
-                h(Text, {
-                  key: pct,
-                  style: pct === data.wasteFactor
-                    ? { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL }
-                    : i % 2 !== 0 ? { ...S.tblCell, backgroundColor: ROW_ALT } : S.tblCell
-                }, Math.round(steepSqft * (1 + pct / 100)).toLocaleString() + ' ft\u00B2')
+            : h(View, { style: { ...S.lowSlopeAlert, marginTop: 8 } },
+                h(Text, { style: { ...S.lowSlopeAlertTxt, fontSize: 9 } },
+                  '\u26A0 LOW SLOPE ROOF: All measured surfaces are below 3/12 pitch. Standard asphalt shingle waste calculations do not apply. For low-slope systems (TPO, EPDM, modified bitumen), waste is typically 10% for simple shapes and 15% for complex. Consult your membrane manufacturer for specific guidelines.'
+                )
               )
-            ),
-            // Squares row
-            h(View, { style: S.tblRowAlt },
-              ...wastePcts.map(pct =>
-                h(Text, {
-                  key: pct,
-                  style: pct === data.wasteFactor
-                    ? { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL }
-                    : S.tblCell
-                }, wasteArea(steepSqft, pct) + ' sq')
-              )
-            )
-          ),
-          h(Text, { style: { ...S.footnote, marginTop: 8 } },
-            '\u2605 Suggested waste factor based on roof complexity (' + data.facetCount + ' facets). Actual percentages may differ based on installation techniques and crew experience.'
-          )
         ),
 
         // Summary box
@@ -381,7 +404,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
             h(View, { style: S.summaryCol },
               h(Text, { style: S.summaryLine }, 'Total Roof Area: ', h(Text, { style: S.summaryVal }, data.totalSqft.toLocaleString() + ' sq ft')),
               h(Text, { style: S.summaryLine }, 'Measured Squares: ', h(Text, { style: S.summaryVal }, data.totalSquaresRaw.toFixed(2) + ' sq')),
-              h(Text, { style: S.summaryLine }, 'Order Quantity: ', h(Text, { style: S.summaryVal }, data.totalSquaresOrder.toFixed(1) + ' sq'))
+              h(Text, { style: S.summaryLine }, 'Order Quantity: ', h(Text, { style: { ...S.summaryVal, color: TEAL, fontSize: 11 } }, data.totalSquaresOrder.toFixed(1) + ' sq'))
             ),
             h(View, { style: S.summaryCol },
               h(Text, { style: S.summaryLine }, 'Total Facets: ', h(Text, { style: S.summaryVal }, String(data.facetCount))),

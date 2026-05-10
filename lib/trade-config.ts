@@ -123,7 +123,7 @@ const ROOFING: TradeConfig = {
     items: [
       { label: 'Properties',     href: '/dashboard/roofing/property',    iconKey: 'properties' },
       { label: 'ProMeasure',     href: '/dashboard/roofing/promeasure',  iconKey: 'measure'   },
-      { label: 'Calculator',     href: '/dashboard/roofing/calculator',  iconKey: 'revenue'    },
+      { label: 'Calculator',     href: '/dashboard/roofing/calculator',  iconKey: 'calculator' },
       { label: 'Warranties',     href: '/dashboard/roofing/warranties',  iconKey: 'compliance', soon: true },
       { label: 'Storm workflow', href: '/dashboard/roofing/storm',       iconKey: 'ai',         soon: true },
     ],
