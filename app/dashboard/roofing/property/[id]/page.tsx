@@ -492,7 +492,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                           {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste
                         </p>
                         <p style={{ fontSize: 12, color: t.textSubtle, margin: 0 }}>
-                          {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {report.facet_count} facets · {timeAgo(report.created_at)}
+                          {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · {report.facet_count} facets · {timeAgo(report.created_at)}
                         </p>
                       </div>
                       <div className="report-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
