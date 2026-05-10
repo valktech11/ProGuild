@@ -190,11 +190,9 @@ export interface NearestSupplier {
 }
 
 async function findNearestSupplier(lat: number, lng: number): Promise<NearestSupplier | null> {
-  const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ''
-  if (!MAPS_KEY) return null
+  if (!GOOGLE_KEY) return null
 
-  // Search for roofing supply stores near the property
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&rankby=distance&keyword=roofing+supply+ABC+Supply+Beacon+SRS&key=${MAPS_KEY}`
+  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&rankby=distance&keyword=roofing+supply+ABC+Supply+Beacon+SRS&key=${GOOGLE_KEY}`
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
     if (!res.ok) return null
@@ -582,6 +580,8 @@ export async function POST(req: NextRequest) {
         buildingLng: measurements.buildingLng,
         boundingBox: measurements.boundingBox,
         formattedAddress,
+        stormEvents,
+        nearestSupplier,
         roofSegmentStats: (solarData?.solarPotential as Record<string,unknown>)?.roofSegmentStats || [],
       },
       measurements: {
