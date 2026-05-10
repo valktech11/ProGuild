@@ -56,6 +56,8 @@ export interface ReportData {
   hasLowConfidence: boolean
   stormEvents: Array<{ event_type: string; event_date: string; magnitude: string; magnitude_type: string; county: string; state: string; distance_miles?: number }>
   nearestSupplier: { name: string; vicinity: string; distance_miles: number } | null
+  geminiCondition: string | null        // AI condition assessment paragraph
+  historicDistrict: string | null       // e.g. "Lake Forest Historic District"
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -172,6 +174,16 @@ const S = StyleSheet.create({
   coordsTxt:        { fontSize: 9, color: MUTED },
   directionsLink:   { fontSize: 9, color: TEAL, textDecoration: 'underline' },
 
+  // Gemini AI condition assessment
+  geminiBox:    { marginTop: 14, padding: '10 12', backgroundColor: '#EFF6FF', borderRadius: 6, borderLeft: '3 solid #3B82F6' },
+  geminiLabel:  { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#1E40AF', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
+  geminiTxt:    { fontSize: 9, color: '#1E3A5F', lineHeight: 1.6 },
+
+  // Historic district badge
+  historicBadge: { marginTop: 8, padding: '8 10', borderRadius: 6, borderLeft: '3 solid #D97706', backgroundColor: '#FFFBEB' },
+  historicTxt:   { fontSize: 9, color: '#92400E', fontFamily: 'Helvetica-Bold', lineHeight: 1.5 },
+  historicSub:   { fontSize: 8, color: '#B45309', lineHeight: 1.5, marginTop: 2 },
+
   // Footnotes
   footnote:     { fontSize: 8, color: MUTED, marginTop: 10, lineHeight: 1.5 },
   disclaimer:   { fontSize: 8, color: MUTED, marginTop: 8, padding: '8 10', backgroundColor: '#FFF9F0', borderRadius: 6, lineHeight: 1.5 },
@@ -271,6 +283,17 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
               'Radar-confirmed hail exceeds 1.0" insurance threshold. Property may qualify for an insurance claim. Verify with carrier before ordering materials.'
             )
           )
+        ] : []),
+        // Historic district badge
+        ...(data.historicDistrict ? [
+          h(View, { style: { ...S.historicBadge, marginHorizontal: 60, marginTop: 8 } },
+            h(Text, { style: S.historicTxt },
+              '\u26CF HISTORIC DISTRICT \u2014 ' + data.historicDistrict
+            ),
+            h(Text, { style: S.historicSub },
+              'This property may be subject to local historic preservation codes. Verify approved roofing materials with the local Historic Preservation Commission before ordering.'
+            )
+          )
         ] : [])
       ),
       h(View, { style: S.coverFooter },
@@ -346,7 +369,14 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         ] : []),
         h(Text, { style: S.disclaimer },
           '\u26A0 This report is designed for bid preparation and sales use. For insurance claim submissions, a certified measurement report may be required by your carrier.'
-        )
+        ),
+        // Gemini AI condition assessment
+        ...(data.geminiCondition ? [
+          h(View, { style: S.geminiBox },
+            h(Text, { style: S.geminiLabel }, 'AI Condition Assessment \u00B7 Powered by Gemini Vision'),
+            h(Text, { style: S.geminiTxt }, data.geminiCondition)
+          )
+        ] : [])
       ),
       pageFooter(data.generatedDate)
     ),

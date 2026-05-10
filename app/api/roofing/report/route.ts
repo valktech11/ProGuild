@@ -97,18 +97,6 @@ async function fetchSolarData(lat: number, lng: number): Promise<Record<string, 
   return res.json()
 }
 
-// ── NOAA Storm Events ──────────────────────────────────────────────────────
-// Free federal API — no key required.
-// Checks for qualifying hail (≥1") or high wind events in the past 24 months.
-export interface NoaaStormEvent {
-  event_type: string   // 'Hail' | 'Thunderstorm Wind' | 'Tornado'
-  event_date: string   // e.g. '2024-04-12'
-  magnitude: string    // e.g. '1.75' (inches for hail, mph for wind)
-  magnitude_type: string // 'HAI' or 'MG' or 'EG'
-  county: string
-  state: string
-}
-
 // ── NOAA SWDI Hail Check ──────────────────────────────────────────────────
 // Uses NOAA Severe Weather Data Inventory (SWDI) nx3hail dataset.
 // Free, no API key. Queries by radius around property lat/lng.
@@ -418,6 +406,124 @@ function parseSolar(solar: Record<string, unknown>): {
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────
+// ── Gemini Vision Condition Assessment ───────────────────────────────────
+// Fetches the Solar API rgbUrl GeoTIFF, sends as base64 to Gemini 1.5 Flash.
+// Returns a 2-3 sentence condition paragraph. Cost: ~$0.0001/report.
+async function getGeminiCondition(lat: number, lng: number): Promise<string | null> {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY || ''
+  if (!GEMINI_KEY) { console.log('[gemini] no API key'); return null }
+  if (!GOOGLE_KEY)  { console.log('[gemini] no Google key for dataLayers'); return null }
+
+  try {
+    // Step 1: get dataLayers to find the rgbUrl
+    const dlUrl = `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=IMAGERY_AND_ANNUAL_FLUX_LAYERS&requiredQuality=LOW&key=${GOOGLE_KEY}`
+    console.log('[gemini] fetching dataLayers')
+    const dlRes = await fetch(dlUrl, { signal: AbortSignal.timeout(10000) })
+    if (!dlRes.ok) { console.log('[gemini] dataLayers error:', dlRes.status); return null }
+    const dlJson = await dlRes.json() as { rgbUrl?: string; imageryDate?: string }
+    const rgbUrl = dlJson.rgbUrl
+    if (!rgbUrl) { console.log('[gemini] no rgbUrl in dataLayers response'); return null }
+    console.log('[gemini] rgbUrl found, fetching image')
+
+    // Step 2: fetch the RGB GeoTIFF as base64
+    const imgRes = await fetch(`${rgbUrl}&key=${GOOGLE_KEY}`, { signal: AbortSignal.timeout(15000) })
+    if (!imgRes.ok) { console.log('[gemini] image fetch error:', imgRes.status); return null }
+    const imgBuffer = await imgRes.arrayBuffer()
+    const base64 = Buffer.from(imgBuffer).toString('base64')
+    const mimeType = imgRes.headers.get('content-type') || 'image/tiff'
+    console.log('[gemini] image fetched:', imgBuffer.byteLength, 'bytes, mime:', mimeType)
+
+    // Step 3: call Gemini 1.5 Flash with the satellite image
+    const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. 
+Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment.
+Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, 
+flashing condition, and overall material condition. 
+Be specific about what you observe. Do not mention the image format or satellite technology.
+Write in the third person as if writing a field note for a roofing contractor.`
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: base64 } }
+            ]
+          }],
+          generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
+        }),
+        signal: AbortSignal.timeout(20000),
+      }
+    )
+    if (!geminiRes.ok) { console.log('[gemini] API error:', geminiRes.status, await geminiRes.text()); return null }
+    const geminiJson = await geminiRes.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
+    const text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
+    console.log('[gemini] condition assessment:', text?.slice(0, 100))
+    return text
+  } catch (e) {
+    console.log('[gemini] error:', String(e).slice(0, 150))
+    return null
+  }
+}
+
+// ── Historic District Check — US Census Geocoder ──────────────────────────
+// Uses Census Geocoder to get incorporated place name, then checks NPS
+// National Register of Historic Places for a matching listing.
+// Free, no API key required.
+async function checkHistoricDistrict(lat: number, lng: number, formattedAddress: string): Promise<string | null> {
+  try {
+    // Step 1: Census Geocoder reverse geocode → get incorporated place
+    const censusUrl = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=all&format=json`
+    console.log('[historic] checking Census Geocoder')
+    const censusRes = await fetch(censusUrl, {
+      headers: { 'User-Agent': 'ProGuild/1.0' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!censusRes.ok) { console.log('[historic] census error:', censusRes.status); return null }
+    const censusJson = await censusRes.json() as {
+      result?: {
+        geographies?: {
+          'Incorporated Places'?: Array<{ NAME?: string; GEOID?: string }>
+          'Counties'?: Array<{ NAME?: string; STATE?: string }>
+        }
+      }
+    }
+    const places = censusJson.result?.geographies?.['Incorporated Places'] || []
+    const counties = censusJson.result?.geographies?.['Counties'] || []
+    const placeName = places[0]?.NAME || ''
+    const countyName = counties[0]?.NAME || ''
+    console.log('[historic] place:', placeName, 'county:', countyName)
+
+    if (!placeName && !countyName) return null
+
+    // Step 2: Check NPS National Register API for historic properties in this place
+    // NPS NRHP text search — free, no key
+    const searchTerm = encodeURIComponent(placeName || countyName)
+    const npsUrl = `https://npgallery.nps.gov/api/v1/asset/search?q=${searchTerm}&type=nrhp&limit=5`
+    console.log('[historic] checking NPS NRHP:', npsUrl)
+    const npsRes = await fetch(npsUrl, {
+      headers: { 'User-Agent': 'ProGuild/1.0' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!npsRes.ok) { console.log('[historic] NPS error:', npsRes.status); return null }
+    const npsJson = await npsRes.json() as { total?: number; assets?: Array<{ title?: string }> }
+    console.log('[historic] NPS results:', npsJson.total, 'for', placeName)
+
+    // If NPS has listed properties in this place, flag it
+    if (npsJson.total && npsJson.total > 0) {
+      const districtName = npsJson.assets?.[0]?.title || placeName + ' Historic District'
+      return districtName
+    }
+    return null
+  } catch (e) {
+    console.log('[historic] error:', String(e).slice(0, 150))
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -491,17 +597,19 @@ export async function POST(req: NextRequest) {
     const imgLng = measurements.buildingLng || lng
     console.log('[report] using image coords:', imgLat, imgLng, measurements.buildingLat ? '(Solar center)' : '(geocoded fallback)')
 
-    // ── 5. Fetch 4 images + NOAA storm check + nearest supplier in parallel ─
-    console.log('[report] step 5: fetching images + NOAA + supplier')
-    const [imgTopView, imgZoom19, imgZoom20, imgZoom21, stormEvents, nearestSupplier] = await Promise.all([
+    // ── 5. Fetch images + NOAA + supplier + Gemini + Historic District ──────
+    console.log('[report] step 5: fetching images + NOAA + supplier + Gemini + historic')
+    const [imgTopView, imgZoom19, imgZoom20, imgZoom21, stormEvents, nearestSupplier, geminiCondition, historicDistrict] = await Promise.all([
       fetchTopView(imgLat, imgLng, measurements.boundingBox),
       fetchZoomView(imgLat, imgLng, 18, 'zoom18'),
       fetchZoomView(imgLat, imgLng, 20, 'zoom20'),
       fetchZoomView(imgLat, imgLng, 22, 'zoom22'),
       checkNoaaStorms(imgLat, imgLng),
       findNearestSupplier(imgLat, imgLng),
+      getGeminiCondition(imgLat, imgLng),
+      checkHistoricDistrict(imgLat, imgLng, formattedAddress),
     ])
-    console.log('[report] images fetched, NOAA events:', stormEvents.length, 'supplier:', nearestSupplier?.name || 'none')
+    console.log('[report] step 5 done — NOAA:', stormEvents.length, 'supplier:', nearestSupplier?.name || 'none', 'gemini:', geminiCondition ? 'ok' : 'null', 'historic:', historicDistrict || 'none')
 
     // ── 6. Fetch pro details for report header ────────────────────
     const { data: pro } = await sb
@@ -543,6 +651,8 @@ export async function POST(req: NextRequest) {
       imgZoom21,
       stormEvents,
       nearestSupplier,
+      geminiCondition,
+      historicDistrict,
     }
 
     // ── 9. Render PDF ─────────────────────────────────────────────
@@ -632,6 +742,8 @@ export async function POST(req: NextRequest) {
         formattedAddress,
         stormEvents,
         nearestSupplier,
+        geminiCondition,
+        historicDistrict,
         roofSegmentStats: (solarData?.solarPotential as Record<string,unknown>)?.roofSegmentStats || [],
       },
       measurements: {
