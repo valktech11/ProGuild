@@ -402,8 +402,15 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)'; e.currentTarget.style.borderColor = '#14B8A6' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.cardBorder }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F0FDFA', border: '1.5px solid #CCFBF1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 21h18"/><path d="M5 21V8l10 13H5z"/><path d="M15 21V11"/>
+                  {/* Drafting set-square: right-angle triangle with ruler tick marks */}
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="3,21 3,5 19,21" fill="#CCFBF1" stroke="#0F766E" strokeWidth="2" strokeLinejoin="round"/>
+                    <line x1="3" y1="21" x2="19" y2="21"/>
+                    <line x1="3" y1="5" x2="3" y2="21"/>
+                    <line x1="3" y1="13" x2="6" y2="13"/>
+                    <line x1="3" y1="17" x2="5" y2="17"/>
+                    <line x1="9" y1="21" x2="9" y2="18"/>
+                    <line x1="14" y1="21" x2="14" y2="19"/>
                   </svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -420,10 +427,18 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)'; e.currentTarget.style.borderColor = '#14B8A6' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.cardBorder }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" strokeLinecap="round">
-                    <circle cx="8.5" cy="8.5" r="1.4" fill="white"/><circle cx="12" cy="8.5" r="1.4" fill="white"/><circle cx="15.5" cy="8.5" r="1.4" fill="white"/>
-                    <circle cx="8.5" cy="12" r="1.4" fill="white"/><circle cx="12" cy="12" r="1.4" fill="white"/><circle cx="15.5" cy="12" r="1.4" fill="white"/>
-                    <circle cx="8.5" cy="15.5" r="1.4" fill="white"/><circle cx="12" cy="15.5" r="1.4" fill="white"/><circle cx="15.5" cy="15.5" r="1.4" fill="white"/>
+                  {/* Solid blue badge with white numpad dot grid — matches reference exactly */}
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <rect x="4" y="4" width="16" height="16" rx="3" fill="white" opacity="0.15"/>
+                    <circle cx="9" cy="9" r="1.6" fill="white"/>
+                    <circle cx="12" cy="9" r="1.6" fill="white"/>
+                    <circle cx="15" cy="9" r="1.6" fill="white"/>
+                    <circle cx="9" cy="12" r="1.6" fill="white"/>
+                    <circle cx="12" cy="12" r="1.6" fill="white"/>
+                    <circle cx="15" cy="12" r="1.6" fill="white"/>
+                    <circle cx="9" cy="15" r="1.6" fill="white"/>
+                    <circle cx="12" cy="15" r="1.6" fill="white"/>
+                    <rect x="13.4" y="13.4" width="3.2" height="3.2" rx="1" fill="white"/>
                   </svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -442,10 +457,15 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 onMouseEnter={e => { if (!generating) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.4)' }}
                 onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: generating ? t.cardBgAlt : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textMuted : 'white'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/>
-                    <path d="M13 2v7h7"/>
-                    <path d="M8 17v-3M12 17v-5M16 17v-2"/>
+                  {/* Document with bar chart — bold white strokes on teal bg */}
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                      fill={generating ? 'none' : 'rgba(255,255,255,0.15)'}
+                      stroke={generating ? t.textMuted : 'white'} strokeWidth="1.8"/>
+                    <polyline points="14 2 14 8 20 8" stroke={generating ? t.textMuted : 'white'} strokeWidth="1.8"/>
+                    <line x1="8" y1="18" x2="8" y2="13" stroke={generating ? t.textMuted : 'white'} strokeWidth="2.2"/>
+                    <line x1="12" y1="18" x2="12" y2="11" stroke={generating ? t.textMuted : 'white'} strokeWidth="2.2"/>
+                    <line x1="16" y1="18" x2="16" y2="14" stroke={generating ? t.textMuted : 'white'} strokeWidth="2.2"/>
                   </svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>

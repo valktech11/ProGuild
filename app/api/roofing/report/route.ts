@@ -97,6 +97,105 @@ async function fetchSolarData(lat: number, lng: number): Promise<Record<string, 
   return res.json()
 }
 
+// ── NOAA Storm Events ──────────────────────────────────────────────────────
+// Free federal API — no key required.
+// Checks for qualifying hail (≥1") or high wind events in the past 24 months.
+export interface NoaaStormEvent {
+  event_type: string   // 'Hail' | 'Thunderstorm Wind' | 'Tornado'
+  event_date: string   // e.g. '2024-04-12'
+  magnitude: string    // e.g. '1.75' (inches for hail, mph for wind)
+  magnitude_type: string // 'HAI' or 'MG' or 'EG'
+  county: string
+  state: string
+}
+
+async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent[]> {
+  // Reverse geocode to get county + state via Google (already have the key)
+  const rgUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_KEY}`
+  const rgRes = await fetch(rgUrl)
+  if (!rgRes.ok) return []
+  const rgJson = await rgRes.json() as { results: Array<{ address_components: Array<{ long_name: string; types: string[] }> }> }
+
+  let county = '', state = ''
+  for (const comp of (rgJson.results[0]?.address_components || [])) {
+    if (comp.types.includes('administrative_area_level_2')) county = comp.long_name.replace(' County', '').replace(' Parish', '').toUpperCase()
+    if (comp.types.includes('administrative_area_level_1')) state = comp.long_name.toUpperCase()
+  }
+  if (!county || !state) return []
+
+  const now = new Date()
+  const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate())
+  const fmt = (d: Date) => `${String(d.getMonth() + 1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`
+
+  const params = new URLSearchParams({
+    eventType: 'Hail,Thunderstorm Wind,Tornado',
+    beginDate_mm: String(twoYearsAgo.getMonth() + 1).padStart(2,'0'),
+    beginDate_dd: String(twoYearsAgo.getDate()).padStart(2,'0'),
+    beginDate_yyyy: String(twoYearsAgo.getFullYear()),
+    endDate_mm: String(now.getMonth() + 1).padStart(2,'0'),
+    endDate_dd: String(now.getDate()).padStart(2,'0'),
+    endDate_yyyy: String(now.getFullYear()),
+    county: county,
+    state: state,
+    hailSize: '1.00',
+    outputFormat: 'json',
+  })
+
+  try {
+    const noaaRes = await fetch(`https://www.ncdc.noaa.gov/stormevents/json?${params.toString()}`, {
+      headers: { 'User-Agent': 'ProGuild/1.0' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!noaaRes.ok) return []
+    const noaaJson = await noaaRes.json() as { CurrentItems?: number; CurrentEvents?: Array<Record<string, string>> }
+    if (!noaaJson.CurrentEvents?.length) return []
+
+    return noaaJson.CurrentEvents.slice(0, 5).map(ev => ({
+      event_type: ev.EVENT_TYPE || '',
+      event_date: ev.BEGIN_DATE || '',
+      magnitude: ev.MAGNITUDE || '',
+      magnitude_type: ev.MAGNITUDE_TYPE || '',
+      county: ev.CZ_NAME || county,
+      state: ev.STATE || state,
+    }))
+  } catch {
+    return []
+  }
+}
+
+// ── Nearest Roofing Supplier ──────────────────────────────────────────────
+export interface NearestSupplier {
+  name: string
+  vicinity: string
+  distance_miles: number
+}
+
+async function findNearestSupplier(lat: number, lng: number): Promise<NearestSupplier | null> {
+  const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ''
+  if (!MAPS_KEY) return null
+
+  // Search for roofing supply stores near the property
+  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&rankby=distance&keyword=roofing+supply+ABC+Supply+Beacon+SRS&key=${MAPS_KEY}`
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
+    if (!res.ok) return null
+    const json = await res.json() as { results?: Array<{ name: string; vicinity: string; geometry: { location: { lat: number; lng: number } } }> }
+    const first = json.results?.[0]
+    if (!first) return null
+
+    // Haversine distance in miles
+    const R = 3958.8
+    const dLat = (first.geometry.location.lat - lat) * Math.PI / 180
+    const dLng = (first.geometry.location.lng - lng) * Math.PI / 180
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat*Math.PI/180) * Math.cos(first.geometry.location.lat*Math.PI/180) * Math.sin(dLng/2)**2
+    const distance_miles = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 10) / 10
+
+    return { name: first.name, vicinity: first.vicinity, distance_miles }
+  } catch {
+    return null
+  }
+}
+
 /** fetch Maps Static top-down image centred on exact building location.
  *  Draws yellow bounding box outline to identify the property. */
 async function fetchTopView(
@@ -325,15 +424,17 @@ export async function POST(req: NextRequest) {
     const imgLng = measurements.buildingLng || lng
     console.log('[report] using image coords:', imgLat, imgLng, measurements.buildingLat ? '(Solar center)' : '(geocoded fallback)')
 
-    // ── 5. Fetch 4 images in parallel ────────────────────────────
-    console.log('[report] step 5: fetching 4 images')
-    const [imgTopView, imgZoom19, imgZoom20, imgZoom21] = await Promise.all([
+    // ── 5. Fetch 4 images + NOAA storm check + nearest supplier in parallel ─
+    console.log('[report] step 5: fetching images + NOAA + supplier')
+    const [imgTopView, imgZoom19, imgZoom20, imgZoom21, stormEvents, nearestSupplier] = await Promise.all([
       fetchTopView(imgLat, imgLng, measurements.boundingBox),
       fetchZoomView(imgLat, imgLng, 18, 'zoom18'),
       fetchZoomView(imgLat, imgLng, 20, 'zoom20'),
       fetchZoomView(imgLat, imgLng, 22, 'zoom22'),
+      checkNoaaStorms(imgLat, imgLng),
+      findNearestSupplier(imgLat, imgLng),
     ])
-    console.log('[report] images fetched')
+    console.log('[report] images fetched, NOAA events:', stormEvents.length, 'supplier:', nearestSupplier?.name || 'none')
 
     // ── 6. Fetch pro details for report header ────────────────────
     const { data: pro } = await sb
@@ -373,6 +474,8 @@ export async function POST(req: NextRequest) {
       imgZoom19,
       imgZoom20,
       imgZoom21,
+      stormEvents,
+      nearestSupplier,
     }
 
     // ── 9. Render PDF ─────────────────────────────────────────────

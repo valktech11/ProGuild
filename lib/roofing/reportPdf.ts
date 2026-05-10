@@ -54,6 +54,8 @@ export interface ReportData {
   buildingLng: number
   hasLowSlope: boolean
   hasLowConfidence: boolean
+  stormEvents: Array<{ event_type: string; event_date: string; magnitude: string; magnitude_type: string; county: string; state: string }>
+  nearestSupplier: { name: string; vicinity: string; distance_miles: number } | null
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -155,6 +157,16 @@ const S = StyleSheet.create({
   qualityBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
   qualityTxt:       { fontSize: 9, fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 },
 
+  // Storm badge
+  stormBadge:   { marginTop: 8, padding: '8 10', borderRadius: 6, borderLeft: '3 solid #DC2626', backgroundColor: '#FEF2F2' },
+  stormTxt:     { fontSize: 9, color: '#991B1B', fontFamily: 'Helvetica-Bold', lineHeight: 1.5 },
+  stormSub:     { fontSize: 8, color: '#B91C1C', lineHeight: 1.5, marginTop: 2 },
+
+  // Supplier
+  supplierRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  supplierTxt:  { fontSize: 9, color: MUTED },
+  supplierLink: { fontSize: 9, color: TEAL, textDecoration: 'underline' },
+
   // Directions link
   coordsRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   coordsTxt:        { fontSize: 9, color: MUTED },
@@ -247,7 +259,21 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
               ...(staleLabel ? [h(Text, { style: { ...S.qualityTxt, color: textColor, fontFamily: 'Helvetica', marginTop: 3 } }, staleLabel)] : [])
             )
           })()
-        )
+        ),
+        // Storm events badge — outside pro box, high visual impact
+        ...(data.stormEvents && data.stormEvents.length > 0 ? [
+          h(View, { style: { ...S.stormBadge, marginHorizontal: 60, marginTop: 10 } },
+            h(Text, { style: S.stormTxt },
+              '\u26A0\uFE0F STORM EVENT DETECTED \u2014 ' + data.stormEvents[0].county + ' County, ' + data.stormEvents[0].state
+            ),
+            h(Text, { style: S.stormSub },
+              data.stormEvents[0].event_type +
+              (data.stormEvents[0].magnitude ? ' \u00B7 ' + data.stormEvents[0].magnitude + (data.stormEvents[0].magnitude_type === 'HAI' ? '"' : ' mph') : '') +
+              ' \u00B7 ' + data.stormEvents[0].event_date +
+              ' \u2014 Property may qualify for insurance claim. Verify with carrier.'
+            )
+          )
+        ] : [])
       ),
       h(View, { style: S.coverFooter },
         h(Text, { style: S.coverFootTxt }, 'Measurements via Google Solar API \u00B7 Images \u00A9 Google'),
@@ -467,7 +493,18 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
               src: 'https://maps.google.com/?q=' + data.buildingLat.toFixed(6) + ',' + data.buildingLng.toFixed(6),
               style: S.directionsLink
             }, 'Open in Google Maps ->')
-          )
+          ),
+          ...(data.nearestSupplier ? [
+            h(View, { style: S.supplierRow },
+              h(Text, { style: S.supplierTxt },
+                'Nearest supplier: '
+              ),
+              h(Text, { style: { ...S.supplierTxt, color: NAVY, fontFamily: 'Helvetica-Bold' } },
+                data.nearestSupplier.name + ' \u2014 ' + data.nearestSupplier.distance_miles + ' mi'
+              ),
+              h(Text, { style: S.supplierTxt }, '  \u00B7  ' + data.nearestSupplier.vicinity)
+            )
+          ] : [])
         )
       ),
       pageFooter(data.generatedDate)
