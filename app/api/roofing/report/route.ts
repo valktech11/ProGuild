@@ -166,11 +166,14 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
       console.log('[noaa] status:', res.status)
       if (!res.ok) return []
       const raw = await res.text()
-      console.log('[noaa] response length:', raw.length, 'first 200:', raw.slice(0, 200))
-      let json: { results?: { data?: Array<Record<string, string>>; totalCount?: number } }
+      console.log('[noaa] response length:', raw.length, 'first 400:', raw.slice(0, 400))
+      let json: Record<string, unknown>
       try { json = JSON.parse(raw) } catch { return [] }
-      const data = json?.results?.data
-      console.log('[noaa] records returned:', data?.length ?? 0, 'totalCount:', json?.results?.totalCount)
+      // SWDI wraps response in swdiJsonResponse key
+      const inner = (json?.swdiJsonResponse ?? json?.results ?? json) as Record<string, unknown>
+      console.log('[noaa] top keys:', Object.keys(json).join(','), '| inner keys:', Object.keys(inner ?? {}).join(','))
+      const data = (inner?.data ?? inner?.Data) as Array<Record<string, string>> | undefined
+      console.log('[noaa] records returned:', data?.length ?? 0)
       if (!data?.length) return []
 
       // Filter: MAXSIZE > 1.0 inch (insurance threshold)
