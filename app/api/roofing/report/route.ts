@@ -109,77 +109,106 @@ export interface NoaaStormEvent {
   state: string
 }
 
+// ── NOAA SWDI Hail Check ──────────────────────────────────────────────────
+// Uses NOAA Severe Weather Data Inventory (SWDI) nx3hail dataset.
+// Free, no API key. Queries by radius around property lat/lng.
+// Searches month-by-month newest-first, stops on first qualifying hit.
+// Insurance threshold: max_size > 1.0 inch (quarter-size hail).
+// Latency: ~120 days, so we query from 24 months ago to 120 days ago.
+export interface NoaaStormEvent {
+  event_type: string
+  event_date: string   // e.g. '2024-04-12'
+  magnitude: string    // hail size in inches e.g. '1.75'
+  magnitude_type: string
+  county: string
+  state: string
+  distance_miles?: number
+}
+
+function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3958.8
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 10) / 10
+}
+
 async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent[]> {
-  // Reverse geocode to get county + state
-  const rgUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_KEY}`
-  const rgRes = await fetch(rgUrl)
-  if (!rgRes.ok) return []
-  const rgJson = await rgRes.json() as { results: Array<{ address_components: Array<{ long_name: string; types: string[] }> }> }
-
-  let county = '', state = ''
-  for (const comp of (rgJson.results[0]?.address_components || [])) {
-    if (comp.types.includes('administrative_area_level_2')) county = comp.long_name.replace(/ County$/i, '').replace(/ Parish$/i, '').toUpperCase()
-    if (comp.types.includes('administrative_area_level_1')) state = comp.long_name.toUpperCase()
-  }
-  if (!county || !state) {
-    console.log('[noaa] could not extract county/state from reverse geocode')
-    return []
-  }
-  console.log('[noaa] checking storms for county:', county, 'state:', state)
-
   const now = new Date()
-  const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate())
+  // SWDI has ~120-day latency — query up to 120 days ago
+  const endDate = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000)
+  const startDate = new Date(now.getFullYear() - 2, now.getMonth(), 1) // 24 months back
 
-  const baseParams = {
-    beginDate_mm: String(twoYearsAgo.getMonth() + 1).padStart(2,'0'),
-    beginDate_dd: String(twoYearsAgo.getDate()).padStart(2,'0'),
-    beginDate_yyyy: String(twoYearsAgo.getFullYear()),
-    endDate_mm: String(now.getMonth() + 1).padStart(2,'0'),
-    endDate_dd: String(now.getDate()).padStart(2,'0'),
-    endDate_yyyy: String(now.getFullYear()),
-    county: county,
-    state: state,
-    outputFormat: 'json',
+  // Build list of YYYYMM strings newest-first
+  const months: string[] = []
+  const cur = new Date(endDate.getFullYear(), endDate.getMonth(), 1)
+  while (cur >= startDate) {
+    months.push(`${cur.getFullYear()}${String(cur.getMonth() + 1).padStart(2, '0')}`)
+    cur.setMonth(cur.getMonth() - 1)
   }
 
-  const fetchNoaa = async (extraParams: Record<string, string>): Promise<NoaaStormEvent[]> => {
-    const params = new URLSearchParams({ ...baseParams, ...extraParams })
-    const url = `https://www.ncdc.noaa.gov/stormevents/json?${params.toString()}`
-    console.log('[noaa] fetching:', url)
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'ProGuild/1.0 (roofing report generator)' },
-      signal: AbortSignal.timeout(10000),
-    })
-    console.log('[noaa] response status:', res.status)
-    if (!res.ok) return []
-    const raw = await res.text()
-    console.log('[noaa] raw response (first 300):', raw.slice(0, 300))
-    let json: { CurrentItems?: number; CurrentEvents?: Array<Record<string, string>> }
-    try { json = JSON.parse(raw) } catch { return [] }
-    if (!json.CurrentEvents?.length) return []
-    return json.CurrentEvents.map(ev => ({
-      event_type: ev.EVENT_TYPE || ev.event_type || '',
-      event_date: ev.BEGIN_DATE || ev.begin_date || ev.BEGIN_YEARMONTH || '',
-      magnitude: ev.MAGNITUDE || ev.magnitude || '',
-      magnitude_type: ev.MAGNITUDE_TYPE || ev.magnitude_type || '',
-      county: ev.CZ_NAME || ev.cz_name || county,
-      state: ev.STATE || ev.state_name || state,
+  console.log('[noaa] checking', months.length, 'months for hail near', lat, lng)
+
+  // Query months in batches of 4, newest-first — stop as soon as we find a hit
+  for (let i = 0; i < months.length; i += 4) {
+    const batch = months.slice(i, i + 4)
+    const results = await Promise.all(batch.map(async (ym) => {
+      const url = `https://www.ncei.noaa.gov/swdiws/json/nx3hail/${ym}?radius=15&center=${lng},${lat}`
+      try {
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'ProGuild/1.0' },
+          signal: AbortSignal.timeout(8000),
+        })
+        if (!res.ok) {
+          console.log('[noaa]', ym, 'status:', res.status)
+          return null
+        }
+        const raw = await res.text()
+        console.log('[noaa]', ym, 'response length:', raw.length, 'first 150:', raw.slice(0, 150))
+        let json: { results?: { data?: Array<Record<string, string>> } }
+        try { json = JSON.parse(raw) } catch { return null }
+        const data = json?.results?.data
+        if (!data?.length) return null
+        // Filter: max_size > 1.0 inch (insurance threshold)
+        const qualifying = data.filter(d => parseFloat(d.MAX_SIZE || d.max_size || '0') > 1.0)
+        if (!qualifying.length) return null
+        // Return the most severe event in this month
+        qualifying.sort((a, b) => parseFloat(b.MAX_SIZE || b.max_size || '0') - parseFloat(a.MAX_SIZE || a.max_size || '0'))
+        const ev = qualifying[0]
+        const rawTime = ev.ZTIME || ev.ztime || ''
+        // ZTIME format: YYYYMMDDHHmmss
+        const eventDate = rawTime.length >= 8
+          ? `${rawTime.slice(0,4)}-${rawTime.slice(4,6)}-${rawTime.slice(6,8)}`
+          : ym.slice(0,4) + '-' + ym.slice(4,6) + '-01'
+        const evLat = parseFloat(ev.LAT || ev.lat || String(lat))
+        const evLng = parseFloat(ev.LON || ev.lon || String(lng))
+        const dist = haversineMiles(lat, lng, evLat, evLng)
+        const size = parseFloat(ev.MAX_SIZE || ev.max_size || '0').toFixed(2).replace(/\.?0+$/, '')
+        console.log('[noaa]', ym, '— qualifying hail found:', size + '"', 'dist:', dist, 'mi')
+        return {
+          event_type: 'Hail',
+          event_date: eventDate,
+          magnitude: size,
+          magnitude_type: 'HAI',
+          county: '',
+          state: '',
+          distance_miles: dist,
+        } as NoaaStormEvent
+      } catch (e) {
+        console.log('[noaa]', ym, 'error:', String(e).slice(0, 100))
+        return null
+      }
     }))
+    const hits = results.filter(Boolean) as NoaaStormEvent[]
+    if (hits.length) {
+      // Sort by date desc, return most recent
+      hits.sort((a, b) => b.event_date.localeCompare(a.event_date))
+      console.log('[noaa] found', hits.length, 'qualifying event(s), returning most recent:', hits[0].event_date, hits[0].magnitude + '"')
+      return [hits[0]]
+    }
   }
-
-  try {
-    // Two calls: hail (with size threshold) + wind/tornado (separate, no size filter)
-    const [hailEvents, windEvents] = await Promise.all([
-      fetchNoaa({ eventType: 'Hail', hailSize: '1.00' }),
-      fetchNoaa({ eventType: 'Thunderstorm Wind,Tornado' }),
-    ])
-    const all = [...hailEvents, ...windEvents]
-    console.log('[noaa] total events found:', all.length)
-    return all.slice(0, 5)
-  } catch (e) {
-    console.log('[noaa] error:', e)
-    return []
-  }
+  console.log('[noaa] no qualifying hail events found')
+  return []
 }
 
 // ── Nearest Roofing Supplier ──────────────────────────────────────────────
@@ -199,14 +228,7 @@ async function findNearestSupplier(lat: number, lng: number): Promise<NearestSup
     const json = await res.json() as { results?: Array<{ name: string; vicinity: string; geometry: { location: { lat: number; lng: number } } }> }
     const first = json.results?.[0]
     if (!first) return null
-
-    // Haversine distance in miles
-    const R = 3958.8
-    const dLat = (first.geometry.location.lat - lat) * Math.PI / 180
-    const dLng = (first.geometry.location.lng - lng) * Math.PI / 180
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat*Math.PI/180) * Math.cos(first.geometry.location.lat*Math.PI/180) * Math.sin(dLng/2)**2
-    const distance_miles = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 10) / 10
-
+    const distance_miles = haversineMiles(lat, lng, first.geometry.location.lat, first.geometry.location.lng)
     return { name: first.name, vicinity: first.vicinity, distance_miles }
   } catch {
     return null

@@ -54,7 +54,7 @@ export interface ReportData {
   buildingLng: number
   hasLowSlope: boolean
   hasLowConfidence: boolean
-  stormEvents: Array<{ event_type: string; event_date: string; magnitude: string; magnitude_type: string; county: string; state: string }>
+  stormEvents: Array<{ event_type: string; event_date: string; magnitude: string; magnitude_type: string; county: string; state: string; distance_miles?: number }>
   nearestSupplier: { name: string; vicinity: string; distance_miles: number } | null
 }
 
@@ -264,13 +264,11 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         ...(data.stormEvents && data.stormEvents.length > 0 ? [
           h(View, { style: { ...S.stormBadge, marginHorizontal: 60, marginTop: 10 } },
             h(Text, { style: S.stormTxt },
-              '\u26A0\uFE0F STORM EVENT DETECTED \u2014 ' + data.stormEvents[0].county + ' County, ' + data.stormEvents[0].state
+              '\u26A0 HAIL EVENT DETECTED \u2014 ' + data.stormEvents[0].magnitude + '" hail \u00B7 ' + data.stormEvents[0].event_date +
+              (data.stormEvents[0].distance_miles != null ? ' \u00B7 ' + data.stormEvents[0].distance_miles + ' mi from property' : '')
             ),
             h(Text, { style: S.stormSub },
-              data.stormEvents[0].event_type +
-              (data.stormEvents[0].magnitude ? ' \u00B7 ' + data.stormEvents[0].magnitude + (data.stormEvents[0].magnitude_type === 'HAI' ? '"' : ' mph') : '') +
-              ' \u00B7 ' + data.stormEvents[0].event_date +
-              ' \u2014 Property may qualify for insurance claim. Verify with carrier.'
+              'Radar-confirmed hail exceeds 1.0" insurance threshold. Property may qualify for an insurance claim. Verify with carrier before ordering materials.'
             )
           )
         ] : [])
