@@ -115,18 +115,10 @@ async function fetchTopView(
   return fetchImageBase64(url, 'topView')
 }
 
-/** fetch satellite image offset 50m in a cardinal direction — force JPEG */
-async function fetchCardinalView(lat: number, lng: number, direction: 'N' | 'S' | 'E' | 'W'): Promise<string> {
-  const LAT_OFFSET = 0.00018  // ~20m N/S
-  const LNG_OFFSET = 0.00022  // ~20m E/W at 30° lat
-  let centerLat = lat
-  let centerLng = lng
-  if (direction === 'N') centerLat = lat + LAT_OFFSET
-  if (direction === 'S') centerLat = lat - LAT_OFFSET
-  if (direction === 'E') centerLng = lng + LNG_OFFSET
-  if (direction === 'W') centerLng = lng - LNG_OFFSET
-  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=20&size=640x400&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
-  return fetchImageBase64(url, direction)
+/** fetch satellite image at a specific zoom level centered on building — force JPEG */
+async function fetchZoomView(lat: number, lng: number, zoom: number, label: string): Promise<string> {
+  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=640x400&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
+  return fetchImageBase64(url, label)
 }
 
 /** parse Solar API response → structured measurements */
@@ -286,21 +278,20 @@ export async function POST(req: NextRequest) {
     const imgLng = measurements.buildingLng || lng
     console.log('[report] using image coords:', imgLat, imgLng, measurements.buildingLat ? '(Solar center)' : '(geocoded fallback)')
 
-    // ── 5. Fetch 5 images in parallel ────────────────────────────
-    console.log('[report] step 5: fetching 5 images')
-    const [imgTopView, imgNorth, imgSouth, imgEast, imgWest] = await Promise.all([
+    // ── 5. Fetch 4 images in parallel ────────────────────────────
+    console.log('[report] step 5: fetching 4 images')
+    const [imgTopView, imgZoom19, imgZoom20, imgZoom21] = await Promise.all([
       fetchTopView(imgLat, imgLng, measurements.boundingBox),
-      fetchCardinalView(imgLat, imgLng, 'N'),
-      fetchCardinalView(imgLat, imgLng, 'S'),
-      fetchCardinalView(imgLat, imgLng, 'E'),
-      fetchCardinalView(imgLat, imgLng, 'W'),
+      fetchZoomView(imgLat, imgLng, 19, 'zoom19'),
+      fetchZoomView(imgLat, imgLng, 20, 'zoom20'),
+      fetchZoomView(imgLat, imgLng, 21, 'zoom21'),
     ])
     console.log('[report] images fetched')
 
     // ── 6. Fetch pro details for report header ────────────────────
     const { data: pro } = await sb
       .from('pros')
-      .select('name, business_name')
+      .select('name, business_name, phone_cell, email')
       .eq('id', pro_id)
       .single()
 
@@ -328,12 +319,13 @@ export async function POST(req: NextRequest) {
       generatedDate,
       proName: pro?.name || 'ProGuild Pro',
       proCompany: pro?.business_name || '',
+      proPhone: pro?.phone_cell || '',
+      proEmail: pro?.email || '',
       ...measurements,
       imgTopView,
-      imgNorth,
-      imgSouth,
-      imgEast,
-      imgWest,
+      imgZoom19,
+      imgZoom20,
+      imgZoom21,
     }
 
     // ── 9. Render PDF ─────────────────────────────────────────────

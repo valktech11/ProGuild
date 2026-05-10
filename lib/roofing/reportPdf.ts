@@ -42,11 +42,14 @@ export interface ReportData {
   facetCount:         number
   wasteFactor:        number
   pitchBreakdown:     PitchRow[]
+  proPhone:   string
+  proEmail:   string
   imgTopView: string
-  imgNorth:   string
-  imgSouth:   string
-  imgEast:    string
-  imgWest:    string
+  imgZoom19:  string
+  imgZoom20:  string
+  imgZoom21:  string
+  buildingLat: number
+  buildingLng: number
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -73,6 +76,7 @@ const S = StyleSheet.create({
   coverProBox:  { marginTop: 20, marginHorizontal: 60, padding: '14 20', backgroundColor: CREAM, borderRadius: 10, alignItems: 'center' },
   coverProName: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: NAVY },
   coverProCo:   { fontSize: 11, color: MUTED, marginTop: 3 },
+  coverProContact: { fontSize: 10, color: MUTED, marginTop: 2 },
   coverFooter:  { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#E5E7EB', padding: '8 40', flexDirection: 'row', justifyContent: 'space-between' },
   coverFootTxt: { fontSize: 8, color: MUTED },
 
@@ -187,7 +191,9 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         h(View, { style: S.coverProBox },
           h(Text, { style: S.coverProName }, data.proName),
           ...(data.proCompany ? [h(Text, { style: S.coverProCo }, data.proCompany)] : []),
-          h(Text, { style: { ...S.coverProCo, marginTop: 6 } }, 'Generated ' + data.generatedDate)
+          ...(data.proPhone ? [h(Text, { style: S.coverProContact }, data.proPhone)] : []),
+          ...(data.proEmail ? [h(Text, { style: S.coverProContact }, data.proEmail)] : []),
+          h(Text, { style: { ...S.coverProContact, marginTop: 6 } }, 'Generated ' + data.generatedDate)
         )
       ),
       h(View, { style: S.coverFooter },
@@ -273,42 +279,36 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
       pageFooter(data.generatedDate)
     ),
 
-    // ── PAGE 4: CARDINAL VIEWS ──────────────────────────────────────────
+    // ── PAGE 4: ZOOM PROGRESSION ─────────────────────────────────────────
     h(Page, { size: 'LETTER', style: S.page },
       pageHeader(data.address, reportId),
       h(View, { style: S.body },
-        sectionBar('Images \u2014 Cardinal Views'),
+        sectionBar('Images — Aerial Detail Views'),
         h(Text, { style: { fontSize: 10, color: MUTED, marginBottom: 12 } },
-          'Aerial satellite images showing each side of this structure for reference.'
+          'Satellite imagery at three zoom levels confirming property location and roof extent.'
         ),
         h(View, { style: S.gridRow },
           h(View, { style: S.gridImgWrap },
-            h(Image, { src: data.imgNorth, style: S.gridImg }),
-            h(Text, { style: S.gridLabel }, 'North Side')
+            h(Image, { src: data.imgZoom21, style: S.gridImg }),
+            h(Text, { style: S.gridLabel }, 'Close-Up View')
           ),
           h(View, { style: S.gridImgWrap },
-            h(Image, { src: data.imgSouth, style: S.gridImg }),
-            h(Text, { style: S.gridLabel }, 'South Side')
+            h(Image, { src: data.imgZoom20, style: S.gridImg }),
+            h(Text, { style: S.gridLabel }, 'Property View')
           )
         ),
-        h(View, { style: S.gridRow },
-          h(View, { style: S.gridImgWrap },
-            h(Image, { src: data.imgEast, style: S.gridImg }),
-            h(Text, { style: S.gridLabel }, 'East Side')
-          ),
-          h(View, { style: S.gridImgWrap },
-            h(Image, { src: data.imgWest, style: S.gridImg }),
-            h(Text, { style: S.gridLabel }, 'West Side')
-          )
+        h(View, { style: { marginBottom: 10 } },
+          h(Image, { src: data.imgZoom19, style: { height: 150, borderRadius: 8 } }),
+          h(Text, { style: S.gridLabel }, 'Neighbourhood Context')
         ),
         h(Text, { style: S.footnote },
-          'Imagery \u00A9 Google. Cardinal satellite views offset 50m from property center in each direction.'
+          'Imagery © Google. All views centered on building centroid (' + data.buildingLat.toFixed(6) + ', ' + data.buildingLng.toFixed(6) + '). Imagery date: ' + data.imageryDate + '.'
         )
       ),
       pageFooter(data.generatedDate)
     ),
 
-    // ── PAGE 5: PITCH + WASTE TABLE ─────────────────────────────────────
+        // ── PAGE 5: PITCH + WASTE TABLE ─────────────────────────────────────
     h(Page, { size: 'LETTER', style: S.page },
       pageHeader(data.address, reportId),
       h(View, { style: S.body },
