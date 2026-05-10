@@ -441,10 +441,47 @@ flashing condition, and overall material condition.
 Be specific about what you observe. Do not mention the image format or satellite technology.
 Write in the third person as if writing a field note for a roofing contractor.`
 
-    // Model fallback chain — 1.5-flash-latest has highest free quota; escalate on 429/404
-    const GEMINI_MODELS = ['gemini-1.5-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash']
+    // Try Anthropic Claude (uses ANTHROPIC_API_KEY — same infra, no quota issues)
+    // Falls back to Solar-data-derived assessment if key missing
+    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
+
+    if (ANTHROPIC_KEY) {
+      // Send the satellite image to Claude Haiku for vision condition assessment
+      const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.`
+      const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 200,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mimeType as 'image/tiff' | 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif', data: base64 } },
+              { type: 'text', text: prompt }
+            ]
+          }]
+        }),
+        signal: AbortSignal.timeout(20000),
+      })
+      console.log('[gemini] Claude API status:', claudeRes.status)
+      if (claudeRes.ok) {
+        const claudeJson = await claudeRes.json() as { content?: Array<{ type: string; text?: string }> }
+        const text = claudeJson.content?.find(b => b.type === 'text')?.text?.trim() || null
+        console.log('[gemini] Claude condition assessment:', text?.slice(0, 100))
+        return text
+      }
+      console.log('[gemini] Claude API error:', claudeRes.status, (await claudeRes.text()).slice(0, 150))
+    }
+
+    // Fallback: try Gemini model chain
+    const GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash']
     const geminiBody = JSON.stringify({
-      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+      contents: [{ parts: [{ text: `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.` }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
       generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
     })
     let text: string | null = null
@@ -459,7 +496,7 @@ Write in the third person as if writing a field note for a roofing contractor.`
         console.log(`[gemini] ${model} quota/not-found, trying next:`, errPreview)
         continue
       }
-      if (!geminiRes.ok) { console.log(`[gemini] ${model} failed ${geminiRes.status}`); return null }
+      if (!geminiRes.ok) { console.log(`[gemini] ${model} failed ${geminiRes.status}`); break }
       const geminiJson = await geminiRes.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
       text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null
       console.log(`[gemini] success model=${model}:`, text?.slice(0, 100))
@@ -472,66 +509,50 @@ Write in the third person as if writing a field note for a roofing contractor.`
   }
 }
 
-// ── Historic District Check — US Census Geocoder (TIGER layers) ───────────
-// Single Census Geocoder call with layers=all returns "National Register
-// Historic Districts" as a TIGER layer — coordinate-precise, no NPS API needed.
-// Free, no API key required.
+// ── Historic District Check — NPS NRHP via ArcGIS REST ───────────────────
+// Queries the NPS National Register of Historic Places ArcGIS feature service.
+// Point-in-polygon: returns districts whose boundary contains the lat/lng.
+// Free, no API key. Authoritative source — same data as the NPS NRHP website.
 async function checkHistoricDistrict(lat: number, lng: number, formattedAddress: string): Promise<string | null> {
   try {
-    const censusUrl = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=all&format=json`
-    console.log('[historic] checking Census Geocoder (layers=all)')
-    // Census Geocoder — retry up to 2 times on 5xx (service is occasionally flaky)
-    let censusRes: Response | null = null
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * attempt))
-      try {
-        censusRes = await fetch(censusUrl, {
-          headers: { 'User-Agent': 'ProGuild/1.0' },
-          signal: AbortSignal.timeout(10000),
-        })
-        if (censusRes.ok || censusRes.status < 500) break  // success or client error — don't retry
-        console.log(`[historic] census attempt ${attempt + 1} got ${censusRes.status}, retrying...`)
-      } catch (fetchErr) {
-        console.log(`[historic] census attempt ${attempt + 1} fetch error:`, String(fetchErr).slice(0, 80))
-        if (attempt === 2) return null
-      }
-    }
-    if (!censusRes || !censusRes.ok) { console.log('[historic] census failed after retries:', censusRes?.status); return null }
+    // NPS NRHP ArcGIS feature service — layer 2 = Historic Districts (polygons)
+    // geometryType=esriGeometryPoint, spatialRel=esriSpatialRelIntersects
+    // Returns districts whose polygon contains the point
+    const nrhpUrl = [
+      'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services',
+      '/National_Register_of_Historic_Places/FeatureServer/2/query',
+      `?geometry=${lng},${lat}`,
+      '&geometryType=esriGeometryPoint',
+      '&inSR=4326',
+      '&spatialRel=esriSpatialRelIntersects',
+      '&outFields=RESNAME,CITY,STATE_ABBR,STATUS',
+      '&returnGeometry=false',
+      '&f=json',
+    ].join('')
 
-    const censusJson = await censusRes.json() as {
-      result?: {
-        geographies?: {
-          'Incorporated Places'?: Array<{ NAME?: string; GEOID?: string }>
-          'Counties'?: Array<{ NAME?: string; STATE?: string }>
-          'National Register Historic Districts'?: Array<{ NAME?: string; GEOID?: string }>
-          // Census sometimes returns it under a slightly different key
-          'National Register of Historic Places'?: Array<{ NAME?: string }>
-        }
-      }
+    console.log('[historic] querying NPS NRHP ArcGIS:', nrhpUrl)
+    const res = await fetch(nrhpUrl, {
+      headers: { 'User-Agent': 'ProGuild/1.0' },
+      signal: AbortSignal.timeout(10000),
+    })
+    console.log('[historic] ArcGIS status:', res.status)
+    if (!res.ok) { console.log('[historic] ArcGIS error:', res.status); return null }
+
+    const json = await res.json() as {
+      features?: Array<{ attributes: { RESNAME?: string; CITY?: string; STATE_ABBR?: string; STATUS?: string } }>
+      error?: { message?: string }
     }
 
-    const geos = censusJson.result?.geographies || {}
+    if (json.error) { console.log('[historic] ArcGIS API error:', json.error.message); return null }
 
-    // Log all returned layer keys for debugging
-    console.log('[historic] Census layer keys:', Object.keys(geos).join(' | '))
+    console.log('[historic] NRHP features found:', json.features?.length ?? 0)
+    if (!json.features?.length) return null
 
-    // Primary: TIGER National Register Historic Districts layer (most precise — coordinate in district polygon)
-    const nrhpLayer =
-      geos['National Register Historic Districts'] ||
-      geos['National Register of Historic Places'] ||
-      []
-
-    if (nrhpLayer.length > 0) {
-      const districtName = nrhpLayer[0].NAME || 'Historic District'
-      console.log('[historic] NRHP district hit:', districtName)
-      return districtName
-    }
-
-    // Log place/county for traceability even when no district found
-    const placeName  = geos['Incorporated Places']?.[0]?.NAME || ''
-    const countyName = geos['Counties']?.[0]?.NAME || ''
-    console.log('[historic] no NRHP district — place:', placeName, 'county:', countyName)
-    return null
+    // Return the first (most specific) matching district name
+    const district = json.features[0].attributes
+    const name = district.RESNAME || 'Historic District'
+    console.log('[historic] matched district:', name, '|', district.CITY, district.STATE_ABBR, '| status:', district.STATUS)
+    return name
 
   } catch (e) {
     console.log('[historic] error:', String(e).slice(0, 150))
