@@ -141,19 +141,21 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
   // Split into two yearly queries (API limit: 1 year per request)
 
   const now = new Date()
-  const endDate = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000)
-  const startDate = new Date(endDate.getTime() - 2 * 365 * 24 * 60 * 60 * 1000)
+  const endDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)  // 60-day latency (radar faster than reports)
+  const startDate = new Date(endDate.getTime() - 3 * 365 * 24 * 60 * 60 * 1000)  // 3 years back
 
   const fmt = (d: Date) =>
     `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
 
-  // ~15-mile bounding box (0.22 deg lat ≈ 15mi, lng adjusted for latitude)
-  const latDelta = 0.22
-  const lngDelta = 0.22 / Math.cos(lat * Math.PI / 180)
+  // ~25-mile bounding box (0.36 deg lat ≈ 25mi, lng adjusted for latitude)
+  const latDelta = 0.36
+  const lngDelta = 0.36 / Math.cos(lat * Math.PI / 180)
   const bbox = `${(lng - lngDelta).toFixed(4)},${(lat - latDelta).toFixed(4)},${(lng + lngDelta).toFixed(4)},${(lat + latDelta).toFixed(4)}`
 
-  // Mid-point split so neither query exceeds 1-year limit
-  const midDate = new Date((startDate.getTime() + endDate.getTime()) / 2)
+  // Split into three yearly queries (API limit: 1 year per request)
+  const third = (endDate.getTime() - startDate.getTime()) / 3
+  const split1 = new Date(startDate.getTime() + third)
+  const split2 = new Date(startDate.getTime() + 2 * third)
 
   const fetchHail = async (start: Date, end: Date): Promise<NoaaStormEvent[]> => {
     const url = `https://www.ncdc.noaa.gov/swdiws/json/nx3hail?startdate=${fmt(start)}&enddate=${fmt(end)}&bbox=${bbox}&limit=500`
@@ -217,11 +219,12 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
   }
 
   try {
-    const [recent, older] = await Promise.all([
-      fetchHail(midDate, endDate),
-      fetchHail(startDate, midDate),
+    const [q1, q2, q3] = await Promise.all([
+      fetchHail(startDate, split1),
+      fetchHail(split1, split2),
+      fetchHail(split2, endDate),
     ])
-    const all = [...recent, ...older]
+    const all = [...q1, ...q2, ...q3]
     if (!all.length) {
       console.log('[noaa] no qualifying hail events found')
       return []
