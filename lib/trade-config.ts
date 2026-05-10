@@ -121,7 +121,7 @@ const ROOFING: TradeConfig = {
   tradeSection: {
     title: 'ROOFING TOOLS',
     items: [
-      { label: 'Properties',     href: '/dashboard/roofing/property',    iconKey: 'overview'   },
+      { label: 'Properties',     href: '/dashboard/roofing/property',    iconKey: 'properties' },
       { label: 'ProMeasure',     href: '/dashboard/roofing/promeasure',  iconKey: 'measure'   },
       { label: 'Calculator',     href: '/dashboard/roofing/calculator',  iconKey: 'revenue'    },
       { label: 'Warranties',     href: '/dashboard/roofing/warranties',  iconKey: 'compliance', soon: true },

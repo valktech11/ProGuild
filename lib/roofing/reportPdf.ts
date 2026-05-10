@@ -290,16 +290,16 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         h(View, { style: S.gridRow },
           h(View, { style: S.gridImgWrap },
             h(Image, { src: data.imgZoom21, style: S.gridImg }),
-            h(Text, { style: S.gridLabel }, 'Close-Up View')
+            h(Text, { style: S.gridLabel }, 'Roof Close-Up (z22)')
           ),
           h(View, { style: S.gridImgWrap },
             h(Image, { src: data.imgZoom20, style: S.gridImg }),
-            h(Text, { style: S.gridLabel }, 'Property View')
+            h(Text, { style: S.gridLabel }, 'Property View (z20)')
           )
         ),
         h(View, { style: { marginBottom: 10 } },
           h(Image, { src: data.imgZoom19, style: { height: 150, borderRadius: 8 } }),
-          h(Text, { style: S.gridLabel }, 'Neighbourhood Context')
+          h(Text, { style: S.gridLabel }, 'Neighbourhood Context (z18)')
         ),
         h(Text, { style: S.footnote },
           'Imagery © Google. All views centered on building centroid (' + data.buildingLat.toFixed(6) + ', ' + data.buildingLng.toFixed(6) + '). Imagery date: ' + data.imageryDate + '.'

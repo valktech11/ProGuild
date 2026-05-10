@@ -282,16 +282,16 @@ export async function POST(req: NextRequest) {
     console.log('[report] step 5: fetching 4 images')
     const [imgTopView, imgZoom19, imgZoom20, imgZoom21] = await Promise.all([
       fetchTopView(imgLat, imgLng, measurements.boundingBox),
-      fetchZoomView(imgLat, imgLng, 19, 'zoom19'),
+      fetchZoomView(imgLat, imgLng, 18, 'zoom18'),
       fetchZoomView(imgLat, imgLng, 20, 'zoom20'),
-      fetchZoomView(imgLat, imgLng, 21, 'zoom21'),
+      fetchZoomView(imgLat, imgLng, 22, 'zoom22'),
     ])
     console.log('[report] images fetched')
 
     // ── 6. Fetch pro details for report header ────────────────────
     const { data: pro } = await sb
       .from('pros')
-      .select('name, business_name, phone_cell, email')
+      .select('full_name, business_name, phone_cell, email')
       .eq('id', pro_id)
       .single()
 
@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
       state,
       zip,
       generatedDate,
-      proName: pro?.name || 'ProGuild Pro',
+      proName: pro?.full_name || 'ProGuild Pro',
       proCompany: pro?.business_name || '',
       proPhone: pro?.phone_cell || '',
       proEmail: pro?.email || '',
