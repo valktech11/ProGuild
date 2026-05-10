@@ -61,12 +61,16 @@ function wasteFactorFromFacets(facets: number): number {
   return 15
 }
 
-/** fetch image as base64 data URL */
-async function fetchImageBase64(url: string): Promise<string> {
+/** fetch image as base64 data URL — detects actual content type from response */
+async function fetchImageBase64(url: string, label = ''): Promise<string> {
   const res = await fetch(url)
-  if (!res.ok) throw new Error(`Image fetch failed: ${url} → ${res.status}`)
+  if (!res.ok) throw new Error(`Image fetch failed: ${label} → ${res.status}`)
+  const contentType = res.headers.get('content-type') || 'image/jpeg'
+  // Normalize: Maps Static returns image/png by default, jpeg when &format=jpg is set
+  const mimeType = contentType.split(';')[0].trim()
   const buf = Buffer.from(await res.arrayBuffer())
-  return `data:image/jpeg;base64,${buf.toString('base64')}`
+  console.log(`[report] image ${label}: ${mimeType}, ${buf.length} bytes`)
+  return `data:${mimeType};base64,${buf.toString('base64')}`
 }
 
 /** geocode address → { lat, lng, formattedAddress } */
@@ -92,15 +96,13 @@ async function fetchSolarData(lat: number, lng: number): Promise<Record<string, 
   return res.json()
 }
 
-/** fetch Maps Static top-down image (base64) */
+/** fetch Maps Static top-down image — force JPEG with &format=jpg */
 async function fetchTopView(lat: number, lng: number): Promise<string> {
-  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x400&maptype=satellite&key=${GOOGLE_KEY}`
-  return fetchImageBase64(url)
+  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x400&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
+  return fetchImageBase64(url, 'topView')
 }
 
-/** fetch satellite image offset 50m in a cardinal direction.
- *  Uses Maps Static API — guaranteed coverage everywhere unlike Street View.
- *  OFFSET deg: ~0.00045 lat = ~50m N/S, ~0.00055 lng = ~50m E/W at 30° lat */
+/** fetch satellite image offset 50m in a cardinal direction — force JPEG */
 async function fetchCardinalView(lat: number, lng: number, direction: 'N' | 'S' | 'E' | 'W'): Promise<string> {
   const LAT_OFFSET = 0.00045
   const LNG_OFFSET = 0.00055
@@ -110,8 +112,8 @@ async function fetchCardinalView(lat: number, lng: number, direction: 'N' | 'S' 
   if (direction === 'S') centerLat = lat - LAT_OFFSET
   if (direction === 'E') centerLng = lng + LNG_OFFSET
   if (direction === 'W') centerLng = lng - LNG_OFFSET
-  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=19&size=640x400&maptype=satellite&key=${GOOGLE_KEY}`
-  return fetchImageBase64(url)
+  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=19&size=640x400&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
+  return fetchImageBase64(url, direction)
 }
 
 /** parse Solar API response → structured measurements */
@@ -301,7 +303,7 @@ export async function POST(req: NextRequest) {
     // ── 9. Render PDF ─────────────────────────────────────────────
     console.log('[report] step 9: rendering PDF')
     const pdfBuffer = await renderToBuffer(buildRoofReportPDF(reportData, reportId))
-    console.log('[report] PDF rendered, size:', pdfBuffer.length, 'bytes')
+    console.log('[report] PDF rendered:', pdfBuffer.length, 'bytes —', pdfBuffer.length > 100000 ? 'images embedded OK' : 'WARNING: small PDF, images may be missing')
 
     // ── 10. Upload to R2 ──────────────────────────────────────────
     console.log('[report] step 10: uploading to R2')
