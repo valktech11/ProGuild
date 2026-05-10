@@ -10,224 +10,18 @@ import { resolveTradeConfig } from '@/lib/trade-resolver'
 type NavItem  = { label: string; href: string; icon: (a: boolean) => React.ReactNode; badge?: number | null; soon?: boolean; exact?: boolean }
 type NavGroup = { title: string; items: NavItem[] }
 
-// ── Illustrated Icons (3D style, matching SVG asset set) ──────────────────────
-function IconOverview({ s = 22 }: { s?: number }) {
+// ── Icons ─────────────────────────────────────────────────────────────────────
+function I({ d, s = 20, sw = 1.9 }: { d: string; s?: number; sw?: number }) {
   return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="6" y="14" width="52" height="44" rx="8" fill="url(#ov_card)"/>
-      <rect x="6" y="14" width="52" height="44" rx="8" fill="white" opacity="0.92"/>
-      <path d="M32 10L10 28h6v20h10V36h12v12h10V28h6L32 10z" fill="url(#ov_house)"/>
-      <path d="M32 10L10 28h6v20h10V36h12v12h10V28h6L32 10z" fill="url(#ov_house2)" opacity="0.7"/>
-      <rect x="26" y="36" width="12" height="12" rx="2" fill="url(#ov_door)"/>
-      <defs>
-        <linearGradient id="ov_card" x1="6" y1="14" x2="58" y2="58" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#e8f5f4"/><stop offset="1" stopColor="#f5f9f9"/>
-        </linearGradient>
-        <linearGradient id="ov_house" x1="10" y1="10" x2="54" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0F766E"/>
-        </linearGradient>
-        <linearGradient id="ov_house2" x1="32" y1="10" x2="32" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.3"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-        <linearGradient id="ov_door" x1="26" y1="36" x2="38" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#0A5653"/><stop offset="1" stopColor="#062E2C"/>
-        </linearGradient>
-      </defs>
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
     </svg>
   )
 }
 
-function IconPipeline({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="8" y="6" width="40" height="52" rx="6" fill="url(#pl_pad)"/>
-      <rect x="8" y="6" width="40" height="52" rx="6" fill="white" opacity="0.95"/>
-      <rect x="8" y="6" width="40" height="12" rx="6" fill="url(#pl_top)"/>
-      <rect x="8" y="12" width="40" height="6" fill="url(#pl_top)"/>
-      <circle cx="18" cy="30" r="3" fill="url(#pl_chk)"/>
-      <path d="M16.5 30l1.5 1.5 3-3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <rect x="24" y="28" width="16" height="2" rx="1" fill="url(#pl_line)"/>
-      <circle cx="18" cy="40" r="3" fill="url(#pl_chk)"/>
-      <path d="M16.5 40l1.5 1.5 3-3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <rect x="24" y="38" width="12" height="2" rx="1" fill="url(#pl_line)"/>
-      <circle cx="18" cy="50" r="3" fill="#E5E7EB"/>
-      <rect x="24" y="48" width="14" height="2" rx="1" fill="#E5E7EB"/>
-      <defs>
-        <linearGradient id="pl_pad" x1="8" y1="6" x2="48" y2="58" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#f0faf9"/><stop offset="1" stopColor="#ffffff"/>
-        </linearGradient>
-        <linearGradient id="pl_top" x1="8" y1="6" x2="48" y2="18" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0F766E"/>
-        </linearGradient>
-        <linearGradient id="pl_chk" x1="15" y1="27" x2="21" y2="33" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0F766E"/>
-        </linearGradient>
-        <linearGradient id="pl_line" x1="24" y1="29" x2="40" y2="29" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#9CA3AF"/><stop offset="1" stopColor="#D1D5DB"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconCalendar({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="6" y="12" width="52" height="46" rx="8" fill="white"/>
-      <rect x="6" y="12" width="52" height="18" rx="8" fill="url(#cal_head)"/>
-      <rect x="6" y="24" width="52" height="6" fill="url(#cal_head)"/>
-      <rect x="14" y="6" width="6" height="14" rx="3" fill="url(#cal_pin)"/>
-      <rect x="44" y="6" width="6" height="14" rx="3" fill="url(#cal_pin)"/>
-      <rect x="14" y="36" width="8" height="8" rx="2" fill="#E5F7F5"/>
-      <rect x="28" y="36" width="8" height="8" rx="2" fill="url(#cal_today)"/>
-      <rect x="42" y="36" width="8" height="8" rx="2" fill="#E5F7F5"/>
-      <rect x="14" y="48" width="8" height="6" rx="2" fill="#F3F4F6"/>
-      <rect x="28" y="48" width="8" height="6" rx="2" fill="#F3F4F6"/>
-      <rect x="42" y="48" width="8" height="6" rx="2" fill="#F3F4F6"/>
-      <defs>
-        <linearGradient id="cal_head" x1="6" y1="12" x2="58" y2="30" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#2DD4BF"/><stop offset="1" stopColor="#14B8A6"/>
-        </linearGradient>
-        <linearGradient id="cal_pin" x1="14" y1="6" x2="20" y2="20" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#6B7280"/><stop offset="1" stopColor="#374151"/>
-        </linearGradient>
-        <linearGradient id="cal_today" x1="28" y1="36" x2="36" y2="44" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0F766E"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconMessages({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="4" y="8" width="56" height="42" rx="12" fill="url(#msg_bg)"/>
-      <rect x="4" y="8" width="56" height="42" rx="12" fill="url(#msg_shine)" opacity="0.4"/>
-      <circle cx="20" cy="29" r="4" fill="white" opacity="0.9"/>
-      <circle cx="32" cy="29" r="4" fill="white" opacity="0.9"/>
-      <circle cx="44" cy="29" r="4" fill="white" opacity="0.9"/>
-      <path d="M24 50l8 8 8-8" fill="url(#msg_bg)"/>
-      <defs>
-        <linearGradient id="msg_bg" x1="4" y1="8" x2="60" y2="50" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#38BDF8"/><stop offset="1" stopColor="#0284C7"/>
-        </linearGradient>
-        <linearGradient id="msg_shine" x1="4" y1="8" x2="32" y2="30" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.5"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconEstimates({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="8" y="4" width="40" height="52" rx="6" fill="white" stroke="#E5E7EB" strokeWidth="1"/>
-      <rect x="36" y="4" width="12" height="16" rx="3" fill="url(#est_tag)"/>
-      <path d="M36 4h8l4 4v8h-12V4z" fill="url(#est_tag)"/>
-      <rect x="16" y="22" width="20" height="2.5" rx="1.25" fill="#D1D5DB"/>
-      <rect x="16" y="28" width="24" height="2.5" rx="1.25" fill="#E5E7EB"/>
-      <rect x="16" y="34" width="18" height="2.5" rx="1.25" fill="#E5E7EB"/>
-      <circle cx="20" cy="43" r="5" fill="url(#est_check)"/>
-      <path d="M17.5 43l2 2 3.5-3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <text x="38" y="14" fontSize="9" fontWeight="800" fill="white" fontFamily="sans-serif" textAnchor="middle">$</text>
-      <defs>
-        <linearGradient id="est_tag" x1="36" y1="4" x2="48" y2="20" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#F59E0B"/><stop offset="1" stopColor="#D97706"/>
-        </linearGradient>
-        <linearGradient id="est_check" x1="15" y1="38" x2="25" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0F766E"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconInvoices({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <path d="M10 4h36l8 8v46a4 4 0 01-4 4H10a4 4 0 01-4-4V8a4 4 0 014-4z" fill="white" stroke="#E5E7EB" strokeWidth="1"/>
-      <path d="M46 4l8 8H50a4 4 0 01-4-4V4z" fill="url(#inv_fold)"/>
-      <rect x="8" y="48" width="48" height="14" rx="4" fill="url(#inv_roll)" opacity="0.12"/>
-      <path d="M8 52q12-6 24 0t24 0" stroke="url(#inv_roll)" strokeWidth="2" fill="none"/>
-      <text x="32" y="22" fontSize="11" fontWeight="800" fill="url(#inv_dollar)" fontFamily="sans-serif" textAnchor="middle">$</text>
-      <rect x="16" y="28" width="22" height="2" rx="1" fill="#D1D5DB"/>
-      <rect x="16" y="33" width="18" height="2" rx="1" fill="#E5E7EB"/>
-      <rect x="16" y="38" width="20" height="2" rx="1" fill="#E5E7EB"/>
-      <defs>
-        <linearGradient id="inv_fold" x1="46" y1="4" x2="54" y2="12" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#9CA3AF"/><stop offset="1" stopColor="#6B7280"/>
-        </linearGradient>
-        <linearGradient id="inv_roll" x1="8" y1="48" x2="56" y2="62" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0F766E"/>
-        </linearGradient>
-        <linearGradient id="inv_dollar" x1="26" y1="12" x2="38" y2="24" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#F59E0B"/><stop offset="1" stopColor="#D97706"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconClients({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <circle cx="22" cy="22" r="12" fill="url(#cli_p1)"/>
-      <circle cx="22" cy="22" r="12" fill="url(#cli_shine)" opacity="0.35"/>
-      <path d="M2 52c0-10 9-16 20-16s20 6 20 16" fill="url(#cli_p1)" opacity="0.85"/>
-      <circle cx="44" cy="26" r="9" fill="url(#cli_p2)"/>
-      <circle cx="44" cy="26" r="9" fill="url(#cli_shine2)" opacity="0.25"/>
-      <path d="M34 52c0-8 6-12 14-12 5 0 14 3 14 12" fill="url(#cli_p2)" opacity="0.7"/>
-      <defs>
-        <linearGradient id="cli_p1" x1="10" y1="10" x2="42" y2="52" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#4ADE80"/><stop offset="1" stopColor="#16A34A"/>
-        </linearGradient>
-        <linearGradient id="cli_p2" x1="35" y1="17" x2="53" y2="35" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#9CA3AF"/><stop offset="1" stopColor="#6B7280"/>
-        </linearGradient>
-        <linearGradient id="cli_shine" x1="10" y1="10" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.6"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-        <linearGradient id="cli_shine2" x1="35" y1="17" x2="44" y2="26" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.5"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconProperties({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <path d="M32 6L8 26h6v30h14V40h8v16h14V26h6L32 6z" fill="url(#prop_wall)"/>
-      <path d="M32 6L8 26h6v30h14V40h8v16h14V26h6L32 6z" fill="url(#prop_shine)" opacity="0.4"/>
-      <rect x="26" y="40" width="12" height="16" rx="2" fill="url(#prop_door)"/>
-      <rect x="14" y="30" width="10" height="10" rx="2" fill="url(#prop_win)"/>
-      <rect x="40" y="30" width="10" height="10" rx="2" fill="url(#prop_win)"/>
-      <path d="M32 6L8 26h6L32 10l18 16h6L32 6z" fill="url(#prop_roof)"/>
-      <defs>
-        <linearGradient id="prop_wall" x1="8" y1="6" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#60A5FA"/><stop offset="1" stopColor="#2563EB"/>
-        </linearGradient>
-        <linearGradient id="prop_roof" x1="8" y1="6" x2="56" y2="26" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#93C5FD"/><stop offset="1" stopColor="#3B82F6"/>
-        </linearGradient>
-        <linearGradient id="prop_door" x1="26" y1="40" x2="38" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#1E40AF"/><stop offset="1" stopColor="#1E3A8A"/>
-        </linearGradient>
-        <linearGradient id="prop_win" x1="14" y1="30" x2="24" y2="40" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#BAE6FD"/><stop offset="1" stopColor="#7DD3FC"/>
-        </linearGradient>
-        <linearGradient id="prop_shine" x1="8" y1="6" x2="32" y2="30" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.4"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconMeasure({ s = 22 }: { s?: number }) {
+// Illustrated icons used on the property page action tiles (rendered at 40-48px)
+export function IlluIconMeasure({ s = 44 }: { s?: number }) {
   return (
     <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
       <rect x="4" y="36" width="36" height="22" rx="4" transform="rotate(-45 4 36)" fill="url(#msr_ruler)"/>
@@ -258,242 +52,67 @@ function IconMeasure({ s = 22 }: { s?: number }) {
   )
 }
 
-function IconRevenue({ s = 22 }: { s?: number }) {
+export function IlluIconCalculator({ s = 44 }: { s?: number }) {
   return (
     <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="6" y="8" width="52" height="48" rx="8" fill="url(#rev_body)"/>
-      <rect x="6" y="8" width="52" height="14" rx="8" fill="url(#rev_screen)"/>
-      <rect x="6" y="16" width="52" height="6" fill="url(#rev_screen)"/>
-      <rect x="12" y="10" width="28" height="8" rx="3" fill="url(#rev_display)"/>
-      <rect x="12" y="28" width="10" height="8" rx="3" fill="url(#rev_btn)"/>
-      <rect x="27" y="28" width="10" height="8" rx="3" fill="url(#rev_btn)"/>
-      <rect x="42" y="28" width="10" height="8" rx="3" fill="url(#rev_btn_op)"/>
-      <rect x="12" y="40" width="10" height="8" rx="3" fill="url(#rev_btn)"/>
-      <rect x="27" y="40" width="10" height="8" rx="3" fill="url(#rev_btn)"/>
-      <rect x="42" y="40" width="10" height="8" rx="3" fill="url(#rev_btn_op)"/>
+      <rect x="6" y="8" width="52" height="48" rx="8" fill="url(#calc_body)"/>
+      <rect x="6" y="8" width="52" height="16" rx="8" fill="url(#calc_screen_bg)"/>
+      <rect x="6" y="18" width="52" height="6" fill="url(#calc_screen_bg)"/>
+      <rect x="12" y="11" width="32" height="9" rx="3" fill="url(#calc_display)"/>
+      <rect x="12" y="30" width="10" height="8" rx="3" fill="url(#calc_btn)"/>
+      <rect x="27" y="30" width="10" height="8" rx="3" fill="url(#calc_btn)"/>
+      <rect x="42" y="30" width="10" height="8" rx="3" fill="url(#calc_btn_op)"/>
+      <rect x="12" y="42" width="10" height="8" rx="3" fill="url(#calc_btn)"/>
+      <rect x="27" y="42" width="10" height="8" rx="3" fill="url(#calc_btn)"/>
+      <rect x="42" y="42" width="10" height="8" rx="3" fill="url(#calc_btn_op)"/>
       <defs>
-        <linearGradient id="rev_body" x1="6" y1="8" x2="58" y2="56" gradientUnits="userSpaceOnUse">
+        <linearGradient id="calc_body" x1="6" y1="8" x2="58" y2="56" gradientUnits="userSpaceOnUse">
           <stop stopColor="#38BDF8"/><stop offset="1" stopColor="#0369A1"/>
         </linearGradient>
-        <linearGradient id="rev_screen" x1="6" y1="8" x2="58" y2="22" gradientUnits="userSpaceOnUse">
+        <linearGradient id="calc_screen_bg" x1="6" y1="8" x2="58" y2="24" gradientUnits="userSpaceOnUse">
           <stop stopColor="#0EA5E9"/><stop offset="1" stopColor="#0284C7"/>
         </linearGradient>
-        <linearGradient id="rev_display" x1="12" y1="10" x2="40" y2="18" gradientUnits="userSpaceOnUse">
+        <linearGradient id="calc_display" x1="12" y1="11" x2="44" y2="20" gradientUnits="userSpaceOnUse">
           <stop stopColor="#86EFAC"/><stop offset="1" stopColor="#4ADE80"/>
         </linearGradient>
-        <linearGradient id="rev_btn" x1="12" y1="28" x2="22" y2="36" gradientUnits="userSpaceOnUse">
+        <linearGradient id="calc_btn" x1="12" y1="30" x2="22" y2="38" gradientUnits="userSpaceOnUse">
           <stop stopColor="#BAE6FD"/><stop offset="1" stopColor="#7DD3FC"/>
         </linearGradient>
-        <linearGradient id="rev_btn_op" x1="42" y1="28" x2="52" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#F59E0B"/><stop offset="1" stopColor="#D97706"/>
+        <linearGradient id="calc_btn_op" x1="42" y1="30" x2="52" y2="38" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#F97316"/><stop offset="1" stopColor="#EA580C"/>
         </linearGradient>
       </defs>
     </svg>
   )
 }
 
-function IconProfile({ s = 22 }: { s?: number }) {
+export function IlluIconGenerateReport({ s = 44 }: { s?: number }) {
   return (
     <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="8" y="8" width="42" height="48" rx="4" fill="#F0FDF4" transform="rotate(-8 8 8)"/>
-      <rect x="10" y="10" width="42" height="48" rx="4" fill="white" stroke="#E5E7EB" strokeWidth="1"/>
-      <path d="M44 52l8-8-8-8-4 4-4-4-8 8 4 4-4 4 8 8 4-4z" fill="url(#prf_pencil)"/>
-      <path d="M52 44l4-4-4-4-4 4z" fill="url(#prf_tip)"/>
-      <rect x="18" y="18" width="20" height="3" rx="1.5" fill="#D1D5DB"/>
-      <rect x="18" y="25" width="26" height="2" rx="1" fill="#E5E7EB"/>
-      <rect x="18" y="30" width="22" height="2" rx="1" fill="#E5E7EB"/>
+      <rect x="6" y="4" width="44" height="52" rx="7" fill="white" stroke="#E5E7EB" strokeWidth="1.5"/>
+      <path d="M34 4h12l8 8H42a8 8 0 01-8-8z" fill="url(#rpt_fold)"/>
+      <rect x="14" y="18" width="20" height="2.5" rx="1.25" fill="#D1D5DB"/>
+      <rect x="14" y="24" width="26" height="2" rx="1" fill="#E5E7EB"/>
+      <rect x="14" y="29" width="22" height="2" rx="1" fill="#E5E7EB"/>
+      <rect x="14" y="36" width="8" height="10" rx="2" fill="url(#rpt_bar1)"/>
+      <rect x="25" y="32" width="8" height="14" rx="2" fill="url(#rpt_bar2)"/>
+      <rect x="36" y="28" width="8" height="18" rx="2" fill="url(#rpt_bar3)"/>
+      <circle cx="50" cy="50" r="12" fill="url(#rpt_check_bg)"/>
+      <path d="M44 50l4 4 8-8" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
       <defs>
-        <linearGradient id="prf_pencil" x1="36" y1="36" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#86EFAC"/><stop offset="1" stopColor="#16A34A"/>
+        <linearGradient id="rpt_fold" x1="34" y1="4" x2="54" y2="12" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#9CA3AF"/><stop offset="1" stopColor="#6B7280"/>
         </linearGradient>
-        <linearGradient id="prf_tip" x1="48" y1="40" x2="56" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#F59E0B"/><stop offset="1" stopColor="#D97706"/>
+        <linearGradient id="rpt_bar1" x1="14" y1="36" x2="22" y2="46" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#5EEAD4"/><stop offset="1" stopColor="#14B8A6"/>
         </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconSettings({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <circle cx="32" cy="32" r="10" fill="url(#set_inner)"/>
-      <path d="M32 8v6M32 50v6M8 32h6M50 32h6M15.5 15.5l4.2 4.2M44.3 44.3l4.2 4.2M15.5 48.5l4.2-4.2M44.3 19.7l4.2-4.2" stroke="url(#set_spoke)" strokeWidth="3.5" strokeLinecap="round"/>
-      <circle cx="32" cy="32" r="14" stroke="url(#set_ring)" strokeWidth="3" fill="none"/>
-      <circle cx="32" cy="32" r="5" fill="url(#set_core)"/>
-      <defs>
-        <linearGradient id="set_inner" x1="22" y1="22" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#E2E8F0"/><stop offset="1" stopColor="#CBD5E1"/>
+        <linearGradient id="rpt_bar2" x1="25" y1="32" x2="33" y2="46" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#2DD4BF"/><stop offset="1" stopColor="#0F766E"/>
         </linearGradient>
-        <linearGradient id="set_ring" x1="18" y1="18" x2="46" y2="46" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#94A3B8"/><stop offset="1" stopColor="#64748B"/>
+        <linearGradient id="rpt_bar3" x1="36" y1="28" x2="44" y2="46" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0D6B63"/>
         </linearGradient>
-        <linearGradient id="set_spoke" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#94A3B8"/><stop offset="1" stopColor="#64748B"/>
-        </linearGradient>
-        <linearGradient id="set_core" x1="27" y1="27" x2="37" y2="37" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#475569"/><stop offset="1" stopColor="#1E293B"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconCommunity({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <circle cx="32" cy="20" r="10" fill="url(#com_c)"/>
-      <path d="M12 52c0-11 9-18 20-18s20 7 20 18" fill="url(#com_c)" opacity="0.8"/>
-      <circle cx="10" cy="26" r="7" fill="url(#com_s)"/>
-      <path d="M0 52c0-8 5-12 12-12" stroke="url(#com_s)" strokeWidth="7" fill="none" strokeLinecap="round"/>
-      <circle cx="54" cy="26" r="7" fill="url(#com_s)"/>
-      <path d="M64 52c0-8-5-12-12-12" stroke="url(#com_s)" strokeWidth="7" fill="none" strokeLinecap="round"/>
-      <defs>
-        <linearGradient id="com_c" x1="22" y1="10" x2="42" y2="52" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#818CF8"/><stop offset="1" stopColor="#4F46E5"/>
-        </linearGradient>
-        <linearGradient id="com_s" x1="0" y1="10" x2="20" y2="52" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#A5B4FC"/><stop offset="1" stopColor="#6366F1"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconLearn({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="4" y="8" width="26" height="48" rx="4" fill="url(#lrn_l)"/>
-      <rect x="34" y="8" width="26" height="48" rx="4" fill="url(#lrn_r)"/>
-      <rect x="4" y="8" width="26" height="48" rx="4" fill="url(#lrn_shine)" opacity="0.2"/>
-      <path d="M30 10v44" stroke="#CBD5E1" strokeWidth="2"/>
-      <defs>
-        <linearGradient id="lrn_l" x1="4" y1="8" x2="30" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#34D399"/><stop offset="1" stopColor="#059669"/>
-        </linearGradient>
-        <linearGradient id="lrn_r" x1="34" y1="8" x2="60" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#6EE7B7"/><stop offset="1" stopColor="#34D399"/>
-        </linearGradient>
-        <linearGradient id="lrn_shine" x1="4" y1="8" x2="18" y2="30" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.6"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconDeals({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <path d="M32 56S8 42 8 26a14 14 0 0124-9.9A14 14 0 0156 26c0 16-24 30-24 30z" fill="url(#deal_heart)"/>
-      <path d="M32 56S8 42 8 26a14 14 0 0124-9.9A14 14 0 0156 26c0 16-24 30-24 30z" fill="url(#deal_shine)" opacity="0.3"/>
-      <defs>
-        <linearGradient id="deal_heart" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FB7185"/><stop offset="1" stopColor="#E11D48"/>
-        </linearGradient>
-        <linearGradient id="deal_shine" x1="8" y1="8" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.5"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconPhotos({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="4" y="12" width="56" height="44" rx="8" fill="url(#ph_bg)"/>
-      <path d="M20 12l-6 8h-10v-8z" fill="url(#ph_tab)"/>
-      <circle cx="32" cy="36" r="12" fill="url(#ph_lens)"/>
-      <circle cx="32" cy="36" r="7" fill="url(#ph_inner)"/>
-      <circle cx="28" cy="32" r="2" fill="white" opacity="0.5"/>
-      <defs>
-        <linearGradient id="ph_bg" x1="4" y1="12" x2="60" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#475569"/><stop offset="1" stopColor="#1E293B"/>
-        </linearGradient>
-        <linearGradient id="ph_tab" x1="4" y1="12" x2="20" y2="20" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#64748B"/><stop offset="1" stopColor="#334155"/>
-        </linearGradient>
-        <linearGradient id="ph_lens" x1="20" y1="24" x2="44" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#94A3B8"/><stop offset="1" stopColor="#64748B"/>
-        </linearGradient>
-        <linearGradient id="ph_inner" x1="25" y1="29" x2="39" y2="43" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#1E293B"/><stop offset="1" stopColor="#0F172A"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconCompliance({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <path d="M32 4L6 14v18c0 15 11 26 26 28 15-2 26-13 26-28V14L32 4z" fill="url(#cmp_shield)"/>
-      <path d="M32 4L6 14v18c0 15 11 26 26 28 15-2 26-13 26-28V14L32 4z" fill="url(#cmp_shine)" opacity="0.25"/>
-      <path d="M22 32l7 7 13-13" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <defs>
-        <linearGradient id="cmp_shield" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#34D399"/><stop offset="1" stopColor="#059669"/>
-        </linearGradient>
-        <linearGradient id="cmp_shine" x1="6" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.5"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconAI({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <path d="M32 4l28 16v24L32 60 4 44V20L32 4z" fill="url(#ai_hex)"/>
-      <path d="M32 4l28 16v24L32 60 4 44V20L32 4z" fill="url(#ai_shine)" opacity="0.25"/>
-      <circle cx="32" cy="32" r="8" fill="white" opacity="0.2"/>
-      <path d="M26 32h12M32 26v12" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-      <defs>
-        <linearGradient id="ai_hex" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#818CF8"/><stop offset="1" stopColor="#4338CA"/>
-        </linearGradient>
-        <linearGradient id="ai_shine" x1="4" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.5"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconMaterials({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <path d="M8 20L32 8l24 12v28L32 56 8 44V20z" fill="url(#mat_box)"/>
-      <path d="M8 20L32 32M32 32L56 20M32 32v24" stroke="white" strokeWidth="2" opacity="0.4"/>
-      <path d="M8 20l24 12 24-12" fill="url(#mat_top)"/>
-      <defs>
-        <linearGradient id="mat_box" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FB923C"/><stop offset="1" stopColor="#C2410C"/>
-        </linearGradient>
-        <linearGradient id="mat_top" x1="8" y1="20" x2="56" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FDBA74"/><stop offset="1" stopColor="#FB923C"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-function IconPermit({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <rect x="10" y="4" width="44" height="56" rx="6" fill="white" stroke="#E5E7EB" strokeWidth="1.5"/>
-      <rect x="18" y="4" width="28" height="12" rx="4" fill="url(#prm_clip)"/>
-      <rect x="16" y="24" width="22" height="2.5" rx="1.25" fill="#D1D5DB"/>
-      <rect x="16" y="30" width="28" height="2" rx="1" fill="#E5E7EB"/>
-      <rect x="16" y="35" width="24" height="2" rx="1" fill="#E5E7EB"/>
-      <path d="M18 44l5 5 10-10" stroke="url(#prm_check)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <defs>
-        <linearGradient id="prm_clip" x1="18" y1="4" x2="46" y2="16" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#94A3B8"/><stop offset="1" stopColor="#64748B"/>
-        </linearGradient>
-        <linearGradient id="prm_check" x1="18" y1="39" x2="33" y2="49" gradientUnits="userSpaceOnUse">
+        <linearGradient id="rpt_check_bg" x1="38" y1="38" x2="62" y2="62" gradientUnits="userSpaceOnUse">
           <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0F766E"/>
         </linearGradient>
       </defs>
@@ -501,50 +120,28 @@ function IconPermit({ s = 22 }: { s?: number }) {
   )
 }
 
-function IconTime({ s = 22 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 64 64" fill="none">
-      <circle cx="32" cy="32" r="28" fill="url(#time_face)"/>
-      <circle cx="32" cy="32" r="28" fill="url(#time_shine)" opacity="0.2"/>
-      <circle cx="32" cy="32" r="24" fill="white" opacity="0.08"/>
-      <path d="M32 16v16l10 6" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx="32" cy="32" r="3" fill="white"/>
-      <defs>
-        <linearGradient id="time_face" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#60A5FA"/><stop offset="1" stopColor="#2563EB"/>
-        </linearGradient>
-        <linearGradient id="time_shine" x1="4" y1="4" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="white" stopOpacity="0.5"/><stop offset="1" stopColor="white" stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
-// Wrapper — illustrated icons ignore the active bool (colour is baked in),
-// but the sidebar dims them slightly when inactive via opacity on the parent span.
 const icon = {
-  overview:   (_a: boolean) => <IconOverview />,
-  pipeline:   (_a: boolean) => <IconPipeline />,
-  calendar:   (_a: boolean) => <IconCalendar />,
-  messages:   (_a: boolean) => <IconMessages />,
-  estimates:  (_a: boolean) => <IconEstimates />,
-  invoices:   (_a: boolean) => <IconInvoices />,
-  revenue:    (_a: boolean) => <IconRevenue />,
-  clients:    (_a: boolean) => <IconClients />,
-  properties: (_a: boolean) => <IconProperties />,
-  photos:     (_a: boolean) => <IconPhotos />,
-  compliance: (_a: boolean) => <IconCompliance />,
-  ai:         (_a: boolean) => <IconAI />,
-  materials:  (_a: boolean) => <IconMaterials />,
-  measure:    (_a: boolean) => <IconMeasure />,
-  permit:     (_a: boolean) => <IconPermit />,
-  time:       (_a: boolean) => <IconTime />,
-  learn:      (_a: boolean) => <IconLearn />,
-  deals:      (_a: boolean) => <IconDeals />,
-  community:  (_a: boolean) => <IconCommunity />,
-  profile:    (_a: boolean) => <IconProfile />,
-  settings:   (_a: boolean) => <IconSettings />,
+  overview:   (a: boolean) => <I s={22} sw={a?2.5:1.9} d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />,
+  pipeline:   (a: boolean) => <I s={22} sw={a?2.5:1.9} d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />,
+  calendar:   (a: boolean) => <I sw={a?2.2:1.6} d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />,
+  messages:   (a: boolean) => <I sw={a?2:1.5} d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />,
+  estimates:  (a: boolean) => <I sw={a?2.2:1.6} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8" />,
+  invoices:   (a: boolean) => <I sw={a?2.2:1.6} d="M12 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM12 2v6h6M9 15l2 2 4-4" />,
+  revenue:    (a: boolean) => <I sw={a?2.2:1.6} d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />,
+  clients:    (a: boolean) => <I s={22} sw={a?2:1.5} d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />,
+  properties: (a: boolean) => <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2.2:1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><rect x="9" y="12" width="6" height="9" rx="1"/></svg>,
+  photos:     (a: boolean) => <I sw={a?2.2:1.6} d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2zM12 17a4 4 0 100-8 4 4 0 000 8" />,
+  compliance: (a: boolean) => <I sw={a?2.2:1.6} d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+  ai:         (a: boolean) => <I sw={a?2.2:1.6} d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />,
+  materials:  (a: boolean) => <I sw={a?2.2:1.6} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />,
+  measure:    (a: boolean) => <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2.2:1.6} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 14v-3M9 14v-2M12 14v-3M15 14v-2M18 14v-3"/></svg>,
+  permit:     (a: boolean) => <I sw={a?2.2:1.6} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />,
+  time:       (a: boolean) => <I sw={a?2.2:1.6} d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" />,
+  learn:      (a: boolean) => <I sw={a?2.2:1.6} d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />,
+  deals:      (a: boolean) => <I sw={a?2.2:1.6} d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />,
+  community:  (a: boolean) => <I sw={a?2:1.5} d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />,
+  profile:    (a: boolean) => <I sw={a?2.2:1.6} d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8" />,
+  settings:   (a: boolean) => <I sw={a?2.2:1.6} d="M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />,
 }
 
 // ── Nav config ────────────────────────────────────────────────────────────────
@@ -631,8 +228,9 @@ function NavLink({ item, active, onNav }: { item: NavItem; active: boolean; onNa
           style={{ background: '#2DD4BF' }} />
       )}
 
-      {/* Icon — full opacity when active, dimmed when inactive */}
-      <span style={{ opacity: active ? 1 : item.soon ? 0.25 : 0.72, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+      {/* Icon — bright teal when active, dim when inactive */}
+      <span style={{ color: active ? '#2DD4BF' : item.soon ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.70)' }}
+        className="flex-shrink-0">
         {item.icon(active)}
       </span>
 

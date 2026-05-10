@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
-import DashboardShell from '@/components/layout/DashboardShell'
+import DashboardShell, { IlluIconMeasure, IlluIconCalculator, IlluIconGenerateReport } from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { theme } from '@/lib/tokens'
 import { stageStyle } from '@/lib/design'
@@ -212,10 +212,8 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F0FDFA', border: '1.5px solid #14B8A6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ic size={18} color="#0F766E">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-                    </Ic>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#EFF6FF', border: '1.5px solid #BFDBFE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><rect x="9" y="12" width="6" height="9" rx="1"/></svg>
                   </div>
                   <h1 style={{ fontSize: 20, fontWeight: 800, color: t.textPri, margin: 0 }}>
                     {property.address_line1}
@@ -256,9 +254,10 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
               {/* Address Card */}
               <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20 }}>
-                <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 16, marginTop: 0 }}>
-                  📍 Property Address
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle }}>PROPERTY ADDRESS</span>
+                </div>
                 <div style={{ display: 'grid', gap: 14 }}>
                   {field('address_line1', 'Street Address')}
                   {field('address_line2', 'Unit / Suite')}
@@ -272,9 +271,10 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
               {/* Roof Details Card */}
               <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20 }}>
-                <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 16, marginTop: 0 }}>
-                  🏠 Roof Details
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle }}>ROOF DETAILS</span>
+                </div>
                 <div style={{ display: 'grid', gap: 14 }}>
                   {field('roof_type', 'Roof Type', 'select', ROOF_TYPES)}
                   {field('roof_material', 'Material', 'select', ROOF_MATS)}
@@ -288,9 +288,10 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
               {/* Insurance Card */}
               <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20 }}>
-                <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 16, marginTop: 0 }}>
-                  🛡️ Insurance
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle }}>INSURANCE</span>
+                </div>
                 <div style={{ display: 'grid', gap: 14 }}>
                   {field('insurance_carrier', 'Insurance Carrier')}
                   {field('insurance_policy_number', 'Policy Number')}
@@ -299,9 +300,10 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
               {/* Notes Card */}
               <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20 }}>
-                <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 16, marginTop: 0 }}>
-                  📝 Notes
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle }}>NOTES</span>
+                </div>
                 {editing ? (
                   <textarea value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value || null }))}
                     rows={4}
@@ -317,9 +319,10 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
             {/* Job History */}
             <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20, marginTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, margin: 0 }}>
-                  Job History ({leads.length})
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, margin: 0 }}>JOB HISTORY ({leads.length})</h2>
+                </div>
               </div>
 
               {leads.length === 0 ? (
@@ -360,27 +363,51 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
             {/* ProMeasure, Calculator & Generate Report CTAs */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 16 }}>
-              <button onClick={() => router.push('/dashboard/roofing/promeasure?address=' + encodeURIComponent(property.address_line1 + (property.city ? ', ' + property.city : '')))}
-                style={{ padding: '14px 18px', borderRadius: 14, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 14, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
-                <div style={{ fontSize: 20, marginBottom: 4 }}>📐</div>
-                ProMeasure
-                <div style={{ fontSize: 12, fontWeight: 400, color: '#14B8A6', marginTop: 2 }}>Satellite polygon tool</div>
+              {/* ProMeasure */}
+              <button
+                onClick={() => router.push('/dashboard/roofing/promeasure?address=' + encodeURIComponent(property.address_line1 + (property.city ? ', ' + property.city : '')))}
+                style={{ padding: '18px 16px', borderRadius: 16, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)')}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+                <IlluIconMeasure s={44} />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, marginBottom: 2 }}>ProMeasure</div>
+                  <div style={{ fontSize: 12, color: t.textSubtle }}>Satellite polygon tool</div>
+                </div>
+                <svg style={{ marginLeft: 'auto', flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
-              <button onClick={() => router.push('/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : ''))}
-                style={{ padding: '14px 18px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
-                <div style={{ fontSize: 20, marginBottom: 4 }}>🔢</div>
-                Calculator
-                <div style={{ fontSize: 12, fontWeight: 400, color: t.textSubtle, marginTop: 2 }}>Material quantities</div>
+
+              {/* Calculator */}
+              <button
+                onClick={() => router.push('/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : ''))}
+                style={{ padding: '18px 16px', borderRadius: 16, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'box-shadow 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)')}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+                <IlluIconCalculator s={44} />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, marginBottom: 2 }}>Calculator</div>
+                  <div style={{ fontSize: 12, color: t.textSubtle }}>Material quantities</div>
+                </div>
+                <svg style={{ marginLeft: 'auto', flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
+
+              {/* Generate Report */}
               <button
                 onClick={generateReport}
                 disabled={generating}
-                style={{ padding: '14px 18px', borderRadius: 14, border: `1.5px solid ${generating ? t.cardBorder : '#0F766E'}`, background: generating ? t.cardBgAlt : '#0F766E', color: generating ? t.textMuted : 'white', fontSize: 14, fontWeight: 700, cursor: generating ? 'wait' : 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{generating ? '⏳' : '🛰️'}</div>
-                {generating ? 'Generating…' : 'Generate Report'}
-                <div style={{ fontSize: 12, fontWeight: 400, color: generating ? t.textSubtle : '#99f6e4', marginTop: 2 }}>
-                  {generating ? 'Fetching satellite data' : 'Squares · pitch · waste PDF'}
+                style={{ padding: '18px 16px', borderRadius: 16, border: `1.5px solid ${generating ? t.cardBorder : '#0D9488'}`, background: generating ? t.cardBg : 'linear-gradient(135deg,#0F766E 0%,#0D9488 100%)', cursor: generating ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, transition: 'all 0.15s', opacity: generating ? 0.7 : 1 }}
+                onMouseEnter={e => { if (!generating) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.35)' }}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+                <IlluIconGenerateReport s={44} />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: generating ? t.textPri : 'white', marginBottom: 2 }}>
+                    {generating ? 'Generating…' : 'Generate Report'}
+                  </div>
+                  <div style={{ fontSize: 12, color: generating ? t.textSubtle : '#99f6e4' }}>
+                    {generating ? 'Fetching satellite data' : 'Squares · pitch · waste PDF'}
+                  </div>
                 </div>
+                <svg style={{ marginLeft: 'auto', flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
 
@@ -395,7 +422,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
             <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20, marginTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
                 <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, margin: 0 }}>
-                  🛰️ Roof Reports ({reports.length})
+                  ROOF REPORTS ({reports.length})
                 </h2>
               </div>
               {reportsLoading ? (
