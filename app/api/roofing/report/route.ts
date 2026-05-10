@@ -117,15 +117,15 @@ async function fetchTopView(
 
 /** fetch satellite image offset 50m in a cardinal direction — force JPEG */
 async function fetchCardinalView(lat: number, lng: number, direction: 'N' | 'S' | 'E' | 'W'): Promise<string> {
-  const LAT_OFFSET = 0.00045
-  const LNG_OFFSET = 0.00055
+  const LAT_OFFSET = 0.00072  // ~80m N/S
+  const LNG_OFFSET = 0.00090  // ~80m E/W at 30° lat
   let centerLat = lat
   let centerLng = lng
   if (direction === 'N') centerLat = lat + LAT_OFFSET
   if (direction === 'S') centerLat = lat - LAT_OFFSET
   if (direction === 'E') centerLng = lng + LNG_OFFSET
   if (direction === 'W') centerLng = lng - LNG_OFFSET
-  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=19&size=640x400&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
+  const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=20&size=640x400&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
   return fetchImageBase64(url, direction)
 }
 
