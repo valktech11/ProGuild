@@ -14,15 +14,20 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import crypto from 'crypto'
 import React from 'react'
 
-// ── R2 client ──────────────────────────────────────────────────────────────
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-})
+// ── R2 client (lazy — avoids module-load crash if env vars missing) ────────
+function getR2Client() {
+  if (!process.env.R2_ACCOUNT_ID) throw new Error('R2_ACCOUNT_ID not set in env')
+  if (!process.env.R2_ACCESS_KEY_ID) throw new Error('R2_ACCESS_KEY_ID not set in env')
+  if (!process.env.R2_SECRET_ACCESS_KEY) throw new Error('R2_SECRET_ACCESS_KEY not set in env')
+  return new S3Client({
+    region: 'auto',
+    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId:     process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    },
+  })
+}
 
 const R2_BUCKET = process.env.R2_BUCKET_NAME || 'proguild-media-staging'
 
@@ -200,9 +205,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 4. Parse measurements ─────────────────────────────────────
+    console.log('[report] step 4: parsing measurements')
     const measurements = parseSolar(solarData)
+    console.log('[report] measurements:', measurements.totalSquaresRaw, 'sq,', measurements.facetCount, 'facets')
 
     // ── 5. Fetch 5 images in parallel ────────────────────────────
+    console.log('[report] step 5: fetching 5 images')
     const [imgTopView, imgNorth, imgSouth, imgEast, imgWest] = await Promise.all([
       fetchTopView(lat, lng),
       fetchStreetView(lat, lng, 0),    // North
@@ -210,6 +218,7 @@ export async function POST(req: NextRequest) {
       fetchStreetView(lat, lng, 90),   // East
       fetchStreetView(lat, lng, 270),  // West
     ])
+    console.log('[report] images fetched')
 
     // ── 6. Fetch pro details for report header ────────────────────
     const { data: pro } = await sb
@@ -251,12 +260,16 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 9. Render PDF ─────────────────────────────────────────────
+    console.log('[report] step 9: rendering PDF')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfBuffer = await renderToBuffer(
       React.createElement(RoofReportPDF, { data: reportData, reportId }) as any
     )
+    console.log('[report] PDF rendered, size:', pdfBuffer.length, 'bytes')
 
     // ── 10. Upload to R2 ──────────────────────────────────────────
+    console.log('[report] step 10: uploading to R2')
+    const r2 = getR2Client()
     const r2Key = `reports/${pro_id}/${property_id || 'no-property'}/${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${reportId}.pdf`
 
     await r2.send(new PutObjectCommand({
@@ -271,6 +284,7 @@ export async function POST(req: NextRequest) {
         report_id: reportId,
       },
     }))
+    console.log('[report] uploaded to R2:', r2Key)
 
     // Generate signed URL (7-day expiry)
     const signedUrl = await getSignedUrl(
@@ -280,6 +294,7 @@ export async function POST(req: NextRequest) {
     )
 
     // ── 11. Save to roof_reports ──────────────────────────────────
+    console.log('[report] step 11: saving to DB')
     const { data: reportRow, error: insertErr } = await sb
       .from('roof_reports')
       .insert({
@@ -304,9 +319,10 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (insertErr) {
-      console.error('roof_reports insert error:', insertErr)
+      console.error('[report] roof_reports insert error:', insertErr)
       // Non-fatal — PDF is already in R2
     }
+    console.log('[report] done:', reportId)
 
     // ── 12. Return ────────────────────────────────────────────────
     return NextResponse.json({
