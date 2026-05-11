@@ -215,17 +215,34 @@ function classifyEdge(planeA: Plane, planeB: Plane | null): 'ridge' | 'hip' | 'v
     const horizA = Math.sqrt(planeA.a * planeA.a + planeA.b * planeA.b)
     return horizA < 0.3 ? 'eave' : 'rake'
   }
-  const nA: [number, number, number] = [planeA.a, planeA.b, planeA.c < 0 ? -planeA.c : planeA.c]
-  const nB: [number, number, number] = [planeB.a, planeB.b, planeB.c < 0 ? -planeB.c : planeB.c]
-  const dot = nA[0] * nB[0] + nA[1] * nB[1] + nA[2] * nB[2]
-  const vertA = Math.abs(nA[2])
-  const vertB = Math.abs(nB[2])
-  if (dot < 0) return 'valley'
-  if (vertA > 0.95 && vertB > 0.95) return 'eave'
-  const horizA2 = Math.sqrt(nA[0] * nA[0] + nA[1] * nA[1])
-  const horizB2 = Math.sqrt(nB[0] * nB[0] + nB[1] * nB[1])
-  if (horizA2 > 0.15 && horizB2 > 0.15) return dot > 0.5 ? 'hip' : 'ridge'
-  return 'ridge'
+
+  // Orient both normals so z is always positive (pointing upward)
+  const sA = planeA.c < 0 ? -1 : 1
+  const sB = planeB.c < 0 ? -1 : 1
+  const aN: [number, number, number] = [planeA.a * sA, planeA.b * sA, planeA.c * sA]
+  const bN: [number, number, number] = [planeB.a * sB, planeB.b * sB, planeB.c * sB]
+
+  // Horizontal magnitudes — how steeply each plane slopes
+  const horizA = Math.sqrt(aN[0] * aN[0] + aN[1] * aN[1])
+  const horizB = Math.sqrt(bN[0] * bN[0] + bN[1] * bN[1])
+
+  // Both nearly flat → eave/flat transition
+  if (horizA < 0.15 && horizB < 0.15) return 'eave'
+
+  // Horizontal-only dot product reveals whether slopes converge or diverge
+  // Ridge: two planes slope away from each other (peak) → horizontal normals
+  //        point in opposite directions → hDot strongly negative
+  // Hip:   corner junction, slopes at angle → hDot moderately negative to ~0
+  // Valley: two planes slope toward each other (trough) → horizontal normals
+  //         point in the same direction → hDot positive
+  const hDot = aN[0] * bN[0] + aN[1] * bN[1]
+
+  // Full 3D dot for ridge/hip disambiguation
+  const dot3d = aN[0] * bN[0] + aN[1] * bN[1] + aN[2] * bN[2]
+
+  if (hDot > 0.15)  return 'valley'  // normals converge horizontally → trough
+  if (dot3d < 0.1)  return 'ridge'   // planes strongly diverge in 3D → peak
+  return 'hip'                        // intermediate corner angle → hip
 }
 
 function estimatePerimeterEdges(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): { eave_m: number; rake_m: number } {

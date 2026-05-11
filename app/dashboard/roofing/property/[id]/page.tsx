@@ -659,67 +659,46 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                           </svg>
                         </div>
 
-                        {/* Center: metadata */}
+                        {/* Center: labelled metrics */}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          {/* Headline: key numbers */}
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
-                            <span style={{ fontSize: 15, fontWeight: 800, color: t.textPri, letterSpacing: '-0.02em' }}>
-                              {report.total_squares_order.toFixed(1)} sq
-                            </span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#0F766E', background: '#F0FDFA', padding: '1px 7px', borderRadius: 12, border: '1px solid #CCFBF1' }}>
-                              {report.dominant_pitch}
-                            </span>
-                            <span style={{ fontSize: 12, color: t.textSubtle }}>
-                              {report.waste_factor}% waste
-                            </span>
-                            <span style={{ fontSize: 11, color: t.textSubtle }}>
-                              {report.facet_count} facets
-                            </span>
-                          </div>
-                          {/* Subline: date */}
-                          <div style={{ fontSize: 11, color: t.textSubtle }}>
-                            {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            {' · '}
-                            {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                            {' · '}
-                            {timeAgo(report.created_at)}
-                          </div>
-                          {/* Linear footage chips — only when available */}
-                          {report.linear_footage && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 10px', marginTop: 5 }}>
-                              {[
-                                { label: 'Ridge', val: report.linear_footage.ridge_ft, color: '#DC2626', bg: '#FEF2F2' },
-                                { label: 'Hip', val: report.linear_footage.hip_ft, color: '#D97706', bg: '#FFFBEB' },
-                                { label: 'Valley', val: report.linear_footage.valley_ft, color: '#1D4ED8', bg: '#EFF6FF' },
-                                { label: 'Eave', val: report.linear_footage.eave_ft, color: '#0F766E', bg: '#F0FDFA' },
-                                { label: 'Rake', val: report.linear_footage.rake_ft, color: '#7C3AED', bg: '#F5F3FF' },
-                              ].map(({ label, val, color, bg }) => (
-                                <span key={label} style={{ fontSize: 11, fontWeight: 600, color, background: bg, padding: '1px 7px', borderRadius: 10 }}>
-                                  {val} ft {label}
-                                </span>
-                              ))}
+                          {/* Line 1: labelled key numbers */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 1 }}>Roof Area</div>
+                              <div style={{ fontSize: 15, fontWeight: 800, color: t.textPri, letterSpacing: '-0.02em' }}>{report.total_squares_order.toFixed(1)} sq</div>
                             </div>
-                          )}
+                            <div style={{ width: 1, height: 28, background: t.cardBorder, flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 1 }}>Pitch</div>
+                              <div style={{ fontSize: 15, fontWeight: 800, color: '#0F766E', letterSpacing: '-0.02em' }}>{report.dominant_pitch}</div>
+                            </div>
+                            <div style={{ fontSize: 11, color: t.textSubtle, marginLeft: 2 }}>
+                              {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {' · '}
+                              {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            </div>
+                          </div>
                         </div>
 
                         {/* Right: action buttons */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0, alignItems: 'flex-end' }}>
-                          {/* Bid Report download */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          {/* Bid Report */}
                           <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
-                            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: 120, padding: '7px 0', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', boxSizing: 'border-box' }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             Bid Report
                           </a>
+
                           {/* Material Order — Pro only */}
                           {canAccessPremium && (
                             report.premium_r2_url ? (
                               <a href={report.premium_r2_url} target="_blank" rel="noopener noreferrer"
-                                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: 140, padding: '7px 0', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', boxSizing: 'border-box' }}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                 Material Order
                               </a>
                             ) : dsmLoadingId === report.id ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11 }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: 140, padding: '7px 0', borderRadius: 8, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', boxSizing: 'border-box' }}>
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
                                     <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1.2s" repeatCount="indefinite"/>
@@ -730,7 +709,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                             ) : (
                               <button onClick={() => getLinearFootageAndPDF(report)}
                                 disabled={dsmLoadingId === report.id || premiumLoadingId === report.id}
-                                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: 140, padding: '7px 0', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxSizing: 'border-box' }}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                                 </svg>
@@ -738,10 +717,20 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                               </button>
                             )
                           )}
-                          {/* Delete */}
-                          <button onClick={() => deleteReport(report.id)} disabled={deletingReportId === report.id}
-                            style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: 'transparent', color: t.textSubtle, fontSize: 11, cursor: 'pointer', opacity: deletingReportId === report.id ? 0.4 : 0.7 }}>
-                            {deletingReportId === report.id ? '...' : 'Delete'}
+
+                          {/* Delete — red trash icon */}
+                          <button
+                            onClick={() => deleteReport(report.id)}
+                            disabled={deletingReportId === report.id}
+                            title="Delete report"
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: deletingReportId === report.id ? 'wait' : 'pointer', opacity: deletingReportId === report.id ? 0.4 : 1, flexShrink: 0, transition: 'background 0.12s, border-color 0.12s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#DC2626' }}
+                            onMouseLeave={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#DC2626'; e.currentTarget.style.borderColor = '#FECACA' }}>
+                            {deletingReportId === report.id ? (
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+                            ) : (
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                            )}
                           </button>
                         </div>
                       </div>
