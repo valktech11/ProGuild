@@ -394,7 +394,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
         h(View, { style: S.body },
           sectionBar('Linear Footage — Detailed Breakdown'),
           h(Text, { style: { fontSize: 9, color: MUTED, marginBottom: 10, lineHeight: 1.5 } },
-            'Linear footage computed from Google Solar API roof segment geometry. Accuracy: ±15% estimated. Sufficient for material ordering. Field verification recommended before final order.'
+            'Linear footage computed from Google Solar API roof segment geometry. Accuracy: ±20% estimated. Sufficient for material ordering. Field verification recommended before final order.'
           ),
 
           // Large linear footage display
