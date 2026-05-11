@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-                  generationConfig: { maxOutputTokens: 1000, temperature: 0.2 }, thinkingConfig: { thinkingBudget: 0 }
+                  generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
                 }),
                 signal: AbortSignal.timeout(25000),
               }
