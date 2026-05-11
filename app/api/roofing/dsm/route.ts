@@ -27,9 +27,10 @@ interface LinearFootage {
 // ── Solar dataLayers fetch ────────────────────────────────────────────────────
 
 async function fetchDataLayers(lat: number, lng: number): Promise<{ dsmUrl: string; maskUrl: string } | null> {
-  // Radius 50m covers most residential roofs
-  const url = `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=DSM_LAYER&requiredQuality=LOW&key=${GOOGLE_KEY}`
-  console.log('[dsm] fetching dataLayers')
+  // FULL_LAYERS returns all layer URLs including dsmUrl + maskUrl
+  // DSM_LAYER only returns dsmUrl — maskUrl requires MASK_LAYER or FULL_LAYERS
+  const url = `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=FULL_LAYERS&requiredQuality=LOW&key=${GOOGLE_KEY}`
+  console.log('[dsm] fetching dataLayers (FULL_LAYERS)')
   const res = await fetch(url, { signal: AbortSignal.timeout(20000) })
   if (!res.ok) {
     const err = await res.text()
@@ -39,11 +40,13 @@ async function fetchDataLayers(lat: number, lng: number): Promise<{ dsmUrl: stri
   const data = await res.json() as Record<string, string>
   const dsmUrl = data.dsmUrl
   const maskUrl = data.maskUrl
-  if (!dsmUrl || !maskUrl) {
-    console.log('[dsm] missing dsmUrl or maskUrl in response. Keys:', Object.keys(data))
+  if (!dsmUrl) {
+    console.log('[dsm] missing dsmUrl in response. Keys:', Object.keys(data))
     return null
   }
-  return { dsmUrl, maskUrl }
+  // maskUrl may be absent — fall back to elevation-based masking if so
+  console.log('[dsm] got dsmUrl:', !!dsmUrl, 'maskUrl:', !!maskUrl)
+  return { dsmUrl, maskUrl: maskUrl || '' }
 }
 
 // ── GeoTIFF decode ───────────────────────────────────────────────────────────
@@ -168,22 +171,46 @@ function ransac(points: Point3D[], iterations = 150, threshold = 0.08): { plane:
 
 function extractFacets(
   dsm: GeoGrid,
-  mask: GeoGrid,
+  mask: GeoGrid | null,
   pixelSizeM = 0.1 // ~10cm per pixel for Solar API DSM
 ): Facet[] {
   const { data: dsmData, width, height, noDataValue: dsmNoData } = dsm
-  const { data: maskData } = mask
 
   // Build point cloud from masked roof pixels
   const allPoints: Point3D[] = []
   const allIndices: number[] = []
+
+  // If no mask available, derive roof pixels from elevation:
+  // compute median elevation, use pixels > (median + 0.5m) as roof
+  let maskData: Float32Array | Float64Array | Int16Array | Uint8Array | null = mask?.data || null
+  if (!maskData) {
+    console.log('[dsm] no mask — deriving roof pixels from elevation thresholding')
+    const elevations: number[] = []
+    for (let i = 0; i < dsmData.length; i++) {
+      const v = Number(dsmData[i])
+      if (isFinite(v) && (dsmNoData === null || Math.abs(v - dsmNoData) > 0.01)) {
+        elevations.push(v)
+      }
+    }
+    elevations.sort((a, b) => a - b)
+    const median = elevations[Math.floor(elevations.length * 0.5)] || 0
+    const threshold = median + 0.5 // pixels >0.5m above median = likely roof
+    console.log('[dsm] elevation median:', median.toFixed(2), 'threshold:', threshold.toFixed(2))
+    // Use dsmData itself as synthetic mask via threshold
+    const syntheticMask = new Float32Array(dsmData.length)
+    for (let i = 0; i < dsmData.length; i++) {
+      const v = Number(dsmData[i])
+      syntheticMask[i] = (isFinite(v) && v >= threshold) ? 1 : 0
+    }
+    maskData = syntheticMask
+  }
 
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       const idx = row * width + col
       const maskVal = maskData[idx]
       const elev = dsmData[idx]
-      // Only roof pixels (mask=1), skip no-data
+      // Only roof pixels (mask=1 or synthetic), skip no-data
       if (maskVal !== 1 && maskVal !== 255) continue
       if (dsmNoData !== null && Math.abs(Number(elev) - dsmNoData) < 0.01) continue
       if (!isFinite(Number(elev))) continue
@@ -283,10 +310,16 @@ function classifyEdge(planeA: Plane, planeB: Plane | null): EdgeType {
 // When we can't do full adjacency analysis, use bounding box perimeter
 // as a practical estimate for eave + rake combined
 
-function estimatePerimeterEdges(dsm: GeoGrid, mask: GeoGrid, pixelSizeM: number): { eave_m: number; rake_m: number } {
-  const { data: maskData, width, height } = mask
-  let perimeterPixels = 0
+function estimatePerimeterEdges(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): { eave_m: number; rake_m: number } {
+  const { width, height } = dsm
+  const maskData = mask?.data || null
+  // If no mask, estimate from DSM footprint size
+  if (!maskData) {
+    const perimeterM = 2 * (width + height) * pixelSizeM * 0.3 // rough estimate
+    return { eave_m: perimeterM * 0.70, rake_m: perimeterM * 0.30 }
+  }
 
+  let perimeterPixels = 0
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       const idx = row * width + col
@@ -309,7 +342,7 @@ function estimatePerimeterEdges(dsm: GeoGrid, mask: GeoGrid, pixelSizeM: number)
 
 // ── Main linear footage calculator ───────────────────────────────────────────
 
-function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid, pixelSizeM: number): LinearFootage {
+function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): LinearFootage {
   // For each pair of adjacent facets, find shared boundary pixels
   // and estimate edge length
   let ridgeM = 0, hipM = 0, valleyM = 0
@@ -394,15 +427,15 @@ export async function POST(req: NextRequest) {
     const layers = await fetchDataLayers(lat, lng)
     if (!layers) return NextResponse.json({ error: 'Failed to fetch Solar dataLayers' }, { status: 502 })
 
-    // 2. Decode DSM and mask GeoTIFFs in parallel
-    const [dsm, mask] = await Promise.all([
-      decodeGeoTiff(layers.dsmUrl),
-      decodeGeoTiff(layers.maskUrl),
-    ])
-    if (!dsm || !mask) return NextResponse.json({ error: 'Failed to decode GeoTIFF' }, { status: 502 })
-    if (dsm.width !== mask.width || dsm.height !== mask.height) {
-      console.log('[dsm] DSM/mask dimension mismatch — using DSM dims for mask')
+    // 2. Decode DSM (required) and mask (optional) GeoTIFFs
+    const dsm = await decodeGeoTiff(layers.dsmUrl)
+    if (!dsm) return NextResponse.json({ error: 'Failed to decode DSM GeoTIFF' }, { status: 502 })
+
+    const mask = layers.maskUrl ? await decodeGeoTiff(layers.maskUrl) : null
+    if (mask && dsm.width !== mask.width || mask && dsm.height !== mask.height) {
+      console.log('[dsm] DSM/mask dimension mismatch')
     }
+    console.log('[dsm] mask available:', !!mask)
 
     // Pixel size: Solar API DSM is 0.1m/pixel (10cm)
     const PIXEL_SIZE_M = 0.1
