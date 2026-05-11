@@ -436,10 +436,10 @@ Write in the third person as if writing a field note for a roofing contractor.`
 
     // Gemini Vision — model fallback chain on quota/deprecation errors
     // API version: v1 (not v1beta) — required for AI Studio prepay keys
-    const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']
+    const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash']
     const geminiBody = JSON.stringify({
       contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-      generationConfig: { maxOutputTokens: 1000, temperature: 0.2 }, thinkingConfig: { thinkingBudget: 0 }
+      generationConfig: { maxOutputTokens: 1000, temperature: 0.2 }
     })
     let text: string | null = null
     for (const model of GEMINI_MODELS) {

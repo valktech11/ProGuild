@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
         geminiResult.geotiffBytes = buf.byteLength
         if (true) {
           const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.`
-          const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']
+          const MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash']
           for (const model of MODELS) {
             const gemRes = await fetch(
               `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_KEY}`,
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-                  generationConfig: { maxOutputTokens: 1000, temperature: 0.2 }, thinkingConfig: { thinkingBudget: 0 }
+                  generationConfig: { maxOutputTokens: 1000, temperature: 0.2 }
                 }),
                 signal: AbortSignal.timeout(25000),
               }
