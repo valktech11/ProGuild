@@ -442,7 +442,8 @@ Be specific about what you observe. Do not mention the image format or satellite
 Write in the third person as if writing a field note for a roofing contractor.`
 
     // Gemini Vision — model fallback chain on quota/deprecation errors
-    const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash-001', 'gemini-1.5-flash-latest']
+    // API version: v1 (not v1beta) — required for AI Studio prepay keys
+    const GEMINI_MODELS = ['gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']
     const geminiBody = JSON.stringify({
       contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
       generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
@@ -450,7 +451,7 @@ Write in the third person as if writing a field note for a roofing contractor.`
     let text: string | null = null
     for (const model of GEMINI_MODELS) {
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+        `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_KEY}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody, signal: AbortSignal.timeout(20000) }
       )
       console.log(`[gemini] model=${model} status=${geminiRes.status}`)

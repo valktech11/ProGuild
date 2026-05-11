@@ -64,10 +64,10 @@ export async function GET(req: NextRequest) {
           const mimeType = imgRes.headers.get('content-type') || 'image/tiff'
           geminiResult.geotiffBytes = buf.byteLength
           const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.`
-          const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash-001', 'gemini-1.5-flash-latest']
+          const MODELS = ['gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']
           for (const model of MODELS) {
             const gemRes = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+              `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_KEY}`,
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
