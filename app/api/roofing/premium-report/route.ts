@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   // 3. Fetch pro profile
   const { data: pro } = await sb
     .from('pros')
-    .select('full_name, company_name, email, phone')
+    .select('full_name, business_name, phone_cell, email')
     .eq('id', pro_id)
     .single()
 
@@ -89,9 +89,9 @@ export async function POST(req: NextRequest) {
 
   const premiumData = {
     address: (report.address as string | null) ?? 'Unknown Address',
-    proName: (pro?.full_name ?? pro?.company_name ?? 'ProGuild Pro'),
+    proName: (pro?.full_name ?? pro?.business_name ?? 'ProGuild Pro'),
     proEmail: (pro?.email ?? ''),
-    proPhone: (pro?.phone ?? ''),
+    proPhone: (pro?.phone_cell ?? ''),
     generatedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     imageryDate: (report.imagery_date as string | null) ?? '',
     totalSqft: Number(report.total_sqft) || 0,

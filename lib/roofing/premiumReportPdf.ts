@@ -465,7 +465,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
           h(Text, { style: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: NAVY, marginBottom: 12 } }, 'Important Notice and Disclaimer'),
           ...[
             'This report is designed for bid preparation and sales use. Area measurements are derived from Google Solar API satellite imagery. Linear footage (ridge, hip, valley, eave, rake) is estimated from Google Solar API roof segment geometry.',
-            'Linear footage accuracy: ±15% estimated from roof segment azimuth and area relationships. Sufficient for material ordering and bid preparation. Not suitable for permit drawings or engineering calculations.',
+            'Linear footage accuracy: ±20% estimated from roof segment azimuth and area relationships. Sufficient for material ordering and bid preparation. Not suitable for permit drawings or engineering calculations.',
             'Imagery may be up to 3 years old. Verify current roof condition with a site visit before ordering materials or submitting insurance claims.',
             'For insurance claim submissions, a certified measurement report from a licensed inspector may be required by your carrier.',
             'ProGuild.ai makes no guarantee of accuracy and accepts no liability for material over- or under-ordering based on this report. Field verification is always recommended before final material orders.',
