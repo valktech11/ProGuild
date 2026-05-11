@@ -442,7 +442,7 @@ Be specific about what you observe. Do not mention the image format or satellite
 Write in the third person as if writing a field note for a roofing contractor.`
 
     // Gemini Vision — model fallback chain on quota/deprecation errors
-    const GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash']
+    const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash-001', 'gemini-1.5-flash-latest']
     const geminiBody = JSON.stringify({
       contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
       generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
