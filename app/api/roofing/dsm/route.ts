@@ -115,13 +115,18 @@ export async function GET(req: NextRequest) {
           const bbox = seg.boundingBox as Record<string, unknown> | undefined
           return {
             id: i,
-            pitchDeg: seg.pitchDeg,
-            azimuthDeg: seg.azimuthDeg,       // compass direction face points toward (0=N, 90=E, 180=S, 270=W)
+            // Correct Solar API field names
+            pitchDegrees: seg.pitchDegrees,
+            azimuthDegrees: seg.azimuthDegrees,
             area_m2: stats?.areaMeters2,
             area_sqft: stats?.areaMeters2 ? Math.round((stats.areaMeters2 as number) * 10.7639) : null,
             center: center ? { lat: center.latitude, lng: center.longitude } : null,
             bbox: bbox,
             groundArea_m2: seg.groundAreaMeters2,
+            // Dump all top-level keys so we know exactly what's available
+            all_keys: Object.keys(seg),
+            // Raw stats object
+            stats_raw: stats,
           }
         })
       : null
