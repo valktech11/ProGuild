@@ -156,9 +156,9 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
 
   // Waste table columns (matching EagleView's 9-column format)
   const wasteFactors = [0, 3, 8, 11, 13, 15, 18, 23, 28]
-  const eligibleSqft = data.pitchBreakdown
+  const eligibleSqft = (data.pitchBreakdown ?? [])
     .filter(r => !r.isLowSlope)
-    .reduce((s, r) => s + r.area, 0)
+    .reduce((s, r) => s + (r.area || 0), 0)
 
   return h(Document, null,
 
@@ -186,16 +186,16 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
           h(View, { style: { flex: 1, padding: '12 14', backgroundColor: CREAM, borderRadius: 10, border: `1 solid ${BORDER}` } },
             h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: TEAL, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 } }, 'MEASUREMENTS'),
             ...[
-              ['Total Roof Area', `${data.totalSqft.toLocaleString()} sq ft`],
-              ['Order Quantity', `${data.totalSquaresOrder.toFixed(1)} squares`],
+              ['Total Roof Area', `${(data.totalSqft || 0).toLocaleString()} sq ft`],
+              ['Order Quantity', `${(data.totalSquaresOrder || 0).toFixed(1)} squares`],
               ['Total Facets', `${data.facetCount}`],
               ['Predominant Pitch', data.dominantPitch],
               ['Suggested Waste', `${data.wasteFactor}%`],
               ...(lf ? [
-                ['Total Ridges/Hips', `${lf.ridge_ft + lf.hip_ft} ft`],
-                ['Total Valleys', `${lf.valley_ft} ft`],
-                ['Total Rakes', `${lf.rake_ft} ft`],
-                ['Total Eaves', `${lf.eave_ft} ft`],
+                ['Total Ridges/Hips', `${((lf.ridge_ft || 0) + (lf.hip_ft || 0))} ft`],
+                ['Total Valleys', `${lf.valley_ft || 0} ft`],
+                ['Total Rakes', `${lf.rake_ft || 0} ft`],
+                ['Total Eaves', `${lf.eave_ft || 0} ft`],
               ] : [['Linear Footage', 'Run DSM analysis']]),
             ].map(([k, v]) =>
               h(View, { style: { flexDirection: 'row', marginBottom: 3 } },
@@ -221,7 +221,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
         // Metric boxes row
         h(View, { style: S.metricRow },
           ...[
-            { val: data.totalSquaresOrder.toFixed(1) + ' sq', lbl: 'Order Quantity', sub: data.totalSqft.toLocaleString() + ' sq ft total' },
+            { val: (data.totalSquaresOrder || 0).toFixed(1) + ' sq', lbl: 'Order Quantity', sub: (data.totalSqft || 0).toLocaleString() + ' sq ft total' },
             { val: data.dominantPitch, lbl: 'Dominant Pitch', sub: 'Predominant slope' },
             { val: String(data.facetCount), lbl: 'Roof Facets', sub: 'Complexity indicator' },
             { val: data.wasteFactor + '%', lbl: 'Waste Factor', sub: 'Not incl. in sq' },
@@ -240,12 +240,12 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
             h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: NAVY, marginBottom: 6 } }, 'LINEAR FOOTAGE SUMMARY'),
             h(View, { style: S.linRow },
               ...[
-                { val: lf.ridge_ft, lbl: 'Ridge', sub: 'Ridge cap' },
-                { val: lf.hip_ft, lbl: 'Hip', sub: 'Hip cap' },
-                { val: lf.valley_ft, lbl: 'Valley', sub: 'Flashing' },
-                { val: lf.rake_ft, lbl: 'Rake', sub: 'Drip edge' },
-                { val: lf.eave_ft, lbl: 'Eave', sub: 'Starter/drip' },
-                { val: lf.total_linear_ft, lbl: 'Total LF', sub: 'All lines' },
+                { val: (lf.ridge_ft || 0), lbl: 'Ridge', sub: 'Ridge cap' },
+                { val: (lf.hip_ft || 0), lbl: 'Hip', sub: 'Hip cap' },
+                { val: (lf.valley_ft || 0), lbl: 'Valley', sub: 'Flashing' },
+                { val: (lf.rake_ft || 0), lbl: 'Rake', sub: 'Drip edge' },
+                { val: (lf.eave_ft || 0), lbl: 'Eave', sub: 'Starter/drip' },
+                { val: (lf.total_linear_ft || 0), lbl: 'Total LF', sub: 'All lines' },
               ].map(({ val, lbl, sub }) =>
                 h(View, { style: S.linBox },
                   h(Text, { style: S.linVal }, val + ' ft'),
@@ -281,17 +281,17 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
           ...data.pitchBreakdown.map((row, i) =>
             h(View, { style: row.isLowSlope ? { flexDirection: 'row', borderBottom: `1 solid ${BORDER}`, backgroundColor: AMBER_L } : (i % 2 === 0 ? S.tblRow : S.tblRowAlt) },
               h(Text, { style: row.isLowSlope ? { ...S.tblCellSm, color: AMBER_B, fontFamily: 'Helvetica-Bold' } : S.tblCellSm }, row.pitch),
-              h(Text, { style: row.isLowSlope ? S.tblCellAmber : S.tblCell }, row.area.toLocaleString()),
+              h(Text, { style: row.isLowSlope ? S.tblCellAmber : S.tblCell }, (row.area || 0).toLocaleString()),
               h(Text, { style: row.isLowSlope ? S.tblCellAmber : S.tblCell }, row.pct + '%'),
-              h(Text, { style: row.isLowSlope ? S.tblCellAmber : S.tblCell }, row.squares.toFixed(1)),
+              h(Text, { style: row.isLowSlope ? S.tblCellAmber : S.tblCell }, (row.squares || 0).toFixed(1)),
               h(Text, { style: { width: 80, padding: '5 8', fontSize: 9, color: row.isLowSlope ? AMBER_B : MUTED } }, row.isLowSlope ? 'Low Slope' : 'Steep Slope')
             )
           ),
           h(View, { style: { flexDirection: 'row', borderTop: `2 solid ${TEAL}`, backgroundColor: TEAL_XL } },
             h(Text, { style: { ...S.tblCellSm, fontFamily: 'Helvetica-Bold', color: TEAL } }, 'TOTAL'),
-            h(Text, { style: { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL } }, data.totalSqft.toLocaleString()),
+            h(Text, { style: { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL } }, (data.totalSqft || 0).toLocaleString()),
             h(Text, { style: { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL } }, '100%'),
-            h(Text, { style: { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL } }, (data.totalSqft / 100).toFixed(2)),
+            h(Text, { style: { ...S.tblCell, fontFamily: 'Helvetica-Bold', color: TEAL } }, ((data.totalSqft || 0) / 100).toFixed(2)),
             h(Text, { style: { width: 80, padding: '5 8' } }, '')
           )
         ),
@@ -318,7 +318,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
 
         sectionBar('Waste Calculation Table'),
         h(Text, { style: { fontSize: 7.5, color: MUTED, marginBottom: 6 } },
-          `Applies to asphalt shingle areas with pitch ≥ 3/12 only (${eligibleSqft.toLocaleString()} sq ft). Ridge, hip, and starter lengths not included.`
+          `Applies to asphalt shingle areas with pitch ≥ 3/12 only (${(eligibleSqft || 0).toLocaleString()} sq ft). Ridge, hip, and starter lengths not included.`
         ),
         h(View, { style: { border: `1 solid ${BORDER}`, borderRadius: 6, overflow: 'hidden' } },
           h(View, { style: { flexDirection: 'row', backgroundColor: NAVY } },
@@ -333,7 +333,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
               const squares = adjusted / 100
               const isSuggested = w === data.wasteFactor
               return h(View, { style: { flex: 1, padding: '5 4', alignItems: 'center', borderRight: `1 solid ${BORDER}`, backgroundColor: isSuggested ? AMBER_L : WHITE } },
-                h(Text, { style: { fontSize: 7.5, fontFamily: isSuggested ? 'Helvetica-Bold' : 'Helvetica', color: isSuggested ? AMBER_B : NAVY } }, Math.round(adjusted).toLocaleString() + ' ft²'),
+                h(Text, { style: { fontSize: 7.5, fontFamily: isSuggested ? 'Helvetica-Bold' : 'Helvetica', color: isSuggested ? AMBER_B : NAVY } }, Math.round(adjusted || 0).toLocaleString() + ' ft²'),
                 h(Text, { style: { fontSize: 7, color: isSuggested ? AMBER_B : MUTED, marginTop: 1 } }, squares.toFixed(1) + ' sq')
               )
             })
@@ -349,10 +349,10 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
           h(View, { style: { flexDirection: 'row', gap: 20 } },
             h(View, { style: { flex: 1 } },
               ...[
-                ['Total Roof Area', data.totalSqft.toLocaleString() + ' sq ft'],
+                ['Total Roof Area', (data.totalSqft || 0).toLocaleString() + ' sq ft'],
                 ['Total Roof Facets', String(data.facetCount)],
                 ['Predominant Pitch', data.dominantPitch],
-                ['Order Quantity', data.totalSquaresOrder.toFixed(1) + ' sq'],
+                ['Order Quantity', (data.totalSquaresOrder || 0).toFixed(1) + ' sq'],
                 ['Suggested Waste', data.wasteFactor + '%'],
               ].map(([k, v]) => h(View, { style: S.summaryRow },
                 h(Text, { style: S.summaryKey }, k),
@@ -361,13 +361,13 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
             ),
             h(View, { style: { flex: 1 } },
               ...(lf ? [
-                ['Total Ridges + Hips', `${lf.ridge_ft + lf.hip_ft} ft`],
-                ['  · Ridges', `${lf.ridge_ft} ft`],
-                ['  · Hips', `${lf.hip_ft} ft`],
-                ['Total Valleys', `${lf.valley_ft} ft`],
-                ['Total Rakes', `${lf.rake_ft} ft`],
-                ['Total Eaves', `${lf.eave_ft} ft`],
-                ['Drip Edge (Eaves + Rakes)', `${lf.eave_ft + lf.rake_ft} ft`],
+                ['Total Ridges + Hips', `${((lf.ridge_ft || 0) + (lf.hip_ft || 0))} ft`],
+                ['  · Ridges', `${lf.ridge_ft || 0} ft`],
+                ['  · Hips', `${lf.hip_ft || 0} ft`],
+                ['Total Valleys', `${lf.valley_ft || 0} ft`],
+                ['Total Rakes', `${lf.rake_ft || 0} ft`],
+                ['Total Eaves', `${lf.eave_ft || 0} ft`],
+                ['Drip Edge (Eaves + Rakes)', `${((lf.eave_ft || 0) + (lf.rake_ft || 0))} ft`],
               ] : [['Linear Footage', 'Run DSM analysis first']]).map(([k, v]) =>
                 h(View, { style: S.summaryRow },
                   h(Text, { style: S.summaryKey }, k),
@@ -379,7 +379,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
           h(View, { style: { marginTop: 8, flexDirection: 'row', gap: 8 } },
             h(View, null,
               h(Text, { style: { fontSize: 7.5, color: MUTED } }, `Imagery date: ${data.imageryDate}`),
-              h(Text, { style: { fontSize: 7.5, color: MUTED } }, `Coordinates: ${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`)
+              h(Text, { style: { fontSize: 7.5, color: MUTED } }, `Coordinates: ${(data.lat || 0).toFixed(6)}, ${(data.lng || 0).toFixed(6)}`)
             )
           )
         )
@@ -400,11 +400,11 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
           // Large linear footage display
           h(View, { style: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 } },
             ...[
-              { label: 'Ridge', val: lf.ridge_ft, color: RED, bg: '#FEF2F2', border: '#FECACA', use: 'Ridge cap shingles', order: 'Per bundle (33 lf)' },
-              { label: 'Hip', val: lf.hip_ft, color: '#D97706', bg: AMBER_L, border: '#FDE68A', use: 'Hip & ridge cap', order: 'Per bundle (33 lf)' },
-              { label: 'Valley', val: lf.valley_ft, color: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE', use: 'Valley flashing / ice & water', order: 'Per roll (50 lf)' },
-              { label: 'Eave', val: lf.eave_ft, color: NAVY, bg: CREAM, border: BORDER, use: 'Drip edge + starter strip', order: 'Per 10-ft piece / roll' },
-              { label: 'Rake', val: lf.rake_ft, color: TEAL, bg: TEAL_XL, border: '#CCFBF1', use: 'Rake drip edge', order: 'Per 10-ft piece' },
+              { label: 'Ridge', val: (lf.ridge_ft || 0), color: RED, bg: '#FEF2F2', border: '#FECACA', use: 'Ridge cap shingles', order: 'Per bundle (33 lf)' },
+              { label: 'Hip', val: (lf.hip_ft || 0), color: '#D97706', bg: AMBER_L, border: '#FDE68A', use: 'Hip & ridge cap', order: 'Per bundle (33 lf)' },
+              { label: 'Valley', val: (lf.valley_ft || 0), color: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE', use: 'Valley flashing / ice & water', order: 'Per roll (50 lf)' },
+              { label: 'Eave', val: (lf.eave_ft || 0), color: NAVY, bg: CREAM, border: BORDER, use: 'Drip edge + starter strip', order: 'Per 10-ft piece / roll' },
+              { label: 'Rake', val: (lf.rake_ft || 0), color: TEAL, bg: TEAL_XL, border: '#CCFBF1', use: 'Rake drip edge', order: 'Per 10-ft piece' },
             ].map(({ label, val, color, bg, border, use, order }) =>
               h(View, { style: { width: '18%', padding: '12 8', backgroundColor: bg, borderRadius: 10, border: `1.5 solid ${border}`, alignItems: 'center' } },
                 h(Text, { style: { fontSize: 22, fontFamily: 'Helvetica-Bold', color } }, val + ' ft'),
@@ -426,11 +426,11 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
               h(Text, { style: S.tblHeadCell }, 'Order Qty (suggested)')
             ),
             ...[
-              { type: 'Ridge', ft: lf.ridge_ft, material: 'Ridge cap shingles', unit: 'Bundle = 33 lf', qty: Math.ceil(lf.ridge_ft / 33) + ' bundles' },
-              { type: 'Hip', ft: lf.hip_ft, material: 'Hip & ridge cap', unit: 'Bundle = 33 lf', qty: Math.ceil(lf.hip_ft / 33) + ' bundles' },
-              { type: 'Valley', ft: lf.valley_ft, material: 'Valley flashing / ice & water', unit: 'Roll = 50 lf', qty: Math.ceil(lf.valley_ft / 50) + ' rolls' },
-              { type: 'Eave', ft: lf.eave_ft, material: 'Drip edge + starter strip', unit: '10-ft pieces / 100-lf roll', qty: Math.ceil(lf.eave_ft / 10) + ' pcs drip + ' + Math.ceil(lf.eave_ft / 100) + ' roll starter' },
-              { type: 'Rake', ft: lf.rake_ft, material: 'Rake drip edge', unit: '10-ft pieces', qty: Math.ceil(lf.rake_ft / 10) + ' pieces' },
+              { type: 'Ridge', ft: lf.ridge_ft, material: 'Ridge cap shingles', unit: 'Bundle = 33 lf', qty: Math.ceil((lf.ridge_ft || 0) / 33) + ' bundles' },
+              { type: 'Hip', ft: lf.hip_ft, material: 'Hip & ridge cap', unit: 'Bundle = 33 lf', qty: Math.ceil((lf.hip_ft || 0) / 33) + ' bundles' },
+              { type: 'Valley', ft: lf.valley_ft, material: 'Valley flashing / ice & water', unit: 'Roll = 50 lf', qty: Math.ceil((lf.valley_ft || 0) / 50) + ' rolls' },
+              { type: 'Eave', ft: lf.eave_ft, material: 'Drip edge + starter strip', unit: '10-ft pieces / 100-lf roll', qty: Math.ceil((lf.eave_ft || 0) / 10) + ' pcs drip + ' + Math.ceil((lf.eave_ft || 0) / 100) + ' roll starter' },
+              { type: 'Rake', ft: lf.rake_ft, material: 'Rake drip edge', unit: '10-ft pieces', qty: Math.ceil((lf.rake_ft || 0) / 10) + ' pieces' },
             ].map((row, i) =>
               h(View, { style: i % 2 === 0 ? S.tblRow : S.tblRowAlt },
                 h(Text, { style: { ...S.tblCellSm, fontFamily: 'Helvetica-Bold' } }, row.type),
@@ -448,7 +448,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
           // Coordinates + directions
           h(View, { style: { marginTop: 16, padding: '10 12', backgroundColor: CREAM, borderRadius: 8 } },
             h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: NAVY, marginBottom: 4 } }, 'Property Information'),
-            h(Text, { style: { fontSize: 8, color: MUTED } }, `Coordinates: ${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`),
+            h(Text, { style: { fontSize: 8, color: MUTED } }, `Coordinates: ${(data.lat || 0).toFixed(6)}, ${(data.lng || 0).toFixed(6)}`),
             h(Text, { style: { fontSize: 8, color: TEAL, marginTop: 2 } }, `Open in Google Maps: https://maps.google.com/?q=${data.lat},${data.lng}`),
             h(Text, { style: { fontSize: 8, color: MUTED, marginTop: 4 } }, `Imagery date: ${data.imageryDate} · Report generated: ${data.generatedDate}`)
           )

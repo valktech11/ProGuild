@@ -1,125 +1,171 @@
 // app/api/roofing/premium-report/route.ts
 // POST /api/roofing/premium-report
-// Reads existing linear_footage from DB (stored by /api/roofing/dsm)
-// Generates Premium PDF and uploads to R2. Returns signed URL.
-// DSM analysis is NOT run here — it must be run first via /api/roofing/dsm.
+// Reads existing linear_footage from DB (pre-computed by /api/roofing/dsm)
+// Builds and uploads premium PDF to R2. Returns signed URL.
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { buildPremiumRoofReportPDF } from '@/lib/roofing/premiumReportPdf'
+import { buildPremiumRoofReportPDF, PremiumLinearFootage } from '@/lib/roofing/premiumReportPdf'
 import { renderToBuffer } from '@react-pdf/renderer'
+import { apiError, isValidUuid, getR2Client, getR2Bucket } from '@/lib/api/utils'
 
-const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
-const R2_BUCKET  = process.env.R2_BUCKET_NAME || 'proguild-media-staging'
+const SIGNED_URL_TTL = 60 * 60 * 24 * 7 // 7 days
 
-function getR2Client() {
-  return new S3Client({
-    region: 'auto',
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    },
-  })
+// Stored pitch_breakdown shape (from /api/roofing/report)
+interface StoredPitchRow {
+  pitch: string
+  sqft: number
+  sq: number
+  pct: number
+}
+
+// Determine if a pitch string is low slope (≤ 2/12)
+function isLowSlope(pitch: string): boolean {
+  const rise = parseInt(pitch.split('/')[0] ?? '0', 10)
+  return rise <= 2
+}
+
+// Map stored pitch rows to PremiumPitchRow shape
+function mapPitchBreakdown(stored: unknown[]) {
+  return stored
+    .filter((r): r is StoredPitchRow =>
+      r !== null &&
+      typeof r === 'object' &&
+      'pitch' in r && 'sqft' in r && 'sq' in r && 'pct' in r
+    )
+    .map(r => ({
+      pitch: r.pitch,
+      area: r.sqft,
+      squares: r.sq,
+      pct: r.pct,
+      isLowSlope: isLowSlope(r.pitch),
+    }))
 }
 
 export async function POST(req: NextRequest) {
+  // 1. Parse and validate
+  let body: unknown
+  try { body = await req.json() }
+  catch { return apiError('Invalid JSON in request body', 400) }
+
+  if (!body || typeof body !== 'object') return apiError('Request body must be a JSON object', 400)
+  const { report_id, pro_id } = body as Record<string, unknown>
+
+  if (!isValidUuid(report_id)) return apiError('report_id must be a valid UUID', 400)
+  if (!isValidUuid(pro_id)) return apiError('pro_id must be a valid UUID', 400)
+
+  const sb = getSupabaseAdmin()
+
+  // 2. Fetch report row — ownership enforced by double eq
+  const { data: report, error: reportErr } = await sb
+    .from('roof_reports')
+    .select('id, pro_id, address, total_sqft, total_squares_order, dominant_pitch, facet_count, waste_factor, imagery_date, pitch_breakdown, linear_footage, lat, lng')
+    .eq('id', report_id)
+    .eq('pro_id', pro_id)
+    .single()
+
+  if (reportErr || !report) return apiError('Report not found or access denied', 403)
+
+  if (!report.linear_footage) {
+    return apiError('Linear footage not yet computed — run DSM analysis first', 422)
+  }
+
+  // 3. Fetch pro profile
+  const { data: pro } = await sb
+    .from('pros')
+    .select('full_name, company_name, email, phone')
+    .eq('id', pro_id)
+    .single()
+
+  // 4. Build PDF data with safe defaults for every nullable field
+  const pitchBreakdown = mapPitchBreakdown(
+    Array.isArray(report.pitch_breakdown) ? report.pitch_breakdown : []
+  )
+
+  const premiumData = {
+    address: (report.address as string | null) ?? 'Unknown Address',
+    proName: (pro?.full_name ?? pro?.company_name ?? 'ProGuild Pro'),
+    proEmail: (pro?.email ?? ''),
+    proPhone: (pro?.phone ?? ''),
+    generatedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+    imageryDate: (report.imagery_date as string | null) ?? '',
+    totalSqft: Number(report.total_sqft) || 0,
+    totalSquaresOrder: Number(report.total_squares_order) || 0,
+    facetCount: Number(report.facet_count) || 0,
+    dominantPitch: (report.dominant_pitch as string | null) ?? '6/12',
+    wasteFactor: Number(report.waste_factor) || 13,
+    pitchBreakdown,
+    linearFootage: report.linear_footage as PremiumLinearFootage,
+    lat: Number(report.lat) || 0,
+    lng: Number(report.lng) || 0,
+  }
+
+  // 5. Render PDF
+  let pdfBuffer: Buffer
   try {
-    const body = await req.json() as { report_id: string; pro_id: string }
-    const { report_id, pro_id } = body
+    const doc = buildPremiumRoofReportPDF(premiumData)
+    pdfBuffer = await renderToBuffer(doc)
+  } catch (e) {
+    console.error('[premium-pdf] render error:', e)
+    return apiError('PDF rendering failed', 500, e)
+  }
 
-    console.log('[premium-pdf] starting for report:', report_id, 'pro:', pro_id)
+  // 6. Upload to R2
+  let r2, bucket
+  try {
+    r2 = getR2Client()
+    bucket = getR2Bucket()
+  } catch (e) {
+    console.error('[premium-pdf] R2 config error:', e)
+    return apiError('Storage not configured', 503, e)
+  }
 
-    if (!report_id || !pro_id) {
-      return NextResponse.json({ error: 'report_id and pro_id required' }, { status: 400 })
-    }
+  const now = new Date()
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const safeAddr = ((report.address as string | null) ?? 'report')
+    .replace(/[^a-zA-Z0-9]/g, '_')
+    .slice(0, 40)
+  const r2Key = `reports/${pro_id}/premium/${dateStr}-${report_id}-premium.pdf`
 
-    const sb = getSupabaseAdmin()
-
-    // ── Step 1: Fetch report row ─────────────────────────────────────────────
-    const { data: reportRow, error: fetchErr } = await sb
-      .from('roof_reports')
-      .select('*')
-      .eq('id', report_id)
-      .eq('pro_id', pro_id)
-      .single()
-
-    if (fetchErr || !reportRow) {
-      console.error('[premium-pdf] report not found:', fetchErr)
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 })
-    }
-
-    console.log('[premium-pdf] report found, linear_footage:', JSON.stringify(reportRow.linear_footage))
-
-    // ── Step 2: Fetch pro details ────────────────────────────────────────────
-    const { data: pro } = await sb
-      .from('pros')
-      .select('full_name, email, phone, company_name')
-      .eq('id', pro_id)
-      .single()
-
-    // ── Step 3: Build premium PDF ────────────────────────────────────────────
-    console.log('[premium-pdf] building PDF...')
-
-    const premiumData = {
-      address: (reportRow.address as string) || 'Unknown Address',
-      proName: (pro?.full_name || pro?.company_name || 'ProGuild Pro') as string,
-      proEmail: (pro?.email || '') as string,
-      proPhone: (pro?.phone || '') as string,
-      generatedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      imageryDate: (reportRow.imagery_date as string) || '',
-      totalSqft: (reportRow.total_sqft as number) || 0,
-      totalSquaresOrder: (reportRow.total_squares_order as number) || 0,
-      facetCount: (reportRow.facet_count as number) || 0,
-      dominantPitch: (reportRow.dominant_pitch as string) || '6/12',
-      wasteFactor: (reportRow.waste_factor as number) || 13,
-      pitchBreakdown: (reportRow.pitch_breakdown || []) as Array<{ pitch: string; area: number; squares: number; pct: number; isLowSlope: boolean }>,
-      linearFootage: (reportRow.linear_footage as import('@/lib/roofing/premiumReportPdf').PremiumLinearFootage) || null,
-      lat: (reportRow.lat as number) || 0,
-      lng: (reportRow.lng as number) || 0,
-    }
-
-    const pdfDoc = buildPremiumRoofReportPDF(premiumData)
-    const pdfBuffer = await renderToBuffer(pdfDoc)
-    console.log('[premium-pdf] PDF rendered, bytes:', pdfBuffer.byteLength)
-
-    // ── Step 4: Upload to R2 ─────────────────────────────────────────────────
-    const now = new Date()
-    const r2Key = `reports/${pro_id}/premium/${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${report_id}-premium.pdf`
-    const safeAddr = ((reportRow.address as string) || 'report').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40)
-
-    const r2 = getR2Client()
+  try {
     await r2.send(new PutObjectCommand({
-      Bucket: R2_BUCKET,
+      Bucket: bucket,
       Key: r2Key,
       Body: pdfBuffer,
       ContentType: 'application/pdf',
       ContentDisposition: `attachment; filename="${safeAddr}_ProGuild_Premium.pdf"`,
     }))
-    console.log('[premium-pdf] uploaded to R2:', r2Key)
-
-    const signedUrl = await getSignedUrl(
-      r2,
-      new GetObjectCommand({ Bucket: R2_BUCKET, Key: r2Key }),
-      { expiresIn: 60 * 60 * 24 * 7 }
-    )
-
-    // ── Step 5: Store premium_r2_key ─────────────────────────────────────────
-    await sb.from('roof_reports').update({ premium_r2_key: r2Key }).eq('id', report_id)
-    console.log('[premium-pdf] done')
-
-    return NextResponse.json({ success: true, url: signedUrl })
-
   } catch (e) {
-    console.error('[premium-pdf] FATAL:', e)
-    return NextResponse.json({
-      error: 'Internal error',
-      detail: String(e).slice(0, 500)
-    }, { status: 500 })
+    console.error('[premium-pdf] R2 upload error:', e)
+    return apiError('Failed to upload PDF', 502, e)
   }
+
+  // 7. Sign URL
+  let signedUrl: string
+  try {
+    signedUrl = await getSignedUrl(
+      r2,
+      new GetObjectCommand({ Bucket: bucket, Key: r2Key }),
+      { expiresIn: SIGNED_URL_TTL }
+    )
+  } catch (e) {
+    console.error('[premium-pdf] sign error:', e)
+    return apiError('Failed to generate download URL', 502, e)
+  }
+
+  // 8. Persist r2 key — non-fatal if fails
+  const { error: updateErr } = await sb
+    .from('roof_reports')
+    .update({ premium_r2_key: r2Key })
+    .eq('id', report_id)
+    .eq('pro_id', pro_id)
+
+  if (updateErr) console.error('[premium-pdf] persist key error:', updateErr.message)
+
+  return NextResponse.json({ success: true, url: signedUrl })
 }

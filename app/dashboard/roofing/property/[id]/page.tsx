@@ -104,6 +104,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         if (d.property) { setProperty(d.property); setForm(d.property) }
         setLeads(d.leads || [])
       })
+      .catch(() => { setLoading(false) })
       .finally(() => setLoading(false))
   }, [id, session])
 
@@ -113,6 +114,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
       .then(r => r.json())
       .then(d => setReports(d.reports || []))
+      .catch(() => setReportErr('Failed to load reports — please refresh'))
       .finally(() => setReportsLoading(false))
   }, [id, session])
 
@@ -152,7 +154,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         }))
       }
     } catch {
-      setReportErr('Network error -- please try again')
+      setReportErr('Network error — please retry')
     } finally {
       setGenerating(false)
     }
@@ -169,32 +171,15 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     finally { setDeletingReportId(null) }
   }
 
-  async function getLinearFootage(report: RoofReport & { lat?: number; lng?: number }) {
-    if (!report.lat || !report.lng) return
-    setDsmLoadingId(report.id)
-    try {
-      const res = await fetch('/api/roofing/dsm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id }),
-      })
-      const data = await res.json()
-      if (data.linear_footage) {
-        setReports(prev => prev.map(r =>
-          r.id === report.id ? { ...r, linear_footage: data.linear_footage } : r
-        ))
-      }
-    } catch (e) { console.log('[dsm] error:', e) }
-    finally { setDsmLoadingId(null) }
-  }
 
   // Staging: always show premium. Prod: check plan when Stripe is live.
-  const IS_STAGING = process.env.NEXT_PUBLIC_SITE_URL?.includes('staging') ?? true
-  const canAccessPremium = IS_STAGING // TODO: replace with session.plan === 'pro' || session.plan === 'elite'
+  // Staging gate: NEXT_PUBLIC_VERCEL_ENV is auto-set by Vercel ('production'|'preview'|'development')
+  // In production: replace with Stripe plan check (session.plan === 'pro' || 'elite')
+  const canAccessPremium = process.env.NEXT_PUBLIC_VERCEL_ENV !== 'production'
 
   // Step 1: Run DSM analysis → stores linear_footage on report row
   async function getLinearFootageAndPDF(report: RoofReport & { lat?: number; lng?: number }) {
-    if (!canAccessPremium) return
+    if (!canAccessPremium || !session) return
     if (!report.lat || !report.lng) {
       setReportErr('Location data missing — please generate a new report to use this feature.')
       return
@@ -207,7 +192,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       const dsmRes = await fetch('/api/roofing/dsm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id }),
+        body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id, pro_id: session.id }),
       })
       const dsmData = await dsmRes.json()
       console.log('[ui] DSM response:', JSON.stringify(dsmData).slice(0, 200))
@@ -228,7 +213,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       const pdfRes = await fetch('/api/roofing/premium-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report_id: report.id, pro_id: session?.id }),
+        body: JSON.stringify({ report_id: report.id, pro_id: session.id }),
       })
       const pdfData = await pdfRes.json()
       console.log('[ui] PDF response:', JSON.stringify(pdfData).slice(0, 200))
@@ -254,8 +239,6 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     }
   }
 
-  // Keep getPremiumReport as alias for backwards compat
-  const getPremiumReport = getLinearFootageAndPDF
 
   async function handleSave() {
     if (!session || !property) return
@@ -485,7 +468,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
             {/* ── TOOL SUITE ─────────────────────────────────────── */}
             <style>{`
               .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
-              .tool-btn { position: relative; display: flex; flex-direction: column; align-items: flex-start; padding: 14px 14px 12px; border-radius: 16px; cursor: pointer; border: 1.5px solid; text-align: left; transition: transform 0.12s ease, box-shadow 0.12s ease; overflow: hidden; }
+              .tool-btn { position: relative; display: flex; flex-direction: row; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; cursor: pointer; border: 1.5px solid; text-align: left; transition: transform 0.12s ease, box-shadow 0.12s ease; min-height: 60px; }
               .tool-btn:hover { transform: translateY(-1px); }
               .tool-btn:active { transform: translateY(0px); }
               .report-card { position: relative; display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-radius: 18px; cursor: pointer; border: none; width: 100%; text-align: left; margin-top: 10px; transition: transform 0.12s ease, box-shadow 0.15s ease; overflow: hidden; }
@@ -505,7 +488,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.18)'; e.currentTarget.style.borderColor = '#0F766E' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = dk ? '#1E3A4A' : '#CCFBF1' }}>
                 {/* Icon */}
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#0F766E,#14B8A6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#0F766E,#14B8A6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 3px 10px rgba(15,118,110,0.3)' }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="3,20 12,4 21,20" fill="rgba(255,255,255,0.15)"/>
                     <line x1="3" y1="20" x2="21" y2="20"/>
@@ -515,9 +498,11 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                     <line x1="5.5" y1="14" x2="18.5" y2="14" strokeDasharray="2 1.5" opacity="0.6"/>
                   </svg>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: dk ? '#E2E8F0' : '#0A1628', letterSpacing: '-0.01em', marginBottom: 2 }}>ProMeasure</div>
-                <div style={{ fontSize: 11, color: dk ? '#64748B' : '#0F766E', fontWeight: 500 }}>Draw roof polygons</div>
-                <svg style={{ position: 'absolute', bottom: 12, right: 12 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#64748B' : '#0F766E'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: dk ? '#E2E8F0' : '#0A1628', letterSpacing: '-0.01em', marginBottom: 1 }}>ProMeasure</div>
+                  <div style={{ fontSize: 11, color: dk ? '#64748B' : '#0F766E', fontWeight: 500 }}>Draw roof polygons</div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#64748B' : '#0F766E'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
 
               {/* Calculator */}
@@ -527,7 +512,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(37,99,235,0.18)'; e.currentTarget.style.borderColor = '#2563EB' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = dk ? '#1E2D45' : '#BFDBFE' }}>
                 {/* Icon */}
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#1D4ED8,#3B82F6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, boxShadow: '0 4px 12px rgba(37,99,235,0.35)' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#1D4ED8,#3B82F6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 3px 10px rgba(37,99,235,0.3)' }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="4" y="3" width="16" height="18" rx="3" fill="rgba(255,255,255,0.12)"/>
                     <rect x="7" y="6" width="10" height="3" rx="1.2" fill="rgba(255,255,255,0.9)" stroke="none"/>
@@ -539,9 +524,11 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                     <rect x="14" y="15.5" width="3" height="2.5" rx="0.8" fill="rgba(147,210,255,0.9)" stroke="none"/>
                   </svg>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: dk ? '#E2E8F0' : '#0A1628', letterSpacing: '-0.01em', marginBottom: 2 }}>Calculator</div>
-                <div style={{ fontSize: 11, color: dk ? '#64748B' : '#1D4ED8', fontWeight: 500 }}>Material costs</div>
-                <svg style={{ position: 'absolute', bottom: 12, right: 12 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#64748B' : '#1D4ED8'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: dk ? '#E2E8F0' : '#0A1628', letterSpacing: '-0.01em', marginBottom: 1 }}>Calculator</div>
+                  <div style={{ fontSize: 11, color: dk ? '#64748B' : '#1D4ED8', fontWeight: 500 }}>Material costs</div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#64748B' : '#1D4ED8'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
 
@@ -639,7 +626,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               ) : reports.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: t.textSubtle, fontSize: 14 }}>
                   No reports yet.<br />
-                  <span style={{ fontSize: 13 }}>Click &ldquo;Generate Report&rdquo; above to create your first satellite measurement report.</span>
+                  <span style={{ fontSize: 13 }}>Click &ldquo;Generate Report&rdquo; to create your first satellite measurement report.</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -648,7 +635,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 12, border: `1px solid ${t.cardBorder}`, background: t.cardBgAlt }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: 14, fontWeight: 700, color: t.textPri, margin: '0 0 2px' }}>
-                          {report.total_squares_order.toFixed(1)} sq . {report.dominant_pitch} . {report.waste_factor}% waste
+                          {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste
                         </p>
                         <p style={{ fontSize: 12, color: t.textSubtle, margin: '0 0 4px' }}>
                           {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} . {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} . {report.facet_count} facets . {timeAgo(report.created_at)}
@@ -690,11 +677,11 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                             </a>
                           ) : dsmLoadingId === report.id ? (
                             <div style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, opacity: 0.8, whiteSpace: 'nowrap' }}>
-                              {premiumLoadingId === report.id ? 'Building PDF...' : 'Calculating...'}
+                              {premiumLoadingId === report.id ? 'Building PDF...' : 'Analyzing roof...'}
                             </div>
                           ) : (
-                            <button onClick={() => getPremiumReport(report)} disabled={dsmLoadingId !== null || premiumLoadingId !== null}
-                              style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: (dsmLoadingId !== null || premiumLoadingId !== null) ? 0.4 : 1 }}>
+                            <button onClick={() => getLinearFootageAndPDF(report)} disabled={dsmLoadingId === report.id || premiumLoadingId === report.id}
+                              style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: (dsmLoadingId === report.id || premiumLoadingId === report.id) ? 0.4 : 1 }}>
                               Get Linear Footage
                             </button>
                           )
