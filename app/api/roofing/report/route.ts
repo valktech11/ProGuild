@@ -428,11 +428,13 @@ async function getGeminiCondition(lat: number, lng: number): Promise<string | nu
 
     // Step 2: send to Gemini Vision for roof condition assessment
     const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. 
-Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment.
+First, identify the primary roofing material based on visible color, texture, and sheen — classify it as one of: Asphalt Shingle, Architectural Shingle, Clay Tile, Concrete Tile, Metal, Slate, TPO, EPDM, or Modified Bitumen.
+Then provide a concise 2-3 sentence professional assessment of the roof condition.
 Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, 
 flashing condition, and overall material condition. 
 Be specific about what you observe. Do not mention the image format or satellite technology.
-Write in the third person as if writing a field note for a roofing contractor.`
+Write in the third person as if writing a field note for a roofing contractor.
+Format: Begin with the material type (e.g. 'Architectural shingles —'), then the condition assessment.`
 
     // Gemini Vision — model fallback chain on quota/deprecation errors
     // API version: v1beta — required for thinkingConfig support on gemini-2.5-flash

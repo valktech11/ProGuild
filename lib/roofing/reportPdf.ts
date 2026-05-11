@@ -175,7 +175,7 @@ const S = StyleSheet.create({
   directionsLink:   { fontSize: 9, color: TEAL, textDecoration: 'underline' },
 
   // Gemini AI condition assessment
-  geminiBox:    { marginTop: 14, padding: '10 12', backgroundColor: '#EFF6FF', borderRadius: 6, borderLeft: '3 solid #3B82F6' },
+  geminiBox:    { marginTop: 26, padding: '10 12', backgroundColor: '#EFF6FF', borderRadius: 6, borderLeft: '3 solid #3B82F6' },
   geminiLabel:  { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#1E40AF', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
   geminiTxt:    { fontSize: 9, color: '#1E3A5F', lineHeight: 1.6 },
 
