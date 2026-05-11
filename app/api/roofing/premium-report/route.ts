@@ -49,22 +49,21 @@ export async function POST(req: NextRequest) {
 
     console.log('[premium] starting premium report for', lat, lng, 'report:', report_id)
 
-    // ── Step 1: Run DSM analysis to get linear footage + facet polygons ──────
-    const dsmRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://staging.proguild.ai'}/api/roofing/dsm`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat, lng, report_id }),
-    })
-    const dsmData = await dsmRes.json() as { linear_footage?: Record<string, unknown>; error?: string }
+    const sb = getSupabaseAdmin()
 
-    if (!dsmData.linear_footage) {
-      console.log('[premium] DSM failed:', dsmData.error)
-      // Non-fatal — continue with what we have
+    // ── Step 1: Run DSM analysis directly (no internal HTTP call) ───────────
+    const { runDsmAnalysis } = await import('@/lib/roofing/dsmAnalysis')
+    const linearFootageResult = await runDsmAnalysis(lat, lng, GOOGLE_KEY)
+
+    if (!linearFootageResult) {
+      console.log('[premium] DSM returned null — continuing without linear footage')
+    } else {
+      console.log('[premium] DSM done:', JSON.stringify(linearFootageResult))
+      await sb.from('roof_reports').update({ linear_footage: linearFootageResult }).eq('id', report_id)
     }
-    console.log('[premium] DSM done:', JSON.stringify(dsmData.linear_footage))
+    const dsmData = { linear_footage: linearFootageResult }
 
     // ── Step 2: Fetch existing report data from DB ───────────────────────────
-    const sb = getSupabaseAdmin()
     const { data: reportRow, error: fetchErr } = await sb
       .from('roof_reports')
       .select('*')
