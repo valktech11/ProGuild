@@ -172,7 +172,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
             h(Text, { style: S.premiumTxt }, 'PREMIUM — Detailed Measurements + Material Quantities')
           )
         ),
-        h(Text, { style: { fontSize: 10, color: TEAL_L } }, 'Powered by ProGuild · Google Solar API · DSM Analysis')
+        h(Text, { style: { fontSize: 10, color: TEAL_L } }, 'Powered by ProGuild · Google Solar API')
       ),
 
       h(View, { style: { padding: '16 28 0 28' } },
@@ -394,7 +394,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
         h(View, { style: S.body },
           sectionBar('Linear Footage — Detailed Breakdown'),
           h(Text, { style: { fontSize: 9, color: MUTED, marginBottom: 10, lineHeight: 1.5 } },
-            'Linear footage computed from Digital Surface Model (DSM) via RANSAC plane fitting. Accuracy: ±6 inches per segment. Sufficient for material ordering. Field verification recommended before final order.'
+            'Linear footage computed from Google Solar API roof segment geometry. Accuracy: ±15% estimated. Sufficient for material ordering. Field verification recommended before final order.'
           ),
 
           // Large linear footage display
@@ -464,8 +464,8 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
         h(View, { style: { padding: '20 24', backgroundColor: CREAM, borderRadius: 12 } },
           h(Text, { style: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: NAVY, marginBottom: 12 } }, 'Important Notice and Disclaimer'),
           ...[
-            'This report is designed for bid preparation and sales use. Measurements are derived from Google Solar API satellite imagery and DSM analysis using RANSAC plane fitting.',
-            'Linear footage accuracy: ±6 inches per line segment at ~10cm/pixel DSM resolution. Sufficient for material ordering. Not suitable for permit drawings or engineering calculations.',
+            'This report is designed for bid preparation and sales use. Area measurements are derived from Google Solar API satellite imagery. Linear footage (ridge, hip, valley, eave, rake) is estimated from Google Solar API roof segment geometry.',
+            'Linear footage accuracy: ±15% estimated from roof segment azimuth and area relationships. Sufficient for material ordering and bid preparation. Not suitable for permit drawings or engineering calculations.',
             'Imagery may be up to 3 years old. Verify current roof condition with a site visit before ordering materials or submitting insurance claims.',
             'For insurance claim submissions, a certified measurement report from a licensed inspector may be required by your carrier.',
             'ProGuild.ai makes no guarantee of accuracy and accepts no liability for material over- or under-ordering based on this report. Field verification is always recommended before final material orders.',

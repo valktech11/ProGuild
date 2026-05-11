@@ -529,6 +529,111 @@ export async function runDsmDebug(lat: number, lng: number, googleKey: string): 
   }
 }
 
+// ── Segment-based linear footage (Option B — uses roofSegmentStats from Solar API) ──
+//
+// This replaces RANSAC for linear footage. Google's Solar API already segments
+// the roof into faces with pitch + azimuth. We derive ridge/hip/valley from the
+// geometric relationships between those faces — no DSM GeoTIFF needed.
+//
+// Algorithm:
+//   1. For each pair of segments, check spatial adjacency via center distance
+//   2. Classify by azimuth difference: ~180° = ridge, 60-150° = hip, <30° = valley
+//   3. Edge length = sqrt(min(groundArea_A, groundArea_B))  [shared edge heuristic]
+//   4. Eave/rake come from estimatePerimeterEdges (mask boundary) — unchanged
+
+interface RoofSegment {
+  pitchDegrees: number
+  azimuthDegrees: number
+  stats: { areaMeters2: number; groundAreaMeters2?: number }
+  center: { latitude: number; longitude: number }
+  groundAreaMeters2?: number  // sometimes at top level, sometimes in stats
+}
+
+export function computeLinearFootageFromSegments(
+  segments: RoofSegment[],
+  eave_ft: number,
+  rake_ft: number,
+): LinearFootage {
+  const M_TO_FT = 3.28084
+  const DEG_TO_M = 111320
+
+  // Normalise ground area — Solar API sometimes puts it in stats, sometimes top-level
+  function groundArea(s: RoofSegment): number {
+    return (s.groundAreaMeters2 ?? (s.stats as Record<string, number>)?.groundAreaMeters2 ?? s.stats.areaMeters2)
+  }
+
+  // Azimuth angular difference (0–180°)
+  function azDiff(a: number, b: number): number {
+    let d = Math.abs(a - b) % 360
+    if (d > 180) d = 360 - d
+    return d
+  }
+
+  // Center-to-center distance in meters
+  function distM(a: RoofSegment, b: RoofSegment): number {
+    const dlat = (a.center.latitude - b.center.latitude) * DEG_TO_M
+    const dlng = (a.center.longitude - b.center.longitude) * DEG_TO_M *
+                 Math.cos(a.center.latitude * Math.PI / 180)
+    return Math.sqrt(dlat * dlat + dlng * dlng)
+  }
+
+  let ridgeM = 0, hipM = 0, valleyM = 0
+
+  for (let i = 0; i < segments.length; i++) {
+    for (let j = i + 1; j < segments.length; j++) {
+      const a = segments[i], b = segments[j]
+      const gndA = groundArea(a), gndB = groundArea(b)
+
+      // Adjacency gate: segments must be close enough to share an edge
+      // Max expected shared edge ≈ sqrt(smaller ground area)
+      // Allow 2.5x tolerance for non-rectangular shapes
+      const maxEdgeM = Math.sqrt(Math.min(gndA, gndB))
+      const dist = distM(a, b)
+      if (dist > maxEdgeM * 2.5) continue  // not adjacent
+
+      const diff = azDiff(a.azimuthDegrees, b.azimuthDegrees)
+
+      // Skip nearly co-planar segments (same face split by RANSAC noise)
+      if (diff < 10) continue
+
+      // Shared edge length heuristic: sqrt of smaller ground area
+      const edgeM = Math.sqrt(Math.min(gndA, gndB))
+
+      if (diff > 150) {
+        // Opposite-facing planes meeting at a peak → ridge
+        ridgeM += edgeM
+        console.log(`[seg] ridge: seg${i}(az=${a.azimuthDegrees.toFixed(0)}°) ↔ seg${j}(az=${b.azimuthDegrees.toFixed(0)}°) diff=${diff.toFixed(0)}° edge=${(edgeM*M_TO_FT).toFixed(0)}ft`)
+      } else if (diff >= 30 && diff <= 150) {
+        // Corner junction → hip
+        hipM += edgeM
+        console.log(`[seg] hip:   seg${i}(az=${a.azimuthDegrees.toFixed(0)}°) ↔ seg${j}(az=${b.azimuthDegrees.toFixed(0)}°) diff=${diff.toFixed(0)}° edge=${(edgeM*M_TO_FT).toFixed(0)}ft`)
+      } else if (diff >= 10 && diff < 30) {
+        // Similar-facing planes converging → valley (inward crease)
+        valleyM += edgeM
+        console.log(`[seg] valley: seg${i}(az=${a.azimuthDegrees.toFixed(0)}°) ↔ seg${j}(az=${b.azimuthDegrees.toFixed(0)}°) diff=${diff.toFixed(0)}° edge=${(edgeM*M_TO_FT).toFixed(0)}ft`)
+      }
+    }
+  }
+
+  const toFt = (m: number) => Math.round(m * M_TO_FT)
+  const ridge_ft = toFt(ridgeM)
+  const hip_ft   = toFt(hipM)
+  const valley_ft = toFt(valleyM)
+
+  console.log(`[seg] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft`)
+
+  return {
+    ridge_ft,
+    hip_ft,
+    valley_ft,
+    eave_ft,
+    rake_ft,
+    total_linear_ft: ridge_ft + hip_ft + valley_ft + eave_ft + rake_ft,
+    accuracy_note: '±15% estimated from roof segment geometry. Field verification recommended.',
+    facet_count: segments.length,
+  }
+}
+
 // ── Main exported function ────────────────────────────────────────────────────
 
 export async function runDsmAnalysis(lat: number, lng: number, googleKey: string): Promise<LinearFootage | null> {

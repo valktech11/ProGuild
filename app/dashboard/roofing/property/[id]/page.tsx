@@ -49,9 +49,6 @@ interface RoofReport {
   r2_url: string
   linear_footage?: LinearFootage | null
   premium_r2_url?: string | null
-  lat?: number
-  lng?: number
-  address?: string
 }
 
 function Ic({ children, size = 16, color = 'currentColor' }: { children: React.ReactNode; size?: number; color?: string }) {
@@ -178,21 +175,17 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   const canAccessPremium = process.env.NEXT_PUBLIC_VERCEL_ENV !== 'production'
 
   // Step 1: Run DSM analysis → stores linear_footage on report row
-  async function getLinearFootageAndPDF(report: RoofReport & { lat?: number; lng?: number }) {
+  async function getLinearFootageAndPDF(report: RoofReport) {
     if (!canAccessPremium || !session) return
-    if (!report.lat || !report.lng) {
-      setReportErr('Location data missing — please generate a new report to use this feature.')
-      return
-    }
     setDsmLoadingId(report.id)
     setReportErr(null)
     try {
-      // Step 1: Run DSM — stores linear_footage in DB (up to 60s)
-      console.log('[ui] calling DSM for report:', report.id, 'lat:', report.lat, 'lng:', report.lng)
+      // Step 1: Compute linear footage from Solar API segment geometry (fast, no GeoTIFF)
+      console.log('[ui] calling segment analysis for report:', report.id)
       const dsmRes = await fetch('/api/roofing/dsm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id, pro_id: session.id }),
+        body: JSON.stringify({ report_id: report.id, pro_id: session.id }),
       })
       const dsmData = await dsmRes.json()
       console.log('[ui] DSM response:', JSON.stringify(dsmData).slice(0, 200))

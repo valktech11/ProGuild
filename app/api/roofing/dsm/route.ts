@@ -1,61 +1,93 @@
 // app/api/roofing/dsm/route.ts
-// POST /api/roofing/dsm — runs DSM+RANSAC, stores linear_footage on report
-// GET  /api/roofing/dsm — debug: raw Solar API dataLayers response
+// POST /api/roofing/dsm — computes linear footage from roofSegmentStats in solar_raw
+// GET  /api/roofing/dsm — debug modes (staging only)
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { runDsmAnalysis, fetchDataLayers } from '@/lib/roofing/dsmAnalysis'
+import { computeLinearFootageFromSegments, fetchDataLayers } from '@/lib/roofing/dsmAnalysis'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 
 const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
 
 export async function POST(req: NextRequest) {
-  // 1. Parse body safely
+  // 1. Parse body
   let body: unknown
   try { body = await req.json() }
   catch { return apiError('Invalid JSON in request body', 400) }
 
   if (!body || typeof body !== 'object') return apiError('Request body must be a JSON object', 400)
-  const { lat, lng, report_id, pro_id } = body as Record<string, unknown>
+  const { report_id, pro_id } = body as Record<string, unknown>
 
-  // 2. Validate coordinates
-  const coords = validateCoordinates(lat, lng)
-  if (!coords.valid) return apiError(coords.error, 400)
-
-  // 3. Validate and authenticate — both IDs required to prevent IDOR
+  // 2. Validate IDs
   if (!isValidUuid(report_id)) return apiError('report_id must be a valid UUID', 400)
-  if (!isValidUuid(pro_id)) return apiError('pro_id must be a valid UUID', 400)
+  if (!isValidUuid(pro_id))    return apiError('pro_id must be a valid UUID', 400)
 
-  if (!GOOGLE_KEY) return apiError('Google Solar API not configured', 503)
-
-  // 4. Verify ownership before running expensive computation
   const sb = getSupabaseAdmin()
-  const { data: owned, error: ownerErr } = await sb
+
+  // 3. Fetch report — verify ownership + pull solar_raw and perimeter footage
+  const { data: report, error: fetchErr } = await sb
     .from('roof_reports')
-    .select('id')
+    .select('id, solar_raw, linear_footage')
     .eq('id', report_id)
     .eq('pro_id', pro_id)
     .single()
 
-  if (ownerErr || !owned) return apiError('Report not found or access denied', 403)
+  if (fetchErr || !report) return apiError('Report not found or access denied', 403)
 
-  // 5. Run DSM analysis
+  // 4. Extract roofSegmentStats from solar_raw
+  const solar = report.solar_raw as Record<string, unknown> | null
+  if (!solar) return apiError('No Solar API data on this report — regenerate the Bid Report first', 422)
+
+  const potential = solar.solarPotential as Record<string, unknown> | null
+  const segments = potential?.roofSegmentStats as unknown[] | null
+
+  if (!segments || segments.length === 0) {
+    return apiError('No roof segments in Solar API data — regenerate the Bid Report first', 422)
+  }
+
+  // 5. Get eave/rake — use existing linear_footage if available (has correct perimeter values),
+  //    otherwise derive from Solar API building stats perimeter
+  const existingLf = report.linear_footage as Record<string, number> | null
+  let eave_ft = existingLf?.eave_ft ?? 0
+  let rake_ft  = existingLf?.rake_ft ?? 0
+
+  // If no prior linear_footage, estimate from Solar API ground area
+  // groundAreaMeters2 total ≈ building footprint → perimeter ≈ 4*sqrt(area)
+  // Split 70/30 eave/rake as per original heuristic
+  if (eave_ft === 0 && rake_ft === 0) {
+    const totalGndM2 = (segments as Array<Record<string, unknown>>).reduce((sum, s) => {
+      const stats = s.stats as Record<string, number> | undefined
+      return sum + (s.groundAreaMeters2 as number ?? stats?.groundAreaMeters2 ?? 0)
+    }, 0)
+    if (totalGndM2 > 0) {
+      const perimeterM = 4 * Math.sqrt(totalGndM2)  // rough square-building estimate
+      const M_TO_FT = 3.28084
+      eave_ft = Math.round(perimeterM * 0.70 * M_TO_FT)
+      rake_ft  = Math.round(perimeterM * 0.30 * M_TO_FT)
+      console.log(`[dsm] estimated eave=${eave_ft}ft rake=${rake_ft}ft from ground area ${totalGndM2.toFixed(0)}m²`)
+    }
+  } else {
+    console.log(`[dsm] using existing eave=${eave_ft}ft rake=${rake_ft}ft from prior linear_footage`)
+  }
+
+  // 6. Compute linear footage from segment geometry
   let linear
   try {
-    linear = await runDsmAnalysis(coords.lat, coords.lng, GOOGLE_KEY)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    linear = computeLinearFootageFromSegments(segments as any[], eave_ft, rake_ft)
   } catch (e) {
-    console.error('[dsm] analysis error:', e)
-    return apiError('DSM analysis failed', 500, e)
+    console.error('[dsm] segment analysis error:', e)
+    return apiError('Linear footage computation failed', 500, e)
   }
 
   if (!linear) {
-    return apiError('No roof planes found — roof may be flat, small, or outside Solar API coverage', 422)
+    return apiError('Could not compute linear footage from roof segment data', 422)
   }
 
-  // 6. Persist — double-confirm ownership on write
+  // 7. Persist — double-confirm ownership on write
   const { error: updateErr } = await sb
     .from('roof_reports')
     .update({ linear_footage: linear })
@@ -64,11 +96,11 @@ export async function POST(req: NextRequest) {
 
   if (updateErr) {
     console.error('[dsm] persist error:', updateErr.message)
-    // Non-fatal: return result even if DB write fails
   }
 
   return NextResponse.json({ success: true, linear_footage: linear })
 }
+
 
 export async function GET(req: NextRequest) {
   // Staging gate
