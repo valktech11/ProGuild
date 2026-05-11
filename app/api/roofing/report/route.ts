@@ -648,6 +648,7 @@ export async function POST(req: NextRequest) {
       nearestSupplier,
       geminiCondition,
       historicDistrict,
+      linearFootage: null,   // computed async by /api/roofing/dsm after report saved
     }
 
     // ── 9. Render PDF ─────────────────────────────────────────────

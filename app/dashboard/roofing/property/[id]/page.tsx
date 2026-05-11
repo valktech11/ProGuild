@@ -26,6 +26,17 @@ interface LinkedLead {
   quoted_amount: number | null; created_at: string; scheduled_date: string | null
 }
 
+interface LinearFootage {
+  ridge_ft: number
+  hip_ft: number
+  valley_ft: number
+  rake_ft: number
+  eave_ft: number
+  total_linear_ft: number
+  accuracy_note: string
+  facet_count: number
+}
+
 interface RoofReport {
   id: string
   created_at: string
@@ -36,6 +47,7 @@ interface RoofReport {
   waste_factor: number
   imagery_date: string
   r2_url: string
+  linear_footage?: LinearFootage | null
 }
 
 function Ic({ children, size = 16, color = 'currentColor' }: { children: React.ReactNode; size?: number; color?: string }) {
@@ -135,7 +147,24 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
           address: fullAddress,
         }))
       }
-    } catch (e) {
+      // Fire DSM analysis as a background task (non-blocking)
+      // Uses the geocoded lat/lng returned by the report pipeline
+      if (d.geocodedLat && d.geocodedLng && d.report_id) {
+        fetch('/api/roofing/dsm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: d.geocodedLat, lng: d.geocodedLng, report_id: d.report_id }),
+        }).then(async dsmRes => {
+          const dsmData = await dsmRes.json()
+          if (dsmData.linear_footage) {
+            // Update the report in state with linear footage
+            setReports(prev => prev.map(rep =>
+              rep.id === d.report_id ? { ...rep, linear_footage: dsmData.linear_footage } : rep
+            ))
+            console.log('[dsm] linear footage received:', dsmData.linear_footage)
+          }
+        }).catch(e => console.log('[dsm] background analysis error:', e))
+      }
       setReportErr('Network error — please try again')
     } finally {
       setGenerating(false)
@@ -491,9 +520,28 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                         <p style={{ fontSize: 14, fontWeight: 700, color: t.textPri, margin: '0 0 2px' }}>
                           {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste
                         </p>
-                        <p style={{ fontSize: 12, color: t.textSubtle, margin: 0 }}>
+                        <p style={{ fontSize: 12, color: t.textSubtle, margin: '0 0 4px' }}>
                           {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · {report.facet_count} facets · {timeAgo(report.created_at)}
                         </p>
+                        {report.linear_footage ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 4 }}>
+                            {[
+                              { label: 'Ridge', val: report.linear_footage.ridge_ft },
+                              { label: 'Hip', val: report.linear_footage.hip_ft },
+                              { label: 'Valley', val: report.linear_footage.valley_ft },
+                              { label: 'Eave', val: report.linear_footage.eave_ft },
+                              { label: 'Rake', val: report.linear_footage.rake_ft },
+                            ].map(({ label, val }) => (
+                              <span key={label} style={{ fontSize: 11, color: t.textSubtle }}>
+                                <span style={{ fontWeight: 600, color: '#0F766E' }}>{val} ft</span> {label}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: 11, color: t.textSubtle, margin: 0, fontStyle: 'italic' }}>
+                            Linear footage calculating…
+                          </p>
+                        )}
                       </div>
                       <div className="report-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                         <a href={report.r2_url} target="_blank" rel="noopener noreferrer"

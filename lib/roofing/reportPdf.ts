@@ -58,6 +58,7 @@ export interface ReportData {
   nearestSupplier: { name: string; vicinity: string; distance_miles: number } | null
   geminiCondition: string | null        // AI condition assessment paragraph
   historicDistrict: string | null       // e.g. "Lake Forest Historic District"
+  linearFootage: { ridge_ft: number; hip_ft: number; valley_ft: number; rake_ft: number; eave_ft: number; total_linear_ft: number } | null
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -450,6 +451,32 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
     h(Page, { size: 'LETTER', style: S.page },
       pageHeader(data.address, reportId),
       h(View, { style: S.body },
+
+        // ── Linear Footage (if available) ──────────────────────────────────
+        ...(data.linearFootage ? [
+          sectionBar('Linear Footage Summary'),
+          h(View, { style: { marginTop: 10, marginBottom: 16, padding: '10 12', backgroundColor: '#F0FDFA', borderRadius: 8, border: '1 solid #CCFBF1' } },
+            h(View, { style: { flexDirection: 'row', flexWrap: 'wrap', gap: 0 } },
+              ...[
+                { label: 'Ridge', val: data.linearFootage.ridge_ft, note: 'Ridge cap' },
+                { label: 'Hip', val: data.linearFootage.hip_ft, note: 'Hip cap' },
+                { label: 'Valley', val: data.linearFootage.valley_ft, note: 'Valley flash' },
+                { label: 'Eave', val: data.linearFootage.eave_ft, note: 'Drip edge / starter' },
+                { label: 'Rake', val: data.linearFootage.rake_ft, note: 'Rake drip edge' },
+              ].map(({ label, val, note }) =>
+                h(View, { style: { width: '20%', padding: '6 4', alignItems: 'center' } },
+                  h(Text, { style: { fontSize: 15, fontFamily: 'Helvetica-Bold', color: TEAL } }, val + ' ft'),
+                  h(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#0A1628', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.4 } }, label),
+                  h(Text, { style: { fontSize: 7, color: '#6B7280', marginTop: 1 } }, note)
+                )
+              )
+            ),
+            h(Text, { style: { fontSize: 7, color: '#6B7280', marginTop: 8, lineHeight: 1.4 } },
+              '\u00B1 6 inches per line segment. Sufficient for material ordering. Field verification recommended before final order.'
+            )
+          )
+        ] : []),
+
         sectionBar('Areas Per Pitch'),
         h(View, { style: S.tbl },
           h(View, { style: S.tblHead },
