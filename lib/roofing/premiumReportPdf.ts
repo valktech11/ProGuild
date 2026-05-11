@@ -255,7 +255,7 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
               )
             ),
             h(Text, { style: { fontSize: 7, color: MUTED, marginTop: 4 } },
-              '\u00B1 6 inches per line segment. Sufficient for material ordering. Field verification recommended.'
+              '\u00B1 20% estimated from roof segment geometry. Sufficient for material ordering. Field verification recommended.'
             )
           )
         ] : []),
