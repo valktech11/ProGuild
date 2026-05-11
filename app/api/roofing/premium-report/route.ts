@@ -14,6 +14,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { buildPremiumRoofReportPDF } from '@/lib/roofing/premiumReportPdf'
+import { renderToBuffer } from '@react-pdf/renderer'
 
 const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
 const R2_BUCKET  = process.env.R2_BUCKET_NAME || 'proguild-media-staging'
@@ -84,8 +86,7 @@ export async function POST(req: NextRequest) {
     // ── Step 4: Build premium PDF ────────────────────────────────────────────
     // TODO (next session): generate SVG diagrams and full EagleView-equivalent PDF
     // For now: build a data-rich text PDF as placeholder that includes all linear footage
-    const { buildPremiumRoofReportPDF } = await import('@/lib/roofing/premiumReportPdf')
-    const { renderToBuffer } = await import('@react-pdf/renderer')
+    console.log('[premium] building PDF')
 
     const premiumData = {
       address: reportRow.address as string,

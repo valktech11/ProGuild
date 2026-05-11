@@ -209,7 +209,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id, pro_id: session?.id }),
       })
       const data = await res.json()
-      if (!res.ok) { setReportErr(data.error || 'Linear footage generation failed'); return }
+      if (!res.ok) { setReportErr((data.error || 'Linear footage generation failed') + (data.detail ? ': ' + data.detail : '')); return }
       if (data.url) window.open(data.url, '_blank')
       // Refresh list to get premium_r2_url + linear_footage on the row
       const refreshed = await fetch(`/api/roofing/reports?pro_id=${session?.id}&property_id=${id}`)
