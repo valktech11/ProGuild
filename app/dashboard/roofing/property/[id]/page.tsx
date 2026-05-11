@@ -83,7 +83,6 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
   // Report generation
   const [generating, setGenerating] = useState(false)
-  const [generatingPremium, setGeneratingPremium] = useState(false)
   const [lastReport, setLastReport] = useState(0) // timestamp of last generate click
   const [reportErr, setReportErr] = useState<string | null>(null)
   const [reports, setReports] = useState<RoofReport[]>([])
@@ -118,12 +117,12 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   }, [id, session])
 
   async function generateReport() {
-    const now = Date.now()
-    if (now - lastReport < 30000) return // 30-second debounce
-    setLastReport(now)
     if (!session || !property) return
     setGenerating(true)
     setReportErr(null)
+    const now = Date.now()
+    if (now - lastReport < 30000) { setGenerating(false); return } // 30-second debounce
+    setLastReport(now)
     const fullAddress = [
       property.address_line1,
       property.city,
@@ -158,44 +157,6 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     } finally {
       setGenerating(false)
     }
-  }
-
-  async function generateLinearFootageReport() {
-    const now = Date.now()
-    if (now - lastReport < 30000) return
-    setLastReport(now)
-    if (!session || !property) return
-    setGeneratingPremium(true)
-    setReportErr(null)
-    const fullAddress = [property.address_line1, property.city, property.state, property.zip_code].filter(Boolean).join(', ')
-    try {
-      const r = await fetch('/api/roofing/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: fullAddress, pro_id: session.id, property_id: id }),
-      })
-      const d = await r.json()
-      if (!r.ok) { setReportErr(d.error || 'Report generation failed'); return }
-      const refreshed = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
-      const rd = await refreshed.json()
-      setReports(rd.reports || [])
-      if (d.geocodedLat && d.geocodedLng && d.report_id) {
-        setDsmLoadingId(d.report_id)
-        const premRes = await fetch('/api/roofing/premium-report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lat: d.geocodedLat, lng: d.geocodedLng, report_id: d.report_id, pro_id: session.id }),
-        })
-        const premData = await premRes.json()
-        if (premData.url) {
-          window.open(premData.url, '_blank')
-          const refreshed2 = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
-          const rd2 = await refreshed2.json()
-          setReports(rd2.reports || [])
-        }
-      }
-    } catch { setReportErr('Network error -- please try again') }
-    finally { setGeneratingPremium(false); setDsmLoadingId(null) }
   }
 
   async function deleteReport(reportId: string) {
@@ -476,11 +437,9 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
             {/* CTA Section: Row 1 — ProMeasure + Calculator. Row 2 — Report buttons */}
             <style>{`
               .cta-row1 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
-              .cta-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
               .report-row { display: flex; align-items: flex-start; justify-content: space-between; }
               @media (max-width: 600px) {
                 .cta-row1 { grid-template-columns: 1fr 1fr; }
-                .cta-row2 { grid-template-columns: 1fr; }
                 .report-row { flex-direction: column; gap: 10px; }
                 .report-actions { width: 100%; }
               }
@@ -519,14 +478,13 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               </button>
             </div>
 
-            {/* Row 2: Generate Quick Bid Report + Generate Linear Footage Report */}
-            <div className="cta-row2">
-              {/* Quick Bid Report */}
+            {/* Row 2: Generate Report — single full-width teal button */}
+            <div style={{ marginTop: 10 }}>
               <button
                 onClick={generateReport}
-                disabled={generating || generatingPremium || (Date.now() - lastReport < 30000 && lastReport > 0)}
-                style={{ padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${generating ? t.cardBorder : '#0D9488'}`, background: generating ? t.cardBg : 'linear-gradient(135deg,#0F766E,#0D9488)', cursor: (generating || generatingPremium) ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', opacity: (generating || generatingPremium) ? 0.7 : 1 }}
-                onMouseEnter={e => { if (!generating && !generatingPremium) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.35)' }}
+                disabled={generating}
+                style={{ width: '100%', padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${generating ? t.cardBorder : '#0D9488'}`, background: generating ? t.cardBg : 'linear-gradient(135deg,#0F766E,#0D9488)', cursor: generating ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', opacity: generating ? 0.75 : 1 }}
+                onMouseEnter={e => { if (!generating) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.35)' }}
                 onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
                 <div style={{ width: 36, height: 36, borderRadius: 9, background: generating ? t.cardBgAlt : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {generating ? (
@@ -542,49 +500,16 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: generating ? t.textPri : 'white', marginBottom: 1 }}>
-                    {generating ? 'Generating...' : 'Quick Bid Report'}
+                    {generating ? 'Generating Report...' : 'Generate Report'}
                   </div>
                   <div style={{ fontSize: 11, color: generating ? t.textSubtle : '#99f6e4' }}>
-                    {generating ? 'Fetching satellite data...' : 'Squares . pitch . waste PDF'}
+                    {generating ? 'Fetching satellite data — up to 60s' : 'Squares . pitch . waste . imagery PDF'}
                   </div>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
-
-              {/* Linear Footage Report */}
-              <button
-                onClick={generateLinearFootageReport}
-                disabled={generating || generatingPremium || (Date.now() - lastReport < 30000 && lastReport > 0)}
-                style={{ padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${generatingPremium ? t.cardBorder : '#7C3AED'}`, background: generatingPremium ? t.cardBg : 'linear-gradient(135deg,#7C3AED,#6D28D9)', cursor: (generating || generatingPremium) ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', opacity: (generating || generatingPremium) ? 0.7 : 1 }}
-                onMouseEnter={e => { if (!generating && !generatingPremium) e.currentTarget.style.boxShadow = '0 6px 20px rgba(124,58,237,0.35)' }}
-                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-                <div style={{ width: 36, height: 36, borderRadius: 9, background: generatingPremium ? t.cardBgAlt : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {generatingPremium ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="none" stroke={t.textMuted} strokeWidth="1.8"/>
-                      <line x1="8" y1="13" x2="16" y2="13" stroke={t.textMuted} strokeWidth="1.8"/>
-                      <line x1="8" y1="17" x2="12" y2="17" stroke={t.textMuted} strokeWidth="1.8"/>
-                    </svg>
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                      <line x1="8" y1="13" x2="16" y2="13"/>
-                      <line x1="8" y1="17" x2="13" y2="17"/>
-                    </svg>
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: generatingPremium ? t.textPri : 'white', marginBottom: 1 }}>
-                    {generatingPremium ? 'Generating...' : 'Linear Footage Report'}
-                  </div>
-                  <div style={{ fontSize: 11, color: generatingPremium ? t.textSubtle : '#DDD6FE' }}>
-                    {generatingPremium ? 'Running DSM analysis...' : 'Full material order PDF'}
-                  </div>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={generatingPremium ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
             </div>
+
 
             {/* Report error */}
             {reportErr && (
@@ -606,7 +531,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               ) : reports.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: t.textSubtle, fontSize: 14 }}>
                   No reports yet.<br />
-                  <span style={{ fontSize: 13 }}>Click &ldquo;Generate Report&rdquo; to create your first satellite measurement report.</span>
+                  <span style={{ fontSize: 13 }}>Click &ldquo;Generate Report&rdquo; above to create your first satellite measurement report.</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -636,23 +561,32 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                           </div>
                         ) : null}
                       </div>
-                      <div className="report-actions" style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, minWidth: 160 }}>
-                        {/* Quick Bid PDF download */}
+                      <div className="report-actions" style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, minWidth: 148 }}>
+                        {/* Download Report PDF */}
                         <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
                           style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
-                          Quick Bid PDF
+                          Download PDF
                         </a>
-                        {/* Premium PDF — download if exists, else show loading state */}
-                        {report.premium_r2_url ? (
-                          <a href={report.premium_r2_url} target="_blank" rel="noopener noreferrer"
-                            style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
-                            Linear Footage PDF
-                          </a>
-                        ) : dsmLoadingId === report.id ? (
-                          <div style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 12, textAlign: 'center', opacity: 0.7 }}>
-                            Generating...
-                          </div>
-                        ) : null}
+                        {/* Linear Footage PDF — Pro/Elite only (staging: always shown) */}
+                        {canAccessPremium && (
+                          report.premium_r2_url ? (
+                            <a href={report.premium_r2_url} target="_blank" rel="noopener noreferrer"
+                              style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
+                              Linear Footage PDF
+                            </a>
+                          ) : dsmLoadingId === report.id ? (
+                            <div style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, textAlign: 'center', opacity: 0.7 }}>
+                              Calculating...
+                            </div>
+                          ) : report.lat ? (
+                            <button
+                              onClick={() => getPremiumReport(report)}
+                              disabled={premiumLoadingId === report.id}
+                              style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center', opacity: premiumLoadingId === report.id ? 0.6 : 1 }}>
+                              {premiumLoadingId === report.id ? 'Generating...' : 'Get Linear Footage'}
+                            </button>
+                          ) : null
+                        )}
                         {/* Delete */}
                         <button
                           onClick={() => deleteReport(report.id)}
