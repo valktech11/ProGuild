@@ -441,47 +441,10 @@ flashing condition, and overall material condition.
 Be specific about what you observe. Do not mention the image format or satellite technology.
 Write in the third person as if writing a field note for a roofing contractor.`
 
-    // Try Anthropic Claude (uses ANTHROPIC_API_KEY — same infra, no quota issues)
-    // Falls back to Solar-data-derived assessment if key missing
-    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
-
-    if (ANTHROPIC_KEY) {
-      // Send the satellite image to Claude Haiku for vision condition assessment
-      const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.`
-      const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 200,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: mimeType as 'image/tiff' | 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif', data: base64 } },
-              { type: 'text', text: prompt }
-            ]
-          }]
-        }),
-        signal: AbortSignal.timeout(20000),
-      })
-      console.log('[gemini] Claude API status:', claudeRes.status)
-      if (claudeRes.ok) {
-        const claudeJson = await claudeRes.json() as { content?: Array<{ type: string; text?: string }> }
-        const text = claudeJson.content?.find(b => b.type === 'text')?.text?.trim() || null
-        console.log('[gemini] Claude condition assessment:', text?.slice(0, 100))
-        return text
-      }
-      console.log('[gemini] Claude API error:', claudeRes.status, (await claudeRes.text()).slice(0, 150))
-    }
-
-    // Fallback: try Gemini model chain
+    // Gemini Vision — model fallback chain on quota/deprecation errors
     const GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash']
     const geminiBody = JSON.stringify({
-      contents: [{ parts: [{ text: `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.` }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
       generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
     })
     let text: string | null = null

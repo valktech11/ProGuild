@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY!
 const GEMINI_KEY = process.env.GEMINI_API_KEY || ''
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || ''
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -16,7 +15,7 @@ export async function GET(req: NextRequest) {
   const lng = parseFloat(searchParams.get('lng') || '-81.683345')
   const results: Record<string, unknown> = { lat, lng, timestamp: new Date().toISOString() }
 
-  // ── TEST 1: NPS NRHP ArcGIS point-in-polygon ─────────────────────────────
+  // ── TEST 1: NPS NRHP ArcGIS MapServer point-in-polygon ───────────────────
   const historicResult: Record<string, unknown> = {}
   try {
     const nrhpUrl = [
@@ -45,53 +44,59 @@ export async function GET(req: NextRequest) {
   } catch (e) { historicResult.error = String(e) }
   results.historic = historicResult
 
-  // ── TEST 2: Claude vision (ANTHROPIC_API_KEY) ─────────────────────────────
-  const claudeResult: Record<string, unknown> = { hasAnthropicKey: !!ANTHROPIC_KEY, hasGoogleKey: !!GOOGLE_KEY }
+  // ── TEST 2: Gemini Vision ─────────────────────────────────────────────────
+  const geminiResult: Record<string, unknown> = { hasGeminiKey: !!GEMINI_KEY, hasGoogleKey: !!GOOGLE_KEY }
   try {
-    if (ANTHROPIC_KEY && GOOGLE_KEY) {
-      // Get rgbUrl from Solar dataLayers
-      const dlRes = await fetch(
-        `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=IMAGERY_AND_ANNUAL_FLUX_LAYERS&requiredQuality=LOW&key=${GOOGLE_KEY}`,
-        { signal: AbortSignal.timeout(15000) }
-      )
-      claudeResult.dataLayersStatus = dlRes.status
-      if (dlRes.ok) {
-        const dlJson = await dlRes.json() as { rgbUrl?: string }
-        claudeResult.hasRgbUrl = !!dlJson.rgbUrl
-        if (dlJson.rgbUrl) {
-          const imgRes = await fetch(`${dlJson.rgbUrl}&key=${GOOGLE_KEY}`, { signal: AbortSignal.timeout(20000) })
-          claudeResult.geotiffStatus = imgRes.status
-          if (imgRes.ok) {
-            const buf = await imgRes.arrayBuffer()
-            const base64 = Buffer.from(buf).toString('base64')
-            const mime = imgRes.headers.get('content-type') || 'image/tiff'
-            claudeResult.geotiffBytes = buf.byteLength
-            const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 200,
-                messages: [{
-                  role: 'user',
-                  content: [
-                    { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
-                    { type: 'text', text: 'You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.' }
-                  ]
-                }]
-              }),
-              signal: AbortSignal.timeout(25000),
-            })
-            claudeResult.claudeApiStatus = claudeRes.status
-            const claudeJson = await claudeRes.json() as { content?: Array<{ type: string; text?: string }>; error?: unknown }
-            if (!claudeRes.ok) { claudeResult.claudeApiError = claudeJson.error }
-            else { claudeResult.conditionText = claudeJson.content?.find(b => b.type === 'text')?.text?.trim() || null }
+    const dlRes = await fetch(
+      `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=IMAGERY_AND_ANNUAL_FLUX_LAYERS&requiredQuality=LOW&key=${GOOGLE_KEY}`,
+      { signal: AbortSignal.timeout(15000) }
+    )
+    geminiResult.dataLayersStatus = dlRes.status
+    if (dlRes.ok) {
+      const dlJson = await dlRes.json() as { rgbUrl?: string }
+      geminiResult.hasRgbUrl = !!dlJson.rgbUrl
+      if (dlJson.rgbUrl) {
+        const imgRes = await fetch(`${dlJson.rgbUrl}&key=${GOOGLE_KEY}`, { signal: AbortSignal.timeout(20000) })
+        geminiResult.geotiffStatus = imgRes.status
+        if (imgRes.ok) {
+          const buf = await imgRes.arrayBuffer()
+          const base64 = Buffer.from(buf).toString('base64')
+          const mimeType = imgRes.headers.get('content-type') || 'image/tiff'
+          geminiResult.geotiffBytes = buf.byteLength
+          const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.`
+          const MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash']
+          for (const model of MODELS) {
+            const gemRes = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+                  generationConfig: { maxOutputTokens: 200, temperature: 0.2 }
+                }),
+                signal: AbortSignal.timeout(25000),
+              }
+            )
+            geminiResult.modelTried = model
+            geminiResult.geminiApiStatus = gemRes.status
+            const gemJson = await gemRes.json() as Record<string, unknown>
+            if (gemRes.status === 429 || gemRes.status === 404) {
+              geminiResult[`${model}_error`] = (gemJson as Record<string,unknown>)
+              continue
+            }
+            if (!gemRes.ok) { geminiResult.geminiApiError = gemJson; break }
+            const candidates = (gemJson.candidates as Array<Record<string, unknown>>) || []
+            const parts = ((candidates[0]?.content as Record<string,unknown>)?.parts as Array<Record<string,string>>) || []
+            geminiResult.conditionText = parts[0]?.text?.trim() || null
+            geminiResult.finishReason = candidates[0]?.finishReason
+            break
           }
         }
       }
     }
-  } catch (e) { claudeResult.error = String(e) }
-  results.claude = claudeResult
+  } catch (e) { geminiResult.error = String(e) }
+  results.gemini = geminiResult
 
   return NextResponse.json(results, { status: 200 })
 }
