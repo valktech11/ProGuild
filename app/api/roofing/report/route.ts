@@ -439,7 +439,7 @@ Write in the third person as if writing a field note for a roofing contractor.`
     const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']
     const geminiBody = JSON.stringify({
       contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-      generationConfig: { maxOutputTokens: 500, temperature: 0.2 }
+      generationConfig: { maxOutputTokens: 1000, temperature: 0.2 }, thinkingConfig: { thinkingBudget: 0 }
     })
     let text: string | null = null
     for (const model of GEMINI_MODELS) {
