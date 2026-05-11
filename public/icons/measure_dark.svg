@@ -1,0 +1,22 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- dark background -->
+  <rect width="24" height="24" rx="6" fill="#0F172A"></rect>
+
+  <!-- roof -->
+  <path d="M7 11L12 7L17 11" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+
+  <!-- tape measure body -->
+  <rect x="8" y="11" width="6.5" height="5" rx="1.5" fill="#5EEAD4"></rect>
+
+  <!-- tape extension -->
+  <path d="M14.5 13.5H17" stroke="#5EEAD4" stroke-width="1.8" stroke-linecap="round"></path>
+
+  <!-- tape markings -->
+  <path d="M10 12.4V14.6" stroke="#083B36" stroke-width="1" stroke-linecap="round"></path>
+
+  <path d="M12 12.4V14.6" stroke="#083B36" stroke-width="1" stroke-linecap="round"></path>
+
+  <path d="M13.6 12.4V14.6" stroke="#083B36" stroke-width="1" stroke-linecap="round"></path>
+
+</svg>
