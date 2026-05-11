@@ -83,6 +83,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
   // Report generation
   const [generating, setGenerating] = useState(false)
+  const [generatingPremium, setGeneratingPremium] = useState(false)
   const [lastReport, setLastReport] = useState(0) // timestamp of last generate click
   const [reportErr, setReportErr] = useState<string | null>(null)
   const [reports, setReports] = useState<RoofReport[]>([])
@@ -157,6 +158,44 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     } finally {
       setGenerating(false)
     }
+  }
+
+  async function generateLinearFootageReport() {
+    const now = Date.now()
+    if (now - lastReport < 30000) return
+    setLastReport(now)
+    if (!session || !property) return
+    setGeneratingPremium(true)
+    setReportErr(null)
+    const fullAddress = [property.address_line1, property.city, property.state, property.zip_code].filter(Boolean).join(', ')
+    try {
+      const r = await fetch('/api/roofing/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: fullAddress, pro_id: session.id, property_id: id }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setReportErr(d.error || 'Report generation failed'); return }
+      const refreshed = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
+      const rd = await refreshed.json()
+      setReports(rd.reports || [])
+      if (d.geocodedLat && d.geocodedLng && d.report_id) {
+        setDsmLoadingId(d.report_id)
+        const premRes = await fetch('/api/roofing/premium-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: d.geocodedLat, lng: d.geocodedLng, report_id: d.report_id, pro_id: session.id }),
+        })
+        const premData = await premRes.json()
+        if (premData.url) {
+          window.open(premData.url, '_blank')
+          const refreshed2 = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
+          const rd2 = await refreshed2.json()
+          setReports(rd2.reports || [])
+        }
+      }
+    } catch { setReportErr('Network error -- please try again') }
+    finally { setGeneratingPremium(false); setDsmLoadingId(null) }
   }
 
   async function deleteReport(reportId: string) {
@@ -434,31 +473,28 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               )}
             </div>
 
-            {/* ProMeasure, Calculator & Generate Report CTAs */}
-            {/* Mobile: 2-col top row + Generate Report full-width below. Desktop: 3-col. */}
+            {/* CTA Section: Row 1 — ProMeasure + Calculator. Row 2 — Report buttons */}
             <style>{`
+              .cta-row1 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+              .cta-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+              .report-row { display: flex; align-items: flex-start; justify-content: space-between; }
               @media (max-width: 600px) {
-                .cta-grid { display: flex !important; flex-direction: column !important; }
-                .cta-top-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-                .report-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-                .report-actions { display: flex !important; flex-direction: row !important; gap: 8px !important; width: 100% !important; }
-                .report-actions a, .report-actions button { flex: 1 !important; text-align: center !important; justify-content: center !important; }
-              }
-              @media (min-width: 601px) {
-                .cta-grid { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: 12px !important; }
-                .cta-top-row { display: contents !important; }
+                .cta-row1 { grid-template-columns: 1fr 1fr; }
+                .cta-row2 { grid-template-columns: 1fr; }
+                .report-row { flex-direction: column; gap: 10px; }
+                .report-actions { width: 100%; }
               }
             `}</style>
-            <div className="cta-grid" style={{ marginTop: 16, gap: 12 }}>
-              <div className="cta-top-row">
-              {/* ProMeasure */}
+
+            {/* Row 1: ProMeasure + Calculator */}
+            <div className="cta-row1">
               <button
                 onClick={() => router.push('/dashboard/roofing/promeasure?address=' + encodeURIComponent(property.address_line1 + (property.city ? ', ' + property.city : '')))}
-                style={{ padding: '16px 14px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'box-shadow 0.15s, border-color 0.15s' }}
+                style={{ padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'box-shadow 0.15s, border-color 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)'; e.currentTarget.style.borderColor = '#14B8A6' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.cardBorder }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                  <img src={dk ? '/icons/measure_dark.svg' : '/icons/measure_light.svg'} width={40} height={40} alt="" style={{ display: 'block' }} />
+                <div style={{ width: 36, height: 36, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                  <img src={dk ? '/icons/measure_dark.svg' : '/icons/measure_light.svg'} width={36} height={36} alt="" style={{ display: 'block' }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginBottom: 1 }}>ProMeasure</div>
@@ -467,14 +503,13 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
 
-              {/* Calculator */}
               <button
                 onClick={() => router.push('/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : ''))}
-                style={{ padding: '16px 14px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'box-shadow 0.15s, border-color 0.15s' }}
+                style={{ padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'box-shadow 0.15s, border-color 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)'; e.currentTarget.style.borderColor = '#14B8A6' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.cardBorder }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                  <img src={dk ? '/icons/calc_dark.svg' : '/icons/calc_light.svg'} width={40} height={40} alt="" style={{ display: 'block' }} />
+                <div style={{ width: 36, height: 36, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                  <img src={dk ? '/icons/calc_dark.svg' : '/icons/calc_light.svg'} width={36} height={36} alt="" style={{ display: 'block' }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginBottom: 1 }}>Calculator</div>
@@ -482,37 +517,72 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
-              </div>
+            </div>
 
-              {/* Generate Report -- full-width on mobile, 1 col on desktop */}
+            {/* Row 2: Generate Quick Bid Report + Generate Linear Footage Report */}
+            <div className="cta-row2">
+              {/* Quick Bid Report */}
               <button
                 onClick={generateReport}
-                disabled={generating || (Date.now() - lastReport < 30000 && lastReport > 0)}
-                style={{ padding: '16px 14px', borderRadius: 14, border: `1.5px solid ${generating ? t.cardBorder : '#0D9488'}`, background: generating ? t.cardBg : 'linear-gradient(135deg,#0F766E,#0D9488)', cursor: generating ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', opacity: generating ? 0.75 : 1 }}
-                onMouseEnter={e => { if (!generating) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.4)' }}
+                disabled={generating || generatingPremium || (Date.now() - lastReport < 30000 && lastReport > 0)}
+                style={{ padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${generating ? t.cardBorder : '#0D9488'}`, background: generating ? t.cardBg : 'linear-gradient(135deg,#0F766E,#0D9488)', cursor: (generating || generatingPremium) ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', opacity: (generating || generatingPremium) ? 0.7 : 1 }}
+                onMouseEnter={e => { if (!generating && !generatingPremium) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.35)' }}
                 onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: generating ? t.cardBgAlt : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: generating ? t.cardBgAlt : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {generating ? (
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="none" stroke={t.textMuted} strokeWidth="1.8"/>
                       <polyline points="14 2 14 8 20 8" stroke={t.textMuted} strokeWidth="1.8"/>
-                      <line x1="8" y1="18" x2="8" y2="13" stroke={t.textMuted} strokeWidth="2.2"/>
-                      <line x1="12" y1="18" x2="12" y2="11" stroke={t.textMuted} strokeWidth="2.2"/>
-                      <line x1="16" y1="18" x2="16" y2="14" stroke={t.textMuted} strokeWidth="2.2"/>
+                      <line x1="8" y1="18" x2="8" y2="13" stroke={t.textMuted} strokeWidth="2"/>
+                      <line x1="12" y1="18" x2="12" y2="11" stroke={t.textMuted} strokeWidth="2"/>
                     </svg>
                   ) : (
-                    <img src="/icons/report_light.svg" width={24} height={24} alt="" style={{ display: 'block' }} />
+                    <img src="/icons/report_light.svg" width={22} height={22} alt="" style={{ display: 'block' }} />
                   )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: generating ? t.textPri : 'white', marginBottom: 1 }}>
-                    {generating ? 'Generating...' : 'Generate Report'}
+                    {generating ? 'Generating...' : 'Quick Bid Report'}
                   </div>
                   <div style={{ fontSize: 11, color: generating ? t.textSubtle : '#99f6e4' }}>
                     {generating ? 'Fetching satellite data...' : 'Squares . pitch . waste PDF'}
                   </div>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+
+              {/* Linear Footage Report */}
+              <button
+                onClick={generateLinearFootageReport}
+                disabled={generating || generatingPremium || (Date.now() - lastReport < 30000 && lastReport > 0)}
+                style={{ padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${generatingPremium ? t.cardBorder : '#7C3AED'}`, background: generatingPremium ? t.cardBg : 'linear-gradient(135deg,#7C3AED,#6D28D9)', cursor: (generating || generatingPremium) ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', opacity: (generating || generatingPremium) ? 0.7 : 1 }}
+                onMouseEnter={e => { if (!generating && !generatingPremium) e.currentTarget.style.boxShadow = '0 6px 20px rgba(124,58,237,0.35)' }}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: generatingPremium ? t.cardBgAlt : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {generatingPremium ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="none" stroke={t.textMuted} strokeWidth="1.8"/>
+                      <line x1="8" y1="13" x2="16" y2="13" stroke={t.textMuted} strokeWidth="1.8"/>
+                      <line x1="8" y1="17" x2="12" y2="17" stroke={t.textMuted} strokeWidth="1.8"/>
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="8" y1="13" x2="16" y2="13"/>
+                      <line x1="8" y1="17" x2="13" y2="17"/>
+                    </svg>
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: generatingPremium ? t.textPri : 'white', marginBottom: 1 }}>
+                    {generatingPremium ? 'Generating...' : 'Linear Footage Report'}
+                  </div>
+                  <div style={{ fontSize: 11, color: generatingPremium ? t.textSubtle : '#DDD6FE' }}>
+                    {generatingPremium ? 'Running DSM analysis...' : 'Full material order PDF'}
+                  </div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={generatingPremium ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
 
@@ -566,49 +636,30 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                           </div>
                         ) : null}
                       </div>
-                      <div className="report-actions" style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-                        {/* Row 1: Download + Delete */}
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
-                            style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                            Download PDF
-                          </a>
-                          <button
-                            onClick={() => deleteReport(report.id)}
-                            disabled={deletingReportId === report.id}
-                            style={{ padding: '7px 10px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#991B1B', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', opacity: deletingReportId === report.id ? 0.5 : 1 }}>
-                            {deletingReportId === report.id ? '...' : 'Delete'}
-                          </button>
-                        </div>
-                        {/* Row 2: Linear Footage */}
-                        {!report.linear_footage && (
-                          <button
-                            onClick={() => getLinearFootage(report)}
-                            disabled={dsmLoadingId === report.id}
-                            style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, color: t.textPri, fontSize: 12, fontWeight: 600, cursor: dsmLoadingId === report.id ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: dsmLoadingId === report.id ? 0.6 : 1, textAlign: 'center' }}>
-                            {dsmLoadingId === report.id ? 'Calculating...' : ' Get Linear Footage'}
-                          </button>
-                        )}
-                        {/* Row 3: Premium Report */}
+                      <div className="report-actions" style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, minWidth: 160 }}>
+                        {/* Quick Bid PDF download */}
+                        <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
+                          style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
+                          Quick Bid PDF
+                        </a>
+                        {/* Premium PDF — download if exists, else show loading state */}
                         {report.premium_r2_url ? (
                           <a href={report.premium_r2_url} target="_blank" rel="noopener noreferrer"
-                            style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                            v Premium Report
+                            style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
+                            Linear Footage PDF
                           </a>
-                        ) : canAccessPremium ? (
-                          <button
-                            onClick={() => getPremiumReport(report)}
-                            disabled={premiumLoadingId === report.id}
-                            style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: premiumLoadingId === report.id ? '#F5F3FF' : 'linear-gradient(135deg,#7C3AED,#6D28D9)', color: premiumLoadingId === report.id ? '#7C3AED' : 'white', fontSize: 12, fontWeight: 700, cursor: premiumLoadingId === report.id ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: premiumLoadingId === report.id ? 0.7 : 1, textAlign: 'center' }}>
-                            {premiumLoadingId === report.id ? 'Generating...' : '* Get Premium Report'}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => alert('Upgrade to Pro to access Premium Reports with linear footage diagrams, pitch diagrams, and A-Z facet reference.')}
-                            style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                            + Upgrade for Premium Report
-                          </button>
-                        )}
+                        ) : dsmLoadingId === report.id ? (
+                          <div style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 12, textAlign: 'center', opacity: 0.7 }}>
+                            Generating...
+                          </div>
+                        ) : null}
+                        {/* Delete */}
+                        <button
+                          onClick={() => deleteReport(report.id)}
+                          disabled={deletingReportId === report.id}
+                          style={{ padding: '7px 10px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#991B1B', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', opacity: deletingReportId === report.id ? 0.5 : 1, textAlign: 'center' }}>
+                          {deletingReportId === report.id ? '...' : 'Delete'}
+                        </button>
                       </div>
                     </div>
                   ))}
