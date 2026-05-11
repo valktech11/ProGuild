@@ -447,81 +447,141 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               )}
             </div>
 
-            {/* CTA Section: Row 1 — ProMeasure + Calculator. Row 2 — Report buttons */}
+            {/* ── TOOL SUITE ─────────────────────────────────────── */}
             <style>{`
-              .cta-row1 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
-              .report-row { display: flex; align-items: flex-start; justify-content: space-between; }
-              @media (max-width: 600px) {
-                .cta-row1 { grid-template-columns: 1fr 1fr; }
-                .report-row { flex-direction: column; gap: 10px; }
-                .report-actions { width: 100%; }
-              }
+              .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+              .tool-btn { position: relative; display: flex; flex-direction: column; align-items: flex-start; padding: 14px 14px 12px; border-radius: 16px; cursor: pointer; border: 1.5px solid; text-align: left; transition: transform 0.12s ease, box-shadow 0.12s ease; overflow: hidden; }
+              .tool-btn:hover { transform: translateY(-1px); }
+              .tool-btn:active { transform: translateY(0px); }
+              .report-card { position: relative; display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-radius: 18px; cursor: pointer; border: none; width: 100%; text-align: left; margin-top: 10px; transition: transform 0.12s ease, box-shadow 0.15s ease; overflow: hidden; }
+              .report-card:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(15,118,110,0.45) !important; }
+              .report-card:active { transform: translateY(0); }
+              .report-card:disabled { cursor: wait; opacity: 0.8; transform: none !important; }
+              @media (max-width: 480px) { .tool-grid { grid-template-columns: 1fr 1fr; gap: 8px; } }
             `}</style>
 
-            {/* Row 1: ProMeasure + Calculator */}
-            <div className="cta-row1">
-              <button
+            {/* Row 1 — Tool tiles */}
+            <div className="tool-grid">
+
+              {/* ProMeasure */}
+              <button className="tool-btn"
                 onClick={() => router.push('/dashboard/roofing/promeasure?address=' + encodeURIComponent(property.address_line1 + (property.city ? ', ' + property.city : '')))}
-                style={{ padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'box-shadow 0.15s, border-color 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)'; e.currentTarget.style.borderColor = '#14B8A6' }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.cardBorder }}>
-                <div style={{ width: 36, height: 36, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                  <img src={dk ? '/icons/measure_dark.svg' : '/icons/measure_light.svg'} width={36} height={36} alt="" style={{ display: 'block' }} />
+                style={{ background: dk ? '#0F1E2E' : '#F0FDFA', borderColor: dk ? '#1E3A4A' : '#CCFBF1' }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.18)'; e.currentTarget.style.borderColor = '#0F766E' }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = dk ? '#1E3A4A' : '#CCFBF1' }}>
+                {/* Icon */}
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#0F766E,#14B8A6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, boxShadow: '0 4px 12px rgba(15,118,110,0.35)' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="3,20 12,4 21,20" fill="rgba(255,255,255,0.15)"/>
+                    <line x1="3" y1="20" x2="21" y2="20"/>
+                    <line x1="7" y1="20" x2="7" y2="16"/>
+                    <line x1="12" y1="20" x2="12" y2="14"/>
+                    <line x1="17" y1="20" x2="17" y2="16"/>
+                    <line x1="5.5" y1="14" x2="18.5" y2="14" strokeDasharray="2 1.5" opacity="0.6"/>
+                  </svg>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginBottom: 1 }}>ProMeasure</div>
-                  <div style={{ fontSize: 11, color: t.textSubtle }}>Satellite polygon tool</div>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <div style={{ fontSize: 13, fontWeight: 800, color: dk ? '#E2E8F0' : '#0A1628', letterSpacing: '-0.01em', marginBottom: 2 }}>ProMeasure</div>
+                <div style={{ fontSize: 11, color: dk ? '#64748B' : '#0F766E', fontWeight: 500 }}>Draw roof polygons</div>
+                <svg style={{ position: 'absolute', bottom: 12, right: 12 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#64748B' : '#0F766E'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
 
-              <button
+              {/* Calculator */}
+              <button className="tool-btn"
                 onClick={() => router.push('/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : ''))}
-                style={{ padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'box-shadow 0.15s, border-color 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,184,166,0.12)'; e.currentTarget.style.borderColor = '#14B8A6' }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.cardBorder }}>
-                <div style={{ width: 36, height: 36, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                  <img src={dk ? '/icons/calc_dark.svg' : '/icons/calc_light.svg'} width={36} height={36} alt="" style={{ display: 'block' }} />
+                style={{ background: dk ? '#0F1829' : '#EFF6FF', borderColor: dk ? '#1E2D45' : '#BFDBFE' }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(37,99,235,0.18)'; e.currentTarget.style.borderColor = '#2563EB' }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = dk ? '#1E2D45' : '#BFDBFE' }}>
+                {/* Icon */}
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#1D4ED8,#3B82F6)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, boxShadow: '0 4px 12px rgba(37,99,235,0.35)' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="3" width="16" height="18" rx="3" fill="rgba(255,255,255,0.12)"/>
+                    <rect x="7" y="6" width="10" height="3" rx="1.2" fill="rgba(255,255,255,0.9)" stroke="none"/>
+                    <circle cx="8.5" cy="13" r="1" fill="white" stroke="none"/>
+                    <circle cx="12" cy="13" r="1" fill="white" stroke="none"/>
+                    <circle cx="15.5" cy="13" r="1" fill="white" stroke="none"/>
+                    <circle cx="8.5" cy="16.5" r="1" fill="white" stroke="none"/>
+                    <circle cx="12" cy="16.5" r="1" fill="white" stroke="none"/>
+                    <rect x="14" y="15.5" width="3" height="2.5" rx="0.8" fill="rgba(147,210,255,0.9)" stroke="none"/>
+                  </svg>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginBottom: 1 }}>Calculator</div>
-                  <div style={{ fontSize: 11, color: t.textSubtle }}>Material quantities</div>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <div style={{ fontSize: 13, fontWeight: 800, color: dk ? '#E2E8F0' : '#0A1628', letterSpacing: '-0.01em', marginBottom: 2 }}>Calculator</div>
+                <div style={{ fontSize: 11, color: dk ? '#64748B' : '#1D4ED8', fontWeight: 500 }}>Material costs</div>
+                <svg style={{ position: 'absolute', bottom: 12, right: 12 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dk ? '#64748B' : '#1D4ED8'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
 
-            {/* Row 2: Generate Report — single full-width teal button */}
-            <div style={{ marginTop: 10 }}>
-              <button
-                onClick={generateReport}
-                disabled={generating}
-                style={{ width: '100%', padding: '14px 14px', borderRadius: 14, border: `1.5px solid ${generating ? t.cardBorder : '#0D9488'}`, background: generating ? t.cardBg : 'linear-gradient(135deg,#0F766E,#0D9488)', cursor: generating ? 'wait' : 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', opacity: generating ? 0.75 : 1 }}
-                onMouseEnter={e => { if (!generating) e.currentTarget.style.boxShadow = '0 6px 20px rgba(15,118,110,0.35)' }}
-                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-                <div style={{ width: 36, height: 36, borderRadius: 9, background: generating ? t.cardBgAlt : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {generating ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="none" stroke={t.textMuted} strokeWidth="1.8"/>
-                      <polyline points="14 2 14 8 20 8" stroke={t.textMuted} strokeWidth="1.8"/>
-                      <line x1="8" y1="18" x2="8" y2="13" stroke={t.textMuted} strokeWidth="2"/>
-                      <line x1="12" y1="18" x2="12" y2="11" stroke={t.textMuted} strokeWidth="2"/>
-                    </svg>
-                  ) : (
-                    <img src="/icons/report_light.svg" width={22} height={22} alt="" style={{ display: 'block' }} />
-                  )}
+            {/* Row 2 — Generate Report (launch card) */}
+            <button className="report-card"
+              onClick={generateReport}
+              disabled={generating}
+              style={{
+                background: generating
+                  ? (dk ? '#1A2535' : '#F8FAFC')
+                  : 'linear-gradient(135deg, #0A1628 0%, #0F766E 60%, #14B8A6 100%)',
+                boxShadow: generating ? 'none' : '0 8px 32px rgba(15,118,110,0.3)',
+              }}>
+
+              {/* Subtle grid texture overlay */}
+              {!generating && (
+                <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 80% 50%, rgba(20,184,166,0.15) 0%, transparent 60%)', pointerEvents: 'none' }} />
+              )}
+
+              {/* Icon container */}
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: generating ? (dk ? '#2D3748' : '#E2E8F0') : 'rgba(255,255,255,0.12)', border: generating ? 'none' : '1.5px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backdropFilter: 'blur(8px)' }}>
+                {generating ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke={dk ? '#64748B' : '#94A3B8'} strokeWidth="2">
+                      <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                    </path>
+                  </svg>
+                ) : (
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="1.6"/>
+                    <polyline points="14 2 14 8 20 8" stroke="white" strokeWidth="1.6"/>
+                    <line x1="8" y1="18" x2="8" y2="13" stroke="#5EEAD4" strokeWidth="2.2"/>
+                    <line x1="12" y1="18" x2="12" y2="11" stroke="#5EEAD4" strokeWidth="2.2"/>
+                    <line x1="16" y1="18" x2="16" y2="14" stroke="#5EEAD4" strokeWidth="2.2"/>
+                    <circle cx="19" cy="5" r="4" fill="#0F766E" stroke="none"/>
+                    <path d="M17.5 5l1 1 2-2" stroke="white" strokeWidth="1.4"/>
+                  </svg>
+                )}
+              </div>
+
+              {/* Text */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-0.02em', color: generating ? (dk ? '#E2E8F0' : '#0A1628') : 'white', marginBottom: 3 }}>
+                  {generating ? 'Generating Report...' : 'Generate Report'}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: generating ? t.textPri : 'white', marginBottom: 1 }}>
-                    {generating ? 'Generating Report...' : 'Generate Report'}
-                  </div>
-                  <div style={{ fontSize: 11, color: generating ? t.textSubtle : '#99f6e4' }}>
-                    {generating ? 'Fetching satellite data — up to 60s' : 'Squares . pitch . waste . imagery PDF'}
-                  </div>
+                <div style={{ fontSize: 11.5, color: generating ? (dk ? '#64748B' : '#94A3B8') : 'rgba(255,255,255,0.7)', fontWeight: 500, lineHeight: 1.4 }}>
+                  {generating
+                    ? 'Fetching satellite data — up to 60 seconds'
+                    : 'Satellite measurement PDF · No site visit needed'}
                 </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-            </div>
+                {!generating && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+                    {['Squares', 'Pitch', 'Waste', 'Imagery', 'AI Condition'].map(tag => (
+                      <span key={tag} style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.1)', padding: '2px 7px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.15)' }}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Arrow */}
+              <div style={{ flexShrink: 0 }}>
+                {generating ? (
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: dk ? '#2D3748' : '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: 16, height: 16, border: `2px solid ${dk ? '#4A5568' : '#CBD5E0'}`, borderTopColor: '#0F766E', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  </div>
+                ) : (
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </div>
+                )}
+              </div>
+            </button>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
 
             {/* Report error */}
