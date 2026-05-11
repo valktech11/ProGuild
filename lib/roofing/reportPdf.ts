@@ -150,10 +150,10 @@ const S = StyleSheet.create({
   lowSlopeRow:  { flexDirection: 'row', borderTop: '1 solid #FDE68A', backgroundColor: AMBER_L },
   lowSlopeCellPitch: { flex: 0.6, padding: '7 10', fontSize: 10, fontFamily: 'Helvetica-Bold', color: AMBER_B },
   lowSlopeCell: { flex: 1, padding: '7 10', fontSize: 10, color: AMBER_B },
-  lowSlopeAlert: { marginTop: 8, padding: '8 10', backgroundColor: AMBER_L, borderRadius: 6, borderLeft: '3 solid ' + AMBER },
-  lowSlopeAlertTxt: { fontSize: 8, color: AMBER_B, lineHeight: 1.5 },
-  confidenceAlert: { marginTop: 8, padding: '8 10', backgroundColor: '#FFF7ED', borderRadius: 6, borderLeft: '3 solid #F97316' },
-  confidenceAlertTxt: { fontSize: 8, color: '#9A3412', lineHeight: 1.5 },
+  lowSlopeAlert: { marginTop: 8, padding: '6 10', backgroundColor: AMBER_L, borderRadius: 6, borderLeft: '3 solid ' + AMBER },
+  lowSlopeAlertTxt: { fontSize: 7.5, color: AMBER_B, lineHeight: 1.35 },
+  confidenceAlert: { marginTop: 8, padding: '6 10', backgroundColor: '#FFF7ED', borderRadius: 6, borderLeft: '3 solid #F97316' },
+  confidenceAlertTxt: { fontSize: 7.5, color: '#9A3412', lineHeight: 1.35 },
 
   // Quality badge
   qualityBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginTop: 6 },
@@ -175,9 +175,9 @@ const S = StyleSheet.create({
   directionsLink:   { fontSize: 9, color: TEAL, textDecoration: 'underline' },
 
   // Gemini AI condition assessment
-  geminiBox:    { marginTop: 26, padding: '10 12', backgroundColor: '#EFF6FF', borderRadius: 6, borderLeft: '3 solid #3B82F6' },
+  geminiBox:    { marginTop: 16, padding: '8 12', backgroundColor: '#EFF6FF', borderRadius: 6, borderLeft: '3 solid #3B82F6' },
   geminiLabel:  { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#1E40AF', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
-  geminiTxt:    { fontSize: 9, color: '#1E3A5F', lineHeight: 1.6 },
+  geminiTxt:    { fontSize: 8.5, color: '#1E3A5F', lineHeight: 1.5 },
 
   // Historic district badge
   historicBadge: { marginTop: 8, padding: '8 10', borderRadius: 6, borderLeft: '3 solid #D97706', backgroundColor: '#FFFBEB' },
@@ -185,8 +185,8 @@ const S = StyleSheet.create({
   historicSub:   { fontSize: 8, color: '#B45309', lineHeight: 1.5, marginTop: 2 },
 
   // Footnotes
-  footnote:     { fontSize: 8, color: MUTED, marginTop: 10, lineHeight: 1.5 },
-  disclaimer:   { fontSize: 8, color: MUTED, marginTop: 8, padding: '8 10', backgroundColor: '#FFF9F0', borderRadius: 6, lineHeight: 1.5 },
+  footnote:     { fontSize: 7.5, color: MUTED, marginTop: 8, lineHeight: 1.4 },
+  disclaimer:   { fontSize: 7.5, color: MUTED, marginTop: 6, padding: '6 10', backgroundColor: '#FFF9F0', borderRadius: 6, lineHeight: 1.4 },
 })
 
 // ── Reusable elements ──────────────────────────────────────────────────────
@@ -358,7 +358,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
           '* Total squares does NOT include waste. Imagery date: ' + data.imageryDate + '.\nMeasurements provided by Google Solar API. Field verification recommended before ordering materials.'
         ),
         ...((data.hasLowSlope || data.hasLowConfidence) ? [
-          h(View, { style: { marginTop: 8, padding: '8 10', backgroundColor: '#FFF7ED', borderRadius: 6, borderLeft: '3 solid #F97316' } },
+          h(View, { style: { marginTop: 8, padding: '6 10', backgroundColor: '#FFF7ED', borderRadius: 6, borderLeft: '3 solid #F97316' } },
             ...(data.hasLowSlope ? [h(Text, { style: { ...S.lowSlopeAlertTxt, color: AMBER_B, marginBottom: data.hasLowConfidence ? 6 : 0 } },
               '\u26A0 LOW SLOPE DETECTED (* rows): One or more roof areas measure below 3/12 pitch. Standard asphalt shingles require a minimum 2/12 pitch with special low-slope underlayment (ice-and-water shield entire deck). Below 2/12, a membrane system (TPO/EPDM) is typically required. Verify with manufacturer guidelines before ordering materials.'
             )] : []),
