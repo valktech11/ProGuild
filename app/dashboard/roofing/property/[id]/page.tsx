@@ -48,6 +48,10 @@ interface RoofReport {
   imagery_date: string
   r2_url: string
   linear_footage?: LinearFootage | null
+  premium_r2_url?: string | null
+  lat?: number
+  lng?: number
+  address?: string
 }
 
 function Ic({ children, size = 16, color = 'currentColor' }: { children: React.ReactNode; size?: number; color?: string }) {
@@ -84,6 +88,8 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   const [reports, setReports] = useState<RoofReport[]>([])
   const [reportsLoading, setReportsLoading] = useState(false)
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null)
+  const [dsmLoadingId, setDsmLoadingId] = useState<string | null>(null)
+  const [premiumLoadingId, setPremiumLoadingId] = useState<string | null>(null)
 
   // Edit form state
   const [form, setForm] = useState<Partial<Property>>({})
@@ -147,25 +153,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
           address: fullAddress,
         }))
       }
-      // Fire DSM analysis as a background task (non-blocking)
-      // Uses the geocoded lat/lng returned by the report pipeline
-      if (d.geocodedLat && d.geocodedLng && d.report_id) {
-        fetch('/api/roofing/dsm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lat: d.geocodedLat, lng: d.geocodedLng, report_id: d.report_id }),
-        }).then(async dsmRes => {
-          const dsmData = await dsmRes.json()
-          if (dsmData.linear_footage) {
-            // Update the report in state with linear footage
-            setReports(prev => prev.map(rep =>
-              rep.id === d.report_id ? { ...rep, linear_footage: dsmData.linear_footage } : rep
-            ))
-            console.log('[dsm] linear footage received:', dsmData.linear_footage)
-          }
-        }).catch(e => console.log('[dsm] background analysis error:', e))
-      }
-      setReportErr('Network error — please try again')
+      setReportErr('Network error -- please try again')
     } finally {
       setGenerating(false)
     }
@@ -178,8 +166,47 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     try {
       await fetch(`/api/roofing/reports?id=${reportId}&pro_id=${session.id}`, { method: 'DELETE' })
       setReports(prev => prev.filter(r => r.id !== reportId))
-    } catch { /* silently ignore — row already gone */ }
+    } catch { /* silently ignore -- row already gone */ }
     finally { setDeletingReportId(null) }
+  }
+
+  async function getLinearFootage(report: RoofReport & { lat?: number; lng?: number }) {
+    if (!report.lat || !report.lng) return
+    setDsmLoadingId(report.id)
+    try {
+      const res = await fetch('/api/roofing/dsm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id }),
+      })
+      const data = await res.json()
+      if (data.linear_footage) {
+        setReports(prev => prev.map(r =>
+          r.id === report.id ? { ...r, linear_footage: data.linear_footage } : r
+        ))
+      }
+    } catch (e) { console.log('[dsm] error:', e) }
+    finally { setDsmLoadingId(null) }
+  }
+
+  // Staging: always show premium. Prod: check plan when Stripe is live.
+  const IS_STAGING = process.env.NEXT_PUBLIC_SITE_URL?.includes('staging') ?? true
+  const canAccessPremium = IS_STAGING // TODO: replace with session.plan === 'pro' || session.plan === 'elite'
+
+  async function getPremiumReport(report: RoofReport & { lat?: number; lng?: number; address?: string }) {
+    if (!canAccessPremium) return // gate -- upgrade prompt handled in UI
+    if (!report.lat || !report.lng) return
+    setPremiumLoadingId(report.id)
+    try {
+      const res = await fetch('/api/roofing/premium-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id, pro_id: session?.id }),
+      })
+      const data = await res.json()
+      if (data.url) window.open(data.url, '_blank')
+    } catch (e) { console.log('[premium] error:', e) }
+    finally { setPremiumLoadingId(null) }
   }
 
   async function handleSave() {
@@ -206,7 +233,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         <div>
           <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 3 }}>{label}</p>
           <p style={{ fontSize: 15, fontWeight: 600, color: display ? t.textPri : t.textSubtle }}>
-            {display || '—'}
+            {display || '--'}
           </p>
         </div>
       )
@@ -217,7 +244,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, display: 'block', marginBottom: 4 }}>{label}</label>
           <select value={val} onChange={e => setForm(f => ({ ...f, [key]: e.target.value || null }))}
             style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 14 }}>
-            <option value="">— select —</option>
+            <option value="">-- select --</option>
             {opts.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
@@ -248,7 +275,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         </button>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 80, color: t.textSubtle }}>Loading property…</div>
+          <div style={{ textAlign: 'center', padding: 80, color: t.textSubtle }}>Loading property...</div>
         ) : !property ? (
           <div style={{ textAlign: 'center', padding: 80, color: t.textSubtle }}>Property not found</div>
         ) : (
@@ -265,7 +292,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                   </h1>
                 </div>
                 <p style={{ fontSize: 14, color: t.textMuted, margin: 0 }}>
-                  {[property.city, property.state, property.zip_code].filter(Boolean).join(', ')} · Added {timeAgo(property.created_at)}
+                  {[property.city, property.state, property.zip_code].filter(Boolean).join(', ')} . Added {timeAgo(property.created_at)}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -277,7 +304,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                     </button>
                     <button onClick={handleSave} disabled={saving}
                       style={{ padding: '8px 18px', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
-                      {saving ? 'Saving…' : 'Save'}
+                      {saving ? 'Saving...' : 'Save'}
                     </button>
                   </>
                 ) : (
@@ -457,7 +484,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               </button>
               </div>
 
-              {/* Generate Report — full-width on mobile, 1 col on desktop */}
+              {/* Generate Report -- full-width on mobile, 1 col on desktop */}
               <button
                 onClick={generateReport}
                 disabled={generating || (Date.now() - lastReport < 30000 && lastReport > 0)}
@@ -479,10 +506,10 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: generating ? t.textPri : 'white', marginBottom: 1 }}>
-                    {generating ? 'Generating…' : 'Generate Report'}
+                    {generating ? 'Generating...' : 'Generate Report'}
                   </div>
                   <div style={{ fontSize: 11, color: generating ? t.textSubtle : '#99f6e4' }}>
-                    {generating ? 'Fetching satellite data…' : 'Squares · pitch · waste PDF'}
+                    {generating ? 'Fetching satellite data...' : 'Squares . pitch . waste PDF'}
                   </div>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={generating ? t.textSubtle : 'rgba(255,255,255,0.7)'} strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -505,7 +532,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 </h2>
               </div>
               {reportsLoading ? (
-                <div style={{ textAlign: 'center', padding: '20px 0', color: t.textSubtle, fontSize: 13 }}>Loading…</div>
+                <div style={{ textAlign: 'center', padding: '20px 0', color: t.textSubtle, fontSize: 13 }}>Loading...</div>
               ) : reports.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: t.textSubtle, fontSize: 14 }}>
                   No reports yet.<br />
@@ -518,10 +545,10 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 12, border: `1px solid ${t.cardBorder}`, background: t.cardBgAlt }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: 14, fontWeight: 700, color: t.textPri, margin: '0 0 2px' }}>
-                          {report.total_squares_order.toFixed(1)} sq · {report.dominant_pitch} · {report.waste_factor}% waste
+                          {report.total_squares_order.toFixed(1)} sq . {report.dominant_pitch} . {report.waste_factor}% waste
                         </p>
                         <p style={{ fontSize: 12, color: t.textSubtle, margin: '0 0 4px' }}>
-                          {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · {report.facet_count} facets · {timeAgo(report.created_at)}
+                          {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} . {new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} . {report.facet_count} facets . {timeAgo(report.created_at)}
                         </p>
                         {report.linear_footage ? (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 4 }}>
@@ -537,23 +564,51 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                               </span>
                             ))}
                           </div>
-                        ) : (
-                          <p style={{ fontSize: 11, color: t.textSubtle, margin: 0, fontStyle: 'italic' }}>
-                            Linear footage calculating…
-                          </p>
-                        )}
+                        ) : null}
                       </div>
-                      <div className="report-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                        <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
-                          style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                          Download PDF
-                        </a>
-                        <button
-                          onClick={() => deleteReport(report.id)}
-                          disabled={deletingReportId === report.id}
-                          style={{ padding: '7px 10px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#991B1B', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', opacity: deletingReportId === report.id ? 0.5 : 1 }}>
-                          {deletingReportId === report.id ? '…' : 'Delete'}
-                        </button>
+                      <div className="report-actions" style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                        {/* Row 1: Download + Delete */}
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
+                            style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid #0F766E`, background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                            Download PDF
+                          </a>
+                          <button
+                            onClick={() => deleteReport(report.id)}
+                            disabled={deletingReportId === report.id}
+                            style={{ padding: '7px 10px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#991B1B', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', opacity: deletingReportId === report.id ? 0.5 : 1 }}>
+                            {deletingReportId === report.id ? '...' : 'Delete'}
+                          </button>
+                        </div>
+                        {/* Row 2: Linear Footage */}
+                        {!report.linear_footage && (
+                          <button
+                            onClick={() => getLinearFootage(report)}
+                            disabled={dsmLoadingId === report.id}
+                            style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid ${t.cardBorder}`, background: t.cardBg, color: t.textPri, fontSize: 12, fontWeight: 600, cursor: dsmLoadingId === report.id ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: dsmLoadingId === report.id ? 0.6 : 1, textAlign: 'center' }}>
+                            {dsmLoadingId === report.id ? 'Calculating...' : ' Get Linear Footage'}
+                          </button>
+                        )}
+                        {/* Row 3: Premium Report */}
+                        {report.premium_r2_url ? (
+                          <a href={report.premium_r2_url} target="_blank" rel="noopener noreferrer"
+                            style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                            v Premium Report
+                          </a>
+                        ) : canAccessPremium ? (
+                          <button
+                            onClick={() => getPremiumReport(report)}
+                            disabled={premiumLoadingId === report.id}
+                            style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: premiumLoadingId === report.id ? '#F5F3FF' : 'linear-gradient(135deg,#7C3AED,#6D28D9)', color: premiumLoadingId === report.id ? '#7C3AED' : 'white', fontSize: 12, fontWeight: 700, cursor: premiumLoadingId === report.id ? 'wait' : 'pointer', whiteSpace: 'nowrap', opacity: premiumLoadingId === report.id ? 0.7 : 1, textAlign: 'center' }}>
+                            {premiumLoadingId === report.id ? 'Generating...' : '* Get Premium Report'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => alert('Upgrade to Pro to access Premium Reports with linear footage diagrams, pitch diagrams, and A-Z facet reference.')}
+                            style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                            + Upgrade for Premium Report
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

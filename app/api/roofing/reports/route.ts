@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const sb = getSupabaseAdmin()
   let query = sb
     .from('roof_reports')
-    .select('id, created_at, total_squares_raw, total_squares_order, dominant_pitch, facet_count, waste_factor, imagery_date, r2_key')
+    .select('id, created_at, total_squares_raw, total_squares_order, dominant_pitch, facet_count, waste_factor, imagery_date, r2_key, lat, lng, linear_footage, premium_r2_key')
     .eq('pro_id', proId)
     .order('created_at', { ascending: false })
     .limit(20)
@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
   const reports = await Promise.all(
     (data || []).map(async (row: Record<string, unknown>) => {
       let r2_url = ''
+      let premium_r2_url = ''
       if (row.r2_key) {
         try {
           r2_url = await getSignedUrl(
@@ -55,7 +56,16 @@ export async function GET(req: NextRequest) {
           )
         } catch { /* leave empty if key is missing from bucket */ }
       }
-      return { ...row, r2_url }
+      if (row.premium_r2_key) {
+        try {
+          premium_r2_url = await getSignedUrl(
+            r2,
+            new GetObjectCommand({ Bucket: R2_BUCKET, Key: row.premium_r2_key as string }),
+            { expiresIn: 60 * 60 * 24 * 7 }
+          )
+        } catch { /* leave empty */ }
+      }
+      return { ...row, r2_url, premium_r2_url: premium_r2_url || null }
     })
   )
 

@@ -16,3 +16,8 @@ ADD COLUMN IF NOT EXISTS linear_footage JSONB DEFAULT NULL;
 --   "accuracy_note": "±6 inches per line segment...",
 --   "facet_count": 8
 -- }
+
+-- Add premium report columns
+ALTER TABLE roof_reports ADD COLUMN IF NOT EXISTS premium_r2_key TEXT DEFAULT NULL;
+ALTER TABLE roof_reports ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION DEFAULT NULL;
+ALTER TABLE roof_reports ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION DEFAULT NULL;
