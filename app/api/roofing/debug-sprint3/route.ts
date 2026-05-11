@@ -20,13 +20,13 @@ export async function GET(req: NextRequest) {
   const historicResult: Record<string, unknown> = {}
   try {
     const nrhpUrl = [
-      'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services',
-      '/National_Register_of_Historic_Places/FeatureServer/2/query',
+      'https://mapservices.nps.gov/arcgis/rest/services',
+      '/cultural_resources/nrhp_locations/MapServer/1/query',
       `?geometry=${lng},${lat}`,
       '&geometryType=esriGeometryPoint',
       '&inSR=4326',
       '&spatialRel=esriSpatialRelIntersects',
-      '&outFields=RESNAME,CITY,STATE_ABBR,STATUS',
+      '&outFields=RESNAME,CITY,STATE,RESTYPE',
       '&returnGeometry=false',
       '&f=json',
     ].join('')

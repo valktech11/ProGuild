@@ -515,17 +515,17 @@ Write in the third person as if writing a field note for a roofing contractor.`
 // Free, no API key. Authoritative source — same data as the NPS NRHP website.
 async function checkHistoricDistrict(lat: number, lng: number, formattedAddress: string): Promise<string | null> {
   try {
-    // NPS NRHP ArcGIS feature service — layer 2 = Historic Districts (polygons)
-    // geometryType=esriGeometryPoint, spatialRel=esriSpatialRelIntersects
-    // Returns districts whose polygon contains the point
+    // NPS NRHP official MapServer — layer 1 = polygons (districts + large properties)
+    // Hosted on mapservices.nps.gov — authoritative NPS source, free, no auth
+    // Point-in-polygon: returns features whose boundary contains the coordinate
     const nrhpUrl = [
-      'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services',
-      '/National_Register_of_Historic_Places/FeatureServer/2/query',
+      'https://mapservices.nps.gov/arcgis/rest/services',
+      '/cultural_resources/nrhp_locations/MapServer/1/query',
       `?geometry=${lng},${lat}`,
       '&geometryType=esriGeometryPoint',
       '&inSR=4326',
       '&spatialRel=esriSpatialRelIntersects',
-      '&outFields=RESNAME,CITY,STATE_ABBR,STATUS',
+      '&outFields=RESNAME,CITY,STATE,RESTYPE',
       '&returnGeometry=false',
       '&f=json',
     ].join('')
@@ -539,7 +539,7 @@ async function checkHistoricDistrict(lat: number, lng: number, formattedAddress:
     if (!res.ok) { console.log('[historic] ArcGIS error:', res.status); return null }
 
     const json = await res.json() as {
-      features?: Array<{ attributes: { RESNAME?: string; CITY?: string; STATE_ABBR?: string; STATUS?: string } }>
+      features?: Array<{ attributes: { RESNAME?: string; CITY?: string; STATE?: string; RESTYPE?: string } }>
       error?: { message?: string }
     }
 
@@ -551,7 +551,7 @@ async function checkHistoricDistrict(lat: number, lng: number, formattedAddress:
     // Return the first (most specific) matching district name
     const district = json.features[0].attributes
     const name = district.RESNAME || 'Historic District'
-    console.log('[historic] matched district:', name, '|', district.CITY, district.STATE_ABBR, '| status:', district.STATUS)
+    console.log('[historic] matched district:', name, '|', district.CITY, district.STATE, '| type:', district.RESTYPE)
     return name
 
   } catch (e) {
