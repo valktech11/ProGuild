@@ -415,25 +415,18 @@ async function getGeminiCondition(lat: number, lng: number): Promise<string | nu
   if (!GOOGLE_KEY)  { console.log('[gemini] no Google key for dataLayers'); return null }
 
   try {
-    // Step 1: get dataLayers to find the rgbUrl
-    const dlUrl = `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=IMAGERY_AND_ANNUAL_FLUX_LAYERS&requiredQuality=LOW&key=${GOOGLE_KEY}`
-    console.log('[gemini] fetching dataLayers')
-    const dlRes = await fetch(dlUrl, { signal: AbortSignal.timeout(10000) })
-    if (!dlRes.ok) { console.log('[gemini] dataLayers error:', dlRes.status); return null }
-    const dlJson = await dlRes.json() as { rgbUrl?: string; imageryDate?: string }
-    const rgbUrl = dlJson.rgbUrl
-    if (!rgbUrl) { console.log('[gemini] no rgbUrl in dataLayers response'); return null }
-    console.log('[gemini] rgbUrl found, fetching image')
-
-    // Step 2: fetch the RGB GeoTIFF as base64
-    const imgRes = await fetch(`${rgbUrl}&key=${GOOGLE_KEY}`, { signal: AbortSignal.timeout(15000) })
-    if (!imgRes.ok) { console.log('[gemini] image fetch error:', imgRes.status); return null }
+    // Use Maps Static API JPEG — Gemini does not support image/tiff (GeoTIFF)
+    // z20 satellite top-down at building centroid, 640x640
+    const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x640&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
+    console.log('[gemini] fetching satellite JPEG from Maps Static')
+    const imgRes = await fetch(mapUrl, { signal: AbortSignal.timeout(15000) })
+    if (!imgRes.ok) { console.log('[gemini] satellite image fetch error:', imgRes.status); return null }
     const imgBuffer = await imgRes.arrayBuffer()
     const base64 = Buffer.from(imgBuffer).toString('base64')
-    const mimeType = imgRes.headers.get('content-type') || 'image/tiff'
-    console.log('[gemini] image fetched:', imgBuffer.byteLength, 'bytes, mime:', mimeType)
+    const mimeType = 'image/jpeg'
+    console.log('[gemini] satellite JPEG fetched:', imgBuffer.byteLength, 'bytes')
 
-    // Step 3: call Gemini 1.5 Flash with the satellite image
+    // Step 2: send to Gemini Vision for roof condition assessment
     const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. 
 Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment.
 Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, 
@@ -455,9 +448,9 @@ Write in the third person as if writing a field note for a roofing contractor.`
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody, signal: AbortSignal.timeout(20000) }
       )
       console.log(`[gemini] model=${model} status=${geminiRes.status}`)
-      if (geminiRes.status === 429 || geminiRes.status === 404) {
+      if (geminiRes.status === 429 || geminiRes.status === 404 || geminiRes.status === 400) {
         const errPreview = (await geminiRes.text()).slice(0, 150)
-        console.log(`[gemini] ${model} quota/not-found, trying next:`, errPreview)
+        console.log(`[gemini] ${model} error, trying next:`, errPreview)
         continue
       }
       if (!geminiRes.ok) { console.log(`[gemini] ${model} failed ${geminiRes.status}`); break }

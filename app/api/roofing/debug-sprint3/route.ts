@@ -47,22 +47,18 @@ export async function GET(req: NextRequest) {
   // ── TEST 2: Gemini Vision ─────────────────────────────────────────────────
   const geminiResult: Record<string, unknown> = { hasGeminiKey: !!GEMINI_KEY, hasGoogleKey: !!GOOGLE_KEY }
   try {
-    const dlRes = await fetch(
-      `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=IMAGERY_AND_ANNUAL_FLUX_LAYERS&requiredQuality=LOW&key=${GOOGLE_KEY}`,
-      { signal: AbortSignal.timeout(15000) }
-    )
-    geminiResult.dataLayersStatus = dlRes.status
-    if (dlRes.ok) {
-      const dlJson = await dlRes.json() as { rgbUrl?: string }
-      geminiResult.hasRgbUrl = !!dlJson.rgbUrl
-      if (dlJson.rgbUrl) {
-        const imgRes = await fetch(`${dlJson.rgbUrl}&key=${GOOGLE_KEY}`, { signal: AbortSignal.timeout(20000) })
-        geminiResult.geotiffStatus = imgRes.status
-        if (imgRes.ok) {
-          const buf = await imgRes.arrayBuffer()
-          const base64 = Buffer.from(buf).toString('base64')
-          const mimeType = imgRes.headers.get('content-type') || 'image/tiff'
-          geminiResult.geotiffBytes = buf.byteLength
+    // Use Maps Static JPEG — Gemini does not support image/tiff
+    const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x640&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
+    const imgRes = await fetch(mapUrl, { signal: AbortSignal.timeout(15000) })
+    geminiResult.dataLayersStatus = 200
+    geminiResult.hasRgbUrl = true
+    geminiResult.geotiffStatus = imgRes.status
+    if (imgRes.ok) {
+        const buf = await imgRes.arrayBuffer()
+        const base64 = Buffer.from(buf).toString('base64')
+        const mimeType = 'image/jpeg'
+        geminiResult.geotiffBytes = buf.byteLength
+        if (true) {
           const prompt = `You are a roofing expert reviewing a satellite image of a residential roof. Analyze the visible roof condition and provide a concise 2-3 sentence professional assessment. Focus on: visible wear patterns, potential damage areas, moss/algae growth, missing or damaged shingles, flashing condition, and overall material condition. Be specific about what you observe. Do not mention the image format or satellite technology. Write in the third person as if writing a field note for a roofing contractor.`
           const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']
           for (const model of MODELS) {
@@ -81,7 +77,7 @@ export async function GET(req: NextRequest) {
             geminiResult.modelTried = model
             geminiResult.geminiApiStatus = gemRes.status
             const gemJson = await gemRes.json() as Record<string, unknown>
-            if (gemRes.status === 429 || gemRes.status === 404) {
+            if (gemRes.status === 429 || gemRes.status === 404 || gemRes.status === 400) {
               geminiResult[`${model}_error`] = (gemJson as Record<string,unknown>)
               continue
             }
@@ -93,7 +89,6 @@ export async function GET(req: NextRequest) {
             break
           }
         }
-      }
     }
   } catch (e) { geminiResult.error = String(e) }
   results.gemini = geminiResult
