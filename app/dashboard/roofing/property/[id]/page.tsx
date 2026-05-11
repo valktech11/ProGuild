@@ -138,9 +138,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       })
       const d = await r.json()
       if (!r.ok) { setReportErr(d.error || 'Report generation failed'); return }
-      // Open PDF in new tab
-      window.open(d.url, '_blank')
-      // Refresh report list
+      // Refresh report list (PDF available via Download button in row)
       const refreshed = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
       const rd = await refreshed.json()
       setReports(rd.reports || [])
@@ -194,33 +192,70 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   const IS_STAGING = process.env.NEXT_PUBLIC_SITE_URL?.includes('staging') ?? true
   const canAccessPremium = IS_STAGING // TODO: replace with session.plan === 'pro' || session.plan === 'elite'
 
-  async function getPremiumReport(report: RoofReport & { lat?: number; lng?: number; address?: string }) {
+  // Step 1: Run DSM analysis → stores linear_footage on report row
+  async function getLinearFootageAndPDF(report: RoofReport & { lat?: number; lng?: number }) {
     if (!canAccessPremium) return
     if (!report.lat || !report.lng) {
-      setReportErr('Location data missing on this report — please generate a new report to use Linear Footage.')
+      setReportErr('Location data missing — please generate a new report to use this feature.')
       return
     }
-    setPremiumLoadingId(report.id)
     setDsmLoadingId(report.id)
+    setReportErr(null)
     try {
-      const res = await fetch('/api/roofing/premium-report', {
+      // Step 1: Run DSM — stores linear_footage in DB (up to 60s)
+      console.log('[ui] calling DSM for report:', report.id, 'lat:', report.lat, 'lng:', report.lng)
+      const dsmRes = await fetch('/api/roofing/dsm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id, pro_id: session?.id }),
+        body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id }),
       })
-      const data = await res.json()
-      if (!res.ok) { setReportErr((data.error || 'Linear footage generation failed') + (data.detail ? ': ' + data.detail : '')); return }
-      if (data.url) window.open(data.url, '_blank')
-      // Refresh list to get premium_r2_url + linear_footage on the row
+      const dsmData = await dsmRes.json()
+      console.log('[ui] DSM response:', JSON.stringify(dsmData).slice(0, 200))
+
+      if (!dsmRes.ok || !dsmData.linear_footage) {
+        setReportErr('Could not compute linear footage: ' + (dsmData.error || dsmData.detail || 'Unknown error'))
+        return
+      }
+
+      // Update the row immediately with DSM results
+      setReports(prev => prev.map(r =>
+        r.id === report.id ? { ...r, linear_footage: dsmData.linear_footage } : r
+      ))
+
+      // Step 2: Generate Premium PDF (fast — reads existing data + renders)
+      setPremiumLoadingId(report.id)
+      console.log('[ui] calling premium-pdf for report:', report.id)
+      const pdfRes = await fetch('/api/roofing/premium-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_id: report.id, pro_id: session?.id }),
+      })
+      const pdfData = await pdfRes.json()
+      console.log('[ui] PDF response:', JSON.stringify(pdfData).slice(0, 200))
+
+      if (!pdfRes.ok) {
+        setReportErr('PDF generation failed: ' + (pdfData.error || '') + (pdfData.detail ? ' — ' + pdfData.detail : ''))
+        return
+      }
+
+      if (pdfData.url) window.open(pdfData.url, '_blank')
+
+      // Refresh list to show Linear Footage PDF download button
       const refreshed = await fetch(`/api/roofing/reports?pro_id=${session?.id}&property_id=${id}`)
       const rd = await refreshed.json()
       setReports(rd.reports || [])
+
     } catch (e) {
-      setReportErr('Network error generating linear footage report')
-      console.log('[premium] error:', e)
+      setReportErr('Network error: ' + String(e).slice(0, 100))
+      console.error('[ui] getLinearFootageAndPDF error:', e)
+    } finally {
+      setDsmLoadingId(null)
+      setPremiumLoadingId(null)
     }
-    finally { setPremiumLoadingId(null); setDsmLoadingId(null) }
   }
+
+  // Keep getPremiumReport as alias for backwards compat
+  const getPremiumReport = getLinearFootageAndPDF
 
   async function handleSave() {
     if (!session || !property) return
@@ -634,39 +669,36 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                           </div>
                         ) : null}
                       </div>
-                      <div className="report-actions" style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, minWidth: 148 }}>
-                        {/* Download Report PDF */}
-                        <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
-                          style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
-                          Download PDF
-                        </a>
-                        {/* Linear Footage PDF — Pro/Elite only (staging: always shown) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
+                        {/* Primary action row: Download + Delete */}
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
+                            style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                            Download PDF
+                          </a>
+                          <button onClick={() => deleteReport(report.id)} disabled={deletingReportId === report.id}
+                            style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #FECACA', background: 'transparent', color: '#DC2626', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: deletingReportId === report.id ? 0.4 : 1 }}>
+                            {deletingReportId === report.id ? '...' : 'Delete'}
+                          </button>
+                        </div>
+                        {/* Linear Footage — Pro only, staging always shown */}
                         {canAccessPremium && (
                           report.premium_r2_url ? (
                             <a href={report.premium_r2_url} target="_blank" rel="noopener noreferrer"
-                              style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
+                              style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                               Linear Footage PDF
                             </a>
                           ) : dsmLoadingId === report.id ? (
-                            <div style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, textAlign: 'center', opacity: 0.7 }}>
-                              Calculating...
+                            <div style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, opacity: 0.8, whiteSpace: 'nowrap' }}>
+                              {premiumLoadingId === report.id ? 'Building PDF...' : 'Calculating...'}
                             </div>
                           ) : (
-                            <button
-                              onClick={() => getPremiumReport(report)}
-                              disabled={premiumLoadingId === report.id}
-                              style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center', opacity: premiumLoadingId === report.id ? 0.6 : 1 }}>
-                              {premiumLoadingId === report.id ? 'Generating...' : 'Get Linear Footage'}
+                            <button onClick={() => getPremiumReport(report)} disabled={dsmLoadingId !== null || premiumLoadingId !== null}
+                              style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: (dsmLoadingId !== null || premiumLoadingId !== null) ? 0.4 : 1 }}>
+                              Get Linear Footage
                             </button>
                           )
                         )}
-                        {/* Delete */}
-                        <button
-                          onClick={() => deleteReport(report.id)}
-                          disabled={deletingReportId === report.id}
-                          style={{ padding: '7px 10px', borderRadius: 10, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#991B1B', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', opacity: deletingReportId === report.id ? 0.5 : 1, textAlign: 'center' }}>
-                          {deletingReportId === report.id ? '...' : 'Delete'}
-                        </button>
                       </div>
                     </div>
                   ))}

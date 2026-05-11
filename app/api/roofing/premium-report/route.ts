@@ -1,11 +1,8 @@
 // app/api/roofing/premium-report/route.ts
 // POST /api/roofing/premium-report
-// Orchestrates: DSM fetch → RANSAC facet polygons → diagram SVGs → premium PDF → R2
-// Returns signed URL to the premium PDF
-//
-// STATUS: Stub — wires the flow end-to-end.
-// Diagram generation (SVG wireframes) is built next session.
-// For now: runs DSM, stores linear footage, returns a placeholder response.
+// Reads existing linear_footage from DB (stored by /api/roofing/dsm)
+// Generates Premium PDF and uploads to R2. Returns signed URL.
+// DSM analysis is NOT run here — it must be run first via /api/roofing/dsm.
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -33,37 +30,18 @@ function getR2Client() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { lat, lng, report_id, pro_id } = await req.json() as {
-      lat: number
-      lng: number
-      report_id: string
-      pro_id: string
-    }
+    const body = await req.json() as { report_id: string; pro_id: string }
+    const { report_id, pro_id } = body
 
-    if (!lat || !lng || !report_id || !pro_id) {
-      return NextResponse.json({ error: 'lat, lng, report_id, pro_id required' }, { status: 400 })
-    }
-    if (!GOOGLE_KEY) {
-      return NextResponse.json({ error: 'GOOGLE_SOLAR_API_KEY not configured' }, { status: 500 })
-    }
+    console.log('[premium-pdf] starting for report:', report_id, 'pro:', pro_id)
 
-    console.log('[premium] starting premium report for', lat, lng, 'report:', report_id)
+    if (!report_id || !pro_id) {
+      return NextResponse.json({ error: 'report_id and pro_id required' }, { status: 400 })
+    }
 
     const sb = getSupabaseAdmin()
 
-    // ── Step 1: Run DSM analysis directly (no internal HTTP call) ───────────
-    const { runDsmAnalysis } = await import('@/lib/roofing/dsmAnalysis')
-    const linearFootageResult = await runDsmAnalysis(lat, lng, GOOGLE_KEY)
-
-    if (!linearFootageResult) {
-      console.log('[premium] DSM returned null — continuing without linear footage')
-    } else {
-      console.log('[premium] DSM done:', JSON.stringify(linearFootageResult))
-      await sb.from('roof_reports').update({ linear_footage: linearFootageResult }).eq('id', report_id)
-    }
-    const dsmData = { linear_footage: linearFootageResult }
-
-    // ── Step 2: Fetch existing report data from DB ───────────────────────────
+    // ── Step 1: Fetch report row ─────────────────────────────────────────────
     const { data: reportRow, error: fetchErr } = await sb
       .from('roof_reports')
       .select('*')
@@ -72,49 +50,50 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (fetchErr || !reportRow) {
+      console.error('[premium-pdf] report not found:', fetchErr)
       return NextResponse.json({ error: 'Report not found' }, { status: 404 })
     }
 
-    // ── Step 3: Fetch pro details ────────────────────────────────────────────
+    console.log('[premium-pdf] report found, linear_footage:', JSON.stringify(reportRow.linear_footage))
+
+    // ── Step 2: Fetch pro details ────────────────────────────────────────────
     const { data: pro } = await sb
       .from('pros')
       .select('full_name, email, phone, company_name')
       .eq('id', pro_id)
       .single()
 
-    // ── Step 4: Build premium PDF ────────────────────────────────────────────
-    // TODO (next session): generate SVG diagrams and full EagleView-equivalent PDF
-    // For now: build a data-rich text PDF as placeholder that includes all linear footage
-    console.log('[premium] building PDF')
+    // ── Step 3: Build premium PDF ────────────────────────────────────────────
+    console.log('[premium-pdf] building PDF...')
 
     const premiumData = {
-      address: reportRow.address as string,
+      address: (reportRow.address as string) || 'Unknown Address',
       proName: (pro?.full_name || pro?.company_name || 'ProGuild Pro') as string,
       proEmail: (pro?.email || '') as string,
       proPhone: (pro?.phone || '') as string,
       generatedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      imageryDate: reportRow.imagery_date as string,
-      totalSqft: reportRow.total_sqft as number,
-      totalSquaresOrder: reportRow.total_squares_order as number,
-      facetCount: reportRow.facet_count as number,
-      dominantPitch: reportRow.dominant_pitch as string,
-      wasteFactor: reportRow.waste_factor as number,
+      imageryDate: (reportRow.imagery_date as string) || '',
+      totalSqft: (reportRow.total_sqft as number) || 0,
+      totalSquaresOrder: (reportRow.total_squares_order as number) || 0,
+      facetCount: (reportRow.facet_count as number) || 0,
+      dominantPitch: (reportRow.dominant_pitch as string) || '6/12',
+      wasteFactor: (reportRow.waste_factor as number) || 13,
       pitchBreakdown: (reportRow.pitch_breakdown || []) as Array<{ pitch: string; area: number; squares: number; pct: number; isLowSlope: boolean }>,
-      linearFootage: dsmData.linear_footage || reportRow.linear_footage || null,
-      lat: lat,
-      lng: lng,
+      linearFootage: (reportRow.linear_footage as Record<string, number>) || null,
+      lat: (reportRow.lat as number) || 0,
+      lng: (reportRow.lng as number) || 0,
     }
 
-    const pdfBuffer = await renderToBuffer(buildPremiumRoofReportPDF(premiumData))
-    console.log('[premium] PDF rendered:', pdfBuffer.byteLength, 'bytes')
+    const pdfDoc = buildPremiumRoofReportPDF(premiumData)
+    const pdfBuffer = await renderToBuffer(pdfDoc)
+    console.log('[premium-pdf] PDF rendered, bytes:', pdfBuffer.byteLength)
 
-    // ── Step 5: Upload to R2 ─────────────────────────────────────────────────
+    // ── Step 4: Upload to R2 ─────────────────────────────────────────────────
     const now = new Date()
-    const reportId = reportRow.id as string
-    const r2Key = `reports/${pro_id}/premium/${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${reportId}-premium.pdf`
+    const r2Key = `reports/${pro_id}/premium/${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${report_id}-premium.pdf`
+    const safeAddr = ((reportRow.address as string) || 'report').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40)
 
     const r2 = getR2Client()
-    const safeAddr = (reportRow.address as string || 'report').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40)
     await r2.send(new PutObjectCommand({
       Bucket: R2_BUCKET,
       Key: r2Key,
@@ -122,6 +101,7 @@ export async function POST(req: NextRequest) {
       ContentType: 'application/pdf',
       ContentDisposition: `attachment; filename="${safeAddr}_ProGuild_Premium.pdf"`,
     }))
+    console.log('[premium-pdf] uploaded to R2:', r2Key)
 
     const signedUrl = await getSignedUrl(
       r2,
@@ -129,14 +109,17 @@ export async function POST(req: NextRequest) {
       { expiresIn: 60 * 60 * 24 * 7 }
     )
 
-    // ── Step 6: Store premium_r2_key in DB ───────────────────────────────────
+    // ── Step 5: Store premium_r2_key ─────────────────────────────────────────
     await sb.from('roof_reports').update({ premium_r2_key: r2Key }).eq('id', report_id)
+    console.log('[premium-pdf] done')
 
-    console.log('[premium] done:', r2Key)
     return NextResponse.json({ success: true, url: signedUrl })
 
   } catch (e) {
-    console.error('[premium] error:', e)
-    return NextResponse.json({ error: 'Internal error', detail: String(e).slice(0, 300) }, { status: 500 })
+    console.error('[premium-pdf] FATAL:', e)
+    return NextResponse.json({
+      error: 'Internal error',
+      detail: String(e).slice(0, 500)
+    }, { status: 500 })
   }
 }
