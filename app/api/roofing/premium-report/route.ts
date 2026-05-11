@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       dominantPitch: (reportRow.dominant_pitch as string) || '6/12',
       wasteFactor: (reportRow.waste_factor as number) || 13,
       pitchBreakdown: (reportRow.pitch_breakdown || []) as Array<{ pitch: string; area: number; squares: number; pct: number; isLowSlope: boolean }>,
-      linearFootage: (reportRow.linear_footage as Record<string, number>) || null,
+      linearFootage: (reportRow.linear_footage as import('@/lib/roofing/premiumReportPdf').PremiumLinearFootage) || null,
       lat: (reportRow.lat as number) || 0,
       lng: (reportRow.lng as number) || 0,
     }
