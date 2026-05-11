@@ -318,6 +318,199 @@ function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid | nul
   }
 }
 
+// ── Debug export (staging only — delete after tuning) ────────────────────────
+
+export interface DsmDebugResult {
+  facets: Array<{
+    id: number
+    area_m2: number
+    pixel_count: number
+    normal: { a: number; b: number; c: number }
+    slope_deg: number          // pitch angle from horizontal
+    horiz_mag: number          // sqrt(a²+b²) — how tilted the facet is
+    slope_dir_deg: number      // compass direction the facet slopes toward (0=north/+y, 90=east/+x)
+  }>
+  edges: Array<{
+    facetA: number
+    facetB: number
+    pixel_count: number
+    length_ft: number
+    // edge direction from boundary pixel centroid spread
+    edge_dir_x: number         // normalised edge direction vector x
+    edge_dir_y: number         // normalised edge direction vector y
+    edge_angle_deg: number     // angle of edge in pixel space (0–180°)
+    // dot products used by classifier
+    hDot: number               // horizontal component dot product
+    dot3d: number              // full 3D dot product
+    // per-facet slope directions
+    slopeDir_A: number         // compass bearing facet A slopes toward
+    slopeDir_B: number         // compass bearing facet B slopes toward
+    slope_angle_between: number // angle between the two slope directions
+    classified_as: 'ridge' | 'hip' | 'valley' | 'rake' | 'eave'
+    length_breakdown: string   // human-readable why
+  }>
+  linear: LinearFootage
+  summary: {
+    facet_count: number
+    edge_count: number
+    total_internal_edge_ft: number
+    by_type: Record<string, number>
+  }
+}
+
+export async function runDsmDebug(lat: number, lng: number, googleKey: string): Promise<DsmDebugResult | null> {
+  const layers = await fetchDataLayers(lat, lng, googleKey)
+  if (!layers) return null
+
+  const dsm = await decodeGeoTiff(layers.dsmUrl, googleKey)
+  if (!dsm) return null
+
+  const mask = layers.maskUrl ? await decodeGeoTiff(layers.maskUrl, googleKey) : null
+
+  const PIXEL_SIZE_M = 0.1
+  const facets = extractFacets(dsm, mask, PIXEL_SIZE_M)
+  if (facets.length === 0) return null
+
+  const { width } = dsm
+  const toFt = (m: number) => Math.round(m * 3.28084 * 10) / 10
+
+  // Build pixel→facet map
+  const pixelFacet = new Map<number, number>()
+  facets.forEach((f, fi) => f.pixels.forEach(px => pixelFacet.set(px, fi)))
+
+  // Collect edge pixel positions for centroid/direction computation
+  const edgePixels = new Map<string, number[]>()  // key → [col, row, col, row, ...]
+  const edgeCounts = new Map<string, number>()
+
+  for (const [px, fi] of pixelFacet) {
+    const col = px % width
+    const row = Math.floor(px / width)
+    const neighbours: Array<[number, number]> = []
+    if (col < width - 1) neighbours.push([row, col + 1])
+    if (row < (dsm.height - 1)) neighbours.push([row + 1, col])
+
+    for (const [nr, nc] of neighbours) {
+      const nPx = nr * width + nc
+      const nFi = pixelFacet.get(nPx)
+      if (nFi !== undefined && nFi !== fi) {
+        const key = fi < nFi ? `${fi}-${nFi}` : `${nFi}-${fi}`
+        edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1)
+        // Store boundary pixel midpoint
+        const existing = edgePixels.get(key) || []
+        existing.push((col + nc) / 2, (row + nr) / 2)
+        edgePixels.set(key, existing)
+      }
+    }
+  }
+
+  // Helper: orient normal upward
+  function orientUp(p: Plane): [number, number, number] {
+    const s = p.c < 0 ? -1 : 1
+    return [p.a * s, p.b * s, p.c * s]
+  }
+
+  // Build facet debug info
+  const facetInfo = facets.map((f, i) => {
+    const [a, b, c] = orientUp(f.plane)
+    const horizMag = Math.sqrt(a * a + b * b)
+    const slopeDeg = Math.round(Math.atan2(horizMag, c) * 180 / Math.PI * 10) / 10
+    // slope direction: which horizontal direction the normal points toward
+    // atan2(a, b) gives angle from +y axis (north) clockwise
+    const slopeDirDeg = Math.round(Math.atan2(a, b) * 180 / Math.PI * 10) / 10
+    return {
+      id: i,
+      area_m2: Math.round(f.area * 100) / 100,
+      pixel_count: f.pixels.length,
+      normal: { a: Math.round(a * 1000) / 1000, b: Math.round(b * 1000) / 1000, c: Math.round(c * 1000) / 1000 },
+      slope_deg: slopeDeg,
+      horiz_mag: Math.round(horizMag * 1000) / 1000,
+      slope_dir_deg: slopeDirDeg,
+    }
+  })
+
+  // Build edge debug info
+  const edgeInfo = Array.from(edgeCounts.entries()).map(([key, count]) => {
+    const [aStr, bStr] = key.split('-')
+    const fi = parseInt(aStr), fj = parseInt(bStr)
+    const planeA = facets[fi].plane
+    const planeB = facets[fj].plane
+
+    const aN = orientUp(planeA)
+    const bN = orientUp(planeB)
+    const hDot = Math.round((aN[0] * bN[0] + aN[1] * bN[1]) * 1000) / 1000
+    const dot3d = Math.round((aN[0] * bN[0] + aN[1] * bN[1] + aN[2] * bN[2]) * 1000) / 1000
+
+    // Compute edge direction from boundary pixel positions (PCA of pixel spread)
+    const pts = edgePixels.get(key) || []
+    let edgeDirX = 0, edgeDirY = 0, edgeAngleDeg = 0
+    if (pts.length >= 4) {
+      // Simple: use first and last points along the edge
+      const n = pts.length / 2
+      const x0 = pts[0], y0 = pts[1]
+      const x1 = pts[n * 2 - 2], y1 = pts[n * 2 - 1]
+      const dx = x1 - x0, dy = y1 - y0
+      const len = Math.sqrt(dx * dx + dy * dy) || 1
+      edgeDirX = Math.round(dx / len * 1000) / 1000
+      edgeDirY = Math.round(dy / len * 1000) / 1000
+      edgeAngleDeg = Math.round(Math.atan2(dy, dx) * 180 / Math.PI * 10) / 10
+    }
+
+    const slopeDirA = facetInfo[fi].slope_dir_deg
+    const slopeDirB = facetInfo[fj].slope_dir_deg
+    let angleBetween = Math.abs(slopeDirA - slopeDirB)
+    if (angleBetween > 180) angleBetween = 360 - angleBetween
+    angleBetween = Math.round(angleBetween * 10) / 10
+
+    const classified = classifyEdge(planeA, planeB)
+
+    // Human-readable reasoning
+    let why = ''
+    const horizA = facetInfo[fi].horiz_mag
+    const horizB = facetInfo[fj].horiz_mag
+    if (horizA < 0.15 && horizB < 0.15) why = 'both flat → eave'
+    else if (hDot > 0.15) why = `hDot=${hDot} > 0.15 → valley (normals converge)`
+    else if (dot3d < 0.1) why = `dot3d=${dot3d} < 0.1 → ridge (planes diverge)`
+    else why = `hDot=${hDot} ≤ 0.15, dot3d=${dot3d} ≥ 0.1 → hip`
+
+    return {
+      facetA: fi,
+      facetB: fj,
+      pixel_count: count,
+      length_ft: toFt(count * PIXEL_SIZE_M),
+      edge_dir_x: edgeDirX,
+      edge_dir_y: edgeDirY,
+      edge_angle_deg: edgeAngleDeg,
+      hDot,
+      dot3d,
+      slopeDir_A: slopeDirA,
+      slopeDir_B: slopeDirB,
+      slope_angle_between: angleBetween,
+      classified_as: classified,
+      length_breakdown: why,
+    }
+  }).sort((a, b) => b.length_ft - a.length_ft)  // longest edges first
+
+  const linear = computeLinearFootage(facets, dsm, mask, PIXEL_SIZE_M)
+
+  // Summary by type
+  const byType: Record<string, number> = {}
+  for (const e of edgeInfo) {
+    byType[e.classified_as] = (byType[e.classified_as] || 0) + e.length_ft
+  }
+
+  return {
+    facets: facetInfo,
+    edges: edgeInfo,
+    linear,
+    summary: {
+      facet_count: facets.length,
+      edge_count: edgeInfo.length,
+      total_internal_edge_ft: Math.round(edgeInfo.reduce((s, e) => s + e.length_ft, 0)),
+      by_type: byType,
+    },
+  }
+}
+
 // ── Main exported function ────────────────────────────────────────────────────
 
 export async function runDsmAnalysis(lat: number, lng: number, googleKey: string): Promise<LinearFootage | null> {
