@@ -210,39 +210,55 @@ function extractFacets(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): 
 
 // ── Edge classification ───────────────────────────────────────────────────────
 
-function classifyEdge(planeA: Plane, planeB: Plane | null): 'ridge' | 'hip' | 'valley' | 'rake' | 'eave' {
+// Minimum horizontal magnitude for a facet to be considered a real sloped roof plane.
+// horiz_mag = sqrt(a²+b²) of the unit normal.
+// 3/12 pitch ≈ 14° from horizontal → sin(14°) ≈ 0.24. Use 0.25 as threshold.
+// This filters out RANSAC noise facets (< 5° slope) from real roof planes.
+const MIN_SLOPE_HORIZ = 0.25
+
+function classifyEdge(planeA: Plane, planeB: Plane | null): 'ridge' | 'hip' | 'valley' | 'rake' | 'eave' | 'skip' {
+  // Orient both normals upward
+  const sA = planeA.c < 0 ? -1 : 1
+  const aN: [number, number, number] = [planeA.a * sA, planeA.b * sA, planeA.c * sA]
+  const horizA = Math.sqrt(aN[0] * aN[0] + aN[1] * aN[1])
+
   if (!planeB) {
-    const horizA = Math.sqrt(planeA.a * planeA.a + planeA.b * planeA.b)
+    // Perimeter edge: classify by slope of the single facet
     return horizA < 0.3 ? 'eave' : 'rake'
   }
 
-  // Orient both normals so z is always positive (pointing upward)
-  const sA = planeA.c < 0 ? -1 : 1
   const sB = planeB.c < 0 ? -1 : 1
-  const aN: [number, number, number] = [planeA.a * sA, planeA.b * sA, planeA.c * sA]
   const bN: [number, number, number] = [planeB.a * sB, planeB.b * sB, planeB.c * sB]
-
-  // Horizontal magnitudes — how steeply each plane slopes
-  const horizA = Math.sqrt(aN[0] * aN[0] + aN[1] * aN[1])
   const horizB = Math.sqrt(bN[0] * bN[0] + bN[1] * bN[1])
 
-  // Both nearly flat → eave/flat transition
-  if (horizA < 0.15 && horizB < 0.15) return 'eave'
+  // CRITICAL: Both facets are near-flat noise — skip entirely, don't count as any line type.
+  // This is the primary fix: RANSAC segments DSM elevation noise into near-flat pseudo-facets.
+  // Edges between them are meaningless for linear footage.
+  if (horizA < MIN_SLOPE_HORIZ && horizB < MIN_SLOPE_HORIZ) return 'skip'
 
-  // Horizontal-only dot product reveals whether slopes converge or diverge
-  // Ridge: two planes slope away from each other (peak) → horizontal normals
-  //        point in opposite directions → hDot strongly negative
-  // Hip:   corner junction, slopes at angle → hDot moderately negative to ~0
-  // Valley: two planes slope toward each other (trough) → horizontal normals
-  //         point in the same direction → hDot positive
+  // One facet is real slope, other is flat → this is a perimeter-like transition
+  // (eave or rake depending on the sloped facet's orientation)
+  if (horizA < MIN_SLOPE_HORIZ || horizB < MIN_SLOPE_HORIZ) {
+    // The sloped facet dominates classification
+    const slopedHoriz = horizA >= MIN_SLOPE_HORIZ ? horizA : horizB
+    return slopedHoriz < 0.5 ? 'eave' : 'rake'
+  }
+
+  // Both facets are genuinely sloped — classify the inter-plane junction
+  // Horizontal dot product: direction the two planes face horizontally
+  // Ridge: planes face away from each other → hDot strongly negative
+  // Valley: planes face toward each other → hDot positive
+  // Hip: corner, planes face ~90° apart → hDot near zero
   const hDot = aN[0] * bN[0] + aN[1] * bN[1]
-
-  // Full 3D dot for ridge/hip disambiguation
   const dot3d = aN[0] * bN[0] + aN[1] * bN[1] + aN[2] * bN[2]
 
-  if (hDot > 0.15)  return 'valley'  // normals converge horizontally → trough
-  if (dot3d < 0.1)  return 'ridge'   // planes strongly diverge in 3D → peak
-  return 'hip'                        // intermediate corner angle → hip
+  // Angle between horizontal slope directions
+  const slopeAngle = Math.acos(Math.max(-1, Math.min(1, hDot / (horizA * horizB)))) * 180 / Math.PI
+
+  if (slopeAngle > 150) return 'ridge'   // slopes face nearly opposite directions → peak
+  if (dot3d < 0)        return 'valley'  // 3D normals diverge downward → trough
+  if (slopeAngle > 60)  return 'hip'     // slopes at wide angle → corner hip
+  return 'ridge'                          // slopes nearly same direction but both real → ridge
 }
 
 function estimatePerimeterEdges(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): { eave_m: number; rake_m: number } {
@@ -299,17 +315,19 @@ function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid | nul
     const fi = parseInt(aStr), fj = parseInt(bStr)
     const edgeLenM = count * pixelSizeM
     const type = classifyEdge(facets[fi].plane, facets[fj].plane)
-    if (type === 'ridge') ridgeM += edgeLenM
-    else if (type === 'hip') hipM += edgeLenM
+    if (type === 'ridge')  ridgeM  += edgeLenM
+    else if (type === 'hip')    hipM    += edgeLenM
     else if (type === 'valley') valleyM += edgeLenM
+    // 'skip', 'eave', 'rake' from inter-facet edges are not counted here —
+    // eave/rake come from estimatePerimeterEdges (mask boundary), not facet pairs
   }
   const { eave_m, rake_m } = estimatePerimeterEdges(dsm, mask, pixelSizeM)
   const toFt = (m: number) => Math.round(m * 3.28084)
   const ridge_ft = toFt(ridgeM)
-  const hip_ft = toFt(hipM)
+  const hip_ft   = toFt(hipM)
   const valley_ft = toFt(valleyM)
-  const eave_ft = toFt(eave_m)
-  const rake_ft = toFt(rake_m)
+  const eave_ft  = toFt(eave_m)
+  const rake_ft  = toFt(rake_m)
   return {
     ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft,
     total_linear_ft: ridge_ft + hip_ft + valley_ft + eave_ft + rake_ft,
@@ -346,7 +364,7 @@ export interface DsmDebugResult {
     slopeDir_A: number         // compass bearing facet A slopes toward
     slopeDir_B: number         // compass bearing facet B slopes toward
     slope_angle_between: number // angle between the two slope directions
-    classified_as: 'ridge' | 'hip' | 'valley' | 'rake' | 'eave'
+    classified_as: 'ridge' | 'hip' | 'valley' | 'rake' | 'eave' | 'skip'
     length_breakdown: string   // human-readable why
   }>
   linear: LinearFootage
