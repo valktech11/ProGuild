@@ -437,11 +437,20 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  // Quick debug — fetch and return raw dataLayers structure
+  // Debug — fetch and return raw dataLayers structure + any error
   const { searchParams } = new URL(req.url)
   const lat = parseFloat(searchParams.get('lat') || '0')
   const lng = parseFloat(searchParams.get('lng') || '0')
   if (!lat || !lng) return NextResponse.json({ error: 'lat and lng required' }, { status: 400 })
-  const layers = await fetchDataLayers(lat, lng)
-  return NextResponse.json({ layers })
+  if (!GOOGLE_KEY) return NextResponse.json({ error: 'GOOGLE_SOLAR_API_KEY not set' }, { status: 500 })
+
+  const url = `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=DSM_LAYER&requiredQuality=LOW&key=${GOOGLE_KEY}`
+  console.log('[dsm-debug] calling:', url.replace(GOOGLE_KEY, 'REDACTED'))
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(20000) })
+    const body = await res.json() as Record<string, unknown>
+    return NextResponse.json({ status: res.status, ok: res.ok, body, key_set: !!GOOGLE_KEY })
+  } catch (e) {
+    return NextResponse.json({ error: String(e), key_set: !!GOOGLE_KEY })
+  }
 }
