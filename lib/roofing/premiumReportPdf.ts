@@ -167,9 +167,9 @@ export function buildPremiumRoofReportPDF(data: PremiumReportData) {
       // Navy header banner
       h(View, { style: { backgroundColor: NAVY, padding: '20 28 18 28' } },
         h(View, { style: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 } },
-          h(Text, { style: { fontSize: 20, fontFamily: 'Helvetica-Bold', color: WHITE } }, 'Premium Roof Report'),
+          h(Text, { style: { fontSize: 20, fontFamily: 'Helvetica-Bold', color: WHITE } }, 'ProGuild Premium Report'),
           h(View, { style: S.premiumBadge },
-            h(Text, { style: S.premiumTxt }, '⭐ PREMIUM — Full Linear Footage + Diagrams')
+            h(Text, { style: S.premiumTxt }, 'PREMIUM — Detailed Measurements + Material Quantities')
           )
         ),
         h(Text, { style: { fontSize: 10, color: TEAL_L } }, 'Powered by ProGuild · Google Solar API · DSM Analysis')
