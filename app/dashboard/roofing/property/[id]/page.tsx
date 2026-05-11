@@ -153,6 +153,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
           address: fullAddress,
         }))
       }
+    } catch {
       setReportErr('Network error -- please try again')
     } finally {
       setGenerating(false)
@@ -194,9 +195,13 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   const canAccessPremium = IS_STAGING // TODO: replace with session.plan === 'pro' || session.plan === 'elite'
 
   async function getPremiumReport(report: RoofReport & { lat?: number; lng?: number; address?: string }) {
-    if (!canAccessPremium) return // gate -- upgrade prompt handled in UI
-    if (!report.lat || !report.lng) return
+    if (!canAccessPremium) return
+    if (!report.lat || !report.lng) {
+      setReportErr('Location data missing on this report — please generate a new report to use Linear Footage.')
+      return
+    }
     setPremiumLoadingId(report.id)
+    setDsmLoadingId(report.id)
     try {
       const res = await fetch('/api/roofing/premium-report', {
         method: 'POST',
@@ -204,9 +209,17 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         body: JSON.stringify({ lat: report.lat, lng: report.lng, report_id: report.id, pro_id: session?.id }),
       })
       const data = await res.json()
+      if (!res.ok) { setReportErr(data.error || 'Linear footage generation failed'); return }
       if (data.url) window.open(data.url, '_blank')
-    } catch (e) { console.log('[premium] error:', e) }
-    finally { setPremiumLoadingId(null) }
+      // Refresh list to get premium_r2_url + linear_footage on the row
+      const refreshed = await fetch(`/api/roofing/reports?pro_id=${session?.id}&property_id=${id}`)
+      const rd = await refreshed.json()
+      setReports(rd.reports || [])
+    } catch (e) {
+      setReportErr('Network error generating linear footage report')
+      console.log('[premium] error:', e)
+    }
+    finally { setPremiumLoadingId(null); setDsmLoadingId(null) }
   }
 
   async function handleSave() {
@@ -578,14 +591,14 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                             <div style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, textAlign: 'center', opacity: 0.7 }}>
                               Calculating...
                             </div>
-                          ) : report.lat ? (
+                          ) : (
                             <button
                               onClick={() => getPremiumReport(report)}
                               disabled={premiumLoadingId === report.id}
                               style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'center', opacity: premiumLoadingId === report.id ? 0.6 : 1 }}>
                               {premiumLoadingId === report.id ? 'Generating...' : 'Get Linear Footage'}
                             </button>
-                          ) : null
+                          )
                         )}
                         {/* Delete */}
                         <button
