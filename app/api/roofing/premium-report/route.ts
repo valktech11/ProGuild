@@ -234,8 +234,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { reportId } = body
-  if (!reportId || typeof reportId !== 'string' || !/^[0-9a-f-]{36}$/.test(reportId)) {
+  const { reportId: rawReportId } = body
+  const reportId = typeof rawReportId === 'string' ? rawReportId.trim() : ''
+  if (!reportId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId)) {
     return NextResponse.json({ error: 'reportId must be a valid UUID' }, { status: 400 })
   }
 
