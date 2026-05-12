@@ -82,7 +82,7 @@ function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox
 }
 
 function buildStreetViewUrl(lat: number, lng: number, heading: number, apiKey: string): string {
-  return `${STREET_VIEW_BASE}?location=${lat},${lng}&heading=${heading}&pitch=10&fov=90&size=640x400&source=outdoor&return_error_code=true&key=${apiKey}`
+  return `${STREET_VIEW_BASE}?location=${lat},${lng}&heading=${heading}&pitch=10&fov=90&size=640x400&radius=100&return_error_code=true&key=${apiKey}`
 }
 
 function parseBbox(solar: DbReport['solar_raw']): PremiumReportData['bbox'] {
