@@ -1028,7 +1028,8 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
     ),
 
     PageFooter(1, 12, data.generatedAt),
-  )\n}
+  )
+}
 
 // Page 2 — Full satellite top view
 function buildSatellitePage(data: PremiumReportData): React.ReactElement {
