@@ -81,8 +81,27 @@ function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox
   return base
 }
 
-function buildStreetViewUrl(lat: number, lng: number, heading: number, apiKey: string): string {
-  return `${STREET_VIEW_BASE}?location=${lat},${lng}&heading=${heading}&pitch=10&fov=90&size=640x400&radius=100&return_error_code=true&key=${apiKey}`
+// Use Street View Metadata API to find nearest valid pano_id, then fetch by pano_id.
+// This avoids the "no imagery" grey image when coords land on a rooftop instead of the street.
+async function fetchStreetViewBase64(lat: number, lng: number, heading: number, apiKey: string, label: string): Promise<string> {
+  // Step 1: metadata lookup — finds nearest pano within 200m, returns pano_id
+  const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&radius=200&key=${apiKey}`
+  try {
+    const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(8000) })
+    if (metaRes.ok) {
+      const meta = await metaRes.json() as { status: string; pano_id?: string }
+      if (meta.status === 'OK' && meta.pano_id) {
+        // Step 2: fetch image by pano_id so we get the real panorama regardless of exact coords
+        const imgUrl = `${STREET_VIEW_BASE}?pano=${meta.pano_id}&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
+        return fetchImageBase64(imgUrl, label)
+      }
+    }
+    console.warn(`[premium-report] Street View metadata ${label}: no pano found within 200m`)
+    return ''
+  } catch (err) {
+    console.warn(`[premium-report] Street View metadata error ${label}:`, err instanceof Error ? err.message : err)
+    return ''
+  }
 }
 
 function parseBbox(solar: DbReport['solar_raw']): PremiumReportData['bbox'] {
@@ -172,10 +191,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const [topViewBase64, northViewBase64, southViewBase64, eastViewBase64, westViewBase64] =
     await Promise.all([
       fetchImageBase64(buildTopViewUrl(db.lat, db.lng, bbox, googleKey), 'top-view'),
-      fetchImageBase64(buildStreetViewUrl(db.lat, db.lng, 0,   googleKey), 'north'),
-      fetchImageBase64(buildStreetViewUrl(db.lat, db.lng, 180, googleKey), 'south'),
-      fetchImageBase64(buildStreetViewUrl(db.lat, db.lng, 90,  googleKey), 'east'),
-      fetchImageBase64(buildStreetViewUrl(db.lat, db.lng, 270, googleKey), 'west'),
+      fetchStreetViewBase64(db.lat, db.lng, 0,   googleKey, 'north'),
+      fetchStreetViewBase64(db.lat, db.lng, 180, googleKey, 'south'),
+      fetchStreetViewBase64(db.lat, db.lng, 90,  googleKey, 'east'),
+      fetchStreetViewBase64(db.lat, db.lng, 270, googleKey, 'west'),
     ])
 
   const lf = db.linear_footage
