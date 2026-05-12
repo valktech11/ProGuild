@@ -85,33 +85,61 @@ function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox
   return base
 }
 
-// Fetch Street View using metadata-first approach with source=outdoor to exclude indoor panos.
-// Falls back to empty string if no outdoor panorama exists within radius.
+// Fetch Street View using metadata-first approach.
+// source=outdoor in metadata SHOULD filter indoor panos, but Google sometimes still returns
+// user-uploaded indoor photos via pano_id. We therefore:
+//  1. Check metadata for an outdoor pano within 50m (tight radius = must be very close)
+//  2. If the close-radius check passes, use pano_id with the heading
+//  3. If no close pano, try direct location URL without pano_id (Google picks nearest outdoor)
+//  4. If the returned image is < 5KB it's likely the grey "no imagery" tile — reject it
 async function fetchStreetViewBase64(lat: number, lng: number, heading: number, apiKey: string, label: string): Promise<string> {
-  // source=outdoor in metadata filters to car/trekker captures only — excludes user-uploaded indoor photos
-  const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&radius=500&source=outdoor&key=${apiKey}`
+  // Step 1: metadata check at tight 50m radius to find if there's a genuine street-level pano nearby
+  const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&radius=50&source=outdoor&key=${apiKey}`
+  let panoId: string | null = null
   try {
     const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(8000) })
-    if (!metaRes.ok) {
-      console.warn(`[premium-report] Street View metadata HTTP ${metaRes.status} for ${label}`)
-      return ''
+    if (metaRes.ok) {
+      const meta = await metaRes.json() as { status: string; pano_id?: string }
+      if (meta.status === 'OK' && meta.pano_id) {
+        panoId = meta.pano_id
+        console.log(`[premium-report] Street View found pano within 50m for ${label}: ${panoId}`)
+      } else {
+        console.log(`[premium-report] Street View no pano within 50m for ${label} (${meta.status}) — trying wider location fetch`)
+      }
     }
-    const meta = await metaRes.json() as { status: string; pano_id?: string; copyright?: string }
-    if (meta.status !== 'OK' || !meta.pano_id) {
-      console.warn(`[premium-report] Street View no outdoor pano within 500m for ${label}: ${meta.status}`)
-      return ''
-    }
-    // Fetch by pano_id with the requested heading
-    const imgUrl = `${STREET_VIEW_BASE}?pano=${meta.pano_id}&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
-    return fetchImageBase64(imgUrl, label)
   } catch (err) {
-    console.warn(`[premium-report] Street View error ${label}:`, err instanceof Error ? err.message : err)
+    console.warn(`[premium-report] Street View metadata error ${label}:`, err instanceof Error ? err.message : err)
+  }
+
+  // Step 2: build image URL — prefer pano_id if found, else use location= with source=outdoor at 500m
+  // Using source=outdoor in the IMAGE url (not just metadata) also helps filter
+  const imgUrl = panoId
+    ? `${STREET_VIEW_BASE}?pano=${panoId}&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
+    : `${STREET_VIEW_BASE}?location=${lat},${lng}&radius=500&source=outdoor&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
+
+  try {
+    const res = await fetch(imgUrl, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS), headers: { 'Accept': 'image/*' } })
+    if (!res.ok) {
+      console.warn(`[premium-report] ${label} HTTP ${res.status}`)
+      return ''
+    }
+    const mime = (res.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
+    const buf = Buffer.from(await res.arrayBuffer())
+    // Reject if < 5KB — Google returns a small grey tile when no imagery exists
+    if (buf.length < 5000) {
+      console.warn(`[premium-report] ${label} image too small (${buf.length}B) — treating as no imagery`)
+      return ''
+    }
+    console.log(`[premium-report] ${label} fetched OK (${Math.round(buf.length / 1024)}KB)`)
+    return `data:${mime};base64,${buf.toString('base64')}`
+  } catch (err) {
+    console.warn(`[premium-report] Street View image error ${label}:`, err instanceof Error ? err.message : err)
     return ''
   }
 }
 
 function parseBbox(solar: DbReport['solar_raw']): PremiumReportData['bbox'] {
-  const solarRecord = solar as Record<string, unknown> | null
+  const solarRecord = normalizeSolarRaw(solar)
   const potential = solarRecord?.solarPotential as Record<string, unknown> | null
   const bb = potential?.boundingBox as Record<string, unknown> | null
   if (!bb) return null
@@ -126,15 +154,36 @@ function parseBbox(solar: DbReport['solar_raw']): PremiumReportData['bbox'] {
   }
 }
 
+function normalizeSolarRaw(solar: DbReport['solar_raw']): Record<string, unknown> | null {
+  if (!solar) return null
+  // Supabase occasionally returns JSONB as a double-encoded string — parse if needed
+  if (typeof solar === 'string') {
+    try {
+      const parsed = JSON.parse(solar as string)
+      console.log('[premium-report] solar_raw was string-encoded — parsed successfully')
+      return parsed as Record<string, unknown>
+    } catch {
+      console.error('[premium-report] solar_raw is a string but failed JSON.parse')
+      return null
+    }
+  }
+  return solar as Record<string, unknown>
+}
+
 function parseSegments(solar: DbReport['solar_raw']): RoofSegment[] {
-  // Match dsm/route.ts approach exactly — cast through Record<string,unknown>
-  const solarRecord = solar as Record<string, unknown> | null
+  const solarRecord = normalizeSolarRaw(solar)
   if (!solarRecord) return []
   const potential = solarRecord.solarPotential as Record<string, unknown> | null
-  if (!potential) return []
+  if (!potential) {
+    console.warn('[premium-report] parseSegments: solarPotential missing, top-level keys:', Object.keys(solarRecord))
+    return []
+  }
   const raw = potential.roofSegmentStats as unknown[] | null
-  if (!Array.isArray(raw) || raw.length === 0) return []
-  return raw.filter((seg): seg is RoofSegment => {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    console.warn('[premium-report] parseSegments: roofSegmentStats missing/empty, solarPotential keys:', Object.keys(potential))
+    return []
+  }
+  const filtered = raw.filter((seg): seg is RoofSegment => {
     if (typeof seg !== 'object' || seg === null) return false
     const s = seg as Record<string, unknown>
     const center = s.center as Record<string, unknown> | null
@@ -145,6 +194,8 @@ function parseSegments(solar: DbReport['solar_raw']): RoofSegment[] {
       (s.groundAreaMeters2 as number) > 0
     )
   })
+  console.log(`[premium-report] parseSegments: ${raw.length} raw → ${filtered.length} valid segments`)
+  return filtered
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -175,11 +226,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const db = report as unknown as DbReport
 
-  const { data: proData } = await supabase
+  const { data: proData, error: proErr } = await supabase
     .from('pros')
     .select('id, full_name, email, business_name, phone_cell, license_verified')
     .eq('id', pro_id)
     .single()
+
+  if (proErr) console.warn('[premium-report] Pro fetch error:', proErr.message)
+  console.log('[premium-report] Pro record:', JSON.stringify(proData))
 
   const pro = (proData as unknown as ProRecord | null) ?? {
     id: pro_id as string, full_name: null, email: '', business_name: null, phone_cell: null, license_verified: null,
@@ -253,7 +307,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       accuracy_note: lf?.accuracy_note ?? '±20% estimated from roof segment geometry',
       facet_count: Number(lf?.facet_count) || 0,
     },
-    proName: pro.full_name ?? 'ProGuild Pro',
+    proName: pro.full_name ?? pro.email ?? 'ProGuild Pro',
     proEmail: pro.email ?? '',
     proCompany: pro.business_name ?? null,
     proPhone: pro.phone_cell ?? null,
