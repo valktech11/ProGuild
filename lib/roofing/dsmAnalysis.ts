@@ -538,7 +538,9 @@ export async function runDsmDebug(lat: number, lng: number, googleKey: string): 
 //
 // Algorithm:
 //   Ridge:  180°-opposing adjacent pairs → length = 0.7×min(sqrt(gndA),sqrt(gndB))
-//   Valley: main↔secondary pairs, azDiff 30-120°, tight adjacency (2.0×)
+//   Valley: main↔secondary pairs, azDiff 30-90° (tightened from 120), tight adjacency (2.0×)
+//           + height check: secondary must be LOWER than adjacent main face
+//             (hip corner triangles sit AT peak height — same or higher than main face)
 //   Hip:    all adjacent pairs (azDiff 45-150°) NOT already valleys
 //           main↔main: pitch-corrected distance, capped at max rafter
 //           main↔sec / sec↔sec: raw distance, capped at max rafter
@@ -546,7 +548,7 @@ export async function runDsmDebug(lat: number, lng: number, googleKey: string): 
 
 const MAIN_FACE_M2 = 18    // segments >= this are "main" roof faces
 const VALLEY_AZ_MIN = 30   // min azimuth diff for valley (degrees)
-const VALLEY_AZ_MAX = 120  // max azimuth diff for valley
+const VALLEY_AZ_MAX = 90   // max azimuth diff for valley — tightened from 120 to avoid catching hip triangles
 const VALLEY_ADJ = 2.0     // valley adjacency factor × sqrt(minGnd)
 const HIP_ADJ = 2.5        // hip adjacency factor
 const RIDGE_ADJ = 2.5      // ridge adjacency factor
@@ -557,6 +559,7 @@ interface RoofSegment {
   stats: { areaMeters2: number; groundAreaMeters2?: number }
   center: { latitude: number; longitude: number }
   groundAreaMeters2?: number
+  planeHeightAtCenterMeters?: number  // ridge/hip/valley disambiguation
 }
 
 export function computeLinearFootageFromSegments(
@@ -633,8 +636,22 @@ export function computeLinearFootageFromSegments(
   }
 
   // ── VALLEY ─────────────────────────────────────────────────────────────────
-  // Main↔secondary pairs with azDiff 30-120° and tight adjacency (2.0×).
+  // Main↔secondary pairs with azDiff 30-90° and tight adjacency (2.0×).
+  //
+  // Height disambiguation (Priority 1 — when planeHeightAtCenterMeters is available):
+  //   A valley secondary is LOWER than the adjacent main faces — it runs into the roof.
+  //   A hip secondary (corner triangle) is AT or ABOVE the main face height — it sits at the peak.
+  //   If secondary height >= mean(main heights adjacent to it) → hip, skip valley classification.
+  //
+  // Fallback (when height data absent): accept azDiff 30-90° main↔sec pairs as valley.
   // Catalogues valley pairs so hip step can exclude them.
+  const mainHeights: Map<number, number> = new Map()
+  for (let i = 0; i < n; i++) {
+    const h = segments[i].planeHeightAtCenterMeters
+    if (typeof h === 'number' && gnd(segments[i]) >= MAIN_FACE_M2) mainHeights.set(i, h)
+  }
+  const hasHeightData = mainHeights.size >= 2
+
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
@@ -644,6 +661,23 @@ export function computeLinearFootageFromSegments(
       if (!adjOk(a, b, VALLEY_ADJ)) continue
       const diff = azDiff(a.azimuthDegrees, b.azimuthDegrees)
       if (diff < VALLEY_AZ_MIN || diff > VALLEY_AZ_MAX) continue
+
+      // Height check: secondary must be LOWER than the adjacent main face
+      // If secondary is at or above main height → it's a hip corner triangle, not a valley
+      if (hasHeightData) {
+        const mainIdx  = aMain ? i : j
+        const secIdx   = aMain ? j : i
+        const mainH    = segments[mainIdx].planeHeightAtCenterMeters
+        const secH     = segments[secIdx].planeHeightAtCenterMeters
+        if (typeof mainH === 'number' && typeof secH === 'number') {
+          if (secH >= mainH * 0.95) {
+            // Secondary is at peak height → hip triangle, not valley
+            console.log(`[seg2] valley skip (height): s${secIdx}(h=${secH.toFixed(1)}) >= s${mainIdx}(h=${mainH.toFixed(1)}) → treat as hip`)
+            continue
+          }
+        }
+      }
+
       const key = `${i}-${j}`
       if (valleyCounted.has(key)) continue
       valleyCounted.add(key)
