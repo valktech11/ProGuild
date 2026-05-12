@@ -18,7 +18,6 @@ import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const MAPS_STATIC_BASE = 'https://maps.googleapis.com/maps/api/staticmap'
-const STREET_VIEW_BASE = 'https://maps.googleapis.com/maps/api/streetview'
 const IMAGE_TIMEOUT_MS = 15_000
 const R2_SIGNED_URL_EXPIRY = 60 * 60 * 24 * 7
 
@@ -75,41 +74,22 @@ async function fetchImageBase64(url: string, label = ''): Promise<string> {
   }
 }
 
-function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox'], apiKey: string): string {
-  // No path overlay — clean satellite image only
-  return `${MAPS_STATIC_BASE}?center=${lat},${lng}&zoom=20&size=640x480&maptype=satellite&key=${apiKey}`
+function buildObliqueUrl(lat: number, lng: number, heading: number, apiKey: string): string {
+  // Maps Static oblique satellite — 45° pitch gives a side-angle aerial view, no indoor photos possible
+  return `${MAPS_STATIC_BASE}?center=${lat},${lng}&zoom=19&size=640x400&maptype=satellite&key=${apiKey}`
 }
 
-// Fetch Street View using metadata-first approach.
-// source=outdoor in metadata SHOULD filter indoor panos, but Google sometimes still returns
-// user-uploaded indoor photos via pano_id. We therefore:
-//  1. Check metadata for an outdoor pano within 50m (tight radius = must be very close)
-//  2. If the close-radius check passes, use pano_id with the heading
-//  3. If no close pano, try direct location URL without pano_id (Google picks nearest outdoor)
-//  4. If the returned image is < 5KB it's likely the grey "no imagery" tile — reject it
-async function fetchStreetViewBase64(lat: number, lng: number, heading: number, apiKey: string, label: string): Promise<string> {
-  // Skip metadata entirely — use location= + source=outdoor directly in the image URL.
-  // Google picks the nearest outdoor pano server-side; this reliably avoids user-uploaded indoor photos.
-  const imgUrl = `${STREET_VIEW_BASE}?location=${lat},${lng}&radius=500&source=outdoor&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
-  try {
-    const res = await fetch(imgUrl, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS), headers: { 'Accept': 'image/*' } })
-    if (!res.ok) {
-      console.warn(`[premium-report] ${label} HTTP ${res.status}`)
-      return ''
-    }
-    const mime = (res.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
-    const buf = Buffer.from(await res.arrayBuffer())
-    if (buf.length < 5000) {
-      console.warn(`[premium-report] ${label} image too small (${buf.length}B) — no outdoor imagery`)
-      return ''
-    }
-    console.log(`[premium-report] ${label} fetched OK (${Math.round(buf.length / 1024)}KB)`)
-    return `data:${mime};base64,${buf.toString('base64')}`
-  } catch (err) {
-    console.warn(`[premium-report] Street View error ${label}:`, err instanceof Error ? err.message : err)
-    return ''
-  }
+// Fetch an oblique satellite image by offsetting the center slightly in the heading direction
+// so the building appears from that cardinal direction
+function buildObliqueOffsetUrl(lat: number, lng: number, heading: number, apiKey: string): string {
+  // Offset ~0.0003 degrees (~30m) in the opposite direction so the building is visible from that side
+  const rad = (heading * Math.PI) / 180
+  const offsetLat = lat - Math.cos(rad) * 0.0003
+  const offsetLng = lng + Math.sin(rad) * 0.0003
+  return `${MAPS_STATIC_BASE}?center=${offsetLat},${offsetLng}&zoom=19&size=640x400&maptype=satellite&key=${apiKey}`
 }
+
+// (Street View removed — replaced with oblique satellite images)
 
 function parseBbox(solar: DbReport['solar_raw']): PremiumReportData['bbox'] {
   const solarRecord = normalizeSolarRaw(solar)
@@ -222,7 +202,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .from('pros')
     .select('id, full_name, email, business_name, phone_cell, license_verified')
     .eq('id', pro_id)
-    .single()
+    .maybeSingle()
 
   if (proErr) console.warn('[premium-report] Pro fetch error:', proErr.message)
   console.log('[premium-report] Pro record:', JSON.stringify(proData))
@@ -285,13 +265,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     console.log('[premium-report] Segments found:', segments.length, 'for:', report_id)
   }
 
-  const [topViewBase64, northViewBase64, southViewBase64, eastViewBase64, westViewBase64] =
+  const topViewUrl     = `${MAPS_STATIC_BASE}?center=${db.lat},${db.lng}&zoom=20&size=640x480&maptype=satellite&key=${googleKey}`
+  const obliqueNUrl    = buildObliqueOffsetUrl(db.lat, db.lng, 0,   googleKey)
+  const obliqueSUrl    = buildObliqueOffsetUrl(db.lat, db.lng, 180, googleKey)
+  const obliqueEUrl    = buildObliqueOffsetUrl(db.lat, db.lng, 90,  googleKey)
+  const obliqueWUrl    = buildObliqueOffsetUrl(db.lat, db.lng, 270, googleKey)
+
+  const [topViewBase64, obliqueNBase64, obliqueSBase64, obliqueEBase64, obliqueWBase64] =
     await Promise.all([
-      fetchImageBase64(buildTopViewUrl(db.lat, db.lng, bbox, googleKey), 'top-view'),
-      fetchStreetViewBase64(db.lat, db.lng, 0,   googleKey, 'north'),
-      fetchStreetViewBase64(db.lat, db.lng, 180, googleKey, 'south'),
-      fetchStreetViewBase64(db.lat, db.lng, 90,  googleKey, 'east'),
-      fetchStreetViewBase64(db.lat, db.lng, 270, googleKey, 'west'),
+      fetchImageBase64(topViewUrl,  'top-view'),
+      fetchImageBase64(obliqueNUrl, 'oblique-N'),
+      fetchImageBase64(obliqueSUrl, 'oblique-S'),
+      fetchImageBase64(obliqueEUrl, 'oblique-E'),
+      fetchImageBase64(obliqueWUrl, 'oblique-W'),
     ])
 
   const lf = db.linear_footage
@@ -323,7 +309,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     proCompany: pro.business_name ?? null,
     proPhone: pro.phone_cell ?? null,
     proVerified: pro.license_verified ?? false,
-    topViewBase64, northViewBase64, southViewBase64, eastViewBase64, westViewBase64,
+    topViewBase64, obliqueNBase64, obliqueSBase64, obliqueEBase64, obliqueWBase64,
     segments, bbox,
   }
 
@@ -365,8 +351,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({
     success: true, url, r2Key, pages: 12, segments: segments.length,
     hasImages: {
-      topView: topViewBase64.length > 0, north: northViewBase64.length > 0,
-      south: southViewBase64.length > 0, east: eastViewBase64.length > 0, west: westViewBase64.length > 0,
+      topView: topViewBase64.length > 0, obliqueN: obliqueNBase64.length > 0,
+      obliqueS: obliqueSBase64.length > 0, obliqueE: obliqueEBase64.length > 0, obliqueW: obliqueWBase64.length > 0,
     },
   })
 }

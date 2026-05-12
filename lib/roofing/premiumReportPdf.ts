@@ -89,10 +89,10 @@ export interface PremiumReportData {
 
   // Images (base64 data URIs or empty string)
   topViewBase64: string
-  northViewBase64: string
-  southViewBase64: string
-  eastViewBase64: string
-  westViewBase64: string
+  obliqueNBase64: string
+  obliqueSBase64: string
+  obliqueEBase64: string
+  obliqueWBase64: string
 
   // SVG source
   segments: RoofSegment[]
@@ -948,11 +948,11 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
       h(Text, { style: { color: '#FFFFFF', fontSize: 12, fontFamily: 'Helvetica-Bold' } }, data.address),
     ),
 
-    // Satellite image
+    // Satellite image — taller, fills more of cover
     h(View, { style: { marginHorizontal: 0, marginTop: 0 } },
       data.topViewBase64
-        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 230, objectFit: 'cover' } })
-        : h(View, { style: { height: 230, backgroundColor: '#1B2A4A', alignItems: 'center', justifyContent: 'center' } },
+        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 260, objectFit: 'cover' } })
+        : h(View, { style: { height: 260, backgroundColor: '#1B2A4A', alignItems: 'center', justifyContent: 'center' } },
             h(Text, { style: { color: '#475569', fontSize: 9 } }, 'Satellite image unavailable'),
           ),
     ),
@@ -1034,66 +1034,150 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
 // Page 2 — Full satellite top view
 function buildSatellitePage(data: PremiumReportData): React.ReactElement {
   return h(Page, { size: 'LETTER', style: styles.page },
-    PageHeader(data.address, 'Satellite View'),
-    SectionHeader('IMAGES', 'Aerial imagery — top view'),
-    h(View, { style: { paddingHorizontal: 24, paddingTop: 12, flex: 1 } },
-      h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, marginBottom: 8 } },
-        'The following aerial images show different angles of this structure for your reference.',
+    PageHeader(data.address, 'Satellite View — Top Down'),
+    h(View, { style: { paddingHorizontal: 24, paddingTop: 10, flex: 1 } },
+      h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, marginBottom: 10 } },
+        'Vertical satellite view · Google Maps Imagery · zoom 20',
       ),
-      h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark, fontFamily: 'Helvetica-Bold', marginBottom: 6 } }, 'Top View'),
       data.topViewBase64
-        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 460, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
-        : ImagePlaceholder('Top view satellite'),
+        ? h(Image, { src: data.topViewBase64, style: { width: '100%', flex: 1, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
+        : h(View, { style: { flex: 1, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } },
+            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 9 } }, 'Satellite imagery unavailable'),
+          ),
     ),
     PageFooter(2, 12, data.generatedAt),
   )
 }
 
-// Page 3 — N + S Street Views
-function buildStreetViewNSPage(data: PremiumReportData): React.ReactElement {
-  function CardinalImage(base64: string, label: string) {
-    return h(View, { style: { marginBottom: 12 } },
-      h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark, fontFamily: 'Helvetica-Bold', marginBottom: 6 } }, label),
+// Page 3 — Oblique aerial N + S
+function buildObliqueNSPage(data: PremiumReportData): React.ReactElement {
+  function AerialImage(base64: string, label: string, desc: string) {
+    return h(View, { style: { marginBottom: 10, flex: 1 } },
+      h(View, { style: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 } },
+        h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark, fontFamily: 'Helvetica-Bold' } }, label),
+        h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, marginLeft: 6 } }, desc),
+      ),
       base64
-        ? h(Image, { src: base64, style: { width: '100%', height: 210, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
+        ? h(Image, { src: base64, style: { width: '100%', height: 195, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
         : ImagePlaceholder(label),
     )
   }
-
   return h(Page, { size: 'LETTER', style: styles.page },
-    PageHeader(data.address, 'Street Views — North & South'),
-    SectionHeader('IMAGES', 'Street-level oblique views · heading 0° and 180°'),
-    h(View, { style: { paddingHorizontal: 24, paddingTop: 12 } },
-      CardinalImage(data.northViewBase64, 'North Side'),
-      CardinalImage(data.southViewBase64, 'South Side'),
+    PageHeader(data.address, 'Aerial Views — North & South'),
+    SectionHeader('AERIAL IMAGERY', 'Satellite oblique views · North and South offsets'),
+    h(View, { style: { paddingHorizontal: 24, paddingTop: 10, flex: 1 } },
+      AerialImage(data.obliqueNBase64, 'North Approach', 'offset 0°'),
+      AerialImage(data.obliqueSBase64, 'South Approach', 'offset 180°'),
     ),
     PageFooter(3, 12, data.generatedAt),
   )
 }
 
-// Page 4 — E + W Street Views
-function buildStreetViewEWPage(data: PremiumReportData): React.ReactElement {
-  function CardinalImage(base64: string, label: string) {
-    return h(View, { style: { marginBottom: 12 } },
-      h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark, fontFamily: 'Helvetica-Bold', marginBottom: 6 } }, label),
+// Page 4 — Oblique aerial E + W
+function buildObliqueEWPage(data: PremiumReportData): React.ReactElement {
+  function AerialImage(base64: string, label: string, desc: string) {
+    return h(View, { style: { marginBottom: 10, flex: 1 } },
+      h(View, { style: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 } },
+        h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark, fontFamily: 'Helvetica-Bold' } }, label),
+        h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, marginLeft: 6 } }, desc),
+      ),
       base64
-        ? h(Image, { src: base64, style: { width: '100%', height: 210, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
+        ? h(Image, { src: base64, style: { width: '100%', height: 195, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
         : ImagePlaceholder(label),
     )
   }
-
   return h(Page, { size: 'LETTER', style: styles.page },
-    PageHeader(data.address, 'Street Views — East & West'),
-    SectionHeader('IMAGES', 'Street-level oblique views · heading 90° and 270°'),
-    h(View, { style: { paddingHorizontal: 24, paddingTop: 12 } },
-      CardinalImage(data.eastViewBase64, 'East Side'),
-      CardinalImage(data.westViewBase64, 'West Side'),
+    PageHeader(data.address, 'Aerial Views — East & West'),
+    SectionHeader('AERIAL IMAGERY', 'Satellite oblique views · East and West offsets'),
+    h(View, { style: { paddingHorizontal: 24, paddingTop: 10, flex: 1 } },
+      AerialImage(data.obliqueEBase64, 'East Approach', 'offset 90°'),
+      AerialImage(data.obliqueWBase64, 'West Approach', 'offset 270°'),
     ),
     PageFooter(4, 12, data.generatedAt),
   )
 }
 
-// Pages 5–8 — SVG diagram pages
+// Page 5 — Linear Footage Summary (replaces broken length diagram)
+function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
+  const lf = data.linearFootage
+  const EDGE_ROWS: Array<{ label: string; ft: number; color: string; use: string; desc: string }> = [
+    { label: 'Ridge',  ft: lf.ridge_ft,  color: EDGE_COLORS.ridge,  use: 'Ridge cap',   desc: 'Horizontal peak where two slopes meet' },
+    { label: 'Hip',    ft: lf.hip_ft,    color: EDGE_COLORS.hip,    use: 'Hip cap',     desc: 'Sloped edge at corner where two planes meet' },
+    { label: 'Valley', ft: lf.valley_ft, color: EDGE_COLORS.valley, use: 'Flashing',    desc: 'V-shaped channel where two slopes meet' },
+    { label: 'Rake',   ft: lf.rake_ft,   color: EDGE_COLORS.rake,   use: 'Drip edge',   desc: 'Sloped edge along gable end' },
+    { label: 'Eave',   ft: lf.eave_ft,   color: EDGE_COLORS.eave,   use: 'Starter/drip','desc': 'Horizontal bottom edge of roof' },
+  ]
+  const total = lf.ridge_ft + lf.hip_ft + lf.valley_ft + lf.rake_ft + lf.eave_ft
+
+  function Row(r: typeof EDGE_ROWS[0], isLast: boolean) {
+    return h(View, { key: r.label, style: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, borderBottomWidth: isLast ? 0 : 0.5, borderBottomColor: BRAND_COLORS.borderGray } },
+      // Color swatch
+      h(View, { style: { width: 3, height: 28, borderRadius: 2, backgroundColor: r.color, marginRight: 12, flexShrink: 0 } }),
+      // Label + desc
+      h(View, { style: { flex: 1 } },
+        h(Text, { style: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 2 } }, r.label),
+        h(Text, { style: { fontSize: 7.5, color: BRAND_COLORS.textGray } }, r.desc),
+      ),
+      // Footage
+      h(View, { style: { width: 70, alignItems: 'flex-end' } },
+        h(Text, { style: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: r.color } }, `${fmt(r.ft)} ft`),
+      ),
+      // Use
+      h(View, { style: { width: 80, alignItems: 'flex-end' } },
+        h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray } }, r.use),
+      ),
+    )
+  }
+
+  return h(Page, { size: 'LETTER', style: styles.page },
+    PageHeader(data.address, 'Linear Footage Summary'),
+    SectionHeader('LINEAR FOOTAGE', 'Colour-coded edge types · estimated from segment geometry · ±20% accuracy'),
+
+    h(View, { style: { paddingHorizontal: 24, paddingTop: 12 } },
+      // Table
+      h(View, { style: { borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray, borderRadius: 6, overflow: 'hidden' } },
+        // Header row
+        h(View, { style: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 16, backgroundColor: '#F8FAFC', borderBottomWidth: 0.5, borderBottomColor: BRAND_COLORS.borderGray } },
+          h(View, { style: { width: 15, marginRight: 12 } }),
+          h(Text, { style: { flex: 1, fontSize: 8, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textGray, textTransform: 'uppercase', letterSpacing: 0.8 } }, 'Edge Type'),
+          h(Text, { style: { width: 70, fontSize: 8, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textGray, textTransform: 'uppercase', letterSpacing: 0.8, textAlign: 'right' } }, 'Length'),
+          h(Text, { style: { width: 80, fontSize: 8, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textGray, textTransform: 'uppercase', letterSpacing: 0.8, textAlign: 'right' } }, 'Order For'),
+        ),
+        ...EDGE_ROWS.map((r, i) => Row(r, i === EDGE_ROWS.length - 1)),
+      ),
+
+      // Total bar
+      h(View, { style: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: BRAND_COLORS.accent, borderRadius: 6 } },
+        h(Text, { style: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: 'white' } }, 'TOTAL LINEAR FOOTAGE'),
+        h(Text, { style: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: 'white' } }, `${fmt(total)} ft`),
+      ),
+
+      // Two-column summary cards
+      h(View, { style: { flexDirection: 'row', gap: 10, marginTop: 14 } },
+        h(View, { style: { flex: 1, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray, borderRadius: 6, padding: 12 } },
+          h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, fontFamily: 'Helvetica-Bold' } }, 'Combined Lengths'),
+          h(View, { style: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 } },
+            h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textGray } }, 'Ridge + Hip (capping)'),
+            h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark } }, `${fmt(lf.ridge_ft + lf.hip_ft)} ft`),
+          ),
+          h(View, { style: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 } },
+            h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textGray } }, 'Eave + Rake (drip edge)'),
+            h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark } }, `${fmt(lf.eave_ft + lf.rake_ft)} ft`),
+          ),
+        ),
+        h(View, { style: { flex: 1, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray, borderRadius: 6, padding: 12 } },
+          h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, fontFamily: 'Helvetica-Bold' } }, 'Accuracy Note'),
+          h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, lineHeight: 1.5 } },
+            '±20% estimated from Google Solar API segment geometry. Sufficient for material ordering and bid preparation. Field verification recommended before final order.',
+          ),
+        ),
+      ),
+    ),
+    PageFooter(5, 12, data.generatedAt),
+  )
+}
+
+// Pages 6–8 — SVG diagram pages (pitch, area, notes)
 function buildDiagramPage(
   data: PremiumReportData,
   mode: DiagramMode,
@@ -1518,9 +1602,9 @@ export async function buildPremiumReport(data: PremiumReportData): Promise<Buffe
   const doc = h(Document, {},
     buildCoverPage(data),
     buildSatellitePage(data),
-    buildStreetViewNSPage(data),
-    buildStreetViewEWPage(data),
-    buildDiagramPage(data, 'length', 5, projected, edges),
+    buildObliqueNSPage(data),
+    buildObliqueEWPage(data),
+    buildLFSummaryPage(data),
     buildDiagramPage(data, 'pitch',  6, projected, edges),
     buildDiagramPage(data, 'area',   7, projected, edges),
     buildDiagramPage(data, 'notes',  8, projected, edges),

@@ -425,7 +425,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                           <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 11px', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' as const }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Bid
+                            Quick Bid
                           </a>
                           {canAccessPremium && (
                             dsmLoadingId === report.id || premiumLoadingId === report.id ? (
@@ -441,7 +441,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                               <button onClick={() => getLinearFootageAndPDF(report)}
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 11px', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                                Material
+                                Material Order
                               </button>
                             )
                           )}
@@ -459,54 +459,54 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               )}
             </div>
 
-            {/* Property details — edit mode only */}
-            {editing && (
-              <>
-                {saveErr && <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontSize: 13, marginBottom: 10 }}>{saveErr}</div>}
-                <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', marginBottom: 12 }}>
-                  <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 12 }}>Address</div>
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      {field('address_line1', 'Street Address')}
-                      {field('address_line2', 'Unit / Suite')}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 90px', gap: 8 }}>
-                        {field('city', 'City')}{field('state', 'State')}{field('zip_code', 'ZIP')}
-                      </div>
-                    </div>
+            {/* Property details — always visible, editable when Edit tapped */}
+            <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', marginBottom: 12 }}>
+              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 12 }}>Address</div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {field('address_line1', 'Street Address')}
+                  {field('address_line2', 'Unit / Suite')}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 90px', gap: 8 }}>
+                    {field('city', 'City')}{field('state', 'State')}{field('zip_code', 'ZIP')}
                   </div>
-                  <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 12 }}>Roof Details</div>
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      {field('roof_type', 'Roof Type', 'select', ROOF_TYPES)}
-                      {field('roof_material', 'Material', 'select', ROOF_MATS)}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                        {field('sq_footage', 'Sq Ft', 'number')}{field('roof_age_years', 'Age (yrs)', 'number')}{field('stories', 'Stories', 'select', STORIES_OPTS.map(String))}
-                      </div>
-                    </div>
+                </div>
+              </div>
+              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 12 }}>Roof Details</div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {field('roof_type', 'Roof Type', 'select', ROOF_TYPES)}
+                  {field('roof_material', 'Material', 'select', ROOF_MATS)}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    {field('sq_footage', 'Sq Ft', 'number')}{field('roof_age_years', 'Age (yrs)', 'number')}{field('stories', 'Stories', 'select', STORIES_OPTS.map(String))}
                   </div>
-                  <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 12 }}>Insurance</div>
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      {field('insurance_carrier', 'Carrier')}{field('insurance_policy_number', 'Policy #')}
-                    </div>
-                  </div>
-                  <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 12 }}>Notes</div>
-                    <textarea value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value || null }))}
+                </div>
+              </div>
+              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 12 }}>Insurance</div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {field('insurance_carrier', 'Carrier')}{field('insurance_policy_number', 'Policy #')}
+                </div>
+              </div>
+              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 12 }}>Notes</div>
+                {editing
+                  ? <textarea value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value || null }))}
                       rows={3} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                  <button onClick={() => { setEditing(false); setForm(property) }}
-                    style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: `1.5px solid ${t.cardBorder}`, background: t.cardBgAlt, color: t.textMuted, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                    Cancel
-                  </button>
-                  <button onClick={handleSave} disabled={saving}
-                    style={{ flex: 2, padding: '10px 0', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              </>
+                  : <p style={{ fontSize: 13, color: property.notes ? t.textBody : t.textSubtle, margin: 0, lineHeight: 1.6 }}>{property.notes || 'No notes yet.'}</p>
+                }
+              </div>
+            </div>
+            {editing && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <button onClick={() => { setEditing(false); setForm(property) }}
+                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: `1.5px solid ${t.cardBorder}`, background: t.cardBgAlt, color: t.textMuted, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={handleSave} disabled={saving}
+                  style={{ flex: 2, padding: '10px 0', borderRadius: 10, border: 'none', background: '#0F766E', color: 'white', fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             )}
 
             {/* Job History */}
