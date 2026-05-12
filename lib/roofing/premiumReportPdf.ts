@@ -41,9 +41,7 @@ export interface RoofSegment {
     latitude: number
     longitude: number
   }
-  /** Slope-corrected area in m² (may be absent) */
   planeAreaMeters2?: number
-  /** 0 = unclassified, 1 = main, 2 = secondary */
   segmentType?: number
 }
 

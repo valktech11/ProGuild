@@ -140,8 +140,9 @@ async function fetchStreetViewBase64(lat: number, lng: number, heading: number, 
 
 function parseBbox(solar: DbReport['solar_raw']): PremiumReportData['bbox'] {
   const solarRecord = normalizeSolarRaw(solar)
-  const potential = solarRecord?.solarPotential as Record<string, unknown> | null
-  const bb = potential?.boundingBox as Record<string, unknown> | null
+  if (!solarRecord) return null
+  // boundingBox is top-level on the buildingInsights response
+  const bb = (solarRecord.boundingBox ?? (solarRecord.solarPotential as Record<string,unknown>|null)?.boundingBox) as Record<string, unknown> | null
   if (!bb) return null
   const sw = bb.sw as Record<string, unknown> | null
   const ne = bb.ne as Record<string, unknown> | null
@@ -183,16 +184,34 @@ function parseSegments(solar: DbReport['solar_raw']): RoofSegment[] {
     console.warn('[premium-report] parseSegments: roofSegmentStats missing/empty, solarPotential keys:', Object.keys(potential))
     return []
   }
-  const filtered = raw.filter((seg): seg is RoofSegment => {
-    if (typeof seg !== 'object' || seg === null) return false
+  const filtered = raw.flatMap((seg): RoofSegment[] => {
+    if (typeof seg !== 'object' || seg === null) return []
     const s = seg as Record<string, unknown>
     const center = s.center as Record<string, unknown> | null
-    return (
-      typeof center?.latitude === 'number' &&
-      typeof center?.longitude === 'number' &&
-      typeof s.groundAreaMeters2 === 'number' &&
-      (s.groundAreaMeters2 as number) > 0
+    if (typeof center?.latitude !== 'number' || typeof center?.longitude !== 'number') return []
+
+    // Google Solar API nests area inside stats sub-object
+    const stats = s.stats as Record<string, unknown> | null
+    const groundAreaMeters2 = (
+      typeof s.groundAreaMeters2 === 'number' ? s.groundAreaMeters2 :        // flat (legacy/DSM)
+      typeof stats?.groundAreaMeters2 === 'number' ? stats.groundAreaMeters2 : // nested (buildingInsights)
+      0
     )
+    const planeAreaMeters2 = (
+      typeof s.planeAreaMeters2 === 'number' ? s.planeAreaMeters2 :
+      typeof stats?.areaMeters2 === 'number' ? stats.areaMeters2 :
+      undefined
+    )
+    if (groundAreaMeters2 <= 0) return []
+
+    return [{
+      pitchDegrees:    typeof s.pitchDegrees === 'number'    ? s.pitchDegrees    : undefined,
+      azimuthDegrees:  typeof s.azimuthDegrees === 'number'  ? s.azimuthDegrees  : undefined,
+      groundAreaMeters2,
+      planeAreaMeters2,
+      center: { latitude: center.latitude as number, longitude: center.longitude as number },
+      segmentType:     typeof s.segmentType === 'number'     ? s.segmentType     : undefined,
+    }]
   })
   console.log(`[premium-report] parseSegments: ${raw.length} raw → ${filtered.length} valid segments`)
   return filtered
