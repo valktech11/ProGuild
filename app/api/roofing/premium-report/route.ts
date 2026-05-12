@@ -1,171 +1,448 @@
-// app/api/roofing/premium-report/route.ts
-// POST /api/roofing/premium-report
-// Reads existing linear_footage from DB (pre-computed by /api/roofing/dsm)
-// Builds and uploads premium PDF to R2. Returns signed URL.
+/**
+ * app/api/roofing/premium-report/route.ts
+ * POST /api/roofing/premium-report
+ *
+ * Fetches all imagery (top-view satellite + 4 Street View cardinal images),
+ * parses roofSegmentStats from solar_raw, then delegates to premiumReportPdf
+ * to render the full 12-page EagleView+Roofr-parity PDF and uploads to R2.
+ *
+ * Rules (from HANDOVER_v87):
+ *  - export const runtime = 'nodejs'  — PDF + image buffering requires Node
+ *  - export const maxDuration = 60    — parallel image fetches + PDF render
+ *  - NO Claude/Anthropic API
+ *  - Staging gate: NEXT_PUBLIC_VERCEL_ENV !== 'production'
+ */
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase'
-import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { createClient } from '@supabase/supabase-js'
+import { buildPremiumReport, type PremiumReportData, type RoofSegment } from '@/lib/roofing/premiumReportPdf'
+import { getR2Client, getR2Bucket } from '@/lib/api/utils'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { buildPremiumRoofReportPDF, PremiumLinearFootage } from '@/lib/roofing/premiumReportPdf'
-import { renderToBuffer } from '@react-pdf/renderer'
-import { apiError, isValidUuid, getR2Client, getR2Bucket } from '@/lib/api/utils'
+import { GetObjectCommand } from '@aws-sdk/client-s3'
 
-const SIGNED_URL_TTL = 60 * 60 * 24 * 7 // 7 days
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// Stored pitch_breakdown shape (from /api/roofing/report)
-interface StoredPitchRow {
+interface RouteBody {
+  reportId: string
+}
+
+interface DbReport {
+  id: string
+  address: string
+  lat: number
+  lng: number
+  total_sqft: number | null
+  total_squares_order: number | null
+  dominant_pitch: string | null
+  facet_count: number | null
+  waste_factor: number | null
+  imagery_date: string | null
+  pitch_breakdown: PitchBreakdownRow[] | null
+  linear_footage: LinearFootage | null
+  solar_raw: SolarRaw | null
+  premium_r2_key: string | null
+  pro_id: string
+}
+
+interface PitchBreakdownRow {
   pitch: string
   sqft: number
   sq: number
   pct: number
 }
 
-// Determine if a pitch string is low slope (≤ 2/12)
-function isLowSlope(pitch: string): boolean {
-  const rise = parseInt(pitch.split('/')[0] ?? '0', 10)
-  return rise <= 2
+interface LinearFootage {
+  ridge_ft?: number
+  hip_ft?: number
+  valley_ft?: number
+  rake_ft?: number
+  eave_ft?: number
+  total_linear_ft?: number
+  accuracy_note?: string
+  facet_count?: number
 }
 
-// Map stored pitch rows to PremiumPitchRow shape
-function mapPitchBreakdown(stored: unknown[]) {
-  return stored
-    .filter((r): r is StoredPitchRow =>
-      r !== null &&
-      typeof r === 'object' &&
-      'pitch' in r && 'sqft' in r && 'sq' in r && 'pct' in r
-    )
-    .map(r => ({
-      pitch: r.pitch,
-      area: r.sqft,
-      squares: r.sq,
-      pct: r.pct,
-      isLowSlope: isLowSlope(r.pitch),
-    }))
-}
-
-export async function POST(req: NextRequest) {
-  // 1. Parse and validate
-  let body: unknown
-  try { body = await req.json() }
-  catch { return apiError('Invalid JSON in request body', 400) }
-
-  if (!body || typeof body !== 'object') return apiError('Request body must be a JSON object', 400)
-  const { report_id, pro_id } = body as Record<string, unknown>
-
-  if (!isValidUuid(report_id)) return apiError('report_id must be a valid UUID', 400)
-  if (!isValidUuid(pro_id)) return apiError('pro_id must be a valid UUID', 400)
-
-  const sb = getSupabaseAdmin()
-
-  // 2. Fetch report row — ownership enforced by double eq
-  const { data: report, error: reportErr } = await sb
-    .from('roof_reports')
-    .select('id, pro_id, address, total_sqft, total_squares_order, dominant_pitch, facet_count, waste_factor, imagery_date, pitch_breakdown, linear_footage, lat, lng')
-    .eq('id', report_id)
-    .eq('pro_id', pro_id)
-    .single()
-
-  if (reportErr || !report) return apiError('Report not found or access denied', 403)
-
-  if (!report.linear_footage) {
-    return apiError('Linear footage not yet computed — run DSM analysis first', 422)
+interface SolarRaw {
+  solarPotential?: {
+    roofSegmentStats?: RoofSegment[]
+    boundingBox?: {
+      sw?: { latitude?: number; longitude?: number }
+      ne?: { latitude?: number; longitude?: number }
+    }
+    imageryDate?: { year?: number; month?: number; day?: number }
   }
+}
 
-  // 3. Fetch pro profile
-  const { data: pro } = await sb
-    .from('pros')
-    .select('full_name, business_name, phone_cell, email')
-    .eq('id', pro_id)
-    .single()
+interface ProRecord {
+  id: string
+  name: string | null
+  email: string | null
+  company_name: string | null
+  phone: string | null
+  license_verified: boolean | null
+}
 
-  // 4. Build PDF data with safe defaults for every nullable field
-  const pitchBreakdown = mapPitchBreakdown(
-    Array.isArray(report.pitch_breakdown) ? report.pitch_breakdown : []
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const MAPS_STATIC_BASE = 'https://maps.googleapis.com/maps/api/staticmap'
+const STREET_VIEW_BASE = 'https://maps.googleapis.com/maps/api/streetview'
+const IMAGE_TIMEOUT_MS = 15_000
+const R2_SIGNED_URL_EXPIRY = 60 * 60 * 24 * 7 // 7 days
+
+// ─── Image fetching ───────────────────────────────────────────────────────────
+
+async function fetchImageBase64(url: string, label = ''): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+      headers: { 'Accept': 'image/*' },
+    })
+    if (!res.ok) {
+      console.warn(`[premium-report] image fetch failed: ${label} — HTTP ${res.status}`)
+      return ''
+    }
+    const mime = (res.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length === 0) {
+      console.warn(`[premium-report] empty image body: ${label}`)
+      return ''
+    }
+    return `data:${mime};base64,${buf.toString('base64')}`
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(`[premium-report] image fetch error: ${label} — ${msg}`)
+    return ''
+  }
+}
+
+function buildTopViewUrl(
+  lat: number,
+  lng: number,
+  bbox: PremiumReportData['bbox'],
+  apiKey: string,
+): string {
+  const size = '640x480'
+  const zoom = 20
+  const center = `${lat},${lng}`
+  const base = `${MAPS_STATIC_BASE}?center=${center}&zoom=${zoom}&size=${size}&maptype=satellite&key=${apiKey}`
+
+  // Overlay yellow bounding box if available
+  if (bbox) {
+    const sw = `${bbox.swLat},${bbox.swLng}`
+    const ne = `${bbox.neLat},${bbox.neLng}`
+    const nw = `${bbox.neLat},${bbox.swLng}`
+    const se = `${bbox.swLat},${bbox.neLng}`
+    const path = `&path=color:0xFFFF00FF|weight:2|${sw}|${nw}|${ne}|${se}|${sw}`
+    return base + path
+  }
+  return base
+}
+
+function buildStreetViewUrl(
+  lat: number,
+  lng: number,
+  heading: number,
+  apiKey: string,
+): string {
+  return (
+    `${STREET_VIEW_BASE}?location=${lat},${lng}` +
+    `&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
   )
+}
 
-  const premiumData = {
-    address: (report.address as string | null) ?? 'Unknown Address',
-    proName: (pro?.full_name ?? pro?.business_name ?? 'ProGuild Pro'),
-    proEmail: (pro?.email ?? ''),
-    proPhone: (pro?.phone_cell ?? ''),
-    generatedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-    imageryDate: (report.imagery_date as string | null) ?? '',
-    totalSqft: Number(report.total_sqft) || 0,
-    totalSquaresOrder: Number(report.total_squares_order) || 0,
-    facetCount: Number(report.facet_count) || 0,
-    dominantPitch: (report.dominant_pitch as string | null) ?? '6/12',
-    wasteFactor: Number(report.waste_factor) || 13,
-    pitchBreakdown,
-    linearFootage: report.linear_footage as PremiumLinearFootage,
-    lat: Number(report.lat) || 0,
-    lng: Number(report.lng) || 0,
+// ─── Parsers ──────────────────────────────────────────────────────────────────
+
+function parseBbox(
+  solar: SolarRaw | null,
+): PremiumReportData['bbox'] {
+  const bb = solar?.solarPotential?.boundingBox
+  if (!bb?.sw?.latitude || !bb?.sw?.longitude || !bb?.ne?.latitude || !bb?.ne?.longitude) {
+    return null
+  }
+  return {
+    swLat: bb.sw.latitude,
+    swLng: bb.sw.longitude,
+    neLat: bb.ne.latitude,
+    neLng: bb.ne.longitude,
+  }
+}
+
+function parseSegments(solar: SolarRaw | null): RoofSegment[] {
+  const raw = solar?.solarPotential?.roofSegmentStats
+  if (!Array.isArray(raw) || raw.length === 0) return []
+
+  return raw.filter((seg): seg is RoofSegment => {
+    return (
+      typeof seg === 'object' &&
+      seg !== null &&
+      typeof seg.center?.latitude === 'number' &&
+      typeof seg.center?.longitude === 'number' &&
+      typeof seg.groundAreaMeters2 === 'number' &&
+      seg.groundAreaMeters2 > 0
+    )
+  })
+}
+
+function parsePitchBreakdown(
+  rows: PitchBreakdownRow[] | null,
+): PremiumReportData['pitchBreakdown'] {
+  if (!Array.isArray(rows) || rows.length === 0) return []
+  return rows.map((r) => ({
+    pitch: r.pitch ?? '?/12',
+    sqft: Number(r.sqft) || 0,
+    sq: Number(r.sq) || 0,
+    pct: Number(r.pct) || 0,
+  }))
+}
+
+function parseLinearFootage(
+  lf: LinearFootage | null,
+): PremiumReportData['linearFootage'] {
+  return {
+    ridge_ft: Number(lf?.ridge_ft) || 0,
+    hip_ft: Number(lf?.hip_ft) || 0,
+    valley_ft: Number(lf?.valley_ft) || 0,
+    rake_ft: Number(lf?.rake_ft) || 0,
+    eave_ft: Number(lf?.eave_ft) || 0,
+    total_linear_ft: Number(lf?.total_linear_ft) || 0,
+    accuracy_note: lf?.accuracy_note ?? '±20% estimated from roof segment geometry',
+    facet_count: Number(lf?.facet_count) || 0,
+  }
+}
+
+// ─── Supabase helpers ─────────────────────────────────────────────────────────
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error('Supabase env vars not configured')
+  return createClient(url, key)
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  // ── 0. Parse + validate body ────────────────────────────────────────────────
+  let body: RouteBody
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  // 5. Render PDF
+  const { reportId } = body
+  if (!reportId || typeof reportId !== 'string' || !/^[0-9a-f-]{36}$/.test(reportId)) {
+    return NextResponse.json({ error: 'reportId must be a valid UUID' }, { status: 400 })
+  }
+
+  // ── 1. Auth — verify caller is a logged-in pro ──────────────────────────────
+  const authHeader = req.headers.get('authorization') ?? ''
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+  const { data: { user }, error: authErr } = await userClient.auth.getUser()
+  if (authErr || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // ── 2. Staging gate ─────────────────────────────────────────────────────────
+  const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production'
+  const canAccessPremium = !isProduction // TODO: replace with Stripe plan check
+  if (!canAccessPremium) {
+    return NextResponse.json({ error: 'Premium plan required' }, { status: 403 })
+  }
+
+  // ── 3. Fetch report from DB (service role bypasses RLS) ─────────────────────
+  const supabase = getServiceClient()
+  const { data: report, error: dbErr } = await supabase
+    .from('roof_reports')
+    .select([
+      'id', 'address', 'lat', 'lng',
+      'total_sqft', 'total_squares_order',
+      'dominant_pitch', 'facet_count', 'waste_factor',
+      'imagery_date', 'pitch_breakdown', 'linear_footage',
+      'solar_raw', 'premium_r2_key', 'pro_id',
+    ].join(', '))
+    .eq('id', reportId)
+    .eq('pro_id', user.id)  // ownership check
+    .single()
+
+  if (dbErr || !report) {
+    console.error('[premium-report] DB fetch error:', dbErr?.message)
+    return NextResponse.json({ error: 'Report not found' }, { status: 404 })
+  }
+
+  const dbReport = report as DbReport
+
+  // ── 4. Fetch pro info ───────────────────────────────────────────────────────
+  const { data: proData } = await supabase
+    .from('pros')
+    .select('id, name, email, company_name, phone, license_verified')
+    .eq('id', user.id)
+    .single()
+
+  const pro = (proData as ProRecord | null) ?? {
+    id: user.id,
+    name: user.email ?? 'ProGuild Pro',
+    email: user.email ?? '',
+    company_name: null,
+    phone: null,
+    license_verified: null,
+  }
+
+  // ── 5. Validate API key ──────────────────────────────────────────────────────
+  const googleKey = process.env.GOOGLE_SOLAR_API_KEY
+  if (!googleKey) {
+    console.error('[premium-report] GOOGLE_SOLAR_API_KEY not set')
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+  }
+
+  // ── 6. Parse solar data ─────────────────────────────────────────────────────
+  const solarRaw = dbReport.solar_raw as SolarRaw | null
+  const bbox = parseBbox(solarRaw)
+  const segments = parseSegments(solarRaw)
+
+  if (segments.length === 0) {
+    console.warn('[premium-report] No valid segments found in solar_raw for report:', reportId)
+    // Continue — SVG pages will render with "data unavailable" placeholder
+  }
+
+  // ── 7. Parallel image fetch (5 images, non-blocking failures) ───────────────
+  const lat = dbReport.lat
+  const lng = dbReport.lng
+
+  const topViewUrl = buildTopViewUrl(lat, lng, bbox, googleKey)
+  const northUrl = buildStreetViewUrl(lat, lng, 0, googleKey)
+  const southUrl = buildStreetViewUrl(lat, lng, 180, googleKey)
+  const eastUrl  = buildStreetViewUrl(lat, lng, 90, googleKey)
+  const westUrl  = buildStreetViewUrl(lat, lng, 270, googleKey)
+
+  const [topViewBase64, northViewBase64, southViewBase64, eastViewBase64, westViewBase64] =
+    await Promise.all([
+      fetchImageBase64(topViewUrl, 'top-view'),
+      fetchImageBase64(northUrl, 'north-street-view'),
+      fetchImageBase64(southUrl, 'south-street-view'),
+      fetchImageBase64(eastUrl, 'east-street-view'),
+      fetchImageBase64(westUrl, 'west-street-view'),
+    ])
+
+  // ── 8. Assemble PremiumReportData ───────────────────────────────────────────
+  const reportData: PremiumReportData = {
+    // Property
+    address: dbReport.address ?? '',
+    lat,
+    lng,
+    imageryDate: dbReport.imagery_date ?? null,
+    generatedAt: new Date().toISOString(),
+
+    // Measurements
+    totalSqft: Number(dbReport.total_sqft) || 0,
+    totalSquares: Number(dbReport.total_squares_order) || 0,
+    dominantPitch: dbReport.dominant_pitch ?? '?/12',
+    facetCount: Number(dbReport.facet_count) || 0,
+    wasteFactor: Number(dbReport.waste_factor) || 12,
+    pitchBreakdown: parsePitchBreakdown(dbReport.pitch_breakdown),
+    linearFootage: parseLinearFootage(dbReport.linear_footage),
+
+    // Pro
+    proName: pro.name ?? 'ProGuild Pro',
+    proEmail: pro.email ?? '',
+    proCompany: pro.company_name ?? null,
+    proPhone: pro.phone ?? null,
+    proVerified: pro.license_verified ?? false,
+
+    // Images
+    topViewBase64,
+    northViewBase64,
+    southViewBase64,
+    eastViewBase64,
+    westViewBase64,
+
+    // SVG source data
+    segments,
+    bbox,
+  }
+
+  // ── 9. Render PDF ────────────────────────────────────────────────────────────
   let pdfBuffer: Buffer
   try {
-    const doc = buildPremiumRoofReportPDF(premiumData)
-    pdfBuffer = await renderToBuffer(doc)
-  } catch (e) {
-    console.error('[premium-pdf] render error:', e)
-    return apiError('PDF rendering failed', 500, e)
+    pdfBuffer = await buildPremiumReport(reportData)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[premium-report] PDF render error:', msg)
+    return NextResponse.json({ error: 'PDF generation failed', detail: msg }, { status: 500 })
   }
 
-  // 6. Upload to R2
-  let r2, bucket
+  // ── 10. Upload to R2 ─────────────────────────────────────────────────────────
+  const r2Key = `premium-reports/${user.id}/${reportId}/premium-report.pdf`
   try {
-    r2 = getR2Client()
-    bucket = getR2Bucket()
-  } catch (e) {
-    console.error('[premium-pdf] R2 config error:', e)
-    return apiError('Storage not configured', 503, e)
+    const r2 = getR2Client()
+    const bucket = getR2Bucket()
+    await r2.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: r2Key,
+        Body: pdfBuffer,
+        ContentType: 'application/pdf',
+        ContentDisposition: `inline; filename="ProGuild-Premium-${reportId.slice(0, 8)}.pdf"`,
+      })
+    )
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[premium-report] R2 upload error:', msg)
+    return NextResponse.json({ error: 'Storage upload failed', detail: msg }, { status: 500 })
   }
 
-  const now = new Date()
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const safeAddr = ((report.address as string | null) ?? 'report')
-    .replace(/[^a-zA-Z0-9]/g, '_')
-    .slice(0, 40)
-  const r2Key = `reports/${pro_id}/premium/${dateStr}-${report_id}-premium.pdf`
+  // ── 11. Persist R2 key to DB ─────────────────────────────────────────────────
+  const { error: updateErr } = await supabase
+    .from('roof_reports')
+    .update({ premium_r2_key: r2Key })
+    .eq('id', reportId)
 
-  try {
-    await r2.send(new PutObjectCommand({
-      Bucket: bucket,
-      Key: r2Key,
-      Body: pdfBuffer,
-      ContentType: 'application/pdf',
-      ContentDisposition: `attachment; filename="${safeAddr}_ProGuild_Premium.pdf"`,
-    }))
-  } catch (e) {
-    console.error('[premium-pdf] R2 upload error:', e)
-    return apiError('Failed to upload PDF', 502, e)
+  if (updateErr) {
+    // Non-fatal — PDF is in R2, just log
+    console.error('[premium-report] DB update error (non-fatal):', updateErr.message)
   }
 
-  // 7. Sign URL
+  // ── 12. Generate 7-day signed URL ────────────────────────────────────────────
   let signedUrl: string
   try {
+    const r2 = getR2Client()
+    const bucket = getR2Bucket()
     signedUrl = await getSignedUrl(
       r2,
       new GetObjectCommand({ Bucket: bucket, Key: r2Key }),
-      { expiresIn: SIGNED_URL_TTL }
+      { expiresIn: R2_SIGNED_URL_EXPIRY },
     )
-  } catch (e) {
-    console.error('[premium-pdf] sign error:', e)
-    return apiError('Failed to generate download URL', 502, e)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[premium-report] Signed URL error:', msg)
+    return NextResponse.json({ error: 'Failed to generate download URL', detail: msg }, { status: 500 })
   }
 
-  // 8. Persist r2 key — non-fatal if fails
-  const { error: updateErr } = await sb
-    .from('roof_reports')
-    .update({ premium_r2_key: r2Key })
-    .eq('id', report_id)
-    .eq('pro_id', pro_id)
-
-  if (updateErr) console.error('[premium-pdf] persist key error:', updateErr.message)
-
-  return NextResponse.json({ success: true, url: signedUrl })
+  return NextResponse.json({
+    success: true,
+    url: signedUrl,
+    r2Key,
+    pages: 12,
+    segments: segments.length,
+    hasImages: {
+      topView: topViewBase64.length > 0,
+      north: northViewBase64.length > 0,
+      south: southViewBase64.length > 0,
+      east: eastViewBase64.length > 0,
+      west: westViewBase64.length > 0,
+    },
+  })
 }
