@@ -684,13 +684,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
 
                           {/* Material Order — Pro only */}
                           {canAccessPremium && (
-                            report.premium_r2_url ? (
-                              <a href={report.premium_r2_url} target="_blank" rel="noopener noreferrer"
-                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: 140, padding: '7px 0', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', boxSizing: 'border-box' }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                Material Order
-                              </a>
-                            ) : dsmLoadingId === report.id ? (
+                            dsmLoadingId === report.id || premiumLoadingId === report.id ? (
                               <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: 140, padding: '7px 0', borderRadius: 8, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', boxSizing: 'border-box' }}>
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
@@ -701,8 +695,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                               </div>
                             ) : (
                               <button onClick={() => getLinearFootageAndPDF(report)}
-                                disabled={dsmLoadingId === report.id || premiumLoadingId === report.id}
-                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: 140, padding: '7px 0', borderRadius: 8, border: '1.5px solid #7C3AED', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxSizing: 'border-box' }}>
+                                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: 140, padding: '7px 0', borderRadius: 8, border: '1.5px solid #7C3AED', background: report.premium_r2_url ? '#F5F3FF' : '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxSizing: 'border-box' }}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                                 </svg>
