@@ -531,9 +531,10 @@ export async function runDsmDebug(lat: number, lng: number, googleKey: string): 
 
 // ── Segment-based linear footage v2 ──────────────────────────────────────────
 //
-// Validated against Roofr ground truth (Highgate 3919, Jacksonville FL):
-//   Ridge: -6.9% ✅  Hip: +8.7% ✅  Valley: +5.4% ✅  Eave: +1.8% ✅  Rake: -11.3% ✅
-//   Average error: 6.8%
+// Validated against Roofr ground truth:
+//   Highgate 3919 Jacksonville FL (simple hip):  avg error 6.8%  — all lines ✅
+//   Cypress Hilltop 17507 Hockley TX (complex):  avg error ~28%  — valley/eave ✅
+//   Walnut Brook 3696 Rochester Hills MI (dormers): ridge/valley limited by Solar data gaps
 //
 // Algorithm:
 //   Ridge:  180°-opposing adjacent pairs → length = 0.7×min(sqrt(gndA),sqrt(gndB))
@@ -608,20 +609,26 @@ export function computeLinearFootageFromSegments(
 
   // ── RIDGE ──────────────────────────────────────────────────────────────────
   // 180°-opposing adjacent pairs. Length = 0.7 × min(sqrt(gndA), sqrt(gndB)).
-  // No deduplication — every valid opposing pair contributes.
+  // Require at least one main segment (≥MAIN_FACE_M2) to avoid sec↔sec noise.
+  // Only main↔main pairs mark segments as gable (rake-producing).
   // Pure hip roofs yield 0 correctly (all main faces are 90° apart, not 180°).
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
+      const aMain = gnd(a) >= MAIN_FACE_M2
+      const bMain = gnd(b) >= MAIN_FACE_M2
+      // Skip secondary↔secondary pairs — noise on complex roofs
+      if (!aMain && !bMain) continue
       if (!adjOk(a, b, RIDGE_ADJ)) continue
       if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
       const key = `${i}-${j}`
       if (ridgeCounted.has(key)) continue
       ridgeCounted.add(key)
-      hasRidge.add(i); hasRidge.add(j)
+      // Only main↔main pairs produce rake (gable ends)
+      if (aMain && bMain) { hasRidge.add(i); hasRidge.add(j) }
       const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
       ridgeM += ridgeLen
-      console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°) len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
+      console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'}) len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
     }
   }
 
