@@ -270,6 +270,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const keys = Object.keys(solarRaw || {})
     const spKeys = Object.keys((solarRaw as Record<string,unknown>)?.solarPotential as Record<string,unknown> || {})
     console.warn('[premium-report] No segments for:', report_id, '| solar_raw keys:', keys, '| solarPotential keys:', spKeys)
+    // DEBUG: return parse state so we can diagnose without Vercel logs
+    const solarType = typeof solarRaw
+    const solarNorm = normalizeSolarRaw(solarRaw)
+    const spNorm = solarNorm?.solarPotential as Record<string,unknown> | null
+    const rssRaw = spNorm?.roofSegmentStats
+    return NextResponse.json({
+      debug: true,
+      solar_raw_type: solarType,
+      solar_raw_is_string: solarType === 'string',
+      solar_keys: keys,
+      solarPotential_keys: spKeys,
+      roofSegmentStats_type: Array.isArray(rssRaw) ? `array[${(rssRaw as unknown[]).length}]` : typeof rssRaw,
+      first_segment_keys: Array.isArray(rssRaw) && rssRaw.length > 0 ? Object.keys(rssRaw[0] as object) : [],
+      norm_solar_keys: solarNorm ? Object.keys(solarNorm) : [],
+      norm_sp_keys: spNorm ? Object.keys(spNorm) : [],
+    }, { status: 200 })
   } else {
     console.log('[premium-report] Segments found:', segments.length, 'for:', report_id)
   }
