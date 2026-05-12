@@ -85,7 +85,7 @@ function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox
 // This avoids the "no imagery" grey image when coords land on a rooftop instead of the street.
 async function fetchStreetViewBase64(lat: number, lng: number, heading: number, apiKey: string, label: string): Promise<string> {
   // Step 1: metadata lookup — finds nearest pano within 200m, returns pano_id
-  const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&radius=200&key=${apiKey}`
+  const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&radius=500&key=${apiKey}`
   try {
     const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(8000) })
     if (metaRes.ok) {
