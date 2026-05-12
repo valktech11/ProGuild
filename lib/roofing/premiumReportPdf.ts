@@ -692,7 +692,7 @@ function buildDiagramSvg(
     ? h(G, { key: 'pitch-legend' },
         h(Rect as any, { x: 4, y: 4, width: 72, height: 54, rx: 3, fill: '#F8FAFC', stroke: '#E2E8F0', strokeWidth: 0.5 }),
         ...[
-          { label: '≤2/12 flat', fill: BRAND_COLORS.pitchGray },
+          { label: '2/12 or less flat', fill: BRAND_COLORS.pitchGray },
           { label: '3–4/12 low', fill: '#DBEAFE' },
           { label: '5–6/12 std', fill: BRAND_COLORS.pitchBlue },
           { label: '7–8/12 steep', fill: '#93C5FD' },
@@ -894,7 +894,7 @@ function computeMaterialRows(data: PremiumReportData): MaterialRow[] {
 
 function complexityBadge(segments: number): { label: string; color: string; bg: string } {
   if (segments <= 10) {
-    return { label: 'Simple roof (≤10 segments) — standard accuracy', color: '#166534', bg: '#DCFCE7' }
+    return { label: 'Simple roof (10 or fewer segments) — standard accuracy', color: '#166534', bg: '#DCFCE7' }
   }
   if (segments <= 15) {
     return { label: `Complex roof (${segments} segments) — verify linear footage on-site before ordering`, color: '#92400E', bg: '#FEF3C7' }
@@ -1099,7 +1099,7 @@ function buildDiagramPage(
     notes:  'NOTES DIAGRAM',
   }
   const subtitles: Record<DiagramMode, string> = {
-    length: 'Colour-coded edges with linear footage labels · ±20% estimated accuracy',
+    length: 'Colour-coded edges with linear footage labels · +/-20% estimated accuracy',
     pitch:  'Facets shaded by pitch · slope direction arrows · pitch in rise/12',
     area:   'Square footage at each segment centroid · computed from Google Solar API',
     notes:  'Facets labelled A–Z from smallest to largest for field reference',
@@ -1230,7 +1230,7 @@ function buildReportSummaryPage(data: PremiumReportData): React.ReactElement {
       h(View, { style: { flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 12 } },
         h(View, { style: { flexDirection: 'row', gap: 0 } },
           h(View, { style: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: effectiveSegCount <= 10 ? '#DCFCE7' : '#F1F5F9', borderRadius: 3 } },
-            h(Text, { style: { fontSize: 7.5, color: effectiveSegCount <= 10 ? '#166534' : '#94A3B8' } }, 'Simple (≤10 segs)'),
+            h(Text, { style: { fontSize: 7.5, color: effectiveSegCount <= 10 ? '#166534' : '#94A3B8' } }, 'Simple (10 or fewer segs)'),
           ),
           h(View, { style: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: (effectiveSegCount >= 11 && effectiveSegCount <= 15) ? '#FEF3C7' : '#F1F5F9', marginHorizontal: 2, borderRadius: 3 } },
             h(Text, { style: { fontSize: 7.5, color: (effectiveSegCount >= 11 && effectiveSegCount <= 15) ? '#92400E' : '#94A3B8' } }, 'Normal (11–15 segs)'),
@@ -1247,7 +1247,7 @@ function buildReportSummaryPage(data: PremiumReportData): React.ReactElement {
       // Waste calculation table
       h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 4 } }, 'Waste Calculation'),
       h(Text, { style: { fontSize: 7.5, color: BRAND_COLORS.textGray, marginBottom: 8 } },
-        `Applies to asphalt shingle areas ≥3/12 pitch only (${fmt(totalSqft)} sq ft). Ridge, hip, and starter lengths not included.`,
+        `Applies to asphalt shingle areas 3/12 or steeper pitch only (${fmt(totalSqft)} sq ft). Ridge, hip, and starter lengths not included.`,
       ),
       h(View, { style: styles.table },
         h(View, { style: styles.tableHeaderRow },
@@ -1462,9 +1462,9 @@ function buildDisclaimerPage(data: PremiumReportData): React.ReactElement {
         'roof segment geometry using azimuth and area relationships.',
       ),
       Para(
-        'Linear footage accuracy: ±20% estimated from roof segment geometry. Performance varies by roof complexity: ' +
-        '≤8 Solar segments (simple hip roofs, ~40% of US housing) achieves ±7% average error. ' +
-        '9–15 segments achieves ±20–38% error. 16+ segments (complex dormers) achieves ±62% error. ' +
+        'Linear footage accuracy: +/-20% estimated from roof segment geometry. Performance varies by roof complexity: ' +
+        '≤8 Solar segments (simple hip roofs, ~40% of US housing) achieves +/-7% average error. ' +
+        '9–15 segments achieves +/-20–38% error. 16+ segments (complex dormers) achieves +/-62% error. ' +
         'Sufficient for material ordering and bid preparation. Not suitable for permit drawings or engineering calculations.',
       ),
       Para(
