@@ -556,13 +556,11 @@ function buildDiagramSvg(
       h(Rect, { x: 0, y: 0, width: SVG_W, height: SVG_H, fill: '#F8FAFC', rx: 4 }),
       h(Text as any, {
         x: SVG_W / 2, y: SVG_H / 2,
-        textAnchor: 'middle', fontSize: 11, fill: BRAND_COLORS.textGray,
-        fontFamily: 'Helvetica',
+        style: { fontSize: 11, fill: BRAND_COLORS.textGray, textAnchor: 'middle' },
       }, 'Segment data unavailable'),
       h(Text as any, {
         x: SVG_W / 2, y: SVG_H / 2 + 16,
-        textAnchor: 'middle', fontSize: 9, fill: '#94A3B8',
-        fontFamily: 'Helvetica',
+        style: { fontSize: 9, fill: '#94A3B8', textAnchor: 'middle' },
       }, 'solar_raw roofSegmentStats not populated'),
     )
   }
@@ -622,8 +620,7 @@ function buildDiagramSvg(
       }),
       h(Text as any, {
         x: seg.cx, y: seg.cy + 2,
-        textAnchor: 'middle', fontSize,
-        fill: color, fontFamily: 'Helvetica-Bold',
+        style: { fontSize, fill: color, textAnchor: 'middle' },
       }, label),
     )
   }).filter(Boolean)
@@ -650,8 +647,7 @@ function buildDiagramSvg(
       }),
       h(Text as any, {
         x: mx, y: my + 2,
-        textAnchor: 'middle', fontSize: 7,
-        fill: col, fontFamily: 'Helvetica-Bold',
+        style: { fontSize: 7, fill: col, textAnchor: 'middle' },
       }, `${edge.lengthFt}ft`),
     )
     return h(G, { key: `edge-group-${i}` }, lineEl, labelEl)
@@ -664,10 +660,10 @@ function buildDiagramSvg(
     h(Circle, { cx, cy, r: 16, fill: '#FFFFFF', stroke: '#CBD5E1', strokeWidth: 0.5 }),
     h(Polygon, { points: `${cx},${cy - 14} ${cx - 4},${cy - 6} ${cx + 4},${cy - 6}`, fill: BRAND_COLORS.accent }),
     h(Polygon, { points: `${cx},${cy + 14} ${cx - 4},${cy + 6} ${cx + 4},${cy + 6}`, fill: '#CBD5E1' }),
-    h(Text as any, { x: cx, y: cy - 4, textAnchor: 'middle', fontSize: 6, fill: BRAND_COLORS.accent, fontFamily: 'Helvetica-Bold' }, 'N'),
-    h(Text as any, { x: cx, y: cy + 13, textAnchor: 'middle', fontSize: 5.5, fill: '#94A3B8', fontFamily: 'Helvetica' }, 'S'),
-    h(Text as any, { x: cx - 10, y: cy + 2, textAnchor: 'middle', fontSize: 5.5, fill: '#94A3B8', fontFamily: 'Helvetica' }, 'W'),
-    h(Text as any, { x: cx + 10, y: cy + 2, textAnchor: 'middle', fontSize: 5.5, fill: '#94A3B8', fontFamily: 'Helvetica' }, 'E'),
+    h(Text as any, { x: cx, y: cy - 4, style: { fontSize: 6, fill: BRAND_COLORS.accent, textAnchor: 'middle' } }, 'N'),
+    h(Text as any, { x: cx, y: cy + 13, style: { fontSize: 5.5, fill: '#94A3B8', textAnchor: 'middle' } }, 'S'),
+    h(Text as any, { x: cx - 10, y: cy + 2, style: { fontSize: 5.5, fill: '#94A3B8', textAnchor: 'middle' } }, 'W'),
+    h(Text as any, { x: cx + 10, y: cy + 2, style: { fontSize: 5.5, fill: '#94A3B8', textAnchor: 'middle' } }, 'E'),
   )
 
   // Legend (length mode only)
@@ -681,7 +677,7 @@ function buildDiagramSvg(
         ...legendEntries.map((entry, i) =>
           h(G, { key: `leg-${i}` },
             h(Line, { x1: 8, y1: 10 + i * 12, x2: 24, y2: 10 + i * 12, stroke: entry.color, strokeWidth: 2 }),
-            h(Text as any, { x: 28, y: 13 + i * 12, fontSize: 7, fill: BRAND_COLORS.textDark, fontFamily: 'Helvetica' }, entry.label),
+            h(Text as any, { x: 28, y: 13 + i * 12, style: { fontSize: 7, fill: BRAND_COLORS.textDark } }, entry.label),
           )
         ),
       )
@@ -700,7 +696,7 @@ function buildDiagramSvg(
         ].map((entry, i) =>
           h(G, { key: `pl-${i}` },
             h(Rect as any, { x: 8, y: 8 + i * 10, width: 14, height: 8, rx: 1, fill: entry.fill, stroke: '#93C5FD', strokeWidth: 0.3 }),
-            h(Text as any, { x: 26, y: 14 + i * 10, fontSize: 6.5, fill: BRAND_COLORS.textDark, fontFamily: 'Helvetica' }, entry.label),
+            h(Text as any, { x: 26, y: 14 + i * 10, style: { fontSize: 6.5, fill: BRAND_COLORS.textDark } }, entry.label),
           )
         ),
       )
@@ -729,10 +725,10 @@ function buildDiagramSvg(
     ...segPolygons,
     ...edgeElements,
     ...(slopeArrows as React.ReactElement[]),
-    ...segLabels as React.ReactElement[],
+    ...(segLabels.filter(Boolean) as React.ReactElement[]),
     compassRose,
-    legend,
-    pitchLegend,
+    ...(legend ? [legend] : []),
+    ...(pitchLegend ? [pitchLegend] : []),
   )
 }
 
