@@ -27,7 +27,9 @@ import { GetObjectCommand } from '@aws-sdk/client-s3'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface RouteBody {
-  reportId: string
+  reportId?: string
+  report_id?: string  // frontend sends this
+  pro_id?: string     // frontend also sends this (ignored — we use auth)
 }
 
 interface DbReport {
@@ -234,7 +236,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { reportId: rawReportId } = body
+  const rawReportId = body.reportId ?? body.report_id
   const reportId = typeof rawReportId === 'string' ? rawReportId.trim() : ''
   if (!reportId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId)) {
     return NextResponse.json({ error: 'reportId must be a valid UUID' }, { status: 400 })
