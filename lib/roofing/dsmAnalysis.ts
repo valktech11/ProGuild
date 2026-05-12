@@ -32,7 +32,7 @@ interface GeoGrid {
 // ── Solar dataLayers fetch ────────────────────────────────────────────────────
 
 export async function fetchDataLayers(lat: number, lng: number, googleKey: string): Promise<{ dsmUrl: string; maskUrl: string } | null> {
-  const url = `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=FULL_LAYERS&requiredQuality=LOW&key=${googleKey}`
+  const url = `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=50&view=FULL_LAYERS&requiredQuality=HIGH&pixelSizeMeters=0.1&key=${googleKey}`
   console.log('[dsm] fetching dataLayers (FULL_LAYERS)')
   const res = await fetch(url, { signal: AbortSignal.timeout(20000) })
   if (!res.ok) {
