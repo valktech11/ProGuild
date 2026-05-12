@@ -501,18 +501,12 @@ function projectSegments(
         edgeType = 'rake'
       }
 
-      // Edge midpoint between the two segment centers
-      const mx = (a.cx + b.cx) / 2
-      const my = (a.cy + b.cy) / 2
-
-      // Draw edge as short segment perpendicular to segment-pair axis
-      const angle = Math.atan2(b.cy - a.cy, b.cx - a.cx) + Math.PI / 2
-      const len = Math.min(a.halfW, b.halfW) * 1.2
+      // Draw edge as a line directly between the two segment centers
       edges.push({
-        x1: mx - Math.cos(angle) * len,
-        y1: my - Math.sin(angle) * len,
-        x2: mx + Math.cos(angle) * len,
-        y2: my + Math.sin(angle) * len,
+        x1: a.cx,
+        y1: a.cy,
+        x2: b.cx,
+        y2: b.cy,
         type: edgeType,
         lengthFt: Math.round(lengthFt),
       })
@@ -957,8 +951,8 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
     // Satellite image
     h(View, { style: { marginHorizontal: 0, marginTop: 0 } },
       data.topViewBase64
-        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 190, objectFit: 'cover' } })
-        : h(View, { style: { height: 190, backgroundColor: '#1B2A4A', alignItems: 'center', justifyContent: 'center' } },
+        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 230, objectFit: 'cover' } })
+        : h(View, { style: { height: 230, backgroundColor: '#1B2A4A', alignItems: 'center', justifyContent: 'center' } },
             h(Text, { style: { color: '#475569', fontSize: 9 } }, 'Satellite image unavailable'),
           ),
     ),
@@ -1012,9 +1006,29 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
       ),
     ),
 
+    // Property details strip — fills dead space at bottom of cover
+    h(View, { style: { marginHorizontal: 28, marginTop: 14, backgroundColor: '#F8FAFC', borderRadius: 6, borderWidth: 0.5, borderColor: '#E2E8F0', padding: 10, flexDirection: 'row', gap: 20 } },
+      h(View, { style: { flex: 1 } },
+        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 6.5, letterSpacing: 1.2, fontFamily: 'Helvetica-Bold', marginBottom: 4 } }, 'PROPERTY DETAILS'),
+        h(View, { style: { flexDirection: 'row', gap: 8 } },
+          h(View, { style: { flex: 1 } },
+            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, marginBottom: 2 } }, `Coordinates: ${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`),
+            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, marginBottom: 2 } }, `Imagery date: ${data.imageryDate}`),
+          ),
+          h(View, { style: { flex: 1 } },
+            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, marginBottom: 2 } }, `Total area: ${fmt(data.totalSqft)} sq ft`),
+            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, marginBottom: 2 } }, `Report generated: ${formatDate(data.generatedAt)}`),
+          ),
+        ),
+      ),
+      h(View, { style: { justifyContent: 'center' } },
+        h(Text, { style: { color: '#94A3B8', fontSize: 6.5 } }, 'Powered by Google Solar API'),
+        h(Text, { style: { color: '#94A3B8', fontSize: 6.5 } }, 'For bid preparation use only'),
+      ),
+    ),
+
     PageFooter(1, 12, data.generatedAt),
-  )
-}
+  )\n}
 
 // Page 2 — Full satellite top view
 function buildSatellitePage(data: PremiumReportData): React.ReactElement {

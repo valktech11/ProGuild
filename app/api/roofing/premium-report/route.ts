@@ -76,13 +76,8 @@ async function fetchImageBase64(url: string, label = ''): Promise<string> {
 }
 
 function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox'], apiKey: string): string {
-  const base = `${MAPS_STATIC_BASE}?center=${lat},${lng}&zoom=20&size=640x480&maptype=satellite&key=${apiKey}`
-  if (bbox) {
-    const sw = `${bbox.swLat},${bbox.swLng}`, ne = `${bbox.neLat},${bbox.neLng}`
-    const nw = `${bbox.neLat},${bbox.swLng}`, se = `${bbox.swLat},${bbox.neLng}`
-    return base + `&path=color:0xFFFF00FF|weight:2|${sw}|${nw}|${ne}|${se}|${sw}`
-  }
-  return base
+  // No path overlay — clean satellite image only
+  return `${MAPS_STATIC_BASE}?center=${lat},${lng}&zoom=20&size=640x480&maptype=satellite&key=${apiKey}`
 }
 
 // Fetch Street View using metadata-first approach.
@@ -93,30 +88,9 @@ function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox
 //  3. If no close pano, try direct location URL without pano_id (Google picks nearest outdoor)
 //  4. If the returned image is < 5KB it's likely the grey "no imagery" tile — reject it
 async function fetchStreetViewBase64(lat: number, lng: number, heading: number, apiKey: string, label: string): Promise<string> {
-  // Step 1: metadata check at tight 50m radius to find if there's a genuine street-level pano nearby
-  const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&radius=50&source=outdoor&key=${apiKey}`
-  let panoId: string | null = null
-  try {
-    const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(8000) })
-    if (metaRes.ok) {
-      const meta = await metaRes.json() as { status: string; pano_id?: string }
-      if (meta.status === 'OK' && meta.pano_id) {
-        panoId = meta.pano_id
-        console.log(`[premium-report] Street View found pano within 50m for ${label}: ${panoId}`)
-      } else {
-        console.log(`[premium-report] Street View no pano within 50m for ${label} (${meta.status}) — trying wider location fetch`)
-      }
-    }
-  } catch (err) {
-    console.warn(`[premium-report] Street View metadata error ${label}:`, err instanceof Error ? err.message : err)
-  }
-
-  // Step 2: build image URL — prefer pano_id if found, else use location= with source=outdoor at 500m
-  // Using source=outdoor in the IMAGE url (not just metadata) also helps filter
-  const imgUrl = panoId
-    ? `${STREET_VIEW_BASE}?pano=${panoId}&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
-    : `${STREET_VIEW_BASE}?location=${lat},${lng}&radius=500&source=outdoor&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
-
+  // Skip metadata entirely — use location= + source=outdoor directly in the image URL.
+  // Google picks the nearest outdoor pano server-side; this reliably avoids user-uploaded indoor photos.
+  const imgUrl = `${STREET_VIEW_BASE}?location=${lat},${lng}&radius=500&source=outdoor&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
   try {
     const res = await fetch(imgUrl, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS), headers: { 'Accept': 'image/*' } })
     if (!res.ok) {
@@ -125,15 +99,14 @@ async function fetchStreetViewBase64(lat: number, lng: number, heading: number, 
     }
     const mime = (res.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
     const buf = Buffer.from(await res.arrayBuffer())
-    // Reject if < 5KB — Google returns a small grey tile when no imagery exists
     if (buf.length < 5000) {
-      console.warn(`[premium-report] ${label} image too small (${buf.length}B) — treating as no imagery`)
+      console.warn(`[premium-report] ${label} image too small (${buf.length}B) — no outdoor imagery`)
       return ''
     }
     console.log(`[premium-report] ${label} fetched OK (${Math.round(buf.length / 1024)}KB)`)
     return `data:${mime};base64,${buf.toString('base64')}`
   } catch (err) {
-    console.warn(`[premium-report] Street View image error ${label}:`, err instanceof Error ? err.message : err)
+    console.warn(`[premium-report] Street View error ${label}:`, err instanceof Error ? err.message : err)
     return ''
   }
 }
@@ -345,7 +318,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       accuracy_note: lf?.accuracy_note ?? '±20% estimated from roof segment geometry',
       facet_count: Number(lf?.facet_count) || 0,
     },
-    proName: pro.full_name ?? pro.email ?? 'ProGuild Pro',
+    proName: pro.full_name ?? pro.business_name ?? (pro.email ? pro.email.split('@')[0] : null) ?? 'ProGuild Pro',
     proEmail: pro.email ?? '',
     proCompany: pro.business_name ?? null,
     proPhone: pro.phone_cell ?? null,
