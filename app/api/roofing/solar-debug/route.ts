@@ -1,58 +1,44 @@
 // app/api/roofing/solar-debug/route.ts
-// GET /api/roofing/solar-debug?report_id=&pro_id=
-// Staging-only — dumps solar_raw parse state. DELETE before launch.
+// GET /api/roofing/solar-debug
+// Staging-only — fetches fresh Solar API data and shows parse state. DELETE before launch.
 
 export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase'
+
+const LAT = 30.25611
+const LNG = -81.572459
 
 export async function GET(req: NextRequest) {
   if (process.env.NEXT_PUBLIC_VERCEL_ENV === 'production') {
     return NextResponse.json({ error: 'staging only' }, { status: 403 })
   }
 
-  const { searchParams } = new URL(req.url)
-  const report_id = searchParams.get('report_id') ?? 'f501139a-967f-4284-a89d-568546804e05'
-  const pro_id    = searchParams.get('pro_id')    ?? '2fbc58c2-c9d3-4040-acf9-810c3b215a05'
+  const googleKey = process.env.GOOGLE_SOLAR_API_KEY
+  if (!googleKey) return NextResponse.json({ error: 'no GOOGLE_SOLAR_API_KEY' }, { status: 500 })
 
-  const supabase = getSupabaseAdmin()
-  const { data, error } = await supabase
-    .from('roof_reports')
-    .select('id, solar_raw')
-    .eq('id', report_id)
-    .limit(1)
+  const url = `https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=${LAT}&location.longitude=${LNG}&requiredQuality=LOW&key=${googleKey}`
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!data || data.length === 0) return NextResponse.json({ error: 'no row found', report_id }, { status: 404 })
-
-  const raw = data[0].solar_raw
-  const rawType = typeof raw
-  const isNull = raw === null
-
-  // Try to normalise if string
-  let parsed: Record<string, unknown> | null = null
-  if (rawType === 'string') {
-    try { parsed = JSON.parse(raw as string) } catch { parsed = null }
-  } else {
-    parsed = raw as Record<string, unknown> | null
+  let raw: Record<string, unknown>
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(20000) })
+    if (!res.ok) return NextResponse.json({ error: `Solar API ${res.status}`, body: await res.text() }, { status: 502 })
+    raw = await res.json()
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
   }
 
-  const sp = parsed?.solarPotential as Record<string, unknown> | null
+  const sp = raw.solarPotential as Record<string, unknown> | null
   const rss = sp?.roofSegmentStats
   const segments = Array.isArray(rss) ? rss as Record<string, unknown>[] : null
 
   return NextResponse.json({
-    report_id,
-    solar_raw_type: rawType,
-    solar_raw_is_null: isNull,
-    solar_raw_is_string: rawType === 'string',
-    top_level_keys: parsed ? Object.keys(parsed) : [],
+    top_level_keys: Object.keys(raw),
     has_solarPotential: !!sp,
     solarPotential_keys: sp ? Object.keys(sp) : [],
-    roofSegmentStats_type: Array.isArray(rss) ? `array` : typeof rss,
+    roofSegmentStats_type: Array.isArray(rss) ? 'array' : typeof rss,
     roofSegmentStats_length: Array.isArray(rss) ? rss.length : null,
-    first_segment_keys: segments && segments.length > 0 ? Object.keys(segments[0]) : [],
-    first_segment_sample: segments && segments.length > 0 ? segments[0] : null,
+    first_segment_keys: segments?.[0] ? Object.keys(segments[0]) : [],
+    first_segment: segments?.[0] ?? null,
   })
 }
