@@ -283,7 +283,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Report not found' }, { status: 404 })
   }
 
-  const dbReport = report as DbReport
+  const dbReport = report as unknown as DbReport
 
   // ── 4. Fetch pro info ───────────────────────────────────────────────────────
   const { data: proData } = await supabase
@@ -292,7 +292,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .eq('id', user.id)
     .single()
 
-  const pro = (proData as ProRecord | null) ?? {
+  const pro = (proData as unknown as ProRecord | null) ?? {
     id: user.id,
     name: user.email ?? 'ProGuild Pro',
     email: user.email ?? '',
