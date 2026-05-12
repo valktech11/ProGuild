@@ -21,11 +21,12 @@ export async function GET(req: NextRequest) {
     .from('roof_reports')
     .select('id, solar_raw')
     .eq('id', report_id)
-    .single()
+    .limit(1)
 
-  if (error || !data) return NextResponse.json({ error: error?.message ?? 'not found' }, { status: 404 })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!data || data.length === 0) return NextResponse.json({ error: 'no row found', report_id }, { status: 404 })
 
-  const raw = data.solar_raw
+  const raw = data[0].solar_raw
   const rawType = typeof raw
   const isNull = raw === null
 
