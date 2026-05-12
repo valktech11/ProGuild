@@ -261,6 +261,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const googleKey = process.env.GOOGLE_SOLAR_API_KEY
   if (!googleKey) return apiError('Server configuration error', 500)
 
+  // Always regenerate — clear any cached key so fresh PDF is built
+  await supabase.from('roof_reports').update({ premium_r2_key: null }).eq('id', report_id)
+
   let solarRaw = db.solar_raw
 
   // If solar_raw is null (cleared or never fetched), re-fetch from Solar API
