@@ -82,7 +82,7 @@ function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox
 }
 
 function buildStreetViewUrl(lat: number, lng: number, heading: number, apiKey: string): string {
-  return `${STREET_VIEW_BASE}?location=${lat},${lng}&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
+  return `${STREET_VIEW_BASE}?location=${lat},${lng}&heading=${heading}&pitch=10&fov=90&size=640x400&source=outdoor&return_error_code=true&key=${apiKey}`
 }
 
 function parseBbox(solar: DbReport['solar_raw']): PremiumReportData['bbox'] {
@@ -205,7 +205,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await r2.send(new PutObjectCommand({
       Bucket: getR2Bucket(), Key: r2Key, Body: pdfBuffer,
       ContentType: 'application/pdf',
-      ContentDisposition: `inline; filename="ProGuild-Premium-${(report_id as string).slice(0,8)}.pdf"`,
+      ContentDisposition: (() => {
+        const slug = (db.address ?? '').replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 40)
+        return `inline; filename="ProGuild_Premium_${slug}.pdf"`
+      })(),
     }))
   } catch (err) {
     console.error('[premium-report] R2 upload error:', err)

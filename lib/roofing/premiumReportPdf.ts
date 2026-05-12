@@ -114,8 +114,8 @@ const EDGE_COLORS = {
 type EdgeType = keyof typeof EDGE_COLORS
 
 const BRAND_COLORS = {
-  primary:   '#1B2A4A',
-  accent:    '#2563EB',
+  primary:   '#1B2A4A',   // dark navy — used sparingly for header bars only
+  accent:    '#2563EB',   // blue for key numbers
   teal:      '#0F766E',
   lightBlue: '#EFF6FF',
   borderGray:'#E2E8F0',
@@ -128,6 +128,8 @@ const BRAND_COLORS = {
   facetFill: '#EBF5FF',
   pitchBlue: '#BFDBFE',
   pitchGray: '#F1F5F9',
+  pageBack:  '#FFFFFF',   // clean white pages like Roofr
+  sectionBg: '#F8FAFC',  // very light gray for section headers
 }
 
 const WASTE_FACTORS = [0, 10, 12, 15, 17, 20] // % columns
@@ -913,46 +915,48 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
   function MetricBox(label: string, value: string, sub: string) {
     return h(View, {
       style: {
-        backgroundColor: '#1B3A6B',
+        backgroundColor: '#FFFFFF',
         borderRadius: 6,
         padding: 10,
         alignItems: 'center',
         flex: 1,
         marginHorizontal: 3,
+        borderWidth: 0.5,
+        borderColor: '#E2E8F0',
       },
     },
-      h(Text, { style: { color: '#60A5FA', fontSize: 18, fontFamily: 'Helvetica-Bold' } }, value),
-      h(Text, { style: { color: '#FFFFFF', fontSize: 7, marginTop: 2, fontFamily: 'Helvetica-Bold' } }, label),
-      h(Text, { style: { color: '#94A3B8', fontSize: 6.5, marginTop: 1 } }, sub),
+      h(Text, { style: { color: BRAND_COLORS.accent, fontSize: 18, fontFamily: 'Helvetica-Bold' } }, value),
+      h(Text, { style: { color: BRAND_COLORS.textDark, fontSize: 7, marginTop: 2, fontFamily: 'Helvetica-Bold' } }, label),
+      h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 6.5, marginTop: 1 } }, sub),
     )
   }
 
   function LFRow(label: string, value: number, note: string) {
-    return h(View, { style: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#334155' } },
-      h(Text, { style: { color: '#94A3B8', fontSize: 8 } }, label),
+    return h(View, { style: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#E2E8F0' } },
+      h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 8 } }, label),
       h(View, { style: { flexDirection: 'row', alignItems: 'baseline', gap: 4 } },
-        h(Text, { style: { color: '#FFFFFF', fontSize: 9, fontFamily: 'Helvetica-Bold' } }, value > 0 ? `${fmt(value)} ft` : '—'),
-        h(Text, { style: { color: '#64748B', fontSize: 7 } }, note),
+        h(Text, { style: { color: BRAND_COLORS.textDark, fontSize: 9, fontFamily: 'Helvetica-Bold' } }, value > 0 ? `${fmt(value)} ft` : '—'),
+        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7 } }, note),
       ),
     )
   }
 
-  return h(Page, { size: 'LETTER', style: { ...styles.page, backgroundColor: BRAND_COLORS.primary } },
-    // Top brand bar
-    h(View, { style: { paddingHorizontal: 28, paddingTop: 22, paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' } },
+  return h(Page, { size: 'LETTER', style: { ...styles.page, backgroundColor: '#FFFFFF' } },
+    // Top brand bar — clean navy strip like Roofr
+    h(View, { style: { backgroundColor: BRAND_COLORS.primary, paddingHorizontal: 28, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
       h(View, {},
-        h(Text, { style: { color: '#FFFFFF', fontSize: 22, fontFamily: 'Helvetica-Bold', letterSpacing: 0.5 } }, 'ProGuild'),
-        h(Text, { style: { color: '#60A5FA', fontSize: 8, letterSpacing: 2, marginTop: 2 } }, 'PREMIUM REPORT'),
+        h(Text, { style: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Helvetica-Bold' } }, 'ProGuild'),
+        h(Text, { style: { color: '#93C5FD', fontSize: 7, letterSpacing: 1.5, marginTop: 1 } }, 'PREMIUM REPORT'),
       ),
       h(View, { style: { alignItems: 'flex-end' } },
-        h(Text, { style: { color: '#FFFFFF', fontSize: 9, fontFamily: 'Helvetica-Bold' } }, 'PREMIUM — Detailed Measurements + Material Quantities'),
-        h(Text, { style: { color: '#94A3B8', fontSize: 7.5, marginTop: 3 } }, 'Powered by ProGuild · Google Solar API'),
+        h(Text, { style: { color: '#FFFFFF', fontSize: 8.5, fontFamily: 'Helvetica-Bold' } }, 'PREMIUM — Detailed Measurements + Material Quantities'),
+        h(Text, { style: { color: '#94A3B8', fontSize: 7, marginTop: 2 } }, 'Powered by ProGuild · Google Solar API'),
       ),
     ),
 
-    // Address bar
-    h(View, { style: { backgroundColor: '#243558', paddingHorizontal: 28, paddingVertical: 10, marginBottom: 0 } },
-      h(Text, { style: { color: '#FFFFFF', fontSize: 13, fontFamily: 'Helvetica-Bold' } }, data.address),
+    // Address bar — lighter blue-gray like Roofr
+    h(View, { style: { backgroundColor: '#1E3A5F', paddingHorizontal: 28, paddingVertical: 8 } },
+      h(Text, { style: { color: '#FFFFFF', fontSize: 12, fontFamily: 'Helvetica-Bold' } }, data.address),
     ),
 
     // Satellite image
@@ -965,11 +969,11 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
     ),
 
     // Two-column: metrics + pro info + LF
-    h(View, { style: { flexDirection: 'row', paddingHorizontal: 28, paddingTop: 14, gap: 16 } },
+    h(View, { style: { flexDirection: 'row', paddingHorizontal: 28, paddingTop: 14, gap: 16, backgroundColor: '#FFFFFF' } },
 
       // Left — measurements
       h(View, { style: { flex: 1 } },
-        h(Text, { style: { color: '#94A3B8', fontSize: 7, letterSpacing: 1.5, marginBottom: 8, fontFamily: 'Helvetica-Bold' } }, 'MEASUREMENTS'),
+        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, letterSpacing: 1.5, marginBottom: 8, fontFamily: 'Helvetica-Bold' } }, 'MEASUREMENTS'),
         h(View, { style: { flexDirection: 'row', marginBottom: 8 } },
           MetricBox('ORDER QUANTITY', `${fmt(data.totalSquares, 1)} sq`, `${fmt(data.totalSqft)} sq ft total`),
           MetricBox('DOMINANT PITCH', data.dominantPitch, 'Predominant slope'),
@@ -978,18 +982,18 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
         ),
 
         // LF summary
-        h(Text, { style: { color: '#94A3B8', fontSize: 7, letterSpacing: 1.5, marginBottom: 6, marginTop: 4, fontFamily: 'Helvetica-Bold' } }, 'LINEAR FOOTAGE SUMMARY'),
-        h(View, { style: { backgroundColor: '#1B3A6B', borderRadius: 6, padding: 10 } },
+        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, letterSpacing: 1.5, marginBottom: 6, marginTop: 4, fontFamily: 'Helvetica-Bold' } }, 'LINEAR FOOTAGE SUMMARY'),
+        h(View, { style: { backgroundColor: '#F8FAFC', borderRadius: 6, padding: 10, borderWidth: 0.5, borderColor: '#E2E8F0' } },
           LFRow('Ridge', ridge, 'Ridge cap'),
           LFRow('Hip', hip, 'Hip cap'),
           LFRow('Valley', valley, 'Flashing'),
           LFRow('Rake', rake, 'Drip edge'),
           LFRow('Eave', eave, 'Starter/drip'),
           h(View, { style: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 5, marginTop: 2 } },
-            h(Text, { style: { color: '#60A5FA', fontSize: 8, fontFamily: 'Helvetica-Bold' } }, 'TOTAL LF'),
-            h(Text, { style: { color: '#60A5FA', fontSize: 9, fontFamily: 'Helvetica-Bold' } }, totalLf > 0 ? `${fmt(totalLf)} ft` : '—'),
+            h(Text, { style: { color: BRAND_COLORS.accent, fontSize: 8, fontFamily: 'Helvetica-Bold' } }, 'TOTAL LF'),
+            h(Text, { style: { color: BRAND_COLORS.accent, fontSize: 9, fontFamily: 'Helvetica-Bold' } }, totalLf > 0 ? `${fmt(totalLf)} ft` : '—'),
           ),
-          h(Text, { style: { color: '#475569', fontSize: 6.5, marginTop: 6 } },
+          h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 6.5, marginTop: 6 } },
             data.linearFootage.accuracy_note,
           ),
         ),
@@ -997,18 +1001,18 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
 
       // Right — prepared for
       h(View, { style: { width: 150 } },
-        h(Text, { style: { color: '#94A3B8', fontSize: 7, letterSpacing: 1.5, marginBottom: 8, fontFamily: 'Helvetica-Bold' } }, 'PREPARED FOR'),
-        h(View, { style: { backgroundColor: '#1B3A6B', borderRadius: 6, padding: 12 } },
-          h(Text, { style: { color: '#FFFFFF', fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 2 } }, data.proName),
-          data.proCompany ? h(Text, { style: { color: '#94A3B8', fontSize: 8, marginBottom: 4 } }, data.proCompany) : null,
-          h(Text, { style: { color: '#60A5FA', fontSize: 7.5, marginBottom: 2 } }, data.proEmail),
-          data.proPhone ? h(Text, { style: { color: '#94A3B8', fontSize: 7.5, marginBottom: 6 } }, data.proPhone) : null,
+        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, letterSpacing: 1.5, marginBottom: 8, fontFamily: 'Helvetica-Bold' } }, 'PREPARED FOR'),
+        h(View, { style: { backgroundColor: '#F8FAFC', borderRadius: 6, padding: 12, borderWidth: 0.5, borderColor: '#E2E8F0' } },
+          h(Text, { style: { color: BRAND_COLORS.textDark, fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 2 } }, data.proName),
+          data.proCompany ? h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 8, marginBottom: 4 } }, data.proCompany) : null,
+          h(Text, { style: { color: BRAND_COLORS.accent, fontSize: 7.5, marginBottom: 2 } }, data.proEmail),
+          data.proPhone ? h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7.5, marginBottom: 6 } }, data.proPhone) : null,
           data.proVerified
-            ? h(View, { style: { backgroundColor: '#065F46', borderRadius: 3, paddingHorizontal: 6, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 6 } },
-                h(Text, { style: { color: '#6EE7B7', fontSize: 7, fontFamily: 'Helvetica-Bold' } }, '✓ ProGuild Verified'),
+            ? h(View, { style: { backgroundColor: '#DCFCE7', borderRadius: 3, paddingHorizontal: 6, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 6 } },
+                h(Text, { style: { color: '#166534', fontSize: 7, fontFamily: 'Helvetica-Bold' } }, '✓ ProGuild Verified'),
               )
             : null,
-          h(Text, { style: { color: '#475569', fontSize: 6.5, marginTop: 4 } }, `Generated ${formatDate(data.generatedAt)}`),
+          h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 6.5, marginTop: 4 } }, `Generated ${formatDate(data.generatedAt)}`),
         ),
       ),
     ),
@@ -1163,8 +1167,10 @@ function buildDiagramPage(
 
 // Page 9 — Report Summary
 function buildReportSummaryPage(data: PremiumReportData): React.ReactElement {
-  const { pitchBreakdown, linearFootage: lf, totalSqft, wasteFactor, segments } = data
-  const complexity = complexityBadge(segments.length)
+  const { pitchBreakdown, linearFootage: lf, totalSqft, wasteFactor, segments, facetCount } = data
+  // Use actual segment count; fall back to facetCount from DB when solar_raw parse returned 0
+  const effectiveSegCount = segments.length > 0 ? segments.length : facetCount
+  const complexity = complexityBadge(effectiveSegCount)
 
   // Waste table columns
   const wasteCols = WASTE_FACTORS
@@ -1222,14 +1228,14 @@ function buildReportSummaryPage(data: PremiumReportData): React.ReactElement {
       h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginTop: 14, marginBottom: 6 } }, 'Structure Complexity'),
       h(View, { style: { flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 12 } },
         h(View, { style: { flexDirection: 'row', gap: 0 } },
-          h(View, { style: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: segments.length <= 10 ? '#DCFCE7' : '#F1F5F9', borderRadius: 3 } },
-            h(Text, { style: { fontSize: 7.5, color: segments.length <= 10 ? '#166534' : '#94A3B8' } }, 'Simple (≤10 segs)'),
+          h(View, { style: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: effectiveSegCount <= 10 ? '#DCFCE7' : '#F1F5F9', borderRadius: 3 } },
+            h(Text, { style: { fontSize: 7.5, color: effectiveSegCount <= 10 ? '#166534' : '#94A3B8' } }, 'Simple (≤10 segs)'),
           ),
-          h(View, { style: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: (segments.length >= 11 && segments.length <= 15) ? '#FEF3C7' : '#F1F5F9', marginHorizontal: 2, borderRadius: 3 } },
-            h(Text, { style: { fontSize: 7.5, color: (segments.length >= 11 && segments.length <= 15) ? '#92400E' : '#94A3B8' } }, 'Normal (11–15 segs)'),
+          h(View, { style: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: (effectiveSegCount >= 11 && effectiveSegCount <= 15) ? '#FEF3C7' : '#F1F5F9', marginHorizontal: 2, borderRadius: 3 } },
+            h(Text, { style: { fontSize: 7.5, color: (effectiveSegCount >= 11 && effectiveSegCount <= 15) ? '#92400E' : '#94A3B8' } }, 'Normal (11–15 segs)'),
           ),
-          h(View, { style: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: segments.length >= 16 ? '#FEE2E2' : '#F1F5F9', borderRadius: 3 } },
-            h(Text, { style: { fontSize: 7.5, color: segments.length >= 16 ? '#991B1B' : '#94A3B8' } }, 'Complex (16+ segs)'),
+          h(View, { style: { paddingHorizontal: 10, paddingVertical: 5, backgroundColor: effectiveSegCount >= 16 ? '#FEE2E2' : '#F1F5F9', borderRadius: 3 } },
+            h(Text, { style: { fontSize: 7.5, color: effectiveSegCount >= 16 ? '#991B1B' : '#94A3B8' } }, 'Complex (16+ segs)'),
           ),
         ),
       ),
