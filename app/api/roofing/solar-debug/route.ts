@@ -21,7 +21,6 @@ export async function GET(req: NextRequest) {
     .from('roof_reports')
     .select('id, solar_raw')
     .eq('id', report_id)
-    .eq('pro_id', pro_id)
     .single()
 
   if (error || !data) return NextResponse.json({ error: error?.message ?? 'not found' }, { status: 404 })
