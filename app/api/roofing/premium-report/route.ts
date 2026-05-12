@@ -144,8 +144,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const googleKey = process.env.GOOGLE_SOLAR_API_KEY
   if (!googleKey) return apiError('Server configuration error', 500)
 
-  const bbox = parseBbox(db.solar_raw)
-  const segments = parseSegments(db.solar_raw)
+  let solarRaw = db.solar_raw
+
+  // If solar_raw is null (cleared or never fetched), re-fetch from Solar API
+  if (!solarRaw) {
+    console.log('[premium-report] solar_raw null — fetching fresh from Solar API')
+    try {
+      const solarUrl = `https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=${db.lat}&location.longitude=${db.lng}&requiredQuality=LOW&key=${googleKey}`
+      const solarRes = await fetch(solarUrl, { signal: AbortSignal.timeout(20000) })
+      if (solarRes.ok) {
+        solarRaw = await solarRes.json() as typeof db.solar_raw
+        // Persist back so future calls don't need to re-fetch
+        await supabase.from('roof_reports').update({ solar_raw: solarRaw }).eq('id', report_id)
+        console.log('[premium-report] solar_raw re-fetched and saved')
+      } else {
+        console.warn('[premium-report] Solar API re-fetch failed:', solarRes.status)
+      }
+    } catch (err) {
+      console.warn('[premium-report] Solar API re-fetch error:', err instanceof Error ? err.message : err)
+    }
+  }
+
+  const bbox = parseBbox(solarRaw)
+  const segments = parseSegments(solarRaw)
   if (segments.length === 0) console.warn('[premium-report] No segments for:', report_id)
 
   const [topViewBase64, northViewBase64, southViewBase64, eastViewBase64, westViewBase64] =

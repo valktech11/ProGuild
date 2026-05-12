@@ -361,7 +361,8 @@ function ImagePlaceholder(label: string) {
       padding: 24,
     },
   },
-    h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textGray } }, `📷 ${label} — Image unavailable`),
+    h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textGray } }, `${label} — Street View not available at this location`),
+      h(Text, { style: { fontSize: 8, color: '#94A3B8', marginTop: 4 } }, 'Google Street View has no outdoor imagery for these coordinates.'),
   )
 }
 
