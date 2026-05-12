@@ -4,9 +4,9 @@ export function middleware(req: NextRequest) {
   // Only enforce on staging environment
   if (process.env.NEXT_PUBLIC_ENV !== 'staging') return NextResponse.next()
 
-  // Allow health checks and static assets through
+  // Allow health checks, static assets, and API routes through
   const { pathname } = req.nextUrl
-  if (pathname.startsWith('/_next') || pathname.startsWith('/api/health')) {
+  if (pathname.startsWith('/_next') || pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 
