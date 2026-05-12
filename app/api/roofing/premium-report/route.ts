@@ -53,8 +53,12 @@ interface DbReport {
 }
 
 interface ProRecord {
-  id: string; name: string | null; email: string | null
-  company_name: string | null; phone: string | null; license_verified: boolean | null
+  id: string
+  full_name: string | null
+  email: string | null
+  business_name: string | null
+  phone_cell: string | null
+  license_verified: boolean | null
 }
 
 async function fetchImageBase64(url: string, label = ''): Promise<string> {
@@ -81,45 +85,66 @@ function buildTopViewUrl(lat: number, lng: number, bbox: PremiumReportData['bbox
   return base
 }
 
-// Use Street View Metadata API to find nearest valid pano_id, then fetch by pano_id.
-// This avoids the "no imagery" grey image when coords land on a rooftop instead of the street.
+// Fetch Street View using metadata-first approach with source=outdoor to exclude indoor panos.
+// Falls back to empty string if no outdoor panorama exists within radius.
 async function fetchStreetViewBase64(lat: number, lng: number, heading: number, apiKey: string, label: string): Promise<string> {
-  // Step 1: metadata lookup — finds nearest pano within 200m, returns pano_id
-  const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&radius=500&key=${apiKey}`
+  // source=outdoor in metadata filters to car/trekker captures only — excludes user-uploaded indoor photos
+  const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&radius=500&source=outdoor&key=${apiKey}`
   try {
     const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(8000) })
-    if (metaRes.ok) {
-      const meta = await metaRes.json() as { status: string; pano_id?: string }
-      if (meta.status === 'OK' && meta.pano_id) {
-        // Step 2: fetch image by pano_id so we get the real panorama regardless of exact coords
-        const imgUrl = `${STREET_VIEW_BASE}?pano=${meta.pano_id}&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
-        return fetchImageBase64(imgUrl, label)
-      }
+    if (!metaRes.ok) {
+      console.warn(`[premium-report] Street View metadata HTTP ${metaRes.status} for ${label}`)
+      return ''
     }
-    console.warn(`[premium-report] Street View metadata ${label}: no pano found within 200m`)
-    return ''
+    const meta = await metaRes.json() as { status: string; pano_id?: string; copyright?: string }
+    if (meta.status !== 'OK' || !meta.pano_id) {
+      console.warn(`[premium-report] Street View no outdoor pano within 500m for ${label}: ${meta.status}`)
+      return ''
+    }
+    // Fetch by pano_id with the requested heading
+    const imgUrl = `${STREET_VIEW_BASE}?pano=${meta.pano_id}&heading=${heading}&pitch=10&fov=90&size=640x400&key=${apiKey}`
+    return fetchImageBase64(imgUrl, label)
   } catch (err) {
-    console.warn(`[premium-report] Street View metadata error ${label}:`, err instanceof Error ? err.message : err)
+    console.warn(`[premium-report] Street View error ${label}:`, err instanceof Error ? err.message : err)
     return ''
   }
 }
 
 function parseBbox(solar: DbReport['solar_raw']): PremiumReportData['bbox'] {
-  const bb = solar?.solarPotential?.boundingBox
-  if (!bb?.sw?.latitude || !bb?.sw?.longitude || !bb?.ne?.latitude || !bb?.ne?.longitude) return null
-  return { swLat: bb.sw.latitude, swLng: bb.sw.longitude, neLat: bb.ne.latitude, neLng: bb.ne.longitude }
+  const solarRecord = solar as Record<string, unknown> | null
+  const potential = solarRecord?.solarPotential as Record<string, unknown> | null
+  const bb = potential?.boundingBox as Record<string, unknown> | null
+  if (!bb) return null
+  const sw = bb.sw as Record<string, unknown> | null
+  const ne = bb.ne as Record<string, unknown> | null
+  if (!sw?.latitude || !sw?.longitude || !ne?.latitude || !ne?.longitude) return null
+  return {
+    swLat: sw.latitude as number,
+    swLng: sw.longitude as number,
+    neLat: ne.latitude as number,
+    neLng: ne.longitude as number,
+  }
 }
 
 function parseSegments(solar: DbReport['solar_raw']): RoofSegment[] {
-  const raw = solar?.solarPotential?.roofSegmentStats
+  // Match dsm/route.ts approach exactly — cast through Record<string,unknown>
+  const solarRecord = solar as Record<string, unknown> | null
+  if (!solarRecord) return []
+  const potential = solarRecord.solarPotential as Record<string, unknown> | null
+  if (!potential) return []
+  const raw = potential.roofSegmentStats as unknown[] | null
   if (!Array.isArray(raw) || raw.length === 0) return []
-  return raw.filter((seg): seg is RoofSegment =>
-    typeof seg === 'object' && seg !== null &&
-    typeof (seg as RoofSegment).center?.latitude === 'number' &&
-    typeof (seg as RoofSegment).center?.longitude === 'number' &&
-    typeof (seg as RoofSegment).groundAreaMeters2 === 'number' &&
-    (seg as RoofSegment).groundAreaMeters2 > 0
-  )
+  return raw.filter((seg): seg is RoofSegment => {
+    if (typeof seg !== 'object' || seg === null) return false
+    const s = seg as Record<string, unknown>
+    const center = s.center as Record<string, unknown> | null
+    return (
+      typeof center?.latitude === 'number' &&
+      typeof center?.longitude === 'number' &&
+      typeof s.groundAreaMeters2 === 'number' &&
+      (s.groundAreaMeters2 as number) > 0
+    )
+  })
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -152,12 +177,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const { data: proData } = await supabase
     .from('pros')
-    .select('id, name, email, company_name, phone, license_verified')
+    .select('id, full_name, email, business_name, phone_cell, license_verified')
     .eq('id', pro_id)
     .single()
 
   const pro = (proData as unknown as ProRecord | null) ?? {
-    id: pro_id as string, name: 'ProGuild Pro', email: '', company_name: null, phone: null, license_verified: null,
+    id: pro_id as string, full_name: null, email: '', business_name: null, phone_cell: null, license_verified: null,
   }
 
   const googleKey = process.env.GOOGLE_SOLAR_API_KEY
@@ -186,7 +211,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const bbox = parseBbox(solarRaw)
   const segments = parseSegments(solarRaw)
-  if (segments.length === 0) console.warn('[premium-report] No segments for:', report_id)
+  if (segments.length === 0) {
+    // Log the actual solar_raw structure to diagnose parse failure
+    const keys = Object.keys(solarRaw || {})
+    const spKeys = Object.keys((solarRaw as Record<string,unknown>)?.solarPotential as Record<string,unknown> || {})
+    console.warn('[premium-report] No segments for:', report_id, '| solar_raw keys:', keys, '| solarPotential keys:', spKeys)
+  } else {
+    console.log('[premium-report] Segments found:', segments.length, 'for:', report_id)
+  }
 
   const [topViewBase64, northViewBase64, southViewBase64, eastViewBase64, westViewBase64] =
     await Promise.all([
@@ -221,10 +253,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       accuracy_note: lf?.accuracy_note ?? '±20% estimated from roof segment geometry',
       facet_count: Number(lf?.facet_count) || 0,
     },
-    proName: pro.name ?? 'ProGuild Pro',
+    proName: pro.full_name ?? 'ProGuild Pro',
     proEmail: pro.email ?? '',
-    proCompany: pro.company_name ?? null,
-    proPhone: pro.phone ?? null,
+    proCompany: pro.business_name ?? null,
+    proPhone: pro.phone_cell ?? null,
     proVerified: pro.license_verified ?? false,
     topViewBase64, northViewBase64, southViewBase64, eastViewBase64, westViewBase64,
     segments, bbox,

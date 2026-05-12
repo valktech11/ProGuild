@@ -963,8 +963,8 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
     // Satellite image
     h(View, { style: { marginHorizontal: 0, marginTop: 0 } },
       data.topViewBase64
-        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 220, objectFit: 'cover' } })
-        : h(View, { style: { height: 220, backgroundColor: '#1B2A4A', alignItems: 'center', justifyContent: 'center' } },
+        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 190, objectFit: 'cover' } })
+        : h(View, { style: { height: 190, backgroundColor: '#1B2A4A', alignItems: 'center', justifyContent: 'center' } },
             h(Text, { style: { color: '#475569', fontSize: 9 } }, 'Satellite image unavailable'),
           ),
     ),
@@ -1033,7 +1033,7 @@ function buildSatellitePage(data: PremiumReportData): React.ReactElement {
       ),
       h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark, fontFamily: 'Helvetica-Bold', marginBottom: 6 } }, 'Top View'),
       data.topViewBase64
-        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 420, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
+        ? h(Image, { src: data.topViewBase64, style: { width: '100%', height: 460, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
         : ImagePlaceholder('Top view satellite'),
     ),
     PageFooter(2, 12, data.generatedAt),
@@ -1046,7 +1046,7 @@ function buildStreetViewNSPage(data: PremiumReportData): React.ReactElement {
     return h(View, { style: { marginBottom: 12 } },
       h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark, fontFamily: 'Helvetica-Bold', marginBottom: 6 } }, label),
       base64
-        ? h(Image, { src: base64, style: { width: '100%', height: 190, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
+        ? h(Image, { src: base64, style: { width: '100%', height: 210, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
         : ImagePlaceholder(label),
     )
   }
@@ -1068,7 +1068,7 @@ function buildStreetViewEWPage(data: PremiumReportData): React.ReactElement {
     return h(View, { style: { marginBottom: 12 } },
       h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark, fontFamily: 'Helvetica-Bold', marginBottom: 6 } }, label),
       base64
-        ? h(Image, { src: base64, style: { width: '100%', height: 190, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
+        ? h(Image, { src: base64, style: { width: '100%', height: 210, objectFit: 'cover', borderRadius: 4, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray } })
         : ImagePlaceholder(label),
     )
   }
