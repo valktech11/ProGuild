@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import {
   computeLinearFootageFromSegments,
+  computeLinearFootageV3,
   fetchDataLayers,
   decodeGeoTiff,
   traceMaskPerimeter,
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   // 3. Fetch report — verify ownership + pull solar_raw and perimeter footage
   const { data: report, error: fetchErr } = await sb
     .from('roof_reports')
-    .select('id, solar_raw, linear_footage')
+    .select('id, solar_raw, linear_footage, lat, lng')
     .eq('id', report_id)
     .eq('pro_id', pro_id)
     .single()
@@ -49,33 +50,58 @@ export async function POST(req: NextRequest) {
   const solar = report.solar_raw as Record<string, unknown> | null
   if (!solar) return apiError('No Solar API data on this report — regenerate the Bid Report first', 422)
 
-  const potential = solar.solarPotential as Record<string, unknown> | null
-  const segments  = potential?.roofSegmentStats as unknown[] | null
+  const potential    = solar.solarPotential as Record<string, unknown> | null
+  const segments     = potential?.roofSegmentStats as unknown[] | null
+  const solarPanels  = potential?.solarPanels as Array<{
+    center: { latitude: number; longitude: number }; segmentIndex: number
+  }> | null
+  const imageryQuality = (solar.imageryQuality as string | undefined) ?? ''
 
   if (!segments || segments.length === 0) {
     return apiError('No roof segments in Solar API data — regenerate the Bid Report first', 422)
   }
 
-  // 5. Eave/rake: internal heuristic (segment perimeter geometry).
-  //    OSM building polygon was tested (Sprint 5B) but OSM traces wall footprint,
-  //    not drip edge — undershoots by 21-32% with no consistent correction factor.
-  //    Internal heuristic: Jacksonville −1%, Hockley ±0% on combined E+R.
-  //    Rochester Hills +27% is a known limitation requiring DSM plane intersection (Sprint 5C).
-  const eave_ft = 0  // 0 = use internal heuristic in computeLinearFootageFromSegments
-  const rake_ft = 0
-
-  // 6. Compute linear footage from segment geometry
-  let linear
+  // 5. Compute v2 baseline (always — used as safety fallback for v3)
+  let v2Result
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    linear = computeLinearFootageFromSegments(segments as any[], eave_ft, rake_ft)
+    v2Result = computeLinearFootageFromSegments(segments as any[], 0, 0)
   } catch (e) {
-    console.error('[dsm] segment analysis error:', e)
+    console.error('[dsm] v2 error:', e)
     return apiError('Linear footage computation failed', 500, e)
   }
 
-  if (!linear) {
-    return apiError('Could not compute linear footage from roof segment data', 422)
+  // 6. Sprint 5 v3: bbox adjacency + height-direction classifier + mask eave/rake
+  let linear = v2Result
+  if (solarPanels && solarPanels.length > 0 && GOOGLE_KEY) {
+    try {
+      // Fetch mask for eave/rake if quality is HIGH or MEDIUM
+      let maskPerimeterM = 0
+      if (imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') {
+        const solarCenter = solar.center as { latitude: number; longitude: number } | null
+        const cLat = solarCenter?.latitude ?? (report.lat as number)
+        const cLng = solarCenter?.longitude ?? (report.lng as number)
+        const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
+        if (layers?.maskUrl) {
+          const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+          if (mask) {
+            const perim = traceMaskPerimeter(mask)
+            if (perim.mainBuildingPixels > 100) {
+              maskPerimeterM = perim.perimeterM
+              console.log(`[dsm] mask perimeter: ${perim.perimeterM.toFixed(0)}m (${Math.round(perim.perimeterM * 3.28084)}ft), main building ${perim.mainBuildingPixels} px`)
+            }
+          }
+        }
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2Result)
+      linear = v3Result
+      console.log(`[dsm] v3 result: ridge=${v3Result.ridge_ft} hip=${v3Result.hip_ft} valley=${v3Result.valley_ft} eave=${v3Result.eave_ft} rake=${v3Result.rake_ft}`)
+    } catch (e) {
+      console.warn('[dsm] v3 failed, using v2:', e instanceof Error ? e.message : String(e))
+      linear = v2Result
+    }
   }
 
   // 7. Persist — double-confirm ownership on write
