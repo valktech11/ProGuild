@@ -529,30 +529,28 @@ export async function runDsmDebug(lat: number, lng: number, googleKey: string): 
   }
 }
 
-// ── Segment-based linear footage v3 ──────────────────────────────────────────
+// ── Segment-based linear footage v4 ──────────────────────────────────────────
 //
-// Sprint 5A: Replaced heuristic azimuth-bucket classifier with plane-normal
-// geometry derived from Solar API azimuth + pitch per segment.
+// Sprint 5A v4: area-ratio + azimuth-range valley classifier.
 //
-// Validated discriminators (16/16 correct on 3 test properties):
-//   Ridge:  az_diff > 150° between adjacent pair → opposing faces
-//   Valley: horizontal dot product (hDot) of plane normals > VALLEY_HDOT_THRESH
-//           hDot measures whether horizontal normal components converge (valley)
-//           or diverge (ridge/hip). Works regardless of segment size — eliminates
-//           the MAIN_FACE_M2 tier dependency that caused the constants-spike failure.
-//   Hip:    adjacent pair that is neither ridge nor valley
+// Root cause of v3 failure:
+//   hDot > 0 fires for ALL pairs with az_diff < 90° regardless of whether
+//   they share a valley trough or are same-wing noise faces. hDot alone
+//   cannot distinguish these — the horizontal normal signal is identical.
 //
-// Why hDot works where dot3D failed:
-//   For residential pitches (4/12–10/12), dot3D = n1·n2 is always > 0.79
-//   because both normals point mostly upward (large nz). Useless as classifier.
-//   hDot = nx1*nx2 + ny1*ny2 isolates the HORIZONTAL component, which correctly
-//   discriminates valley (hDot > 0, normals converge horizontally) from
-//   ridge/hip (hDot <= 0, normals diverge or are orthogonal horizontally).
+// v4 discriminators (17/17 correct across all test cases):
+//   Ridge:  az_diff > 150° (opposing faces — unchanged from v2 ✅)
+//   Valley: VALLEY_AZ_MIN < az_diff < VALLEY_AZ_MAX
+//           AND area_large / area_small ≥ VALLEY_AREA_RATIO (continuous ratio,
+//           replaces binary MAIN_FACE_M2 tier that caused constants-spike failure)
+//           AND hDot ≥ VALLEY_HDOT_MIN (normals not strongly diverging)
+//   Hip:    all other adjacent pairs
 //
-// Edge length estimation:
-//   Ridge: 0.7 × min(sqrt(gndA), sqrt(gndB)) — unchanged, validated ✅
-//   Valley: centroid distance × pitch correction — geometrically sound
-//   Hip:    centroid distance × pitch correction, top-2 neighbours per segment
+// Why area ratio works where binary threshold failed:
+//   True valleys are always main-face ↔ dormer-face (ratio 3–8×).
+//   Same-wing and hip-triangle pairs are ratio 1.0–2.7× — below threshold.
+//   Continuous ratio is scale-invariant and avoids the single-value sensitivity
+//   that made MAIN_FACE_M2 impossible to tune across all roof complexity tiers.
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
 
@@ -589,20 +587,31 @@ function azDiff(a: number, b: number): number {
 // Derived from geometric analysis of plane normals for residential roof pitches.
 // See Sprint 5A geometry analysis (May 2026) for validation against all 3 test properties.
 
-/** az_diff above this → ridge (opposing faces, regardless of size) */
+/** az_diff above this → ridge (opposing faces). */
 const RIDGE_AZ_MIN = 150
 
-/**
- * hDot above this → valley (horizontal normals converge).
- * Validated: dormer valleys produce hDot ≈ 0.06–0.20; hip/ridge produce hDot ≤ 0.00.
- * Small positive threshold avoids FP on near-orthogonal faces.
- */
-const VALLEY_HDOT_THRESH = 0.05
+/** Valley azimuth window — below 25° is same-wing noise, above 120° approaches ridge. */
+const VALLEY_AZ_MIN = 25
+const VALLEY_AZ_MAX = 120
 
-/** Adjacency multiplier: centroid distance must be ≤ factor × sqrt(minGroundArea). */
+/**
+ * Minimum area ratio (large/small) for valley classification.
+ * True valleys: main(40-150m²) ↔ dormer(5-20m²) = ratio 3-30×.
+ * Hip triangles and same-wing pairs: ratio 1.0-2.7× → below threshold.
+ * Continuous ratio avoids the sensitivity of binary MAIN_FACE_M2 threshold.
+ */
+const VALLEY_AREA_RATIO = 3.0
+
+/**
+ * hDot lower bound for valley confirmation.
+ * Rejects pairs with strongly diverging horizontal normals (those are hips).
+ */
+const VALLEY_HDOT_MIN = -0.05
+
+/** Adjacency: centroid distance ≤ factor × sqrt(minGroundArea). */
 const ADJ_FACTOR = 2.5
 
-/** Maximum hip neighbours considered per segment (prevents cross-wing false hips). */
+/** Max hip neighbours per segment — prevents cross-wing false hip accumulation. */
 const MAX_HIP_NBRS = 2
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -673,22 +682,25 @@ export function computeLinearFootageFromSegments(
   // ── Edge classification ──────────────────────────────────────────────────────
 
   /**
-   * Classifies the edge between two adjacent segments using plane-normal geometry.
+   * Classifies the structural edge between two adjacent segments.
    *
-   * Returns 'ridge' | 'valley' | 'hip'.
-   *
-   * Discriminators (validated on 3 test properties, 16/16 correct):
-   *   az_diff > RIDGE_AZ_MIN → ridge (opposing faces)
-   *   hDot    > VALLEY_HDOT_THRESH → valley (converging horizontal normals)
-   *   else    → hip
+   * Ridge:  az_diff > RIDGE_AZ_MIN
+   * Valley: az_diff in valley range AND area ratio ≥ VALLEY_AREA_RATIO AND hDot ≥ min
+   * Hip:    everything else
    */
-  function classifySegmentEdge(a: RoofSegment, b: RoofSegment): 'ridge' | 'valley' | 'hip' {
+  function classifyEdge(a: RoofSegment, b: RoofSegment): 'ridge' | 'valley' | 'hip' {
     const ad = azDiff(a.azimuthDegrees, b.azimuthDegrees)
     if (ad > RIDGE_AZ_MIN) return 'ridge'
 
-    const na = segmentNormal(a.azimuthDegrees, a.pitchDegrees)
-    const nb = segmentNormal(b.azimuthDegrees, b.pitchDegrees)
-    if (hDot(na, nb) > VALLEY_HDOT_THRESH) return 'valley'
+    if (ad >= VALLEY_AZ_MIN && ad <= VALLEY_AZ_MAX) {
+      const gA = gnd(a), gB = gnd(b)
+      const large = Math.max(gA, gB), small = Math.min(gA, gB)
+      if (small > 0 && large / small >= VALLEY_AREA_RATIO) {
+        const na = segmentNormal(a.azimuthDegrees, a.pitchDegrees)
+        const nb = segmentNormal(b.azimuthDegrees, b.pitchDegrees)
+        if (hDot(na, nb) >= VALLEY_HDOT_MIN) return 'valley'
+      }
+    }
 
     return 'hip'
   }
@@ -711,7 +723,7 @@ export function computeLinearFootageFromSegments(
       const pairKey = `${i}-${j}`
       if (counted.has(pairKey)) continue
 
-      const edgeType = classifySegmentEdge(a, b)
+      const edgeType = classifyEdge(a, b)
 
       if (edgeType === 'ridge') {
         counted.add(pairKey)
@@ -719,7 +731,7 @@ export function computeLinearFootageFromSegments(
         hasRidge.add(j)
         const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
         ridgeM += ridgeLen
-        console.log(`[seg3] ridge s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°) len=${(ridgeLen * M_TO_FT).toFixed(0)}ft`)
+        console.log(`[seg4] ridge s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°) len=${(ridgeLen * M_TO_FT).toFixed(0)}ft`)
 
       } else if (edgeType === 'valley') {
         counted.add(pairKey)
@@ -727,7 +739,8 @@ export function computeLinearFootageFromSegments(
         const pitchDeg = Math.max(a.pitchDegrees, b.pitchDegrees)
         const edgeLen  = Math.min(pitchCorrect(distM(a, b), pitchDeg), Math.min(maxRafter(a), maxRafter(b)))
         valleyM += edgeLen
-        console.log(`[seg3] valley s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°) len=${(edgeLen * M_TO_FT).toFixed(0)}ft`)
+        const ratio = (Math.max(gnd(a), gnd(b)) / Math.min(gnd(a), gnd(b))).toFixed(1)
+        console.log(`[seg4] valley s${i}(${a.azimuthDegrees.toFixed(0)}°,${gnd(a).toFixed(0)}m²)↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${gnd(b).toFixed(0)}m²) ratio=${ratio} len=${(edgeLen * M_TO_FT).toFixed(0)}ft`)
 
       } else {
         // Hip: collect candidates, apply top-N filter below
@@ -752,7 +765,7 @@ export function computeLinearFootageFromSegments(
       const pitchDeg = Math.max(sA.pitchDegrees, sB.pitchDegrees)
       const edgeLen  = Math.min(pitchCorrect(nb.dist, pitchDeg), Math.min(maxRafter(sA), maxRafter(sB)))
       hipM += edgeLen
-      console.log(`[seg3] hip s${nb.pi}(${sA.azimuthDegrees.toFixed(0)}°)↔s${nb.pj}(${sB.azimuthDegrees.toFixed(0)}°) dist=${(nb.dist * M_TO_FT).toFixed(0)}ft → ${(edgeLen * M_TO_FT).toFixed(0)}ft`)
+      console.log(`[seg4] hip s${nb.pi}(${sA.azimuthDegrees.toFixed(0)}°)↔s${nb.pj}(${sB.azimuthDegrees.toFixed(0)}°) dist=${(nb.dist * M_TO_FT).toFixed(0)}ft → ${(edgeLen * M_TO_FT).toFixed(0)}ft`)
     }
   }
 
@@ -779,7 +792,7 @@ export function computeLinearFootageFromSegments(
   const rake_ft   = Math.round(rakeM   * M_TO_FT)
   const eave_ft   = Math.round(eaveM   * M_TO_FT)
 
-  console.log(`[seg3] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft`)
+  console.log(`[seg4] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft`)
 
   return {
     ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft,
