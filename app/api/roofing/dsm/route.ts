@@ -198,14 +198,21 @@ export async function GET(req: NextRequest) {
       const maskRakeFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.30 * M_TO_FT) : 0
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const v2m = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
+      // Run v3 with a sentinel v2Result that has R+H=0 to disable safety fallback
+      // so we can see raw geometry output in the debug endpoint
+      const v2Sentinel = { ...v2m, ridge_ft: 0, hip_ft: 0 }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m) : null
+      const v3raw = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2Sentinel) : null
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const v3    = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m) : null
       const fin = v3 ?? v2m
       const truth = ROOFR[label] ?? {}
 
       const pct = (got: number, want: number) => want ? `${got > want ? '+' : ''}${Math.round((got-want)/want*100)}%` : '?'
       results.push({
         label,
+        v2:    { ridge: v2m.ridge_ft,  hip: v2m.hip_ft,  valley: v2m.valley_ft  },
+        v3_raw: v3raw ? { ridge: v3raw.ridge_ft, hip: v3raw.hip_ft, valley: v3raw.valley_ft } : null,
         final: { ridge: fin.ridge_ft, hip: fin.hip_ft, valley: fin.valley_ft, eave: fin.eave_ft, rake: fin.rake_ft },
         roofr: truth,
         delta: {
