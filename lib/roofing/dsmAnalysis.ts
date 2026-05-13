@@ -1200,9 +1200,11 @@ export function computeLinearFootageV3(
   if (n === 0) return v2Result
 
   // ── Constants ──────────────────────────────────────────────────────────────
-  const HULL_PROX_M  = 5.0   // panels within 5m → segments are physically adjacent
-  const RIDGE_AZ_MIN = 150   // azDiff > 150° → ridge (same as v2)
-  const HIP_AZ_MIN   = 45    // azDiff 45-150° → hip or valley
+  const HULL_PROX_M  = 2.0   // panels within 2m → physically adjacent (tight — real edges only)
+  const RIDGE_AZ_MIN = 150
+  const HIP_AZ_MIN   = 45
+  const VALLEY_AZ_MIN_G = 30
+  const VALLEY_AZ_MAX_G = 120
 
   // ── Panel lookup ──────────────────────────────────────────────────────────
   const panelsBySegment = new Map<number, Array<[number, number]>>()
@@ -1234,53 +1236,108 @@ export function computeLinearFootageV3(
     return Math.sqrt(dlat * dlat + dlng * dlng)
   }
 
-  // ── Drain-direction edge classifier ───────────────────────────────────────
-  // Determines edge type from how the two faces drain relative to each other.
-  //
-  //   Both drain AWAY (diverge) + azDiff>150° → ridge  (A-shape, high point)
-  //   Both drain TOWARD (converge) + azDiff 45-150° → valley (V-shape, low point)
-  //   Asymmetric or same-direction-ish → hip (diagonal rafter)
-  //
-  // "Face i drains toward j" = azimuth_i unit vector has positive component
-  // along the centroid-to-centroid direction i→j.
-  //
-  // This replaces the dot-product convexity test which always returned convex
-  // because cos(pitch) dominates the 3D normal dot product.
-  //
-  function drainClassify(i: number, j: number): 'ridge' | 'hip' | 'valley' | 'skip' {
-    const si = segments[i], sj = segments[j]
-    const ad = azDiff(si.azimuthDegrees, sj.azimuthDegrees)
-
-    // Ridge: strongly opposing azimuths — A-shape peak
-    if (ad > RIDGE_AZ_MIN) return 'ridge'
-
-    // Hip vs valley: use drain direction for azDiff 45-150°
-    if (ad >= HIP_AZ_MIN) {
-      const dx = (sj.center.longitude - si.center.longitude) * cosLat * DEG_TO_M
-      const dy = (sj.center.latitude  - si.center.latitude)  * DEG_TO_M
-      const dist = Math.sqrt(dx*dx + dy*dy)
-      if (dist < 0.1) return 'skip'
-      const ux = dx/dist, uy = dy/dist  // unit vector i→j
-
-      // Azimuth unit vectors (downslope, east/north components)
-      const aiX = Math.sin(si.azimuthDegrees * DEG_TO_RAD)
-      const aiY = Math.cos(si.azimuthDegrees * DEG_TO_RAD)
-      const ajX = Math.sin(sj.azimuthDegrees * DEG_TO_RAD)
-      const ajY = Math.cos(sj.azimuthDegrees * DEG_TO_RAD)
-
-      // Positive = this face drains toward the other segment
-      const iTowardJ = (aiX*ux   + aiY*uy)   > 0
-      const jTowardI = (ajX*(-ux) + ajY*(-uy)) > 0
-
-      // Both converge → V-shape → valley
-      if (iTowardJ && jTowardI) return 'valley'
-      // All other cases (one or both diverge) → hip rafter
-      return 'hip'
-    }
-
-    return 'skip'  // azDiff < 45°: parallel slopes, not a structural edge
+  // ── Drain-direction helper (used only for hip cross-wing rejection) ─────────
+  // Returns true if face i's downslope direction has ANY component toward face j.
+  // Cross-wing false hips: both faces drain away from each other → both return false.
+  // Real hip rafters: at least one face drains toward the other.
+  function drainsToward(si: RoofSegment, sj: RoofSegment): boolean {
+    const dx = (sj.center.longitude - si.center.longitude) * cosLat * DEG_TO_M
+    const dy = (sj.center.latitude  - si.center.latitude)  * DEG_TO_M
+    const dist = Math.sqrt(dx*dx + dy*dy)
+    if (dist < 0.1) return true
+    const ux = dx/dist, uy = dy/dist
+    const ax = Math.sin(si.azimuthDegrees * DEG_TO_RAD)
+    const ay = Math.cos(si.azimuthDegrees * DEG_TO_RAD)
+    return (ax*ux + ay*uy) > -0.1  // slightly permissive threshold
   }
 
+  // ── Main classification loop ────────────────────────────────────────────────
+  // Uses v2's proven classification logic (ridge/valley/hip gates) but replaces
+  // adjOk centroid-distance gate with hull proximity — fixes cross-wing failures.
+  // Hip additionally filtered by drain-direction to reject cross-wing false pairs.
+  let ridgeM = 0, hipM = 0, valleyM = 0
+  const ridgeCounted = new Set<string>()
+  const valleyCounted = new Set<string>()
+  const valleyPairs   = new Set<string>()
+
+  // ── RIDGE ──────────────────────────────────────────────────────────────────
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const si = segments[i], sj = segments[j]
+      const aMain = gnd(si) >= MAIN_FACE_M2
+      const bMain = gnd(sj) >= MAIN_FACE_M2
+      if (!aMain && !bMain) continue
+      if (azDiff(si.azimuthDegrees, sj.azimuthDegrees) <= RIDGE_AZ_MIN) continue
+      if (!adjacent(i, j)) continue
+      const key = `${i}-${j}`
+      if (ridgeCounted.has(key)) continue
+      ridgeCounted.add(key)
+      const len = ridgeLengthM(i, j)
+      ridgeM += len
+      console.log(`[v3g] ridge:  s${i}(${si.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'})↔s${j}(${sj.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'}) len=${(len*M_TO_FT).toFixed(0)}ft`)
+    }
+  }
+
+  // ── VALLEY ─────────────────────────────────────────────────────────────────
+  // Main↔secondary pairs, azDiff 30-120°, hull adjacent.
+  // Same tier logic as v2 — proven to work for valley detection.
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const si = segments[i], sj = segments[j]
+      const aMain = gnd(si) >= MAIN_FACE_M2
+      const bMain = gnd(sj) >= MAIN_FACE_M2
+      if (aMain === bMain) continue  // same tier → not a valley
+      const diff = azDiff(si.azimuthDegrees, sj.azimuthDegrees)
+      if (diff < VALLEY_AZ_MIN_G || diff > VALLEY_AZ_MAX_G) continue
+      if (!adjacent(i, j)) continue
+      const key = `${i}-${j}`
+      if (valleyCounted.has(key)) continue
+      valleyCounted.add(key)
+      valleyPairs.add(key)
+      const len = rafterLengthM(i, j)
+      valleyM += len
+      console.log(`[v3g] valley: s${i}(${si.azimuthDegrees.toFixed(0)}°,${gnd(si).toFixed(0)}m²)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°,${gnd(sj).toFixed(0)}m²) len=${(len*M_TO_FT).toFixed(0)}ft`)
+    }
+  }
+
+  // ── HIP ────────────────────────────────────────────────────────────────────
+  // Hull-adjacent pairs, azDiff 45-150°, not already valley.
+  // Top-2 closest neighbours per segment (v2 deduplication — proven correct).
+  // Drain-direction filter: reject if NEITHER face drains toward the other
+  // (cross-wing false pairs where both faces drain away from each other).
+  const hipNbrs: Array<Array<{j:number; dist:number; pi:number; pj:number; bothMain:boolean}>> =
+    Array.from({ length: n }, () => [])
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const si = segments[i], sj = segments[j]
+      const diff = azDiff(si.azimuthDegrees, sj.azimuthDegrees)
+      if (diff < HIP_AZ_MIN || diff > RIDGE_AZ_MIN) continue
+      const key = `${i}-${j}`
+      if (valleyPairs.has(key)) continue
+      if (!adjacent(i, j)) continue
+      // Cross-wing rejection: skip if neither face drains toward the other
+      if (!drainsToward(si, sj) && !drainsToward(sj, si)) continue
+      const bothMain = gnd(si) >= MAIN_FACE_M2 && gnd(sj) >= MAIN_FACE_M2
+      const d = centDistM(si, sj)
+      hipNbrs[i].push({ j, dist: d, pi: i, pj: j, bothMain })
+      hipNbrs[j].push({ j: i, dist: d, pi: i, pj: j, bothMain })
+    }
+  }
+
+  const hipCounted = new Set<string>()
+  for (let i = 0; i < n; i++) {
+    hipNbrs[i].sort((a, b) => a.dist - b.dist)
+    for (const nb of hipNbrs[i].slice(0, 2)) {
+      const key = `${Math.min(nb.pi, nb.pj)}-${Math.max(nb.pi, nb.pj)}`
+      if (hipCounted.has(key)) continue
+      hipCounted.add(key)
+      const len = rafterLengthM(nb.pi, nb.pj)
+      hipM += len
+      const si = segments[nb.pi], sj = segments[nb.pj]
+      console.log(`[v3g] hip:    s${nb.pi}(${si.azimuthDegrees.toFixed(0)}°)↔s${nb.pj}(${sj.azimuthDegrees.toFixed(0)}°) len=${(len*M_TO_FT).toFixed(0)}ft`)
+    }
+  }
   // Minimum distance between two convex hull point sets (metres).
   function hullMinDistM(
     hullA: Array<[number,number]>,
@@ -1345,40 +1402,6 @@ export function computeLinearFootageV3(
     const pitchCorr = pitchRad > 0.05 ? 1 / Math.cos(pitchRad) : 1.0
     const cap = Math.min(Math.sqrt(gnd(sA)), Math.sqrt(gnd(sB))) * 2.0
     return Math.min(centDistM(sA, sB) * pitchCorr, cap)
-  }
-
-  // ── Main classification loop ────────────────────────────────────────────────
-  let ridgeM = 0, hipM = 0, valleyM = 0
-  const counted = new Set<string>()
-
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const key = `${i}-${j}`
-      if (counted.has(key)) continue
-
-      // Gate 1: physical adjacency via panel hull proximity
-      if (!adjacent(i, j)) continue
-      counted.add(key)
-
-      const type = drainClassify(i, j)
-      if (type === 'skip') continue
-
-      const si = segments[i], sj = segments[j]
-
-      if (type === 'ridge') {
-        const len = ridgeLengthM(i, j)
-        ridgeM += len
-        console.log(`[v3g] ridge:  s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) len=${(len*M_TO_FT).toFixed(0)}ft`)
-      } else if (type === 'valley') {
-        const len = rafterLengthM(i, j)
-        valleyM += len
-        console.log(`[v3g] valley: s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) len=${(len*M_TO_FT).toFixed(0)}ft`)
-      } else {
-        const len = rafterLengthM(i, j)
-        hipM += len
-        console.log(`[v3g] hip:    s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) len=${(len*M_TO_FT).toFixed(0)}ft`)
-      }
-    }
   }
 
   // ── Eave/rake ──────────────────────────────────────────────────────────────
