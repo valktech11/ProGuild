@@ -724,25 +724,48 @@ export function computeLinearFootageFromSegments(
   const hipCounted    = new Set<string>()
   const hasRidge      = new Set<number>()
 
+  // Inline bbox overlap check for ridge — used only for both-main pairs.
+  // tol=0.00015° (~16m) matches the general adjacency tolerance used elsewhere.
+  function ridgeBboxOverlap(a: RoofSegment, b: RoofSegment, tol = 0.00015): boolean {
+    const ra = (a as unknown as Record<string, unknown>).boundingBox as
+      { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
+    const rb = (b as unknown as Record<string, unknown>).boundingBox as
+      { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
+    if (!ra || !rb) return adjOk(a, b, RIDGE_ADJ)  // no bbox → fall back to centroid gate
+    return !(
+      ra.ne.latitude  + tol < rb.sw.latitude  ||
+      rb.ne.latitude  + tol < ra.sw.latitude  ||
+      ra.ne.longitude + tol < rb.sw.longitude ||
+      rb.ne.longitude + tol < ra.sw.longitude
+    )
+  }
+
   // ── RIDGE ──────────────────────────────────────────────────────────────────
   // 180°-opposing adjacent pairs. Length = 0.7 × min(sqrt(gndA), sqrt(gndB)).
   // Require at least one main segment (≥MAIN_FACE_M2) to avoid sec↔sec noise.
   // Only main↔main pairs mark segments as gable (rake-producing).
   // Pure hip roofs yield 0 correctly (all main faces are 90° apart, not 180°).
+  //
+  // Adjacency gate:
+  //   both-main pairs → bbox overlap: centroid distance fails on multi-wing roofs
+  //     where opposing main faces are far apart but physically meet at a ridge.
+  //     azDiff>150° + both-main + bbox-touch is a tight enough constraint.
+  //   main↔secondary pairs → adjOk: secondary bboxes are small and may not
+  //     reliably overlap the main face bbox even when physically adjacent.
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
       const aMain = gnd(a) >= MAIN_FACE_M2
       const bMain = gnd(b) >= MAIN_FACE_M2
-      // Skip secondary↔secondary pairs — noise on complex roofs
       if (!aMain && !bMain) continue
-      if (!adjOk(a, b, RIDGE_ADJ)) continue
       if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
+      // Adjacency: bbox overlap for both-main, centroid distance for main↔secondary
+      const bothMain = aMain && bMain
+      if (bothMain ? !ridgeBboxOverlap(a, b) : !adjOk(a, b, RIDGE_ADJ)) continue
       const key = `${i}-${j}`
       if (ridgeCounted.has(key)) continue
       ridgeCounted.add(key)
-      // Only main↔main pairs produce rake (gable ends)
-      if (aMain && bMain) { hasRidge.add(i); hasRidge.add(j) }
+      if (bothMain) { hasRidge.add(i); hasRidge.add(j) }
       const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
       ridgeM += ridgeLen
       console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'}) len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
