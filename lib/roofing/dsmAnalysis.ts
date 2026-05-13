@@ -1200,7 +1200,8 @@ export function computeLinearFootageV3(
   const valleyPairs   = new Set<string>()
   const hipCounted    = new Set<string>()
 
-  // RIDGE — identical gates to v2; length: hull edge if available, else v2 formula
+  // RIDGE — hull edge is geometrically correct here: two faces share a horizontal
+  // edge and hull overlap = actual ridge length. Use it; fall back to v2 formula.
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
@@ -1219,7 +1220,9 @@ export function computeLinearFootageV3(
     }
   }
 
-  // VALLEY — identical gates to v2; length: hull edge if available, else centroid dist
+  // VALLEY — use v2 centroid-distance formula. Hull projection undershoots because
+  // valley rafters run the full diagonal from ridge to eave, not just the panel
+  // cluster overlap boundary.
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
@@ -1233,13 +1236,14 @@ export function computeLinearFootageV3(
       if (valleyCounted.has(key)) continue
       valleyCounted.add(key)
       valleyPairs.add(key)
-      const edgeM = hullEdgeM(i, j) || distM(a, b)
+      const edgeM = distM(a, b)
       valleyM += edgeM
       console.log(`[v3] valley: s${i}↔s${j} len=${(edgeM*M_TO_FT).toFixed(0)}ft`)
     }
   }
 
-  // HIP — identical gates to v2 (top-2 neighbours, valley exclusion, pitch correction)
+  // HIP — use v2 centroid-distance formula with pitch correction and rafter cap.
+  // Same reason: hip rafters run full diagonal; hull overlap is too short.
   const hipNbrs: Array<Array<{j:number; dist:number; pi:number; pj:number; bothMain:boolean}>> =
     Array.from({ length: n }, () => [])
 
@@ -1268,13 +1272,9 @@ export function computeLinearFootageV3(
       const pitchRad = Math.max(sA.pitchDegrees, sB.pitchDegrees) * Math.PI / 180
       const pitchCorr = pitchRad > 0.05 ? 1 / Math.cos(pitchRad) : 1.0
       const cap = Math.min(maxRafter(sA), maxRafter(sB))
-      // Use hull edge if available; otherwise fall back to v2 centroid-distance formula
-      const hull = hullEdgeM(nb.pi, nb.pj)
-      const edgeM = hull > 0
-        ? Math.min(hull, cap)
-        : nb.bothMain
-          ? Math.min(nb.dist * pitchCorr, cap)
-          : Math.min(nb.dist, cap)
+      const edgeM = nb.bothMain
+        ? Math.min(nb.dist * pitchCorr, cap)
+        : Math.min(nb.dist, cap)
       hipM += edgeM
       console.log(`[v3] hip: s${nb.pi}↔s${nb.pj} len=${(edgeM*M_TO_FT).toFixed(0)}ft`)
     }
@@ -1294,10 +1294,11 @@ export function computeLinearFootageV3(
 
   console.log(`[v3] pre-safety: ridge=${ridge_ft} hip=${hip_ft} valley=${valley_ft} eave=${eave_ft} rake=${rake_ft}`)
 
-  // Safety check: if R+H diverges >25% from v2, return v2 (which is already good)
+  // Safety check: v3 only differs from v2 on ridge length (hull vs 0.7×sqrt formula).
+  // Divergence should be small. Fall back to v2 if R+H diverges >40%.
   const v3RH = ridge_ft + hip_ft
   const v2RH = v2Result.ridge_ft + v2Result.hip_ft
-  if (v2RH > 0 && Math.abs(v3RH - v2RH) / v2RH > 0.25) {
+  if (v2RH > 0 && Math.abs(v3RH - v2RH) / v2RH > 0.40) {
     console.warn(`[v3] R+H diverges ${((v3RH - v2RH) / v2RH * 100).toFixed(0)}% from v2 → using v2`)
     return v2Result
   }
