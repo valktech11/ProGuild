@@ -31,6 +31,7 @@ export async function PATCH(
   const {
     lead_status, notes, scheduled_date, scheduled_time, follow_up_date, client_id,
     contact_phone, contact_email, contact_city, contact_state, lead_source,
+    quoted_amount,
   } = body
 
   const updateFields: Record<string, any> = {}
@@ -45,6 +46,7 @@ export async function PATCH(
   if (contact_city    !== undefined) updateFields.contact_city    = contact_city
   if (contact_state   !== undefined) updateFields.contact_state   = contact_state
   if (lead_source     !== undefined) updateFields.lead_source     = lead_source
+  if (quoted_amount   !== undefined) updateFields.quoted_amount   = quoted_amount
   updateFields.updated_at = new Date().toISOString()
 
   if (Object.keys(updateFields).length === 1) {

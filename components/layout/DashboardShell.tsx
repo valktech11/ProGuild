@@ -165,7 +165,7 @@ function buildNav(nl: number, tradeSlug?: string | null, tradeName?: string | nu
       { label: 'Messages',                 href: '/messages',           icon: icon.messages },
     ]},
     { title: 'MONEY', items: [
-      { label: t.estimates ?? 'Estimates', href: '/dashboard/estimates', icon: icon.estimates },
+      { label: t.estimates ?? 'Proposals', href: '/dashboard/estimates', icon: icon.estimates },
       { label: 'Invoices',                 href: '/dashboard/invoices',  icon: icon.invoices },
       { label: 'Revenue',                  href: '/dashboard/revenue',   icon: icon.revenue,   soon: true },
     ]},
@@ -566,7 +566,7 @@ function QuickSheet({ open, onClose, onAddLead }: { open: boolean; onClose: () =
   const opts = [
     { label: 'New Lead',   sub: 'Add to pipeline',    icon: icon.pipeline,  fn: () => { onClose(); onAddLead() },                                        soon: false },
     { label: 'New Client', sub: 'Add to address book', icon: icon.clients,   fn: () => { onClose(); window.location.href = '/dashboard/clients' }, soon: false },
-    { label: 'Estimate',   sub: 'Create a new estimate', icon: icon.estimates, fn: () => { onClose(); window.location.href = '/dashboard/estimates/new' }, soon: false },
+    { label: 'Proposal',   sub: 'Create a new proposal', icon: icon.estimates, fn: () => { onClose(); window.location.href = '/dashboard/estimates/new' }, soon: false },
     { label: 'Invoice',    sub: 'Create a new invoice',  icon: icon.invoices,  fn: () => { onClose(); window.location.href = '/dashboard/invoices' }, soon: false },
   ]
   return (

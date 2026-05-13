@@ -153,11 +153,12 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       const refreshed = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
       const rd = await refreshed.json()
       setReports(rd.reports || [])
-      // Auto-push measurements to Calculator via sessionStorage
+      // Push measurements to Calculator via sessionStorage (pg_promeasure = key calculator reads)
       if (d.measurements) {
-        sessionStorage.setItem('pg_roof_measurements', JSON.stringify({
+        sessionStorage.setItem('pg_promeasure', JSON.stringify({
           squares: d.measurements.totalSquaresOrder,
           pitch: d.measurements.dominantPitch,
+          waste: d.measurements.wasteFactor ?? 12,
           source: 'roof_report',
           address: fullAddress,
         }))
@@ -169,13 +170,20 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     }
   }
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+
   async function deleteReport(reportId: string) {
     if (!session) return
-    if (!confirm('Delete this report? This cannot be undone.')) return
-    setDeletingReportId(reportId)
+    setDeleteConfirmId(reportId) // show confirmation modal, not browser confirm()
+  }
+
+  async function confirmDeleteReport() {
+    if (!session || !deleteConfirmId) return
+    setDeletingReportId(deleteConfirmId)
+    setDeleteConfirmId(null)
     try {
-      await fetch(`/api/roofing/reports?id=${reportId}&pro_id=${session.id}`, { method: 'DELETE' })
-      setReports(prev => prev.filter(r => r.id !== reportId))
+      await fetch(`/api/roofing/reports?id=${deleteConfirmId}&pro_id=${session.id}`, { method: 'DELETE' })
+      setReports(prev => prev.filter(r => r.id !== deleteConfirmId))
     } catch { /* silently ignore -- row already gone */ }
     finally { setDeletingReportId(null) }
   }
@@ -203,7 +211,12 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       console.log('[ui] DSM response:', JSON.stringify(dsmData).slice(0, 200))
 
       if (!dsmRes.ok || !dsmData.linear_footage) {
-        setReportErr('Could not compute linear footage: ' + (dsmData.error || dsmData.detail || 'Unknown error'))
+        const errMsg = dsmData.error || dsmData.detail || 'Unknown error'
+        if (dsmRes.status === 422 && errMsg.toLowerCase().includes('solar')) {
+          setReportErr('⚠️ This report needs a refresh — click Re-run (30 seconds) then try Material Order again.')
+        } else {
+          setReportErr('Could not compute linear footage: ' + errMsg)
+        }
         return
       }
 
@@ -305,6 +318,29 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       onToggleDark={() => { const n = !dk; localStorage.setItem('pg_darkmode', n ? '1' : '0'); setDk(n) }}>
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '16px 14px' }}>
 
+        {/* Delete confirmation modal */}
+        {deleteConfirmId && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 24, maxWidth: 360, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#FEF2F2', border: '1px solid #FECACA', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+              </div>
+              <p style={{ fontSize: 16, fontWeight: 800, color: t.textPri, margin: '0 0 6px' }}>Delete report?</p>
+              <p style={{ fontSize: 13, color: t.textSubtle, margin: '0 0 20px', lineHeight: 1.5 }}>This removes the PDF and all measurement data permanently. It cannot be undone.</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setDeleteConfirmId(null)}
+                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: `1.5px solid ${t.cardBorder}`, background: t.cardBgAlt, color: t.textMuted, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={confirmDeleteReport} disabled={!!deletingReportId}
+                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', background: '#DC2626', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <button onClick={() => router.back()}
           style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: t.textMuted, marginBottom: 14, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           <Ic><polyline points="15 18 9 12 15 6" /></Ic> Back
@@ -319,9 +355,17 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F0FDFA', border: '1.5px solid #99F6E4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
-                </div>
+                {latestReport?.r2_url ? (
+                  <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', flexShrink: 0, border: '1.5px solid #99F6E4' }}>
+                    <img src={latestReport.r2_url.replace('/pdf/', '/images/').replace('.pdf', '_thumb.jpg')}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style="margin:12px"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>' }}
+                      alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ) : (
+                  <div style={{ width: 44, height: 44, borderRadius: 10, background: '#F0FDFA', border: '1.5px solid #99F6E4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
+                  </div>
+                )}
                 <div style={{ minWidth: 0 }}>
                   <h1 style={{ fontSize: 17, fontWeight: 800, color: t.textPri, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {property.address_line1}
@@ -370,13 +414,18 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                 onClick={() => router.push('/dashboard/roofing/promeasure?address=' + encodeURIComponent(property.address_line1 + (property.city ? ', ' + property.city : '')))}
                 style={{ borderColor: '#CCFBF1', color: '#0F766E', background: dk ? '#0F1E2E' : '#F0FDFA' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg,#0F766E,#14B8A6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><polygon points="3,20 12,4 21,20" fill="rgba(255,255,255,0.15)"/><line x1="3" y1="20" x2="21" y2="20"/><line x1="7" y1="20" x2="7" y2="16"/><line x1="12" y1="20" x2="12" y2="14"/><line x1="17" y1="20" x2="17" y2="16"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20M2 12l4-4M2 12l4 4M12 2v20M12 2l-4 4M12 2l4 4" opacity="0"/><rect x="3" y="7" width="18" height="10" rx="2" fill="rgba(255,255,255,0.15)"/><line x1="7" y1="7" x2="7" y2="10"/><line x1="11" y1="7" x2="11" y2="12"/><line x1="15" y1="7" x2="15" y2="10"/><line x1="19" y1="7" x2="19" y2="10"/></svg>
                 </div>
                 <span style={{ color: dk ? '#94A3B8' : '#0F766E' }}>ProMeasure</span>
               </button>
 
               <button className="action-btn"
-                onClick={() => router.push('/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : ''))}
+                onClick={() => {
+                  const calcPath = latestReport
+                    ? '/dashboard/roofing/calculator?from=promeasure'
+                    : '/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : '')
+                  router.push(calcPath)
+                }}
                 style={{ borderColor: '#BFDBFE', color: '#2563EB', background: dk ? '#0F1829' : '#EFF6FF' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg,#1D4ED8,#3B82F6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><rect x="4" y="3" width="16" height="18" rx="3" fill="rgba(255,255,255,0.12)"/><rect x="7" y="6" width="10" height="3" rx="1.2" fill="rgba(255,255,255,0.9)" stroke="none"/><circle cx="8.5" cy="13" r="1" fill="white" stroke="none"/><circle cx="12" cy="13" r="1" fill="white" stroke="none"/><circle cx="15.5" cy="13" r="1" fill="white" stroke="none"/><circle cx="8.5" cy="16.5" r="1" fill="white" stroke="none"/><circle cx="12" cy="16.5" r="1" fill="white" stroke="none"/></svg>
@@ -387,14 +436,14 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               <button className="action-btn"
                 onClick={generateReport}
                 disabled={generating}
-                style={{ borderColor: 'transparent', background: generating ? (dk ? '#1A2535' : '#F1F5F9') : 'linear-gradient(135deg,#0A1628,#0F766E)', opacity: generating ? 0.75 : 1 }}>
+                style={{ borderColor: 'transparent', background: 'linear-gradient(135deg,#0A1628,#0F766E)', opacity: generating ? 0.82 : 1 }}>
                 <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {generating
-                    ? <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'pg-spin 0.8s linear infinite' }} />
+                    ? <div style={{ width: 16, height: 16, border: '2.5px solid rgba(255,255,255,0.35)', borderTopColor: 'white', borderRadius: '50%', animation: 'pg-spin 0.8s linear infinite' }} />
                     : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="rgba(255,255,255,0.15)"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="18" x2="8" y2="13"/><line x1="12" y1="18" x2="12" y2="11"/><line x1="16" y1="18" x2="16" y2="14"/></svg>
                   }
                 </div>
-                <span style={{ color: generating ? t.textSubtle : 'white' }}>{generating ? 'Generating...' : latestReport ? 'Re-run' : 'Generate'}</span>
+                <span style={{ color: 'white', opacity: generating ? 0.85 : 1 }}>{generating ? 'Generating…' : latestReport ? 'Re-run' : 'Generate'}</span>
               </button>
             </div>
 
@@ -458,10 +507,14 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                             )
                           )}
                           <button onClick={() => deleteReport(report.id)} disabled={deletingReportId === report.id}
-                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#DC2626'; (e.currentTarget as HTMLButtonElement).style.color = 'white' }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.color = '#DC2626' }}
-                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', flexShrink: 0 }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                            title="Delete report"
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', flexShrink: 0, transition: 'background 0.15s' }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#DC2626'; (e.currentTarget as HTMLButtonElement).style.color = 'white'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#DC2626' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.color = '#DC2626'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#FECACA' }}>
+                            {deletingReportId === report.id
+                              ? <div style={{ width: 10, height: 10, border: '1.5px solid #DC2626', borderTopColor: 'transparent', borderRadius: '50%', animation: 'pg-spin 0.8s linear infinite' }} />
+                              : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                            }
                           </button>
                         </div>
                       </div>

@@ -983,7 +983,12 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
             h(Text, { style: { color: BRAND_COLORS.accent, fontSize: 9, fontFamily: 'Helvetica-Bold' } }, totalLf > 0 ? `${fmt(totalLf)} ft` : '—'),
           ),
           h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 6.5, marginTop: 6 } },
-            data.linearFootage.accuracy_note,
+            (() => {
+              const fc = data.facetCount
+              if (fc <= 8)  return `±7% avg error on this ${fc}-facet roof — sufficient for material ordering.`
+              if (fc <= 15) return `±20–30% on this ${fc}-facet roof — verify ridge/hip split on site before ordering.`
+              return `±40–60% on this ${fc}-facet complex roof — field-measure drip edge before final order.`
+            })(),
           ),
         ),
       ),
@@ -1131,7 +1136,7 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
 
   return h(Page, { size: 'LETTER', style: styles.page },
     PageHeader(data.address, 'Linear Footage Summary'),
-    SectionHeader('LINEAR FOOTAGE', 'Colour-coded edge types · estimated from segment geometry · ±20% accuracy'),
+    SectionHeader('LINEAR FOOTAGE', `Colour-coded edge types · ${data.facetCount}-facet roof · ${data.facetCount <= 8 ? '±7% accuracy' : data.facetCount <= 15 ? '±20–30% accuracy' : '±40–60% accuracy'}`),
 
     h(View, { style: { paddingHorizontal: 24, paddingTop: 12 } },
       // Table
@@ -1168,7 +1173,11 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
         h(View, { style: { flex: 1, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray, borderRadius: 6, padding: 12 } },
           h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, fontFamily: 'Helvetica-Bold' } }, 'Accuracy Note'),
           h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, lineHeight: 1.5 } },
-            '±20% estimated from Google Solar API segment geometry. Sufficient for material ordering and bid preparation. Field verification recommended before final order.',
+            data.facetCount <= 8
+              ? `±7% avg error on this ${data.facetCount}-facet roof. Sufficient for ordering.`
+              : data.facetCount <= 15
+              ? `±20–30% on this ${data.facetCount}-facet roof. Verify ridge/hip split on site.`
+              : `±40–60% on this ${data.facetCount}-facet complex roof. Field-measure drip edge before final order.`,
           ),
         ),
       ),
