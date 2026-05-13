@@ -546,11 +546,16 @@ export async function runDsmDebug(lat: number, lng: number, googleKey: string): 
 //           main↔sec / sec↔sec: raw distance, capped at max rafter
 //   Eave/Rake: perimeter-based, shape-corrected per segment type
 
-const MAIN_FACE_M2 = 18    // segments >= this are "main" roof faces
+const MAIN_FACE_M2 = 30    // segments >= this are "main" roof faces
+                            // 18 was too low — dormer cheeks (8-18m²) were classified as main,
+                            // inflating hip and blocking valley detection on dormer roofs.
+                            // 30 reclassifies dormer cheeks as secondary, unlocking valley pairing
+                            // and reducing false hip pairs. Validated May 2026 on 3 test properties.
 const VALLEY_AZ_MIN = 30   // min azimuth diff for valley (degrees)
 const VALLEY_AZ_MAX = 120  // max azimuth diff for valley — reverted from 90 (too aggressive on multi-wing roofs)
 const VALLEY_ADJ = 2.0     // valley adjacency factor × sqrt(minGnd)
-const HIP_ADJ = 2.5        // hip adjacency factor
+const HIP_ADJ = 2.0        // hip adjacency factor — tightened from 2.5 to reject borderline
+                            // cross-wing false positives (pairs where dist/sqrt(minGnd) in 2.0-2.5 range)
 const RIDGE_ADJ = 2.5      // ridge adjacency factor
 
 interface RoofSegment {
