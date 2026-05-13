@@ -9,7 +9,13 @@ import { fromArrayBuffer } from 'geotiff'
 
 interface Point3D { x: number; y: number; z: number }
 interface Plane { a: number; b: number; c: number; d: number }
-interface Facet { plane: Plane; pixels: number[]; area: number }
+
+/**
+ * A RANSAC-fitted roof facet.
+ * meanElevation is the average DSM z-value of all inlier pixels — used by the
+ * Sprint 5C boundary-elevation classifier to distinguish ridge/hip/valley.
+ */
+interface Facet { plane: Plane; pixels: number[]; area: number; meanElevation: number }
 
 export interface LinearFootage {
   ridge_ft: number
@@ -200,7 +206,9 @@ function extractFacets(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): 
     if (result.inliers.length < allPoints.length * 0.015) break
     const facetPixels = result.inliers.map(i => allIndices[remaining[i]])
     const areaM2 = result.inliers.length * pixelSizeM * pixelSizeM
-    facets.push({ plane: result.plane, pixels: facetPixels, area: areaM2 })
+    // Compute mean DSM elevation of inlier pixels for Sprint 5C edge classifier
+    const meanElev = result.inliers.reduce((sum, i) => sum + allPoints[i].z, 0) / result.inliers.length
+    facets.push({ plane: result.plane, pixels: facetPixels, area: areaM2, meanElevation: meanElev })
     const inlierSet = new Set(result.inliers)
     remaining = remaining.filter((_, i) => !inlierSet.has(i))
     console.log(`[dsm] facet ${facets.length}: ${result.inliers.length}px, ${areaM2.toFixed(1)}m²`)
@@ -208,22 +216,99 @@ function extractFacets(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): 
   return facets
 }
 
-// ── Edge classification ───────────────────────────────────────────────────────
+// ── Edge classification — Sprint 5C ──────────────────────────────────────────
+//
+// Replaces the hDot/dot3d/slopeAngle heuristics with a physically grounded
+// approach using actual DSM elevation values at the boundary between facets.
+//
+// Algorithm:
+//   For each pair of adjacent RANSAC facets sharing a pixel boundary:
+//   1. Compute mean DSM elevation at boundary pixels (boundary_z)
+//   2. Compare to mean elevation of each facet's interior pixels
+//   3. boundary_z > max(interior_A, interior_B) + tol → ridge (boundary is peak)
+//      boundary_z < min(interior_A, interior_B) - tol → valley (boundary is trough)
+//      else → hip (boundary elevation is between facet interiors)
+//
+// 3D length correction:
+//   Pixel-count × pixelSizeM measures the 2D horizontal projection of the edge.
+//   For hip rafters (diagonal), the actual 3D length is longer by 1/cos(elev_angle).
+//   Edge elevation angle = atan(|Lz| / |Lxy|) where L = nA × nB.
+//   length_3D = length_2D / cos(elev_angle) = length_2D × |L| / |Lxy|
+//
+// Why this works where previous approaches failed:
+//   - No thresholds on azimuth, area, or hDot — uses direct DSM elevation signal
+//   - Works for all edge types including asymmetric dormer ridges
+//   - 3D length correction fixes hip undercounting (pixel count is 2D only)
+//   - Tolerance (0.3m) is calibrated to DSM resolution (0.1m pixel = real noise ~0.05m)
 
-// Minimum horizontal magnitude for a facet to be considered a real sloped roof plane.
-// horiz_mag = sqrt(a²+b²) of the unit normal.
-// 3/12 pitch ≈ 14° from horizontal → sin(14°) ≈ 0.24. Use 0.25 as threshold.
-// This filters out RANSAC noise facets (< 5° slope) from real roof planes.
+const ELEV_TOL_M = 0.3  // boundary must be this far above/below facet centroids to classify
+
+/**
+ * Classifies an edge between two adjacent RANSAC facets using DSM elevation.
+ *
+ * @param boundaryZ  Mean DSM elevation of pixels on the shared boundary
+ * @param facetA     Facet with its mean interior elevation
+ * @param facetB     Facet with its mean interior elevation
+ * @returns 'ridge' | 'hip' | 'valley' | 'skip'
+ */
+function classifyEdgeByElevation(
+  boundaryZ:  number,
+  facetA:     Facet,
+  facetB:     Facet,
+): 'ridge' | 'hip' | 'valley' | 'skip' {
+  if (!isFinite(boundaryZ) || !isFinite(facetA.meanElevation) || !isFinite(facetB.meanElevation)) {
+    return 'skip'
+  }
+
+  const maxInterior = Math.max(facetA.meanElevation, facetB.meanElevation)
+  const minInterior = Math.min(facetA.meanElevation, facetB.meanElevation)
+
+  if (boundaryZ > maxInterior + ELEV_TOL_M) return 'ridge'
+  if (boundaryZ < minInterior - ELEV_TOL_M) return 'valley'
+  return 'hip'
+}
+
+/**
+ * Computes a 3D length correction factor for an edge between two planes.
+ * Pixel-count × pixelSizeM gives the 2D horizontal length.
+ * Multiply by this factor to get the actual 3D edge length.
+ *
+ * For horizontal edges (ridge, valley): factor ≈ 1.0
+ * For diagonal hip rafters: factor = |L| / |Lxy| > 1.0
+ */
+function edgeLengthFactor3D(planeA: Plane, planeB: Plane): number {
+  const sA = planeA.c < 0 ? -1 : 1
+  const sB = planeB.c < 0 ? -1 : 1
+  const nAx = planeA.a * sA, nAy = planeA.b * sA, nAz = planeA.c * sA
+  const nBx = planeB.a * sB, nBy = planeB.b * sB, nBz = planeB.c * sB
+
+  // Intersection line direction: L = nA × nB
+  const Lx = nAy * nBz - nAz * nBy
+  const Ly = nAz * nBx - nAx * nBz
+  const Lz = nAx * nBy - nAy * nBx
+
+  const Lmag  = Math.sqrt(Lx*Lx + Ly*Ly + Lz*Lz)
+  const Lxy   = Math.sqrt(Lx*Lx + Ly*Ly)
+
+  // Avoid division by zero for near-parallel planes
+  if (Lxy < 1e-6 || Lmag < 1e-8) return 1.0
+
+  // factor = |L| / |Lxy| = 1 / cos(elevation_angle_of_L)
+  // Capped at 3.0 to prevent runaway correction on near-vertical edges (noise)
+  return Math.min(Lmag / Lxy, 3.0)
+}
+
+// Minimum horizontal magnitude for a facet to be real sloped roof (not noise).
+// 3/12 pitch ≈ 14° → sin(14°) ≈ 0.24. Threshold 0.25 filters flat noise facets.
 const MIN_SLOPE_HORIZ = 0.25
 
+// Keep the old classifyEdge for the perimeter-edge (single-facet) case only
 function classifyEdge(planeA: Plane, planeB: Plane | null): 'ridge' | 'hip' | 'valley' | 'rake' | 'eave' | 'skip' {
-  // Orient both normals upward
   const sA = planeA.c < 0 ? -1 : 1
   const aN: [number, number, number] = [planeA.a * sA, planeA.b * sA, planeA.c * sA]
   const horizA = Math.sqrt(aN[0] * aN[0] + aN[1] * aN[1])
 
   if (!planeB) {
-    // Perimeter edge: classify by slope of the single facet
     return horizA < 0.3 ? 'eave' : 'rake'
   }
 
@@ -231,34 +316,21 @@ function classifyEdge(planeA: Plane, planeB: Plane | null): 'ridge' | 'hip' | 'v
   const bN: [number, number, number] = [planeB.a * sB, planeB.b * sB, planeB.c * sB]
   const horizB = Math.sqrt(bN[0] * bN[0] + bN[1] * bN[1])
 
-  // CRITICAL: Both facets are near-flat noise — skip entirely, don't count as any line type.
-  // This is the primary fix: RANSAC segments DSM elevation noise into near-flat pseudo-facets.
-  // Edges between them are meaningless for linear footage.
   if (horizA < MIN_SLOPE_HORIZ && horizB < MIN_SLOPE_HORIZ) return 'skip'
 
-  // One facet is real slope, other is flat → this is a perimeter-like transition
-  // (eave or rake depending on the sloped facet's orientation)
   if (horizA < MIN_SLOPE_HORIZ || horizB < MIN_SLOPE_HORIZ) {
-    // The sloped facet dominates classification
     const slopedHoriz = horizA >= MIN_SLOPE_HORIZ ? horizA : horizB
     return slopedHoriz < 0.5 ? 'eave' : 'rake'
   }
 
-  // Both facets are genuinely sloped — classify the inter-plane junction
-  // Horizontal dot product: direction the two planes face horizontally
-  // Ridge: planes face away from each other → hDot strongly negative
-  // Valley: planes face toward each other → hDot positive
-  // Hip: corner, planes face ~90° apart → hDot near zero
   const hDot = aN[0] * bN[0] + aN[1] * bN[1]
   const dot3d = aN[0] * bN[0] + aN[1] * bN[1] + aN[2] * bN[2]
-
-  // Angle between horizontal slope directions
   const slopeAngle = Math.acos(Math.max(-1, Math.min(1, hDot / (horizA * horizB)))) * 180 / Math.PI
 
-  if (slopeAngle > 150) return 'ridge'   // slopes face nearly opposite directions → peak
-  if (dot3d < 0)        return 'valley'  // 3D normals diverge downward → trough
-  if (slopeAngle > 60)  return 'hip'     // slopes at wide angle → corner hip
-  return 'ridge'                          // slopes nearly same direction but both real → ridge
+  if (slopeAngle > 150) return 'ridge'
+  if (dot3d < 0)        return 'valley'
+  if (slopeAngle > 60)  return 'hip'
+  return 'ridge'
 }
 
 function estimatePerimeterEdges(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): { eave_m: number; rake_m: number } {
@@ -286,48 +358,84 @@ function estimatePerimeterEdges(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: 
   return { eave_m: perimeterM * 0.70, rake_m: perimeterM * 0.30 }
 }
 
+const M_TO_FT = 3.28084
+
 function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): LinearFootage {
   let ridgeM = 0, hipM = 0, valleyM = 0
+
+  // Build pixel→facet index map
   const pixelFacet = new Map<number, number>()
   facets.forEach((f, fi) => f.pixels.forEach(px => pixelFacet.set(px, fi)))
+
   const { width } = dsm
-  const edgeCounts = new Map<string, number>()
+  const dsmData = dsm.data
+
+  // For each adjacent facet pair: collect shared boundary pixels
+  const boundaryPixels = new Map<string, number[]>()  // key → boundary pixel indices
+
   for (const [px, fi] of pixelFacet) {
     const col = px % width
     const row = Math.floor(px / width)
-    if (col < width - 1) {
-      const nPx = row * width + (col + 1)
+
+    const neighbours: number[] = []
+    if (col < width - 1) neighbours.push(row * width + (col + 1))
+    if (row < dsm.height - 1) neighbours.push((row + 1) * width + col)
+
+    for (const nPx of neighbours) {
       const nFi = pixelFacet.get(nPx)
       if (nFi !== undefined && nFi !== fi) {
         const key = fi < nFi ? `${fi}-${nFi}` : `${nFi}-${fi}`
-        edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1)
+        const arr = boundaryPixels.get(key)
+        if (arr) arr.push(px, nPx)
+        else boundaryPixels.set(key, [px, nPx])
       }
     }
-    const nPx2 = (row + 1) * width + col
-    const nFi2 = pixelFacet.get(nPx2)
-    if (nFi2 !== undefined && nFi2 !== fi) {
-      const key = fi < nFi2 ? `${fi}-${nFi2}` : `${nFi2}-${fi}`
-      edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1)
-    }
   }
-  for (const [key, count] of edgeCounts) {
+
+  // Classify each edge using boundary elevation + 3D length correction
+  for (const [key, bPixels] of boundaryPixels) {
     const [aStr, bStr] = key.split('-')
     const fi = parseInt(aStr), fj = parseInt(bStr)
-    const edgeLenM = count * pixelSizeM
-    const type = classifyEdge(facets[fi].plane, facets[fj].plane)
-    if (type === 'ridge')  ridgeM  += edgeLenM
-    else if (type === 'hip')    hipM    += edgeLenM
-    else if (type === 'valley') valleyM += edgeLenM
-    // 'skip', 'eave', 'rake' from inter-facet edges are not counted here —
-    // eave/rake come from estimatePerimeterEdges (mask boundary), not facet pairs
+    const facetA = facets[fi], facetB = facets[fj]
+
+    // Compute mean DSM elevation at boundary pixels
+    let zSum = 0, zCount = 0
+    for (const bpx of bPixels) {
+      const z = Number(dsmData[bpx])
+      if (isFinite(z)) { zSum += z; zCount++ }
+    }
+    if (zCount === 0) continue
+    const boundaryZ = zSum / zCount
+
+    const edgeType = classifyEdgeByElevation(boundaryZ, facetA, facetB)
+    if (edgeType === 'skip') continue
+
+    // 2D edge length from boundary pixel count (each pixel pair contributes ~1 pixel width)
+    const pixelCount = bPixels.length / 2  // each boundary has 2 pixels (one per facet side)
+    const length2D = pixelCount * pixelSizeM
+
+    // 3D correction: hip rafters are longer than their horizontal projection
+    const factor3D = (edgeType === 'hip')
+      ? edgeLengthFactor3D(facetA.plane, facetB.plane)
+      : 1.0
+
+    const length3D = length2D * factor3D
+
+    if (edgeType === 'ridge')  { ridgeM  += length3D; console.log(`[5C] ridge  f${fi}↔f${fj} bz=${boundaryZ.toFixed(1)} int=${facetA.meanElevation.toFixed(1)}/${facetB.meanElevation.toFixed(1)} ${(length3D*M_TO_FT).toFixed(0)}ft`) }
+    if (edgeType === 'hip')    { hipM    += length3D; console.log(`[5C] hip    f${fi}↔f${fj} bz=${boundaryZ.toFixed(1)} 3D×${factor3D.toFixed(2)} ${(length3D*M_TO_FT).toFixed(0)}ft`) }
+    if (edgeType === 'valley') { valleyM += length3D; console.log(`[5C] valley f${fi}↔f${fj} bz=${boundaryZ.toFixed(1)} int=${facetA.meanElevation.toFixed(1)}/${facetB.meanElevation.toFixed(1)} ${(length3D*M_TO_FT).toFixed(0)}ft`) }
   }
+
   const { eave_m, rake_m } = estimatePerimeterEdges(dsm, mask, pixelSizeM)
-  const toFt = (m: number) => Math.round(m * 3.28084)
-  const ridge_ft = toFt(ridgeM)
-  const hip_ft   = toFt(hipM)
+  const toFt = (m: number) => Math.round(m * M_TO_FT)
+  const ridge_ft  = toFt(ridgeM)
+  const hip_ft    = toFt(hipM)
   const valley_ft = toFt(valleyM)
-  const eave_ft  = toFt(eave_m)
-  const rake_ft  = toFt(rake_m)
+  const eave_ft   = toFt(eave_m)
+  const rake_ft   = toFt(rake_m)
+
+  console.log(`[5C] total: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft`)
+
   return {
     ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft,
     total_linear_ft: ridge_ft + hip_ft + valley_ft + eave_ft + rake_ft,

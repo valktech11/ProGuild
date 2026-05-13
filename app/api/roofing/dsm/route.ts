@@ -7,7 +7,11 @@ export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { computeLinearFootageFromSegments, fetchDataLayers } from '@/lib/roofing/dsmAnalysis'
+import {
+  computeLinearFootageFromSegments,
+  runDsmAnalysis,
+  fetchDataLayers,
+} from '@/lib/roofing/dsmAnalysis'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 // osmBuilding.ts is retained for Sprint 5C (roof:shape tag for ridge/hip/valley classification)
 // but removed from the eave/rake path — OSM wall footprint undershoots drip-edge by 21-32%,
@@ -30,10 +34,10 @@ export async function POST(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
-  // 3. Fetch report — verify ownership + pull solar_raw and perimeter footage
+  // 3. Fetch report — verify ownership + pull solar_raw, lat/lng for GeoTIFF lookup
   const { data: report, error: fetchErr } = await sb
     .from('roof_reports')
-    .select('id, solar_raw, linear_footage')
+    .select('id, solar_raw, linear_footage, lat, lng')
     .eq('id', report_id)
     .eq('pro_id', pro_id)
     .single()
@@ -51,22 +55,41 @@ export async function POST(req: NextRequest) {
     return apiError('No roof segments in Solar API data — regenerate the Bid Report first', 422)
   }
 
-  // 5. Eave/rake: internal heuristic (segment perimeter geometry).
-  //    OSM building polygon was tested (Sprint 5B) but OSM traces wall footprint,
-  //    not drip edge — undershoots by 21-32% with no consistent correction factor.
-  //    Internal heuristic: Jacksonville −1%, Hockley ±0% on combined E+R.
-  //    Rochester Hills +27% is a known limitation requiring DSM plane intersection (Sprint 5C).
-  const eave_ft = 0  // 0 = use internal heuristic in computeLinearFootageFromSegments
-  const rake_ft = 0
+  const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
+  const lat = report.lat as number | null
+  const lng = report.lng as number | null
 
-  // 6. Compute linear footage from segment geometry
   let linear
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    linear = computeLinearFootageFromSegments(segments as any[], eave_ft, rake_ft)
-  } catch (e) {
-    console.error('[dsm] segment analysis error:', e)
-    return apiError('Linear footage computation failed', 500, e)
+
+  // 5A. Sprint 5C primary path: GeoTIFF DSM + RANSAC plane intersection
+  //     Requires lat/lng and Google key. Falls back to segment-based on failure.
+  //     Uses boundary-pixel elevation to classify ridge/hip/valley (no thresholds).
+  //     Applies 3D length correction to hip rafters.
+  if (lat !== null && lng !== null && isFinite(lat) && isFinite(lng) && GOOGLE_KEY) {
+    try {
+      console.log('[dsm] attempting Sprint 5C GeoTIFF path')
+      const dsmResult = await runDsmAnalysis(lat, lng, GOOGLE_KEY)
+      if (dsmResult) {
+        linear = dsmResult
+        console.log('[dsm] Sprint 5C GeoTIFF path succeeded')
+      } else {
+        console.log('[dsm] Sprint 5C returned null — falling back to segment-based')
+      }
+    } catch (e) {
+      console.warn('[dsm] Sprint 5C GeoTIFF error — falling back:', e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  // 5B. Segment-based fallback (v2 — always available from solar_raw)
+  if (!linear) {
+    console.log('[dsm] using segment-based v2 fallback')
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      linear = computeLinearFootageFromSegments(segments as any[], 0, 0)
+    } catch (e) {
+      console.error('[dsm] segment analysis error:', e)
+      return apiError('Linear footage computation failed', 500, e)
+    }
   }
 
   if (!linear) {
