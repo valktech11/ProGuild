@@ -8,8 +8,10 @@ export const maxDuration = 60
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { computeLinearFootageFromSegments, fetchDataLayers } from '@/lib/roofing/dsmAnalysis'
-import { fetchBuildingPerimeter } from '@/lib/roofing/osmBuilding'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
+// osmBuilding.ts is retained for Sprint 5C (roof:shape tag for ridge/hip/valley classification)
+// but removed from the eave/rake path — OSM wall footprint undershoots drip-edge by 21-32%,
+// too variable to correct with a constant factor.
 
 const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
 
@@ -28,10 +30,10 @@ export async function POST(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
-  // 3. Fetch report — verify ownership + pull solar_raw, lat/lng for OSM lookup
+  // 3. Fetch report — verify ownership + pull solar_raw and perimeter footage
   const { data: report, error: fetchErr } = await sb
     .from('roof_reports')
-    .select('id, solar_raw, linear_footage, lat, lng')
+    .select('id, solar_raw, linear_footage')
     .eq('id', report_id)
     .eq('pro_id', pro_id)
     .single()
@@ -42,44 +44,20 @@ export async function POST(req: NextRequest) {
   const solar = report.solar_raw as Record<string, unknown> | null
   if (!solar) return apiError('No Solar API data on this report — regenerate the Bid Report first', 422)
 
-  const potential  = solar.solarPotential as Record<string, unknown> | null
-  const segments   = potential?.roofSegmentStats as unknown[] | null
-  const solarBbox  = (solar.solarPotential as Record<string, unknown> | null)?.boundingBox as
-    { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null ??
-    (solar.boundingBox as { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null)
+  const potential = solar.solarPotential as Record<string, unknown> | null
+  const segments  = potential?.roofSegmentStats as unknown[] | null
 
   if (!segments || segments.length === 0) {
     return apiError('No roof segments in Solar API data — regenerate the Bid Report first', 422)
   }
 
-  // 5. Fetch building perimeter from OSM (with Solar bbox fallback)
-  //    Returns eave_ft + rake_ft derived from actual building polygon edges.
-  //    Falls back to null if both OSM and bbox are unavailable —
-  //    computeLinearFootageFromSegments then uses its internal heuristic.
-  const lat = report.lat as number | null
-  const lng = report.lng as number | null
-
-  let eave_ft = 0
-  let rake_ft = 0
-
-  if (lat !== null && lng !== null && isFinite(lat) && isFinite(lng)) {
-    try {
-      const perimeter = await fetchBuildingPerimeter(
-        lat, lng, solarBbox,
-        segments as Array<{ azimuthDegrees: number; groundAreaMeters2?: number; stats?: Record<string, number> }>
-      )
-      if (perimeter) {
-        eave_ft = perimeter.eave_ft
-        rake_ft = perimeter.rake_ft
-        console.log(`[dsm] OSM perimeter source=${perimeter.source} eave=${eave_ft}ft rake=${rake_ft}ft`)
-      }
-    } catch (e) {
-      // OSM failure is non-fatal — fall through to internal heuristic
-      console.warn('[dsm] OSM perimeter lookup failed:', e instanceof Error ? e.message : String(e))
-    }
-  } else {
-    console.warn('[dsm] no lat/lng on report — skipping OSM lookup')
-  }
+  // 5. Eave/rake: internal heuristic (segment perimeter geometry).
+  //    OSM building polygon was tested (Sprint 5B) but OSM traces wall footprint,
+  //    not drip edge — undershoots by 21-32% with no consistent correction factor.
+  //    Internal heuristic: Jacksonville −1%, Hockley ±0% on combined E+R.
+  //    Rochester Hills +27% is a known limitation requiring DSM plane intersection (Sprint 5C).
+  const eave_ft = 0  // 0 = use internal heuristic in computeLinearFootageFromSegments
+  const rake_ft = 0
 
   // 6. Compute linear footage from segment geometry
   let linear
