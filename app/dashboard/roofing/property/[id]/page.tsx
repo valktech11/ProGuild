@@ -137,6 +137,18 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       })
       const d = await r.json()
       if (!r.ok) { setReportErr(d.error || 'Report generation failed'); return }
+
+      // Auto-run DSM linear footage computation on the new report row.
+      // Runs in background — does not block the UI or show an error if it fails
+      // (roofer can still use the Quick Bid report; Material Order will recompute on demand).
+      if (d.reportRowId) {
+        fetch('/api/roofing/dsm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report_id: d.reportRowId, pro_id: session.id }),
+        }).catch(e => console.warn('[ui] background DSM failed:', e))
+      }
+
       // Refresh report list (PDF available via Download button in row)
       const refreshed = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
       const rd = await refreshed.json()
