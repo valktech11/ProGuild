@@ -904,11 +904,7 @@ const BBOX_TOL = 0.00015       // ~16m — general adjacency tolerance
 const BBOX_TOL_TIGHT = 0.00008 // ~9m  — tightened for ridge to prevent dense-roof false positives
 const BBOX_TOL_DORMER = 0.0003 // ~33m — relaxed for dormer cheeks (small area segs)
 const AREA_RATIO_V3 = 3.0   // small/large area ratio threshold for valley detection
-const HEIGHT_DIR_TOL = 0.0  // small segment centroid must not be lower than large for valley
-                             // Was 0.3m — too strict. planeHeightAtCenterMeters is measured at
-                             // geographic centroid, not at valley junction. Large main face
-                             // centroids sit mid-slope and can equal dormer cheek height.
-const RIDGE_HEIGHT_MAX = 2.0 // max height diff between ridge pair centroids
+const RIDGE_HEIGHT_MAX = 2.0 // max height diff between ridge pair centroids (MSL, so very tight)
 const DEG_TO_M_V3 = 111320
 
 function bboxOverlap(
@@ -1040,6 +1036,19 @@ function sharedHullEdgeLengthM(
   return overlapEnd - overlapStart
 }
 
+// Centroid distance in metres between two segments (using bbox midpoints)
+function segCentDistM(si: SegmentV3, sj: SegmentV3, cosLat: number): number {
+  const latI = (si.bbox.ne.latitude  + si.bbox.sw.latitude)  / 2
+  const lngI = (si.bbox.ne.longitude + si.bbox.sw.longitude) / 2
+  const latJ = (sj.bbox.ne.latitude  + sj.bbox.sw.latitude)  / 2
+  const lngJ = (sj.bbox.ne.longitude + sj.bbox.sw.longitude) / 2
+  const dLat = (latI - latJ) * DEG_TO_M_V3
+  const dLng = (lngI - lngJ) * DEG_TO_M_V3 * cosLat
+  return Math.sqrt(dLat * dLat + dLng * dLng)
+}
+
+const MAIN_FACE_M2_V3 = 18  // mirrors v2 MAIN_FACE_M2 — segments >= this are main faces
+
 function classifyAndMeasureV3(
   si: SegmentV3,
   sj: SegmentV3,
@@ -1049,48 +1058,59 @@ function classifyAndMeasureV3(
   const ad = azDiffV3(si.azimuthDegrees, sj.azimuthDegrees)
   const dh = Math.abs(si.heightM - sj.heightM)
 
-  // 2. Ridge: opposing azimuths, same structural level
-  // Use edge-share check — prevents same-wing segments on dense roofs being flagged as ridge
+  // ── RIDGE ──────────────────────────────────────────────────────────────────
+  // Conditions: az_diff > 150°, height diff < 2m, bbox edge-share, BOTH main
+  // faces, centroid distance < 2 × max(bboxWidth) (ridge partners are close;
+  // hip-end faces on opposite ends of the roof are far apart and must not
+  // be misclassified as ridge).
   if (ad > 150 && dh < RIDGE_HEIGHT_MAX) {
+    // Both must be main faces — secondary↔secondary or main↔secondary are not ridges
+    if (si.groundAreaM2 < MAIN_FACE_M2_V3 || sj.groundAreaM2 < MAIN_FACE_M2_V3) return null
     if (!bboxEdgeShare(si.bbox, sj.bbox)) return null
     const latRef = (si.bbox.ne.latitude + si.bbox.sw.latitude) / 2
     const widthI = bboxWidthM(si.bbox, latRef)
     const widthJ = bboxWidthM(sj.bbox, latRef)
     const lengthM = Math.min(widthI, widthJ)
+    // Proximity check: ridge partners share an edge so their centroids should be
+    // within ~2 ridge-lengths of each other. Hip-end faces on the same az=180°
+    // axis but at opposite ends of the building will be much farther apart.
+    const distM = segCentDistM(si, sj, cosLat)
+    if (distM > lengthM * 4) return null  // too far apart — not a true ridge pair
     return { type: 'ridge', lengthM }
   }
 
-  // 3. Valley: converging azimuths + area ratio + small seg is HIGHER
+  // ── VALLEY ─────────────────────────────────────────────────────────────────
+  // Conditions: az_diff 25-120°, area_ratio >= 3.0 (main↔secondary), adjacency.
+  // Height direction removed: valley secondaries slope DOWN to meet main faces
+  // so their centroids are at or below main face centroid height — opposite of
+  // what the height model assumed. Relying on area_ratio + az_diff is sufficient
+  // and matches v2's proven logic.
   if (ad >= 25 && ad <= 120) {
     const large = si.groundAreaM2 >= sj.groundAreaM2 ? si : sj
     const small = si.groundAreaM2 >= sj.groundAreaM2 ? sj : si
     const ratio = large.groundAreaM2 / (small.groundAreaM2 || 0.1)
 
-    if (ratio >= AREA_RATIO_V3 && small.heightM > large.heightM + HEIGHT_DIR_TOL) {
-      // Bug 3 fix: dormer cheeks have small area — relax adjacency tolerance so
-      // their small bboxes register as adjacent to the large main face bboxes.
+    if (ratio >= AREA_RATIO_V3) {
+      // Relax adjacency tolerance for small dormer cheeks
       const valTol = small.groundAreaM2 < 10 ? BBOX_TOL_DORMER : BBOX_TOL
       if (!bboxOverlap(si.bbox, sj.bbox, valTol)) return null
-      // Valley: use shared hull edge if enough panels, else fallback
       const lengthM = sharedHullEdgeLengthM(
         convexHull(small.panelCenters.map(p => [p.lat, p.lng] as [number,number])),
         convexHull(large.panelCenters.map(p => [p.lat, p.lng] as [number,number])),
         cosLat
-      ) || Math.sqrt(small.groundAreaM2) * 1.5  // fallback
+      ) || Math.sqrt(small.groundAreaM2) * 1.5
       return { type: 'valley', lengthM }
     }
   }
 
-  // 1. Adjacency gate for hip (ridge/valley already gated above)
+  // ── HIP ────────────────────────────────────────────────────────────────────
+  // All remaining adjacent pairs (az_diff 0-150° or failed valley ratio).
   if (!bboxOverlap(si.bbox, sj.bbox)) return null
-
-  // 4. Hip: all remaining adjacent pairs
-  // Use shared hull edge if available, else conservative fallback
   const lengthM = sharedHullEdgeLengthM(
     convexHull(si.panelCenters.map(p => [p.lat, p.lng] as [number,number])),
     convexHull(sj.panelCenters.map(p => [p.lat, p.lng] as [number,number])),
     cosLat
-  ) || Math.min(Math.sqrt(si.groundAreaM2), Math.sqrt(sj.groundAreaM2)) * 1.2  // fallback
+  ) || Math.min(Math.sqrt(si.groundAreaM2), Math.sqrt(sj.groundAreaM2)) * 1.2
   return { type: 'hip', lengthM }
 }
 
@@ -1138,12 +1158,11 @@ export function computeLinearFootageV3(
 
   let ridgeM = 0, hipM = 0, valleyM = 0
   const counted  = new Set<string>()
-  // Topology-aware hip cap per segment: ceil(n/4).
-  // A convex n-segment roof has at most n/2 hip edges total → ~n/4 per segment average.
-  // For Jacksonville (8 segs): cap=2 — identical to previous hipEdgesPerSeg behaviour ✅
-  // For Hockley (15 segs): cap=4 — prevents runaway without cutting real hips
-  // For Rochester Hills (16 segs): cap=4 — same
-  const hipCapPerSeg = Math.ceil(n / 4)
+  // Topology-aware hip cap per segment: max(4, ceil(n/4)).
+  // Minimum of 4 ensures small roofs (8 segs) aren't over-capped — Jacksonville
+  // needs cap=4 to count all 4 hip rafters per corner face correctly.
+  // ceil(n/4) scales up for larger roofs: 15 segs → 4, 16 segs → 4.
+  const hipCapPerSeg = Math.max(4, Math.ceil(n / 4))
   const hipEdgesPerSeg = new Map<number, number>()
 
   for (let i = 0; i < n; i++) {
