@@ -1114,125 +1114,196 @@ function classifyAndMeasureV3(
   return { type: 'hip', lengthM }
 }
 
+// ── computeLinearFootageV3 ────────────────────────────────────────────────────
+//
+// DESIGN PRINCIPLE: use v2's proven pair-selection logic unchanged.
+// v2 classifies ridge/valley/hip correctly on all 3 test properties.
+// The only thing v3 improves is EDGE LENGTH MEASUREMENT:
+//   v2 uses centroid-to-centroid distance (an approximation)
+//   v3 uses the convex hull of panel positions to find the actual shared
+//   boundary length between two adjacent segments.
+//
+// So v3 = v2 classification + panel-hull length where panels are available,
+//          falling back to v2's centroid-distance formula otherwise.
+//
+// Eave/rake: mask perimeter override (already proven in v2 path, passed through).
+// Safety check: if R+H diverges >25% from v2, return v2 result unchanged.
+//
 export function computeLinearFootageV3(
   segments: RoofSegment[],
   solarPanels: Array<{ center: { latitude: number; longitude: number }; segmentIndex: number }>,
-  maskPerimeterM: number,  // from traceMaskPerimeter — 0 if unavailable
-  v2Result: LinearFootage  // safety: fall back if new result diverges > 25%
+  maskPerimeterM: number,
+  v2Result: LinearFootage
 ): LinearFootage {
 
   const M_TO_FT = 3.28084
+  const DEG_TO_M = 111320
   const n = segments.length
   if (n === 0) return v2Result
 
-  // Build panel lookup by segment index
-  const panelsBySegment = new Map<number, Array<{ lat: number; lng: number }>>()
+  // ── Panel lookup by segment index ──────────────────────────────────────────
+  const panelsBySegment = new Map<number, Array<[number, number]>>()
   for (const p of solarPanels) {
     const existing = panelsBySegment.get(p.segmentIndex) || []
-    existing.push({ lat: p.center.latitude, lng: p.center.longitude })
+    existing.push([p.center.latitude, p.center.longitude])
     panelsBySegment.set(p.segmentIndex, existing)
   }
 
-  // Coerce to SegmentV3 — requires bbox and height from solar_raw
-  const segsV3: SegmentV3[] = segments.map((s, i) => {
-    const raw = s as unknown as Record<string, unknown>
-    const bbox = (raw.boundingBox as SegmentV3['bbox'] | undefined) ?? {
-      ne: { latitude: s.center.latitude + 0.0002, longitude: s.center.longitude + 0.0002 },
-      sw: { latitude: s.center.latitude - 0.0002, longitude: s.center.longitude - 0.0002 },
-    }
-    return {
-      idx: i,
-      pitchDegrees: s.pitchDegrees,
-      azimuthDegrees: s.azimuthDegrees,
-      groundAreaM2: s.groundAreaMeters2 ??
-        (s.stats as Record<string, number>).groundAreaMeters2 ??
-        s.stats.areaMeters2,
-      heightM: s.planeHeightAtCenterMeters ?? 0,
-      bbox,
-      panelCenters: panelsBySegment.get(i) || [],
-    }
-  })
+  const latRef = segments.reduce((s, seg) => s + seg.center.latitude, 0) / n
+  const cosLat = Math.cos(latRef * Math.PI / 180)
 
-  const latRef  = segsV3.reduce((s, seg) => s + seg.bbox.ne.latitude, 0) / n
-  const cosLat  = Math.cos(latRef * Math.PI / 180)
+  // ── Helpers (identical to v2) ───────────────────────────────────────────────
+  function gnd(s: RoofSegment): number {
+    return s.groundAreaMeters2 ??
+      (s.stats as Record<string, number>)?.groundAreaMeters2 ??
+      s.stats.areaMeters2
+  }
 
+  function azDiff(a: number, b: number): number {
+    let d = Math.abs(a - b) % 360
+    if (d > 180) d = 360 - d
+    return d
+  }
+
+  function distM(a: RoofSegment, b: RoofSegment): number {
+    const dlat = (a.center.latitude  - b.center.latitude)  * DEG_TO_M
+    const dlng = (a.center.longitude - b.center.longitude) * DEG_TO_M * cosLat
+    return Math.sqrt(dlat * dlat + dlng * dlng)
+  }
+
+  function adjOk(a: RoofSegment, b: RoofSegment, factor: number): boolean {
+    return distM(a, b) <= Math.sqrt(Math.min(gnd(a), gnd(b))) * factor
+  }
+
+  function maxRafter(s: RoofSegment): number {
+    return Math.sqrt(gnd(s)) * 2.0
+  }
+
+  // ── Panel-hull edge length (v3 improvement over centroid distance) ──────────
+  // Returns the shared boundary length in metres between two segments' panel
+  // hulls. Falls back to 0 if either segment has too few panels for a hull.
+  function hullEdgeM(idxA: number, idxB: number): number {
+    const pA = panelsBySegment.get(idxA) || []
+    const pB = panelsBySegment.get(idxB) || []
+    if (pA.length < 2 || pB.length < 2) return 0
+    return sharedHullEdgeLengthM(
+      convexHull(pA),
+      convexHull(pB),
+      cosLat
+    )
+  }
+
+  // ── Same classification logic as v2 ────────────────────────────────────────
   let ridgeM = 0, hipM = 0, valleyM = 0
-  const counted  = new Set<string>()
-  // Topology-aware hip cap per segment: max(4, ceil(n/4)).
-  // Minimum of 4 ensures small roofs (8 segs) aren't over-capped — Jacksonville
-  // needs cap=4 to count all 4 hip rafters per corner face correctly.
-  // ceil(n/4) scales up for larger roofs: 15 segs → 4, 16 segs → 4.
-  const hipCapPerSeg = Math.max(4, Math.ceil(n / 4))
-  const hipEdgesPerSeg = new Map<number, number>()
+  const ridgeCounted = new Set<string>()
+  const valleyCounted = new Set<string>()
+  const valleyPairs   = new Set<string>()
+  const hipCounted    = new Set<string>()
+
+  // RIDGE — identical gates to v2; length: hull edge if available, else v2 formula
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = segments[i], b = segments[j]
+      const aMain = gnd(a) >= MAIN_FACE_M2
+      const bMain = gnd(b) >= MAIN_FACE_M2
+      if (!aMain && !bMain) continue
+      if (!adjOk(a, b, RIDGE_ADJ)) continue
+      if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
+      const key = `${i}-${j}`
+      if (ridgeCounted.has(key)) continue
+      ridgeCounted.add(key)
+      const v2Len = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
+      const edgeM = hullEdgeM(i, j) || v2Len
+      ridgeM += edgeM
+      console.log(`[v3] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°) len=${(edgeM*M_TO_FT).toFixed(0)}ft`)
+    }
+  }
+
+  // VALLEY — identical gates to v2; length: hull edge if available, else centroid dist
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = segments[i], b = segments[j]
+      const aMain = gnd(a) >= MAIN_FACE_M2
+      const bMain = gnd(b) >= MAIN_FACE_M2
+      if (aMain === bMain) continue
+      if (!adjOk(a, b, VALLEY_ADJ)) continue
+      const diff = azDiff(a.azimuthDegrees, b.azimuthDegrees)
+      if (diff < VALLEY_AZ_MIN || diff > VALLEY_AZ_MAX) continue
+      const key = `${i}-${j}`
+      if (valleyCounted.has(key)) continue
+      valleyCounted.add(key)
+      valleyPairs.add(key)
+      const edgeM = hullEdgeM(i, j) || distM(a, b)
+      valleyM += edgeM
+      console.log(`[v3] valley: s${i}↔s${j} len=${(edgeM*M_TO_FT).toFixed(0)}ft`)
+    }
+  }
+
+  // HIP — identical gates to v2 (top-2 neighbours, valley exclusion, pitch correction)
+  const hipNbrs: Array<Array<{j:number; dist:number; pi:number; pj:number; bothMain:boolean}>> =
+    Array.from({ length: n }, () => [])
 
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
+      const a = segments[i], b = segments[j]
+      const diff = azDiff(a.azimuthDegrees, b.azimuthDegrees)
+      if (diff < 45 || diff > 150) continue
       const key = `${i}-${j}`
-      if (counted.has(key)) continue
-      counted.add(key)
-
-      const result = classifyAndMeasureV3(segsV3[i], segsV3[j], cosLat)
-      if (!result) continue
-
-      if (result.type === 'ridge')  { ridgeM  += result.lengthM }
-      if (result.type === 'valley') { valleyM += result.lengthM }
-      if (result.type === 'hip') {
-        const hiI = hipEdgesPerSeg.get(i) ?? 0
-        const hiJ = hipEdgesPerSeg.get(j) ?? 0
-        if (hiI < hipCapPerSeg && hiJ < hipCapPerSeg) {
-          hipM += result.lengthM
-          hipEdgesPerSeg.set(i, hiI + 1)
-          hipEdgesPerSeg.set(j, hiJ + 1)
-        }
-      }
-
-      console.log(`[v3] ${result.type}: s${i}(az=${segsV3[i].azimuthDegrees.toFixed(0)}°,h=${segsV3[i].heightM.toFixed(1)}m,gnd=${segsV3[i].groundAreaM2.toFixed(0)}m²) ↔ s${j}(az=${segsV3[j].azimuthDegrees.toFixed(0)}°,h=${segsV3[j].heightM.toFixed(1)}m,gnd=${segsV3[j].groundAreaM2.toFixed(0)}m²) len=${(result.lengthM*M_TO_FT).toFixed(0)}ft`)
+      if (valleyPairs.has(key)) continue
+      if (!adjOk(a, b, HIP_ADJ)) continue
+      const bothMain = gnd(a) >= MAIN_FACE_M2 && gnd(b) >= MAIN_FACE_M2
+      const d = distM(a, b)
+      hipNbrs[i].push({ j, dist: d, pi: i, pj: j, bothMain })
+      hipNbrs[j].push({ j: i, dist: d, pi: i, pj: j, bothMain })
     }
   }
 
-  // Eave/rake: from mask if available, else bbox union estimate
-  let eaveM: number
-  let rakeM: number
-  if (maskPerimeterM > 0) {
-    // Classify mask perimeter edges using per-segment azimuth
-    // Dominant ridge direction = azimuth of largest segment (most area)
-    const largest = segsV3.reduce((a, b) => a.groundAreaM2 > b.groundAreaM2 ? a : b)
-    const ridgeDir = largest.azimuthDegrees  // ridge runs parallel to eave
-    // Simple split: 70% eave, 30% rake as first approximation
-    // TODO Phase 3: full polygon tracing with per-edge azimuth classification
-    eaveM = maskPerimeterM * 0.70
-    rakeM = maskPerimeterM * 0.30
-  } else {
-    // Fallback: bbox union perimeter
-    const allLats = segsV3.flatMap(s => [s.bbox.ne.latitude,  s.bbox.sw.latitude])
-    const allLngs = segsV3.flatMap(s => [s.bbox.ne.longitude, s.bbox.sw.longitude])
-    const spanLat = (Math.max(...allLats) - Math.min(...allLats)) * DEG_TO_M_V3
-    const spanLng = (Math.max(...allLngs) - Math.min(...allLngs)) * DEG_TO_M_V3 * cosLat
-    const perimM  = 2 * (spanLat + spanLng)
-    eaveM = perimM * 0.70
-    rakeM = perimM * 0.30
+  for (let i = 0; i < n; i++) {
+    hipNbrs[i].sort((a, b) => a.dist - b.dist)
+    for (const nb of hipNbrs[i].slice(0, 2)) {
+      const key = `${Math.min(nb.pi, nb.pj)}-${Math.max(nb.pi, nb.pj)}`
+      if (hipCounted.has(key)) continue
+      hipCounted.add(key)
+      const sA = segments[nb.pi], sB = segments[nb.pj]
+      const pitchRad = Math.max(sA.pitchDegrees, sB.pitchDegrees) * Math.PI / 180
+      const pitchCorr = pitchRad > 0.05 ? 1 / Math.cos(pitchRad) : 1.0
+      const cap = Math.min(maxRafter(sA), maxRafter(sB))
+      // Use hull edge if available; otherwise fall back to v2 centroid-distance formula
+      const hull = hullEdgeM(nb.pi, nb.pj)
+      const edgeM = hull > 0
+        ? Math.min(hull, cap)
+        : nb.bothMain
+          ? Math.min(nb.dist * pitchCorr, cap)
+          : Math.min(nb.dist, cap)
+      hipM += edgeM
+      console.log(`[v3] hip: s${nb.pi}↔s${nb.pj} len=${(edgeM*M_TO_FT).toFixed(0)}ft`)
+    }
   }
 
-  const ridge_ft  = Math.round(ridgeM  * M_TO_FT)
-  const hip_ft    = Math.round(hipM    * M_TO_FT)
+  // ── Eave/rake: mask override (same as v2 path) ─────────────────────────────
+  const eave_ft = maskPerimeterM > 0
+    ? Math.round(maskPerimeterM * 0.70 * M_TO_FT)
+    : v2Result.eave_ft
+  const rake_ft = maskPerimeterM > 0
+    ? Math.round(maskPerimeterM * 0.30 * M_TO_FT)
+    : v2Result.rake_ft
+
+  const ridge_ft  = Math.round(ridgeM * M_TO_FT)
+  const hip_ft    = Math.round(hipM   * M_TO_FT)
   const valley_ft = Math.round(valleyM * M_TO_FT)
-  const eave_ft   = Math.round(eaveM   * M_TO_FT)
-  const rake_ft   = Math.round(rakeM   * M_TO_FT)
 
   console.log(`[v3] pre-safety: ridge=${ridge_ft} hip=${hip_ft} valley=${valley_ft} eave=${eave_ft} rake=${rake_ft}`)
 
-  // Safety check: if combined R+H diverges > 60% from v2, fall back.
-  // Threshold is intentionally wide during v3 validation on staging.
-  // Once v3 is proven on all 3 test properties, tighten to 25%.
+  // Safety check: if R+H diverges >25% from v2, return v2 (which is already good)
   const v3RH = ridge_ft + hip_ft
   const v2RH = v2Result.ridge_ft + v2Result.hip_ft
-  if (v2RH > 0 && Math.abs(v3RH - v2RH) / v2RH > 0.60) {
-    console.warn(`[v3] R+H diverges ${((v3RH-v2RH)/v2RH*100).toFixed(0)}% from v2 → falling back to v2`)
+  if (v2RH > 0 && Math.abs(v3RH - v2RH) / v2RH > 0.25) {
+    console.warn(`[v3] R+H diverges ${((v3RH - v2RH) / v2RH * 100).toFixed(0)}% from v2 → using v2`)
     return v2Result
   }
 
   return {
-    ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft,
+    ridge_ft, hip_ft, valley_ft, eave_ft, rake_ft,
     total_linear_ft: ridge_ft + hip_ft + valley_ft + eave_ft + rake_ft,
     accuracy_note: '±15-20% estimated. Sufficient for material ordering.',
     facet_count: segments.length,
