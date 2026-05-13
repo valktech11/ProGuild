@@ -8,6 +8,7 @@ export const maxDuration = 60
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { computeLinearFootageFromSegments, fetchDataLayers } from '@/lib/roofing/dsmAnalysis'
+import { fetchBuildingPerimeter } from '@/lib/roofing/osmBuilding'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 
 const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
@@ -27,10 +28,10 @@ export async function POST(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
-  // 3. Fetch report — verify ownership + pull solar_raw and perimeter footage
+  // 3. Fetch report — verify ownership + pull solar_raw, lat/lng for OSM lookup
   const { data: report, error: fetchErr } = await sb
     .from('roof_reports')
-    .select('id, solar_raw, linear_footage')
+    .select('id, solar_raw, linear_footage, lat, lng')
     .eq('id', report_id)
     .eq('pro_id', pro_id)
     .single()
@@ -41,36 +42,43 @@ export async function POST(req: NextRequest) {
   const solar = report.solar_raw as Record<string, unknown> | null
   if (!solar) return apiError('No Solar API data on this report — regenerate the Bid Report first', 422)
 
-  const potential = solar.solarPotential as Record<string, unknown> | null
-  const segments = potential?.roofSegmentStats as unknown[] | null
+  const potential  = solar.solarPotential as Record<string, unknown> | null
+  const segments   = potential?.roofSegmentStats as unknown[] | null
+  const solarBbox  = (solar.solarPotential as Record<string, unknown> | null)?.boundingBox as
+    { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null ??
+    (solar.boundingBox as { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null)
 
   if (!segments || segments.length === 0) {
     return apiError('No roof segments in Solar API data — regenerate the Bid Report first', 422)
   }
 
-  // 5. Get eave/rake — use existing linear_footage if available (has correct perimeter values),
-  //    otherwise derive from Solar API building stats perimeter
-  const existingLf = report.linear_footage as Record<string, number> | null
-  let eave_ft = existingLf?.eave_ft ?? 0
-  let rake_ft  = existingLf?.rake_ft ?? 0
+  // 5. Fetch building perimeter from OSM (with Solar bbox fallback)
+  //    Returns eave_ft + rake_ft derived from actual building polygon edges.
+  //    Falls back to null if both OSM and bbox are unavailable —
+  //    computeLinearFootageFromSegments then uses its internal heuristic.
+  const lat = report.lat as number | null
+  const lng = report.lng as number | null
 
-  // If no prior linear_footage, estimate from Solar API ground area
-  // groundAreaMeters2 total ≈ building footprint → perimeter ≈ 4*sqrt(area)
-  // Split 70/30 eave/rake as per original heuristic
-  if (eave_ft === 0 && rake_ft === 0) {
-    const totalGndM2 = (segments as Array<Record<string, unknown>>).reduce((sum, s) => {
-      const stats = s.stats as Record<string, number> | undefined
-      return sum + (s.groundAreaMeters2 as number ?? stats?.groundAreaMeters2 ?? 0)
-    }, 0)
-    if (totalGndM2 > 0) {
-      const perimeterM = 4 * Math.sqrt(totalGndM2)  // rough square-building estimate
-      const M_TO_FT = 3.28084
-      eave_ft = Math.round(perimeterM * 0.70 * M_TO_FT)
-      rake_ft  = Math.round(perimeterM * 0.30 * M_TO_FT)
-      console.log(`[dsm] estimated eave=${eave_ft}ft rake=${rake_ft}ft from ground area ${totalGndM2.toFixed(0)}m²`)
+  let eave_ft = 0
+  let rake_ft = 0
+
+  if (lat !== null && lng !== null && isFinite(lat) && isFinite(lng)) {
+    try {
+      const perimeter = await fetchBuildingPerimeter(
+        lat, lng, solarBbox,
+        segments as Array<{ azimuthDegrees: number; groundAreaMeters2?: number; stats?: Record<string, number> }>
+      )
+      if (perimeter) {
+        eave_ft = perimeter.eave_ft
+        rake_ft = perimeter.rake_ft
+        console.log(`[dsm] OSM perimeter source=${perimeter.source} eave=${eave_ft}ft rake=${rake_ft}ft`)
+      }
+    } catch (e) {
+      // OSM failure is non-fatal — fall through to internal heuristic
+      console.warn('[dsm] OSM perimeter lookup failed:', e instanceof Error ? e.message : String(e))
     }
   } else {
-    console.log(`[dsm] using existing eave=${eave_ft}ft rake=${rake_ft}ft from prior linear_footage`)
+    console.warn('[dsm] no lat/lng on report — skipping OSM lookup')
   }
 
   // 6. Compute linear footage from segment geometry

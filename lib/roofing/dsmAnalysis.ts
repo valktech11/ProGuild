@@ -564,8 +564,8 @@ interface RoofSegment {
 
 export function computeLinearFootageFromSegments(
   segments: RoofSegment[],
-  _eave_ft: number,
-  _rake_ft: number,
+  eave_ft_ext: number,  // from OSM polygon — used directly when > 0, bypasses internal heuristic
+  rake_ft_ext: number,  // from OSM polygon — used directly when > 0, bypasses internal heuristic
 ): LinearFootage {
   const M_TO_FT = 3.28084
   const DEG_TO_M = 111320
@@ -724,13 +724,26 @@ export function computeLinearFootageFromSegments(
 
   const interiorM = hipM + valleyM + ridgeM
   const exteriorM = Math.max(totalPerimM - interiorM * 0.5, totalPerimM * 0.4)
-  const eaveM = Math.max(exteriorM - rakeM, exteriorM * 0.6)
+
+  // Use OSM-derived eave/rake when available — far more accurate than internal heuristic.
+  // Internal heuristic sums segment perimeters which overcounts dormer interiors.
+  // OSM polygon walks actual ground-level building footprint edges.
+  let eave_ft: number
+  let rake_ft: number
+  if (eave_ft_ext > 0 && rake_ft_ext >= 0) {
+    eave_ft = eave_ft_ext
+    rake_ft = rake_ft_ext
+    console.log(`[seg2] eave/rake from OSM polygon: eave=${eave_ft}ft rake=${rake_ft}ft`)
+  } else {
+    const eaveM = Math.max(exteriorM - rakeM, exteriorM * 0.6)
+    eave_ft = Math.round(eaveM   * M_TO_FT)
+    rake_ft = Math.round(rakeM   * M_TO_FT)
+    console.log(`[seg2] eave/rake from internal heuristic: eave=${eave_ft}ft rake=${rake_ft}ft`)
+  }
 
   const ridge_ft  = Math.round(ridgeM  * M_TO_FT)
   const hip_ft    = Math.round(hipM    * M_TO_FT)
   const valley_ft = Math.round(valleyM * M_TO_FT)
-  const rake_ft   = Math.round(rakeM   * M_TO_FT)
-  const eave_ft   = Math.round(eaveM   * M_TO_FT)
 
   console.log(`[seg2] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft`)
 
