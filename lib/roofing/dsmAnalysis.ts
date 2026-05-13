@@ -904,7 +904,10 @@ const BBOX_TOL = 0.00015       // ~16m — general adjacency tolerance
 const BBOX_TOL_TIGHT = 0.00008 // ~9m  — tightened for ridge to prevent dense-roof false positives
 const BBOX_TOL_DORMER = 0.0003 // ~33m — relaxed for dormer cheeks (small area segs)
 const AREA_RATIO_V3 = 3.0   // small/large area ratio threshold for valley detection
-const HEIGHT_DIR_TOL = 0.3  // small segment must be this much HIGHER than large for valley
+const HEIGHT_DIR_TOL = 0.0  // small segment centroid must not be lower than large for valley
+                             // Was 0.3m — too strict. planeHeightAtCenterMeters is measured at
+                             // geographic centroid, not at valley junction. Large main face
+                             // centroids sit mid-slope and can equal dormer cheek height.
 const RIDGE_HEIGHT_MAX = 2.0 // max height diff between ridge pair centroids
 const DEG_TO_M_V3 = 111320
 
@@ -921,30 +924,35 @@ function bboxOverlap(
   )
 }
 
-// For ridge: two bboxes share an edge when they overlap in one axis only.
-// Full 2D overlap = same wing = NOT ridge. Edge-share = opposite faces = ridge.
-// Implemented as: overlap with tight tolerance, but NOT fully contained in both dims.
+// For ridge: adjacent bboxes at tight tolerance, rejecting only true containment.
+// Previous "40% depth in BOTH dims" check was too aggressive — it rejected valid
+// ridge pairs on multi-wing roofs (Hockley 15-seg, RH 16-seg) where opposing
+// faces happen to have bboxes that overlap deeply in both axes because the wings
+// sit side-by-side. Only reject if one bbox is almost entirely inside the other
+// (a sub-segment of the same face), not merely overlapping.
 function bboxEdgeShare(
   a: SegmentV3['bbox'],
   b: SegmentV3['bbox'],
   tol = BBOX_TOL_TIGHT
 ): boolean {
-  const latOverlap = !(a.ne.latitude + tol < b.sw.latitude || b.ne.latitude + tol < a.sw.latitude)
-  const lngOverlap = !(a.ne.longitude + tol < b.sw.longitude || b.ne.longitude + tol < a.sw.longitude)
-  if (!latOverlap || !lngOverlap) return false  // no adjacency at all
+  // Must be adjacent at tight tolerance
+  if (!bboxOverlap(a, b, tol)) return false
 
-  // Detect full 2D containment / deep overlap — likely same wing, not ridge pair
-  const latDepth = Math.min(a.ne.latitude, b.ne.latitude) - Math.max(a.sw.latitude, b.sw.latitude)
-  const lngDepth = Math.min(a.ne.longitude, b.ne.longitude) - Math.max(a.sw.longitude, b.sw.longitude)
-  const aLatSpan = a.ne.latitude - a.sw.latitude
-  const bLatSpan = b.ne.latitude - b.sw.latitude
+  // Reject only if one bbox is substantially contained within the other
+  // (>85% of the smaller bbox's area lies inside the larger) — true sub-segment noise.
+  // Multi-wing ridge pairs: opposing faces overlap but neither contains the other.
+  const aLatSpan = a.ne.latitude  - a.sw.latitude
   const aLngSpan = a.ne.longitude - a.sw.longitude
+  const bLatSpan = b.ne.latitude  - b.sw.latitude
   const bLngSpan = b.ne.longitude - b.sw.longitude
-  const minLatSpan = Math.min(aLatSpan, bLatSpan)
-  const minLngSpan = Math.min(aLngSpan, bLngSpan)
-  // If overlap exceeds 40% of the smaller span in BOTH dims → deep overlap → reject
-  if (minLatSpan > 0 && minLngSpan > 0 &&
-      latDepth / minLatSpan > 0.4 && lngDepth / minLngSpan > 0.4) return false
+  const overlapLat = Math.max(0, Math.min(a.ne.latitude,  b.ne.latitude)  - Math.max(a.sw.latitude,  b.sw.latitude))
+  const overlapLng = Math.max(0, Math.min(a.ne.longitude, b.ne.longitude) - Math.max(a.sw.longitude, b.sw.longitude))
+  const overlapArea = overlapLat * overlapLng
+  const aArea = aLatSpan * aLngSpan
+  const bArea = bLatSpan * bLngSpan
+  const minArea = Math.min(aArea, bArea)
+  // If the smaller bbox is >85% covered by the overlap → one is inside the other → same wing
+  if (minArea > 0 && overlapArea / minArea > 0.85) return false
 
   return true
 }
@@ -1130,6 +1138,13 @@ export function computeLinearFootageV3(
 
   let ridgeM = 0, hipM = 0, valleyM = 0
   const counted  = new Set<string>()
+  // Topology-aware hip cap per segment: ceil(n/4).
+  // A convex n-segment roof has at most n/2 hip edges total → ~n/4 per segment average.
+  // For Jacksonville (8 segs): cap=2 — identical to previous hipEdgesPerSeg behaviour ✅
+  // For Hockley (15 segs): cap=4 — prevents runaway without cutting real hips
+  // For Rochester Hills (16 segs): cap=4 — same
+  const hipCapPerSeg = Math.ceil(n / 4)
+  const hipEdgesPerSeg = new Map<number, number>()
 
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
@@ -1142,9 +1157,15 @@ export function computeLinearFootageV3(
 
       if (result.type === 'ridge')  { ridgeM  += result.lengthM }
       if (result.type === 'valley') { valleyM += result.lengthM }
-      if (result.type === 'hip')    { hipM    += result.lengthM }
-      // No per-segment hip cap — sharedHullEdgeLengthM measures actual shared edge,
-      // and the pair deduplication set (counted) prevents double-counting.
+      if (result.type === 'hip') {
+        const hiI = hipEdgesPerSeg.get(i) ?? 0
+        const hiJ = hipEdgesPerSeg.get(j) ?? 0
+        if (hiI < hipCapPerSeg && hiJ < hipCapPerSeg) {
+          hipM += result.lengthM
+          hipEdgesPerSeg.set(i, hiI + 1)
+          hipEdgesPerSeg.set(j, hiJ + 1)
+        }
+      }
 
       console.log(`[v3] ${result.type}: s${i}(az=${segsV3[i].azimuthDegrees.toFixed(0)}°,h=${segsV3[i].heightM.toFixed(1)}m,gnd=${segsV3[i].groundAreaM2.toFixed(0)}m²) ↔ s${j}(az=${segsV3[j].azimuthDegrees.toFixed(0)}°,h=${segsV3[j].heightM.toFixed(1)}m,gnd=${segsV3[j].groundAreaM2.toFixed(0)}m²) len=${(result.lengthM*M_TO_FT).toFixed(0)}ft`)
     }
