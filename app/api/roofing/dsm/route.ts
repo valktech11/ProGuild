@@ -140,6 +140,85 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const mode = searchParams.get('mode')
 
+  // mode=recompute-all — runs classifier on all 3 test properties, one URL
+  if (mode === 'recompute-all') {
+    const TEST_IDS = [
+      { id: 'b200b680-7b7b-48d5-89bd-7de8dc8dfd2c', label: 'Jacksonville' },
+      { id: '208d31e4-fc0a-4a6f-a1e8-9a3d42de6c7a', label: 'Hockley' },
+      { id: '5630f286-b52d-4fcd-a423-57c3ba5f5b5a', label: 'Rochester Hills' },
+    ]
+    const ROOFR = {
+      Jacksonville:    { ridge: 29,  hip: 149, valley: 37,  eave: 224, rake: 53  },
+      Hockley:         { ridge: 78,  hip: 238, valley: 105, eave: 317, rake: 45  },
+      'Rochester Hills': { ridge: 173, hip: 170, valley: 188, eave: 298, rake: 144 },
+    } as Record<string, Record<string, number>>
+
+    const sb = getSupabaseAdmin()
+    const results = []
+
+    for (const { id, label } of TEST_IDS) {
+      const { data: report } = await sb
+        .from('roof_reports')
+        .select('address, lat, lng, solar_raw')
+        .eq('id', id)
+        .single()
+      if (!report) { results.push({ label, error: 'not found' }); continue }
+
+      const solar = report.solar_raw as Record<string, unknown> | null
+      if (!solar) { results.push({ label, error: 'no solar_raw' }); continue }
+
+      const potential   = solar.solarPotential as Record<string, unknown> | null
+      const segments    = potential?.roofSegmentStats as unknown[] | null
+      const solarPanels = potential?.solarPanels as Array<{ center: { latitude: number; longitude: number }; segmentIndex: number }> | null
+      const imageryQuality = (solar.imageryQuality as string | undefined) ?? ''
+      if (!segments?.length) { results.push({ label, error: 'no segments' }); continue }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const v2 = computeLinearFootageFromSegments(segments as any[], 0, 0)
+
+      let maskPerimeterM = 0
+      if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
+        try {
+          const solarCenter = solar.center as { latitude: number; longitude: number } | null
+          const cLat = solarCenter?.latitude ?? (report.lat as number)
+          const cLng = solarCenter?.longitude ?? (report.lng as number)
+          const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
+          if (layers?.maskUrl) {
+            const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+            if (mask) {
+              const perim = traceMaskPerimeter(mask)
+              if (perim.mainBuildingPixels > 100) maskPerimeterM = perim.perimeterM
+            }
+          }
+        } catch { /* mask optional */ }
+      }
+
+      const M_TO_FT = 3.28084
+      const maskEaveFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.70 * M_TO_FT) : 0
+      const maskRakeFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.30 * M_TO_FT) : 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const v2m = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m) : null
+      const fin = v3 ?? v2m
+      const truth = ROOFR[label] ?? {}
+
+      const pct = (got: number, want: number) => want ? `${got > want ? '+' : ''}${Math.round((got-want)/want*100)}%` : '?'
+      results.push({
+        label,
+        final: { ridge: fin.ridge_ft, hip: fin.hip_ft, valley: fin.valley_ft, eave: fin.eave_ft, rake: fin.rake_ft },
+        roofr: truth,
+        delta: {
+          ridge: pct(fin.ridge_ft, truth.ridge), hip: pct(fin.hip_ft, truth.hip),
+          valley: pct(fin.valley_ft, truth.valley), eave: pct(fin.eave_ft, truth.eave), rake: pct(fin.rake_ft, truth.rake),
+        },
+        mask_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
+        source: v3 ? 'v3' : 'v2+mask',
+      })
+    }
+    return NextResponse.json({ results, note: 'READ ONLY — no DB write' })
+  }
+
   // mode=segments&report_id=<uuid> — dumps roofSegmentStats from solar_raw in DB
   if (mode === 'segments') {
     const report_id = searchParams.get('report_id')

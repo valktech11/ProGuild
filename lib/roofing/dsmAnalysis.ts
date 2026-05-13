@@ -725,8 +725,11 @@ export function computeLinearFootageFromSegments(
   const hasRidge      = new Set<number>()
 
   // Inline bbox overlap check for ridge — used only for both-main pairs.
-  // tol=0.00015° (~16m) matches the general adjacency tolerance used elsewhere.
-  function ridgeBboxOverlap(a: RoofSegment, b: RoofSegment, tol = 0.00015): boolean {
+  // tol=0.0003° (~33m): wide enough to bridge multi-wing gaps (Hockley wings
+  // are 15-25m apart edge-to-edge). The azDiff>150° + both-main gates are the
+  // primary guards against false positives — wider bbox tolerance is safe
+  // because all other main↔main combinations have azDiff<150° and are excluded.
+  function ridgeBboxOverlap(a: RoofSegment, b: RoofSegment, tol = 0.0003): boolean {
     const ra = (a as unknown as Record<string, unknown>).boundingBox as
       { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
     const rb = (b as unknown as Record<string, unknown>).boundingBox as
@@ -1223,25 +1226,12 @@ export function computeLinearFootageV3(
   const valleyPairs   = new Set<string>()
   const hipCounted    = new Set<string>()
 
-  // RIDGE — hull edge is geometrically correct here: two faces share a horizontal
-  // edge and hull overlap = actual ridge length. Use it; fall back to v2 formula.
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const a = segments[i], b = segments[j]
-      const aMain = gnd(a) >= MAIN_FACE_M2
-      const bMain = gnd(b) >= MAIN_FACE_M2
-      if (!aMain && !bMain) continue
-      if (!adjOk(a, b, RIDGE_ADJ)) continue
-      if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
-      const key = `${i}-${j}`
-      if (ridgeCounted.has(key)) continue
-      ridgeCounted.add(key)
-      const v2Len = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
-      const edgeM = hullEdgeM(i, j) || v2Len
-      ridgeM += edgeM
-      console.log(`[v3] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°) len=${(edgeM*M_TO_FT).toFixed(0)}ft`)
-    }
-  }
+  // RIDGE — use v2 result directly. v2's ridge is now accurate (bbox overlap gate
+  // for both-main pairs finds cross-wing ridges). Hull measurement consistently
+  // undershoots v2's 0.7×sqrt(area) formula (proven on Jacksonville and RH).
+  // Passing v2 ridge through is strictly better than recomputing with hull.
+  ridgeM = v2Result.ridge_ft / M_TO_FT  // convert back to metres for consistency
+  console.log(`[v3] ridge: using v2 value ${v2Result.ridge_ft}ft (hull would undercount)`)
 
   // VALLEY — use v2 centroid-distance formula. Hull projection undershoots because
   // valley rafters run the full diagonal from ridge to eave, not just the panel
