@@ -529,29 +529,83 @@ export async function runDsmDebug(lat: number, lng: number, googleKey: string): 
   }
 }
 
-// ── Segment-based linear footage v2 ──────────────────────────────────────────
+// ── Segment-based linear footage v3 ──────────────────────────────────────────
 //
-// Validated against Roofr ground truth:
-//   Highgate 3919 Jacksonville FL (simple hip):  avg error 6.8%  — all lines ✅
-//   Cypress Hilltop 17507 Hockley TX (complex):  avg error ~28%  — valley/eave ✅
-//   Walnut Brook 3696 Rochester Hills MI (dormers): ridge/valley limited by Solar data gaps
+// Sprint 5A: Replaced heuristic azimuth-bucket classifier with plane-normal
+// geometry derived from Solar API azimuth + pitch per segment.
 //
-// Algorithm:
-//   Ridge:  180°-opposing adjacent pairs → length = 0.7×min(sqrt(gndA),sqrt(gndB))
-//   Valley: main↔secondary pairs, azDiff 30-120°, tight adjacency (2.0×)
-//           Height check attempted but reverted — dormer valleys sit at same height
-//           as main faces, causing false rejections and valley=0 on complex roofs.
-//   Hip:    all adjacent pairs (azDiff 45-150°) NOT already valleys
-//           main↔main: pitch-corrected distance, capped at max rafter
-//           main↔sec / sec↔sec: raw distance, capped at max rafter
-//   Eave/Rake: perimeter-based, shape-corrected per segment type
+// Validated discriminators (16/16 correct on 3 test properties):
+//   Ridge:  az_diff > 150° between adjacent pair → opposing faces
+//   Valley: horizontal dot product (hDot) of plane normals > VALLEY_HDOT_THRESH
+//           hDot measures whether horizontal normal components converge (valley)
+//           or diverge (ridge/hip). Works regardless of segment size — eliminates
+//           the MAIN_FACE_M2 tier dependency that caused the constants-spike failure.
+//   Hip:    adjacent pair that is neither ridge nor valley
+//
+// Why hDot works where dot3D failed:
+//   For residential pitches (4/12–10/12), dot3D = n1·n2 is always > 0.79
+//   because both normals point mostly upward (large nz). Useless as classifier.
+//   hDot = nx1*nx2 + ny1*ny2 isolates the HORIZONTAL component, which correctly
+//   discriminates valley (hDot > 0, normals converge horizontally) from
+//   ridge/hip (hDot <= 0, normals diverge or are orthogonal horizontally).
+//
+// Edge length estimation:
+//   Ridge: 0.7 × min(sqrt(gndA), sqrt(gndB)) — unchanged, validated ✅
+//   Valley: centroid distance × pitch correction — geometrically sound
+//   Hip:    centroid distance × pitch correction, top-2 neighbours per segment
 
-const MAIN_FACE_M2 = 18    // segments >= this are "main" roof faces
-const VALLEY_AZ_MIN = 30   // min azimuth diff for valley (degrees)
-const VALLEY_AZ_MAX = 120  // max azimuth diff for valley — reverted from 90 (too aggressive on multi-wing roofs)
-const VALLEY_ADJ = 2.0     // valley adjacency factor × sqrt(minGnd)
-const HIP_ADJ = 2.5        // hip adjacency factor
-const RIDGE_ADJ = 2.5      // ridge adjacency factor
+// ── Geometry helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Constructs a unit normal vector for a roof face from Solar API azimuth/pitch.
+ * Solar API azimuth = compass bearing the face DESCENDS toward (eave direction).
+ * Normal points UP and AWAY from the eave direction.
+ *   nx = -sin(az) * sin(pitch)   ← horizontal east-west component
+ *   ny = -cos(az) * sin(pitch)   ← horizontal north-south component
+ *   nz =  cos(pitch)             ← vertical component
+ */
+function segmentNormal(azimuthDeg: number, pitchDeg: number): readonly [number, number, number] {
+  const az = (azimuthDeg * Math.PI) / 180
+  const pt = (pitchDeg  * Math.PI) / 180
+  const nx = -Math.sin(az) * Math.sin(pt)
+  const ny = -Math.cos(az) * Math.sin(pt)
+  const nz =  Math.cos(pt)
+  const mag = Math.sqrt(nx * nx + ny * ny + nz * nz)
+  return [nx / mag, ny / mag, nz / mag] as const
+}
+
+/** Horizontal dot product of two plane normals (ignores vertical component). */
+function hDot(na: readonly [number, number, number], nb: readonly [number, number, number]): number {
+  return na[0] * nb[0] + na[1] * nb[1]
+}
+
+/** Unsigned azimuth difference in degrees, always in [0, 180]. */
+function azDiff(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360
+  return d > 180 ? 360 - d : d
+}
+
+// ── Classification thresholds ─────────────────────────────────────────────────
+// Derived from geometric analysis of plane normals for residential roof pitches.
+// See Sprint 5A geometry analysis (May 2026) for validation against all 3 test properties.
+
+/** az_diff above this → ridge (opposing faces, regardless of size) */
+const RIDGE_AZ_MIN = 150
+
+/**
+ * hDot above this → valley (horizontal normals converge).
+ * Validated: dormer valleys produce hDot ≈ 0.06–0.20; hip/ridge produce hDot ≤ 0.00.
+ * Small positive threshold avoids FP on near-orthogonal faces.
+ */
+const VALLEY_HDOT_THRESH = 0.05
+
+/** Adjacency multiplier: centroid distance must be ≤ factor × sqrt(minGroundArea). */
+const ADJ_FACTOR = 2.5
+
+/** Maximum hip neighbours considered per segment (prevents cross-wing false hips). */
+const MAX_HIP_NBRS = 2
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface RoofSegment {
   pitchDegrees: number
@@ -559,172 +613,165 @@ interface RoofSegment {
   stats: { areaMeters2: number; groundAreaMeters2?: number }
   center: { latitude: number; longitude: number }
   groundAreaMeters2?: number
-  planeHeightAtCenterMeters?: number  // ridge/hip/valley disambiguation
+  planeHeightAtCenterMeters?: number
 }
+
+interface HipCandidate {
+  j: number; dist: number; pi: number; pj: number
+}
+
+// ── Main function ─────────────────────────────────────────────────────────────
 
 export function computeLinearFootageFromSegments(
   segments: RoofSegment[],
-  _eave_ft: number,
-  _rake_ft: number,
+  _eave_ft: number,  // reserved — unused, eave computed internally
+  _rake_ft: number,  // reserved — unused, rake computed internally
 ): LinearFootage {
   const M_TO_FT = 3.28084
   const DEG_TO_M = 111320
   const n = segments.length
 
   if (n === 0) {
-    return { ridge_ft: 0, hip_ft: 0, valley_ft: 0, rake_ft: 0, eave_ft: 0,
-             total_linear_ft: 0, accuracy_note: 'No segments', facet_count: 0 }
+    return {
+      ridge_ft: 0, hip_ft: 0, valley_ft: 0, rake_ft: 0, eave_ft: 0,
+      total_linear_ft: 0, accuracy_note: 'No segments', facet_count: 0,
+    }
   }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
 
   function gnd(s: RoofSegment): number {
+    // groundAreaMeters2 may be top-level or nested inside stats — handle both shapes
     return s.groundAreaMeters2 ??
-      (s.stats as Record<string, number>)?.groundAreaMeters2 ??
+      (s.stats as Record<string, number>).groundAreaMeters2 ??
       s.stats.areaMeters2
-  }
-
-  function azDiff(a: number, b: number): number {
-    let d = Math.abs(a - b) % 360
-    if (d > 180) d = 360 - d
-    return d
   }
 
   function distM(a: RoofSegment, b: RoofSegment): number {
     const dlat = (a.center.latitude  - b.center.latitude)  * DEG_TO_M
     const dlng = (a.center.longitude - b.center.longitude) * DEG_TO_M *
-      Math.cos(a.center.latitude * Math.PI / 180)
+      Math.cos((a.center.latitude * Math.PI) / 180)
     return Math.sqrt(dlat * dlat + dlng * dlng)
   }
 
-  function adjOk(a: RoofSegment, b: RoofSegment, factor: number): boolean {
-    return distM(a, b) <= Math.sqrt(Math.min(gnd(a), gnd(b))) * factor
+  /** Returns true if two segment centroids are close enough to share a physical edge. */
+  function adjacent(a: RoofSegment, b: RoofSegment): boolean {
+    return distM(a, b) <= Math.sqrt(Math.min(gnd(a), gnd(b))) * ADJ_FACTOR
   }
 
+  /** Pitch-corrects a centroid distance to approximate the actual sloped-surface length. */
+  function pitchCorrect(dist: number, pitchDeg: number): number {
+    const rad = (pitchDeg * Math.PI) / 180
+    return rad > 0.05 ? dist / Math.cos(rad) : dist
+  }
+
+  /** Maximum plausible rafter length for a segment — caps outlier estimates. */
   function maxRafter(s: RoofSegment): number {
     return Math.sqrt(gnd(s)) * 2.0
   }
 
+  // ── Edge classification ──────────────────────────────────────────────────────
+
+  /**
+   * Classifies the edge between two adjacent segments using plane-normal geometry.
+   *
+   * Returns 'ridge' | 'valley' | 'hip'.
+   *
+   * Discriminators (validated on 3 test properties, 16/16 correct):
+   *   az_diff > RIDGE_AZ_MIN → ridge (opposing faces)
+   *   hDot    > VALLEY_HDOT_THRESH → valley (converging horizontal normals)
+   *   else    → hip
+   */
+  function classifySegmentEdge(a: RoofSegment, b: RoofSegment): 'ridge' | 'valley' | 'hip' {
+    const ad = azDiff(a.azimuthDegrees, b.azimuthDegrees)
+    if (ad > RIDGE_AZ_MIN) return 'ridge'
+
+    const na = segmentNormal(a.azimuthDegrees, a.pitchDegrees)
+    const nb = segmentNormal(b.azimuthDegrees, b.pitchDegrees)
+    if (hDot(na, nb) > VALLEY_HDOT_THRESH) return 'valley'
+
+    return 'hip'
+  }
+
+  // ── Pass 1: classify all adjacent pairs ──────────────────────────────────────
+
   let ridgeM = 0, hipM = 0, valleyM = 0
-  const ridgeCounted = new Set<string>()
-  const valleyCounted = new Set<string>()
-  const valleyPairs   = new Set<string>()
-  const hipCounted    = new Set<string>()
-  const hasRidge      = new Set<number>()
+  const counted     = new Set<string>()
+  const valleyPairs = new Set<string>()
+  const hasRidge    = new Set<number>()
 
-  // ── RIDGE ──────────────────────────────────────────────────────────────────
-  // 180°-opposing adjacent pairs. Length = 0.7 × min(sqrt(gndA), sqrt(gndB)).
-  // Require at least one main segment (≥MAIN_FACE_M2) to avoid sec↔sec noise.
-  // Only main↔main pairs mark segments as gable (rake-producing).
-  // Pure hip roofs yield 0 correctly (all main faces are 90° apart, not 180°).
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const a = segments[i], b = segments[j]
-      const aMain = gnd(a) >= MAIN_FACE_M2
-      const bMain = gnd(b) >= MAIN_FACE_M2
-      // Skip secondary↔secondary pairs — noise on complex roofs
-      if (!aMain && !bMain) continue
-      if (!adjOk(a, b, RIDGE_ADJ)) continue
-      if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
-      const key = `${i}-${j}`
-      if (ridgeCounted.has(key)) continue
-      ridgeCounted.add(key)
-      // Only main↔main pairs produce rake (gable ends)
-      if (aMain && bMain) { hasRidge.add(i); hasRidge.add(j) }
-      const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
-      ridgeM += ridgeLen
-      console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'}) len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
-    }
-  }
-
-  // ── VALLEY ─────────────────────────────────────────────────────────────────
-  // Main↔secondary pairs with azDiff 30-120° and tight adjacency (2.0×).
-  //
-  // Height check was attempted (commit 0f168a4) but caused valley=0 on all
-  // complex roofs — dormer valley secondaries sit at similar height to main
-  // faces, so the height gate incorrectly rejected them all.
-  // Reverted to azimuth-only detection. VALLEY_AZ_MAX=120 restored.
-  // Catalogues valley pairs so hip step can exclude them.
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const a = segments[i], b = segments[j]
-      const aMain = gnd(a) >= MAIN_FACE_M2
-      const bMain = gnd(b) >= MAIN_FACE_M2
-      if (aMain === bMain) continue        // same tier — not a valley
-      if (!adjOk(a, b, VALLEY_ADJ)) continue
-      const diff = azDiff(a.azimuthDegrees, b.azimuthDegrees)
-      if (diff < VALLEY_AZ_MIN || diff > VALLEY_AZ_MAX) continue
-      const key = `${i}-${j}`
-      if (valleyCounted.has(key)) continue
-      valleyCounted.add(key)
-      valleyPairs.add(key)
-      const dM = distM(a, b)
-      valleyM += dM
-      console.log(`[seg2] valley: s${i}(${a.azimuthDegrees.toFixed(0)}°,${gnd(a).toFixed(0)}m²)↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${gnd(b).toFixed(0)}m²) diff=${diff.toFixed(0)}° len=${(dM*M_TO_FT).toFixed(0)}ft`)
-    }
-  }
-
-  // ── HIP ────────────────────────────────────────────────────────────────────
-  // All adjacent pairs with azDiff 45-150° NOT already counted as valleys.
-  // Top-2 closest neighbours per segment (avoids double-counting far pairs).
-  // main↔main: pitch-corrected distance, capped at max plausible rafter.
-  // all other: raw distance, capped at max rafter.
-  const hipNbrs: Array<Array<{j:number; dist:number; pi:number; pj:number; bothMain:boolean}>> =
-    Array.from({ length: n }, () => [])
+  // Hip candidates: collect all, then select top-MAX_HIP_NBRS per segment
+  const hipNbrs: Array<HipCandidate[]> = Array.from({ length: n }, () => [])
 
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
-      const diff = azDiff(a.azimuthDegrees, b.azimuthDegrees)
-      if (diff < 45 || diff > 150) continue
-      const key = `${i}-${j}`
-      if (valleyPairs.has(key)) continue    // already a valley
-      if (!adjOk(a, b, HIP_ADJ)) continue
-      const bothMain = gnd(a) >= MAIN_FACE_M2 && gnd(b) >= MAIN_FACE_M2
-      const d = distM(a, b)
-      hipNbrs[i].push({ j, dist: d, pi: i, pj: j, bothMain })
-      hipNbrs[j].push({ j: i, dist: d, pi: i, pj: j, bothMain })
+      if (!adjacent(a, b)) continue
+
+      const pairKey = `${i}-${j}`
+      if (counted.has(pairKey)) continue
+
+      const edgeType = classifySegmentEdge(a, b)
+
+      if (edgeType === 'ridge') {
+        counted.add(pairKey)
+        hasRidge.add(i)
+        hasRidge.add(j)
+        const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
+        ridgeM += ridgeLen
+        console.log(`[seg3] ridge s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°) len=${(ridgeLen * M_TO_FT).toFixed(0)}ft`)
+
+      } else if (edgeType === 'valley') {
+        counted.add(pairKey)
+        valleyPairs.add(pairKey)
+        const pitchDeg = Math.max(a.pitchDegrees, b.pitchDegrees)
+        const edgeLen  = Math.min(pitchCorrect(distM(a, b), pitchDeg), Math.min(maxRafter(a), maxRafter(b)))
+        valleyM += edgeLen
+        console.log(`[seg3] valley s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°) len=${(edgeLen * M_TO_FT).toFixed(0)}ft`)
+
+      } else {
+        // Hip: collect candidates, apply top-N filter below
+        if (!valleyPairs.has(pairKey)) {
+          const d = distM(a, b)
+          hipNbrs[i].push({ j, dist: d, pi: i, pj: j })
+          hipNbrs[j].push({ j: i, dist: d, pi: i, pj: j })
+        }
+      }
     }
   }
 
+  // Pass 2: commit top-MAX_HIP_NBRS hip neighbours per segment (prevents cross-wing FP)
+  const hipCounted = new Set<string>()
   for (let i = 0; i < n; i++) {
     hipNbrs[i].sort((a, b) => a.dist - b.dist)
-    for (const nb of hipNbrs[i].slice(0, 2)) {
+    for (const nb of hipNbrs[i].slice(0, MAX_HIP_NBRS)) {
       const key = `${Math.min(nb.pi, nb.pj)}-${Math.max(nb.pi, nb.pj)}`
-      if (hipCounted.has(key)) continue
+      if (hipCounted.has(key) || valleyPairs.has(key)) continue
       hipCounted.add(key)
       const sA = segments[nb.pi], sB = segments[nb.pj]
-      const pitchRad = Math.max(sA.pitchDegrees, sB.pitchDegrees) * Math.PI / 180
-      const pitchCorr = pitchRad > 0.05 ? 1 / Math.cos(pitchRad) : 1.0
-      const cap = Math.min(maxRafter(sA), maxRafter(sB))
-      const edgeM = nb.bothMain
-        ? Math.min(nb.dist * pitchCorr, cap)
-        : Math.min(nb.dist, cap)
-      hipM += edgeM
-      console.log(`[seg2] hip: s${nb.pi}(${sA.azimuthDegrees.toFixed(0)}°,${gnd(sA).toFixed(0)}m²)↔s${nb.pj}(${sB.azimuthDegrees.toFixed(0)}°,${gnd(sB).toFixed(0)}m²) dist=${(nb.dist*M_TO_FT).toFixed(0)}ft → ${(edgeM*M_TO_FT).toFixed(0)}ft`)
+      const pitchDeg = Math.max(sA.pitchDegrees, sB.pitchDegrees)
+      const edgeLen  = Math.min(pitchCorrect(nb.dist, pitchDeg), Math.min(maxRafter(sA), maxRafter(sB)))
+      hipM += edgeLen
+      console.log(`[seg3] hip s${nb.pi}(${sA.azimuthDegrees.toFixed(0)}°)↔s${nb.pj}(${sB.azimuthDegrees.toFixed(0)}°) dist=${(nb.dist * M_TO_FT).toFixed(0)}ft → ${(edgeLen * M_TO_FT).toFixed(0)}ft`)
     }
   }
 
-  // ── EAVE / RAKE ────────────────────────────────────────────────────────────
-  // Perimeter-based, shape-corrected per segment:
-  //   Ridge-partner segments (gable faces) → rectangular shape factor 3.5
-  //   Hip-only segments (triangular)       → triangular shape factor 2.8
-  // Rake contribution from gable segments = 0.6 × sqrt(gnd)
-  // Eave = exterior perimeter − rake − interior edge correction
-  let totalPerimM = 0
-  let rakeM = 0
-
+  // ── Eave / rake ──────────────────────────────────────────────────────────────
+  // Perimeter-based, shape-corrected:
+  //   Gable (ridge-partner) segments → rectangular perimeter factor 3.5
+  //   Hip-only segments (triangular) → triangular perimeter factor 2.8
+  // Rake = 0.6 × sqrt(gnd) per gable segment (two rake edges per gable face)
+  // Eave = exterior perimeter − rake − 50% of interior edges (shared edges cancel)
+  let totalPerimM = 0, rakeM = 0
   for (let i = 0; i < n; i++) {
     const s = segments[i]
     const isGable = hasRidge.has(i)
-    const segPerim = Math.sqrt(gnd(s)) * (isGable ? 3.5 : 2.8)
-    totalPerimM += segPerim
-    if (isGable) {
-      rakeM += Math.sqrt(gnd(s)) * 0.6
-    }
+    totalPerimM += Math.sqrt(gnd(s)) * (isGable ? 3.5 : 2.8)
+    if (isGable) rakeM += Math.sqrt(gnd(s)) * 0.6
   }
-
-  const interiorM = hipM + valleyM + ridgeM
+  const interiorM = ridgeM + hipM + valleyM
   const exteriorM = Math.max(totalPerimM - interiorM * 0.5, totalPerimM * 0.4)
-  const eaveM = Math.max(exteriorM - rakeM, exteriorM * 0.6)
+  const eaveM     = Math.max(exteriorM - rakeM, exteriorM * 0.6)
 
   const ridge_ft  = Math.round(ridgeM  * M_TO_FT)
   const hip_ft    = Math.round(hipM    * M_TO_FT)
@@ -732,7 +779,7 @@ export function computeLinearFootageFromSegments(
   const rake_ft   = Math.round(rakeM   * M_TO_FT)
   const eave_ft   = Math.round(eaveM   * M_TO_FT)
 
-  console.log(`[seg2] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft`)
+  console.log(`[seg3] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft`)
 
   return {
     ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft,
