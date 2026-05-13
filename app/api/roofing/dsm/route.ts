@@ -172,32 +172,48 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // mode=mask-spike&lat=<lat>&lng=<lng> — Sprint 5 validation
-  // Fetches maskUrl, traces boundary polygon, measures perimeter.
-  // Compare result to Roofr E+R truth to confirm mask is drip edge not wall footprint.
+  // mode=mask-spike&report_id=<uuid> — Sprint 5 Phase 1 validation
+  // Uses EXACT building centroid from solar_raw.center (not user-supplied coords).
+  // Extracts LARGEST connected component to isolate main building from neighbours.
   if (mode === 'mask-spike') {
-    const coords2 = validateCoordinates(searchParams.get('lat'), searchParams.get('lng'))
-    if (!coords2.valid) return apiError(coords2.error, 400)
+    const report_id = searchParams.get('report_id')
+    if (!isValidUuid(report_id)) return apiError('report_id required', 400)
     if (!GOOGLE_KEY) return apiError('GOOGLE_SOLAR_API_KEY not configured', 503)
 
+    const sb = getSupabaseAdmin()
+    const { data: report, error: rErr } = await sb
+      .from('roof_reports')
+      .select('address, lat, lng, solar_raw')
+      .eq('id', report_id)
+      .single()
+    if (rErr || !report) return apiError('Report not found', 404)
+
+    // Use exact building centroid from solar_raw.center
+    const solar = report.solar_raw as Record<string, unknown> | null
+    const solarCenter = solar?.center as { latitude: number; longitude: number } | null
+    const lat = solarCenter?.latitude ?? (report.lat as number)
+    const lng = solarCenter?.longitude ?? (report.lng as number)
+
     try {
-      const layers = await fetchDataLayers(coords2.lat, coords2.lng, GOOGLE_KEY)
-      if (!layers?.maskUrl) return apiError('No maskUrl returned from dataLayers', 502)
+      const layers = await fetchDataLayers(lat, lng, GOOGLE_KEY)
+      if (!layers?.maskUrl) return apiError('No maskUrl from dataLayers', 502)
 
       const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
       if (!mask) return apiError('Failed to decode mask GeoTIFF', 502)
 
-      const perimeterResult = traceMaskPerimeter(mask)
+      const result = traceMaskPerimeter(mask)
       return NextResponse.json({
-        lat: coords2.lat, lng: coords2.lng,
+        address: report.address,
+        centroid_used: { lat, lng },
         mask_dimensions: `${mask.width}×${mask.height}`,
-        roof_pixels: perimeterResult.roofPixels,
-        perimeter_pixels: perimeterResult.perimeterPixels,
+        total_roof_pixels: result.roofPixels,
+        main_building_pixels: result.mainBuildingPixels,
+        perimeter_pixels: result.perimeterPixels,
         pixel_size_m: 0.1,
-        perimeter_m: perimeterResult.perimeterM,
-        perimeter_ft: Math.round(perimeterResult.perimeterM * 3.28084),
+        perimeter_m: result.perimeterM,
+        perimeter_ft: Math.round(result.perimeterM * 3.28084),
         roofr_truth_ft: { rochester_hills: 442, jacksonville: 277, hockley: 362 },
-        note: 'If perimeter_ft ≈ roofr_truth_ft → mask traces drip edge ✅. If ~250ft → wall footprint ❌',
+        note: 'perimeter_ft should be within 20% of roofr_truth_ft if mask traces drip edge',
       })
     } catch (e) {
       return apiError('Mask spike failed', 500, e)

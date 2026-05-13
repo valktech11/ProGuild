@@ -96,38 +96,83 @@ export async function decodeGeoTiff(url: string, googleKey: string): Promise<Geo
 
 export function traceMaskPerimeter(mask: GeoGrid): {
   roofPixels: number
+  mainBuildingPixels: number
   perimeterPixels: number
   perimeterM: number
 } {
   const { data, width, height } = mask
-  const pixelSizeM = 0.1  // Solar API mask is always 0.1m/pixel at HIGH/MEDIUM quality
+  const pixelSizeM = 0.1
 
-  let roofPixels = 0
+  // ── Step 1: Label connected components (BFS flood fill) ──────────────────
+  // Each contiguous group of roof pixels gets a unique label.
+  // We then keep only the LARGEST component — the main building.
+  const labels = new Int32Array(width * height)  // 0 = unvisited/non-roof
+  let nextLabel = 1
+  const componentSizes = new Map<number, number>()
+
+  for (let startRow = 0; startRow < height; startRow++) {
+    for (let startCol = 0; startCol < width; startCol++) {
+      const startIdx = startRow * width + startCol
+      if ((data[startIdx] ?? 0) === 0 || labels[startIdx] !== 0) continue
+
+      // BFS from this unlabelled roof pixel
+      const label = nextLabel++
+      const queue: number[] = [startIdx]
+      labels[startIdx] = label
+      let size = 0
+
+      while (queue.length > 0) {
+        const idx = queue.pop()!
+        size++
+        const row = Math.floor(idx / width)
+        const col = idx % width
+
+        const neighbours = [
+          row > 0        ? (row-1)*width+col : -1,
+          row < height-1 ? (row+1)*width+col : -1,
+          col > 0        ? row*width+(col-1) : -1,
+          col < width-1  ? row*width+(col+1) : -1,
+        ]
+        for (const nIdx of neighbours) {
+          if (nIdx < 0) continue
+          if ((data[nIdx] ?? 0) === 0 || labels[nIdx] !== 0) continue
+          labels[nIdx] = label
+          queue.push(nIdx)
+        }
+      }
+      componentSizes.set(label, size)
+    }
+  }
+
+  // ── Step 2: Find largest component (main building) ────────────────────────
+  let mainLabel = 0
+  let mainSize = 0
+  for (const [label, size] of componentSizes) {
+    if (size > mainSize) { mainSize = size; mainLabel = label }
+  }
+
+  const totalRoofPixels = Array.from(componentSizes.values()).reduce((a, b) => a + b, 0)
+
+  // ── Step 3: Count perimeter pixels of main component only ─────────────────
   let perimeterPixels = 0
-
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       const idx = row * width + col
-      const isRoof = (data[idx] ?? 0) > 0
-      if (!isRoof) continue
+      if (labels[idx] !== mainLabel) continue
 
-      roofPixels++
-
-      // Check 4-connected neighbours — if any is non-roof, this is a boundary pixel
       const neighbours = [
-        row > 0          ? data[(row-1)*width+col] : 0,
-        row < height-1   ? data[(row+1)*width+col] : 0,
-        col > 0          ? data[row*width+(col-1)] : 0,
-        col < width-1    ? data[row*width+(col+1)] : 0,
+        row > 0        ? labels[(row-1)*width+col] : 0,
+        row < height-1 ? labels[(row+1)*width+col] : 0,
+        col > 0        ? labels[row*width+(col-1)] : 0,
+        col < width-1  ? labels[row*width+(col+1)] : 0,
       ]
-      if (neighbours.some(n => (n ?? 0) === 0)) {
-        perimeterPixels++
-      }
+      if (neighbours.some(n => n !== mainLabel)) perimeterPixels++
     }
   }
 
   return {
-    roofPixels,
+    roofPixels: totalRoofPixels,
+    mainBuildingPixels: mainSize,
     perimeterPixels,
     perimeterM: perimeterPixels * pixelSizeM,
   }
