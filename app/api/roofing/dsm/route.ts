@@ -258,6 +258,75 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // mode=recompute&report_id=<uuid> — runs full classifier on solar_raw, returns result, NO DB write
+  // Use this to test classifier changes without clicking through the UI.
+  if (mode === 'recompute') {
+    const report_id = searchParams.get('report_id')
+    if (!isValidUuid(report_id)) return apiError('report_id must be a valid UUID', 400)
+    const sb = getSupabaseAdmin()
+    const { data: report, error: rErr } = await sb
+      .from('roof_reports')
+      .select('id, address, lat, lng, solar_raw')
+      .eq('id', report_id)
+      .single()
+    if (rErr || !report) return apiError('Report not found', 404)
+
+    const solar = report.solar_raw as Record<string, unknown> | null
+    if (!solar) return apiError('No solar_raw — regenerate Bid Report first', 422)
+
+    const potential   = solar.solarPotential as Record<string, unknown> | null
+    const segments    = potential?.roofSegmentStats as unknown[] | null
+    const solarPanels = potential?.solarPanels as Array<{ center: { latitude: number; longitude: number }; segmentIndex: number }> | null
+    const imageryQuality = (solar.imageryQuality as string | undefined) ?? ''
+
+    if (!segments || segments.length === 0) return apiError('No roof segments in solar_raw', 422)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const v2Result = computeLinearFootageFromSegments(segments as any[], 0, 0)
+
+    let maskPerimeterM = 0
+    if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
+      try {
+        const solarCenter = solar.center as { latitude: number; longitude: number } | null
+        const cLat = solarCenter?.latitude ?? (report.lat as number)
+        const cLng = solarCenter?.longitude ?? (report.lng as number)
+        const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
+        if (layers?.maskUrl) {
+          const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+          if (mask) {
+            const perim = traceMaskPerimeter(mask)
+            if (perim.mainBuildingPixels > 100) maskPerimeterM = perim.perimeterM
+          }
+        }
+      } catch { /* mask optional */ }
+    }
+
+    const M_TO_FT = 3.28084
+    const maskEaveFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.70 * M_TO_FT) : 0
+    const maskRakeFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.30 * M_TO_FT) : 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const v2WithMask = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
+
+    let v3Result = null
+    if (solarPanels && solarPanels.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2WithMask)
+    }
+
+    const final = v3Result ?? v2WithMask
+    return NextResponse.json({
+      address: report.address,
+      imagery_quality: imageryQuality,
+      mask_perimeter_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
+      v2_no_mask:  { ridge: v2Result.ridge_ft,    hip: v2Result.hip_ft,    valley: v2Result.valley_ft,    eave: v2Result.eave_ft,    rake: v2Result.rake_ft },
+      v2_mask:     { ridge: v2WithMask.ridge_ft,   hip: v2WithMask.hip_ft,  valley: v2WithMask.valley_ft,  eave: v2WithMask.eave_ft,  rake: v2WithMask.rake_ft },
+      v3:          v3Result ? { ridge: v3Result.ridge_ft, hip: v3Result.hip_ft, valley: v3Result.valley_ft, eave: v3Result.eave_ft, rake: v3Result.rake_ft } : null,
+      final:       { ridge: final.ridge_ft,        hip: final.hip_ft,       valley: final.valley_ft,       eave: final.eave_ft,       rake: final.rake_ft },
+      roofr_truth: { jacksonville: { ridge:29,hip:149,valley:37,eave:224,rake:53 }, hockley: { ridge:78,hip:238,valley:105,eave:317,rake:45 }, rochester_hills: { ridge:173,hip:170,valley:188,eave:298,rake:144 } },
+      note: 'READ ONLY — no DB write. Final = v3 if safety check passed, else v2_mask.',
+    })
+  }
+
   const coords = validateCoordinates(searchParams.get('lat'), searchParams.get('lng'))
   if (!coords.valid) return apiError(coords.error, 400)
   if (!GOOGLE_KEY) return apiError('GOOGLE_SOLAR_API_KEY not configured', 503)
