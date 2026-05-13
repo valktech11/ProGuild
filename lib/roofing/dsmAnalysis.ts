@@ -1200,9 +1200,9 @@ export function computeLinearFootageV3(
   if (n === 0) return v2Result
 
   // ── Constants ──────────────────────────────────────────────────────────────
-  const HULL_PROX_M  = 3.0   // panels within 3m → segments are physically adjacent
+  const HULL_PROX_M  = 5.0   // panels within 5m → segments are physically adjacent
   const RIDGE_AZ_MIN = 150   // azDiff > 150° → ridge (same as v2)
-  const HIP_AZ_MIN   = 45    // azDiff 45-150° → hip
+  const HIP_AZ_MIN   = 45    // azDiff 45-150° → hip or valley
 
   // ── Panel lookup ──────────────────────────────────────────────────────────
   const panelsBySegment = new Map<number, Array<[number, number]>>()
@@ -1234,27 +1234,54 @@ export function computeLinearFootageV3(
     return Math.sqrt(dlat * dlat + dlng * dlng)
   }
 
-  // 3D unit normal from Solar API azimuth + pitch.
-  // Azimuth = downslope compass direction. Normal points upslope, tilted by pitch.
-  // Convention: [east, north, up]
-  function faceNormal(s: RoofSegment): [number, number, number] {
-    const az  = s.azimuthDegrees * DEG_TO_RAD
-    const pit = s.pitchDegrees   * DEG_TO_RAD
-    // Upslope direction = azimuth + 180°; tilt from vertical = pitch
-    return [
-      -Math.sin(az) * Math.sin(pit),   // east component
-       Math.cos(az) * Math.sin(pit),   // north component
-       Math.cos(pit)                    // up component
-    ]
-  }
+  // ── Drain-direction edge classifier ───────────────────────────────────────
+  // Determines edge type from how the two faces drain relative to each other.
+  //
+  //   Both drain AWAY (diverge) + azDiff>150° → ridge  (A-shape, high point)
+  //   Both drain TOWARD (converge) + azDiff 45-150° → valley (V-shape, low point)
+  //   Asymmetric or same-direction-ish → hip (diagonal rafter)
+  //
+  // "Face i drains toward j" = azimuth_i unit vector has positive component
+  // along the centroid-to-centroid direction i→j.
+  //
+  // This replaces the dot-product convexity test which always returned convex
+  // because cos(pitch) dominates the 3D normal dot product.
+  //
+  function drainClassify(i: number, j: number): 'ridge' | 'hip' | 'valley' | 'skip' {
+    const si = segments[i], sj = segments[j]
+    const ad = azDiff(si.azimuthDegrees, sj.azimuthDegrees)
 
-  // Dot product of two 3D vectors
-  function dot3(a: [number,number,number], b: [number,number,number]): number {
-    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+    // Ridge: strongly opposing azimuths — A-shape peak
+    if (ad > RIDGE_AZ_MIN) return 'ridge'
+
+    // Hip vs valley: use drain direction for azDiff 45-150°
+    if (ad >= HIP_AZ_MIN) {
+      const dx = (sj.center.longitude - si.center.longitude) * cosLat * DEG_TO_M
+      const dy = (sj.center.latitude  - si.center.latitude)  * DEG_TO_M
+      const dist = Math.sqrt(dx*dx + dy*dy)
+      if (dist < 0.1) return 'skip'
+      const ux = dx/dist, uy = dy/dist  // unit vector i→j
+
+      // Azimuth unit vectors (downslope, east/north components)
+      const aiX = Math.sin(si.azimuthDegrees * DEG_TO_RAD)
+      const aiY = Math.cos(si.azimuthDegrees * DEG_TO_RAD)
+      const ajX = Math.sin(sj.azimuthDegrees * DEG_TO_RAD)
+      const ajY = Math.cos(sj.azimuthDegrees * DEG_TO_RAD)
+
+      // Positive = this face drains toward the other segment
+      const iTowardJ = (aiX*ux   + aiY*uy)   > 0
+      const jTowardI = (ajX*(-ux) + ajY*(-uy)) > 0
+
+      // Both converge → V-shape → valley
+      if (iTowardJ && jTowardI) return 'valley'
+      // All other cases (one or both diverge) → hip rafter
+      return 'hip'
+    }
+
+    return 'skip'  // azDiff < 45°: parallel slopes, not a structural edge
   }
 
   // Minimum distance between two convex hull point sets (metres).
-  // Used for adjacency: if min distance < HULL_PROX_M → physically adjacent.
   function hullMinDistM(
     hullA: Array<[number,number]>,
     hullB: Array<[number,number]>
@@ -1329,38 +1356,27 @@ export function computeLinearFootageV3(
       const key = `${i}-${j}`
       if (counted.has(key)) continue
 
-      // Gate 1: physical adjacency
+      // Gate 1: physical adjacency via panel hull proximity
       if (!adjacent(i, j)) continue
       counted.add(key)
 
+      const type = drainClassify(i, j)
+      if (type === 'skip') continue
+
       const si = segments[i], sj = segments[j]
-      const ad = azDiff(si.azimuthDegrees, sj.azimuthDegrees)
 
-      // Gate 2: convexity via face normal dot product
-      // dot > 0 → convex (hip or ridge); dot ≤ 0 → concave (valley)
-      const ni = faceNormal(si)
-      const nj = faceNormal(sj)
-      const dp = dot3(ni, nj)
-
-      if (dp > 0) {
-        // Convex edge — ridge or hip
-        if (ad > RIDGE_AZ_MIN) {
-          const len = ridgeLengthM(i, j)
-          ridgeM += len
-          console.log(`[v3g] ridge: s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) dot=${dp.toFixed(2)} len=${(len*M_TO_FT).toFixed(0)}ft`)
-        } else if (ad >= HIP_AZ_MIN) {
-          const len = rafterLengthM(i, j)
-          hipM += len
-          console.log(`[v3g] hip:   s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) dot=${dp.toFixed(2)} len=${(len*M_TO_FT).toFixed(0)}ft`)
-        }
-        // azDiff < 45° → same-direction faces (same wing, flat join) → skip
+      if (type === 'ridge') {
+        const len = ridgeLengthM(i, j)
+        ridgeM += len
+        console.log(`[v3g] ridge:  s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) len=${(len*M_TO_FT).toFixed(0)}ft`)
+      } else if (type === 'valley') {
+        const len = rafterLengthM(i, j)
+        valleyM += len
+        console.log(`[v3g] valley: s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) len=${(len*M_TO_FT).toFixed(0)}ft`)
       } else {
-        // Concave edge — valley
-        if (ad >= HIP_AZ_MIN && ad <= 150) {
-          const len = rafterLengthM(i, j)
-          valleyM += len
-          console.log(`[v3g] valley:s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) dot=${dp.toFixed(2)} len=${(len*M_TO_FT).toFixed(0)}ft`)
-        }
+        const len = rafterLengthM(i, j)
+        hipM += len
+        console.log(`[v3g] hip:    s${i}(${si.azimuthDegrees.toFixed(0)}°)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°) len=${(len*M_TO_FT).toFixed(0)}ft`)
       }
     }
   }
