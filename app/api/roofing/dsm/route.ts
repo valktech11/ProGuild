@@ -62,38 +62,50 @@ export async function POST(req: NextRequest) {
   }
 
   // 5. Compute v2 baseline (always — used as safety fallback for v3)
+  // maskPerimeterM computed first so v2 can use mask eave/rake override.
+  let maskPerimeterM = 0
+  if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
+    try {
+      const solarCenter = solar.center as { latitude: number; longitude: number } | null
+      const cLat = solarCenter?.latitude ?? (report.lat as number)
+      const cLng = solarCenter?.longitude ?? (report.lng as number)
+      const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
+      if (layers?.maskUrl) {
+        const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+        if (mask) {
+          const perim = traceMaskPerimeter(mask)
+          if (perim.mainBuildingPixels > 100) {
+            maskPerimeterM = perim.perimeterM
+            console.log(`[dsm] mask perimeter: ${perim.perimeterM.toFixed(0)}m (${Math.round(perim.perimeterM * 3.28084)}ft), main building ${perim.mainBuildingPixels} px`)
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[dsm] mask fetch failed, eave/rake will use segment heuristic:', e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  // Convert mask perimeter to eave/rake ft for v2 override.
+  // 70/30 split is a first approximation — Phase 3 will do proper polygon tracing.
+  const M_TO_FT = 3.28084
+  const maskEaveFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.70 * M_TO_FT) : 0
+  const maskRakeFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.30 * M_TO_FT) : 0
+
   let v2Result
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    v2Result = computeLinearFootageFromSegments(segments as any[], 0, 0)
+    v2Result = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
   } catch (e) {
     console.error('[dsm] v2 error:', e)
     return apiError('Linear footage computation failed', 500, e)
   }
 
-  // 6. Sprint 5 v3: bbox adjacency + height-direction classifier + mask eave/rake
+  // 6. Sprint 5 v3: bbox adjacency + height-direction classifier
+  // v3 R+H/V is more accurate for complex roofs — use it when it passes safety check.
+  // Eave/rake: v3 also uses mask (same 70/30 split) — consistent with v2.
   let linear = v2Result
-  if (solarPanels && solarPanels.length > 0 && GOOGLE_KEY) {
+  if (solarPanels && solarPanels.length > 0) {
     try {
-      // Fetch mask for eave/rake if quality is HIGH or MEDIUM
-      let maskPerimeterM = 0
-      if (imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') {
-        const solarCenter = solar.center as { latitude: number; longitude: number } | null
-        const cLat = solarCenter?.latitude ?? (report.lat as number)
-        const cLng = solarCenter?.longitude ?? (report.lng as number)
-        const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
-        if (layers?.maskUrl) {
-          const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-          if (mask) {
-            const perim = traceMaskPerimeter(mask)
-            if (perim.mainBuildingPixels > 100) {
-              maskPerimeterM = perim.perimeterM
-              console.log(`[dsm] mask perimeter: ${perim.perimeterM.toFixed(0)}m (${Math.round(perim.perimeterM * 3.28084)}ft), main building ${perim.mainBuildingPixels} px`)
-            }
-          }
-        }
-      }
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2Result)
       linear = v3Result

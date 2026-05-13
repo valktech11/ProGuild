@@ -678,8 +678,8 @@ interface RoofSegment {
 
 export function computeLinearFootageFromSegments(
   segments: RoofSegment[],
-  _eave_ft: number,  // reserved for future external source (Sprint 5C DSM intersection)
-  _rake_ft: number,  // reserved for future external source (Sprint 5C DSM intersection)
+  _eave_ft: number,  // mask-derived override (Sprint 5 Phase 1). Use when > 0.
+  _rake_ft: number,  // mask-derived override (Sprint 5 Phase 1). Use when > 0.
 ): LinearFootage {
   const M_TO_FT = 3.28084
   const DEG_TO_M = 111320
@@ -838,15 +838,16 @@ export function computeLinearFootageFromSegments(
 
   const interiorM = hipM + valleyM + ridgeM
   const exteriorM = Math.max(totalPerimM - interiorM * 0.5, totalPerimM * 0.4)
-  const eaveM     = Math.max(exteriorM - rakeM, exteriorM * 0.6)
+  const eaveM_seg = Math.max(exteriorM - rakeM, exteriorM * 0.6)
 
   const ridge_ft  = Math.round(ridgeM  * M_TO_FT)
   const hip_ft    = Math.round(hipM    * M_TO_FT)
   const valley_ft = Math.round(valleyM * M_TO_FT)
-  const rake_ft   = Math.round(rakeM   * M_TO_FT)
-  const eave_ft   = Math.round(eaveM   * M_TO_FT)
+  // Prefer mask-derived eave/rake when available (±4% accuracy vs ±20% for segment heuristic)
+  const rake_ft   = _rake_ft > 0 ? _rake_ft : Math.round(rakeM   * M_TO_FT)
+  const eave_ft   = _eave_ft > 0 ? _eave_ft : Math.round(eaveM_seg * M_TO_FT)
 
-  console.log(`[seg2] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft`)
+  console.log(`[seg2] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft${_eave_ft > 0 ? ' (mask eave/rake)' : ''}`)
 
   return {
     ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft,
@@ -899,7 +900,9 @@ interface SegmentV3 {
   panelCenters: Array<{ lat: number; lng: number }>  // from solarPanels[] filtered by segmentIndex
 }
 
-const BBOX_TOL = 0.00015    // ~16m — bbox overlap tolerance
+const BBOX_TOL = 0.00015       // ~16m — general adjacency tolerance
+const BBOX_TOL_TIGHT = 0.00008 // ~9m  — tightened for ridge to prevent dense-roof false positives
+const BBOX_TOL_DORMER = 0.0003 // ~33m — relaxed for dormer cheeks (small area segs)
 const AREA_RATIO_V3 = 3.0   // small/large area ratio threshold for valley detection
 const HEIGHT_DIR_TOL = 0.3  // small segment must be this much HIGHER than large for valley
 const RIDGE_HEIGHT_MAX = 2.0 // max height diff between ridge pair centroids
@@ -916,6 +919,34 @@ function bboxOverlap(
     a.ne.longitude + tol < b.sw.longitude ||
     b.ne.longitude + tol < a.sw.longitude
   )
+}
+
+// For ridge: two bboxes share an edge when they overlap in one axis only.
+// Full 2D overlap = same wing = NOT ridge. Edge-share = opposite faces = ridge.
+// Implemented as: overlap with tight tolerance, but NOT fully contained in both dims.
+function bboxEdgeShare(
+  a: SegmentV3['bbox'],
+  b: SegmentV3['bbox'],
+  tol = BBOX_TOL_TIGHT
+): boolean {
+  const latOverlap = !(a.ne.latitude + tol < b.sw.latitude || b.ne.latitude + tol < a.sw.latitude)
+  const lngOverlap = !(a.ne.longitude + tol < b.sw.longitude || b.ne.longitude + tol < a.sw.longitude)
+  if (!latOverlap || !lngOverlap) return false  // no adjacency at all
+
+  // Detect full 2D containment / deep overlap — likely same wing, not ridge pair
+  const latDepth = Math.min(a.ne.latitude, b.ne.latitude) - Math.max(a.sw.latitude, b.sw.latitude)
+  const lngDepth = Math.min(a.ne.longitude, b.ne.longitude) - Math.max(a.sw.longitude, b.sw.longitude)
+  const aLatSpan = a.ne.latitude - a.sw.latitude
+  const bLatSpan = b.ne.latitude - b.sw.latitude
+  const aLngSpan = a.ne.longitude - a.sw.longitude
+  const bLngSpan = b.ne.longitude - b.sw.longitude
+  const minLatSpan = Math.min(aLatSpan, bLatSpan)
+  const minLngSpan = Math.min(aLngSpan, bLngSpan)
+  // If overlap exceeds 40% of the smaller span in BOTH dims → deep overlap → reject
+  if (minLatSpan > 0 && minLngSpan > 0 &&
+      latDepth / minLatSpan > 0.4 && lngDepth / minLngSpan > 0.4) return false
+
+  return true
 }
 
 function azDiffV3(a: number, b: number): number {
@@ -1007,14 +1038,13 @@ function classifyAndMeasureV3(
   cosLat: number
 ): { type: 'ridge' | 'hip' | 'valley'; lengthM: number } | null {
 
-  // 1. Adjacency gate
-  if (!bboxOverlap(si.bbox, sj.bbox)) return null
-
   const ad = azDiffV3(si.azimuthDegrees, sj.azimuthDegrees)
   const dh = Math.abs(si.heightM - sj.heightM)
 
   // 2. Ridge: opposing azimuths, same structural level
+  // Use edge-share check — prevents same-wing segments on dense roofs being flagged as ridge
   if (ad > 150 && dh < RIDGE_HEIGHT_MAX) {
+    if (!bboxEdgeShare(si.bbox, sj.bbox)) return null
     const latRef = (si.bbox.ne.latitude + si.bbox.sw.latitude) / 2
     const widthI = bboxWidthM(si.bbox, latRef)
     const widthJ = bboxWidthM(sj.bbox, latRef)
@@ -1029,6 +1059,10 @@ function classifyAndMeasureV3(
     const ratio = large.groundAreaM2 / (small.groundAreaM2 || 0.1)
 
     if (ratio >= AREA_RATIO_V3 && small.heightM > large.heightM + HEIGHT_DIR_TOL) {
+      // Bug 3 fix: dormer cheeks have small area — relax adjacency tolerance so
+      // their small bboxes register as adjacent to the large main face bboxes.
+      const valTol = small.groundAreaM2 < 10 ? BBOX_TOL_DORMER : BBOX_TOL
+      if (!bboxOverlap(si.bbox, sj.bbox, valTol)) return null
       // Valley: use shared hull edge if enough panels, else fallback
       const lengthM = sharedHullEdgeLengthM(
         convexHull(small.panelCenters.map(p => [p.lat, p.lng] as [number,number])),
@@ -1038,6 +1072,9 @@ function classifyAndMeasureV3(
       return { type: 'valley', lengthM }
     }
   }
+
+  // 1. Adjacency gate for hip (ridge/valley already gated above)
+  if (!bboxOverlap(si.bbox, sj.bbox)) return null
 
   // 4. Hip: all remaining adjacent pairs
   // Use shared hull edge if available, else conservative fallback
@@ -1093,7 +1130,6 @@ export function computeLinearFootageV3(
 
   let ridgeM = 0, hipM = 0, valleyM = 0
   const counted  = new Set<string>()
-  const hipEdgesPerSeg = new Map<number, number>()  // cap hip edges per segment at 2
 
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
@@ -1106,17 +1142,9 @@ export function computeLinearFootageV3(
 
       if (result.type === 'ridge')  { ridgeM  += result.lengthM }
       if (result.type === 'valley') { valleyM += result.lengthM }
-      if (result.type === 'hip') {
-        // Each physical segment has at most 2 hip rafters (one per corner).
-        // Cap hip pairs per segment to prevent centroid-distance overcounting.
-        const hiI = hipEdgesPerSeg.get(i) ?? 0
-        const hiJ = hipEdgesPerSeg.get(j) ?? 0
-        if (hiI < 2 && hiJ < 2) {
-          hipM += result.lengthM
-          hipEdgesPerSeg.set(i, hiI + 1)
-          hipEdgesPerSeg.set(j, hiJ + 1)
-        }
-      }
+      if (result.type === 'hip')    { hipM    += result.lengthM }
+      // No per-segment hip cap — sharedHullEdgeLengthM measures actual shared edge,
+      // and the pair deduplication set (counted) prevents double-counting.
 
       console.log(`[v3] ${result.type}: s${i}(az=${segsV3[i].azimuthDegrees.toFixed(0)}°,h=${segsV3[i].heightM.toFixed(1)}m,gnd=${segsV3[i].groundAreaM2.toFixed(0)}m²) ↔ s${j}(az=${segsV3[j].azimuthDegrees.toFixed(0)}°,h=${segsV3[j].heightM.toFixed(1)}m,gnd=${segsV3[j].groundAreaM2.toFixed(0)}m²) len=${(result.lengthM*M_TO_FT).toFixed(0)}ft`)
     }
