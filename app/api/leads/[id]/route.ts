@@ -1,75 +1,146 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { apiError, isValidUuid } from '@/lib/api/utils'
+import { LeadStatus } from '@/types'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+const VALID_STATUSES = new Set<LeadStatus>([
+  'New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid', 'Lost', 'Archived',
+  'Queued_Manual', 'Converted',
+])
+
+interface LeadUpdateFields {
+  lead_status?:      LeadStatus
+  notes?:            string | null
+  scheduled_date?:   string | null
+  scheduled_time?:   string | null
+  follow_up_date?:   string | null
+  client_id?:        string | null
+  contact_phone?:    string | null
+  contact_email?:    string | null
+  contact_city?:     string | null
+  contact_state?:    string | null
+  lead_source?:      string | null
+  quoted_amount?:    number | null
+  updated_at:        string
+}
+
+// ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  if (!isValidUuid(id)) return apiError('id must be a valid UUID', 400)
 
-  // C5 FIX: verify lead belongs to requesting pro
   const proId = new URL(req.url).searchParams.get('pro_id')
 
   const query = getSupabaseAdmin().from('leads').select('*').eq('id', id)
-  if (proId) query.eq('pro_id', proId)
+  if (isValidUuid(proId)) query.eq('pro_id', proId)
 
   const { data, error } = await query.single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return apiError('Lead not found', 404)
   return NextResponse.json({ lead: data })
 }
+
+// ── PATCH ─────────────────────────────────────────────────────────────────────
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  if (!isValidUuid(id)) return apiError('id must be a valid UUID', 400)
 
-  const body = await req.json()
-  const {
-    lead_status, notes, scheduled_date, scheduled_time, follow_up_date, client_id,
-    contact_phone, contact_email, contact_city, contact_state, lead_source,
-    quoted_amount,
-  } = body
+  // Ownership: pro_id required on PATCH — prevents cross-account mutations
+  const proId = new URL(req.url).searchParams.get('pro_id')
+  if (!isValidUuid(proId)) return apiError('pro_id query param required', 401)
 
-  const updateFields: Record<string, any> = {}
-  if (lead_status     !== undefined) updateFields.lead_status     = lead_status
-  if (notes           !== undefined) updateFields.notes           = notes
-  if (scheduled_date  !== undefined) updateFields.scheduled_date  = scheduled_date
-  if (scheduled_time  !== undefined) updateFields.scheduled_time  = scheduled_time
-  if (follow_up_date  !== undefined) updateFields.follow_up_date  = follow_up_date
-  if (client_id       !== undefined) updateFields.client_id       = client_id
-  if (contact_phone   !== undefined) updateFields.contact_phone   = contact_phone
-  if (contact_email   !== undefined) updateFields.contact_email   = contact_email
-  if (contact_city    !== undefined) updateFields.contact_city    = contact_city
-  if (contact_state   !== undefined) updateFields.contact_state   = contact_state
-  if (lead_source     !== undefined) updateFields.lead_source     = lead_source
-  if (quoted_amount   !== undefined) updateFields.quoted_amount   = quoted_amount
-  updateFields.updated_at = new Date().toISOString()
-
-  if (Object.keys(updateFields).length === 1) {
-    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+  let body: Record<string, unknown>
+  try {
+    body = await req.json()
+  } catch {
+    return apiError('Invalid JSON in request body', 400)
   }
 
-  const { data, error } = await getSupabaseAdmin()
-    .from('leads').update(updateFields).eq('id', id).select().single()
+  if (!body || typeof body !== 'object') return apiError('Request body must be a JSON object', 400)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const updateFields: Partial<LeadUpdateFields> = {}
+
+  // Validate and whitelist each field — never forward unknown keys to DB
+  if ('lead_status' in body) {
+    const s = body.lead_status as string
+    if (!VALID_STATUSES.has(s as LeadStatus)) {
+      return apiError(`Invalid lead_status: "${s}"`, 400)
+    }
+    updateFields.lead_status = s as LeadStatus
+  }
+  if ('quoted_amount' in body) {
+    const qa = body.quoted_amount
+    if (qa !== null) {
+      const n = Number(qa)
+      if (!isFinite(n) || n < 0) return apiError('quoted_amount must be a non-negative number', 400)
+      updateFields.quoted_amount = Math.round(n * 100) / 100  // cap to cents
+    } else {
+      updateFields.quoted_amount = null
+    }
+  }
+  // String/nullable fields — accept string or null only
+  const STRING_FIELDS = [
+    'notes', 'scheduled_date', 'scheduled_time', 'follow_up_date',
+    'client_id', 'contact_phone', 'contact_email', 'contact_city',
+    'contact_state', 'lead_source',
+  ] as const
+  for (const key of STRING_FIELDS) {
+    if (key in body) {
+      const v = body[key]
+      if (v !== null && typeof v !== 'string') {
+        return apiError(`${key} must be a string or null`, 400)
+      }
+      updateFields[key] = (v as string | null) || null
+    }
+  }
+
+  if (Object.keys(updateFields).length === 0) {
+    return apiError('No valid fields provided', 400)
+  }
+
+  updateFields.updated_at = new Date().toISOString()
+
+  const { data, error } = await getSupabaseAdmin()
+    .from('leads')
+    .update(updateFields)
+    .eq('id', id)
+    .eq('pro_id', proId)   // ownership enforced at DB level
+    .select()
+    .single()
+
+  if (error || !data) return apiError('Lead not found or access denied', 403)
   return NextResponse.json({ lead: data })
 }
 
+// ── DELETE ────────────────────────────────────────────────────────────────────
+
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  if (!isValidUuid(id)) return apiError('id must be a valid UUID', 400)
+
+  // Ownership required on DELETE too
+  const proId = new URL(req.url).searchParams.get('pro_id')
+  if (!isValidUuid(proId)) return apiError('pro_id query param required', 401)
 
   const { error } = await getSupabaseAdmin()
-    .from('leads').delete().eq('id', id)
+    .from('leads')
+    .delete()
+    .eq('id', id)
+    .eq('pro_id', proId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return apiError('Delete failed', 500, error)
   return NextResponse.json({ success: true })
 }

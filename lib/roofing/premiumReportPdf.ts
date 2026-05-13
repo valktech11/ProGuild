@@ -324,6 +324,16 @@ function formatDate(iso: string | null): string {
 
 // ─── Reusable page components ──────────────────────────────────────────────────
 
+/**
+ * Returns a segment-count-specific accuracy disclaimer string.
+ * Single source of truth — used on both the cover LF summary and the LF detail page.
+ */
+function lfAccuracyDisclaimer(facetCount: number): string {
+  if (facetCount <= 8)  return `±7% avg error on this ${facetCount}-facet roof — sufficient for material ordering.`
+  if (facetCount <= 15) return `±20–30% on this ${facetCount}-facet roof — verify ridge/hip split on site before ordering.`
+  return `±40–60% on this ${facetCount}-facet complex roof — field-measure drip edge before final order.`
+}
+
 function PageHeader(address: string, pageLabel: string) {
   return h(View, { style: styles.headerBar },
     h(Text, { style: styles.headerAddress }, address),
@@ -983,12 +993,7 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
             h(Text, { style: { color: BRAND_COLORS.accent, fontSize: 9, fontFamily: 'Helvetica-Bold' } }, totalLf > 0 ? `${fmt(totalLf)} ft` : '—'),
           ),
           h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 6.5, marginTop: 6 } },
-            (() => {
-              const fc = data.facetCount
-              if (fc <= 8)  return `±7% avg error on this ${fc}-facet roof — sufficient for material ordering.`
-              if (fc <= 15) return `±20–30% on this ${fc}-facet roof — verify ridge/hip split on site before ordering.`
-              return `±40–60% on this ${fc}-facet complex roof — field-measure drip edge before final order.`
-            })(),
+            lfAccuracyDisclaimer(data.facetCount),
           ),
         ),
       ),
@@ -1173,11 +1178,7 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
         h(View, { style: { flex: 1, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray, borderRadius: 6, padding: 12 } },
           h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, fontFamily: 'Helvetica-Bold' } }, 'Accuracy Note'),
           h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, lineHeight: 1.5 } },
-            data.facetCount <= 8
-              ? `±7% avg error on this ${data.facetCount}-facet roof. Sufficient for ordering.`
-              : data.facetCount <= 15
-              ? `±20–30% on this ${data.facetCount}-facet roof. Verify ridge/hip split on site.`
-              : `±40–60% on this ${data.facetCount}-facet complex roof. Field-measure drip edge before final order.`,
+            lfAccuracyDisclaimer(data.facetCount),
           ),
         ),
       ),

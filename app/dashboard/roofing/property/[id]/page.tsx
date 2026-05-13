@@ -130,13 +130,22 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     ].filter(Boolean).join(', ')
 
     try {
-      const r = await fetch('/api/roofing/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: fullAddress, pro_id: session.id, property_id: id }),
-      })
-      const d = await r.json()
-      if (!r.ok) { setReportErr(d.error || 'Report generation failed'); return }
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 90000) // 90s — Solar API can be slow
+      let r: Response
+      try {
+        r = await fetch('/api/roofing/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: fullAddress, pro_id: session.id, property_id: id }),
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timer)
+      }
+      let d: Record<string, unknown>
+      try { d = await r.json() } catch { setReportErr('Server returned an invalid response — please retry'); return }
+      if (!r.ok) { setReportErr((d.error as string) || 'Report generation failed'); return }
 
       // Auto-run DSM linear footage computation on the new report row.
       // Runs in background — does not block the UI or show an error if it fails
@@ -154,14 +163,19 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       const rd = await refreshed.json()
       setReports(rd.reports || [])
       // Push measurements to Calculator via sessionStorage (pg_promeasure = key calculator reads)
-      if (d.measurements) {
-        sessionStorage.setItem('pg_promeasure', JSON.stringify({
-          squares: d.measurements.totalSquaresOrder,
-          pitch: d.measurements.dominantPitch,
-          waste: d.measurements.wasteFactor ?? 12,
-          source: 'roof_report',
-          address: fullAddress,
-        }))
+      const measurements = d.measurements as Record<string, unknown> | undefined
+      if (measurements) {
+        try {
+          sessionStorage.setItem('pg_promeasure', JSON.stringify({
+            squares: Number(measurements.totalSquaresOrder) || 0,
+            pitch:   (measurements.dominantPitch   as string) ?? '4/12',
+            waste:   Number(measurements.wasteFactor) || 12,
+            source:  'roof_report',
+            address: fullAddress,
+          }))
+        } catch {
+          // sessionStorage unavailable (private browsing quota) — non-fatal
+        }
       }
     } catch {
       setReportErr('Network error — please retry')
@@ -200,18 +214,26 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
     setDsmLoadingId(report.id)
     setReportErr(null)
     try {
-      // Step 1: Compute linear footage from Solar API segment geometry (fast, no GeoTIFF)
-      console.log('[ui] calling segment analysis for report:', report.id)
-      const dsmRes = await fetch('/api/roofing/dsm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report_id: report.id, pro_id: session.id }),
-      })
-      const dsmData = await dsmRes.json()
+      // Step 1: Compute linear footage from Solar API segment geometry
+      const dsmController = new AbortController()
+      const dsmTimer = setTimeout(() => dsmController.abort(), 60000)
+      let dsmRes: Response
+      try {
+        dsmRes = await fetch('/api/roofing/dsm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report_id: report.id, pro_id: session.id }),
+          signal: dsmController.signal,
+        })
+      } finally {
+        clearTimeout(dsmTimer)
+      }
+      let dsmData: Record<string, unknown>
+      try { dsmData = await dsmRes.json() } catch { setReportErr('DSM service returned invalid response — please retry'); return }
       console.log('[ui] DSM response:', JSON.stringify(dsmData).slice(0, 200))
 
       if (!dsmRes.ok || !dsmData.linear_footage) {
-        const errMsg = dsmData.error || dsmData.detail || 'Unknown error'
+        const errMsg = String(dsmData.error ?? dsmData.detail ?? 'Unknown error')
         if (dsmRes.status === 422 && errMsg.toLowerCase().includes('solar')) {
           setReportErr('⚠️ This report needs a refresh — click Re-run (30 seconds) then try Material Order again.')
         } else {
@@ -220,28 +242,37 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         return
       }
 
-      // Update the row immediately with DSM results
+      // Update the row immediately with DSM results (cast is safe — shape validated by API)
+      const freshLf = dsmData.linear_footage as LinearFootage
       setReports(prev => prev.map(r =>
-        r.id === report.id ? { ...r, linear_footage: dsmData.linear_footage } : r
+        r.id === report.id ? { ...r, linear_footage: freshLf } : r
       ))
 
-      // Step 2: Generate Premium PDF (fast — reads existing data + renders)
+      // Step 2: Generate Premium PDF
       setPremiumLoadingId(report.id)
-      console.log('[ui] calling premium-pdf for report:', report.id)
-      const pdfRes = await fetch('/api/roofing/premium-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report_id: report.id, pro_id: session.id }),
-      })
-      const pdfData = await pdfRes.json()
+      const pdfController = new AbortController()
+      const pdfTimer = setTimeout(() => pdfController.abort(), 60000)
+      let pdfRes: Response
+      try {
+        pdfRes = await fetch('/api/roofing/premium-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report_id: report.id, pro_id: session.id }),
+          signal: pdfController.signal,
+        })
+      } finally {
+        clearTimeout(pdfTimer)
+      }
+      let pdfData: Record<string, unknown>
+      try { pdfData = await pdfRes.json() } catch { setReportErr('PDF service returned invalid response — please retry'); return }
       console.log('[ui] PDF response:', JSON.stringify(pdfData).slice(0, 200))
 
       if (!pdfRes.ok) {
-        setReportErr('PDF generation failed: ' + (pdfData.error || '') + (pdfData.detail ? ' — ' + pdfData.detail : ''))
+        setReportErr('PDF generation failed: ' + String(pdfData.error ?? '') + (pdfData.detail ? ' — ' + String(pdfData.detail) : ''))
         return
       }
 
-      if (pdfData.url) window.open(pdfData.url, '_blank')
+      if (typeof pdfData.url === 'string' && pdfData.url) window.open(pdfData.url, '_blank')
 
       // Refresh list to show Linear Footage PDF download button
       const refreshed = await fetch(`/api/roofing/reports?pro_id=${session?.id}&property_id=${id}`)
@@ -356,10 +387,10 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                 {latestReport?.r2_url ? (
-                  <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', flexShrink: 0, border: '1.5px solid #99F6E4' }}>
-                    <img src={latestReport.r2_url.replace('/pdf/', '/images/').replace('.pdf', '_thumb.jpg')}
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style="margin:12px"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>' }}
-                      alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', flexShrink: 0, border: `1.5px solid ${t.cardBorder}` }}>
+                    <div style={{ width: '100%', height: '100%', background: '#F0FDFA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
+                    </div>
                   </div>
                 ) : (
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: '#F0FDFA', border: '1.5px solid #99F6E4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

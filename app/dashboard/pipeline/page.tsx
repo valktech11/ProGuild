@@ -68,10 +68,11 @@ export default function PipelinePage() {
   const textMain = dk ? '#F1F5F9' : '#0A1628'
   const t        = theme(dk)
 
-  // Status change — PATCH [id] route, then re-fetch from DB (no optimistic state)
+  // Status change — PATCH [id] route with pro_id ownership param, then re-fetch from DB
   async function handleStatusChange(leadId: string, status: string) {
+    if (!session) return
     setSaveError(null)
-    const r = await fetch(`/api/leads/${leadId}`, {
+    const r = await fetch(`/api/leads/${leadId}?pro_id=${session.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lead_status: status }),
@@ -87,8 +88,9 @@ export default function PipelinePage() {
 
   // Field update (notes, amount, dates) — same pattern
   async function handleUpdate(leadId: string, fields: Partial<Lead>) {
+    if (!session) return
     setSaveError(null)
-    const r = await fetch(`/api/leads/${leadId}`, {
+    const r = await fetch(`/api/leads/${leadId}?pro_id=${session.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),
