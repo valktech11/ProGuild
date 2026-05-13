@@ -53,7 +53,7 @@ export async function fetchDataLayers(lat: number, lng: number, googleKey: strin
 
 // ── GeoTIFF decode ────────────────────────────────────────────────────────────
 
-async function decodeGeoTiff(url: string, googleKey: string): Promise<GeoGrid | null> {
+export async function decodeGeoTiff(url: string, googleKey: string): Promise<GeoGrid | null> {
   const fullUrl = url.includes('key=') ? url : `${url}&key=${googleKey}`
   console.log('[dsm] fetching GeoTIFF:', fullUrl.slice(0, 80) + '...')
   const res = await fetch(fullUrl, { signal: AbortSignal.timeout(30000) })
@@ -76,7 +76,64 @@ async function decodeGeoTiff(url: string, googleKey: string): Promise<GeoGrid | 
   }
 }
 
-// ── RANSAC plane fitting ──────────────────────────────────────────────────────
+// ── Mask perimeter tracer — Sprint 5 Phase 1 spike ───────────────────────────
+//
+// Counts the boundary pixels of the rooftop mask and computes the physical
+// perimeter length. Used to validate whether the Solar API maskUrl traces
+// the DRIP EDGE (what Roofr measures) or the WALL FOOTPRINT (what OSM traces).
+//
+// A boundary pixel is any mask pixel (value > 0) that has at least one
+// non-mask neighbour (checking all 4 cardinal directions).
+//
+// At 0.1m/pixel resolution: perimeter_ft = boundary_pixel_count × 0.1 × 3.28084
+//
+// Expected results:
+//   Rochester Hills: Roofr E+R = 442ft → mask should give ~400-480ft
+//   Jacksonville:    Roofr E+R = 277ft → mask should give ~250-300ft
+//   Hockley:         Roofr E+R = 362ft → mask should give ~330-400ft
+//   (OSM wall footprint gave ~20% less than Roofr on all 3 → if mask is
+//    similar to OSM it's wall footprint, if ~Roofr it's drip edge)
+
+export function traceMaskPerimeter(mask: GeoGrid): {
+  roofPixels: number
+  perimeterPixels: number
+  perimeterM: number
+} {
+  const { data, width, height } = mask
+  const pixelSizeM = 0.1  // Solar API mask is always 0.1m/pixel at HIGH/MEDIUM quality
+
+  let roofPixels = 0
+  let perimeterPixels = 0
+
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const idx = row * width + col
+      const isRoof = (data[idx] ?? 0) > 0
+      if (!isRoof) continue
+
+      roofPixels++
+
+      // Check 4-connected neighbours — if any is non-roof, this is a boundary pixel
+      const neighbours = [
+        row > 0          ? data[(row-1)*width+col] : 0,
+        row < height-1   ? data[(row+1)*width+col] : 0,
+        col > 0          ? data[row*width+(col-1)] : 0,
+        col < width-1    ? data[row*width+(col+1)] : 0,
+      ]
+      if (neighbours.some(n => (n ?? 0) === 0)) {
+        perimeterPixels++
+      }
+    }
+  }
+
+  return {
+    roofPixels,
+    perimeterPixels,
+    perimeterM: perimeterPixels * pixelSizeM,
+  }
+}
+
+
 
 function fitPlane(pts: Point3D[]): Plane | null {
   if (pts.length < 3) return null

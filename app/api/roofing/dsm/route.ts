@@ -7,7 +7,12 @@ export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { computeLinearFootageFromSegments, fetchDataLayers } from '@/lib/roofing/dsmAnalysis'
+import {
+  computeLinearFootageFromSegments,
+  fetchDataLayers,
+  decodeGeoTiff,
+  traceMaskPerimeter,
+} from '@/lib/roofing/dsmAnalysis'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 // osmBuilding.ts is retained for Sprint 5C (roof:shape tag for ridge/hip/valley classification)
 // but removed from the eave/rake path — OSM wall footprint undershoots drip-edge by 21-32%,
@@ -167,7 +172,38 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Default mode — raw dataLayers
+  // mode=mask-spike&lat=<lat>&lng=<lng> — Sprint 5 validation
+  // Fetches maskUrl, traces boundary polygon, measures perimeter.
+  // Compare result to Roofr E+R truth to confirm mask is drip edge not wall footprint.
+  if (mode === 'mask-spike') {
+    const coords2 = validateCoordinates(searchParams.get('lat'), searchParams.get('lng'))
+    if (!coords2.valid) return apiError(coords2.error, 400)
+    if (!GOOGLE_KEY) return apiError('GOOGLE_SOLAR_API_KEY not configured', 503)
+
+    try {
+      const layers = await fetchDataLayers(coords2.lat, coords2.lng, GOOGLE_KEY)
+      if (!layers?.maskUrl) return apiError('No maskUrl returned from dataLayers', 502)
+
+      const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+      if (!mask) return apiError('Failed to decode mask GeoTIFF', 502)
+
+      const perimeterResult = traceMaskPerimeter(mask)
+      return NextResponse.json({
+        lat: coords2.lat, lng: coords2.lng,
+        mask_dimensions: `${mask.width}×${mask.height}`,
+        roof_pixels: perimeterResult.roofPixels,
+        perimeter_pixels: perimeterResult.perimeterPixels,
+        pixel_size_m: 0.1,
+        perimeter_m: perimeterResult.perimeterM,
+        perimeter_ft: Math.round(perimeterResult.perimeterM * 3.28084),
+        roofr_truth_ft: { rochester_hills: 442, jacksonville: 277, hockley: 362 },
+        note: 'If perimeter_ft ≈ roofr_truth_ft → mask traces drip edge ✅. If ~250ft → wall footprint ❌',
+      })
+    } catch (e) {
+      return apiError('Mask spike failed', 500, e)
+    }
+  }
+
   const coords = validateCoordinates(searchParams.get('lat'), searchParams.get('lng'))
   if (!coords.valid) return apiError(coords.error, 400)
   if (!GOOGLE_KEY) return apiError('GOOGLE_SOLAR_API_KEY not configured', 503)
