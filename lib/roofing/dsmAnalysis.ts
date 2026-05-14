@@ -1040,13 +1040,21 @@ const VALLEY_ADJ = 2.0     // valley adjacency factor × sqrt(minGnd)
 const HIP_ADJ = 2.5        // hip adjacency factor
 const RIDGE_ADJ = 2.5      // ridge adjacency factor
 
+// Height-based thresholds (planeHeightAtCenterMeters — MSL elevation of segment centre)
+// Confirmed present in all Solar API responses for US HIGH/MEDIUM quality imagery.
+// All values in metres.
+const RIDGE_HEIGHT_MAX   = 3.0  // max |dh| between ridge pair centroids — confirmed: real ridges have dh<2m
+const HIP_HEIGHT_MAX     = 4.0  // max |dh| for bothMain hip pairs — rejects cross-floor false positives
+const DORMER_HEIGHT_MIN  = 0.5  // min dh between dormer cheek and main face to confirm valley relationship
+const DORMER_AREA_MAX    = 12.0 // dormer cheek secondary must be < this area (m²) to use height gate
+
 interface RoofSegment {
   pitchDegrees: number
   azimuthDegrees: number
   stats: { areaMeters2: number; groundAreaMeters2?: number }
   center: { latitude: number; longitude: number }
   groundAreaMeters2?: number
-  planeHeightAtCenterMeters?: number  // ridge/hip/valley disambiguation
+  planeHeightAtCenterMeters?: number  // MSL elevation of segment centre — confirmed present in all US HIGH/MEDIUM responses
 }
 
 // Lightweight gable detector — determines whether any main↔main ridge pair exists
@@ -1294,24 +1302,28 @@ export function computeLinearFootageFromSegments(
     return Math.sqrt(gnd(s)) * 2.0
   }
 
-  let ridgeM = 0, hipM = 0, valleyM = 0
-  const ridgeCounted = new Set<string>()
-  const valleyCounted = new Set<string>()
-  const valleyPairs   = new Set<string>()
-  const hipCounted    = new Set<string>()
-  const hasRidge      = new Set<number>()
+  // Height accessor — returns planeHeightAtCenterMeters if available, NaN otherwise.
+  // NaN means height data absent → all height gates skip gracefully.
+  function h(s: RoofSegment): number {
+    return s.planeHeightAtCenterMeters ?? NaN
+  }
+  function dh(a: RoofSegment, b: RoofSegment): number {
+    return Math.abs(h(a) - h(b))
+  }
+  function heightOk(a: RoofSegment, b: RoofSegment, maxDiff: number): boolean {
+    const d = dh(a, b)
+    return isNaN(d) || d <= maxDiff  // NaN = no height data → pass (don't reject)
+  }
 
-  // Inline bbox overlap check for ridge — used only for both-main pairs.
-  // tol=0.0003° (~33m): wide enough to bridge multi-wing gaps (Hockley wings
-  // are 15-25m apart edge-to-edge). The azDiff>150° + both-main gates are the
-  // primary guards against false positives — wider bbox tolerance is safe
-  // because all other main↔main combinations have azDiff<150° and are excluded.
+  // Bbox overlap for ridge — both-main pairs only.
+  // tol=0.0003° (~33m): wide enough to bridge multi-wing gaps.
+  // azDiff>150° + both-main are the primary false-positive guards.
   function ridgeBboxOverlap(a: RoofSegment, b: RoofSegment, tol = 0.0003): boolean {
     const ra = (a as unknown as Record<string, unknown>).boundingBox as
       { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
     const rb = (b as unknown as Record<string, unknown>).boundingBox as
       { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
-    if (!ra || !rb) return adjOk(a, b, RIDGE_ADJ)  // no bbox → fall back to centroid gate
+    if (!ra || !rb) return adjOk(a, b, RIDGE_ADJ)
     return !(
       ra.ne.latitude  + tol < rb.sw.latitude  ||
       rb.ne.latitude  + tol < ra.sw.latitude  ||
@@ -1320,18 +1332,24 @@ export function computeLinearFootageFromSegments(
     )
   }
 
+  let ridgeM = 0, hipM = 0, valleyM = 0
+  const ridgeCounted = new Set<string>()
+  const valleyCounted = new Set<string>()
+  const valleyPairs   = new Set<string>()
+  const hipCounted    = new Set<string>()
+  const hasRidge      = new Set<number>()
+
   // ── RIDGE ──────────────────────────────────────────────────────────────────
   // 180°-opposing adjacent pairs. Length = 0.7 × min(sqrt(gndA), sqrt(gndB)).
   // Require at least one main segment (≥MAIN_FACE_M2) to avoid sec↔sec noise.
   // Only main↔main pairs mark segments as gable (rake-producing).
-  // Pure hip roofs yield 0 correctly (all main faces are 90° apart, not 180°).
-  //
-  // Adjacency gate:
-  //   both-main pairs → bbox overlap: centroid distance fails on multi-wing roofs
-  //     where opposing main faces are far apart but physically meet at a ridge.
-  //     azDiff>150° + both-main + bbox-touch is a tight enough constraint.
-  //   main↔secondary pairs → adjOk: secondary bboxes are small and may not
-  //     reliably overlap the main face bbox even when physically adjacent.
+  // Pure hip roofs yield 0 correctly (all main faces are 90° apart, not 180°).\n  //
+  // Adjacency gate (bothMain pairs):
+  //   Primary:   bbox overlap (0.0003° tolerance) — works for most multi-wing roofs
+  //   Fallback:  |dh| < RIDGE_HEIGHT_MAX (3.0m) — catches non-overlapping bboxes
+  //              on MEDIUM quality imagery (Hockley s7↔s8: dh=1.78m, bboxes ~40m apart)
+  //   Height confirmed present in all US HIGH/MEDIUM Solar API responses.
+  //   main↔secondary pairs → adjOk (unchanged, small segments always nearby)
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
@@ -1339,43 +1357,77 @@ export function computeLinearFootageFromSegments(
       const bMain = gnd(b) >= MAIN_FACE_M2
       if (!aMain && !bMain) continue
       if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
-      // Adjacency: bbox overlap for both-main, centroid distance for main↔secondary
       const bothMain = aMain && bMain
-      if (bothMain ? !ridgeBboxOverlap(a, b) : !adjOk(a, b, RIDGE_ADJ)) continue
+      if (bothMain) {
+        // Accept if bbox overlaps OR height confirms a shared ridge (dh < 3m)
+        const bboxPass   = ridgeBboxOverlap(a, b)
+        const heightPass = !isNaN(h(a)) && !isNaN(h(b)) && dh(a, b) < RIDGE_HEIGHT_MAX
+        if (!bboxPass && !heightPass) continue
+      } else {
+        if (!adjOk(a, b, RIDGE_ADJ)) continue
+      }
       const key = `${i}-${j}`
       if (ridgeCounted.has(key)) continue
       ridgeCounted.add(key)
       if (bothMain) { hasRidge.add(i); hasRidge.add(j) }
       const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
       ridgeM += ridgeLen
-      console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'}) len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
+      console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(a).toFixed(1)})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(b).toFixed(1)}) dh=${dh(a,b).toFixed(2)} len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
     }
   }
 
   // ── VALLEY ─────────────────────────────────────────────────────────────────
-  // Main↔secondary pairs with azDiff 30-120° and tight adjacency (2.0×).
-  //
-  // Height check was attempted (commit 0f168a4) but caused valley=0 on all
-  // complex roofs — dormer valley secondaries sit at similar height to main
-  // faces, so the height gate incorrectly rejected them all.
-  // Reverted to azimuth-only detection. VALLEY_AZ_MAX=120 restored.
-  // Catalogues valley pairs so hip step can exclude them.
+  // Pass 1: Main↔secondary pairs with azDiff 30-120° and tight adjacency (2.0×).
+  // Pass 2 (height-assisted dormer cheeks): secondary segments that sit ABOVE the
+  //   adjacent main face (heightOf(secondary) > heightOf(main) + DORMER_HEIGHT_MIN).
+  //   Dormer peak faces fail adjOk (centroid too far) but are real valley pairs.
+  //   Confirmed by RH data: idx 12,13,15 at 253.9-254.0m above main at 252.1-253.2m.
+  //   Previous attempt (0f168a4) rejected where secondary < main — opposite direction.
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
       const aMain = gnd(a) >= MAIN_FACE_M2
       const bMain = gnd(b) >= MAIN_FACE_M2
       if (aMain === bMain) continue        // same tier — not a valley
-      if (!adjOk(a, b, VALLEY_ADJ)) continue
       const diff = azDiff(a.azimuthDegrees, b.azimuthDegrees)
       if (diff < VALLEY_AZ_MIN || diff > VALLEY_AZ_MAX) continue
+
+      const small  = aMain ? b : a
+      const large  = aMain ? a : b
+      const passAdjOk = adjOk(a, b, VALLEY_ADJ)
+
+      const hSmall = h(small), hLarge = h(large)
+      const isDormerCheek = !isNaN(hSmall) && !isNaN(hLarge) &&
+        gnd(small) < DORMER_AREA_MAX &&
+        (hSmall - hLarge) > DORMER_HEIGHT_MIN  // secondary HIGHER than main → dormer on top
+
+      let bboxAdj = false
+      if (isDormerCheek && !passAdjOk) {
+        const ra = (a as unknown as Record<string, unknown>).boundingBox as
+          { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
+        const rb = (b as unknown as Record<string, unknown>).boundingBox as
+          { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
+        if (ra && rb) {
+          const tol = 0.0003
+          bboxAdj = !(
+            ra.ne.latitude  + tol < rb.sw.latitude  ||
+            rb.ne.latitude  + tol < ra.sw.latitude  ||
+            ra.ne.longitude + tol < rb.sw.longitude ||
+            rb.ne.longitude + tol < ra.sw.longitude
+          )
+        }
+      }
+
+      if (!passAdjOk && !bboxAdj) continue
+
       const key = `${i}-${j}`
       if (valleyCounted.has(key)) continue
       valleyCounted.add(key)
       valleyPairs.add(key)
       const dM = distM(a, b)
       valleyM += dM
-      console.log(`[seg2] valley: s${i}(${a.azimuthDegrees.toFixed(0)}°,${gnd(a).toFixed(0)}m²)↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${gnd(b).toFixed(0)}m²) diff=${diff.toFixed(0)}° len=${(dM*M_TO_FT).toFixed(0)}ft`)
+      const gate = passAdjOk ? 'adjOk' : `dormer(dh=+${(hSmall-hLarge).toFixed(1)}m)`
+      console.log(`[seg2] valley: s${i}(${a.azimuthDegrees.toFixed(0)}°,${gnd(a).toFixed(0)}m²,h=${h(a).toFixed(1)})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${gnd(b).toFixed(0)}m²,h=${h(b).toFixed(1)}) diff=${diff.toFixed(0)}° ${gate} len=${(dM*M_TO_FT).toFixed(0)}ft`)
     }
   }
 
@@ -1432,6 +1484,13 @@ export function computeLinearFootageFromSegments(
           }
         }
         if (crossesWing) continue
+      }
+      // Height guard: bothMain hip pairs with |dh| > HIP_HEIGHT_MAX are cross-level
+      // false positives (different building stories or drastically different wing elevations).
+      // Conservative threshold (4m) — Hockley real hips all have |dh| < 2m.
+      if (bothMain && !heightOk(a, b, HIP_HEIGHT_MAX)) {
+        console.log(`[seg2] hip REJECTED (height diff ${dh(a,b).toFixed(1)}m > ${HIP_HEIGHT_MAX}m): s${i}↔s${j}`)
+        continue
       }
       const d = distM(a, b)
       hipNbrs[i].push({ j, dist: d, pi: i, pj: j, bothMain })
@@ -1575,7 +1634,7 @@ const BBOX_TOL = 0.00015       // ~16m — general adjacency tolerance
 const BBOX_TOL_TIGHT = 0.00008 // ~9m  — tightened for ridge to prevent dense-roof false positives
 const BBOX_TOL_DORMER = 0.0003 // ~33m — relaxed for dormer cheeks (small area segs)
 const AREA_RATIO_V3 = 3.0   // small/large area ratio threshold for valley detection
-const RIDGE_HEIGHT_MAX = 2.0 // max height diff between ridge pair centroids (MSL, so very tight)
+const RIDGE_HEIGHT_MAX_V3 = 2.0 // max height diff between ridge pair centroids (MSL, so very tight)
 const DEG_TO_M_V3 = 111320
 
 function bboxOverlap(
@@ -1734,7 +1793,7 @@ function classifyAndMeasureV3(
   // faces, centroid distance < 2 × max(bboxWidth) (ridge partners are close;
   // hip-end faces on opposite ends of the roof are far apart and must not
   // be misclassified as ridge).
-  if (ad > 150 && dh < RIDGE_HEIGHT_MAX) {
+  if (ad > 150 && dh < RIDGE_HEIGHT_MAX_V3) {
     // Both must be main faces — secondary↔secondary or main↔secondary are not ridges
     if (si.groundAreaM2 < MAIN_FACE_M2_V3 || sj.groundAreaM2 < MAIN_FACE_M2_V3) return null
     if (!bboxEdgeShare(si.bbox, sj.bbox)) return null
