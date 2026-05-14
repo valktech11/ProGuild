@@ -181,6 +181,12 @@ export function hipCrossesRidgeAxis(
   hipCentB: { lat: number; lng: number },
 ): boolean {
   if (ridgeEdges.length === 0) return false
+
+  // Minimum ridge length guard: only use elevation edges that represent a real
+  // structural ridge (>= 4m ≈ 13ft). Short edges come from dormer peaks or
+  // degenerate apex points on hip roofs — using them would reject real hip pairs.
+  const MIN_RIDGE_M = 4.0
+
   const latRef = (hipCentA.lat + hipCentB.lat) / 2
   const cosLat = Math.cos(latRef * Math.PI / 180)
 
@@ -192,6 +198,7 @@ export function hipCrossesRidgeAxis(
 
   for (const edge of ridgeEdges) {
     if (!edge.fromElevation) continue
+    if (edge.lengthM < MIN_RIDGE_M) continue  // too short to be a main structural ridge
     const [cx, cy] = toXY(edge.ptA)
     const [dx, dy] = toXY(edge.ptB)
     if (segIntersect(ax, ay, bx, by, cx, cy, dx, dy)) return true
@@ -218,9 +225,28 @@ function getCandidatePts(
 }
 
 function maxRidgeLenM(a: ElevSegment, b: ElevSegment): number {
+  // Upper bound = diagonal of the combined bbox of both segments.
+  // This is the longest possible shared edge between two adjacent faces.
+  // Falls back to area-based estimate when bbox data absent.
+  const bboxA = a.boundingBox
+  const bboxB = b.boundingBox
+  if (bboxA && bboxB) {
+    // Combined bbox: min of SWs, max of NEs
+    const minLat = Math.min(bboxA.sw.latitude,  bboxB.sw.latitude)
+    const maxLat = Math.max(bboxA.ne.latitude,  bboxB.ne.latitude)
+    const minLng = Math.min(bboxA.sw.longitude, bboxB.sw.longitude)
+    const maxLng = Math.max(bboxA.ne.longitude, bboxB.ne.longitude)
+    const latRef = (minLat + maxLat) / 2
+    const cosLat = Math.cos(latRef * Math.PI / 180)
+    const dLat = (maxLat - minLat) * DEG_TO_M
+    const dLng = (maxLng - minLng) * DEG_TO_M * cosLat
+    // Use the longer axis (not diagonal) — ridge runs along one axis, not across both
+    return Math.max(dLat, dLng) * 1.1  // 10% margin
+  }
+  // Fallback: area-based with generous multiplier
   const gA = a.groundAreaMeters2 ?? a.stats.groundAreaMeters2 ?? a.stats.areaMeters2
   const gB = b.groundAreaMeters2 ?? b.stats.groundAreaMeters2 ?? b.stats.areaMeters2
-  return Math.max(Math.sqrt(gA), Math.sqrt(gB)) * 2.5
+  return Math.max(Math.sqrt(gA), Math.sqrt(gB)) * 8.0
 }
 
 function makeFallbackEdge(pair: RidgePair, segments: ElevSegment[]): RidgeEdge {

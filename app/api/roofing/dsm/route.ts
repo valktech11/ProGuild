@@ -14,6 +14,7 @@ import {
   decodeGeoTiff,
   traceMaskPerimeter,
   deriveWingBoundariesFromSegments,
+  detectHasGable,
   type RoofSegment,
 } from '@/lib/roofing/dsmAnalysis'
 import {
@@ -107,11 +108,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Sprint 6 Option A: resolve ridge lengths via Elevation API before running classifier.
-  // detectRidgePairs runs the same gate logic as computeLinearFootageFromSegments but only
-  // collects pairs — no length accumulation. Elevation API then finds exact ridge endpoints.
-  // Falls back to v2 formula if API fails or quality is BASE.
+  // GATING: only run on gable roofs. Pure hip roofs have no real ridge — elevation would
+  // find the hip apex distance which is LONGER than the v2 approximation, making it worse.
+  // detectHasGable() uses the same azDiff>150° + bbox logic as the ridge loop.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hasGable = detectHasGable(segments as any[])
   let resolvedRidgeEdges: RidgeEdge[] | undefined
-  if (GOOGLE_KEY && (imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM')) {
+  if (hasGable && GOOGLE_KEY && (imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM')) {
     try {
       const ridgePairs = detectRidgePairsForElevation(segments as ElevSegment[])
       if (ridgePairs.length > 0) {
@@ -301,8 +304,11 @@ export async function GET(req: NextRequest) {
       }
 
       // Sprint 6: two-pass elevation resolution in recompute-all (read-only test)
+      // Skip for pure hip roofs — elevation makes hip-face pairs longer, not shorter.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hasGableRC = detectHasGable(segments as any[])
       let recomputeRidgeEdges: RidgeEdge[] | undefined
-      if (GOOGLE_KEY && (imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM')) {
+      if (hasGableRC && GOOGLE_KEY && (imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM')) {
         try {
           const rPairs = detectRidgePairsForElevation(segments as ElevSegment[])
           if (rPairs.length > 0) {
@@ -322,6 +328,7 @@ export async function GET(req: NextRequest) {
       const pct = (got: number, want: number) => want ? `${got > want ? '+' : ''}${Math.round((got-want)/want*100)}%` : '?'
       const elevResolved = recomputeRidgeEdges ? recomputeRidgeEdges.filter(e => e.fromElevation).length : 0
       const elevTotal = recomputeRidgeEdges ? recomputeRidgeEdges.length : 0
+      const elevStatus = !hasGableRC ? 'skipped (pure hip)' : `${elevResolved}/${elevTotal} resolved`
       results.push({
         label,
         final: { ridge: fin.ridge_ft, hip: fin.hip_ft, valley: fin.valley_ft, eave: fin.eave_ft, rake: fin.rake_ft },
@@ -332,7 +339,7 @@ export async function GET(req: NextRequest) {
         },
         mask_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
         wings: wings.length,
-        elevation_pairs: `${elevResolved}/${elevTotal} resolved`,
+        elevation_pairs: elevStatus,
         source: v3 ? (v3 === v2m ? 'v2 (v3 safety fallback)' : 'v3') : 'v2+mask',
       })
     }
