@@ -1046,7 +1046,8 @@ const RIDGE_ADJ = 2.5      // ridge adjacency factor
 const RIDGE_HEIGHT_MAX   = 3.0  // max |dh| between ridge pair centroids — confirmed: real ridges have dh<2m
 const HIP_HEIGHT_MAX     = 4.0  // max |dh| for bothMain hip pairs — rejects cross-floor false positives
 const DORMER_HEIGHT_MIN  = 0.5  // min dh between dormer cheek and main face to confirm valley relationship
-const DORMER_AREA_MAX    = 12.0 // dormer cheek secondary must be < this area (m²) to use height gate
+const DORMER_AREA_MAX    = 7.0  // dormer cheek secondary must be < this area (m²) to use height gate
+                                  // RH true dormers: 4.3-5.8m². Hockley hip secondaries: 7.2-13.8m² → excluded
 
 interface RoofSegment {
   pitchDegrees: number
@@ -1370,7 +1371,35 @@ export function computeLinearFootageFromSegments(
       if (ridgeCounted.has(key)) continue
       ridgeCounted.add(key)
       if (bothMain) { hasRidge.add(i); hasRidge.add(j) }
-      const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
+
+      // Ridge length: for bothMain pairs, use the shorter bbox axis (perpendicular to ridge)
+      // as a proxy for rafter width, and derive ridge length from area / rafter_width.
+      // This is more accurate than sqrt(gnd)×0.7 which underestimates large rectangular faces.
+      // For main↔secondary pairs, keep the sqrt formula (secondary bboxes are small/irregular).
+      let ridgeLen: number
+      if (bothMain) {
+        const cosLat = Math.cos(a.center.latitude * Math.PI / 180)
+        function bboxSpan(s: RoofSegment): { longM: number; shortM: number } {
+          const bb = (s as unknown as Record<string,unknown>).boundingBox as
+            { ne:{latitude:number;longitude:number}; sw:{latitude:number;longitude:number} } | undefined
+          if (!bb) return { longM: Math.sqrt(gnd(s)), shortM: Math.sqrt(gnd(s)) }
+          const latSpan = Math.abs(bb.ne.latitude  - bb.sw.latitude)  * DEG_TO_M
+          const lngSpan = Math.abs(bb.ne.longitude - bb.sw.longitude) * DEG_TO_M * cosLat
+          return latSpan > lngSpan
+            ? { longM: latSpan, shortM: lngSpan }
+            : { longM: lngSpan, shortM: latSpan }
+        }
+        const spA = bboxSpan(a), spB = bboxSpan(b)
+        // Ridge runs along the long axis of each face. Take min of the two long axes.
+        // Cap at the shorter face's long axis to avoid overcounting on asymmetric pairs.
+        ridgeLen = Math.min(spA.longM, spB.longM)
+        // Secondary sanity: ridge can't exceed total perimeter of the smaller segment
+        const maxLen = Math.sqrt(gnd(a)) * 2.0
+        ridgeLen = Math.min(ridgeLen, maxLen)
+      } else {
+        ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
+      }
+
       ridgeM += ridgeLen
       console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(a).toFixed(1)})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(b).toFixed(1)}) dh=${dh(a,b).toFixed(2)} len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
     }
