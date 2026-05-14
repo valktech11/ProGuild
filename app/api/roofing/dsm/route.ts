@@ -13,8 +13,6 @@ import {
   fetchDataLayers,
   decodeGeoTiff,
   traceMaskPerimeter,
-  classifyMaskEdges,
-  detectHasGable,
 } from '@/lib/roofing/dsmAnalysis'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 // osmBuilding.ts is retained for Sprint 5C (roof:shape tag for ridge/hip/valley classification)
@@ -26,25 +24,6 @@ const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
 // Extract the azimuth of the largest roof segment (by groundAreaMeters2).
 // Used as the reference direction for Phase 3 mask edge classification.
 // Returns 180 (South) as a neutral default when segments are empty or malformed.
-function dominantSegmentAzimuth(segments: unknown[]): number {
-  let bestAz = 180
-  let bestArea = -1
-  for (const seg of segments) {
-    const s = seg as Record<string, unknown>
-    const az   = typeof s.azimuthDegrees   === 'number' ? s.azimuthDegrees   : null
-    const area = typeof s.groundAreaMeters2 === 'number' ? s.groundAreaMeters2 :
-                 typeof (s.stats as Record<string,unknown>)?.groundAreaMeters2 === 'number'
-                   ? (s.stats as Record<string, number>).groundAreaMeters2
-                   : typeof (s.stats as Record<string,unknown>)?.areaMeters2 === 'number'
-                     ? (s.stats as Record<string, number>).areaMeters2
-                     : null
-    if (az !== null && area !== null && area > bestArea) {
-      bestArea = area
-      bestAz   = az
-    }
-  }
-  return bestAz
-}
 
 export async function POST(req: NextRequest) {
   // 1. Parse body
@@ -87,12 +66,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 5. Compute v2 baseline (always — used as safety fallback for v3)
-  // maskPerimeterM computed first so v2 can use mask eave/rake override.
-  // Phase 3: mask polygon per-edge azimuth classification.
-  // maskGrid retained for classifyMaskEdges — needed by v2 and v3 eave/rake.
+  // maskPerimeterM passed to computeLinearFootageFromSegments which scales
+  // the segment rake-ratio against the mask's pixel-precise total perimeter.
   let maskPerimeterM = 0
-  let maskEaveFt = 0
-  let maskRakeFt = 0
   const M_TO_FT = 3.28084
 
   if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
@@ -107,15 +83,7 @@ export async function POST(req: NextRequest) {
           const perim = traceMaskPerimeter(maskGrid)
           if (perim.mainBuildingPixels > 100) {
             maskPerimeterM = perim.perimeterM
-            // Phase 3: classify boundary edges by azimuth.
-            // hasGable=false (pure hip) → rake=0, all perimeter=eave. No azimuth classification needed.
-            const dominantAz = dominantSegmentAzimuth(segments)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const hasGable   = detectHasGable(segments as any[])
-            const edgeClass  = classifyMaskEdges(maskGrid, dominantAz, hasGable)
-            maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
-            maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
-            console.log(`[dsm] phase3 eave/rake: ${maskEaveFt}ft / ${maskRakeFt}ft (${edgeClass.method}, hasGable=${hasGable}, dominantAz=${dominantAz.toFixed(0)}°)`)
+            console.log(`[dsm] mask perimeter: ${Math.round(maskPerimeterM * M_TO_FT)}ft (${perim.mainBuildingPixels}px main building)`)
           }
         }
       }
@@ -127,7 +95,7 @@ export async function POST(req: NextRequest) {
   let v2Result
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    v2Result = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
+    v2Result = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0)
   } catch (e) {
     console.error('[dsm] v2 error:', e)
     return apiError('Linear footage computation failed', 500, e)
@@ -140,7 +108,7 @@ export async function POST(req: NextRequest) {
   if (solarPanels && solarPanels.length > 0) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2Result, maskEaveFt, maskRakeFt)
+      const v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2Result)
       linear = v3Result
       console.log(`[dsm] v3 result: ridge=${v3Result.ridge_ft} hip=${v3Result.hip_ft} valley=${v3Result.valley_ft} eave=${v3Result.eave_ft} rake=${v3Result.rake_ft}`)
     } catch (e) {
@@ -207,11 +175,9 @@ export async function GET(req: NextRequest) {
       if (!segments?.length) { results.push({ label, error: 'no segments' }); continue }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v2 = computeLinearFootageFromSegments(segments as any[], 0, 0)
+      const v2 = computeLinearFootageFromSegments(segments as any[], 0, 0, 0)
 
       let maskPerimeterM = 0
-      let maskEaveFt = 0
-      let maskRakeFt = 0
       const M_TO_FT = 3.28084
       if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
         try {
@@ -225,21 +191,15 @@ export async function GET(req: NextRequest) {
               const perim = traceMaskPerimeter(maskGrid)
               if (perim.mainBuildingPixels > 100) {
                 maskPerimeterM = perim.perimeterM
-                const dominantAz = dominantSegmentAzimuth(segments)
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const hasGable   = detectHasGable(segments as any[])
-                const edgeClass  = classifyMaskEdges(maskGrid, dominantAz, hasGable)
-                maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
-                maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
               }
             }
           }
         } catch { /* mask optional */ }
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v2m = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
+      const v2m = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m, maskEaveFt, maskRakeFt) : null
+      const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m) : null
       const fin = v3 ?? v2m
       const truth = ROOFR[label] ?? {}
 
@@ -253,8 +213,6 @@ export async function GET(req: NextRequest) {
           valley: pct(fin.valley_ft, truth.valley), eave: pct(fin.eave_ft, truth.eave), rake: pct(fin.rake_ft, truth.rake),
         },
         mask_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
-        phase3_eave_ft: maskEaveFt || null,
-        phase3_rake_ft: maskRakeFt || null,
         source: v3 ? (v3 === v2m ? 'v2 (v3 safety fallback)' : 'v3') : 'v2+mask',
       })
     }
@@ -403,11 +361,9 @@ export async function GET(req: NextRequest) {
     if (!segments || segments.length === 0) return apiError('No roof segments in solar_raw', 422)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const v2Result = computeLinearFootageFromSegments(segments as any[], 0, 0)
+    const v2Result = computeLinearFootageFromSegments(segments as any[], 0, 0, 0)
 
     let maskPerimeterM = 0
-    let maskEaveFt = 0
-    let maskRakeFt = 0
     const M_TO_FT = 3.28084
     if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
       try {
@@ -421,24 +377,18 @@ export async function GET(req: NextRequest) {
             const perim = traceMaskPerimeter(maskGrid)
             if (perim.mainBuildingPixels > 100) {
               maskPerimeterM = perim.perimeterM
-              const dominantAz = dominantSegmentAzimuth(segments)
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const hasGable   = detectHasGable(segments as any[])
-              const edgeClass  = classifyMaskEdges(maskGrid, dominantAz, hasGable)
-              maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
-              maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
             }
           }
         }
       } catch { /* mask optional */ }
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const v2WithMask = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
+    const v2WithMask = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0)
 
     let v3Result = null
     if (solarPanels && solarPanels.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2WithMask, maskEaveFt, maskRakeFt)
+      v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2WithMask)
     }
 
     const final = v3Result ?? v2WithMask
@@ -446,8 +396,6 @@ export async function GET(req: NextRequest) {
       address: report.address,
       imagery_quality: imageryQuality,
       mask_perimeter_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
-      phase3_eave_ft: maskEaveFt || null,
-      phase3_rake_ft: maskRakeFt || null,
       v2_no_mask:  { ridge: v2Result.ridge_ft,    hip: v2Result.hip_ft,    valley: v2Result.valley_ft,    eave: v2Result.eave_ft,    rake: v2Result.rake_ft },
       v2_mask:     { ridge: v2WithMask.ridge_ft,   hip: v2WithMask.hip_ft,  valley: v2WithMask.valley_ft,  eave: v2WithMask.eave_ft,  rake: v2WithMask.rake_ft },
       v3:          v3Result ? { ridge: v3Result.ridge_ft, hip: v3Result.hip_ft, valley: v3Result.valley_ft, eave: v3Result.eave_ft, rake: v3Result.rake_ft } : null,

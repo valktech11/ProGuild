@@ -1105,8 +1105,9 @@ export function detectHasGable(segments: RoofSegment[]): boolean {
 
 export function computeLinearFootageFromSegments(
   segments: RoofSegment[],
-  _eave_ft: number,  // mask-derived override (Sprint 5 Phase 1). Use when > 0.
-  _rake_ft: number,  // mask-derived override (Sprint 5 Phase 1). Use when > 0.
+  _maskPerimeterM: number,  // mask total perimeter in metres (Phase 3). 0 = no mask, use segment heuristic.
+  _eave_ft: number,         // legacy pre-computed override — only used when _maskPerimeterM=0 and _eave_ft>0.
+  _rake_ft: number,         // legacy pre-computed override — only used when _maskPerimeterM=0 and _eave_ft>0.
 ): LinearFootage {
   const M_TO_FT = 3.28084
   const DEG_TO_M = 111320
@@ -1296,9 +1297,35 @@ export function computeLinearFootageFromSegments(
   const ridge_ft  = Math.round(ridgeM  * M_TO_FT)
   const hip_ft    = Math.round(hipM    * M_TO_FT)
   const valley_ft = Math.round(valleyM * M_TO_FT)
-  // Prefer mask-derived eave/rake when available (±4% accuracy vs ±20% for segment heuristic)
-  const rake_ft   = _rake_ft > 0 ? _rake_ft : Math.round(rakeM   * M_TO_FT)
-  const eave_ft   = _eave_ft > 0 ? _eave_ft : Math.round(eaveM_seg * M_TO_FT)
+
+  // Eave/rake: when mask perimeter is available, it gives a more accurate total
+  // drip-edge length than the segment shape-factor heuristic. We keep the rake
+  // FRACTION from the segment heuristic (which correctly reflects whether gable
+  // segments exist) but scale it to the mask total rather than the heuristic total.
+  //
+  // rake_ratio = rakeM / totalPerimM (segment heuristic, 0 for pure hip)
+  // eave_ft = mask_total × (1 - rake_ratio)
+  // rake_ft = mask_total × rake_ratio
+  //
+  // If no mask (_maskPerimeterM == 0), fall through to segment heuristic.
+  let eave_ft: number
+  let rake_ft: number
+
+  if (_maskPerimeterM > 0 && totalPerimM > 0) {
+    const rakeRatio = Math.min(rakeM / totalPerimM, 0.45)  // cap rake at 45% of perimeter
+    const maskEaveM = _maskPerimeterM * (1 - rakeRatio)
+    const maskRakeM = _maskPerimeterM * rakeRatio
+    eave_ft = Math.round(maskEaveM * M_TO_FT)
+    rake_ft = Math.round(maskRakeM * M_TO_FT)
+    console.log(`[seg2] mask-scaled eave/rake: maskPerim=${Math.round(_maskPerimeterM * M_TO_FT)}ft rakeRatio=${(rakeRatio*100).toFixed(0)}% → eave=${eave_ft}ft rake=${rake_ft}ft`)
+  } else if (_eave_ft > 0) {
+    // Legacy: pre-computed override from caller (kept for compatibility)
+    eave_ft = _eave_ft
+    rake_ft = _rake_ft
+  } else {
+    eave_ft = Math.round(eaveM_seg * M_TO_FT)
+    rake_ft = Math.round(rakeM    * M_TO_FT)
+  }
 
   console.log(`[seg2] final: ridge=${ridge_ft}ft hip=${hip_ft}ft valley=${valley_ft}ft eave=${eave_ft}ft rake=${rake_ft}ft${_eave_ft > 0 ? ' (mask eave/rake)' : ''}`)
 
@@ -1618,10 +1645,6 @@ export function computeLinearFootageV3(
   solarPanels: Array<{ center: { latitude: number; longitude: number }; segmentIndex: number }>,
   maskPerimeterM: number,
   v2Result: LinearFootage,
-  // Phase 3: pre-classified eave/rake from classifyMaskEdges.
-  // When > 0, used directly instead of 70/30 split of maskPerimeterM.
-  maskEaveFt_p3?: number,
-  maskRakeFt_p3?: number,
 ): LinearFootage {
 
   const M_TO_FT   = 3.28084
@@ -1835,21 +1858,12 @@ export function computeLinearFootageV3(
     return Math.min(centDistM(sA, sB) * pitchCorr, cap)
   }
 
-  // ── Eave/rake — Phase 3 classified values take priority ───────────────────
-  // Priority order:
-  //   1. Phase 3 polygon-azimuth classification (maskEaveFt_p3/maskRakeFt_p3 > 0)
-  //   2. 70/30 split of raw mask perimeter (maskPerimeterM > 0, no Phase 3)
-  //   3. v2 segment heuristic (no mask available)
-  const eave_ft = (maskEaveFt_p3 != null && maskEaveFt_p3 > 0)
-    ? maskEaveFt_p3
-    : maskPerimeterM > 0
-      ? Math.round(maskPerimeterM * 0.70 * M_TO_FT)
-      : v2Result.eave_ft
-  const rake_ft = (maskRakeFt_p3 != null && maskRakeFt_p3 > 0)
-    ? maskRakeFt_p3
-    : maskPerimeterM > 0
-      ? Math.round(maskPerimeterM * 0.30 * M_TO_FT)
-      : v2Result.rake_ft
+  // ── Eave/rake — inherit from v2Result ─────────────────────────────────────
+  // v2Result already contains mask-scaled eave/rake (computeLinearFootageFromSegments
+  // applies maskPerimeterM × segment rake-ratio). v3 improves R+H+V but uses the
+  // same mask-derived eave/rake as v2 — no need to re-derive here.
+  const eave_ft = v2Result.eave_ft
+  const rake_ft = v2Result.rake_ft
 
   const ridge_ft  = Math.round(ridgeM  * M_TO_FT)
   const hip_ft    = Math.round(hipM    * M_TO_FT)
