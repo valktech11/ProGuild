@@ -14,7 +14,14 @@ import {
   decodeGeoTiff,
   traceMaskPerimeter,
   deriveWingBoundariesFromSegments,
+  type RoofSegment,
 } from '@/lib/roofing/dsmAnalysis'
+import {
+  resolveRidgeLengthsViaElevation,
+  type RidgePair,
+  type RidgeEdge,
+  type ElevSegment,
+} from '@/lib/roofing/elevationRidge'
 import { fetchWingBoundaries } from '@/lib/roofing/osmBuilding'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 
@@ -99,11 +106,32 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Sprint 6 Option A: resolve ridge lengths via Elevation API before running classifier.
+  // detectRidgePairs runs the same gate logic as computeLinearFootageFromSegments but only
+  // collects pairs — no length accumulation. Elevation API then finds exact ridge endpoints.
+  // Falls back to v2 formula if API fails or quality is BASE.
+  let resolvedRidgeEdges: RidgeEdge[] | undefined
+  if (GOOGLE_KEY && (imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM')) {
+    try {
+      const ridgePairs = detectRidgePairsForElevation(segments as ElevSegment[])
+      if (ridgePairs.length > 0) {
+        console.log(`[dsm] resolving ${ridgePairs.length} ridge pairs via Elevation API`)
+        resolvedRidgeEdges = await resolveRidgeLengthsViaElevation(
+          ridgePairs,
+          segments as ElevSegment[],
+          GOOGLE_KEY,
+        )
+      }
+    } catch (elevErr) {
+      console.warn('[dsm] Elevation API failed — using v2 ridge lengths:', String(elevErr).slice(0, 150))
+      resolvedRidgeEdges = undefined
+    }
+  }
+
   let v2Result
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-    v2Result = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings)
+    v2Result = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings, resolvedRidgeEdges)
   } catch (e) {
     console.error('[dsm] v2 error:', e)
     return apiError('Linear footage computation failed', 500, e)
@@ -139,6 +167,72 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true, linear_footage: linear })
 }
 
+
+
+// ── Ridge pair detection for Elevation API (Sprint 6) ────────────────────────
+// Mirrors the gate logic in computeLinearFootageFromSegments but only collects
+// pairs without accumulating lengths. Called before computeLinearFootageFromSegments
+// so Elevation API can resolve lengths prior to the classifier run.
+
+function detectRidgePairsForElevation(segments: ElevSegment[]): RidgePair[] {
+  const MAIN_FACE_M2 = 18
+  const RIDGE_HEIGHT_MAX = 3.0
+  const DEG_TO_M = 111320
+  const pairs: RidgePair[] = []
+  const counted = new Set<string>()
+  const n = segments.length
+
+  function gnd(s: ElevSegment): number {
+    return s.groundAreaMeters2 ?? s.stats.groundAreaMeters2 ?? s.stats.areaMeters2
+  }
+  function azDiff(a: number, b: number): number {
+    let d = Math.abs(a - b) % 360
+    if (d > 180) d = 360 - d
+    return d
+  }
+  function distM(a: ElevSegment, b: ElevSegment): number {
+    const dlat = (a.center.latitude - b.center.latitude) * DEG_TO_M
+    const dlng = (a.center.longitude - b.center.longitude) * DEG_TO_M * Math.cos(a.center.latitude * Math.PI / 180)
+    return Math.sqrt(dlat * dlat + dlng * dlng)
+  }
+  function adjOk(a: ElevSegment, b: ElevSegment, factor: number): boolean {
+    return distM(a, b) <= Math.sqrt(Math.min(gnd(a), gnd(b))) * factor
+  }
+  function h(s: ElevSegment): number { return s.planeHeightAtCenterMeters ?? NaN }
+
+  function bboxOverlap(a: ElevSegment, b: ElevSegment, tol: number): boolean {
+    const ra = a.boundingBox, rb = b.boundingBox
+    if (!ra || !rb) return adjOk(a, b, 2.5)
+    return !(
+      ra.ne.latitude  + tol < rb.sw.latitude  || rb.ne.latitude  + tol < ra.sw.latitude  ||
+      ra.ne.longitude + tol < rb.sw.longitude || rb.ne.longitude + tol < ra.sw.longitude
+    )
+  }
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = segments[i], b = segments[j]
+      const aMain = gnd(a) >= MAIN_FACE_M2, bMain = gnd(b) >= MAIN_FACE_M2
+      if (!aMain && !bMain) continue
+      if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
+      const bothMain = aMain && bMain
+      if (bothMain) {
+        const bboxPass = bboxOverlap(a, b, 0.0003)
+        const ha = h(a), hb = h(b)
+        const heightPass = !isNaN(ha) && !isNaN(hb) && Math.abs(ha - hb) < RIDGE_HEIGHT_MAX && adjOk(a, b, 4.0)
+        if (!bboxPass && !heightPass) continue
+      } else {
+        if (!adjOk(a, b, 2.5)) continue
+      }
+      const key = `${i}-${j}`
+      if (counted.has(key)) continue
+      counted.add(key)
+      const v2LengthM = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
+      pairs.push({ i, j, v2LengthM })
+    }
+  }
+  return pairs
+}
 
 export async function GET(req: NextRequest) {
   // Staging gate
@@ -206,8 +300,18 @@ export async function GET(req: NextRequest) {
         } catch { /* mask optional */ }
       }
 
+      // Sprint 6: two-pass elevation resolution in recompute-all (read-only test)
+      let recomputeRidgeEdges: RidgeEdge[] | undefined
+      if (GOOGLE_KEY && (imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM')) {
+        try {
+          const rPairs = detectRidgePairsForElevation(segments as ElevSegment[])
+          if (rPairs.length > 0) {
+            recomputeRidgeEdges = await resolveRidgeLengthsViaElevation(rPairs, segments as ElevSegment[], GOOGLE_KEY)
+          }
+        } catch { /* elevation optional in debug mode */ }
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v2m = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings)
+      const v2m = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings, recomputeRidgeEdges)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m) : null
       const fin = v3 ?? v2m

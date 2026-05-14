@@ -4,6 +4,13 @@
 // No HTTP calls between routes — in-process only
 
 import { fromArrayBuffer } from 'geotiff'
+import {
+  resolveRidgeLengthsViaElevation,
+  hipCrossesRidgeAxis,
+  type RidgePair,
+  type RidgeEdge,
+  type ElevSegment,
+} from './elevationRidge'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1049,7 +1056,7 @@ const DORMER_HEIGHT_MIN  = 0.5  // min dh between dormer cheek and main face to 
 const DORMER_AREA_MAX    = 7.0  // dormer cheek secondary must be < this area (m²) to use height gate
                                   // RH true dormers: 4.3-5.8m². Hockley hip secondaries: 7.2-13.8m² → excluded
 
-interface RoofSegment {
+export interface RoofSegment {
   pitchDegrees: number
   azimuthDegrees: number
   stats: { areaMeters2: number; groundAreaMeters2?: number }
@@ -1266,6 +1273,10 @@ export function computeLinearFootageFromSegments(
   // Empty array = no wing detection (convex building or fetch failed) → classifier unchanged.
   // Only applied to bothMain hip pairs to avoid over-rejection of secondary segments.
   wingBoundaries?: Array<{ a: { lat: number; lng: number }; b: { lat: number; lng: number } }>,
+  // Sprint 6 Option A: pre-resolved ridge edges from Elevation API.
+  // When provided, replaces sqrt(gnd)×0.7 lengths and enables ridge-axis hip rejection.
+  // undefined = use v2 formula (safe fallback).
+  resolvedRidgeEdges?: RidgeEdge[],
 ): LinearFootage {
   const M_TO_FT = 3.28084
   const DEG_TO_M = 111320
@@ -1341,16 +1352,16 @@ export function computeLinearFootageFromSegments(
   const hasRidge      = new Set<number>()
 
   // ── RIDGE ──────────────────────────────────────────────────────────────────
-  // 180°-opposing adjacent pairs. Length = 0.7 × min(sqrt(gndA), sqrt(gndB)).
-  // Require at least one main segment (≥MAIN_FACE_M2) to avoid sec↔sec noise.
-  // Only main↔main pairs mark segments as gable (rake-producing).
-  // Pure hip roofs yield 0 correctly (all main faces are 90° apart, not 180°).\n  //
-  // Adjacency gate (bothMain pairs):
-  //   Primary:   bbox overlap (0.0003° tolerance) — works for most multi-wing roofs
-  //   Fallback:  |dh| < RIDGE_HEIGHT_MAX (3.0m) — catches non-overlapping bboxes
-  //              on MEDIUM quality imagery (Hockley s7↔s8: dh=1.78m, bboxes ~40m apart)
-  //   Height confirmed present in all US HIGH/MEDIUM Solar API responses.
-  //   main↔secondary pairs → adjOk (unchanged, small segments always nearby)
+  // Sprint 6 Option A: Two-pass approach.
+  //   Pass 1 (sync): collect candidate pairs using existing gate logic.
+  //   Pass 2: apply Elevation API–resolved lengths (resolvedRidgeEdges) or v2 fallback.
+  // Track bothMain vs secondary ridge pairs separately for rakeRatio calculation:
+  //   nonDormerRidgeM = bothMain pairs only → used for rakeRatio (geometrically grounded).
+  //   Secondary (main↔secondary) ridge pairs are dormer-sourced and inflate rakeRatio on
+  //   complex roofs (RH eave was deflated 35% because dormer ridge pairs were included).
+
+  const ridgePairsCollected: RidgePair[] = []
+
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
@@ -1360,12 +1371,6 @@ export function computeLinearFootageFromSegments(
       if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
       const bothMain = aMain && bMain
       if (bothMain) {
-        // Accept if bbox overlaps OR (height + proximity confirm a shared ridge).
-        // NOTE: hip roofs (Jacksonville) also have bothMain pairs at azDiff≈180° with
-        // similar heights and close centroids — indistinguishable from real ridges without
-        // polygon vertex data. Both gates (bbox and height) pass these pairs.
-        // The bbox ridge length formula below uses sqrt(gnd)×0.7 which naturally
-        // underestimates false pairs on hip faces (triangular → small area → short estimate).
         const RIDGE_HEIGHT_ADJ = 4.0
         const bboxPass   = ridgeBboxOverlap(a, b)
         const heightPass = !isNaN(h(a)) && !isNaN(h(b)) &&
@@ -1379,18 +1384,41 @@ export function computeLinearFootageFromSegments(
       if (ridgeCounted.has(key)) continue
       ridgeCounted.add(key)
       if (bothMain) { hasRidge.add(i); hasRidge.add(j) }
-
-      // Ridge length: sqrt(gnd)×0.7 for all pairs.
-      // Bbox long-axis gives better absolute accuracy for multi-wing faces (Hockley)
-      // but overcounts when multiple bothMain pairs represent the same physical ridge
-      // (Jacksonville: 2 pairs × 27ft = 54ft vs 29ft truth). Spatial deduplication
-      // cannot separate these because Hockley's two real ridges have midpoints only
-      // ~2m apart (same as Jacksonville's duplicate pairs). sqrt formula is the
-      // consistent baseline: ~14ft per bothMain pair, correct when summed.
-      const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
-      ridgeM += ridgeLen
-      console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(a).toFixed(1)})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(b).toFixed(1)}) dh=${dh(a,b).toFixed(2)} len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
+      const v2LengthM = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
+      ridgePairsCollected.push({ i, j, v2LengthM })
     }
+  }
+
+  // Apply resolved lengths (Elevation API) or v2 fallback
+  let activeRidgeEdges: RidgeEdge[]
+  if (resolvedRidgeEdges && resolvedRidgeEdges.length === ridgePairsCollected.length) {
+    activeRidgeEdges = resolvedRidgeEdges
+    const elevCount = resolvedRidgeEdges.filter(e => e.fromElevation).length
+    console.log(`[seg2] ridge: ${elevCount}/${resolvedRidgeEdges.length} elevation-resolved`)
+  } else {
+    activeRidgeEdges = ridgePairsCollected.map(p => ({
+      i: p.i, j: p.j,
+      ptA: { lat: segments[p.i].center.latitude, lng: segments[p.i].center.longitude },
+      ptB: { lat: segments[p.j].center.latitude, lng: segments[p.j].center.longitude },
+      lengthM: p.v2LengthM,
+      fromElevation: false,
+    }))
+  }
+
+  let nonDormerRidgeM = 0  // bothMain only — for rakeRatio
+  for (let ei = 0; ei < activeRidgeEdges.length; ei++) {
+    const edge = activeRidgeEdges[ei]
+    const pair = ridgePairsCollected[ei]
+    const aMain = gnd(segments[pair.i]) >= MAIN_FACE_M2
+    const bMain = gnd(segments[pair.j]) >= MAIN_FACE_M2
+    ridgeM += edge.lengthM
+    if (aMain && bMain) nonDormerRidgeM += edge.lengthM
+    const sa = segments[edge.i], sb = segments[edge.j]
+    console.log(
+      `[seg2] ridge: s${edge.i}(${sa.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(sa).toFixed(1)})↔` +
+      `s${edge.j}(${sb.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(sb).toFixed(1)}) ` +
+      `len=${(edge.lengthM * M_TO_FT).toFixed(0)}ft [${edge.fromElevation ? 'elev' : 'v2'}]`
+    )
   }
 
   // ── VALLEY ─────────────────────────────────────────────────────────────────
@@ -1465,44 +1493,75 @@ export function computeLinearFootageFromSegments(
       if (valleyPairs.has(key)) continue    // already a valley
       if (!adjOk(a, b, HIP_ADJ)) continue
       const bothMain = gnd(a) >= MAIN_FACE_M2 && gnd(b) >= MAIN_FACE_M2
-      // Phase 5: cross-wing rejection for main↔main hip pairs only.
-      // Secondary segments are legitimately on different wings (valley faces)
-      // so we only filter bothMain pairs — the source of all false hips.
-      if (bothMain && wingBoundaries && wingBoundaries.length > 0) {
-        const centA = { latitude: a.center.latitude, longitude: a.center.longitude }
-        const centB = { latitude: b.center.latitude, longitude: b.center.longitude }
-        const latRef = (centA.latitude + centB.latitude) / 2
-        const cosLat = Math.cos(latRef * Math.PI / 180)
-        const mPerDeg = 111320
-        function toXY2(v: { latitude: number; longitude: number }): [number, number] {
-          return [v.longitude * mPerDeg * cosLat, v.latitude * mPerDeg]
+      // Sprint 6: cross-wing rejection for bothMain hip pairs.
+      // Priority 1: Elevation API ridge axis (fromElevation=true edges only).
+      //   Hip centroid line crosses a resolved ridge edge → cross-wing false positive.
+      // Priority 2: Tight bbox overlap gate (0.00015° ≈ 16m).
+      //   bothMain pairs whose bboxes don't overlap at tight tolerance are on different wings.
+      //   This replaces the OSM wingBoundaries approach (missed all 3 test properties).
+      // Priority 3: Legacy OSM wingBoundaries (kept as tertiary guard when available).
+      if (bothMain) {
+        const centA = { lat: a.center.latitude, lng: a.center.longitude }
+        const centB = { lat: b.center.latitude, lng: b.center.longitude }
+
+        // Priority 1: ridge axis rejection (Elevation API)
+        if (activeRidgeEdges.length > 0 && hipCrossesRidgeAxis(activeRidgeEdges, centA, centB)) {
+          console.log(`[seg2] hip REJECTED (ridge-axis): s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°)`)
+          continue
         }
-        function toXYw(v: { lat: number; lng: number }): [number, number] {
-          return [v.lng * mPerDeg * cosLat, v.lat * mPerDeg]
-        }
-        const [p1x, p1y] = toXY2(centA)
-        const [p2x, p2y] = toXY2(centB)
-        let crossesWing = false
-        for (const wing of wingBoundaries) {
-          const [p3x, p3y] = toXYw(wing.a)
-          const [p4x, p4y] = toXYw(wing.b)
-          const dx12 = p2x-p1x, dy12 = p2y-p1y
-          const dx34 = p4x-p3x, dy34 = p4y-p3y
-          const denom = dx12*dy34 - dy12*dx34
-          if (Math.abs(denom) < 1e-9) continue
-          const dx13 = p3x-p1x, dy13 = p3y-p1y
-          const t = (dx13*dy34 - dy13*dx34) / denom
-          const u = (dx13*dy12 - dy13*dx12) / denom
-          const EPS = 0.05
-          if (t >= -EPS && t <= 1+EPS && u >= -EPS && u <= 1+EPS) {
-            crossesWing = true
-            console.log(`[seg2] hip REJECTED (cross-wing): s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°)`)
-            break
+
+        // Priority 2: tight bbox overlap gate
+        // Two main faces on the same wing will always have overlapping bboxes at 16m.
+        // Cross-wing faces (Hockley N↔S wing, RH wings) have bboxes separated by the
+        // building width — typically 8–20m. Threshold 0.00015° ≈ 16m catches the gap.
+        const TIGHT_TOL = 0.00015
+        const raH = (a as unknown as Record<string, unknown>).boundingBox as
+          { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
+        const rbH = (b as unknown as Record<string, unknown>).boundingBox as
+          { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
+        if (raH && rbH) {
+          const bboxesOverlap = !(
+            raH.ne.latitude  + TIGHT_TOL < rbH.sw.latitude  ||
+            rbH.ne.latitude  + TIGHT_TOL < raH.sw.latitude  ||
+            raH.ne.longitude + TIGHT_TOL < rbH.sw.longitude ||
+            rbH.ne.longitude + TIGHT_TOL < raH.sw.longitude
+          )
+          if (!bboxesOverlap) {
+            console.log(`[seg2] hip REJECTED (bbox-tight): s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°)`)
+            continue
           }
         }
-        if (crossesWing) continue
+
+        // Priority 3: legacy OSM wing boundaries (tertiary, rarely fires now)
+        if (wingBoundaries && wingBoundaries.length > 0) {
+          const latRef = (centA.lat + centB.lat) / 2
+          const cosLat = Math.cos(latRef * Math.PI / 180)
+          const mPerDeg = 111320
+          const toXY2 = (v: { lat: number; lng: number }): [number, number] =>
+            [v.lng * mPerDeg * cosLat, v.lat * mPerDeg]
+          const [p1x, p1y] = toXY2(centA)
+          const [p2x, p2y] = toXY2(centB)
+          let crossesWing = false
+          for (const wing of wingBoundaries) {
+            const [p3x, p3y] = toXY2(wing.a)
+            const [p4x, p4y] = toXY2(wing.b)
+            const dx12 = p2x-p1x, dy12 = p2y-p1y
+            const dx34 = p4x-p3x, dy34 = p4y-p3y
+            const denom = dx12*dy34 - dy12*dx34
+            if (Math.abs(denom) < 1e-9) continue
+            const dx13 = p3x-p1x, dy13 = p3y-p1y
+            const t = (dx13*dy34 - dy13*dx34) / denom
+            const u = (dx13*dy12 - dy13*dx12) / denom
+            const EPS = 0.05
+            if (t >= -EPS && t <= 1+EPS && u >= -EPS && u <= 1+EPS) {
+              crossesWing = true
+              console.log(`[seg2] hip REJECTED (osm-wing): s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°)`)
+              break
+            }
+          }
+          if (crossesWing) continue
+        }
       }
-      // Height guard: bothMain hip pairs with |dh| > HIP_HEIGHT_MAX are cross-level
       // false positives (different building stories or drastically different wing elevations).
       // Conservative threshold (4m) — Hockley real hips all have |dh| < 2m.
       if (bothMain && !heightOk(a, b, HIP_HEIGHT_MAX)) {
@@ -1579,12 +1638,14 @@ export function computeLinearFootageFromSegments(
     // Validated: Jacksonville ridge=27ft, mask=265ft → 20% → rake=53ft ✅ (Roofr=53)
     //            Rochester Hills ridge=77ft, mask=349ft → 44% → rake=154ft ✅ (Roofr=144)
     //            Hockley: no mask → this branch not reached → unaffected ✅
-    const rakeRatio = Math.min(ridgeM / (_maskPerimeterM * 0.5), 0.45)
+    // Sprint 6: use nonDormerRidgeM (bothMain only) so dormer-sourced ridge pairs
+    // (main↔secondary) don't inflate rakeRatio → deflate eave on dormer roofs (RH fix).
+    const rakeRatio = Math.min(nonDormerRidgeM / (_maskPerimeterM * 0.5), 0.45)
     const maskEaveM = _maskPerimeterM * (1 - rakeRatio)
     const maskRakeM = _maskPerimeterM * rakeRatio
     eave_ft = Math.round(maskEaveM * M_TO_FT)
     rake_ft = Math.round(maskRakeM * M_TO_FT)
-    console.log(`[seg2] mask-scaled eave/rake: maskPerim=${Math.round(_maskPerimeterM * M_TO_FT)}ft rakeRatio=${(rakeRatio*100).toFixed(0)}% → eave=${eave_ft}ft rake=${rake_ft}ft`)
+    console.log(`[seg2] mask eave/rake: maskPerim=${Math.round(_maskPerimeterM * M_TO_FT)}ft nonDormerRidge=${Math.round(nonDormerRidgeM*M_TO_FT)}ft rakeRatio=${(rakeRatio*100).toFixed(0)}% → eave=${eave_ft}ft rake=${rake_ft}ft`)
   } else if (_eave_ft > 0) {
     // Legacy: pre-computed override from caller (kept for compatibility)
     eave_ft = _eave_ft
@@ -2138,11 +2199,13 @@ export function computeLinearFootageV3(
 
   console.log(`[v3g] pre-safety: ridge=${ridge_ft} hip=${hip_ft} valley=${valley_ft} eave=${eave_ft} rake=${rake_ft}`)
 
-  // Safety: if R+H diverges >40% from v2, fall back. v2 is solid for simple roofs.
+  // Sprint 6: tightened safety threshold 40%→25%. v3 tighter bbox gates produce lower
+  // (more accurate) hip counts on complex roofs — the old 40% threshold rejected this as
+  // "wrong" when v3 was actually more accurate. 25% still catches genuine v3 failures.
   const v3RH = ridge_ft + hip_ft
   const v2RH = v2Result.ridge_ft + v2Result.hip_ft
-  if (v2RH > 0 && Math.abs(v3RH - v2RH) / v2RH > 0.40) {
-    console.warn(`[v3g] R+H diverges ${((v3RH-v2RH)/v2RH*100).toFixed(0)}% from v2 → using v2`)
+  if (v2RH > 0 && Math.abs(v3RH - v2RH) / v2RH > 0.25) {
+    console.warn(`[v3g] R+H diverges ${((v3RH-v2RH)/v2RH*100).toFixed(0)}% from v2 → using v2 (threshold 25%)`)
     return v2Result
   }
 
