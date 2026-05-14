@@ -74,10 +74,12 @@ export async function POST(req: NextRequest) {
   const propLat = solarCenter?.latitude ?? (report.lat as number)
   const propLng = solarCenter?.longitude ?? (report.lng as number)
 
-  // Wing boundaries: derived synchronously from segment azimuth clusters.
-  // No external API needed — works on every property with ≥3 main segments.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const wings = deriveWingBoundariesFromSegments(segments as any[])
+  // Phase 5 wing detection: Solar API centroid data does not spread segment centroids
+  // spatially by wing — all centroids cluster within ~12m regardless of building shape.
+  // Wing rejection has no effect on Hockley (wings=0) and may reject real RH hip pairs.
+  // Disabled in production path; kept for wing-debug diagnostic mode.
+  // TODO: re-enable when Elevation API bbox-corner heights are available (Sprint 5D).
+  const wings: Array<{ a: { lat: number; lng: number }; b: { lat: number; lng: number } }> = []
 
   if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
     try {
@@ -189,8 +191,7 @@ export async function GET(req: NextRequest) {
       const cLat = solarCtr?.latitude ?? (report.lat as number)
       const cLng = solarCtr?.longitude ?? (report.lng as number)
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const wings = deriveWingBoundariesFromSegments(segments as any[])
+      const wings: Array<{ a: { lat: number; lng: number }; b: { lat: number; lng: number } }> = []
 
       if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
         try {
@@ -423,8 +424,7 @@ export async function GET(req: NextRequest) {
     const rLat = solarCtrR?.latitude ?? (report.lat as number)
     const rLng = solarCtrR?.longitude ?? (report.lng as number)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wingsR = deriveWingBoundariesFromSegments(segments as any[])
+    const wingsR: Array<{ a: { lat: number; lng: number }; b: { lat: number; lng: number } }> = []
 
     if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
       try {
