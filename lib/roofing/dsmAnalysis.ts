@@ -1145,7 +1145,9 @@ export interface SegmentWingBoundary {
 export function deriveWingBoundariesFromSegments(segments: RoofSegment[]): SegmentWingBoundary[] {
   const MAIN_M2 = 18
   const DEG_TO_M = 111320
-  const WING_BOUNDARY_EXTEND = 50  // extend boundary line ±50m past centroids
+  const WING_BOUNDARY_EXTEND = 60  // extend boundary line ±60m past midpoint
+  const MIN_GAP_M = 8              // minimum spatial gap between clusters to declare a wing boundary
+  const MIN_GAP_RATIO = 0.20       // gap must be ≥20% of the building's longest dimension
 
   // Collect main segments only
   const mains = segments.filter(s => {
@@ -1155,89 +1157,93 @@ export function deriveWingBoundariesFromSegments(segments: RoofSegment[]): Segme
     return area >= MAIN_M2
   })
 
-  if (mains.length < 3) return []  // need ≥3 main segments for multi-wing
+  if (mains.length < 3) return []
 
-  // ── Step 1: Cluster main segments by azimuth ──────────────────────────────
-  // Two wings have azimuths roughly 90° apart (perpendicular wings).
-  // Reduce azimuths to [0°, 180°) by folding (N-facing = S-facing for clustering).
-  // Then k-means with k=2 to find the two dominant directions.
-  // If cluster spread < 30° → single wing → return [].
+  const refLat = mains.reduce((s, m) => s + m.center.latitude, 0) / mains.length
+  const cosLat = Math.cos(refLat * Math.PI / 180)
 
-  const foldedAz = (az: number) => az % 180  // fold to [0,180)
+  // Convert centroids to metres relative to centroid mean
+  const pts = mains.map(s => ({
+    x: (s.center.longitude - mains[0].center.longitude) * DEG_TO_M * cosLat,
+    y: (s.center.latitude  - mains[0].center.latitude)  * DEG_TO_M,
+    seg: s,
+  }))
 
-  // Find the azimuth that best splits into two groups by maximising inter-cluster variance.
-  // Since azimuths are circular [0°,180°), sweep a threshold from 0 to 180 in 5° steps.
-  let bestSplit = -1
-  let bestGap = 0
+  // ── PCA: find principal axis of centroid cloud ──────────────────────────────
+  // Covariance matrix of (x, y) centroid positions
+  const mx = pts.reduce((s, p) => s + p.x, 0) / pts.length
+  const my = pts.reduce((s, p) => s + p.y, 0) / pts.length
+  let cxx = 0, cxy = 0, cyy = 0
+  for (const p of pts) {
+    const dx = p.x - mx, dy = p.y - my
+    cxx += dx * dx; cxy += dx * dy; cyy += dy * dy
+  }
+  cxx /= pts.length; cxy /= pts.length; cyy /= pts.length
 
-  const azims = mains.map(s => foldedAz(s.azimuthDegrees))
-  const sortedAz = [...azims].sort((a, b) => a - b)
+  // Eigenvector of 2×2 symmetric matrix [[cxx,cxy],[cxy,cyy]]
+  // Principal eigenvector (largest eigenvalue) = direction of max variance
+  const trace  = cxx + cyy
+  const det    = cxx * cyy - cxy * cxy
+  const disc   = Math.sqrt(Math.max(0, (trace * trace) / 4 - det))
+  const lambda1 = trace / 2 + disc  // largest eigenvalue
 
-  // Find largest circular gap between sorted azimuths → that gap is between the two clusters
-  for (let i = 0; i < sortedAz.length; i++) {
-    const next = sortedAz[(i + 1) % sortedAz.length]
-    const curr = sortedAz[i]
-    const gap = i < sortedAz.length - 1 ? next - curr : 180 - curr + sortedAz[0]
-    if (gap > bestGap) { bestGap = gap; bestSplit = i }
+  // Eigenvector for lambda1
+  let ex: number, ey: number
+  if (Math.abs(cxy) > 1e-9) {
+    ex = lambda1 - cyy; ey = cxy
+  } else {
+    ex = cxx >= cyy ? 1 : 0; ey = cxx >= cyy ? 0 : 1
+  }
+  const emag = Math.sqrt(ex * ex + ey * ey)
+  ex /= emag; ey /= emag
+
+  // Project all centroids onto principal axis
+  const projections = pts.map(p => ({
+    proj: (p.x - mx) * ex + (p.y - my) * ey,
+    seg: p.seg,
+    x: p.x, y: p.y,
+  })).sort((a, b) => a.proj - b.proj)
+
+  // Find largest gap in sorted projections
+  let maxGap = 0
+  let gapIdx = -1
+  for (let i = 0; i < projections.length - 1; i++) {
+    const gap = projections[i + 1].proj - projections[i].proj
+    if (gap > maxGap) { maxGap = gap; gapIdx = i }
   }
 
-  // If the largest gap is < 30° → all segments share one azimuth axis → single wing
-  if (bestGap < 30) {
-    console.log(`[seg-wing] azimuth spread < 30° (gap=${bestGap.toFixed(0)}°) → single wing, no cross-wing rejection`)
+  // Building extent along principal axis
+  const extent = projections[projections.length - 1].proj - projections[0].proj
+
+  console.log(`[seg-wing] ${mains.length} main segs, principal axis extent=${extent.toFixed(0)}m, maxGap=${maxGap.toFixed(0)}m at idx=${gapIdx}`)
+
+  // Only declare a wing if gap is significant relative to building size
+  if (gapIdx < 0 || maxGap < MIN_GAP_M || (extent > 0 && maxGap / extent < MIN_GAP_RATIO)) {
+    console.log(`[seg-wing] gap too small → single wing, no cross-wing rejection`)
     return []
   }
 
-  // Partition segments into two clusters by the gap
-  const splitAz = bestSplit < sortedAz.length - 1
-    ? (sortedAz[bestSplit] + sortedAz[bestSplit + 1]) / 2
-    : (sortedAz[bestSplit] + 180 + sortedAz[0]) / 2 % 180
+  // Midpoint of the gap in projection space → convert back to lat/lng
+  const gapMidProj = (projections[gapIdx].proj + projections[gapIdx + 1].proj) / 2
+  const gapMidX = mx + gapMidProj * ex
+  const gapMidY = my + gapMidProj * ey
 
-  const clusterA = mains.filter(s => foldedAz(s.azimuthDegrees) <= splitAz)
-  const clusterB = mains.filter(s => foldedAz(s.azimuthDegrees) > splitAz)
+  // Wing boundary passes through gap midpoint, perpendicular to principal axis
+  const perpX = -ey   // perpendicular unit vector
+  const perpY =  ex
 
-  if (clusterA.length === 0 || clusterB.length === 0) return []
+  const midLat = mains[0].center.latitude  + gapMidY / DEG_TO_M
+  const midLng = mains[0].center.longitude + gapMidX / (DEG_TO_M * cosLat)
 
-  // ── Step 2: Centroid of each cluster ──────────────────────────────────────
-  const mean = (segs: RoofSegment[], axis: 'latitude' | 'longitude') =>
-    segs.reduce((sum, s) => sum + s.center[axis], 0) / segs.length
-
-  const cA = { lat: mean(clusterA, 'latitude'), lng: mean(clusterA, 'longitude') }
-  const cB = { lat: mean(clusterB, 'latitude'), lng: mean(clusterB, 'longitude') }
-
-  const midLat = (cA.lat + cB.lat) / 2
-  const midLng = (cA.lng + cB.lng) / 2
-  const cosLat = Math.cos(midLat * Math.PI / 180)
-
-  // Vector from cA to cB in metres
-  const dxM = (cB.lng - cA.lng) * DEG_TO_M * cosLat
-  const dyM = (cB.lat - cA.lat) * DEG_TO_M
-  const distM = Math.sqrt(dxM * dxM + dyM * dyM)
-
-  if (distM < 5) {
-    console.log(`[seg-wing] cluster centroids too close (${distM.toFixed(1)}m) → single wing`)
-    return []
-  }
-
-  // ── Step 3: Wing boundary = line through midpoint, perpendicular to cA→cB ─
-  // Perpendicular direction: rotate cA→cB by 90°
-  const perpX = -dyM / distM  // perpendicular unit vector (metres)
-  const perpY =  dxM / distM
-
-  // Convert WING_BOUNDARY_EXTEND metres back to degrees
   const extLat = WING_BOUNDARY_EXTEND / DEG_TO_M
   const extLng = WING_BOUNDARY_EXTEND / (DEG_TO_M * cosLat)
 
-  const boundaryA = {
-    lat: midLat + perpY * extLat,
-    lng: midLng + perpX * extLng,
-  }
-  const boundaryB = {
-    lat: midLat - perpY * extLat,
-    lng: midLng - perpX * extLng,
-  }
+  const boundaryA = { lat: midLat + perpY * extLat, lng: midLng + perpX * extLng }
+  const boundaryB = { lat: midLat - perpY * extLat, lng: midLng - perpX * extLng }
 
-  console.log(`[seg-wing] ${clusterA.length} segs (az≤${splitAz.toFixed(0)}°) | ${clusterB.length} segs (az>${splitAz.toFixed(0)}°)`)
-  console.log(`[seg-wing] wing boundary: midpoint=(${midLat.toFixed(5)},${midLng.toFixed(5)}) gap=${bestGap.toFixed(0)}° dist=${distM.toFixed(0)}m`)
+  const clusterACount = gapIdx + 1
+  const clusterBCount = projections.length - clusterACount
+  console.log(`[seg-wing] wing boundary: gap=${maxGap.toFixed(0)}m (${(maxGap/extent*100).toFixed(0)}% of extent) cluster A=${clusterACount} B=${clusterBCount} segs`)
 
   return [{ a: boundaryA, b: boundaryB }]
 }

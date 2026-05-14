@@ -229,6 +229,50 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ results, note: 'READ ONLY — no DB write' })
   }
 
+  // mode=wing-debug&report_id=<uuid> — dumps segment centroids + derived wing boundaries
+  // Shows the PCA projection, spatial gap, and which hip pairs would be rejected.
+  if (mode === 'wing-debug') {
+    const report_id = searchParams.get('report_id')
+    if (!isValidUuid(report_id)) return apiError('report_id must be a valid UUID', 400)
+    const sb = getSupabaseAdmin()
+    const { data: report, error: rErr } = await sb
+      .from('roof_reports')
+      .select('address, solar_raw')
+      .eq('id', report_id)
+      .single()
+    if (rErr || !report) return apiError('Report not found', 404)
+    const solar = report.solar_raw as Record<string, unknown> | null
+    if (!solar) return apiError('No solar_raw', 422)
+    const potential = solar.solarPotential as Record<string, unknown> | null
+    const segments  = potential?.roofSegmentStats as unknown[] | null
+    if (!segments?.length) return apiError('No segments', 422)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wings = deriveWingBoundariesFromSegments(segments as any[])
+
+    const MAIN_M2 = 18
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const segSummary = (segments as any[]).map((s: any, i: number) => {
+      const area = s.groundAreaMeters2 ?? s.stats?.groundAreaMeters2 ?? s.stats?.areaMeters2 ?? 0
+      return {
+        idx: i,
+        az: s.azimuthDegrees?.toFixed(1),
+        pitch: s.pitchDegrees?.toFixed(1),
+        area_m2: area?.toFixed(1),
+        isMain: area >= MAIN_M2,
+        center: s.center ? { lat: s.center.latitude?.toFixed(6), lng: s.center.longitude?.toFixed(6) } : null,
+      }
+    })
+
+    return NextResponse.json({
+      address: report.address,
+      segments: segSummary,
+      wings_detected: wings.length,
+      wing_boundaries: wings,
+      note: 'READ ONLY — check [seg-wing] logs in Vercel function output for PCA details',
+    })
+  }
+
   // mode=segments&report_id=<uuid> — dumps roofSegmentStats from solar_raw in DB
   if (mode === 'segments') {
     const report_id = searchParams.get('report_id')
