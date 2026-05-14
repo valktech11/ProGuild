@@ -308,7 +308,9 @@ export async function GET(req: NextRequest) {
           if (rPairs.length > 0) {
             recomputeRidgeEdges = await resolveRidgeLengthsViaElevation(rPairs, segments as ElevSegment[], GOOGLE_KEY)
           }
-        } catch { /* elevation optional in debug mode */ }
+        } catch (elevErr) {
+          console.warn(`[dsm] recompute-all elevation failed for ${label}:`, String(elevErr).slice(0, 200))
+        }
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const v2m = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings, recomputeRidgeEdges)
@@ -318,6 +320,8 @@ export async function GET(req: NextRequest) {
       const truth = ROOFR[label] ?? {}
 
       const pct = (got: number, want: number) => want ? `${got > want ? '+' : ''}${Math.round((got-want)/want*100)}%` : '?'
+      const elevResolved = recomputeRidgeEdges ? recomputeRidgeEdges.filter(e => e.fromElevation).length : 0
+      const elevTotal = recomputeRidgeEdges ? recomputeRidgeEdges.length : 0
       results.push({
         label,
         final: { ridge: fin.ridge_ft, hip: fin.hip_ft, valley: fin.valley_ft, eave: fin.eave_ft, rake: fin.rake_ft },
@@ -328,6 +332,7 @@ export async function GET(req: NextRequest) {
         },
         mask_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
         wings: wings.length,
+        elevation_pairs: `${elevResolved}/${elevTotal} resolved`,
         source: v3 ? (v3 === v2m ? 'v2 (v3 safety fallback)' : 'v3') : 'v2+mask',
       })
     }
@@ -568,6 +573,26 @@ export async function GET(req: NextRequest) {
       roofr_truth: { jacksonville: { ridge:29,hip:149,valley:37,eave:224,rake:53 }, hockley: { ridge:78,hip:238,valley:105,eave:317,rake:45 }, rochester_hills: { ridge:173,hip:170,valley:188,eave:298,rake:144 } },
       note: 'READ ONLY — no DB write. Final = v3 if safety check passed, else v2_mask.',
     })
+  }
+
+  // mode=elev-test — tests Elevation API with a single known point (Jacksonville centroid)
+  // Use this to confirm the API is enabled and the key works.
+  if (mode === 'elev-test') {
+    if (!GOOGLE_KEY) return apiError('GOOGLE_SOLAR_API_KEY not configured', 503)
+    const testPt = { lat: 30.324678, lng: -81.655196 }  // Jacksonville FL test point
+    const url = `https://maps.googleapis.com/maps/api/elevation/json?locations=${testPt.lat},${testPt.lng}&key=${GOOGLE_KEY}`
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
+      const json = await res.json() as Record<string, unknown>
+      return NextResponse.json({
+        http_status: res.status,
+        api_response: json,
+        key_prefix: GOOGLE_KEY.slice(0, 8) + '...',
+        note: 'status OK + elevation number = API enabled. REQUEST_DENIED = API not enabled in GCP.',
+      })
+    } catch (e) {
+      return apiError('Elevation API test failed', 502, e)
+    }
   }
 
   const coords = validateCoordinates(searchParams.get('lat'), searchParams.get('lng'))
