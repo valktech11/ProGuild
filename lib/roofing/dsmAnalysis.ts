@@ -1381,12 +1381,13 @@ export function computeLinearFootageFromSegments(
       if (bothMain) { hasRidge.add(i); hasRidge.add(j) }
 
       // Ridge length: sqrt(gnd)×0.7 for all pairs.
-      // bbox long-axis was attempted but overcounts on hip-roof false pairs (Jacksonville):
-      // hip faces are triangular with square bboxes — long axis ≠ ridge length.
-      // For genuine multi-wing ridges (Hockley, RH), height gate adds the missing pairs;
-      // the sqrt formula gives ~correct totals when summed across multiple ridge pairs.
+      // Bbox long-axis gives better absolute accuracy for multi-wing faces (Hockley)
+      // but overcounts when multiple bothMain pairs represent the same physical ridge
+      // (Jacksonville: 2 pairs × 27ft = 54ft vs 29ft truth). Spatial deduplication
+      // cannot separate these because Hockley's two real ridges have midpoints only
+      // ~2m apart (same as Jacksonville's duplicate pairs). sqrt formula is the
+      // consistent baseline: ~14ft per bothMain pair, correct when summed.
       const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
-
       ridgeM += ridgeLen
       console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(a).toFixed(1)})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(b).toFixed(1)}) dh=${dh(a,b).toFixed(2)} len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
     }
