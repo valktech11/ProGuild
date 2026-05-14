@@ -1360,9 +1360,18 @@ export function computeLinearFootageFromSegments(
       if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
       const bothMain = aMain && bMain
       if (bothMain) {
-        // Accept if bbox overlaps OR height confirms a shared ridge (dh < 3m)
+        // Accept if bbox overlaps OR (height confirms a shared ridge AND segments are centroid-proximate).
+        // Height alone is insufficient: hip roofs have opposite-facing main faces with azDiff≈180°
+        // AND similar heights (all faces converge at the same elevation on a single-ridge building).
+        // Jacksonville s0(NE)↔s3(SW): azDiff=180°, dh=0.27m — false ridge, centroids ~70m apart.
+        // The centroid proximity guard (adjOk with generous 4.0× factor) separates these:
+        //   Hockley s7↔s8 (real ridge): distM≈15m, adjOk(4.0×)=sqrt(21)×4.0=18.3m → PASSES ✅
+        //   Jacksonville s0↔s3 (false): distM≈70m, adjOk(4.0×)=sqrt(32)×4.0=22.6m → REJECTS ✅
+        const RIDGE_HEIGHT_ADJ = 4.0
         const bboxPass   = ridgeBboxOverlap(a, b)
-        const heightPass = !isNaN(h(a)) && !isNaN(h(b)) && dh(a, b) < RIDGE_HEIGHT_MAX
+        const heightPass = !isNaN(h(a)) && !isNaN(h(b)) &&
+          dh(a, b) < RIDGE_HEIGHT_MAX &&
+          adjOk(a, b, RIDGE_HEIGHT_ADJ)  // proximity guard — prevents false positives on hip roofs
         if (!bboxPass && !heightPass) continue
       } else {
         if (!adjOk(a, b, RIDGE_ADJ)) continue
