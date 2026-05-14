@@ -261,7 +261,10 @@ export async function GET(req: NextRequest) {
         pitch: s.pitchDegrees?.toFixed(1),
         area_m2: area?.toFixed(1),
         isMain: area >= MAIN_M2,
+        height_msl: s.planeHeightAtCenterMeters ?? null,
         center: s.center ? { lat: s.center.latitude?.toFixed(6), lng: s.center.longitude?.toFixed(6) } : null,
+        bbox: s.boundingBox ?? null,
+        all_keys: Object.keys(s),
       }
     })
 
