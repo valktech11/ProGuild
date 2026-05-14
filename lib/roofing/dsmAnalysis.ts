@@ -1405,27 +1405,25 @@ export function computeLinearFootageFromSegments(
     }))
   }
 
-  // Sprint 6: ridge LENGTH uses centroid-to-centroid distance (same as valley formula).
-  // Elevation API gives GROUND/TERRAIN elevation, not roof height — useless for length
-  // on flat terrain (Jacksonville, Hockley). distM(centA, centB) gives correct results:
-  //   Jacksonville: ~8m apart → 26ft (truth 29ft ✅)
-  //   Hockley per wing: ~12m apart → 39ft × 2 pairs = 79ft (truth 78ft ✅)
-  // activeRidgeEdges are KEPT for hipCrossesRidgeAxis (geometric axis rejection),
-  // but their lengthM is NOT used for ridgeM accumulation.
+  // Ridge LENGTH: sqrt(min(gnd)) × 0.7 — Sprint 5 baseline, best formula available.
+  // Elevation API gives GROUND terrain elevation (not roof height) so is useless for
+  // ridge length on flat terrain. Centroid distance overcounts cross-wing pairs.
+  // sqrt(gnd)×0.7 is area-based — naturally short for triangular hip faces (correct)
+  // and proportional to face size for rectangular gable faces (approximately correct).
+  // activeRidgeEdges are kept for hipCrossesRidgeAxis geometric hip rejection only.
   let nonDormerRidgeM = 0  // bothMain only — for rakeRatio
   for (let ei = 0; ei < activeRidgeEdges.length; ei++) {
     const pair = ridgePairsCollected[ei]
     const aMain = gnd(segments[pair.i]) >= MAIN_FACE_M2
     const bMain = gnd(segments[pair.j]) >= MAIN_FACE_M2
     const sa = segments[pair.i], sb = segments[pair.j]
-    // Use centroid distance for length — geometrically correct for both hip and gable roofs
-    const ridgeLen = distM(sa, sb)
+    const ridgeLen = Math.min(Math.sqrt(gnd(sa)), Math.sqrt(gnd(sb))) * 0.7
     ridgeM += ridgeLen
     if (aMain && bMain) nonDormerRidgeM += ridgeLen
     console.log(
       `[seg2] ridge: s${pair.i}(${sa.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(sa).toFixed(1)})↔` +
       `s${pair.j}(${sb.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(sb).toFixed(1)}) ` +
-      `len=${(ridgeLen * M_TO_FT).toFixed(0)}ft [centroid-dist]`
+      `len=${(ridgeLen * M_TO_FT).toFixed(0)}ft [sqrt*0.7]`
     )
   }
 

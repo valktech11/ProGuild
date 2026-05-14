@@ -343,7 +343,7 @@ export async function GET(req: NextRequest) {
         source: v3 ? (v3 === v2m ? 'v2 (v3 safety fallback)' : 'v3') : 'v2+mask',
       })
     }
-    return NextResponse.json({ results, note: 'READ ONLY — no DB write', build: 'Sprint6-b166edb-v4' })
+    return NextResponse.json({ results, note: 'READ ONLY — no DB write', build: 'Sprint6-49221a1-v5' })
   }
 
   // mode=wing-debug&report_id=<uuid> — dumps segment centroids + derived wing boundaries
