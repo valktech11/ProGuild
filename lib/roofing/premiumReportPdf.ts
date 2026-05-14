@@ -1571,6 +1571,13 @@ function buildDisclaimerPage(data: PremiumReportData): React.ReactElement {
         'Sufficient for material ordering and bid preparation. Not suitable for permit drawings or engineering calculations.',
       ),
       Para(
+        'Flat roof sections, low-slope membranes (< 2/12 pitch), parapet walls, and attached structures ' +
+        '(carports, porches, flat-roof additions) are not included in these measurements. ' +
+        'Google Solar API processes only pitched roof planes. Properties with mixed pitched and flat roofing ' +
+        'will show lower area and linear footage than the full roof system. ' +
+        'Verify flat section dimensions on site and order flat-roof materials separately.',
+      ),
+      Para(
         'Street View imagery is sourced from Google Street View Static API (heading 0/90/180/270°, pitch 10°, FOV 90°). ' +
         'Satellite imagery is sourced from Google Maps Static API. Imagery may be up to 3 years old. ' +
         'Verify current roof condition with a site visit before ordering materials or submitting insurance claims.',

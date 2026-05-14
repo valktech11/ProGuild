@@ -369,7 +369,9 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
           )
         ] : []),
         h(Text, { style: S.disclaimer },
-          '\u26A0 This report is designed for bid preparation and sales use. For insurance claim submissions, a certified measurement report may be required by your carrier.'
+          '\u26A0 This report is designed for bid preparation and sales use. For insurance claim submissions, a certified measurement report may be required by your carrier. ' +
+          'Flat roof sections, low-slope additions, parapet walls, and attached structures are not included \u2014 Google Solar API measures pitched planes only. ' +
+          'For mixed pitched/flat properties, verify flat section dimensions on site and order flat-roof materials separately.'
         ),
         // Gemini AI condition assessment — inline on page 2 when space allows (single alert or no alerts)
         ...(data.geminiCondition && !(data.hasLowSlope && data.hasLowConfidence) ? [
