@@ -246,11 +246,15 @@ export function traceMaskPerimeter(mask: GeoGrid): {
 // perimeter × 70/30 split when georef is absent (mask decoded without GeoTIFF tags).
 //
 // dominantAzimuthDeg: azimuth of the largest-area roof segment (0–360°, CW from North).
+// hasGable: true when any ridge pair of main↔main segments exists (gable roof has rake edges).
+//   Pure hip roofs (hasGable=false) have zero rake — ALL perimeter is eave by definition.
+//   This short-circuits azimuth classification and avoids false rake on hip roofs.
 // Returns eave_m, rake_m in metres.
 //
 export function classifyMaskEdges(
   mask: GeoGrid,
   dominantAzimuthDeg: number,
+  hasGable = false,
 ): MaskEdgeClassification {
   const { data, width, height, originLng, originLat, pixelSizeDeg } = mask
   const pixelSizeM = 0.1  // Solar API always 0.1m/pixel
@@ -319,6 +323,20 @@ export function classifyMaskEdges(
   })()
 
   const totalPerimeter_m = totalPerimeterPixels * pixelSizeM
+
+  // Hip roof short-circuit: pure hip roofs have zero rake by definition.
+  // Every perimeter edge is a drip edge — no gable ends exist.
+  // Skip azimuth classification entirely; avoids false 50/50 split on symmetric footprints.
+  if (!hasGable) {
+    console.log(`[phase3] pure hip roof (no gable segments) → eave=100% perimeter=${totalPerimeter_m.toFixed(1)}m`)
+    return {
+      eave_m: totalPerimeter_m,
+      rake_m: 0,
+      totalPerimeter_m,
+      boundaryPoints: 0,
+      method: 'polygon-azimuth',
+    }
+  }
 
   // Guard: fall back to 70/30 if building too small or georef absent
   if (mainSize < MIN_BUILDING_PX || !Number.isFinite(originLng) || !Number.isFinite(originLat) || !Number.isFinite(pixelSizeDeg) || (pixelSizeDeg ?? 0) <= 0) {
@@ -486,12 +504,10 @@ export function classifyMaskEdges(
     rake_m *= scale
   }
 
-  // Sanity: eave should always be >= rake on any residential roof.
-  // If classification inverted (can happen on perfectly square footprints where
-  // dominant azimuth is diagonal), swap back to physical expectation.
+  // Log warning when rake > eave (unusual for residential) but do NOT silently swap —
+  // swapping hides classification failures. With hasGable gating hip roofs this should not occur.
   if (rake_m > eave_m) {
-    console.log(`[phase3] rake > eave after classification (${rake_m.toFixed(1)}m > ${eave_m.toFixed(1)}m) — likely azimuth offset, swapping`)
-    const tmp = eave_m; eave_m = rake_m; rake_m = tmp
+    console.warn(`[phase3] rake (${rake_m.toFixed(1)}m) > eave (${eave_m.toFixed(1)}m) — dominantAz=${dominantAzimuthDeg.toFixed(0)}° may be misaligned.`)
   }
 
   console.log(`[phase3] boundary=${n}pts eave=${eave_m.toFixed(1)}m (${Math.round(eave_m*3.28084)}ft) rake=${rake_m.toFixed(1)}m (${Math.round(rake_m*3.28084)}ft) dominantAz=${dominantAzimuthDeg.toFixed(0)}°`)
@@ -728,9 +744,32 @@ function estimatePerimeterEdges(
     ? dominantAzimuthFromFacets(facets)
     : 180
 
+  // Detect gable: if any two facets have opposing slope directions (azDiff > 150° in pixel space)
+  // then ridge pairs exist → hasGable. RANSAC facets don't carry explicit azimuth but the
+  // plane normal's horizontal component gives approximate drain direction.
+  // Approximation: facets with opposing (a,b) vectors in their plane equations.
+  // Simpler reliable proxy: if ridgeM > 0 after computeLinearFootage runs, hasGable=true.
+  // But estimatePerimeterEdges runs before classifyEdge, so we can't use ridgeM yet.
+  // Instead: check if any facet-pair plane normals have dot(n_a_horiz, n_b_horiz) < -0.5
+  // (opposing horizontal components = ridge pair).
+  let hasGable = false
+  if (facets && facets.length >= 2) {
+    outer:
+    for (let i = 0; i < facets.length; i++) {
+      for (let j = i + 1; j < facets.length; j++) {
+        const pa = facets[i].plane, pb = facets[j].plane
+        const magA = Math.sqrt(pa.a*pa.a + pa.b*pa.b)
+        const magB = Math.sqrt(pb.a*pb.a + pb.b*pb.b)
+        if (magA < 1e-6 || magB < 1e-6) continue  // near-flat — skip
+        const dot = (pa.a*pb.a + pa.b*pb.b) / (magA * magB)
+        if (dot < -0.7) { hasGable = true; break outer }  // opposing slopes → ridge pair
+      }
+    }
+  }
+
   // Phase 3: classify boundary edges by azimuth
-  const result = classifyMaskEdges(mask, dominantAz)
-  console.log(`[dsm] estimatePerimeterEdges: method=${result.method} eave=${result.eave_m.toFixed(1)}m rake=${result.rake_m.toFixed(1)}m`)
+  const result = classifyMaskEdges(mask, dominantAz, hasGable)
+  console.log(`[dsm] estimatePerimeterEdges: method=${result.method} hasGable=${hasGable} eave=${result.eave_m.toFixed(1)}m rake=${result.rake_m.toFixed(1)}m`)
   return { eave_m: result.eave_m, rake_m: result.rake_m }
 }
 
@@ -1008,6 +1047,60 @@ interface RoofSegment {
   center: { latitude: number; longitude: number }
   groundAreaMeters2?: number
   planeHeightAtCenterMeters?: number  // ridge/hip/valley disambiguation
+}
+
+// Lightweight gable detector — determines whether any main↔main ridge pair exists
+// in the segment set, using the same azimuth + bbox adjacency logic as the full v2
+// classifier. Used by Phase 3 to gate rake classification on the mask boundary:
+// pure hip roofs (hasGable=false) have zero rake; all perimeter is eave.
+export function detectHasGable(segments: RoofSegment[]): boolean {
+  const n = segments.length
+  if (n < 2) return false
+
+  const MAIN_M2 = 18
+  const DEG_TO_M = 111320
+
+  function gnd(s: RoofSegment): number {
+    return s.groundAreaMeters2 ??
+      (s.stats as Record<string, number>)?.groundAreaMeters2 ??
+      s.stats.areaMeters2
+  }
+
+  function azDiff(a: number, b: number): number {
+    let d = Math.abs(a - b) % 360
+    if (d > 180) d = 360 - d
+    return d
+  }
+
+  function bboxOverlap(a: RoofSegment, b: RoofSegment, tol = 0.0003): boolean {
+    const ra = (a as unknown as Record<string, unknown>).boundingBox as
+      { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
+    const rb = (b as unknown as Record<string, unknown>).boundingBox as
+      { ne: { latitude: number; longitude: number }; sw: { latitude: number; longitude: number } } | undefined
+    if (!ra || !rb) {
+      // Fallback: centroid distance ≤ √min(area) × 2.5
+      const dlat = (a.center.latitude  - b.center.latitude)  * DEG_TO_M
+      const dlng = (a.center.longitude - b.center.longitude) * DEG_TO_M *
+        Math.cos(a.center.latitude * Math.PI / 180)
+      return Math.sqrt(dlat * dlat + dlng * dlng) <= Math.sqrt(Math.min(gnd(a), gnd(b))) * 2.5
+    }
+    return !(
+      ra.ne.latitude  + tol < rb.sw.latitude  ||
+      rb.ne.latitude  + tol < ra.sw.latitude  ||
+      ra.ne.longitude + tol < rb.sw.longitude ||
+      rb.ne.longitude + tol < ra.sw.longitude
+    )
+  }
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = segments[i], b = segments[j]
+      if (gnd(a) < MAIN_M2 || gnd(b) < MAIN_M2) continue
+      if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
+      if (bboxOverlap(a, b)) return true  // at least one gable pair found
+    }
+  }
+  return false  // pure hip
 }
 
 export function computeLinearFootageFromSegments(

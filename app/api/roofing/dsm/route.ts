@@ -14,6 +14,7 @@ import {
   decodeGeoTiff,
   traceMaskPerimeter,
   classifyMaskEdges,
+  detectHasGable,
 } from '@/lib/roofing/dsmAnalysis'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 // osmBuilding.ts is retained for Sprint 5C (roof:shape tag for ridge/hip/valley classification)
@@ -106,12 +107,15 @@ export async function POST(req: NextRequest) {
           const perim = traceMaskPerimeter(maskGrid)
           if (perim.mainBuildingPixels > 100) {
             maskPerimeterM = perim.perimeterM
-            // Phase 3: classify boundary edges by azimuth rather than 70/30 hardcode
+            // Phase 3: classify boundary edges by azimuth.
+            // hasGable=false (pure hip) → rake=0, all perimeter=eave. No azimuth classification needed.
             const dominantAz = dominantSegmentAzimuth(segments)
-            const edgeClass  = classifyMaskEdges(maskGrid, dominantAz)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const hasGable   = detectHasGable(segments as any[])
+            const edgeClass  = classifyMaskEdges(maskGrid, dominantAz, hasGable)
             maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
             maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
-            console.log(`[dsm] phase3 eave/rake: ${maskEaveFt}ft / ${maskRakeFt}ft (${edgeClass.method}, dominantAz=${dominantAz.toFixed(0)}°)`)
+            console.log(`[dsm] phase3 eave/rake: ${maskEaveFt}ft / ${maskRakeFt}ft (${edgeClass.method}, hasGable=${hasGable}, dominantAz=${dominantAz.toFixed(0)}°)`)
           }
         }
       }
@@ -222,7 +226,9 @@ export async function GET(req: NextRequest) {
               if (perim.mainBuildingPixels > 100) {
                 maskPerimeterM = perim.perimeterM
                 const dominantAz = dominantSegmentAzimuth(segments)
-                const edgeClass  = classifyMaskEdges(maskGrid, dominantAz)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const hasGable   = detectHasGable(segments as any[])
+                const edgeClass  = classifyMaskEdges(maskGrid, dominantAz, hasGable)
                 maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
                 maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
               }
@@ -416,7 +422,9 @@ export async function GET(req: NextRequest) {
             if (perim.mainBuildingPixels > 100) {
               maskPerimeterM = perim.perimeterM
               const dominantAz = dominantSegmentAzimuth(segments)
-              const edgeClass  = classifyMaskEdges(maskGrid, dominantAz)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const hasGable   = detectHasGable(segments as any[])
+              const edgeClass  = classifyMaskEdges(maskGrid, dominantAz, hasGable)
               maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
               maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
             }
