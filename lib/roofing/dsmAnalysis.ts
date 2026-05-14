@@ -1103,6 +1103,145 @@ export function detectHasGable(segments: RoofSegment[]): boolean {
   return false  // pure hip
 }
 
+// ── Phase 5B: Wing boundary detection from segment bounding boxes ─────────────
+//
+// OSM Overpass misses ~30% of US residential buildings. This function derives
+// wing boundaries directly from the Solar API segment data — no external API.
+//
+// Algorithm:
+//   1. Collect bounding boxes of all main segments (≥18m²) from solar_raw.
+//   2. Compute the axis-aligned union of all main segment bboxes.
+//      This union represents the building footprint in lat/lng space.
+//   3. Convert the union rectangle into a grid of occupied "cells" at a
+//      fixed resolution (~3m). A cell is occupied if it overlaps any segment bbox.
+//   4. Trace the boundary of the occupied cell grid.
+//   5. Find reflex vertices in that boundary polygon.
+//   6. Pair reflex vertices → wing boundary segments (same logic as detectWingBoundaries).
+//
+// Simpler alternative (used here): axis-aligned bbox union decomposition.
+// For an L-shaped building: union of two overlapping rectangles → 6-vertex polygon
+// with exactly 2 reflex vertices. Wing boundary = segment connecting those 2.
+//
+// The union polygon is derived analytically by finding the "notch" in the
+// bbox union: for each main segment bbox, check whether its corners are
+// interior to other bboxes. A notch exists when a gap is found between two
+// non-overlapping bbox groups. We detect this by splitting segments into
+// two azimuth clusters (the two wings) and finding the gap between them.
+//
+// Azimuth cluster approach:
+//   Main segments cluster into 1 or 2 dominant azimuth groups.
+//   Two wings: segments in group A (e.g. E/W) vs group B (e.g. N/S).
+//   Wing boundary = the spatial dividing line between the two centroid clusters.
+//   For each pair of adjacent segments from different clusters, the boundary
+//   passes between their centroids perpendicular to the centroid-to-centroid vector.
+//
+// Returns [] for single-wing buildings (all segments share one azimuth axis).
+
+export interface SegmentWingBoundary {
+  a: { lat: number; lng: number }
+  b: { lat: number; lng: number }
+}
+
+export function deriveWingBoundariesFromSegments(segments: RoofSegment[]): SegmentWingBoundary[] {
+  const MAIN_M2 = 18
+  const DEG_TO_M = 111320
+  const WING_BOUNDARY_EXTEND = 50  // extend boundary line ±50m past centroids
+
+  // Collect main segments only
+  const mains = segments.filter(s => {
+    const area = s.groundAreaMeters2 ??
+      (s.stats as Record<string, number>)?.groundAreaMeters2 ??
+      s.stats.areaMeters2
+    return area >= MAIN_M2
+  })
+
+  if (mains.length < 3) return []  // need ≥3 main segments for multi-wing
+
+  // ── Step 1: Cluster main segments by azimuth ──────────────────────────────
+  // Two wings have azimuths roughly 90° apart (perpendicular wings).
+  // Reduce azimuths to [0°, 180°) by folding (N-facing = S-facing for clustering).
+  // Then k-means with k=2 to find the two dominant directions.
+  // If cluster spread < 30° → single wing → return [].
+
+  const foldedAz = (az: number) => az % 180  // fold to [0,180)
+
+  // Find the azimuth that best splits into two groups by maximising inter-cluster variance.
+  // Since azimuths are circular [0°,180°), sweep a threshold from 0 to 180 in 5° steps.
+  let bestSplit = -1
+  let bestGap = 0
+
+  const azims = mains.map(s => foldedAz(s.azimuthDegrees))
+  const sortedAz = [...azims].sort((a, b) => a - b)
+
+  // Find largest circular gap between sorted azimuths → that gap is between the two clusters
+  for (let i = 0; i < sortedAz.length; i++) {
+    const next = sortedAz[(i + 1) % sortedAz.length]
+    const curr = sortedAz[i]
+    const gap = i < sortedAz.length - 1 ? next - curr : 180 - curr + sortedAz[0]
+    if (gap > bestGap) { bestGap = gap; bestSplit = i }
+  }
+
+  // If the largest gap is < 30° → all segments share one azimuth axis → single wing
+  if (bestGap < 30) {
+    console.log(`[seg-wing] azimuth spread < 30° (gap=${bestGap.toFixed(0)}°) → single wing, no cross-wing rejection`)
+    return []
+  }
+
+  // Partition segments into two clusters by the gap
+  const splitAz = bestSplit < sortedAz.length - 1
+    ? (sortedAz[bestSplit] + sortedAz[bestSplit + 1]) / 2
+    : (sortedAz[bestSplit] + 180 + sortedAz[0]) / 2 % 180
+
+  const clusterA = mains.filter(s => foldedAz(s.azimuthDegrees) <= splitAz)
+  const clusterB = mains.filter(s => foldedAz(s.azimuthDegrees) > splitAz)
+
+  if (clusterA.length === 0 || clusterB.length === 0) return []
+
+  // ── Step 2: Centroid of each cluster ──────────────────────────────────────
+  const mean = (segs: RoofSegment[], axis: 'latitude' | 'longitude') =>
+    segs.reduce((sum, s) => sum + s.center[axis], 0) / segs.length
+
+  const cA = { lat: mean(clusterA, 'latitude'), lng: mean(clusterA, 'longitude') }
+  const cB = { lat: mean(clusterB, 'latitude'), lng: mean(clusterB, 'longitude') }
+
+  const midLat = (cA.lat + cB.lat) / 2
+  const midLng = (cA.lng + cB.lng) / 2
+  const cosLat = Math.cos(midLat * Math.PI / 180)
+
+  // Vector from cA to cB in metres
+  const dxM = (cB.lng - cA.lng) * DEG_TO_M * cosLat
+  const dyM = (cB.lat - cA.lat) * DEG_TO_M
+  const distM = Math.sqrt(dxM * dxM + dyM * dyM)
+
+  if (distM < 5) {
+    console.log(`[seg-wing] cluster centroids too close (${distM.toFixed(1)}m) → single wing`)
+    return []
+  }
+
+  // ── Step 3: Wing boundary = line through midpoint, perpendicular to cA→cB ─
+  // Perpendicular direction: rotate cA→cB by 90°
+  const perpX = -dyM / distM  // perpendicular unit vector (metres)
+  const perpY =  dxM / distM
+
+  // Convert WING_BOUNDARY_EXTEND metres back to degrees
+  const extLat = WING_BOUNDARY_EXTEND / DEG_TO_M
+  const extLng = WING_BOUNDARY_EXTEND / (DEG_TO_M * cosLat)
+
+  const boundaryA = {
+    lat: midLat + perpY * extLat,
+    lng: midLng + perpX * extLng,
+  }
+  const boundaryB = {
+    lat: midLat - perpY * extLat,
+    lng: midLng - perpX * extLng,
+  }
+
+  console.log(`[seg-wing] ${clusterA.length} segs (az≤${splitAz.toFixed(0)}°) | ${clusterB.length} segs (az>${splitAz.toFixed(0)}°)`)
+  console.log(`[seg-wing] wing boundary: midpoint=(${midLat.toFixed(5)},${midLng.toFixed(5)}) gap=${bestGap.toFixed(0)}° dist=${distM.toFixed(0)}m`)
+
+  return [{ a: boundaryA, b: boundaryB }]
+}
+
 export function computeLinearFootageFromSegments(
   segments: RoofSegment[],
   _maskPerimeterM: number,  // mask total perimeter in metres (Phase 3). 0 = no mask, use segment heuristic.

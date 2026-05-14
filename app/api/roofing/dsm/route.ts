@@ -13,6 +13,7 @@ import {
   fetchDataLayers,
   decodeGeoTiff,
   traceMaskPerimeter,
+  deriveWingBoundariesFromSegments,
 } from '@/lib/roofing/dsmAnalysis'
 import { fetchWingBoundaries } from '@/lib/roofing/osmBuilding'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
@@ -72,32 +73,29 @@ export async function POST(req: NextRequest) {
   const solarCenter = solar.center as { latitude: number; longitude: number } | null
   const propLat = solarCenter?.latitude ?? (report.lat as number)
   const propLng = solarCenter?.longitude ?? (report.lng as number)
-  const solarBbox = (solar as Record<string, unknown>).boundingBox as
-    { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null
 
-  const [maskResult, wingBoundaries] = await Promise.allSettled([
-    // Mask fetch — HIGH/MEDIUM quality only
-    (async () => {
-      if (!((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY)) return 0
+  // Wing boundaries: derived synchronously from segment azimuth clusters.
+  // No external API needed — works on every property with ≥3 main segments.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wings = deriveWingBoundariesFromSegments(segments as any[])
+
+  if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
+    try {
       const layers = await fetchDataLayers(propLat, propLng, GOOGLE_KEY, imageryQuality)
-      if (!layers?.maskUrl) return 0
-      const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-      if (!maskGrid) return 0
-      const perim = traceMaskPerimeter(maskGrid)
-      if (perim.mainBuildingPixels <= 100) return 0
-      console.log(`[dsm] mask perimeter: ${Math.round(perim.perimeterM * M_TO_FT)}ft (${perim.mainBuildingPixels}px)`)
-      return perim.perimeterM
-    })(),
-    // Wing boundaries fetch — always attempted (OSM + Solar bbox fallback)
-    fetchWingBoundaries(propLat, propLng, solarBbox).catch(e => {
-      console.warn('[dsm] wing fetch error:', e instanceof Error ? e.message : String(e))
-      return []
-    }),
-  ])
-
-  if (maskResult.status === 'fulfilled') maskPerimeterM = maskResult.value
-  else console.warn('[dsm] mask fetch failed:', maskResult.reason)
-  const wings = wingBoundaries.status === 'fulfilled' ? wingBoundaries.value : []
+      if (layers?.maskUrl) {
+        const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+        if (maskGrid) {
+          const perim = traceMaskPerimeter(maskGrid)
+          if (perim.mainBuildingPixels > 100) {
+            maskPerimeterM = perim.perimeterM
+            console.log(`[dsm] mask perimeter: ${Math.round(perim.perimeterM * M_TO_FT)}ft (${perim.mainBuildingPixels}px)`)
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[dsm] mask fetch failed:', e instanceof Error ? e.message : String(e))
+    }
+  }
 
   let v2Result
   try {
@@ -190,24 +188,22 @@ export async function GET(req: NextRequest) {
       const solarCtr = solar.center as { latitude: number; longitude: number } | null
       const cLat = solarCtr?.latitude ?? (report.lat as number)
       const cLng = solarCtr?.longitude ?? (report.lng as number)
-      const solarBboxDbg = (solar as Record<string, unknown>).boundingBox as
-        { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null
 
-      const [maskRes, wingsRes] = await Promise.allSettled([
-        (async () => {
-          if (!((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY)) return 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wings = deriveWingBoundariesFromSegments(segments as any[])
+
+      if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
+        try {
           const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
-          if (!layers?.maskUrl) return 0
-          const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-          if (!maskGrid) return 0
-          const perim = traceMaskPerimeter(maskGrid)
-          return perim.mainBuildingPixels > 100 ? perim.perimeterM : 0
-        })().catch(() => 0),
-        fetchWingBoundaries(cLat, cLng, solarBboxDbg).catch(() => []),
-      ])
-
-      if (maskRes.status === 'fulfilled') maskPerimeterM = maskRes.value
-      const wings = wingsRes.status === 'fulfilled' ? wingsRes.value : []
+          if (layers?.maskUrl) {
+            const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+            if (maskGrid) {
+              const perim = traceMaskPerimeter(maskGrid)
+              if (perim.mainBuildingPixels > 100) maskPerimeterM = perim.perimeterM
+            }
+          }
+        } catch { /* mask optional */ }
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const v2m = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings)
@@ -382,23 +378,22 @@ export async function GET(req: NextRequest) {
     const solarCtrR = solar.center as { latitude: number; longitude: number } | null
     const rLat = solarCtrR?.latitude ?? (report.lat as number)
     const rLng = solarCtrR?.longitude ?? (report.lng as number)
-    const solarBboxR = (solar as Record<string, unknown>).boundingBox as
-      { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null
 
-    const [maskResR, wingsResR] = await Promise.allSettled([
-      (async () => {
-        if (!((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY)) return 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wingsR = deriveWingBoundariesFromSegments(segments as any[])
+
+    if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
+      try {
         const layers = await fetchDataLayers(rLat, rLng, GOOGLE_KEY, imageryQuality)
-        if (!layers?.maskUrl) return 0
-        const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-        if (!maskGrid) return 0
-        const perim = traceMaskPerimeter(maskGrid)
-        return perim.mainBuildingPixels > 100 ? perim.perimeterM : 0
-      })().catch(() => 0),
-      fetchWingBoundaries(rLat, rLng, solarBboxR).catch(() => []),
-    ])
-    if (maskResR.status === 'fulfilled') maskPerimeterM = maskResR.value
-    const wingsR = wingsResR.status === 'fulfilled' ? wingsResR.value : []
+        if (layers?.maskUrl) {
+          const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+          if (maskGrid) {
+            const perim = traceMaskPerimeter(maskGrid)
+            if (perim.mainBuildingPixels > 100) maskPerimeterM = perim.perimeterM
+          }
+        }
+      } catch { /* mask optional */ }
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const v2WithMask = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wingsR)
