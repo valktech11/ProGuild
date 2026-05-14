@@ -1510,11 +1510,12 @@ export function computeLinearFootageFromSegments(
         const centA = { lat: a.center.latitude, lng: a.center.longitude }
         const centB = { lat: b.center.latitude, lng: b.center.longitude }
 
-        // Priority 1: ridge axis rejection (Elevation API)
-        if (activeRidgeEdges.length > 0 && hipCrossesRidgeAxis(activeRidgeEdges, centA, centB)) {
-          console.log(`[seg2] hip REJECTED (ridge-axis): s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°)`)
-          continue
-        }
+        // Priority 1: ridge axis rejection DISABLED.
+        // hipCrossesRidgeAxis requires polygon topology to work correctly.
+        // On dense roofs (RH 16-seg) multiple ridge edges criss-cross the
+        // same area — every hip centroid line passes through some ridge edge,
+        // causing all bothMain hips to be rejected (-66% on RH).
+        // Terrain elevation != roof height so edge geometry is unreliable anyway.
 
         // Priority 2: tight bbox overlap gate
         // Two main faces on the same wing will always have overlapping bboxes at 16m.
