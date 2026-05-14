@@ -1360,18 +1360,17 @@ export function computeLinearFootageFromSegments(
       if (azDiff(a.azimuthDegrees, b.azimuthDegrees) <= 150) continue
       const bothMain = aMain && bMain
       if (bothMain) {
-        // Accept if bbox overlaps OR (height confirms a shared ridge AND segments are centroid-proximate).
-        // Height alone is insufficient: hip roofs have opposite-facing main faces with azDiff≈180°
-        // AND similar heights (all faces converge at the same elevation on a single-ridge building).
-        // Jacksonville s0(NE)↔s3(SW): azDiff=180°, dh=0.27m — false ridge, centroids ~70m apart.
-        // The centroid proximity guard (adjOk with generous 4.0× factor) separates these:
-        //   Hockley s7↔s8 (real ridge): distM≈15m, adjOk(4.0×)=sqrt(21)×4.0=18.3m → PASSES ✅
-        //   Jacksonville s0↔s3 (false): distM≈70m, adjOk(4.0×)=sqrt(32)×4.0=22.6m → REJECTS ✅
+        // Accept if bbox overlaps OR (height + proximity confirm a shared ridge).
+        // NOTE: hip roofs (Jacksonville) also have bothMain pairs at azDiff≈180° with
+        // similar heights and close centroids — indistinguishable from real ridges without
+        // polygon vertex data. Both gates (bbox and height) pass these pairs.
+        // The bbox ridge length formula below uses sqrt(gnd)×0.7 which naturally
+        // underestimates false pairs on hip faces (triangular → small area → short estimate).
         const RIDGE_HEIGHT_ADJ = 4.0
         const bboxPass   = ridgeBboxOverlap(a, b)
         const heightPass = !isNaN(h(a)) && !isNaN(h(b)) &&
           dh(a, b) < RIDGE_HEIGHT_MAX &&
-          adjOk(a, b, RIDGE_HEIGHT_ADJ)  // proximity guard — prevents false positives on hip roofs
+          adjOk(a, b, RIDGE_HEIGHT_ADJ)
         if (!bboxPass && !heightPass) continue
       } else {
         if (!adjOk(a, b, RIDGE_ADJ)) continue
@@ -1381,33 +1380,12 @@ export function computeLinearFootageFromSegments(
       ridgeCounted.add(key)
       if (bothMain) { hasRidge.add(i); hasRidge.add(j) }
 
-      // Ridge length: for bothMain pairs, use the shorter bbox axis (perpendicular to ridge)
-      // as a proxy for rafter width, and derive ridge length from area / rafter_width.
-      // This is more accurate than sqrt(gnd)×0.7 which underestimates large rectangular faces.
-      // For main↔secondary pairs, keep the sqrt formula (secondary bboxes are small/irregular).
-      let ridgeLen: number
-      if (bothMain) {
-        const cosLat = Math.cos(a.center.latitude * Math.PI / 180)
-        function bboxSpan(s: RoofSegment): { longM: number; shortM: number } {
-          const bb = (s as unknown as Record<string,unknown>).boundingBox as
-            { ne:{latitude:number;longitude:number}; sw:{latitude:number;longitude:number} } | undefined
-          if (!bb) return { longM: Math.sqrt(gnd(s)), shortM: Math.sqrt(gnd(s)) }
-          const latSpan = Math.abs(bb.ne.latitude  - bb.sw.latitude)  * DEG_TO_M
-          const lngSpan = Math.abs(bb.ne.longitude - bb.sw.longitude) * DEG_TO_M * cosLat
-          return latSpan > lngSpan
-            ? { longM: latSpan, shortM: lngSpan }
-            : { longM: lngSpan, shortM: latSpan }
-        }
-        const spA = bboxSpan(a), spB = bboxSpan(b)
-        // Ridge runs along the long axis of each face. Take min of the two long axes.
-        // Cap at the shorter face's long axis to avoid overcounting on asymmetric pairs.
-        ridgeLen = Math.min(spA.longM, spB.longM)
-        // Secondary sanity: ridge can't exceed total perimeter of the smaller segment
-        const maxLen = Math.sqrt(gnd(a)) * 2.0
-        ridgeLen = Math.min(ridgeLen, maxLen)
-      } else {
-        ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
-      }
+      // Ridge length: sqrt(gnd)×0.7 for all pairs.
+      // bbox long-axis was attempted but overcounts on hip-roof false pairs (Jacksonville):
+      // hip faces are triangular with square bboxes — long axis ≠ ridge length.
+      // For genuine multi-wing ridges (Hockley, RH), height gate adds the missing pairs;
+      // the sqrt formula gives ~correct totals when summed across multiple ridge pairs.
+      const ridgeLen = Math.min(Math.sqrt(gnd(a)), Math.sqrt(gnd(b))) * 0.7
 
       ridgeM += ridgeLen
       console.log(`[seg2] ridge: s${i}(${a.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(a).toFixed(1)})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(b).toFixed(1)}) dh=${dh(a,b).toFixed(2)} len=${(ridgeLen*M_TO_FT).toFixed(0)}ft`)
