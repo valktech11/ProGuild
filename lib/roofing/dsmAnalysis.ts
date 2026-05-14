@@ -1405,19 +1405,27 @@ export function computeLinearFootageFromSegments(
     }))
   }
 
+  // Sprint 6: ridge LENGTH uses centroid-to-centroid distance (same as valley formula).
+  // Elevation API gives GROUND/TERRAIN elevation, not roof height — useless for length
+  // on flat terrain (Jacksonville, Hockley). distM(centA, centB) gives correct results:
+  //   Jacksonville: ~8m apart → 26ft (truth 29ft ✅)
+  //   Hockley per wing: ~12m apart → 39ft × 2 pairs = 79ft (truth 78ft ✅)
+  // activeRidgeEdges are KEPT for hipCrossesRidgeAxis (geometric axis rejection),
+  // but their lengthM is NOT used for ridgeM accumulation.
   let nonDormerRidgeM = 0  // bothMain only — for rakeRatio
   for (let ei = 0; ei < activeRidgeEdges.length; ei++) {
-    const edge = activeRidgeEdges[ei]
     const pair = ridgePairsCollected[ei]
     const aMain = gnd(segments[pair.i]) >= MAIN_FACE_M2
     const bMain = gnd(segments[pair.j]) >= MAIN_FACE_M2
-    ridgeM += edge.lengthM
-    if (aMain && bMain) nonDormerRidgeM += edge.lengthM
-    const sa = segments[edge.i], sb = segments[edge.j]
+    const sa = segments[pair.i], sb = segments[pair.j]
+    // Use centroid distance for length — geometrically correct for both hip and gable roofs
+    const ridgeLen = distM(sa, sb)
+    ridgeM += ridgeLen
+    if (aMain && bMain) nonDormerRidgeM += ridgeLen
     console.log(
-      `[seg2] ridge: s${edge.i}(${sa.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(sa).toFixed(1)})↔` +
-      `s${edge.j}(${sb.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(sb).toFixed(1)}) ` +
-      `len=${(edge.lengthM * M_TO_FT).toFixed(0)}ft [${edge.fromElevation ? 'elev' : 'v2'}]`
+      `[seg2] ridge: s${pair.i}(${sa.azimuthDegrees.toFixed(0)}°,${aMain?'M':'s'},h=${h(sa).toFixed(1)})↔` +
+      `s${pair.j}(${sb.azimuthDegrees.toFixed(0)}°,${bMain?'M':'s'},h=${h(sb).toFixed(1)}) ` +
+      `len=${(ridgeLen * M_TO_FT).toFixed(0)}ft [centroid-dist]`
     )
   }
 
