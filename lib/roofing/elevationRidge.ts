@@ -152,6 +152,29 @@ export async function resolveRidgeLengthsViaElevation(
       return makeFallbackEdge(pair, segments)
     }
 
+    // Hip-apex rejection: on a pure hip roof the "ridge" pair consists of two
+    // triangular faces whose highest corners are near the apex — not a shared edge.
+    // Signature: BOTH selected endpoints are significantly ABOVE their segment centroid
+    // elevation (triangular face slopes UP from centroid to the apex corner).
+    // On a real gable ridge: endpoints sit AT centroid height (the centroid IS on the ridge).
+    // Threshold 0.3m: real ridge endpoint vs centroid diff < 0.1m on flat ridge;
+    // hip apex corner is 0.5-1.5m above centroid depending on pitch.
+    const HIP_APEX_ELEV_DELTA = 0.3
+    const centElevI = segments[pair.i].planeHeightAtCenterMeters
+    const centElevJ = segments[pair.j].planeHeightAtCenterMeters
+    if (
+      centElevI !== undefined && centElevJ !== undefined &&
+      bestI.elevation > centElevI + HIP_APEX_ELEV_DELTA &&
+      bestJ.elevation > centElevJ + HIP_APEX_ELEV_DELTA
+    ) {
+      console.warn(
+        `[elev] hip-apex rejected s${pair.i}↔s${pair.j}: ` +
+        `ptA elev ${bestI.elevation.toFixed(2)} vs centroid ${centElevI.toFixed(2)} (+${(bestI.elevation-centElevI).toFixed(2)}m), ` +
+        `ptB elev ${bestJ.elevation.toFixed(2)} vs centroid ${centElevJ.toFixed(2)} (+${(bestJ.elevation-centElevJ).toFixed(2)}m) — using v2`
+      )
+      return makeFallbackEdge(pair, segments)
+    }
+
     const lengthM = haversineM(bestI.lat, bestI.lng, bestJ.lat, bestJ.lng)
     console.log(
       `[elev] ridge s${pair.i}↔s${pair.j}: ` +
