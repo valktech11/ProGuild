@@ -14,10 +14,8 @@ import {
   decodeGeoTiff,
   traceMaskPerimeter,
 } from '@/lib/roofing/dsmAnalysis'
+import { fetchWingBoundaries } from '@/lib/roofing/osmBuilding'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
-// osmBuilding.ts is retained for Sprint 5C (roof:shape tag for ridge/hip/valley classification)
-// but removed from the eave/rake path — OSM wall footprint undershoots drip-edge by 21-32%,
-// too variable to correct with a constant factor.
 
 const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
 
@@ -65,37 +63,47 @@ export async function POST(req: NextRequest) {
     return apiError('No roof segments in Solar API data — regenerate the Bid Report first', 422)
   }
 
-  // 5. Compute v2 baseline (always — used as safety fallback for v3)
-  // maskPerimeterM passed to computeLinearFootageFromSegments which scales
-  // the segment rake-ratio against the mask's pixel-precise total perimeter.
+  // 5. Fetch mask perimeter + wing boundaries in parallel.
+  // maskPerimeterM → pixel-accurate total drip-edge length (scales segment rake-ratio).
+  // wingBoundaries → cross-wing hip rejection (Phase 5, hip-only gate on bothMain pairs).
   let maskPerimeterM = 0
   const M_TO_FT = 3.28084
 
-  if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
-    try {
-      const solarCenter = solar.center as { latitude: number; longitude: number } | null
-      const cLat = solarCenter?.latitude ?? (report.lat as number)
-      const cLng = solarCenter?.longitude ?? (report.lng as number)
-      const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
-      if (layers?.maskUrl) {
-        const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-        if (maskGrid) {
-          const perim = traceMaskPerimeter(maskGrid)
-          if (perim.mainBuildingPixels > 100) {
-            maskPerimeterM = perim.perimeterM
-            console.log(`[dsm] mask perimeter: ${Math.round(maskPerimeterM * M_TO_FT)}ft (${perim.mainBuildingPixels}px main building)`)
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[dsm] mask fetch failed, eave/rake will use segment heuristic:', e instanceof Error ? e.message : String(e))
-    }
-  }
+  const solarCenter = solar.center as { latitude: number; longitude: number } | null
+  const propLat = solarCenter?.latitude ?? (report.lat as number)
+  const propLng = solarCenter?.longitude ?? (report.lng as number)
+  const solarBbox = (solar as Record<string, unknown>).boundingBox as
+    { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null
+
+  const [maskResult, wingBoundaries] = await Promise.allSettled([
+    // Mask fetch — HIGH/MEDIUM quality only
+    (async () => {
+      if (!((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY)) return 0
+      const layers = await fetchDataLayers(propLat, propLng, GOOGLE_KEY, imageryQuality)
+      if (!layers?.maskUrl) return 0
+      const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+      if (!maskGrid) return 0
+      const perim = traceMaskPerimeter(maskGrid)
+      if (perim.mainBuildingPixels <= 100) return 0
+      console.log(`[dsm] mask perimeter: ${Math.round(perim.perimeterM * M_TO_FT)}ft (${perim.mainBuildingPixels}px)`)
+      return perim.perimeterM
+    })(),
+    // Wing boundaries fetch — always attempted (OSM + Solar bbox fallback)
+    fetchWingBoundaries(propLat, propLng, solarBbox).catch(e => {
+      console.warn('[dsm] wing fetch error:', e instanceof Error ? e.message : String(e))
+      return []
+    }),
+  ])
+
+  if (maskResult.status === 'fulfilled') maskPerimeterM = maskResult.value
+  else console.warn('[dsm] mask fetch failed:', maskResult.reason)
+  const wings = wingBoundaries.status === 'fulfilled' ? wingBoundaries.value : []
 
   let v2Result
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    v2Result = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0)
+
+    v2Result = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings)
   } catch (e) {
     console.error('[dsm] v2 error:', e)
     return apiError('Linear footage computation failed', 500, e)
@@ -179,25 +187,30 @@ export async function GET(req: NextRequest) {
 
       let maskPerimeterM = 0
       const M_TO_FT = 3.28084
-      if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
-        try {
-          const solarCenter = solar.center as { latitude: number; longitude: number } | null
-          const cLat = solarCenter?.latitude ?? (report.lat as number)
-          const cLng = solarCenter?.longitude ?? (report.lng as number)
+      const solarCtr = solar.center as { latitude: number; longitude: number } | null
+      const cLat = solarCtr?.latitude ?? (report.lat as number)
+      const cLng = solarCtr?.longitude ?? (report.lng as number)
+      const solarBboxDbg = (solar as Record<string, unknown>).boundingBox as
+        { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null
+
+      const [maskRes, wingsRes] = await Promise.allSettled([
+        (async () => {
+          if (!((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY)) return 0
           const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
-          if (layers?.maskUrl) {
-            const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-            if (maskGrid) {
-              const perim = traceMaskPerimeter(maskGrid)
-              if (perim.mainBuildingPixels > 100) {
-                maskPerimeterM = perim.perimeterM
-              }
-            }
-          }
-        } catch { /* mask optional */ }
-      }
+          if (!layers?.maskUrl) return 0
+          const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+          if (!maskGrid) return 0
+          const perim = traceMaskPerimeter(maskGrid)
+          return perim.mainBuildingPixels > 100 ? perim.perimeterM : 0
+        })().catch(() => 0),
+        fetchWingBoundaries(cLat, cLng, solarBboxDbg).catch(() => []),
+      ])
+
+      if (maskRes.status === 'fulfilled') maskPerimeterM = maskRes.value
+      const wings = wingsRes.status === 'fulfilled' ? wingsRes.value : []
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v2m = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0)
+      const v2m = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m) : null
       const fin = v3 ?? v2m
@@ -213,6 +226,7 @@ export async function GET(req: NextRequest) {
           valley: pct(fin.valley_ft, truth.valley), eave: pct(fin.eave_ft, truth.eave), rake: pct(fin.rake_ft, truth.rake),
         },
         mask_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
+        wings: wings.length,
         source: v3 ? (v3 === v2m ? 'v2 (v3 safety fallback)' : 'v3') : 'v2+mask',
       })
     }
@@ -365,25 +379,29 @@ export async function GET(req: NextRequest) {
 
     let maskPerimeterM = 0
     const M_TO_FT = 3.28084
-    if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
-      try {
-        const solarCenter = solar.center as { latitude: number; longitude: number } | null
-        const cLat = solarCenter?.latitude ?? (report.lat as number)
-        const cLng = solarCenter?.longitude ?? (report.lng as number)
-        const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
-        if (layers?.maskUrl) {
-          const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-          if (maskGrid) {
-            const perim = traceMaskPerimeter(maskGrid)
-            if (perim.mainBuildingPixels > 100) {
-              maskPerimeterM = perim.perimeterM
-            }
-          }
-        }
-      } catch { /* mask optional */ }
-    }
+    const solarCtrR = solar.center as { latitude: number; longitude: number } | null
+    const rLat = solarCtrR?.latitude ?? (report.lat as number)
+    const rLng = solarCtrR?.longitude ?? (report.lng as number)
+    const solarBboxR = (solar as Record<string, unknown>).boundingBox as
+      { sw: { latitude: number; longitude: number }; ne: { latitude: number; longitude: number } } | null
+
+    const [maskResR, wingsResR] = await Promise.allSettled([
+      (async () => {
+        if (!((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY)) return 0
+        const layers = await fetchDataLayers(rLat, rLng, GOOGLE_KEY, imageryQuality)
+        if (!layers?.maskUrl) return 0
+        const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+        if (!maskGrid) return 0
+        const perim = traceMaskPerimeter(maskGrid)
+        return perim.mainBuildingPixels > 100 ? perim.perimeterM : 0
+      })().catch(() => 0),
+      fetchWingBoundaries(rLat, rLng, solarBboxR).catch(() => []),
+    ])
+    if (maskResR.status === 'fulfilled') maskPerimeterM = maskResR.value
+    const wingsR = wingsResR.status === 'fulfilled' ? wingsResR.value : []
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const v2WithMask = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0)
+    const v2WithMask = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wingsR)
 
     let v3Result = null
     if (solarPanels && solarPanels.length > 0) {
@@ -396,6 +414,7 @@ export async function GET(req: NextRequest) {
       address: report.address,
       imagery_quality: imageryQuality,
       mask_perimeter_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
+      wings_count: wingsR.length,
       v2_no_mask:  { ridge: v2Result.ridge_ft,    hip: v2Result.hip_ft,    valley: v2Result.valley_ft,    eave: v2Result.eave_ft,    rake: v2Result.rake_ft },
       v2_mask:     { ridge: v2WithMask.ridge_ft,   hip: v2WithMask.hip_ft,  valley: v2WithMask.valley_ft,  eave: v2WithMask.eave_ft,  rake: v2WithMask.rake_ft },
       v3:          v3Result ? { ridge: v3Result.ridge_ft, hip: v3Result.hip_ft, valley: v3Result.valley_ft, eave: v3Result.eave_ft, rake: v3Result.rake_ft } : null,

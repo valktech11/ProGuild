@@ -1108,6 +1108,10 @@ export function computeLinearFootageFromSegments(
   _maskPerimeterM: number,  // mask total perimeter in metres (Phase 3). 0 = no mask, use segment heuristic.
   _eave_ft: number,         // legacy pre-computed override — only used when _maskPerimeterM=0 and _eave_ft>0.
   _rake_ft: number,         // legacy pre-computed override — only used when _maskPerimeterM=0 and _eave_ft>0.
+  // Phase 5: wing boundary segments from fetchWingBoundaries().
+  // Empty array = no wing detection (convex building or fetch failed) → classifier unchanged.
+  // Only applied to bothMain hip pairs to avoid over-rejection of secondary segments.
+  wingBoundaries?: Array<{ a: { lat: number; lng: number }; b: { lat: number; lng: number } }>,
 ): LinearFootage {
   const M_TO_FT = 3.28084
   const DEG_TO_M = 111320
@@ -1247,6 +1251,43 @@ export function computeLinearFootageFromSegments(
       if (valleyPairs.has(key)) continue    // already a valley
       if (!adjOk(a, b, HIP_ADJ)) continue
       const bothMain = gnd(a) >= MAIN_FACE_M2 && gnd(b) >= MAIN_FACE_M2
+      // Phase 5: cross-wing rejection for main↔main hip pairs only.
+      // Secondary segments are legitimately on different wings (valley faces)
+      // so we only filter bothMain pairs — the source of all false hips.
+      if (bothMain && wingBoundaries && wingBoundaries.length > 0) {
+        const centA = { latitude: a.center.latitude, longitude: a.center.longitude }
+        const centB = { latitude: b.center.latitude, longitude: b.center.longitude }
+        const latRef = (centA.latitude + centB.latitude) / 2
+        const cosLat = Math.cos(latRef * Math.PI / 180)
+        const mPerDeg = 111320
+        function toXY2(v: { latitude: number; longitude: number }): [number, number] {
+          return [v.longitude * mPerDeg * cosLat, v.latitude * mPerDeg]
+        }
+        function toXYw(v: { lat: number; lng: number }): [number, number] {
+          return [v.lng * mPerDeg * cosLat, v.lat * mPerDeg]
+        }
+        const [p1x, p1y] = toXY2(centA)
+        const [p2x, p2y] = toXY2(centB)
+        let crossesWing = false
+        for (const wing of wingBoundaries) {
+          const [p3x, p3y] = toXYw(wing.a)
+          const [p4x, p4y] = toXYw(wing.b)
+          const dx12 = p2x-p1x, dy12 = p2y-p1y
+          const dx34 = p4x-p3x, dy34 = p4y-p3y
+          const denom = dx12*dy34 - dy12*dx34
+          if (Math.abs(denom) < 1e-9) continue
+          const dx13 = p3x-p1x, dy13 = p3y-p1y
+          const t = (dx13*dy34 - dy13*dx34) / denom
+          const u = (dx13*dy12 - dy13*dx12) / denom
+          const EPS = 0.05
+          if (t >= -EPS && t <= 1+EPS && u >= -EPS && u <= 1+EPS) {
+            crossesWing = true
+            console.log(`[seg2] hip REJECTED (cross-wing): s${i}(${a.azimuthDegrees.toFixed(0)}°)↔s${j}(${b.azimuthDegrees.toFixed(0)}°)`)
+            break
+          }
+        }
+        if (crossesWing) continue
+      }
       const d = distM(a, b)
       hipNbrs[i].push({ j, dist: d, pi: i, pj: j, bothMain })
       hipNbrs[j].push({ j: i, dist: d, pi: i, pj: j, bothMain })
