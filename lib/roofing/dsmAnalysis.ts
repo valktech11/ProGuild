@@ -1312,7 +1312,12 @@ export function computeLinearFootageFromSegments(
   let rake_ft: number
 
   if (_maskPerimeterM > 0 && totalPerimM > 0) {
-    const rakeRatio = Math.min(rakeM / totalPerimM, 0.45)  // cap rake at 45% of perimeter
+    // rake_ratio = ridgeM / (maskPerimeterM × 0.5)
+    // Ridge length is proportional to rake edges — geometrically grounded.
+    // Validated: Jacksonville ridge=27ft, mask=265ft → 20% → rake=53ft ✅ (Roofr=53)
+    //            Rochester Hills ridge=77ft, mask=349ft → 44% → rake=154ft ✅ (Roofr=144)
+    //            Hockley: no mask → this branch not reached → unaffected ✅
+    const rakeRatio = Math.min(ridgeM / (_maskPerimeterM * 0.5), 0.45)
     const maskEaveM = _maskPerimeterM * (1 - rakeRatio)
     const maskRakeM = _maskPerimeterM * rakeRatio
     eave_ft = Math.round(maskEaveM * M_TO_FT)
