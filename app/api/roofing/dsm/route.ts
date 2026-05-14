@@ -13,6 +13,7 @@ import {
   fetchDataLayers,
   decodeGeoTiff,
   traceMaskPerimeter,
+  classifyMaskEdges,
 } from '@/lib/roofing/dsmAnalysis'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 // osmBuilding.ts is retained for Sprint 5C (roof:shape tag for ridge/hip/valley classification)
@@ -20,6 +21,29 @@ import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
 // too variable to correct with a constant factor.
 
 const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
+
+// Extract the azimuth of the largest roof segment (by groundAreaMeters2).
+// Used as the reference direction for Phase 3 mask edge classification.
+// Returns 180 (South) as a neutral default when segments are empty or malformed.
+function dominantSegmentAzimuth(segments: unknown[]): number {
+  let bestAz = 180
+  let bestArea = -1
+  for (const seg of segments) {
+    const s = seg as Record<string, unknown>
+    const az   = typeof s.azimuthDegrees   === 'number' ? s.azimuthDegrees   : null
+    const area = typeof s.groundAreaMeters2 === 'number' ? s.groundAreaMeters2 :
+                 typeof (s.stats as Record<string,unknown>)?.groundAreaMeters2 === 'number'
+                   ? (s.stats as Record<string, number>).groundAreaMeters2
+                   : typeof (s.stats as Record<string,unknown>)?.areaMeters2 === 'number'
+                     ? (s.stats as Record<string, number>).areaMeters2
+                     : null
+    if (az !== null && area !== null && area > bestArea) {
+      bestArea = area
+      bestAz   = az
+    }
+  }
+  return bestAz
+}
 
 export async function POST(req: NextRequest) {
   // 1. Parse body
@@ -63,7 +87,13 @@ export async function POST(req: NextRequest) {
 
   // 5. Compute v2 baseline (always — used as safety fallback for v3)
   // maskPerimeterM computed first so v2 can use mask eave/rake override.
+  // Phase 3: mask polygon per-edge azimuth classification.
+  // maskGrid retained for classifyMaskEdges — needed by v2 and v3 eave/rake.
   let maskPerimeterM = 0
+  let maskEaveFt = 0
+  let maskRakeFt = 0
+  const M_TO_FT = 3.28084
+
   if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
     try {
       const solarCenter = solar.center as { latitude: number; longitude: number } | null
@@ -71,12 +101,17 @@ export async function POST(req: NextRequest) {
       const cLng = solarCenter?.longitude ?? (report.lng as number)
       const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
       if (layers?.maskUrl) {
-        const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-        if (mask) {
-          const perim = traceMaskPerimeter(mask)
+        const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+        if (maskGrid) {
+          const perim = traceMaskPerimeter(maskGrid)
           if (perim.mainBuildingPixels > 100) {
             maskPerimeterM = perim.perimeterM
-            console.log(`[dsm] mask perimeter: ${perim.perimeterM.toFixed(0)}m (${Math.round(perim.perimeterM * 3.28084)}ft), main building ${perim.mainBuildingPixels} px`)
+            // Phase 3: classify boundary edges by azimuth rather than 70/30 hardcode
+            const dominantAz = dominantSegmentAzimuth(segments)
+            const edgeClass  = classifyMaskEdges(maskGrid, dominantAz)
+            maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
+            maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
+            console.log(`[dsm] phase3 eave/rake: ${maskEaveFt}ft / ${maskRakeFt}ft (${edgeClass.method}, dominantAz=${dominantAz.toFixed(0)}°)`)
           }
         }
       }
@@ -84,12 +119,6 @@ export async function POST(req: NextRequest) {
       console.warn('[dsm] mask fetch failed, eave/rake will use segment heuristic:', e instanceof Error ? e.message : String(e))
     }
   }
-
-  // Convert mask perimeter to eave/rake ft for v2 override.
-  // 70/30 split is a first approximation — Phase 3 will do proper polygon tracing.
-  const M_TO_FT = 3.28084
-  const maskEaveFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.70 * M_TO_FT) : 0
-  const maskRakeFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.30 * M_TO_FT) : 0
 
   let v2Result
   try {
@@ -102,12 +131,12 @@ export async function POST(req: NextRequest) {
 
   // 6. Sprint 5 v3: bbox adjacency + height-direction classifier
   // v3 R+H/V is more accurate for complex roofs — use it when it passes safety check.
-  // Eave/rake: v3 also uses mask (same 70/30 split) — consistent with v2.
+  // Eave/rake: v3 uses the same Phase 3 classified mask eave/rake (maskPerimeterM passed through).
   let linear = v2Result
   if (solarPanels && solarPanels.length > 0) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2Result)
+      const v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2Result, maskEaveFt, maskRakeFt)
       linear = v3Result
       console.log(`[dsm] v3 result: ridge=${v3Result.ridge_ft} hip=${v3Result.hip_ft} valley=${v3Result.valley_ft} eave=${v3Result.eave_ft} rake=${v3Result.rake_ft}`)
     } catch (e) {
@@ -177,6 +206,9 @@ export async function GET(req: NextRequest) {
       const v2 = computeLinearFootageFromSegments(segments as any[], 0, 0)
 
       let maskPerimeterM = 0
+      let maskEaveFt = 0
+      let maskRakeFt = 0
+      const M_TO_FT = 3.28084
       if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
         try {
           const solarCenter = solar.center as { latitude: number; longitude: number } | null
@@ -184,22 +216,24 @@ export async function GET(req: NextRequest) {
           const cLng = solarCenter?.longitude ?? (report.lng as number)
           const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
           if (layers?.maskUrl) {
-            const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-            if (mask) {
-              const perim = traceMaskPerimeter(mask)
-              if (perim.mainBuildingPixels > 100) maskPerimeterM = perim.perimeterM
+            const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+            if (maskGrid) {
+              const perim = traceMaskPerimeter(maskGrid)
+              if (perim.mainBuildingPixels > 100) {
+                maskPerimeterM = perim.perimeterM
+                const dominantAz = dominantSegmentAzimuth(segments)
+                const edgeClass  = classifyMaskEdges(maskGrid, dominantAz)
+                maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
+                maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
+              }
             }
           }
         } catch { /* mask optional */ }
       }
-
-      const M_TO_FT = 3.28084
-      const maskEaveFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.70 * M_TO_FT) : 0
-      const maskRakeFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.30 * M_TO_FT) : 0
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const v2m = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m) : null
+      const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m, maskEaveFt, maskRakeFt) : null
       const fin = v3 ?? v2m
       const truth = ROOFR[label] ?? {}
 
@@ -213,6 +247,8 @@ export async function GET(req: NextRequest) {
           valley: pct(fin.valley_ft, truth.valley), eave: pct(fin.eave_ft, truth.eave), rake: pct(fin.rake_ft, truth.rake),
         },
         mask_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
+        phase3_eave_ft: maskEaveFt || null,
+        phase3_rake_ft: maskRakeFt || null,
         source: v3 ? (v3 === v2m ? 'v2 (v3 safety fallback)' : 'v3') : 'v2+mask',
       })
     }
@@ -364,6 +400,9 @@ export async function GET(req: NextRequest) {
     const v2Result = computeLinearFootageFromSegments(segments as any[], 0, 0)
 
     let maskPerimeterM = 0
+    let maskEaveFt = 0
+    let maskRakeFt = 0
+    const M_TO_FT = 3.28084
     if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
       try {
         const solarCenter = solar.center as { latitude: number; longitude: number } | null
@@ -371,25 +410,27 @@ export async function GET(req: NextRequest) {
         const cLng = solarCenter?.longitude ?? (report.lng as number)
         const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
         if (layers?.maskUrl) {
-          const mask = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
-          if (mask) {
-            const perim = traceMaskPerimeter(mask)
-            if (perim.mainBuildingPixels > 100) maskPerimeterM = perim.perimeterM
+          const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+          if (maskGrid) {
+            const perim = traceMaskPerimeter(maskGrid)
+            if (perim.mainBuildingPixels > 100) {
+              maskPerimeterM = perim.perimeterM
+              const dominantAz = dominantSegmentAzimuth(segments)
+              const edgeClass  = classifyMaskEdges(maskGrid, dominantAz)
+              maskEaveFt = Math.round(edgeClass.eave_m * M_TO_FT)
+              maskRakeFt = Math.round(edgeClass.rake_m * M_TO_FT)
+            }
           }
         }
       } catch { /* mask optional */ }
     }
-
-    const M_TO_FT = 3.28084
-    const maskEaveFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.70 * M_TO_FT) : 0
-    const maskRakeFt = maskPerimeterM > 0 ? Math.round(maskPerimeterM * 0.30 * M_TO_FT) : 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const v2WithMask = computeLinearFootageFromSegments(segments as any[], maskEaveFt, maskRakeFt)
 
     let v3Result = null
     if (solarPanels && solarPanels.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2WithMask)
+      v3Result = computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2WithMask, maskEaveFt, maskRakeFt)
     }
 
     const final = v3Result ?? v2WithMask
@@ -397,6 +438,8 @@ export async function GET(req: NextRequest) {
       address: report.address,
       imagery_quality: imageryQuality,
       mask_perimeter_ft: maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
+      phase3_eave_ft: maskEaveFt || null,
+      phase3_rake_ft: maskRakeFt || null,
       v2_no_mask:  { ridge: v2Result.ridge_ft,    hip: v2Result.hip_ft,    valley: v2Result.valley_ft,    eave: v2Result.eave_ft,    rake: v2Result.rake_ft },
       v2_mask:     { ridge: v2WithMask.ridge_ft,   hip: v2WithMask.hip_ft,  valley: v2WithMask.valley_ft,  eave: v2WithMask.eave_ft,  rake: v2WithMask.rake_ft },
       v3:          v3Result ? { ridge: v3Result.ridge_ft, hip: v3Result.hip_ft, valley: v3Result.valley_ft, eave: v3Result.eave_ft, rake: v3Result.rake_ft } : null,

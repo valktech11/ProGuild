@@ -27,6 +27,22 @@ interface GeoGrid {
   width: number
   height: number
   noDataValue: number | null
+  // Georeferencing — populated when the GeoTIFF carries ModelTiepoint + ModelPixelScale.
+  // originLng/originLat = top-left pixel centre (WGS-84 degrees).
+  // pixelSizeDeg = pixel side length in degrees (Solar API uses square pixels).
+  // Present when decodeGeoTiff successfully extracts the geo-transform; undefined otherwise.
+  originLng?: number
+  originLat?: number
+  pixelSizeDeg?: number
+}
+
+// Eave/rake split from mask polygon edge azimuth classification (Phase 3).
+export interface MaskEdgeClassification {
+  eave_m: number
+  rake_m: number
+  totalPerimeter_m: number
+  boundaryPoints: number
+  method: 'polygon-azimuth' | 'perimeter-fallback-70-30'
 }
 
 // ── Solar dataLayers fetch ────────────────────────────────────────────────────
@@ -81,7 +97,27 @@ export async function decodeGeoTiff(url: string, googleKey: string): Promise<Geo
     const rasters = await image.readRasters()
     const data = rasters[0] as Float32Array | Float64Array | Int16Array | Uint8Array
     console.log('[dsm] decoded:', width, 'x', height, 'noData:', noDataValue)
-    return { data, width, height, noDataValue }
+
+    // Extract georef transform — getOrigin() returns [lng, lat, z] of top-left pixel.
+    // getResolution() returns [xRes, yRes, zRes] in the same CRS units (degrees for WGS-84).
+    // Both throw if ModelTiepoint/ModelPixelScale tags are absent, so guard with try/catch.
+    let originLng: number | undefined
+    let originLat: number | undefined
+    let pixelSizeDeg: number | undefined
+    try {
+      const [oLng, oLat] = image.getOrigin() as [number, number, number]
+      const [rX] = image.getResolution() as [number, number, number]
+      if (Number.isFinite(oLng) && Number.isFinite(oLat) && Number.isFinite(rX) && Math.abs(rX) > 0) {
+        originLng = oLng
+        originLat = oLat
+        pixelSizeDeg = Math.abs(rX)
+        console.log(`[dsm] georef: origin=(${oLng.toFixed(6)},${oLat.toFixed(6)}) pixelDeg=${rX.toFixed(8)}`)
+      }
+    } catch {
+      console.log('[dsm] no georef in GeoTIFF — eave/rake will use perimeter fallback')
+    }
+
+    return { data, width, height, noDataValue, originLng, originLat, pixelSizeDeg }
   } catch (e) {
     console.log('[dsm] GeoTIFF decode error:', String(e).slice(0, 150))
     return null
@@ -190,7 +226,284 @@ export function traceMaskPerimeter(mask: GeoGrid): {
   }
 }
 
+// ── Phase 3: Mask polygon per-edge azimuth classification ─────────────────────
+//
+// Replaces the hardcoded 70/30 eave/rake split with real geometric classification.
+//
+// Algorithm:
+//   1. BFS flood-fill → label array for largest roof component (reuses traceMaskPerimeter logic).
+//   2. Moore neighbourhood contour tracing → ordered closed boundary polygon in pixel coords.
+//   3. Sliding-window smoothing (kernelRadius px) collapses raster staircase into linear segments.
+//   4. Each smoothed segment's bearing is compared to dominantAzimuthDeg (azimuth of largest
+//      roof segment, 0–360° clockwise from North). The Solar API azimuth is the direction the
+//      face drains (slope direction). The eave runs perpendicular to slope:
+//        angleDiff = min(|edgeAz - dominantAz| mod 360, 360 - |edgeAz - dominantAz| mod 360)
+//        angleDiff ∈ [45°, 135°]  → EAVE  (edge runs across the slope = drip edge)
+//        angleDiff < 45° or > 135° → RAKE  (edge runs along the slope = gable end)
+//   5. Edge lengths accumulated from pixel-coord distances scaled by pixelSizeDeg → metres.
+//
+// Requires GeoGrid to carry georef (originLng/originLat/pixelSizeDeg). Falls back to
+// perimeter × 70/30 split when georef is absent (mask decoded without GeoTIFF tags).
+//
+// dominantAzimuthDeg: azimuth of the largest-area roof segment (0–360°, CW from North).
+// Returns eave_m, rake_m in metres.
+//
+export function classifyMaskEdges(
+  mask: GeoGrid,
+  dominantAzimuthDeg: number,
+): MaskEdgeClassification {
+  const { data, width, height, originLng, originLat, pixelSizeDeg } = mask
+  const pixelSizeM = 0.1  // Solar API always 0.1m/pixel
 
+  // Constants
+  const EAVE_AZ_MIN = 45   // degrees — edge within this band from perpendicular → eave
+  const EAVE_AZ_MAX = 135
+  const SMOOTH_KERNEL = 5  // sliding window half-width for bearing smoothing
+  const MIN_BUILDING_PX = 100
+
+  // ── Step 1: BFS → label array, find main building ─────────────────────────
+  const labels = new Int32Array(width * height)
+  let nextLabel = 1
+  const componentSizes = new Map<number, number>()
+
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      const idx = r * width + c
+      if ((data[idx] ?? 0) === 0 || labels[idx] !== 0) continue
+      const label = nextLabel++
+      const queue: number[] = [idx]
+      labels[idx] = label
+      let size = 0
+      while (queue.length > 0) {
+        const cur = queue.pop()!
+        size++
+        const cr = Math.floor(cur / width)
+        const cc = cur % width
+        const nbrs = [
+          cr > 0        ? (cr-1)*width+cc : -1,
+          cr < height-1 ? (cr+1)*width+cc : -1,
+          cc > 0        ? cr*width+(cc-1) : -1,
+          cc < width-1  ? cr*width+(cc+1) : -1,
+        ]
+        for (const n of nbrs) {
+          if (n < 0 || (data[n] ?? 0) === 0 || labels[n] !== 0) continue
+          labels[n] = label
+          queue.push(n)
+        }
+      }
+      componentSizes.set(label, size)
+    }
+  }
+
+  let mainLabel = 0
+  let mainSize = 0
+  for (const [lbl, sz] of componentSizes) {
+    if (sz > mainSize) { mainSize = sz; mainLabel = lbl }
+  }
+
+  const totalPerimeterPixels = (() => {
+    let count = 0
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) {
+        if (labels[r * width + c] !== mainLabel) continue
+        const nbrs = [
+          r > 0        ? labels[(r-1)*width+c] : 0,
+          r < height-1 ? labels[(r+1)*width+c] : 0,
+          c > 0        ? labels[r*width+(c-1)] : 0,
+          c < width-1  ? labels[r*width+(c+1)] : 0,
+        ]
+        if (nbrs.some(n => n !== mainLabel)) count++
+      }
+    }
+    return count
+  })()
+
+  const totalPerimeter_m = totalPerimeterPixels * pixelSizeM
+
+  // Guard: fall back to 70/30 if building too small or georef absent
+  if (mainSize < MIN_BUILDING_PX || !Number.isFinite(originLng) || !Number.isFinite(originLat) || !Number.isFinite(pixelSizeDeg) || (pixelSizeDeg ?? 0) <= 0) {
+    console.log(`[phase3] georef absent or building too small (${mainSize}px) → 70/30 fallback`)
+    return {
+      eave_m: totalPerimeter_m * 0.70,
+      rake_m: totalPerimeter_m * 0.30,
+      totalPerimeter_m,
+      boundaryPoints: 0,
+      method: 'perimeter-fallback-70-30',
+    }
+  }
+
+  const oLng = originLng!
+  const oLat = originLat!
+  const pxDeg = pixelSizeDeg!
+
+  // Approximate metres per degree at this latitude for distance calculations.
+  // Latitude metres/degree is nearly constant (~111320). Longitude varies with cos(lat).
+  const metersPerDegLat = 111320
+  const metersPerDegLng = 111320 * Math.cos(oLat * Math.PI / 180)
+
+  // ── Step 2: Moore neighbourhood contour tracing ────────────────────────────
+  // Finds an ordered closed boundary polygon for the main building component.
+  // Uses the improved Jacob's stopping criterion (start pixel seen twice with
+  // same entry direction) to guarantee termination on all shapes including
+  // concave roofs, L-shapes, and dormers.
+  //
+  // Moore 8-neighbourhood in clockwise order (starting from West):
+  //   7 0 1
+  //   6 . 2
+  //   5 4 3
+  const DR = [-1,-1,-1, 0, 1, 1, 1, 0]  // row offsets
+  const DC = [-1, 0, 1, 1, 1, 0,-1,-1]  // col offsets
+
+  // Find topmost-leftmost pixel of main building as start
+  let startIdx = -1
+  outer:
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      if (labels[r * width + c] === mainLabel) { startIdx = r * width + c; break outer }
+    }
+  }
+
+  if (startIdx < 0) {
+    // Degenerate — should not happen given mainSize >= MIN_BUILDING_PX
+    return { eave_m: totalPerimeter_m * 0.70, rake_m: totalPerimeter_m * 0.30, totalPerimeter_m, boundaryPoints: 0, method: 'perimeter-fallback-70-30' }
+  }
+
+  const boundary: Array<[number, number]> = []  // [row, col] ordered boundary
+
+  const startR = Math.floor(startIdx / width)
+  const startC = startIdx % width
+  // Entry direction when we first arrive at startR/startC: coming from above (direction 4 = South→ looking back = North = dir 0 entry from background)
+  // We enter the tracer from the North (dir index 0 = NW, so background entry = direction facing West = 7→backtrack to dir 0).
+  // Simpler: entry direction = 6 (West) because top-left pixel's background is always to the left.
+  let curR = startR
+  let curC = startC
+  let entryDir = 6  // came from West (pixel to left is background)
+  const startEntry = entryDir
+
+  const MAX_BOUNDARY = (width + height) * 4  // safety cap — no valid boundary exceeds 4×perimeter
+
+  do {
+    boundary.push([curR, curC])
+
+    // Backtrack: start checking from the direction we came from, rotate clockwise
+    // Jacob's rule: start from (entryDir + 5) % 8 (i.e., one step CCW from entry)
+    let checkDir = (entryDir + 5) % 8
+    let found = false
+
+    for (let k = 0; k < 8; k++) {
+      const nr = curR + DR[checkDir]
+      const nc = curC + DC[checkDir]
+      if (nr >= 0 && nr < height && nc >= 0 && nc < width && labels[nr * width + nc] === mainLabel) {
+        // Move to this neighbour; entry direction = (checkDir + 4) % 8 (opposite)
+        entryDir = (checkDir + 4) % 8
+        curR = nr
+        curC = nc
+        found = true
+        break
+      }
+      checkDir = (checkDir + 1) % 8
+    }
+
+    if (!found) break  // isolated pixel — should not happen with mainSize >= 100
+
+  } while (!(curR === startR && curC === startC && entryDir === startEntry) && boundary.length < MAX_BOUNDARY)
+
+  if (boundary.length < 4) {
+    console.log(`[phase3] boundary too short (${boundary.length}) → 70/30 fallback`)
+    return { eave_m: totalPerimeter_m * 0.70, rake_m: totalPerimeter_m * 0.30, totalPerimeter_m, boundaryPoints: boundary.length, method: 'perimeter-fallback-70-30' }
+  }
+
+  // ── Step 3: Sliding-window bearing smoothing ──────────────────────────────
+  // Compute the bearing of each boundary point using a kernel spanning
+  // [i - SMOOTH_KERNEL, i + SMOOTH_KERNEL] to reduce raster staircase noise.
+  // Bearing is computed in geographic space (lat/lng) using the georef transform.
+  // pixel [row, col] → [lng, lat] = [oLng + col*pxDeg, oLat - row*pxDeg]
+  // (origin is top-left; row increases downward → subtract row offset for lat)
+
+  function pixelToGeo(row: number, col: number): [number, number] {
+    return [oLng + col * pxDeg, oLat - row * pxDeg]  // [lng, lat]
+  }
+
+  function bearingDeg(fromLng: number, fromLat: number, toLng: number, toLat: number): number {
+    // Forward azimuth (bearing) A→B, clockwise from North, 0–360°
+    const dLat = (toLat - fromLat) * metersPerDegLat
+    const dLng = (toLng - fromLng) * metersPerDegLng
+    const bearing = (Math.atan2(dLng, dLat) * 180 / Math.PI + 360) % 360
+    return bearing
+  }
+
+  function edgeLengthM(fromLng: number, fromLat: number, toLng: number, toLat: number): number {
+    const dLat = (toLat - fromLat) * metersPerDegLat
+    const dLng = (toLng - fromLng) * metersPerDegLng
+    return Math.sqrt(dLat * dLat + dLng * dLng)
+  }
+
+  function angleDiff(az1: number, az2: number): number {
+    const d = Math.abs(az1 - az2) % 360
+    return d > 180 ? 360 - d : d
+  }
+
+  const n = boundary.length
+  let eave_m = 0
+  let rake_m = 0
+
+  for (let i = 0; i < n; i++) {
+    // Smoothed "from" point: average position of [i-k, i-1]
+    // Smoothed "to" point: average position of [i+1, i+k]
+    // This gives a bearing that represents the local edge direction robustly.
+    const kFrom = Math.min(SMOOTH_KERNEL, i)
+    const kTo   = Math.min(SMOOTH_KERNEL, n - 1 - i)
+    if (kFrom === 0 && kTo === 0) continue
+
+    const [pFromR, pFromC] = boundary[(i - kFrom + n) % n]
+    const [pToR,   pToC  ] = boundary[(i + kTo) % n]
+
+    const [fromLng, fromLat] = pixelToGeo(pFromR, pFromC)
+    const [toLng,   toLat  ] = pixelToGeo(pToR,   pToC)
+
+    const len = edgeLengthM(fromLng, fromLat, toLng, toLat)
+    if (len < 0.05) continue  // sub-pixel segment — skip
+
+    const bearing = bearingDeg(fromLng, fromLat, toLng, toLat)
+    const diff = angleDiff(bearing, dominantAzimuthDeg)
+
+    // Each boundary point contributes one pixel's worth of perimeter (0.1m).
+    // We classify by the smoothed bearing of the local edge at that point.
+    const contribution = pixelSizeM
+
+    if (diff >= EAVE_AZ_MIN && diff <= EAVE_AZ_MAX) {
+      eave_m += contribution  // edge runs perpendicular to slope → drip edge
+    } else {
+      rake_m += contribution  // edge runs parallel to slope → gable rake
+    }
+  }
+
+  // Normalise to actual perimeter (smoothing can lose/gain a few pixels)
+  const classified = eave_m + rake_m
+  if (classified > 0 && Math.abs(classified - totalPerimeter_m) / totalPerimeter_m > 0.05) {
+    const scale = totalPerimeter_m / classified
+    eave_m *= scale
+    rake_m *= scale
+  }
+
+  // Sanity: eave should always be >= rake on any residential roof.
+  // If classification inverted (can happen on perfectly square footprints where
+  // dominant azimuth is diagonal), swap back to physical expectation.
+  if (rake_m > eave_m) {
+    console.log(`[phase3] rake > eave after classification (${rake_m.toFixed(1)}m > ${eave_m.toFixed(1)}m) — likely azimuth offset, swapping`)
+    const tmp = eave_m; eave_m = rake_m; rake_m = tmp
+  }
+
+  console.log(`[phase3] boundary=${n}pts eave=${eave_m.toFixed(1)}m (${Math.round(eave_m*3.28084)}ft) rake=${rake_m.toFixed(1)}m (${Math.round(rake_m*3.28084)}ft) dominantAz=${dominantAzimuthDeg.toFixed(0)}°`)
+
+  return {
+    eave_m,
+    rake_m,
+    totalPerimeter_m,
+    boundaryPoints: n,
+    method: 'polygon-azimuth',
+  }
+}
 
 function fitPlane(pts: Point3D[]): Plane | null {
   if (pts.length < 3) return null
@@ -375,29 +688,50 @@ function classifyEdge(planeA: Plane, planeB: Plane | null): 'ridge' | 'hip' | 'v
   return 'ridge'                          // slopes nearly same direction but both real → ridge
 }
 
-function estimatePerimeterEdges(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): { eave_m: number; rake_m: number } {
+// Derives the dominant roof azimuth (clockwise from North, 0–360°) from the largest
+// RANSAC facet's plane normal vector. The plane is ax+by+cz=d in pixel-space (x=col,
+// y=row, z=elevation). The horizontal gradient direction (a,b) points in the direction
+// of maximum slope ascent. Azimuth of slope descent = bearing of -(a,b) from North.
+// North in pixel space = −y direction (rows increase downward = South).
+function dominantAzimuthFromFacets(facets: Facet[]): number {
+  if (facets.length === 0) return 180  // default South — neutral split
+  // Largest facet by pixel count
+  const largest = facets.reduce((best, f) => f.pixels.length > best.pixels.length ? f : best, facets[0])
+  const { a, b } = largest.plane  // plane: ax + by + cz = d; horizontal gradient = (a, b) in (col, row)
+  // In image coords: col = East direction, row = South direction (row increases down).
+  // Gradient (a, b) in image space → (East, South) components.
+  // Slope descends in direction -(a, b) (downhill from ridge).
+  // Convert to geographic bearing: East = +90°, South = 180°, West = 270°, North = 0°.
+  // bearing = atan2(eastComponent, northComponent) where north = -b (row decreases northward)
+  const eastComp  = -a   // -gradient_col → East when slope descends East
+  const northComp =  b   // gradient_row → North when slope descends South (row increases = south)
+  const bearing = (Math.atan2(eastComp, northComp) * 180 / Math.PI + 360) % 360
+  return bearing
+}
+
+function estimatePerimeterEdges(
+  dsm: GeoGrid,
+  mask: GeoGrid | null,
+  pixelSizeM: number,
+  facets?: Facet[],
+): { eave_m: number; rake_m: number } {
   const { width, height } = dsm
-  const maskData = mask?.data || null
-  if (!maskData) {
+
+  // No mask — fall back to bbox-derived perimeter with 70/30 split
+  if (!mask) {
     const perimeterM = 2 * (width + height) * pixelSizeM * 0.3
     return { eave_m: perimeterM * 0.70, rake_m: perimeterM * 0.30 }
   }
-  let perimeterPixels = 0
-  for (let row = 0; row < height; row++) {
-    for (let col = 0; col < width; col++) {
-      const idx = row * width + col
-      if (maskData[idx] !== 1 && maskData[idx] !== 255) continue
-      const neighbours = [
-        row > 0 ? maskData[(row - 1) * width + col] : 0,
-        row < height - 1 ? maskData[(row + 1) * width + col] : 0,
-        col > 0 ? maskData[row * width + col - 1] : 0,
-        col < width - 1 ? maskData[row * width + col + 1] : 0,
-      ]
-      if (neighbours.some(v => v !== 1 && v !== 255)) perimeterPixels++
-    }
-  }
-  const perimeterM = perimeterPixels * pixelSizeM
-  return { eave_m: perimeterM * 0.70, rake_m: perimeterM * 0.30 }
+
+  // Derive dominant azimuth from largest facet (or default 180° if no facets)
+  const dominantAz = facets && facets.length > 0
+    ? dominantAzimuthFromFacets(facets)
+    : 180
+
+  // Phase 3: classify boundary edges by azimuth
+  const result = classifyMaskEdges(mask, dominantAz)
+  console.log(`[dsm] estimatePerimeterEdges: method=${result.method} eave=${result.eave_m.toFixed(1)}m rake=${result.rake_m.toFixed(1)}m`)
+  return { eave_m: result.eave_m, rake_m: result.rake_m }
 }
 
 function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): LinearFootage {
@@ -435,7 +769,7 @@ function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid | nul
     // 'skip', 'eave', 'rake' from inter-facet edges are not counted here —
     // eave/rake come from estimatePerimeterEdges (mask boundary), not facet pairs
   }
-  const { eave_m, rake_m } = estimatePerimeterEdges(dsm, mask, pixelSizeM)
+  const { eave_m, rake_m } = estimatePerimeterEdges(dsm, mask, pixelSizeM, facets)
   const toFt = (m: number) => Math.round(m * 3.28084)
   const ridge_ft = toFt(ridgeM)
   const hip_ft   = toFt(hipM)
@@ -1190,7 +1524,11 @@ export function computeLinearFootageV3(
   segments: RoofSegment[],
   solarPanels: Array<{ center: { latitude: number; longitude: number }; segmentIndex: number }>,
   maskPerimeterM: number,
-  v2Result: LinearFootage
+  v2Result: LinearFootage,
+  // Phase 3: pre-classified eave/rake from classifyMaskEdges.
+  // When > 0, used directly instead of 70/30 split of maskPerimeterM.
+  maskEaveFt_p3?: number,
+  maskRakeFt_p3?: number,
 ): LinearFootage {
 
   const M_TO_FT   = 3.28084
@@ -1404,13 +1742,21 @@ export function computeLinearFootageV3(
     return Math.min(centDistM(sA, sB) * pitchCorr, cap)
   }
 
-  // ── Eave/rake ──────────────────────────────────────────────────────────────
-  const eave_ft = maskPerimeterM > 0
-    ? Math.round(maskPerimeterM * 0.70 * M_TO_FT)
-    : v2Result.eave_ft
-  const rake_ft = maskPerimeterM > 0
-    ? Math.round(maskPerimeterM * 0.30 * M_TO_FT)
-    : v2Result.rake_ft
+  // ── Eave/rake — Phase 3 classified values take priority ───────────────────
+  // Priority order:
+  //   1. Phase 3 polygon-azimuth classification (maskEaveFt_p3/maskRakeFt_p3 > 0)
+  //   2. 70/30 split of raw mask perimeter (maskPerimeterM > 0, no Phase 3)
+  //   3. v2 segment heuristic (no mask available)
+  const eave_ft = (maskEaveFt_p3 != null && maskEaveFt_p3 > 0)
+    ? maskEaveFt_p3
+    : maskPerimeterM > 0
+      ? Math.round(maskPerimeterM * 0.70 * M_TO_FT)
+      : v2Result.eave_ft
+  const rake_ft = (maskRakeFt_p3 != null && maskRakeFt_p3 > 0)
+    ? maskRakeFt_p3
+    : maskPerimeterM > 0
+      ? Math.round(maskPerimeterM * 0.30 * M_TO_FT)
+      : v2Result.rake_ft
 
   const ridge_ft  = Math.round(ridgeM  * M_TO_FT)
   const hip_ft    = Math.round(hipM    * M_TO_FT)
