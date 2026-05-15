@@ -314,77 +314,108 @@ export default function PropertyListPage() {
         )}
       </div>
 
-      {/* ── Add Property Modal ────────────────────────────────────────────── */}
-      <Modal
-        open={showAdd}
-        onClose={closeModal}
-        dk={dk}
-        width={460}
-        icon={<HouseIcon />}
-        title="Add Property"
-        subtitle="Start typing to search the address"
-      >
-        <Modal.Body dk={dk}>
-          {/* Street address — raw <input>, not the <Input> component.
-              Google Places Autocomplete uses getBoundingClientRect() to
-              position the pac-container. Component wrappers with position/
-              transform can offset it. Controlled input (value+onChange) is
-              fine now that backdropFilter stacking context is removed. */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: T.sp1 }}>
-            <label style={{ fontSize: T.fontBadge, fontWeight: 700, color: t.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
-              Street Address <span style={{ color: BRAND.danger }}>*</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }}>
-                <PinIcon />
+      {/* Add Property Modal — inline (not Modal component) so pac-container
+          z-index works correctly. Modal component zIndex:9999 interferes
+          with Google Places pac-container positioning. Original pattern. */}
+      {showAdd && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: T.sp4 }}
+          onClick={closeModal}>
+          <div style={{ background: t.cardBg, borderRadius: T.radLg, padding: T.sp6,
+              width: '100%', maxWidth: 460,
+              boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
+              border: `1px solid ${t.cardBorder}` }}
+            onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: T.sp3, marginBottom: T.sp5 }}>
+              <div style={{ width: 40, height: 40, borderRadius: T.radSm, flexShrink: 0,
+                  background: dk ? '#0D2820' : '#F0FDFA',
+                  border: `1.5px solid ${dk ? '#0F4A3A' : '#99F6E4'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <HouseIcon />
               </div>
-              <input
-                ref={addrInputRef}
-                value={newAddr}
-                placeholder="Start typing an address…"
-                autoComplete="off"
-                style={{
-                  width: '100%', boxSizing: 'border-box' as const,
-                  padding: `${T.sp3}px ${T.sp4}px ${T.sp3}px 36px`,
-                  fontSize: T.fontBody, fontFamily: 'inherit',
-                  color: t.textPri, background: t.inputBg,
-                  border: `1.5px solid ${t.inputBorder}`,
-                  borderRadius: T.radSm, outline: 'none',
-                  transition: 'border-color 0.12s',
-                }}
-                onFocus={e => { e.currentTarget.style.borderColor = BRAND.teal }}
-                onBlur={e => { e.currentTarget.style.borderColor = t.inputBorder }}
-                onChange={e => setNewAddr(e.target.value)}
-              />
+              <div>
+                <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: t.textPri, margin: 0 }}>Add Property</h2>
+                <p style={{ fontSize: T.fontSub, color: t.textMuted, margin: `${T.sp1}px 0 0` }}>Start typing to search the address</p>
+              </div>
             </div>
-            <p style={{ fontSize: T.fontBadge, color: t.textSubtle, margin: 0 }}>
-              Select from dropdown for auto-fill
-            </p>
-          </div>
 
-          {/* City / State / ZIP */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 120px', gap: T.sp3 }}>
-            <FormField label="City" dk={dk}>
-              <Input dk={dk} value={newCity} onChange={e => setNewCity(e.target.value)} placeholder="Jacksonville" />
-            </FormField>
-            <FormField label="State" dk={dk}>
-              <Input dk={dk} value={newState} onChange={e => setNewState(e.target.value.toUpperCase().slice(0, 2))} placeholder="FL" />
-            </FormField>
-            <FormField label="ZIP" dk={dk}>
-              <Input dk={dk} value={newZip} onChange={e => setNewZip(e.target.value)} placeholder="32216" />
-            </FormField>
-          </div>
-        </Modal.Body>
+            {/* Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: T.sp4 }}>
 
-        <Modal.Footer dk={dk}>
-          <Btn variant="ghost" dk={dk} fullWidth onClick={closeModal}>Cancel</Btn>
-          <Btn variant="primary" dk={dk} fullWidth loading={adding}
-            disabled={!newAddr.trim()}
-            onClick={handleAdd}>
-            Add Property
-          </Btn>
-        </Modal.Footer>
-      </Modal>
+              {/* Street address */}
+              <div>
+                <label style={{ fontSize: T.fontBadge, fontWeight: 700, color: t.textMuted,
+                    letterSpacing: '0.06em', textTransform: 'uppercase' as const,
+                    display: 'block', marginBottom: T.sp1 }}>
+                  Street Address <span style={{ color: BRAND.danger }}>*</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 11, top: '50%',
+                      transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }}>
+                    <PinIcon />
+                  </div>
+                  <input
+                    ref={addrInputRef}
+                    value={newAddr}
+                    onChange={e => setNewAddr(e.target.value)}
+                    placeholder="Start typing an address…"
+                    autoComplete="off"
+                    style={{ width: '100%', boxSizing: 'border-box' as const,
+                      padding: `${T.sp3}px ${T.sp4}px ${T.sp3}px 36px`,
+                      fontSize: T.fontBody, fontFamily: 'inherit', color: t.textPri,
+                      background: t.inputBg, border: `1.5px solid ${t.inputBorder}`,
+                      borderRadius: T.radSm, outline: 'none', transition: 'border-color 0.12s' }}
+                    onFocus={e => { e.currentTarget.style.borderColor = BRAND.teal }}
+                    onBlur={e => { e.currentTarget.style.borderColor = t.inputBorder }}
+                  />
+                </div>
+                <p style={{ fontSize: T.fontBadge, color: t.textSubtle, margin: `${T.sp1}px 0 0` }}>
+                  Select from dropdown for auto-fill
+                </p>
+              </div>
+
+              {/* City / State / ZIP */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 120px', gap: T.sp3 }}>
+                {[
+                  { label: 'City',  val: newCity,  set: setNewCity,  ph: 'Jacksonville', tf: (v: string) => v },
+                  { label: 'State', val: newState, set: setNewState, ph: 'FL',           tf: (v: string) => v.toUpperCase().slice(0, 2) },
+                  { label: 'ZIP',   val: newZip,   set: setNewZip,   ph: '32216',        tf: (v: string) => v },
+                ].map(({ label, val, set, ph, tf }) => (
+                  <div key={label}>
+                    <label style={{ fontSize: T.fontBadge, fontWeight: 700, color: t.textMuted,
+                        letterSpacing: '0.06em', textTransform: 'uppercase' as const,
+                        display: 'block', marginBottom: T.sp1 }}>
+                      {label}
+                    </label>
+                    <input value={val} onChange={e => set(tf(e.target.value))} placeholder={ph}
+                      style={{ width: '100%', boxSizing: 'border-box' as const,
+                        padding: `${T.sp3}px ${T.sp4}px`,
+                        fontSize: T.fontBody, fontFamily: 'inherit', color: t.textPri,
+                        background: t.inputBg, border: `1.5px solid ${t.inputBorder}`,
+                        borderRadius: T.radSm, outline: 'none', transition: 'border-color 0.12s' }}
+                      onFocus={e => { e.currentTarget.style.borderColor = BRAND.teal }}
+                      onBlur={e => { e.currentTarget.style.borderColor = t.inputBorder }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', gap: T.sp3, marginTop: T.sp6 }}>
+              <Btn variant="ghost" dk={dk} fullWidth onClick={closeModal}>Cancel</Btn>
+              <Btn variant="primary" dk={dk} fullWidth loading={adding}
+                disabled={!newAddr.trim()} onClick={handleAdd}
+                style={{ flex: 2 }}>
+                Add Property
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
 
     </DashboardShell>
   )
