@@ -1039,7 +1039,7 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
       ),
     ),
 
-    PageFooter(1, 12, data.generatedAt),
+    PageFooter(1, 9, data.generatedAt),
   )
 }
 
@@ -1057,7 +1057,7 @@ function buildSatellitePage(data: PremiumReportData): React.ReactElement {
             h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 9 } }, 'Satellite imagery unavailable'),
           ),
     ),
-    PageFooter(2, 12, data.generatedAt),
+    PageFooter(2, 9, data.generatedAt),
   )
 }
 
@@ -1081,7 +1081,7 @@ function buildObliqueNSPage(data: PremiumReportData): React.ReactElement {
       AerialImage(data.obliqueNBase64, 'North Approach', 'offset 0°'),
       AerialImage(data.obliqueSBase64, 'South Approach', 'offset 180°'),
     ),
-    PageFooter(3, 12, data.generatedAt),
+    PageFooter(3, 9, data.generatedAt),
   )
 }
 
@@ -1105,7 +1105,7 @@ function buildObliqueEWPage(data: PremiumReportData): React.ReactElement {
       AerialImage(data.obliqueEBase64, 'East Approach', 'offset 90°'),
       AerialImage(data.obliqueWBase64, 'West Approach', 'offset 270°'),
     ),
-    PageFooter(4, 12, data.generatedAt),
+    PageFooter(4, 9, data.generatedAt),
   )
 }
 
@@ -1185,7 +1185,7 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
         ),
       ),
     ),
-    PageFooter(5, 12, data.generatedAt),
+    PageFooter(5, 9, data.generatedAt),
   )
 }
 
@@ -1384,7 +1384,7 @@ function buildDiagramPage(
       ),
     ),
 
-    PageFooter(pageNum, 12, data.generatedAt),
+    PageFooter(6, 9, data.generatedAt),
   )
 }
 
@@ -1506,7 +1506,7 @@ function buildReportSummaryPage(data: PremiumReportData): React.ReactElement {
       ),
     ),
 
-    PageFooter(9, 12, data.generatedAt),
+    PageFooter(6, 9, data.generatedAt),
   )
 }
 
@@ -1582,7 +1582,7 @@ function buildAllStructuresPage(data: PremiumReportData): React.ReactElement {
       ),
     ),
 
-    PageFooter(10, 12, data.generatedAt),
+    PageFooter(7, 9, data.generatedAt),
   )
 }
 
@@ -1661,7 +1661,7 @@ function buildMaterialEstimatePage(data: PremiumReportData): React.ReactElement 
       ),
     ),
 
-    PageFooter(11, 12, data.generatedAt),
+    PageFooter(8, 9, data.generatedAt),
   )
 }
 
@@ -1725,25 +1725,22 @@ function buildDisclaimerPage(data: PremiumReportData): React.ReactElement {
       ),
     ),
 
-    PageFooter(12, 12, data.generatedAt),
+    PageFooter(9, 9, data.generatedAt),
   )
 }
 
 // ─── Main export ───────────────────────────────────────────────────────────────
 
 export async function buildPremiumReport(data: PremiumReportData): Promise<Buffer> {
-  // Pre-compute SVG projection once — shared across all 4 diagram pages
-  const { projected, edges } = projectSegments(data.segments)
-
   const doc = h(Document, {},
     buildCoverPage(data),
     buildSatellitePage(data),
     buildObliqueNSPage(data),
     buildObliqueEWPage(data),
     buildLFSummaryPage(data),
-    buildDiagramPage(data, 'pitch',  6, projected, edges),
-    buildDiagramPage(data, 'area',   7, projected, edges),
-    buildDiagramPage(data, 'notes',  8, projected, edges),
+    // Pitch/Area/Notes diagram pages removed — diagram quality insufficient
+    // without polygon vertex data. Satellite photos (pages 2-4) give roofers
+    // better visual reference. Will revisit when polygon vertex source is available.
     buildReportSummaryPage(data),
     buildAllStructuresPage(data),
     buildMaterialEstimatePage(data),
