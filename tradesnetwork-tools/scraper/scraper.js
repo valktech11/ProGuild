@@ -96,30 +96,38 @@ function pickBestEmail(emails) {
   return filtered[0]?.toLowerCase() || null
 }
 
-// ── Step 1: Search Bing for business website ──────────────────────────────────
+// ── Step 1: Search via RapidAPI Bing Web Search ──────────────────────────────
 async function findWebsite(pro) {
   const query = `"${pro.full_name}" ${pro.city || ''} Florida ${pro.trade} contractor`
 
   try {
-    const res = await axios.get('https://api.bing.microsoft.com/v7.0/search', {
-      headers: { 'Ocp-Apim-Subscription-Key': process.env.BING_API_KEY },
-      params: { q: query, count: 5, mkt: 'en-US' },
+    const res = await axios.get('https://bing-search-apis.p.rapidapi.com/api/rapid/web_search', {
+      headers: {
+        'x-rapidapi-key':  process.env.RAPIDAPI_KEY,
+        'x-rapidapi-host': 'bing-search-apis.p.rapidapi.com',
+      },
+      params: { query, num: 5 },
       timeout: 10000,
     })
 
-    const results = res.data?.webPages?.value || []
+    // RapidAPI Bing returns results under webPages.value or value directly
+    const results = res.data?.webPages?.value
+      || res.data?.value
+      || []
 
     for (const result of results) {
-      const url = result.url
-      if (!isSkippedDomain(url)) {
+      const url = result.url || result.link
+      if (url && !isSkippedDomain(url)) {
         return url
       }
     }
     return null
   } catch (err) {
     if (err.response?.status === 429) {
-      console.log('  ⚠ Bing rate limit hit — waiting 5s')
-      await sleep(5000)
+      console.log('  ⚠ Rate limit hit — waiting 10s')
+      await sleep(10000)
+    } else if (err.response?.status === 403) {
+      console.log('  ⚠ API key issue or free plan limit reached')
     }
     return null
   }
