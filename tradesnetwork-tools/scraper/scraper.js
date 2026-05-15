@@ -110,13 +110,21 @@ async function findWebsite(pro) {
       timeout: 10000,
     })
 
-    // RapidAPI Bing returns results under webPages.value or value directly
+    // DEBUG — log raw response structure
+    if (process.env.DEBUG) {
+      console.log('  [DEBUG] Response keys:', Object.keys(res.data))
+      console.log('  [DEBUG] Raw:', JSON.stringify(res.data).slice(0, 600))
+    }
+
+    // RapidAPI Bing — try all known response shapes
     const results = res.data?.webPages?.value
       || res.data?.value
+      || res.data?.organic_results
+      || res.data?.results
       || []
 
     for (const result of results) {
-      const url = result.url || result.link
+      const url = result.url || result.link || result.displayUrl
       if (url && !isSkippedDomain(url)) {
         return url
       }
@@ -128,6 +136,8 @@ async function findWebsite(pro) {
       await sleep(10000)
     } else if (err.response?.status === 403) {
       console.log('  ⚠ API key issue or free plan limit reached')
+    } else {
+      console.log('  ⚠ Search error:', err.response?.status, err.message)
     }
     return null
   }
@@ -235,32 +245,27 @@ async function main() {
       state,
       license_number,
       scrape_status,
-      trade_category:trade_categories(category_name)
+      trade_category:trade_categories(category_name, slug)
     `)
     .eq('is_claimed', false)
     .eq('profile_status', 'Active')
-    .is('scraped_email', null)       // not yet scraped
-    .is('scrape_status', null)       // skip previously attempted
-    .in('trade_categories.slug', ['roofer', 'hvac-technician', 'electrician', 'plumber'])
-    .limit(MAX_RECORDS)
+    .is('scraped_email', null)
+    .is('scrape_status', null)
+    .limit(MAX_RECORDS * 3)  // fetch more, filter in JS since join filter unreliable
 
   if (error) {
     console.error('✗ Supabase fetch failed:', error.message)
     process.exit(1)
   }
 
-  // Filter to target trades (join filter doesn't always work as expected in supabase-js)
+  // Filter to target trades in JS (Supabase join filter unreliable)
   const filtered = (pros || []).filter(p => {
-    const trade = Array.isArray(p.trade_category)
-      ? p.trade_category[0]?.category_name
-      : p.trade_category?.category_name
-    return TARGET_TRADES.includes(trade)
-  }).map(p => ({
-    ...p,
-    trade: Array.isArray(p.trade_category)
-      ? p.trade_category[0]?.category_name
-      : p.trade_category?.category_name,
-  }))
+    const cat = Array.isArray(p.trade_category) ? p.trade_category[0] : p.trade_category
+    return cat && TARGET_TRADES.includes(cat.category_name)
+  }).slice(0, MAX_RECORDS).map(p => {
+    const cat = Array.isArray(p.trade_category) ? p.trade_category[0] : p.trade_category
+    return { ...p, trade: cat?.category_name }
+  })
 
   console.log(`✓ ${filtered.length} pros to process\n`)
 
