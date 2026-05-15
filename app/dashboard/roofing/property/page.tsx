@@ -71,11 +71,9 @@ export default function PropertyListPage() {
   const [newCity,  setNewCity]  = useState('')
   const [newState, setNewState] = useState('')
   const [newZip,   setNewZip]   = useState('')
-  const [placeSelected, setPlaceSelected] = useState(false)
-
-  // Autocomplete
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const autocompleteRef = useRef<any>(null)
+  const [predictions, setPredictions] = useState<Array<{description: string; place_id: string}>>([])
+  const [showPredictions, setShowPredictions] = useState(false)
+  const [addrInputVal, setAddrInputVal] = useState('')
 
   useEffect(() => { if (!session) router.push('/login') }, [session, router])
 
@@ -90,125 +88,58 @@ export default function PropertyListPage() {
     fetchProperties().finally(() => setLoading(false))
   }, [fetchProperties])
 
-  // ── Google Places autocomplete — PlaceAutocompleteElement (2025 API) ────────
+  // ── Address autocomplete via Places Autocomplete API (server-side proxy) ───
+  // No widget, no shadow DOM, no script loading conflicts.
+  // Calls our own API route which proxies to Google Places Autocomplete.
   useEffect(() => {
-    if (!showAdd) return
-
-    const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
-    if (!mapsKey) { console.warn('[Places] NEXT_PUBLIC_GOOGLE_MAPS_KEY not set'); return }
-
-    async function initPlaces() {
-      const container = document.getElementById('pac-input-container')
-      if (!container) return
-
-      // Remove previous instance
-      if (autocompleteRef.current) {
-        try { autocompleteRef.current.remove() } catch { /* ignore */ }
-        autocompleteRef.current = null
-      }
-
-      // Use the new importLibrary API — required for PlaceAutocompleteElement
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { PlaceAutocompleteElement } = await (window as any).google.maps.importLibrary('places') as any
-
-      const el = new PlaceAutocompleteElement({
-        includedRegionCodes: ['us'],
-        includedPrimaryTypes: ['address'],
-      }) as HTMLElement
-
-      // Inject CSS to allow shadow DOM suggestions to overflow
-      const styleId = 'gmp-autocomplete-style'
-      if (!document.getElementById(styleId)) {
-        const style = document.createElement('style')
-        style.id = styleId
-        style.textContent = `
-          gmp-place-autocomplete {
-            width: 100%;
-            display: block;
-          }
-          gmp-place-autocomplete::part(input) {
-            width: 100%;
-            padding: 10px 14px 10px 14px;
-            font-size: 14px;
-            font-family: inherit;
-            border: 1.5px solid #D1D5DB;
-            border-radius: 8px;
-            outline: none;
-          }
-        `
-        document.head.appendChild(style)
-      }
-
-      container.innerHTML = ''
-      container.appendChild(el)
-      autocompleteRef.current = el
-
-      el.addEventListener('gmp-select', async (event: Event) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const placePrediction = (event as any).placePrediction
-        const place = placePrediction.toPlace()
-        await place.fetchFields({ fields: ['addressComponents', 'formattedAddress'] })
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const comps: any[] = place.addressComponents || []
-        let streetNum = '', route = '', city = '', state = '', zip = ''
-        for (const comp of comps) {
-          const types: string[] = comp.types || []
-          const long = comp.longText || ''
-          const short = comp.shortText || ''
-          if (types.includes('street_number')) streetNum = long
-          if (types.includes('route'))         route     = long
-          if (types.includes('locality'))                    city  = long
-          if (!city && types.includes('sublocality_level_1')) city = long
-          if (!city && types.includes('postal_town'))         city = long
-          if (types.includes('administrative_area_level_1')) state = short
-          if (types.includes('postal_code'))                 zip   = long
-        }
-        const streetAddr = `${streetNum} ${route}`.trim()
-        const full = streetAddr || (place.formattedAddress || '').split(',')[0].trim()
-        setNewAddr(full)
-        setNewCity(city)
-        setNewState(state)
-        setNewZip(zip)
-        setPlaceSelected(true)
-      })
+    if (!addrInputVal || addrInputVal.length < 3) {
+      setPredictions([]); setShowPredictions(false); return
     }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(addrInputVal)}`)
+        if (!res.ok) return
+        const data = await res.json()
+        setPredictions(data.predictions || [])
+        setShowPredictions(true)
+      } catch { /* ignore */ }
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [addrInputVal])
 
-    // New bootstrap: use the inline script with loading=async approach
-    // This is the correct loader for PlaceAutocompleteElement
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).google?.maps?.importLibrary) {
-      // Already bootstrapped (e.g. ProMeasure loaded Maps first)
-      initPlaces()
-    } else {
-      // Inject the new async bootstrap script (not the legacy /api/js)
-      const scriptId = 'gmp-bootstrap'
-      if (!document.getElementById(scriptId)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).__googleMapsInit = initPlaces
-        const script = document.createElement('script')
-        script.id  = scriptId
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&v=weekly&libraries=places&callback=__googleMapsInit&loading=async`
-        script.async = true
-        script.defer = true
-        script.onerror = () => console.warn('[Places] Bootstrap script failed to load')
-        document.head.appendChild(script)
-      } else {
-        // Script injected but callback not fired yet — wait
-        let waited = 0
-        const check = setInterval(() => {
-          waited += 200
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if ((window as any).google?.maps?.importLibrary) { clearInterval(check); initPlaces() }
-          else if (waited >= 8000) clearInterval(check)
-        }, 200)
+  async function selectPrediction(pred: { description: string; place_id: string }) {
+    setShowPredictions(false)
+    // Fetch place details to get address components
+    try {
+      const res = await fetch(`/api/places/details?place_id=${pred.place_id}`)
+      if (!res.ok) { setNewAddr(pred.description.split(',')[0].trim()); return }
+      const data = await res.json()
+      const comps = data.result?.address_components || []
+      let streetNum = '', route = '', city = '', state = '', zip = ''
+      for (const comp of comps) {
+        const types: string[] = comp.types || []
+        if (types.includes('street_number')) streetNum = comp.long_name
+        if (types.includes('route'))         route     = comp.long_name
+        if (types.includes('locality'))      city      = comp.long_name
+        if (!city && types.includes('sublocality_level_1')) city = comp.long_name
+        if (types.includes('administrative_area_level_1')) state = comp.short_name
+        if (types.includes('postal_code'))   zip       = comp.long_name
       }
+      const streetAddr = `${streetNum} ${route}`.trim() || pred.description.split(',')[0].trim()
+      setAddrInputVal(streetAddr)
+      setNewAddr(streetAddr)
+      setNewCity(city)
+      setNewState(state)
+      setNewZip(zip)
+    } catch {
+      setNewAddr(pred.description.split(',')[0].trim())
     }
-  }, [showAdd])
+  }
 
   function closeModal() {
     setShowAdd(false)
-    setNewAddr(''); setNewCity(''); setNewState(''); setNewZip(''); setPlaceSelected(false)
+    setNewAddr(''); setNewCity(''); setNewState(''); setNewZip('')
+    setAddrInputVal(''); setPredictions([]); setShowPredictions(false)
   }
 
   async function handleAdd() {
@@ -395,20 +326,69 @@ export default function PropertyListPage() {
             {/* Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: T.sp4 }}>
 
-              {/* Street address — PlaceAutocompleteElement (new Google Places API) */}
-              <div>
+              {/* Street address — custom autocomplete, no widget */}
+              <div style={{ position: 'relative' }}>
                 <label style={{ fontSize: T.fontBadge, fontWeight: 700, color: t.textMuted,
                     letterSpacing: '0.06em', textTransform: 'uppercase' as const,
                     display: 'block', marginBottom: T.sp1 }}>
                   Street Address <span style={{ color: BRAND.danger }}>*</span>
                 </label>
-                {/* PlaceAutocompleteElement injected here by useEffect */}
-                <div id="pac-input-container" style={{
-                  width: '100%', minHeight: 44,
-                }} />
-                <p style={{ fontSize: T.fontBadge, color: t.textSubtle, margin: `${T.sp1}px 0 0` }}>
-                  Select from dropdown for auto-fill
-                </p>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 11, top: '50%',
+                      transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }}>
+                    <PinIcon />
+                  </div>
+                  <input
+                    value={addrInputVal}
+                    onChange={e => { setAddrInputVal(e.target.value); setNewAddr(e.target.value) }}
+                    onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+                    onBlur={() => setTimeout(() => setShowPredictions(false), 150)}
+                    placeholder="Start typing an address…"
+                    autoComplete="off"
+                    style={{ width: '100%', boxSizing: 'border-box' as const,
+                      padding: `${T.sp3}px ${T.sp4}px ${T.sp3}px 36px`,
+                      fontSize: T.fontBody, fontFamily: 'inherit', color: t.textPri,
+                      background: t.inputBg, border: `1.5px solid ${t.inputBorder}`,
+                      borderRadius: T.radSm, outline: 'none', transition: 'border-color 0.12s' }}
+                    onFocusCapture={e => { e.currentTarget.style.borderColor = BRAND.teal }}
+                    onBlurCapture={e => { e.currentTarget.style.borderColor = t.inputBorder }}
+                  />
+                </div>
+                {/* Predictions dropdown */}
+                {showPredictions && predictions.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
+                    background: t.cardBg, border: `1px solid ${t.cardBorder}`,
+                    borderRadius: T.radSm, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    marginTop: 4, overflow: 'hidden',
+                  }}>
+                    {predictions.map((pred, i) => (
+                      <div key={pred.place_id}
+                        onMouseDown={() => selectPrediction(pred)}
+                        style={{
+                          padding: `${T.sp3}px ${T.sp4}px`,
+                          fontSize: T.fontBody, color: t.textPri, cursor: 'pointer',
+                          borderTop: i > 0 ? `1px solid ${t.divider}` : 'none',
+                          display: 'flex', alignItems: 'center', gap: T.sp3,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = t.cardBgHover)}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none"
+                          stroke={t.textMuted} strokeWidth={2} strokeLinecap="round">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                          <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <span>{pred.description}</span>
+                      </div>
+                    ))}
+                    <div style={{ padding: `${T.sp2}px ${T.sp4}px`, borderTop: `1px solid ${t.divider}`,
+                        display: 'flex', justifyContent: 'flex-end' }}>
+                      <span style={{ fontSize: T.fontBadge, color: t.textSubtle }}>
+                        Powered by Google
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* City / State / ZIP */}
@@ -442,7 +422,7 @@ export default function PropertyListPage() {
             <div style={{ display: 'flex', gap: T.sp3, marginTop: T.sp6 }}>
               <Btn variant="ghost" dk={dk} fullWidth onClick={closeModal}>Cancel</Btn>
               <Btn variant="primary" dk={dk} fullWidth loading={adding}
-                disabled={!placeSelected && !newAddr.trim()} onClick={handleAdd}
+                disabled={!newAddr.trim()} onClick={handleAdd}
                 style={{ flex: 2 }}>
                 Add Property
               </Btn>
