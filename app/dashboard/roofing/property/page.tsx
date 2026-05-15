@@ -71,6 +71,7 @@ export default function PropertyListPage() {
   const [newCity,  setNewCity]  = useState('')
   const [newState, setNewState] = useState('')
   const [newZip,   setNewZip]   = useState('')
+  const [placeSelected, setPlaceSelected] = useState(false)
 
   // Autocomplete
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,21 +147,42 @@ export default function PropertyListPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const place = (event as any).place
         await place.fetchFields({ fields: ['addressComponents', 'formattedAddress'] })
+
+        // New Places API: addressComponents is an array of objects with
+        // longText, shortText, and types[] — log to verify shape
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const comps: any[] = place.addressComponents || []
+        console.log('[Places] addressComponents:', JSON.stringify(comps))
+        console.log('[Places] formattedAddress:', place.formattedAddress)
+
         let streetNum = '', route = '', city = '', state = '', zip = ''
         for (const comp of comps) {
+          // New API: types is an array of strings on the comp object
           const types: string[] = comp.types || []
-          if (types.includes('street_number')) streetNum = comp.longText || ''
-          if (types.includes('route'))         route     = comp.longText || ''
-          if (types.includes('locality'))      city      = comp.longText || ''
-          if (types.includes('administrative_area_level_1')) state = comp.shortText || ''
-          if (types.includes('postal_code'))   zip       = comp.longText || ''
+          const long = comp.longText || comp.long_name || ''
+          const short = comp.shortText || comp.short_name || ''
+          if (types.includes('street_number')) streetNum = long
+          if (types.includes('route'))         route     = long
+          // city: locality preferred, fallback to sublocality or admin_area_level_2
+          if (types.includes('locality'))                    city  = long
+          if (!city && types.includes('sublocality'))        city  = long
+          if (!city && types.includes('postal_town'))        city  = long
+          if (types.includes('administrative_area_level_1')) state = short
+          if (types.includes('postal_code'))                 zip   = long
         }
-        const full = `${streetNum} ${route}`.trim() || place.formattedAddress || ''
+
+        // Street address only (not full formatted address)
+        const streetAddr = `${streetNum} ${route}`.trim()
+        // Fallback: parse first part of formattedAddress before first comma
+        const full = streetAddr || (place.formattedAddress || '').split(',')[0].trim()
+
+        console.log('[Places] parsed:', { streetAddr, city, state, zip })
+
         setNewAddr(full)
         setNewCity(city)
         setNewState(state)
         setNewZip(zip)
+        setPlaceSelected(true)
       })
     }
 
@@ -198,7 +220,7 @@ export default function PropertyListPage() {
 
   function closeModal() {
     setShowAdd(false)
-    setNewAddr(''); setNewCity(''); setNewState(''); setNewZip('')
+    setNewAddr(''); setNewCity(''); setNewState(''); setNewZip(''); setPlaceSelected(false)
   }
 
   async function handleAdd() {
@@ -432,7 +454,7 @@ export default function PropertyListPage() {
             <div style={{ display: 'flex', gap: T.sp3, marginTop: T.sp6 }}>
               <Btn variant="ghost" dk={dk} fullWidth onClick={closeModal}>Cancel</Btn>
               <Btn variant="primary" dk={dk} fullWidth loading={adding}
-                disabled={!newAddr.trim()} onClick={handleAdd}
+                disabled={!placeSelected && !newAddr.trim()} onClick={handleAdd}
                 style={{ flex: 2 }}>
                 Add Property
               </Btn>
