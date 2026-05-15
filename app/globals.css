@@ -113,3 +113,31 @@ input:focus, textarea:focus, select:focus {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.22); }
+
+/* ── Google Places Autocomplete — force above modals ───────────────────── */
+/* backdrop-filter on modal overlay creates a new stacking context that     */
+/* clips the pac-container. Setting z-index here fixes it permanently.      */
+.pac-container {
+  z-index: 99999 !important;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  font-family: inherit;
+  margin-top: 4px;
+}
+.pac-item {
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border-top: 1px solid #F1F5F9;
+}
+.pac-item:first-child { border-top: none; }
+.pac-item:hover, .pac-item-selected {
+  background: #F0FDFA;
+}
+.pac-item-query {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+.pac-matched { font-weight: 700; color: #0F766E; }

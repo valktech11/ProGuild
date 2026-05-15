@@ -8,6 +8,7 @@ import ActionAlert from '@/components/ui/ActionAlert'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
 import { theme, T } from '@/lib/tokens'
+import { resolveTradeConfig } from '@/lib/trade-resolver'
 
 export default function PipelinePage() {
   const router = useRouter()
@@ -22,6 +23,9 @@ export default function PipelinePage() {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
   })
+
+  const tc   = resolveTradeConfig(session?.trade_slug, session?.trade)
+  const noun = tc.terms.pipeline ?? 'Pipeline'
 
   function toggleDark() {
     setDk(prev => {
@@ -122,7 +126,7 @@ export default function PipelinePage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: textMain }}>Pipeline</h1>
+            <h1 className="text-2xl font-bold" style={{ color: textMain }}>{noun}</h1>
             <p className="hidden md:block text-sm mt-0.5" style={{ color: '#6B7280' }}>
               Track and manage your leads from first contact to payment.
             </p>
@@ -142,7 +146,7 @@ export default function PipelinePage() {
               </div>
             </div>
             <div style={{ paddingLeft: 24, borderLeft: `1px solid ${t.cardBorder}` }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Lead Pipeline Value</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>{`Lead ${noun} Value`}</div>
               <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1, color: textMain }}>
                 ${filteredLeads.filter(l => l.quoted_amount && !['Lost','Archived','Paid','Completed'].includes(l.lead_status)).reduce((s, l) => s + (l.quoted_amount || 0), 0).toLocaleString()}
               </div>
@@ -225,7 +229,7 @@ export default function PipelinePage() {
         {session && leads.length === 0 && !dataLoading && (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'64px 24px', textAlign:'center' }}>
             <div style={{ width:72, height:72, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 32, marginBottom:20 }}>📋</div>
-            <h3 style={{ fontSize: 20, fontWeight:800, color: t.textPri, margin:'0 0 10px' }}>Your pipeline is empty</h3>
+            <h3 style={{ fontSize: 20, fontWeight:800, color: t.textPri, margin:'0 0 10px' }}>{`Your ${noun.toLowerCase()} is empty`}</h3>
             <p style={{ fontSize: 15, color: t.textBody, marginBottom:28, maxWidth:340, lineHeight:1.6 }}>
               Start tracking your leads — add enquiries from calls, texts, social media, or anywhere you get job requests.
             </p>

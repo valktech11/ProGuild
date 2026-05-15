@@ -43,8 +43,6 @@ export function Modal({ open, onClose, title, subtitle, icon, dk = false, width 
         position:       'fixed',
         inset:          0,
         background:     'rgba(0,0,0,0.52)',
-        backdropFilter: 'blur(3px)',
-        WebkitBackdropFilter: 'blur(3px)',
         zIndex:         9999,
         display:        'flex',
         alignItems:     'center',
