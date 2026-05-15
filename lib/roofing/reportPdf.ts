@@ -178,7 +178,7 @@ const S = StyleSheet.create({
 
   // Gemini AI condition assessment
   geminiBox:    { marginTop: 16, padding: '8 12', backgroundColor: '#EFF6FF', borderRadius: 6, borderLeft: '3 solid #3B82F6' },
-  geminiLabel:  { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#1E40AF', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
+  geminiLabel:  { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#0F766E', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
   geminiTxt:    { fontSize: 8.5, color: '#1E3A5F', lineHeight: 1.5 },
 
   // Historic district badge
@@ -235,7 +235,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
       h(View, { style: { flex: 1 } },
         h(View, { style: S.coverHeader },
           h(Text, { style: S.coverTitle }, 'Satellite Roof Measurement Report'),
-          h(Text, { style: S.coverSub }, 'Powered by ProGuild \u00B7 Google Solar API')
+          h(Text, { style: S.coverSub }, 'Powered by ProGuild AI Technology')
         ),
         h(Image, { src: data.imgTopView, style: S.coverImg }),
         h(Text, { style: S.coverAddress }, fullAddress),
@@ -299,7 +299,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         ] : [])
       ),
       h(View, { style: S.coverFooter },
-        h(Text, { style: S.coverFootTxt }, 'Measurements via Google Solar API \u00B7 Images \u00A9 Google'),
+        h(Text, { style: S.coverFootTxt }, 'Satellite Measurements via ProGuild AI · Images © Google'),
         h(Text, { style: S.coverFootTxt }, 'ProGuild.ai \u2014 For bid preparation use')
       )
     ),
@@ -357,7 +357,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
           )
         ),
         h(Text, { style: S.footnote },
-          '* Total squares does NOT include waste. Imagery date: ' + data.imageryDate + '.\nMeasurements provided by Google Solar API. Field verification recommended before ordering materials.'
+          '* Total squares does NOT include waste. Imagery date: ' + data.imageryDate + '.\nMeasurements powered by ProGuild AI. Field verification recommended before ordering materials.'
         ),
         ...((data.hasLowSlope || data.hasLowConfidence) ? [
           h(View, { style: { marginTop: 8, padding: '6 10', backgroundColor: '#FFF7ED', borderRadius: 6, borderLeft: '3 solid #F97316' } },
@@ -371,7 +371,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         ] : []),
         h(Text, { style: S.disclaimer },
           '\u26A0 This report is designed for bid preparation and sales use. For insurance claim submissions, a certified measurement report may be required by your carrier. ' +
-          'Flat roof sections, low-slope additions, parapet walls, and attached structures are not included \u2014 Google Solar API measures pitched planes only. ' +
+          'Flat roof sections, low-slope additions, parapet walls, and attached structures are not included \u2014 ProGuild AI processes pitched roof planes only. ' +
           'For mixed pitched/flat properties, verify flat section dimensions on site and order flat-roof materials separately.'
         ),
         // Gemini AI condition assessment — inline on page 2 when space allows (single alert or no alerts)
@@ -392,7 +392,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
         h(View, { style: S.body },
           sectionBar('AI Condition Assessment \u00B7 Powered by Gemini Vision'),
           h(View, { style: { marginTop: 16, padding: '16 18', backgroundColor: '#EFF6FF', borderRadius: 10, borderLeft: '4 solid #3B82F6' } },
-            h(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#1E40AF', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 } },
+            h(Text, { style: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#0F766E', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 } },
               'Gemini Vision \u00B7 Satellite Image Analysis'
             ),
             h(Text, { style: { fontSize: 10.5, color: '#1E3A5F', lineHeight: 1.7 } }, data.geminiCondition)

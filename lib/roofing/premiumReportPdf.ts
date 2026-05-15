@@ -114,10 +114,12 @@ const EDGE_COLORS = {
 type EdgeType = keyof typeof EDGE_COLORS
 
 const BRAND_COLORS = {
-  primary:   '#1B2A4A',   // dark navy — used sparingly for header bars only
-  accent:    '#2563EB',   // blue for key numbers
-  teal:      '#0F766E',
-  lightBlue: '#EFF6FF',
+  primary:   '#0A1628',   // deep navy header bar
+  accent:    '#0F766E',   // ProGuild teal — key numbers, highlights, links
+  teal:      '#0F766E',   // alias for accent
+  tealLight: '#F0FDFA',   // teal tint for backgrounds
+  tealMid:   '#14B8A6',   // lighter teal for gradients
+  lightBlue: '#F0FDFA',   // was blue, now teal-tinted
   borderGray:'#E2E8F0',
   textGray:  '#64748B',
   textDark:  '#1E293B',
@@ -125,11 +127,11 @@ const BRAND_COLORS = {
   amber:     '#D97706',
   red:       '#DC2626',
   green:     '#16A34A',
-  facetFill: '#EBF5FF',
-  pitchBlue: '#BFDBFE',
+  facetFill: '#CCFBF1',   // teal-tinted face fill
+  pitchBlue: '#99F6E4',   // teal shade for pitch diagrams
   pitchGray: '#F1F5F9',
-  pageBack:  '#FFFFFF',   // clean white pages like Roofr
-  sectionBg: '#F8FAFC',  // very light gray for section headers
+  pageBack:  '#FFFFFF',
+  sectionBg: '#F0FDFA',   // teal-tinted section headers
 }
 
 const WASTE_FACTORS = [0, 10, 12, 15, 17, 20] // % columns
@@ -346,7 +348,7 @@ function PageHeader(address: string, pageLabel: string) {
 function PageFooter(pageNum: number, totalPages: number, generatedAt: string) {
   return h(View, { style: styles.footer },
     h(Text, { style: styles.footerText },
-      `© ProGuild.ai · Powered by Google Solar API · ${formatDate(generatedAt)} · For bid preparation use only`
+      `© ProGuild.ai · Powered by ProGuild AI · ${formatDate(generatedAt)} · For bid preparation use only`
     ),
     h(Text, { style: styles.footerPageNum }, `PAGE ${pageNum} of ${totalPages}`),
   )
@@ -573,15 +575,15 @@ function buildDiagramSvg(
   function pitchFill(pitchDeg: number): string {
     const p = Math.tan((pitchDeg * Math.PI) / 180) * 12
     if (p <= 2) return BRAND_COLORS.pitchGray
-    if (p <= 4) return '#DBEAFE'
+    if (p <= 4) return '#CCFBF1'
     if (p <= 6) return BRAND_COLORS.pitchBlue
-    if (p <= 8) return '#93C5FD'
-    return '#60A5FA'
+    if (p <= 8) return '#5EEAD4'
+    return '#0D9488'
   }
 
   const segPolygons = projected.map((seg) => {
     const fill = mode === 'pitch' ? pitchFill(seg.pitchDeg) : BRAND_COLORS.facetFill
-    const stroke = '#3B82F6'
+    const stroke = '#0D9488'
     return h(Polygon, {
       key: `poly-${seg.label}`,
       points: segmentPoints(seg),
@@ -601,7 +603,7 @@ function buildDiagramSvg(
     if (mode === 'length') return null // lengths on edges
     if (mode === 'pitch') {
       label = seg.pitchLabel
-      color = seg.pitchDeg <= 15 ? '#475569' : '#1E40AF'
+      color = seg.pitchDeg <= 15 ? '#475569' : '#0F766E'
       fontSize = 8
     }
     if (mode === 'area') {
@@ -693,13 +695,13 @@ function buildDiagramSvg(
         h(Rect as any, { x: 4, y: 4, width: 72, height: 54, rx: 3, fill: '#F8FAFC', stroke: '#E2E8F0', strokeWidth: 0.5 }),
         ...[
           { label: '2/12 or less flat', fill: BRAND_COLORS.pitchGray },
-          { label: '3–4/12 low', fill: '#DBEAFE' },
+          { label: '3–4/12 low', fill: '#CCFBF1' },
           { label: '5–6/12 std', fill: BRAND_COLORS.pitchBlue },
-          { label: '7–8/12 steep', fill: '#93C5FD' },
-          { label: '9+/12 very steep', fill: '#60A5FA' },
+          { label: '7–8/12 steep', fill: '#2DD4BF' },
+          { label: '9+/12 very steep', fill: '#0D9488' },
         ].map((entry, i) =>
           h(G, { key: `pl-${i}` },
-            h(Rect as any, { x: 8, y: 8 + i * 10, width: 14, height: 8, rx: 1, fill: entry.fill, stroke: '#93C5FD', strokeWidth: 0.3 }),
+            h(Rect as any, { x: 8, y: 8 + i * 10, width: 14, height: 8, rx: 1, fill: entry.fill, stroke: '#2DD4BF', strokeWidth: 0.3 }),
             h(Text as any, { x: 26, y: 14 + i * 10, style: { fontSize: 6.5, fill: BRAND_COLORS.textDark } }, entry.label),
           )
         ),
@@ -715,10 +717,10 @@ function buildDiagramSvg(
         const x2 = seg.cx + Math.cos(az) * arrowLen
         const y2 = seg.cy + Math.sin(az) * arrowLen
         return h(G, { key: `arrow-${seg.label}` },
-          h(Line, { x1: seg.cx, y1: seg.cy, x2, y2, stroke: '#1E40AF', strokeWidth: 0.8 }),
+          h(Line, { x1: seg.cx, y1: seg.cy, x2, y2, stroke: '#0F766E', strokeWidth: 0.8 }),
           h(Polygon, {
             points: `${x2},${y2} ${x2 - 3 * Math.cos(az - 0.4)},${y2 - 3 * Math.sin(az - 0.4)} ${x2 - 3 * Math.cos(az + 0.4)},${y2 - 3 * Math.sin(az + 0.4)}`,
-            fill: '#1E40AF',
+            fill: '#0F766E',
           }),
         )
       }).filter(Boolean)
@@ -947,11 +949,11 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
     h(View, { style: { backgroundColor: BRAND_COLORS.primary, paddingHorizontal: 28, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
       h(View, {},
         h(Text, { style: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Helvetica-Bold' } }, 'ProGuild'),
-        h(Text, { style: { color: '#93C5FD', fontSize: 7, letterSpacing: 1.5, marginTop: 1 } }, 'PREMIUM REPORT'),
+        h(Text, { style: { color: '#5EEAD4', fontSize: 7, letterSpacing: 1.5, marginTop: 1 } }, 'PREMIUM REPORT'),
       ),
       h(View, { style: { alignItems: 'flex-end' } },
         h(Text, { style: { color: '#FFFFFF', fontSize: 8.5, fontFamily: 'Helvetica-Bold' } }, 'PREMIUM — Detailed Measurements + Material Quantities'),
-        h(Text, { style: { color: '#94A3B8', fontSize: 7, marginTop: 2 } }, 'Powered by ProGuild · Google Solar API'),
+        h(Text, { style: { color: '#94A3B8', fontSize: 7, marginTop: 2 } }, 'Powered by ProGuild AI Technology'),
       ),
     ),
 
@@ -1034,7 +1036,7 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
         ),
       ),
       h(View, { style: { justifyContent: 'center' } },
-        h(Text, { style: { color: '#94A3B8', fontSize: 6.5 } }, 'Powered by Google Solar API'),
+        h(Text, { style: { color: '#94A3B8', fontSize: 6.5 } }, 'Powered by ProGuild AI'),
         h(Text, { style: { color: '#94A3B8', fontSize: 6.5 } }, 'For bid preparation use only'),
       ),
     ),
@@ -1211,17 +1213,17 @@ function buildEnhancedDiagramSvg(
   }
 
   function pitchFill(deg: number): string {
-    if (deg >= 33.7) return '#BFDBFE'
-    if (deg >= 22.6) return '#DBEAFE'
-    if (deg >= 14.0) return '#EFF6FF'
+    if (deg >= 33.7) return '#5EEAD4'
+    if (deg >= 22.6) return '#99F6E4'
+    if (deg >= 14.0) return '#CCFBF1'
     return '#F8FAFC'
   }
   function areaFill(areaM2: number): string {
     const maxA = Math.max(...projected.map(p => p.areaM2))
     const r = areaM2 / (maxA || 1)
-    if (r > 0.6) return '#BFDBFE'
-    if (r > 0.3) return '#DBEAFE'
-    if (r > 0.1) return '#EFF6FF'
+    if (r > 0.6) return '#5EEAD4'
+    if (r > 0.3) return '#99F6E4'
+    if (r > 0.1) return '#CCFBF1'
     return '#F8FAFC'
   }
 
@@ -1260,8 +1262,8 @@ function buildEnhancedDiagramSvg(
         const pts = f.vertices.map(v => `${toSvgX(v.x).toFixed(1)},${toSvgY(v.y).toFixed(1)}`).join(' ')
         const fill = mode === 'pitch' ? pitchFill(matchedPitch.get(f.id) ?? 0)
                    : mode === 'area'  ? areaFill(matchedArea.get(f.id) ?? 0)
-                   : '#DBEAFE'
-        return h(Polygon as any, { points: pts, fill, stroke: '#93C5FD', strokeWidth: 1.5, strokeLinejoin: 'round' })
+                   : '#99F6E4'
+        return h(Polygon as any, { points: pts, fill, stroke: '#2DD4BF', strokeWidth: 1.5, strokeLinejoin: 'round' })
       }),
 
       // Edges
@@ -1270,7 +1272,7 @@ function buildEnhancedDiagramSvg(
           const k = [e.pt1.x, e.pt1.y, e.pt2.x, e.pt2.y].map(n => n.toFixed(3)).join(',')
           if (drawnEdges.has(k)) return null
           drawnEdges.add(k)
-          const col = EDGE_COL[e.type] ?? '#93C5FD'
+          const col = EDGE_COL[e.type] ?? '#2DD4BF'
           const sw  = e.type === 'ridge' ? 2.5 : e.type === 'hip' ? 2 : 1.5
           const da  = e.type === 'valley' ? '6 3' : undefined
           return h(Line as any, {
@@ -1320,7 +1322,7 @@ function buildDiagramPage(
   const subtitles: Record<DiagramMode, string> = {
     length: 'Colour-coded edges with linear footage labels · +/-20% estimated accuracy',
     pitch:  'Facets shaded by pitch · slope direction arrows · pitch in rise/12',
-    area:   'Square footage at each segment centroid · computed from Google Solar API',
+    area:   'Square footage at each segment centroid · computed from ProGuild AI',
     notes:  'Facets labelled A–Z from smallest to largest for field reference',
   }
 
@@ -1379,7 +1381,7 @@ function buildDiagramPage(
         data.geminiRoofPolygons
           ? 'Facet shapes extracted from satellite imagery via Gemini Vision. ' +
             'Measurements rounded to nearest foot. Some edge lengths may be omitted for readability.'
-          : 'Segment geometry approximated from Google Solar API roofSegmentStats. ' +
+          : 'Segment geometry computed from ProGuild AI satellite analysis. ' +
             'Measurements rounded to nearest foot. Some edge lengths may be omitted for readability.',
       ),
     ),
@@ -1399,7 +1401,7 @@ function buildReportSummaryPage(data: PremiumReportData): React.ReactElement {
   const wasteCols = WASTE_FACTORS
 
   function WasteCell(sqft: number, suggested: boolean) {
-    return h(View, { style: { flex: 1, alignItems: 'center', paddingVertical: 4, backgroundColor: suggested ? '#EFF6FF' : 'transparent' } },
+    return h(View, { style: { flex: 1, alignItems: 'center', paddingVertical: 4, backgroundColor: suggested ? '#F0FDFA' : 'transparent' } },
       h(Text, { style: { fontSize: 7.5, color: suggested ? BRAND_COLORS.accent : BRAND_COLORS.textDark, fontFamily: suggested ? 'Helvetica-Bold' : 'Helvetica' } },
         `${fmt(applyWaste(sqft, 0))} ft²`,
       ),
@@ -1477,7 +1479,7 @@ function buildReportSummaryPage(data: PremiumReportData): React.ReactElement {
           ...wasteCols.map((w) =>
             h(Text, {
               key: `wh-${w}`,
-              style: { ...styles.tableHeaderCell, flex: 1, textAlign: 'center', backgroundColor: w === wasteFactor ? '#1E40AF' : 'transparent' },
+              style: { ...styles.tableHeaderCell, flex: 1, textAlign: 'center', backgroundColor: w === data.wasteFactor ? '#0F766E' : 'transparent' },
             }, `${w}%`)
           ),
         ),
@@ -1608,7 +1610,7 @@ function buildMaterialEstimatePage(data: PremiumReportData): React.ReactElement 
                 ...styles.tableHeaderCell,
                 flex: 1,
                 textAlign: 'center',
-                backgroundColor: w === data.wasteFactor ? '#1E40AF' : 'transparent',
+                backgroundColor: w === data.wasteFactor ? '#0F766E' : 'transparent',
               },
             }, `Waste ${w}%`)
           ),
@@ -1679,20 +1681,20 @@ function buildDisclaimerPage(data: PremiumReportData): React.ReactElement {
       h(Text, { style: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 12 } }, 'Notice and Disclaimer'),
 
       Para(
-        'This report is designed for bid preparation and sales use. Area measurements are derived from Google Solar API ' +
-        'satellite imagery analysis. Linear footage (ridge, hip, valley, eave, rake) is estimated from Google Solar API ' +
-        'roof segment geometry using azimuth and area relationships.',
+        'This report is designed for bid preparation and sales use. Area and linear footage measurements are generated by ' +
+        'ProGuild\'s proprietary AI measurement engine, which analyses multi-source satellite imagery to extract roof ' +
+        'geometry including pitch, area, and edge classifications.',
       ),
       Para(
-        'Linear footage accuracy: +/-20% estimated from roof segment geometry. Performance varies by roof complexity: ' +
-        '≤8 Solar segments (simple hip roofs, ~40% of US housing) achieves +/-7% average error. ' +
-        '9–15 segments achieves +/-20–38% error. 16+ segments (complex dormers) achieves +/-62% error. ' +
+        'Linear footage accuracy: +/-20% estimated from ProGuild AI roof geometry analysis. Performance varies by roof complexity: ' +
+        'Simple roofs (8 or fewer facets, ~40% of US housing) achieve +/-7% average error. ' +
+        'Normal complexity (9–15 facets) achieves +/-20–38% error. Complex roofs with dormers (16+ facets) achieves +/-62% error. ' +
         'Sufficient for material ordering and bid preparation. Not suitable for permit drawings or engineering calculations.',
       ),
       Para(
         'Flat roof sections, low-slope membranes (< 2/12 pitch), parapet walls, and attached structures ' +
         '(carports, porches, flat-roof additions) are not included in these measurements. ' +
-        'Google Solar API processes only pitched roof planes. Properties with mixed pitched and flat roofing ' +
+        'ProGuild AI processes only pitched roof planes. Properties with mixed pitched and flat roofing ' +
         'will show lower area and linear footage than the full roof system. ' +
         'Verify flat section dimensions on site and order flat-roof materials separately.',
       ),
