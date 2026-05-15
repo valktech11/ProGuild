@@ -72,8 +72,6 @@ export default function PropertyListPage() {
   const [newState, setNewState] = useState('')
   const [newZip,   setNewZip]   = useState('')
 
-  const [addrHasValue, setAddrHasValue] = useState(false)  // drives button enable without controlled input
-
   // Autocomplete
   const addrInputRef    = useRef<HTMLInputElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -126,8 +124,6 @@ export default function PropertyListPage() {
         }
         const full = `${streetNum} ${route}`.trim()
         setNewAddr(full)
-        setAddrHasValue(!!full)
-        if (addrInputRef.current) addrInputRef.current.value = full
         setNewCity(city)
         setNewState(state)
         setNewZip(zip)
@@ -163,7 +159,6 @@ export default function PropertyListPage() {
   function closeModal() {
     setShowAdd(false)
     setNewAddr(''); setNewCity(''); setNewState(''); setNewZip('')
-    setAddrHasValue(false)
     if (addrInputRef.current) addrInputRef.current.value = ''
   }
 
@@ -330,23 +325,42 @@ export default function PropertyListPage() {
         subtitle="Start typing to search the address"
       >
         <Modal.Body dk={dk}>
-          {/* Street address — uncontrolled (Google Places writes directly to DOM) */}
-          <FormField label="Street Address" required hint="Select from dropdown for auto-fill" dk={dk}>
-            <Input
-              ref={addrInputRef}
-              dk={dk}
-              defaultValue=""
-              placeholder="Start typing an address…"
-              autoComplete="off"
-              prefixIcon={<PinIcon />}
-              onInput={e => {
-                // onInput fires before React synthetic event loop — safe with Places
-                const val = (e.target as HTMLInputElement).value
-                setAddrHasValue(!!val.trim())
-                if (!val) { setNewAddr(''); setNewCity(''); setNewState(''); setNewZip('') }
-              }}
-            />
-          </FormField>
+          {/* Street address — raw <input>, not the <Input> component.
+              Google Places Autocomplete uses getBoundingClientRect() to
+              position the pac-container. Component wrappers with position/
+              transform can offset it. Controlled input (value+onChange) is
+              fine now that backdropFilter stacking context is removed. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: T.sp1 }}>
+            <label style={{ fontSize: T.fontBadge, fontWeight: 700, color: t.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+              Street Address <span style={{ color: BRAND.danger }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }}>
+                <PinIcon />
+              </div>
+              <input
+                ref={addrInputRef}
+                value={newAddr}
+                placeholder="Start typing an address…"
+                autoComplete="off"
+                style={{
+                  width: '100%', boxSizing: 'border-box' as const,
+                  padding: `${T.sp3}px ${T.sp4}px ${T.sp3}px 36px`,
+                  fontSize: T.fontBody, fontFamily: 'inherit',
+                  color: t.textPri, background: t.inputBg,
+                  border: `1.5px solid ${t.inputBorder}`,
+                  borderRadius: T.radSm, outline: 'none',
+                  transition: 'border-color 0.12s',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = BRAND.teal }}
+                onBlur={e => { e.currentTarget.style.borderColor = t.inputBorder }}
+                onChange={e => setNewAddr(e.target.value)}
+              />
+            </div>
+            <p style={{ fontSize: T.fontBadge, color: t.textSubtle, margin: 0 }}>
+              Select from dropdown for auto-fill
+            </p>
+          </div>
 
           {/* City / State / ZIP */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 120px', gap: T.sp3 }}>
@@ -365,7 +379,7 @@ export default function PropertyListPage() {
         <Modal.Footer dk={dk}>
           <Btn variant="ghost" dk={dk} fullWidth onClick={closeModal}>Cancel</Btn>
           <Btn variant="primary" dk={dk} fullWidth loading={adding}
-            disabled={!addrHasValue && !newAddr.trim()}
+            disabled={!newAddr.trim()}
             onClick={handleAdd}>
             Add Property
           </Btn>
