@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { Resend } from 'resend'
 
 // ── Feature flag — set true when ready for Phase 2 auto-send ─────────────────
-const AUTO_SEND_EMAIL = true
+const AUTO_SEND_EMAIL = false
 
 function isRealEmail(email: string): boolean {
   if (!email) return false
