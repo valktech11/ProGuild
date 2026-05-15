@@ -97,6 +97,8 @@ export interface PremiumReportData {
   // SVG source
   segments: RoofSegment[]
   bbox: { swLat: number; swLng: number; neLat: number; neLng: number } | null
+  // Gemini Vision polygon data for improved diagram rendering (optional)
+  geminiRoofPolygons?: import('./geminiRoofPolygons').GeminiRoofPolygons | null
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -1187,6 +1189,48 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
   )
 }
 
+
+// Dispatches to Gemini polygon renderer or approximation renderer
+function buildEnhancedDiagramSvg(
+  data: PremiumReportData,
+  mode: DiagramMode,
+  projected: ProjectedSegment[],
+  edges: ProjectedEdge[],
+): React.ReactElement {
+  const { renderPolygonDiagram, renderApproxDiagram } = require('./roofDiagramSvg') as typeof import('./roofDiagramSvg')
+
+  const segments = data.segments.map(s => ({
+    centerLat: s.center.latitude,
+    centerLng: s.center.longitude,
+    azimuthDegrees: s.azimuthDegrees ?? 180,
+    pitchDegrees: s.pitchDegrees ?? 0,
+    groundAreaMeters2: s.groundAreaMeters2,
+    areaMeters2: s.planeAreaMeters2 ?? s.groundAreaMeters2,
+    planeHeightAtCenterMeters: undefined as number | undefined,
+  }))
+
+  const lf = data.linearFootage
+  const lfArg = lf ? {
+    ridge_ft: lf.ridge_ft,
+    hip_ft: lf.hip_ft,
+    valley_ft: lf.valley_ft,
+    eave_ft: lf.eave_ft,
+    rake_ft: lf.rake_ft,
+  } : undefined
+
+  let svgStr: string
+  if (data.geminiRoofPolygons && data.geminiRoofPolygons.facets.length > 0) {
+    svgStr = renderPolygonDiagram(data.geminiRoofPolygons, segments, mode, lfArg)
+  } else {
+    svgStr = renderApproxDiagram(segments, mode, lfArg)
+  }
+
+  // react-pdf renders SVG from a string via SvgXml — use Svg + G trick or Image
+  // Since react-pdf/renderer uses its own Svg component, we embed via an Image data URI
+  const svgBase64 = `data:image/svg+xml;base64,${Buffer.from(svgStr).toString('base64')}`
+  return h(Image as any, { src: svgBase64, style: { width: 520, height: 400 } })
+}
+
 // Pages 6–8 — SVG diagram pages (pitch, area, notes)
 function buildDiagramPage(
   data: PremiumReportData,
@@ -1253,15 +1297,18 @@ function buildDiagramPage(
         )
       : null,
 
-    // SVG diagram
+    // SVG diagram — use Gemini polygon renderer if available, else approximation
     h(View, { style: { paddingHorizontal: 24, paddingTop: 10, alignItems: 'center' } },
-      buildDiagramSvg(projected, edges, mode),
+      buildEnhancedDiagramSvg(data, mode, projected, edges),
     ),
 
     h(View, { style: { paddingHorizontal: 24, paddingTop: 8 } },
       h(Text, { style: { fontSize: 7, color: BRAND_COLORS.textGray, fontStyle: 'italic' } },
-        'Segment geometry approximated from Google Solar API roofSegmentStats. ' +
-        'Measurements rounded to nearest foot. Some edge lengths may be omitted for readability.',
+        data.geminiRoofPolygons
+          ? 'Facet shapes extracted from satellite imagery via Gemini Vision. ' +
+            'Measurements rounded to nearest foot. Some edge lengths may be omitted for readability.'
+          : 'Segment geometry approximated from Google Solar API roofSegmentStats. ' +
+            'Measurements rounded to nearest foot. Some edge lengths may be omitted for readability.',
       ),
     ),
 

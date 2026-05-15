@@ -59,6 +59,7 @@ export interface ReportData {
   geminiCondition: string | null        // AI condition assessment paragraph
   historicDistrict: string | null       // e.g. "Lake Forest Historic District"
   linearFootage: { ridge_ft: number; hip_ft: number; valley_ft: number; rake_ft: number; eave_ft: number; total_linear_ft: number } | null
+  geminiRoofPolygons?: import('./geminiRoofPolygons').GeminiRoofPolygons | null
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────

@@ -406,6 +406,26 @@ function parseSolar(solar: Record<string, unknown>): {
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────
+// ── Gemini Roof Polygon Extraction ──────────────────────────────────────────
+// Fetches a satellite JPEG and calls Gemini Vision to extract roof facet polygons.
+// Used for improved diagram rendering in the Premium PDF.
+// Returns null on failure — diagram falls back to approximated rectangles.
+async function fetchGeminiRoofPolygons(lat: number, lng: number): Promise<import('@/lib/roofing/geminiRoofPolygons').GeminiRoofPolygons | null> {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY || ''
+  if (!GEMINI_KEY || !GOOGLE_KEY) return null
+  try {
+    const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=20&size=640x640&maptype=satellite&format=jpg&key=${GOOGLE_KEY}`
+    const imgRes = await fetch(mapUrl, { signal: AbortSignal.timeout(15000) })
+    if (!imgRes.ok) return null
+    const base64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64')
+    const { getGeminiRoofPolygons } = await import('@/lib/roofing/geminiRoofPolygons')
+    return await getGeminiRoofPolygons(base64, GEMINI_KEY)
+  } catch (e) {
+    console.warn('[gemini-poly] fetchGeminiRoofPolygons error:', String(e).slice(0, 100))
+    return null
+  }
+}
+
 // ── Gemini Vision Condition Assessment ───────────────────────────────────
 // Fetches the Solar API rgbUrl GeoTIFF, sends as base64 to Gemini 1.5 Flash.
 // Returns a 2-3 sentence condition paragraph. Cost: ~$0.0001/report.
@@ -594,7 +614,7 @@ export async function POST(req: NextRequest) {
 
     // ── 5. Fetch images + NOAA + supplier + Gemini + Historic District ──────
     console.log('[report] step 5: fetching images + NOAA + supplier + Gemini + historic')
-    const [imgTopView, imgZoom19, imgZoom20, imgZoom21, stormEvents, nearestSupplier, geminiCondition, historicDistrict] = await Promise.all([
+    const [imgTopView, imgZoom19, imgZoom20, imgZoom21, stormEvents, nearestSupplier, geminiCondition, historicDistrict, geminiRoofPolygons] = await Promise.all([
       fetchTopView(imgLat, imgLng, measurements.boundingBox),
       fetchZoomView(imgLat, imgLng, 18, 'zoom18'),
       fetchZoomView(imgLat, imgLng, 20, 'zoom20'),
@@ -603,8 +623,9 @@ export async function POST(req: NextRequest) {
       findNearestSupplier(imgLat, imgLng),
       getGeminiCondition(imgLat, imgLng),
       checkHistoricDistrict(imgLat, imgLng, formattedAddress),
+      fetchGeminiRoofPolygons(imgLat, imgLng),
     ])
-    console.log('[report] step 5 done — NOAA:', stormEvents.length, 'supplier:', nearestSupplier?.name || 'none', 'gemini:', geminiCondition ? 'ok' : 'null', 'historic:', historicDistrict || 'none')
+    console.log('[report] step 5 done — NOAA:', stormEvents.length, 'supplier:', nearestSupplier?.name || 'none', 'gemini:', geminiCondition ? 'ok' : 'null', 'historic:', historicDistrict || 'none', 'polygons:', geminiRoofPolygons ? geminiRoofPolygons.facets.length + ' facets' : 'null')
 
     // ── 6. Fetch pro details for report header ────────────────────
     const { data: pro } = await sb
@@ -648,6 +669,7 @@ export async function POST(req: NextRequest) {
       nearestSupplier,
       geminiCondition,
       historicDistrict,
+      geminiRoofPolygons,
       linearFootage: null,   // computed async by /api/roofing/dsm after report saved
     }
 
