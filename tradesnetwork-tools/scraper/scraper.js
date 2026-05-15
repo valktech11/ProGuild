@@ -10,7 +10,7 @@
  * Test (10 records only): node scraper.js --test
  *
  * Requirements:
- *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BING_API_KEY in .env
+ *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RAPIDAPI_KEY in .env
  */
 
 require('dotenv').config()
@@ -214,12 +214,12 @@ async function main() {
   console.log(`   Mode: ${IS_TEST ? 'TEST (10 records)' : 'PRODUCTION'}`)
   console.log(`   Target trades: ${TARGET_TRADES.join(', ')}`)
   console.log(`   Max records: ${MAX_RECORDS.toLocaleString()}`)
-  console.log(`   Bing API key: ${process.env.BING_API_KEY ? '✓ found' : '✗ MISSING'}`)
+  console.log(`   Bing API key: ${process.env.RAPIDAPI_KEY ? '✓ found' : '✗ MISSING'}`)
   console.log(`   Supabase URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL ? '✓ found' : '✗ MISSING'}`)
   console.log('')
 
-  if (!process.env.BING_API_KEY) {
-    console.error('✗ BING_API_KEY missing from .env — cannot proceed')
+  if (!process.env.RAPIDAPI_KEY) {
+    console.error('✗ RAPIDAPI_KEY missing from .env — cannot proceed')
     process.exit(1)
   }
 
