@@ -112,8 +112,8 @@ export default function PropertyListPage() {
       const { PlaceAutocompleteElement } = await (window as any).google.maps.importLibrary('places') as any
 
       const el = new PlaceAutocompleteElement({
-        componentRestrictions: { country: 'us' },
-        types: ['address'],
+        includedRegionCodes: ['us'],
+        includedPrimaryTypes: ['address'],
       }) as HTMLElement
 
       // Inject CSS to allow shadow DOM suggestions to overflow
@@ -143,41 +143,29 @@ export default function PropertyListPage() {
       container.appendChild(el)
       autocompleteRef.current = el
 
-      el.addEventListener('gmp-placeselect', async (event: Event) => {
+      el.addEventListener('gmp-select', async (event: Event) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const place = (event as any).place
+        const placePrediction = (event as any).placePrediction
+        const place = placePrediction.toPlace()
         await place.fetchFields({ fields: ['addressComponents', 'formattedAddress'] })
 
-        // New Places API: addressComponents is an array of objects with
-        // longText, shortText, and types[] — log to verify shape
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const comps: any[] = place.addressComponents || []
-        console.log('[Places] addressComponents:', JSON.stringify(comps))
-        console.log('[Places] formattedAddress:', place.formattedAddress)
-
         let streetNum = '', route = '', city = '', state = '', zip = ''
         for (const comp of comps) {
-          // New API: types is an array of strings on the comp object
           const types: string[] = comp.types || []
-          const long = comp.longText || comp.long_name || ''
-          const short = comp.shortText || comp.short_name || ''
+          const long = comp.longText || ''
+          const short = comp.shortText || ''
           if (types.includes('street_number')) streetNum = long
           if (types.includes('route'))         route     = long
-          // city: locality preferred, fallback to sublocality or admin_area_level_2
           if (types.includes('locality'))                    city  = long
-          if (!city && types.includes('sublocality'))        city  = long
-          if (!city && types.includes('postal_town'))        city  = long
+          if (!city && types.includes('sublocality_level_1')) city = long
+          if (!city && types.includes('postal_town'))         city = long
           if (types.includes('administrative_area_level_1')) state = short
           if (types.includes('postal_code'))                 zip   = long
         }
-
-        // Street address only (not full formatted address)
         const streetAddr = `${streetNum} ${route}`.trim()
-        // Fallback: parse first part of formattedAddress before first comma
         const full = streetAddr || (place.formattedAddress || '').split(',')[0].trim()
-
-        console.log('[Places] parsed:', { streetAddr, city, state, zip })
-
         setNewAddr(full)
         setNewCity(city)
         setNewState(state)
