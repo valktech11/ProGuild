@@ -109,7 +109,7 @@ const S = StyleSheet.create({
   metricRow:    { flexDirection: 'row', gap: 10, marginBottom: 14 },
   metricBox:    { flex: 1, backgroundColor: TEAL_XL, borderRadius: 10, padding: '12 14' },
   metricVal:    { fontSize: 20, fontFamily: 'Helvetica-Bold', color: TEAL },
-  metricLbl:    { fontSize: 9, color: MUTED, marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.5 },
+  metricLbl:    { fontSize: 9, color: '#374151', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: 'Helvetica-Bold' },
   metricSub:    { fontSize: 8, color: TEAL, marginTop: 2 },
 
   // Data image
@@ -134,7 +134,7 @@ const S = StyleSheet.create({
   gridRow:      { flexDirection: 'row', gap: 10, marginBottom: 10 },
   gridImgWrap:  { flex: 1 },
   gridImg:      { height: 150, borderRadius: 8 },
-  gridLabel:    { fontSize: 9, color: MUTED, textAlign: 'center', marginTop: 4, fontFamily: 'Helvetica-Bold' },
+  gridLabel:    { fontSize: 9, color: '#374151', textAlign: 'center', marginTop: 4, fontFamily: 'Helvetica-Bold' },
 
   // Waste table
   wasteTbl:     { borderRadius: 6, overflow: 'hidden', marginTop: 14 },
@@ -145,7 +145,7 @@ const S = StyleSheet.create({
   summaryTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: NAVY, marginBottom: 8 },
   summaryRow:   { flexDirection: 'row', gap: 40 },
   summaryCol:   { gap: 4 },
-  summaryLine:  { fontSize: 9, color: MUTED },
+  summaryLine:  { fontSize: 9, color: '#374151' },
   summaryVal:   { fontFamily: 'Helvetica-Bold', color: NAVY },
 
   // Low slope
@@ -168,12 +168,12 @@ const S = StyleSheet.create({
 
   // Supplier
   supplierRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  supplierTxt:  { fontSize: 9, color: MUTED },
+  supplierTxt:  { fontSize: 9, color: '#374151' },
   supplierLink: { fontSize: 9, color: TEAL, textDecoration: 'underline' },
 
   // Directions link
   coordsRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  coordsTxt:        { fontSize: 9, color: MUTED },
+  coordsTxt:        { fontSize: 9, color: '#374151' },
   directionsLink:   { fontSize: 9, color: TEAL, textDecoration: 'underline' },
 
   // Gemini AI condition assessment

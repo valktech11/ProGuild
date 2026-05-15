@@ -936,10 +936,10 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
 
   function LFRow(label: string, value: number, note: string) {
     return h(View, { style: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#E2E8F0' } },
-      h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 8 } }, label),
+      h(Text, { style: { color: BRAND_COLORS.textDark, fontSize: 9, fontFamily: 'Helvetica-Bold' } }, label),
       h(View, { style: { flexDirection: 'row', alignItems: 'baseline', gap: 4 } },
         h(Text, { style: { color: BRAND_COLORS.textDark, fontSize: 9, fontFamily: 'Helvetica-Bold' } }, value > 0 ? `${fmt(value)} ft` : '—'),
-        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7 } }, note),
+        h(Text, { style: { color: '#475569', fontSize: 7.5 } }, note),
       ),
     )
   }
@@ -976,7 +976,7 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
 
       // Left — measurements
       h(View, { style: { flex: 1 } },
-        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, letterSpacing: 1.5, marginBottom: 8, fontFamily: 'Helvetica-Bold' } }, 'MEASUREMENTS'),
+        h(Text, { style: { color: '#374151', fontSize: 7, letterSpacing: 1.5, marginBottom: 8, fontFamily: 'Helvetica-Bold' } }, 'MEASUREMENTS'),
         h(View, { style: { flexDirection: 'row', marginBottom: 8 } },
           MetricBox('ORDER QUANTITY', `${fmt(data.totalSquares, 1)} sq`, `${fmt(data.totalSqft)} sq ft total`),
           MetricBox('DOMINANT PITCH', data.dominantPitch, 'Predominant slope'),
@@ -985,7 +985,7 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
         ),
 
         // LF summary
-        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, letterSpacing: 1.5, marginBottom: 6, marginTop: 4, fontFamily: 'Helvetica-Bold' } }, 'LINEAR FOOTAGE SUMMARY'),
+        h(Text, { style: { color: '#374151', fontSize: 7, letterSpacing: 1.5, marginBottom: 6, marginTop: 4, fontFamily: 'Helvetica-Bold' } }, 'LINEAR FOOTAGE SUMMARY'),
         h(View, { style: { backgroundColor: '#F8FAFC', borderRadius: 6, padding: 10, borderWidth: 0.5, borderColor: '#E2E8F0' } },
           LFRow('Ridge', ridge, 'Ridge cap'),
           LFRow('Hip', hip, 'Hip cap'),
@@ -1004,7 +1004,7 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
 
       // Right — prepared for
       h(View, { style: { width: 150 } },
-        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, letterSpacing: 1.5, marginBottom: 8, fontFamily: 'Helvetica-Bold' } }, 'PREPARED FOR'),
+        h(Text, { style: { color: '#374151', fontSize: 7, letterSpacing: 1.5, marginBottom: 8, fontFamily: 'Helvetica-Bold' } }, 'PREPARED FOR'),
         h(View, { style: { backgroundColor: '#F8FAFC', borderRadius: 6, padding: 12, borderWidth: 0.5, borderColor: '#E2E8F0' } },
           h(Text, { style: { color: BRAND_COLORS.textDark, fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 2 } }, data.proName),
           data.proCompany ? h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 8, marginBottom: 4 } }, data.proCompany) : null,
@@ -1023,15 +1023,15 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
     // Property details strip — fills dead space at bottom of cover
     h(View, { style: { marginHorizontal: 28, marginTop: 14, backgroundColor: '#F8FAFC', borderRadius: 6, borderWidth: 0.5, borderColor: '#E2E8F0', padding: 10, flexDirection: 'row', gap: 20 } },
       h(View, { style: { flex: 1 } },
-        h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 6.5, letterSpacing: 1.2, fontFamily: 'Helvetica-Bold', marginBottom: 4 } }, 'PROPERTY DETAILS'),
+        h(Text, { style: { color: '#374151', fontSize: 6.5, letterSpacing: 1.2, fontFamily: 'Helvetica-Bold', marginBottom: 4 } }, 'PROPERTY DETAILS'),
         h(View, { style: { flexDirection: 'row', gap: 8 } },
           h(View, { style: { flex: 1 } },
-            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, marginBottom: 2 } }, `Coordinates: ${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`),
-            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, marginBottom: 2 } }, `Imagery date: ${data.imageryDate}`),
+            h(Text, { style: { color: '#374151', fontSize: 7, marginBottom: 2 } }, `Coordinates: ${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`),
+            h(Text, { style: { color: '#374151', fontSize: 7, marginBottom: 2 } }, `Imagery date: ${data.imageryDate}`),
           ),
           h(View, { style: { flex: 1 } },
-            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, marginBottom: 2 } }, `Total area: ${fmt(data.totalSqft)} sq ft`),
-            h(Text, { style: { color: BRAND_COLORS.textGray, fontSize: 7, marginBottom: 2 } }, `Report generated: ${formatDate(data.generatedAt)}`),
+            h(Text, { style: { color: '#374151', fontSize: 7, marginBottom: 2 } }, `Total area: ${fmt(data.totalSqft)} sq ft`),
+            h(Text, { style: { color: '#374151', fontSize: 7, marginBottom: 2 } }, `Report generated: ${formatDate(data.generatedAt)}`),
           ),
         ),
       ),
@@ -1130,7 +1130,7 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
       // Label + desc
       h(View, { style: { flex: 1 } },
         h(Text, { style: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 2 } }, r.label),
-        h(Text, { style: { fontSize: 7.5, color: BRAND_COLORS.textGray } }, r.desc),
+        h(Text, { style: { fontSize: 7.5, color: '#475569' } }, r.desc),
       ),
       // Footage
       h(View, { style: { width: 70, alignItems: 'flex-end' } },
@@ -1171,11 +1171,11 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
         h(View, { style: { flex: 1, borderWidth: 0.5, borderColor: BRAND_COLORS.borderGray, borderRadius: 6, padding: 12 } },
           h(Text, { style: { fontSize: 8, color: BRAND_COLORS.textGray, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, fontFamily: 'Helvetica-Bold' } }, 'Combined Lengths'),
           h(View, { style: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 } },
-            h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textGray } }, 'Ridge + Hip (capping)'),
+            h(Text, { style: { fontSize: 9, color: '#374151' } }, 'Ridge + Hip (capping)'),
             h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark } }, `${fmt(lf.ridge_ft + lf.hip_ft)} ft`),
           ),
           h(View, { style: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 } },
-            h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textGray } }, 'Eave + Rake (drip edge)'),
+            h(Text, { style: { fontSize: 9, color: '#374151' } }, 'Eave + Rake (drip edge)'),
             h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark } }, `${fmt(lf.eave_ft + lf.rake_ft)} ft`),
           ),
         ),
