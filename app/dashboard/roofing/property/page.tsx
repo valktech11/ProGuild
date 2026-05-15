@@ -359,8 +359,7 @@ export default function PropertyListPage() {
                   </div>
                   <input
                     ref={addrInputRef}
-                    value={newAddr}
-                    onChange={e => setNewAddr(e.target.value)}
+                    defaultValue=""
                     placeholder="Start typing an address…"
                     autoComplete="off"
                     style={{ width: '100%', boxSizing: 'border-box' as const,
@@ -370,6 +369,7 @@ export default function PropertyListPage() {
                       borderRadius: T.radSm, outline: 'none', transition: 'border-color 0.12s' }}
                     onFocus={e => { e.currentTarget.style.borderColor = BRAND.teal }}
                     onBlur={e => { e.currentTarget.style.borderColor = t.inputBorder }}
+                    onInput={e => setNewAddr((e.target as HTMLInputElement).value)}
                   />
                 </div>
                 <p style={{ fontSize: T.fontBadge, color: t.textSubtle, margin: `${T.sp1}px 0 0` }}>
