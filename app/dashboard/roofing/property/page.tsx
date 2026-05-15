@@ -89,9 +89,7 @@ export default function PropertyListPage() {
     fetchProperties().finally(() => setLoading(false))
   }, [fetchProperties])
 
-  // ── Google Places autocomplete (new PlaceAutocompleteElement API) ───────────
-  // google.maps.places.Autocomplete is deprecated for keys created after
-  // March 1 2025. Must use PlaceAutocompleteElement (custom HTML element).
+  // ── Google Places autocomplete — PlaceAutocompleteElement (2025 API) ────────
   useEffect(() => {
     if (!showAdd) return
 
@@ -99,53 +97,41 @@ export default function PropertyListPage() {
     if (!mapsKey) { console.warn('[Places] NEXT_PUBLIC_GOOGLE_MAPS_KEY not set'); return }
 
     async function initPlaces() {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const g = (window as any).google
-      if (!g?.maps) return
-
       const container = document.getElementById('pac-input-container')
       if (!container) return
 
-      // Clean up previous instance
+      // Remove previous instance
       if (autocompleteRef.current) {
         try { autocompleteRef.current.remove() } catch { /* ignore */ }
         autocompleteRef.current = null
       }
 
-      // Import the new Places library
+      // Use the new importLibrary API — required for PlaceAutocompleteElement
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { PlaceAutocompleteElement } = await (g.maps as any).importLibrary('places')
+      const { PlaceAutocompleteElement } = await (window as any).google.maps.importLibrary('places') as any
 
-      // Create the new element
       const el = new PlaceAutocompleteElement({
         componentRestrictions: { country: 'us' },
         types: ['address'],
       }) as HTMLElement
 
-      // Style it to match our design
-      el.style.cssText = `
-        width: 100%;
-        --gmp-mat-filled-input-hover-bg-color: transparent;
-        --gmp-mat-filled-input-active-bg-color: transparent;
-      `
       container.innerHTML = ''
       container.appendChild(el)
       autocompleteRef.current = el
 
-      // Listen for place selection
       el.addEventListener('gmp-placeselect', async (event: Event) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const place = (event as any).place
         await place.fetchFields({ fields: ['addressComponents', 'formattedAddress'] })
-        const comps = place.addressComponents || []
+        const comps: any[] = place.addressComponents || []
         let streetNum = '', route = '', city = '', state = '', zip = ''
         for (const comp of comps) {
           const types: string[] = comp.types || []
-          if (types.includes('street_number')) streetNum = comp.longText || comp.shortText || ''
-          if (types.includes('route')) route = comp.longText || comp.shortText || ''
-          if (types.includes('locality')) city = comp.longText || comp.shortText || ''
+          if (types.includes('street_number')) streetNum = comp.longText || ''
+          if (types.includes('route'))         route     = comp.longText || ''
+          if (types.includes('locality'))      city      = comp.longText || ''
           if (types.includes('administrative_area_level_1')) state = comp.shortText || ''
-          if (types.includes('postal_code')) zip = comp.longText || comp.shortText || ''
+          if (types.includes('postal_code'))   zip       = comp.longText || ''
         }
         const full = `${streetNum} ${route}`.trim() || place.formattedAddress || ''
         setNewAddr(full)
@@ -155,27 +141,35 @@ export default function PropertyListPage() {
       })
     }
 
-    // Load Maps JS if not already loaded
+    // New bootstrap: use the inline script with loading=async approach
+    // This is the correct loader for PlaceAutocompleteElement
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).google?.maps) {
-      setTimeout(initPlaces, 100)
-    } else if (!document.getElementById('gp-script') && !document.getElementById('gmap-script')) {
-      const script = document.createElement('script')
-      script.id  = 'gp-script'
-      // Use new loading API — required for PlaceAutocompleteElement
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places&v=weekly`
-      script.async = true
-      script.onload = () => setTimeout(initPlaces, 100)
-      script.onerror = () => console.warn('[Places] Script load failed')
-      document.head.appendChild(script)
+    if ((window as any).google?.maps?.importLibrary) {
+      // Already bootstrapped (e.g. ProMeasure loaded Maps first)
+      initPlaces()
     } else {
-      let waited = 0
-      const check = setInterval(() => {
-        waited += 200
+      // Inject the new async bootstrap script (not the legacy /api/js)
+      const scriptId = 'gmp-bootstrap'
+      if (!document.getElementById(scriptId)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((window as any).google?.maps) { clearInterval(check); initPlaces() }
-        else if (waited >= 5000) { clearInterval(check); console.warn('[Places] Maps JS load timeout') }
-      }, 200)
+        ;(window as any).__googleMapsInit = initPlaces
+        const script = document.createElement('script')
+        script.id  = scriptId
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&v=weekly&libraries=places&callback=__googleMapsInit&loading=async`
+        script.async = true
+        script.defer = true
+        script.onerror = () => console.warn('[Places] Bootstrap script failed to load')
+        document.head.appendChild(script)
+      } else {
+        // Script injected but callback not fired yet — wait
+        let waited = 0
+        const check = setInterval(() => {
+          waited += 200
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((window as any).google?.maps?.importLibrary) { clearInterval(check); initPlaces() }
+          else if (waited >= 8000) clearInterval(check)
+        }, 200)
+      }
     }
   }, [showAdd])
 
