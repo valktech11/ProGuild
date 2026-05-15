@@ -73,7 +73,6 @@ export default function PropertyListPage() {
   const [newZip,   setNewZip]   = useState('')
 
   // Autocomplete
-  const addrInputRef    = useRef<HTMLInputElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const autocompleteRef = useRef<any>(null)
 
@@ -90,59 +89,83 @@ export default function PropertyListPage() {
     fetchProperties().finally(() => setLoading(false))
   }, [fetchProperties])
 
-  // ── Google Places autocomplete ─────────────────────────────────────────────
+  // ── Google Places autocomplete (new PlaceAutocompleteElement API) ───────────
+  // google.maps.places.Autocomplete is deprecated for keys created after
+  // March 1 2025. Must use PlaceAutocompleteElement (custom HTML element).
   useEffect(() => {
     if (!showAdd) return
 
-    function initAutocomplete() {
+    const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
+    if (!mapsKey) { console.warn('[Places] NEXT_PUBLIC_GOOGLE_MAPS_KEY not set'); return }
+
+    async function initPlaces() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const g = (window as any).google
-      if (!addrInputRef.current || !g?.maps?.places) return
+      if (!g?.maps) return
 
+      const container = document.getElementById('pac-input-container')
+      if (!container) return
+
+      // Clean up previous instance
       if (autocompleteRef.current) {
-        try { autocompleteRef.current.unbindAll() } catch { /* ignore */ }
+        try { autocompleteRef.current.remove() } catch { /* ignore */ }
         autocompleteRef.current = null
       }
 
-      const ac = new g.maps.places.Autocomplete(addrInputRef.current, {
-        types: ['address'],
-        componentRestrictions: { country: 'us' },
-        fields: ['address_components', 'formatted_address'],
-      })
+      // Import the new Places library
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { PlaceAutocompleteElement } = await (g.maps as any).importLibrary('places')
 
-      ac.addListener('place_changed', () => {
-        const place = ac.getPlace()
-        if (!place.address_components) return
+      // Create the new element
+      const el = new PlaceAutocompleteElement({
+        componentRestrictions: { country: 'us' },
+        types: ['address'],
+      }) as HTMLElement
+
+      // Style it to match our design
+      el.style.cssText = `
+        width: 100%;
+        --gmp-mat-filled-input-hover-bg-color: transparent;
+        --gmp-mat-filled-input-active-bg-color: transparent;
+      `
+      container.innerHTML = ''
+      container.appendChild(el)
+      autocompleteRef.current = el
+
+      // Listen for place selection
+      el.addEventListener('gmp-placeselect', async (event: Event) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const place = (event as any).place
+        await place.fetchFields({ fields: ['addressComponents', 'formattedAddress'] })
+        const comps = place.addressComponents || []
         let streetNum = '', route = '', city = '', state = '', zip = ''
-        for (const comp of place.address_components) {
-          const t = comp.types[0]
-          if (t === 'street_number') streetNum = comp.long_name
-          if (t === 'route') route = comp.long_name
-          if (t === 'locality') city = comp.long_name
-          if (t === 'administrative_area_level_1') state = comp.short_name
-          if (t === 'postal_code') zip = comp.long_name
+        for (const comp of comps) {
+          const types: string[] = comp.types || []
+          if (types.includes('street_number')) streetNum = comp.longText || comp.shortText || ''
+          if (types.includes('route')) route = comp.longText || comp.shortText || ''
+          if (types.includes('locality')) city = comp.longText || comp.shortText || ''
+          if (types.includes('administrative_area_level_1')) state = comp.shortText || ''
+          if (types.includes('postal_code')) zip = comp.longText || comp.shortText || ''
         }
-        const full = `${streetNum} ${route}`.trim()
+        const full = `${streetNum} ${route}`.trim() || place.formattedAddress || ''
         setNewAddr(full)
         setNewCity(city)
         setNewState(state)
         setNewZip(zip)
       })
-      autocompleteRef.current = ac
     }
 
-    const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
-    if (!mapsKey) return
-
+    // Load Maps JS if not already loaded
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).google?.maps?.places) {
-      setTimeout(initAutocomplete, 100)
+    if ((window as any).google?.maps) {
+      setTimeout(initPlaces, 100)
     } else if (!document.getElementById('gp-script') && !document.getElementById('gmap-script')) {
       const script = document.createElement('script')
       script.id  = 'gp-script'
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places`
+      // Use new loading API — required for PlaceAutocompleteElement
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places&v=weekly`
       script.async = true
-      script.onload = () => setTimeout(initAutocomplete, 100)
+      script.onload = () => setTimeout(initPlaces, 100)
       script.onerror = () => console.warn('[Places] Script load failed')
       document.head.appendChild(script)
     } else {
@@ -150,8 +173,8 @@ export default function PropertyListPage() {
       const check = setInterval(() => {
         waited += 200
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((window as any).google?.maps?.places) { clearInterval(check); initAutocomplete() }
-        else if (waited >= 5000) clearInterval(check)
+        if ((window as any).google?.maps) { clearInterval(check); initPlaces() }
+        else if (waited >= 5000) { clearInterval(check); console.warn('[Places] Maps JS load timeout') }
       }, 200)
     }
   }, [showAdd])
@@ -159,11 +182,10 @@ export default function PropertyListPage() {
   function closeModal() {
     setShowAdd(false)
     setNewAddr(''); setNewCity(''); setNewState(''); setNewZip('')
-    if (addrInputRef.current) addrInputRef.current.value = ''
   }
 
   async function handleAdd() {
-    const addr = addrInputRef.current?.value?.trim() || newAddr.trim()
+    const addr = newAddr.trim()
     if (!session || !addr) return
     setAdding(true)
     const r = await fetch('/api/properties', {
@@ -345,33 +367,18 @@ export default function PropertyListPage() {
             {/* Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: T.sp4 }}>
 
-              {/* Street address */}
+              {/* Street address — PlaceAutocompleteElement (new Google Places API) */}
               <div>
                 <label style={{ fontSize: T.fontBadge, fontWeight: 700, color: t.textMuted,
                     letterSpacing: '0.06em', textTransform: 'uppercase' as const,
                     display: 'block', marginBottom: T.sp1 }}>
                   Street Address <span style={{ color: BRAND.danger }}>*</span>
                 </label>
-                <div style={{ position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 11, top: '50%',
-                      transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }}>
-                    <PinIcon />
-                  </div>
-                  <input
-                    ref={addrInputRef}
-                    defaultValue=""
-                    placeholder="Start typing an address…"
-                    autoComplete="off"
-                    style={{ width: '100%', boxSizing: 'border-box' as const,
-                      padding: `${T.sp3}px ${T.sp4}px ${T.sp3}px 36px`,
-                      fontSize: T.fontBody, fontFamily: 'inherit', color: t.textPri,
-                      background: t.inputBg, border: `1.5px solid ${t.inputBorder}`,
-                      borderRadius: T.radSm, outline: 'none', transition: 'border-color 0.12s' }}
-                    onFocus={e => { e.currentTarget.style.borderColor = BRAND.teal }}
-                    onBlur={e => { e.currentTarget.style.borderColor = t.inputBorder }}
-                    onInput={e => setNewAddr((e.target as HTMLInputElement).value)}
-                  />
-                </div>
+                {/* PlaceAutocompleteElement injected here by useEffect */}
+                <div id="pac-input-container" style={{
+                  width: '100%', minHeight: 44,
+                  borderRadius: T.radSm, overflow: 'hidden',
+                }} />
                 <p style={{ fontSize: T.fontBadge, color: t.textSubtle, margin: `${T.sp1}px 0 0` }}>
                   Select from dropdown for auto-fill
                 </p>
