@@ -106,7 +106,7 @@ async function findWebsite(pro) {
         'x-rapidapi-key':  process.env.RAPIDAPI_KEY,
         'x-rapidapi-host': 'bing-search-apis.p.rapidapi.com',
       },
-      params: { keyword: query, count: 5 },  // TPDevPro uses keyword=
+      params: { keyword: query, page: 0, size: 5 },  // TPDevPro params
       timeout: 10000,
     })
 
