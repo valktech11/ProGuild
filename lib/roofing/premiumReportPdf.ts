@@ -1190,45 +1190,117 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
 }
 
 
-// Dispatches to Gemini polygon renderer or approximation renderer
+// Renders diagram using react-pdf native SVG primitives.
+// Uses Gemini polygon data when available for accurate shapes,
+// falls back to improved azimuth-rotated approximation.
 function buildEnhancedDiagramSvg(
   data: PremiumReportData,
   mode: DiagramMode,
   projected: ProjectedSegment[],
   edges: ProjectedEdge[],
 ): React.ReactElement {
-  const { renderPolygonDiagram, renderApproxDiagram } = require('./roofDiagramSvg') as typeof import('./roofDiagramSvg')
+  const geminiPolygons = data.geminiRoofPolygons
 
-  const segments = data.segments.map(s => ({
-    centerLat: s.center.latitude,
-    centerLng: s.center.longitude,
-    azimuthDegrees: s.azimuthDegrees ?? 180,
-    pitchDegrees: s.pitchDegrees ?? 0,
-    groundAreaMeters2: s.groundAreaMeters2,
-    areaMeters2: s.planeAreaMeters2 ?? s.groundAreaMeters2,
-    planeHeightAtCenterMeters: undefined as number | undefined,
-  }))
-
-  const lf = data.linearFootage
-  const lfArg = lf ? {
-    ridge_ft: lf.ridge_ft,
-    hip_ft: lf.hip_ft,
-    valley_ft: lf.valley_ft,
-    eave_ft: lf.eave_ft,
-    rake_ft: lf.rake_ft,
-  } : undefined
-
-  let svgStr: string
-  if (data.geminiRoofPolygons && data.geminiRoofPolygons.facets.length > 0) {
-    svgStr = renderPolygonDiagram(data.geminiRoofPolygons, segments, mode, lfArg)
-  } else {
-    svgStr = renderApproxDiagram(segments, mode, lfArg)
+  // Roofr-style edge colors
+  const EDGE_COL: Record<string, string> = {
+    ridge:  '#F97316',  // orange
+    hip:    '#6366F1',  // indigo
+    valley: '#EF4444',  // red
+    eave:   '#10B981',  // green
+    rake:   '#8B5CF6',  // purple
   }
 
-  // react-pdf renders SVG from a string via SvgXml — use Svg + G trick or Image
-  // Since react-pdf/renderer uses its own Svg component, we embed via an Image data URI
-  const svgBase64 = `data:image/svg+xml;base64,${Buffer.from(svgStr).toString('base64')}`
-  return h(Image as any, { src: svgBase64, style: { width: 520, height: 400 } })
+  function pitchFill(deg: number): string {
+    if (deg >= 33.7) return '#BFDBFE'
+    if (deg >= 22.6) return '#DBEAFE'
+    if (deg >= 14.0) return '#EFF6FF'
+    return '#F8FAFC'
+  }
+  function areaFill(areaM2: number): string {
+    const maxA = Math.max(...projected.map(p => p.areaM2))
+    const r = areaM2 / (maxA || 1)
+    if (r > 0.6) return '#BFDBFE'
+    if (r > 0.3) return '#DBEAFE'
+    if (r > 0.1) return '#EFF6FF'
+    return '#F8FAFC'
+  }
+
+  // ── Path A: Gemini polygon mode ─────────────────────────────────────────
+  if (geminiPolygons && geminiPolygons.facets.length > 0) {
+    const W = SVG_W, H = SVG_H, M = 40
+    const scaleX = (W - 2 * M), scaleY = (H - 2 * M)
+
+    function toSvgX(nx: number) { return M + nx * scaleX }
+    function toSvgY(ny: number) { return M + ny * scaleY }
+
+    // Match Gemini facet centroids to projected segments for label data
+    const matchedPitch = new Map<number, number>()
+    const matchedArea  = new Map<number, number>()
+    for (const f of geminiPolygons.facets) {
+      let best = 0, bestDist = Infinity
+      for (let i = 0; i < projected.length; i++) {
+        const p = projected[i]
+        const nx = (p.cx - M) / scaleX
+        const ny = (p.cy - M) / scaleY
+        const d = Math.sqrt((nx - f.centroid.x) ** 2 + (ny - f.centroid.y) ** 2)
+        if (d < bestDist) { bestDist = d; best = i }
+      }
+      matchedPitch.set(f.id, projected[best]?.pitchDeg ?? 0)
+      matchedArea.set(f.id,  projected[best]?.areaM2 ?? 0)
+    }
+
+    const drawnEdges = new Set<string>()
+
+    return h(Svg as any, { width: W, height: H, viewBox: `0 0 ${W} ${H}` },
+      // Background
+      h(Rect as any, { x: 0, y: 0, width: W, height: H, fill: '#FFFFFF', rx: 4 }),
+
+      // Face fills
+      ...geminiPolygons.facets.map(f => {
+        const pts = f.vertices.map(v => `${toSvgX(v.x).toFixed(1)},${toSvgY(v.y).toFixed(1)}`).join(' ')
+        const fill = mode === 'pitch' ? pitchFill(matchedPitch.get(f.id) ?? 0)
+                   : mode === 'area'  ? areaFill(matchedArea.get(f.id) ?? 0)
+                   : '#DBEAFE'
+        return h(Polygon as any, { points: pts, fill, stroke: '#93C5FD', strokeWidth: 1.5, strokeLinejoin: 'round' })
+      }),
+
+      // Edges
+      ...geminiPolygons.facets.flatMap(f =>
+        f.edgeTypes.map(e => {
+          const k = [e.pt1.x, e.pt1.y, e.pt2.x, e.pt2.y].map(n => n.toFixed(3)).join(',')
+          if (drawnEdges.has(k)) return null
+          drawnEdges.add(k)
+          const col = EDGE_COL[e.type] ?? '#93C5FD'
+          const sw  = e.type === 'ridge' ? 2.5 : e.type === 'hip' ? 2 : 1.5
+          const da  = e.type === 'valley' ? '6 3' : undefined
+          return h(Line as any, {
+            x1: toSvgX(e.pt1.x).toFixed(1), y1: toSvgY(e.pt1.y).toFixed(1),
+            x2: toSvgX(e.pt2.x).toFixed(1), y2: toSvgY(e.pt2.y).toFixed(1),
+            stroke: col, strokeWidth: sw, strokeDasharray: da, strokeLinecap: 'round',
+          })
+        }).filter(Boolean)
+      ),
+
+      // Facet labels
+      ...geminiPolygons.facets.map((f, i) => {
+        const cx = toSvgX(f.centroid.x), cy = toSvgY(f.centroid.y)
+        const label = mode === 'pitch' ? (() => { const r = Math.round(Math.tan((matchedPitch.get(f.id)??0)*Math.PI/180)*12); return `${r}/12` })()
+                    : mode === 'area'  ? `${Math.round((matchedArea.get(f.id)??0)*10.7639)}ft²`
+                    : (i < 26 ? String.fromCharCode(65 + i) : `${i+1}`)
+        return h(Text as any, {
+          x: cx.toFixed(1), y: (cy + 4).toFixed(1),
+          style: { fontSize: 8, fill: '#1E3A5F', textAnchor: 'middle', fontWeight: 'bold' },
+        }, label)
+      }),
+
+      // Compass
+      h(Text as any, { x: W - 28, y: 20, style: { fontSize: 8, fill: '#64748B', textAnchor: 'middle', fontWeight: 'bold' } }, 'N'),
+      h(Line as any, { x1: W-28, y1: 22, x2: W-28, y2: 38, stroke: '#64748B', strokeWidth: 1.5 }),
+    )
+  }
+
+  // ── Path B: Improved approximation (react-pdf primitives) ───────────────
+  return buildDiagramSvg(projected, edges, mode)
 }
 
 // Pages 6–8 — SVG diagram pages (pitch, area, notes)
