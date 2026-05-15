@@ -106,7 +106,7 @@ async function findWebsite(pro) {
         'x-rapidapi-key':  process.env.RAPIDAPI_KEY,
         'x-rapidapi-host': 'bing-search-apis.p.rapidapi.com',
       },
-      params: { query, num: 5 },
+      params: { q: query, count: 5 },  // TPDevPro uses q= and count=
       timeout: 10000,
     })
 
@@ -138,6 +138,7 @@ async function findWebsite(pro) {
       console.log('  ⚠ API key issue or free plan limit reached')
     } else {
       console.log('  ⚠ Search error:', err.response?.status, err.message)
+      if (err.response?.data) console.log('  [DEBUG] Error body:', JSON.stringify(err.response.data).slice(0, 300))
     }
     return null
   }
