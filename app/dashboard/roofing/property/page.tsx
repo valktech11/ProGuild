@@ -70,13 +70,27 @@ export default function PropertyListPage() {
   }, [fetchProperties])
 
   // Load Google Maps Places script and init autocomplete when modal opens
+  // BUG FIXES:
+  // 1. Input is UNCONTROLLED — no value=/onChange on the input element.
+  //    Controlled inputs cause React re-renders that reset the input value
+  //    and close the Places dropdown mid-selection.
+  // 2. ac.unbindAll() before re-creating to prevent duplicate instances
+  //    when modal is opened, closed, then re-opened (old cleanup nulled
+  //    the ref but left the old Autocomplete attached to the DOM input).
+  // 3. Check both 'gp-script' and 'gmap-script' IDs (ProMeasure loads
+  //    with gmap-script) so we don't inject a duplicate script tag.
   useEffect(() => {
     if (!showAdd) return
 
     function initAutocomplete() {
       const g = (window as any).google
       if (!addrInputRef.current || !g?.maps?.places) return
-      if (autocompleteRef.current) return // already init
+
+      // Unbind previous instance if re-opening modal (prevents duplicate listeners)
+      if (autocompleteRef.current) {
+        try { autocompleteRef.current.unbindAll() } catch { /* ignore */ }
+        autocompleteRef.current = null
+      }
 
       const ac = new g.maps.places.Autocomplete(addrInputRef.current, {
         types: ['address'],
@@ -97,7 +111,10 @@ export default function PropertyListPage() {
           if (t === 'administrative_area_level_1') state = comp.short_name
           if (t === 'postal_code') zip = comp.long_name
         }
-        setNewAddr(`${streetNum} ${route}`.trim())
+        const fullAddr = `${streetNum} ${route}`.trim()
+        setNewAddr(fullAddr)
+        // Also update the uncontrolled input value so it shows the full address
+        if (addrInputRef.current) addrInputRef.current.value = fullAddr
         setNewCity(city)
         setNewState(state)
         setNewZip(zip)
@@ -105,30 +122,35 @@ export default function PropertyListPage() {
       autocompleteRef.current = ac
     }
 
-    // Load script if not already loaded
     const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
-    if (!mapsKey) return
+    if (!mapsKey) {
+      console.warn('[Places] NEXT_PUBLIC_GOOGLE_MAPS_KEY not set — autocomplete disabled')
+      return
+    }
 
     if ((window as any).google?.maps?.places) {
-      // slight delay to ensure input is mounted
+      // Already loaded (e.g. navigated from ProMeasure which loads gmap-script)
       setTimeout(initAutocomplete, 100)
-    } else if (!document.getElementById('gp-script')) {
+    } else if (!document.getElementById('gp-script') && !document.getElementById('gmap-script')) {
+      // Neither script loaded yet — inject ours
       const script = document.createElement('script')
       script.id = 'gp-script'
       script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places`
       script.async = true
       script.onload = () => setTimeout(initAutocomplete, 100)
+      script.onerror = () => console.warn('[Places] Maps JS script failed to load — check API key and referrer allowlist')
       document.head.appendChild(script)
     } else {
-      // Script loading, wait for it
+      // Script tag exists but may still be loading — poll for up to 5 seconds
+      let waited = 0
       const check = setInterval(() => {
+        waited += 200
         if ((window as any).google?.maps?.places) { clearInterval(check); initAutocomplete() }
+        else if (waited >= 5000) { clearInterval(check); console.warn('[Places] Maps JS took >5s to load') }
       }, 200)
     }
 
-    return () => {
-      autocompleteRef.current = null
-    }
+    // No cleanup null — let the unbindAll() in next init handle cleanup
   }, [showAdd])
 
   async function handleAdd() {
@@ -239,7 +261,7 @@ export default function PropertyListPage() {
         {/* Add Property Modal */}
         {showAdd && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-            onClick={() => setShowAdd(false)}>
+            onClick={() => { setShowAdd(false); if (addrInputRef.current) addrInputRef.current.value = '' }}>
             <div style={{ background: dk ? '#1E293B' : '#FFFFFF', borderRadius: 20, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 32px 64px rgba(0,0,0,0.4)', border: `1px solid ${t.cardBorder}` }}
               onClick={e => e.stopPropagation()}>
 
@@ -267,13 +289,19 @@ export default function PropertyListPage() {
                     </div>
                     <input
                       ref={addrInputRef}
-                      value={newAddr}
-                      onChange={e => setNewAddr(e.target.value)}
+                      defaultValue=""
                       placeholder="Start typing an address…"
                       autoComplete="off"
                       style={{ ...inputStyle, paddingLeft: 36 }}
                       onFocus={e => (e.target.style.borderColor = '#14B8A6')}
-                      onBlur={e => (e.target.style.borderColor = t.inputBorder)}
+                      onBlur={e => {
+                        e.target.style.borderColor = t.inputBorder
+                        // Sync uncontrolled input value to state on blur
+                        // (handles manual typing fallback when Places not used)
+                        if (e.target.value && e.target.value !== newAddr) {
+                          setNewAddr(e.target.value)
+                        }
+                      }}
                     />
                   </div>
                   <p style={{ fontSize: 11, color: t.textSubtle, margin: '4px 0 0', opacity: 0.7 }}>
@@ -308,7 +336,7 @@ export default function PropertyListPage() {
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-                <button onClick={() => setShowAdd(false)}
+                <button onClick={() => { setShowAdd(false); if (addrInputRef.current) addrInputRef.current.value = ''; setNewAddr(''); setNewCity(''); setNewState(''); setNewZip('') }}
                   style={{ flex: 1, padding: '12px', borderRadius: 12, border: `1.5px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                   Cancel
                 </button>

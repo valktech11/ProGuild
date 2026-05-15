@@ -135,7 +135,7 @@ const icon = {
   compliance: (a: boolean) => <I sw={a?2.2:1.6} d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
   ai:         (a: boolean) => <I sw={a?2.2:1.6} d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />,
   materials:  (a: boolean) => <I sw={a?2.2:1.6} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />,
-  measure:    (a: boolean) => <svg width={22} height={22} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round"><polygon points="3,21 3,5 19,21" fill="currentColor" opacity={a?0.15:0.08} stroke="currentColor" strokeWidth={a?2:1.6}/><line x1="3" y1="13" x2="6" y2="13" stroke="currentColor" strokeWidth={a?2:1.6}/><line x1="3" y1="17" x2="5" y2="17" stroke="currentColor" strokeWidth={a?2:1.6}/><line x1="9" y1="21" x2="9" y2="18" stroke="currentColor" strokeWidth={a?2:1.6}/><line x1="14" y1="21" x2="14" y2="19" stroke="currentColor" strokeWidth={a?2:1.6}/></svg>,
+  measure:    (a: boolean) => <svg width={22} height={22} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor" strokeWidth={a?2:1.6}><circle cx="12" cy="12" r="3" fill="currentColor" opacity={a?0.2:0.1}/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><circle cx="12" cy="12" r="7" opacity={a?0.5:0.3}/></svg>,
   permit:     (a: boolean) => <I sw={a?2.2:1.6} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />,
   time:       (a: boolean) => <I sw={a?2.2:1.6} d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" />,
   learn:      (a: boolean) => <I sw={a?2.2:1.6} d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />,
@@ -286,9 +286,9 @@ function Logo() {
 }
 
 // ── Mobile bottom nav ─────────────────────────────────────────────────────────
-function MobileNav({ nl, onAdd, onMore }: { nl: number; onAdd: () => void; onMore: () => void }) {
+function MobileNav({ nl, onAdd, onMore, pipelineLabel }: { nl: number; onAdd: () => void; onMore: () => void; pipelineLabel?: string }) {
   const p = usePathname()
-  const left  = [{ label: 'Home', href: '/dashboard', icon: icon.overview, exact: true, badge: 0 }, { label: 'Pipeline', href: '/dashboard/pipeline', icon: icon.pipeline, badge: nl }]
+  const left  = [{ label: 'Home', href: '/dashboard', icon: icon.overview, exact: true, badge: 0 }, { label: pipelineLabel ?? 'Pipeline', href: '/dashboard/pipeline', icon: icon.pipeline, badge: nl }]
   const right = [{ label: 'Calendar', href: '/dashboard/calendar', icon: icon.calendar, badge: 0 }]
 
   return (
@@ -891,7 +891,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
           <main className="pb-[68px] min-h-screen" style={{ backgroundColor: t.pageBg }}>
             {children}
           </main>
-          <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} />
+          <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} pipelineLabel={resolveTradeConfig(session?.trade_slug, session?.trade).terms.pipeline} />
           <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} session={session} nl={newLeads} dk={dk} onToggleDark={onToggleDark} />
           <QuickSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onAddLead={() => { if (onAddLead) onAddLead() }} />
         </div>

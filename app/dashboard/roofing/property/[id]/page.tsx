@@ -345,6 +345,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
   const latestReport = reports[0] ?? null
 
   return (
+    <>
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk}
       onToggleDark={() => { const n = !dk; localStorage.setItem('pg_darkmode', n ? '1' : '0'); setDk(n) }}>
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '16px 14px' }}>
@@ -437,7 +438,7 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               .rpt-row { display: flex; align-items: center; padding: 11px 12px; gap: 10px; }
               .rpt-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
               @media (max-width: 420px) { .rpt-row { flex-wrap: wrap; } .rpt-acts { width: 100%; justify-content: flex-end; padding: 0 12px 10px; } }
-              @keyframes pg-spin { to { transform: rotate(360deg); } }
+              @keyframes pg-spin { to { transform: rotate(360deg); } } @keyframes pg-shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
             `}</style>
 
             <div className="action-row">
@@ -467,14 +468,20 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               <button className="action-btn"
                 onClick={generateReport}
                 disabled={generating}
-                style={{ borderColor: 'transparent', background: 'linear-gradient(135deg,#0A1628,#0F766E)', opacity: generating ? 0.82 : 1 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                style={{ borderColor: 'transparent', background: generating ? 'linear-gradient(135deg,#0F766E,#14B8A6)' : 'linear-gradient(135deg,#0A1628,#0F766E)', opacity: 1, position: 'relative' as const, overflow: 'hidden' }}>
+                {generating && (
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)', animation: 'pg-shimmer 1.4s ease-in-out infinite' }} />
+                )}
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {generating
-                    ? <div style={{ width: 16, height: 16, border: '2.5px solid rgba(255,255,255,0.35)', borderTopColor: 'white', borderRadius: '50%', animation: 'pg-spin 0.8s linear infinite' }} />
+                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1.2s" repeatCount="indefinite"/></path></svg>
                     : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="rgba(255,255,255,0.15)"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="18" x2="8" y2="13"/><line x1="12" y1="18" x2="12" y2="11"/><line x1="16" y1="18" x2="16" y2="14"/></svg>
                   }
                 </div>
-                <span style={{ color: 'white', opacity: generating ? 0.85 : 1 }}>{generating ? 'Generating…' : latestReport ? 'Re-run' : 'Generate'}</span>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-start', gap: 1 }}>
+                  <span style={{ color: 'white', fontSize: 13, fontWeight: 700 }}>{generating ? 'Analyzing…' : latestReport ? 'Re-run' : 'Generate'}</span>
+                  {generating && <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10 }}>~30 seconds</span>}
+                </div>
               </button>
             </div>
 
@@ -537,9 +544,9 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                               </button>
                             )
                           )}
-                          <button onClick={() => deleteReport(report.id)} disabled={deletingReportId === report.id}
+                          <button onClick={() => setDeleteConfirmId(report.id)} disabled={deletingReportId === report.id}
                             title="Delete report"
-                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', flexShrink: 0, transition: 'background 0.15s' }}
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, border: '1.5px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}
                             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#DC2626'; (e.currentTarget as HTMLButtonElement).style.color = 'white'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#DC2626' }}
                             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.color = '#DC2626'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#FECACA' }}>
                             {deletingReportId === report.id
@@ -645,5 +652,35 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         )}
       </div>
     </DashboardShell>
+
+      {/* Delete Report Confirmation Modal */}
+      {deleteConfirmId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setDeleteConfirmId(null)}>
+          <div style={{ background: 'white', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#FEF2F2', border: '1.5px solid #FECACA', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0A1628', textAlign: 'center', margin: '0 0 8px' }}>Delete Report?</h3>
+            <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>
+              This will permanently delete the report and all associated measurements. This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setDeleteConfirmId(null)}
+                style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: 'white', color: '#374151', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button
+                onClick={() => { const id = deleteConfirmId; setDeleteConfirmId(null); deleteReport(id) }}
+                disabled={!!deletingReportId}
+                style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: '#DC2626', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(220,38,38,0.3)' }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
