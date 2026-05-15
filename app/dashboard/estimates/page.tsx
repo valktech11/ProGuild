@@ -8,6 +8,7 @@ import { Session } from '@/types'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { estimateStatusStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
+import { resolveTradeConfig } from '@/lib/trade-resolver'
 
 // Separated out because useSearchParams() requires Suspense boundary in App Router
 function VoidedToast({ onToast }: { onToast: (msg: string) => void }) {
@@ -58,6 +59,8 @@ export default function EstimatesPage() {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
   })
+  const tc   = resolveTradeConfig(session?.trade_slug, session?.trade)
+  const noun = tc.terms.estimates ?? 'Proposals'
 
   const [estimates,    setEstimates]    = useState<EstimateSummary[]>([])
   const [loading,      setLoading]      = useState(true)
@@ -284,8 +287,8 @@ export default function EstimatesPage() {
           {/* ── Header ── */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className={`text-2xl font-bold tracking-tight `}>Estimates</h1>
-              <p className={`text-sm mt-0.5 hidden md:block `}>Create and send professional estimates to your leads</p>
+              <h1 className={`text-2xl font-bold tracking-tight `}>{noun}</h1>
+              <p className={`text-sm mt-0.5 hidden md:block `}>Create and send professional {noun.toLowerCase()} to your leads</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -309,7 +312,7 @@ export default function EstimatesPage() {
           {/* ── Stats bar ── */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: 'Total Estimates', value: estimates.length.toString() },
+              { label: `Total ${noun}`, value: estimates.length.toString() },
               { label: 'Sent / In Review', value: sentCount.toString() },
               { label: 'Active Estimates Value', value: fmt(totalValue) },
             ].map(stat => (

@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
   let q = getSupabaseAdmin()
     .from('properties')
-    .select('*')
+    .select('*, roof_reports(id, total_squares_order, dominant_pitch, waste_factor, created_at)')
     .eq('pro_id', proId)
     .order('created_at', { ascending: false })
 

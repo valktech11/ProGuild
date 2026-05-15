@@ -13,10 +13,16 @@ import { Session }   from '@/types'
 import { theme, T, BRAND } from '@/lib/tokens'
 import { timeAgo }   from '@/lib/utils'
 
+interface ReportSummary {
+  id: string; total_squares_order: number; dominant_pitch: string
+  waste_factor: number; created_at: string
+}
+
 interface Property {
   id: string; address_line1: string; address_line2: string | null
   city: string | null; state: string | null; zip_code: string | null
   roof_type: string | null; sq_footage: number | null; created_at: string
+  roof_reports?: ReportSummary[]
 }
 
 const HouseIcon = ({ color = BRAND.teal }: { color?: string }) => (
@@ -65,6 +71,8 @@ export default function PropertyListPage() {
   const [newCity,  setNewCity]  = useState('')
   const [newState, setNewState] = useState('')
   const [newZip,   setNewZip]   = useState('')
+
+  const [addrHasValue, setAddrHasValue] = useState(false)  // drives button enable without controlled input
 
   // Autocomplete
   const addrInputRef    = useRef<HTMLInputElement>(null)
@@ -118,6 +126,7 @@ export default function PropertyListPage() {
         }
         const full = `${streetNum} ${route}`.trim()
         setNewAddr(full)
+        setAddrHasValue(!!full)
         if (addrInputRef.current) addrInputRef.current.value = full
         setNewCity(city)
         setNewState(state)
@@ -154,6 +163,7 @@ export default function PropertyListPage() {
   function closeModal() {
     setShowAdd(false)
     setNewAddr(''); setNewCity(''); setNewState(''); setNewZip('')
+    setAddrHasValue(false)
     if (addrInputRef.current) addrInputRef.current.value = ''
   }
 
@@ -184,8 +194,6 @@ export default function PropertyListPage() {
     p.address_line1.toLowerCase().includes(search.toLowerCase()) ||
     (p.city || '').toLowerCase().includes(search.toLowerCase())
   )
-
-  const canAdd = !!(addrInputRef.current?.value?.trim() || newAddr.trim())
 
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk}
@@ -234,25 +242,80 @@ export default function PropertyListPage() {
             />
           </Card>
         ) : (
-          <Card dk={dk} pad="none" shadow>
-            {filtered.map((p, i) => (
-              <ListItem
-                key={p.id}
-                dk={dk}
-                separator={i > 0}
-                icon={<HouseIcon />}
-                iconBg={dk ? '#0D2820' : '#F0FDFA'}
-                title={p.address_line1}
-                subtitle={[p.city, p.state, p.zip_code].filter(Boolean).join(', ')}
-                chip={[
-                  p.roof_type,
-                  p.sq_footage ? `${p.sq_footage.toLocaleString()} sq ft` : null,
-                ].filter(Boolean).join(' · ') || undefined}
-                meta={timeAgo(p.created_at)}
-                onClick={() => router.push('/dashboard/roofing/property/' + p.id)}
-              />
-            ))}
-          </Card>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+            gap: T.sp3,
+          }}>
+            {filtered.map(p => {
+              const reports = p.roof_reports ?? []
+              const latest  = reports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+              const hasReport = !!latest
+              return (
+                <Card key={p.id} dk={dk} pad="md" shadow hover
+                  onClick={() => router.push('/dashboard/roofing/property/' + p.id)}
+                  style={{ cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: T.sp3 }}>
+                    {/* Icon */}
+                    <div style={{
+                      width: 44, height: 44, borderRadius: T.radSm, flexShrink: 0,
+                      background: hasReport ? (dk ? '#0D2820' : '#F0FDFA') : (dk ? '#1A2130' : '#F9F8F6'),
+                      border: `1.5px solid ${hasReport ? (dk ? '#0F4A3A' : '#99F6E4') : (dk ? '#2D3A4A' : '#E8E2D9')}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <HouseIcon color={hasReport ? BRAND.teal : (dk ? '#475569' : '#9CA3AF')} />
+                    </div>
+                    {/* Text */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: t.textPri,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {p.address_line1}
+                      </div>
+                      <div style={{ fontSize: T.fontSub, color: t.textMuted, marginTop: T.sp1 }}>
+                        {[p.city, p.state, p.zip_code].filter(Boolean).join(', ')}
+                      </div>
+                      {/* Report chip or No-report nudge */}
+                      {hasReport ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: T.sp2, marginTop: T.sp2, flexWrap: 'wrap' as const }}>
+                          <span style={{ fontSize: T.fontBadge, fontWeight: 700, color: BRAND.teal,
+                            background: dk ? '#0D2820' : '#F0FDFA', border: `1px solid ${dk ? '#0F4A3A' : '#99F6E4'}`,
+                            borderRadius: T.radXs, padding: '2px 8px' }}>
+                            {latest.total_squares_order.toFixed(1)} sq
+                          </span>
+                          <span style={{ fontSize: T.fontBadge, fontWeight: 600, color: t.textMuted,
+                            background: t.cardBgAlt, borderRadius: T.radXs, padding: '2px 8px' }}>
+                            {latest.dominant_pitch}
+                          </span>
+                          {p.roof_type && (
+                            <span style={{ fontSize: T.fontBadge, color: t.textSubtle }}>
+                              {p.roof_type}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: T.fontBadge, color: t.textSubtle, marginTop: T.sp2, fontStyle: 'italic' }}>
+                          No report yet
+                        </div>
+                      )}
+                    </div>
+                    {/* Meta */}
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: T.sp1, flexShrink: 0 }}>
+                      <span style={{ fontSize: T.fontBadge, color: t.textSubtle }}>{timeAgo(p.created_at)}</span>
+                      {reports.length > 0 && (
+                        <span style={{ fontSize: T.fontBadge, color: t.textMuted }}>
+                          {reports.length} report{reports.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none"
+                        stroke={t.textSubtle} strokeWidth={2.5} strokeLinecap="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
         )}
       </div>
 
@@ -276,9 +339,11 @@ export default function PropertyListPage() {
               placeholder="Start typing an address…"
               autoComplete="off"
               prefixIcon={<PinIcon />}
-              onBlur={e => {
-                // Sync manual typing to state
-                if (e.target.value && e.target.value !== newAddr) setNewAddr(e.target.value)
+              onInput={e => {
+                // onInput fires before React synthetic event loop — safe with Places
+                const val = (e.target as HTMLInputElement).value
+                setAddrHasValue(!!val.trim())
+                if (!val) { setNewAddr(''); setNewCity(''); setNewState(''); setNewZip('') }
               }}
             />
           </FormField>
@@ -300,7 +365,7 @@ export default function PropertyListPage() {
         <Modal.Footer dk={dk}>
           <Btn variant="ghost" dk={dk} fullWidth onClick={closeModal}>Cancel</Btn>
           <Btn variant="primary" dk={dk} fullWidth loading={adding}
-            style={{ flex: 2, opacity: canAdd || newCity ? 1 : 0.6 }}
+            disabled={!addrHasValue && !newAddr.trim()}
             onClick={handleAdd}>
             Add Property
           </Btn>
