@@ -115,6 +115,29 @@ export default function PropertyListPage() {
         types: ['address'],
       }) as HTMLElement
 
+      // Inject CSS to allow shadow DOM suggestions to overflow
+      const styleId = 'gmp-autocomplete-style'
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style')
+        style.id = styleId
+        style.textContent = `
+          gmp-place-autocomplete {
+            width: 100%;
+            display: block;
+          }
+          gmp-place-autocomplete::part(input) {
+            width: 100%;
+            padding: 10px 14px 10px 14px;
+            font-size: 14px;
+            font-family: inherit;
+            border: 1.5px solid #D1D5DB;
+            border-radius: 8px;
+            outline: none;
+          }
+        `
+        document.head.appendChild(style)
+      }
+
       container.innerHTML = ''
       container.appendChild(el)
       autocompleteRef.current = el
@@ -341,7 +364,8 @@ export default function PropertyListPage() {
           <div style={{ background: t.cardBg, borderRadius: T.radLg, padding: T.sp6,
               width: '100%', maxWidth: 460,
               boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
-              border: `1px solid ${t.cardBorder}` }}
+              border: `1px solid ${t.cardBorder}`,
+              overflow: 'visible' }}
             onClick={e => e.stopPropagation()}>
 
             {/* Header */}
@@ -371,7 +395,6 @@ export default function PropertyListPage() {
                 {/* PlaceAutocompleteElement injected here by useEffect */}
                 <div id="pac-input-container" style={{
                   width: '100%', minHeight: 44,
-                  borderRadius: T.radSm, overflow: 'hidden',
                 }} />
                 <p style={{ fontSize: T.fontBadge, color: t.textSubtle, margin: `${T.sp1}px 0 0` }}>
                   Select from dropdown for auto-fill
