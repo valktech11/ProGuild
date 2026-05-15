@@ -27,7 +27,7 @@ const MAX_RECORDS   = IS_TEST ? 10 : 10000
 
 // Target trades — exact category_name values from DB
 const TARGET_TRADES = [
-  'Roofer',
+  'Roofing',
   'HVAC Technician',
   'Electrician',
   'Plumber',
