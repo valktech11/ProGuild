@@ -53,7 +53,7 @@ const STAGE_ORDER: Record<string, number> = {
 }
 
 interface Props {
-  leads: Lead[]
+  leads:          Lead[]
   onStatusChange: (leadId: string, status: string) => Promise<void>
   onUpdate: (leadId: string, fields: Partial<Lead>) => Promise<void>
   isPaid: boolean
@@ -121,7 +121,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = DEFAULT_S
 
   function handleStageClick(newStage: string) {
     if (newStage === status) return
-    const isBackward = (STAGE_ORDER[newStage] ?? 0) < (STAGE_ORDER[status] ?? 0)
+    const isBackward = (stageOrder[newStage] ?? 0) < (stageOrder[status] ?? 0)
     if (isBackward) setPendingStage(newStage)
     else setStatus(newStage as StageKey)
   }
