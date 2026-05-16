@@ -101,33 +101,23 @@ async function findWebsite(pro) {
   const query = `"${pro.full_name}" ${pro.city || ''} Florida ${pro.trade} contractor`
 
   try {
-    const res = await axios.get('https://bing-search-apis.p.rapidapi.com/api/rapid/web_search', {
+    const res = await axios.get('https://bing-search-scraper-api-10x-cheaper.p.rapidapi.com/search', {
       headers: {
         'x-rapidapi-key':  process.env.RAPIDAPI_KEY,
-        'x-rapidapi-host': 'bing-search-apis.p.rapidapi.com',
+        'x-rapidapi-host': 'bing-search-scraper-api-10x-cheaper.p.rapidapi.com',
       },
-      params: { keyword: query, page: 0, size: 5 },  // TPDevPro params
+      params: { query, device: 'desktop', count: 10, max_pages: 1, setLang: 'en', cc: 'US' },
       timeout: 10000,
     })
 
-    // DEBUG — log raw response structure
     if (process.env.DEBUG) {
-      console.log('  [DEBUG] Response keys:', Object.keys(res.data))
-      console.log('  [DEBUG] Raw:', JSON.stringify(res.data).slice(0, 600))
+      console.log('  [DEBUG] pages[1]:', JSON.stringify(res.data?.pages?.[1]).slice(0, 400))
     }
 
-    // RapidAPI Bing — try all known response shapes
-    const results = res.data?.webPages?.value
-      || res.data?.value
-      || res.data?.organic_results
-      || res.data?.results
-      || []
-
-    for (const result of results) {
-      const url = result.url || result.link || result.displayUrl
-      if (url && !isSkippedDomain(url)) {
-        return url
-      }
+    const searchResults = res.data?.pages?.[1]?.search_results || []
+    for (const result of searchResults) {
+      const url = result.link
+      if (url && !isSkippedDomain(url)) return url
     }
     return null
   } catch (err) {
