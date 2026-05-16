@@ -43,6 +43,11 @@ const SKIP_DOMAINS = [
   'contractors.com', 'checkbook.org', 'expertise.com',
   'sunbiz.org', 'myfloridalicense.com', 'dbpr.state.fl.us',
   'proguild.ai',
+  'corporationwiki.com', 'opencorporates.com', 'bizapedia.com',
+  'sunbiz.org', 'myfloridalicense.com', 'dbpr.state.fl.us',
+  'whitepages.com', 'spokeo.com', 'peoplefinder.com',
+  'imdb.com', 'wikipedia.org', 'indeed.com', 'glassdoor.com',
+  'zabasearch.com', 'radaris.com', 'intelius.com',
 ]
 
 // ── Supabase client ───────────────────────────────────────────────────────────
@@ -98,7 +103,8 @@ function pickBestEmail(emails) {
 
 // ── Step 1: Search via RapidAPI Bing Web Search ──────────────────────────────
 async function findWebsite(pro) {
-  const query = `"${pro.full_name}" ${pro.city || ''} Florida ${pro.trade} contractor`
+  const city = pro.city ? pro.city.charAt(0) + pro.city.slice(1).toLowerCase() : 'Florida'
+  const query = `${pro.full_name} ${city} Florida ${pro.trade} contractor website`
 
   try {
     const res = await axios.get('https://bing-search-scraper-api-10x-cheaper.p.rapidapi.com/search', {
