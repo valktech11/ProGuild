@@ -135,23 +135,23 @@ function extractBusinessName(searchResults) {
 
 async function findWebsite(pro) {
   const city = pro.city ? pro.city.charAt(0) + pro.city.slice(1).toLowerCase() : 'Florida'
-  const query = `${pro.full_name} ${city} Florida ${pro.trade} contractor website`
 
   try {
-    // Pass 1 — search by person name
-    let searchResults = await searchBing(query)
-
-    if (process.env.DEBUG) {
-      console.log('  [DEBUG] Pass 1 results:', searchResults.slice(0,2).map(r=>r.link).join(', '))
+    // Pass 1 — search by license number (unique, unambiguous)
+    let searchResults = []
+    if (pro.license_number) {
+      searchResults = await searchBing(`${pro.license_number} Florida contractor`)
+      if (process.env.DEBUG) console.log('  [DEBUG] Pass 1 (license):', searchResults.slice(0,2).map(r=>r.link).join(', '))
     }
 
-    // Try to extract real business name from BuildZoom result
+    // Extract business name from BuildZoom — license search is precise so this is reliable
     const bizName = extractBusinessName(searchResults)
-    if (bizName && bizName.toLowerCase() !== pro.full_name.toLowerCase()) {
-      // Pass 2 — search by business name (more accurate)
-      if (process.env.DEBUG) console.log(`  [DEBUG] Found biz name: "${bizName}" — running Pass 2`)
-      const pass2 = await searchBing(`${bizName} ${city} Florida contractor website`)
+
+    // Pass 2 — search by business name + website keyword
+    if (bizName) {
+      if (process.env.DEBUG) console.log(`  [DEBUG] Biz name: "${bizName}" — Pass 2`)
       await sleep(DELAY_MS)
+      const pass2 = await searchBing(`"${bizName}" ${city} Florida website`)
       searchResults = pass2.length ? pass2 : searchResults
     }
 
