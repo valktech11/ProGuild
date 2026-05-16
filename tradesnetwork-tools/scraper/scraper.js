@@ -133,49 +133,32 @@ function extractBusinessName(searchResults) {
   return null
 }
 
-async function getBizNameFromBuildZoom(licenseNumber) {
-  // BuildZoom indexes every DBPR license — scrape company name directly
-  const url = `https://www.buildzoom.com/contractor/${licenseNumber.toLowerCase()}`
-  try {
-    const res = await axios.get(url, {
-      timeout: SCRAPE_TIMEOUT,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProGuildBot/1.0)', 'Accept': 'text/html' },
-      maxRedirects: 3,
-    })
-    const $ = cheerio.load(res.data)
-    // BuildZoom h1 contains the company name
-    const name = $('h1').first().text().trim()
-      || $('title').text().split('|')[0].trim()
-    return name || null
-  } catch {
-    return null
-  }
-}
-
 async function findWebsite(pro) {
   const city = pro.city ? pro.city.charAt(0) + pro.city.slice(1).toLowerCase() : 'Florida'
 
   try {
-    // Pass 1 — get real business name from BuildZoom by license number (100% precise)
-    let bizName = null
-    if (pro.license_number) {
-      bizName = await getBizNameFromBuildZoom(pro.license_number)
-      if (process.env.DEBUG) console.log(`  [DEBUG] BuildZoom biz name: "${bizName}"`)
-      await sleep(500)
+    // Single targeted search — license number + name anchors the result
+    // Adding "site:*.com" bias pushes Bing toward actual business websites
+    const query = `${pro.license_number} "${pro.full_name}" Florida contractor`
+    const results1 = await searchBing(query)
+
+    // Extract business name from any BuildZoom result in the results
+    const bizName = extractBusinessName(results1)
+
+    let allResults = [...results1]
+
+    // Pass 2 only if we got a clean business name (not person name)
+    if (bizName && bizName.split(' ').length >= 2 &&
+        !bizName.toLowerCase().includes(pro.full_name.split(' ')[0].toLowerCase())) {
+      if (process.env.DEBUG) console.log(`  [DEBUG] Biz name: "${bizName}" — running Pass 2`)
+      await sleep(DELAY_MS)
+      const results2 = await searchBing(`"${bizName}" ${city} Florida -buildzoom -licensedcheck -mylife -spokeo`)
+      allResults = [...results2, ...results1]
     }
 
-    // Fall back to person name if BuildZoom returns nothing useful
-    const searchName = (bizName && bizName.length > 3 && !bizName.toLowerCase().includes('not found'))
-      ? bizName
-      : pro.full_name
+    if (process.env.DEBUG) console.log('  [DEBUG] Top results:', allResults.slice(0,3).map(r=>r.link).join(', '))
 
-    // Pass 2 — Bing search for their actual website
-    const query = `"${searchName}" ${city} Florida website`
-    const searchResults = await searchBing(query)
-
-    if (process.env.DEBUG) console.log('  [DEBUG] Search results:', searchResults.slice(0,3).map(r=>r.link).join(', '))
-
-    for (const result of searchResults) {
+    for (const result of allResults) {
       const url = result.link
       if (url && !isSkippedDomain(url)) return url
     }
