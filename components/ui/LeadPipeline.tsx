@@ -2,31 +2,26 @@
 import { useState } from 'react'
 import { Lead } from '@/types'
 import { initials, avatarColor, timeAgo } from '@/lib/utils'
+import type { AnyPipelineStage } from '@/lib/trades/_registry'
 
-export const PIPELINE_STAGES = [
-  { key: 'New',       label: 'New',       color: '#F59E0B', bg: '#FEF3C7', dot: '#F59E0B' },
-  { key: 'Contacted', label: 'Contacted', color: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },
-  { key: 'Quoted',    label: 'Quoted',    color: '#8B5CF6', bg: '#F5F3FF', dot: '#8B5CF6' },
-  { key: 'Scheduled', label: 'Scheduled', color: '#0F766E', bg: '#F0FDFA', dot: '#0F766E' },
-  { key: 'Completed', label: 'Completed', color: '#10B981', bg: '#ECFDF5', dot: '#10B981' },
-  { key: 'Paid',      label: 'Paid ✓',   color: '#059669', bg: '#D1FAE5', dot: '#059669' },
-] as const
-
-// Active stages shown on board. Completed + Paid are collapsed by default.
-const ACTIVE_STAGES  = PIPELINE_STAGES.slice(0, 4)
-const CLOSED_STAGES  = PIPELINE_STAGES.slice(4)
-
-type StageKey = typeof PIPELINE_STAGES[number]['key']
-
-const STAGE_ORDER: Record<string, number> = {
-  New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5, Lost: 6,
-}
+// Stages are now passed as a prop from the trade config.
+// PIPELINE_STAGES kept as fallback for backward compat — will be removed in Sprint C.
+export const PIPELINE_STAGES: AnyPipelineStage[] = [
+  { key: 'New',       label: 'New',       icon: '📥', color: '#F59E0B', bg: '#FEF3C7', dot: '#F59E0B' },
+  { key: 'Contacted', label: 'Contacted', icon: '📞', color: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },
+  { key: 'Quoted',    label: 'Quoted',    icon: '💬', color: '#8B5CF6', bg: '#F5F3FF', dot: '#8B5CF6' },
+  { key: 'Scheduled', label: 'Scheduled', icon: '📅', color: '#0F766E', bg: '#F0FDFA', dot: '#0F766E' },
+  { key: 'Completed', label: 'Completed', icon: '✅', color: '#10B981', bg: '#ECFDF5', dot: '#10B981', terminal: true },
+  { key: 'Paid',      label: 'Paid ✓',   icon: '💰', color: '#059669', bg: '#D1FAE5', dot: '#059669', terminal: true },
+]
 
 interface Props {
-  leads: Lead[]
+  leads:          Lead[]
   onStatusChange: (leadId: string, status: string) => Promise<void>
-  onUpdate: (leadId: string, fields: Partial<Lead>) => Promise<void>
-  isPaid: boolean
+  onUpdate:       (leadId: string, fields: Partial<Lead>) => Promise<void>
+  isPaid:         boolean
+  stages?:        AnyPipelineStage[]  // from trade config — falls back to generic if not provided
+  tradeSlug?:     string              // for stage validation
 }
 
 function daysSince(dateStr: string): number {
@@ -103,11 +98,13 @@ function BackwardConfirm({ fromStage, toStage, isPaidMove, onConfirm, onCancel }
 }
 
 // ── Lead detail modal — field-optimised ───────────────────────────────────────
-function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
+function LeadModal({ lead, onClose, onStatusChange, onUpdate, allStages, stageOrder }: {
   lead: Lead
   onClose: () => void
   onStatusChange: (id: string, status: string) => Promise<void>
   onUpdate: (id: string, fields: Partial<Lead>) => Promise<void>
+  allStages: AnyPipelineStage[]
+  stageOrder: Record<string, number>
 }) {
   const [notes, setNotes]         = useState(lead.notes || '')
   const [amount, setAmount]       = useState(lead.quoted_amount?.toString() || '')
@@ -120,7 +117,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
 
   function handleStageClick(newStage: string) {
     if (newStage === status) return
-    const isBackward = (STAGE_ORDER[newStage] ?? 0) < (STAGE_ORDER[status] ?? 0)
+    const isBackward = (stageOrder[newStage] ?? 0) < (stageOrder[status] ?? 0)
     if (isBackward) setPendingStage(newStage)
     else setStatus(newStage as any)
   }
@@ -143,7 +140,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
     onClose()
   }
 
-  const currentStageInfo = PIPELINE_STAGES.find(s => s.key === status)
+  const currentStageInfo = allStages.find(s => s.key === status)
 
   return (
     <>
@@ -235,9 +232,9 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate }: {
                   Pipeline stage
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  {PIPELINE_STAGES.map(s => {
+                  {allStages.filter(s => !s.terminal).map(s => {
                     const isCurrent  = status === s.key
-                    const isBackward = (STAGE_ORDER[s.key] ?? 0) < (STAGE_ORDER[status] ?? 0)
+                    const isBackward = (stageOrder[s.key] ?? 0) < (stageOrder[status] ?? 0)
                     return (
                       <button
                         key={s.key}
@@ -403,7 +400,7 @@ function PaidPrompt({ lead, onDismiss }: { lead: Lead; onDismiss: () => void }) 
 // ── Lead card ─────────────────────────────────────────────────────────────────
 function LeadCard({ lead, stage, onOpen }: {
   lead: Lead
-  stage: typeof PIPELINE_STAGES[number]
+  stage: AnyPipelineStage
   onOpen: () => void
 }) {
   const [bg, fg]  = avatarColor(lead.contact_name)
@@ -518,9 +515,16 @@ function PipelineHeader({ leads }: { leads: Lead[] }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }: Props) {
+export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, stages: stagesProp }: Props) {
+  // Derive runtime constants from trade config prop — falls back to generic if not provided
+  const allStages   = stagesProp ?? PIPELINE_STAGES
+  const activeStages = allStages.filter(s => !s.terminal)
+  const closedStages = allStages.filter(s => s.terminal)
+  const stageOrder: Record<string, number> = Object.fromEntries(allStages.map((s, i) => [s.key, i]))
+  const initialStage = activeStages[0]?.key ?? 'New'
+
   const [selectedLead, setSelectedLead]     = useState<Lead | null>(null)
-  const [mobileStage, setMobileStage]       = useState<StageKey>('New')
+  const [mobileStage, setMobileStage]       = useState<string>(initialStage)
   const [paidPromptLead, setPaidPromptLead] = useState<Lead | null>(null)
   const [showClosed, setShowClosed]         = useState(false)
 
@@ -530,13 +534,14 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
 
   async function handleStatusChange(leadId: string, status: string) {
     await onStatusChange(leadId, status)
-    if (status === 'Paid') {
+    // job_won is the terminal success stage across all trades
+    if (status === 'Paid' || status === 'job_won') {
       const lead = leads.find(l => l.id === leadId)
       if (lead) setPaidPromptLead(lead)
     }
   }
 
-  const closedCount = CLOSED_STAGES.reduce((n, s) => n + leadsForStage(s.key).length, 0)
+  const closedCount = closedStages.reduce((n, s) => n + leadsForStage(s.key).length, 0)
 
   return (
     <>
@@ -544,6 +549,8 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
         <LeadModal
           lead={selectedLead}
           onClose={() => setSelectedLead(null)}
+          allStages={allStages}
+          stageOrder={stageOrder}
           onStatusChange={async (id, status) => {
             await handleStatusChange(id, status)
             setSelectedLead(prev => prev ? { ...prev, lead_status: status as any } : null)
@@ -572,10 +579,10 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
           <>
             {/* ── Mobile: tab strip + single column ── */}
             <div className="md:hidden flex gap-1 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-              {PIPELINE_STAGES.map(s => {
+              {activeStages.map(s => {
                 const cnt = leadsForStage(s.key).length
                 return (
-                  <button key={s.key} onClick={() => setMobileStage(s.key as StageKey)}
+                  <button key={s.key} onClick={() => setMobileStage(s.key)}
                     className="flex-shrink-0 px-3 py-2 rounded-full text-xs font-bold border transition-all"
                     style={mobileStage === s.key
                       ? { background: s.bg, color: s.color, borderColor: s.color }
@@ -589,7 +596,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
               {leadsForStage(mobileStage).length === 0
                 ? <p className="text-center py-8 text-sm text-gray-400">No leads in {mobileStage}</p>
                 : leadsForStage(mobileStage).map(lead => {
-                    const stage = PIPELINE_STAGES.find(s => s.key === lead.lead_status) || PIPELINE_STAGES[0]
+                    const stage = allStages.find(s => s.key === lead.lead_status) || allStages[0]
                     return <LeadCard key={lead.id} lead={lead} stage={stage} onOpen={() => setSelectedLead(lead)} />
                   })
               }
@@ -597,7 +604,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
 
             {/* ── Desktop: 4 active columns, no scroll needed ── */}
             <div className="hidden md:grid gap-3 mb-4" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
-              {ACTIVE_STAGES.map(stage => {
+              {activeStages.map(stage => {
                 const stageLeads = leadsForStage(stage.key)
                 const hasLeads   = stageLeads.length > 0
                 return (
@@ -672,7 +679,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid }
 
               {showClosed && (
                 <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(2,1fr)' }}>
-                  {CLOSED_STAGES.map(stage => {
+                  {closedStages.map(stage => {
                     const stageLeads = leadsForStage(stage.key)
                     const hasLeads   = stageLeads.length > 0
                     return (

@@ -12,6 +12,9 @@ import ReviewCard from '@/components/ui/ReviewCard'
 import UpgradeNudge from '@/components/ui/UpgradeNudge'
 import BusinessCardModal from '@/components/ui/BusinessCardModal'
 import AddLeadModal from '@/components/ui/AddLeadModal'
+import TradeSidebar from '@/components/dashboard/TradeSidebar'
+import TradeWidget from '@/components/dashboard/TradeWidget'
+import { getTradeConfig } from '@/lib/trades/_registry'
 
 // Referral network map — unchanged from v70
 const REFERRAL_NETWORK: Record<string, string[]> = {
@@ -173,8 +176,9 @@ export default function DashboardPage() {
   const completenessScore = Math.round(completenessItems.filter(i => i.done).length / completenessItems.length * 100)
   const nextStep = completenessItems.find(i => !i.done)
 
-  // Referral network
-  const tradeSlug    = (session as any).trade_slug || ''
+  // Trade config — drives sidebar, pipeline stages, feature gates
+  const tradeSlug    = session.trade_slug || ''
+  const trade        = getTradeConfig(tradeSlug)
   const isGC         = tradeSlug === 'general-contractor'
   let referralSlugs: string[] = []
   if (isGC) {
@@ -203,7 +207,16 @@ export default function DashboardPage() {
     <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans',sans-serif" }}>
       <Navbar />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-7">
+      {/* ── TRADE SIDEBAR + MAIN CONTENT ────────────────────────────── */}
+      <div className="flex min-h-screen">
+        <TradeSidebar
+          nav={trade.nav}
+          plan={session.plan}
+          tradeName={trade.displayName}
+          tradeEmoji={trade.emoji}
+          tradeColor={trade.brandColor}
+        />
+      <div className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 py-7">
 
         {/* ── GREETING ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-5">
@@ -247,6 +260,9 @@ export default function DashboardPage() {
         />
 
         {/* ── MAIN GRID ─────────────────────────────────────────────────── */}
+        {/* ── TRADE-SPECIFIC WIDGET ────────────────────────────────────── */}
+        <TradeWidget trade={trade} proId={session.id} />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* LEFT — col-span-2 */}
@@ -264,6 +280,8 @@ export default function DashboardPage() {
                   onStatusChange={updateLeadStatus}
                   onUpdate={updateLead}
                   isPaid={paid}
+                  stages={trade.stages}
+                  tradeSlug={tradeSlug}
                 />
               )}
             </div>
@@ -566,6 +584,7 @@ export default function DashboardPage() {
           onClose={() => setShowBizCard(false)}
         />
       )}
+      </div>
     </div>
   )
 }
