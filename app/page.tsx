@@ -1,411 +1,122 @@
 'use client'
-import { useState, useRef } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import Navbar from '@/components/layout/Navbar'
-import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
+import { useState } from 'react'
 
-// ── Colour tokens ─────────────────────────────────────────────────────────────
-// BG:      #FAF9F6  warm cream
-// CARD:    #FFFFFF  white
-// DARK:    #0A1628  navy
-// TEAL:    #0F766E  primary accent (v56)
-// BORDER:  #E8E2D9  warm gray
-
-// ── 6 primary trade tiles — 3×2 grid, direct to /fl/[slug] ──────────────────
-const PRIMARY_TRADES = [
-  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️', count: '430+' },
-  { slug: 'electrician',        label: 'Electrician',        icon: '⚡', count: '154+' },
-  { slug: 'plumber',            label: 'Plumber',            icon: '🔧', count: '213+' },
-  { slug: 'roofer',             label: 'Roofer',             icon: '🏠', count: '1,386+' },
-  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️', count: '2,751+' },
-  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊', count: '128+' },
+const TRADES = [
+  { icon: '🏠', label: 'Roofing' },
+  { icon: '❄️', label: 'HVAC' },
+  { icon: '⚡', label: 'Electrician' },
+  { icon: '🪠', label: 'Plumber' },
+  { icon: '🏗️', label: 'General Contractor' },
+  { icon: '🏊', label: 'Pool & Spa' },
+  { icon: '🎨', label: 'Painter' },
+  { icon: '🪟', label: 'Impact Windows' },
+  { icon: '☀️', label: 'Solar' },
+  { icon: '🌿', label: 'Landscaper' },
+  { icon: '🐛', label: 'Pest Control' },
+  { icon: '🪚', label: 'Carpenter' },
 ]
 
-// Secondary trades — pills below the main grid
-const SECONDARY_TRADES = [
-  { slug: 'painter',                label: 'Painter' },
-  { slug: 'landscaper',             label: 'Landscaper' },
-  { slug: 'solar-installer',        label: 'Solar Installer' },
-  { slug: 'drywall',                label: 'Drywall' },
-  { slug: 'impact-window-shutter',  label: 'Impact Windows' },
-  { slug: 'flooring',               label: 'Flooring' },
-  { slug: 'pest-control',           label: 'Pest Control' },
-  { slug: 'marine-contractor',      label: 'Marine / Dock' },
-  { slug: 'carpenter',              label: 'Carpenter' },
-  { slug: 'irrigation',             label: 'Irrigation' },
-]
+export default function ComingSoonPage() {
+  const [email,   setEmail]   = useState('')
+  const [role,    setRole]    = useState<'homeowner' | 'contractor'>('homeowner')
+  const [loading, setLoading] = useState(false)
+  const [done,    setDone]    = useState(false)
+  const [error,   setError]   = useState('')
 
-const HOW_STEPS_HOMEOWNER = [
-  { n: '01', title: 'Search', desc: 'Enter your trade and city. Every result is DBPR license-verified.' },
-  { n: '02', title: 'Compare', desc: 'See ProGuild Score, reviews, credentials, and project photos side by side.' },
-  { n: '03', title: 'Hire Direct', desc: 'Contact the pro directly. No middleman. No lead fees charged to them.' },
-]
-
-const HOW_STEPS_PRO = [
-  { n: '01', title: 'Join Free', desc: 'Create your profile. Your DBPR license is already in our database.' },
-  { n: '02', title: 'Get Discovered', desc: 'Homeowners find you by trade and city. Your ProGuild Score builds over time.' },
-  { n: '03', title: 'Keep Every Dollar', desc: 'One flat monthly fee. Zero per-lead charges. Ever.' },
-]
-
-// ── Scope helpers ─────────────────────────────────────────────────────────────
-function getScopeState(): string {
-  return (process.env.NEXT_PUBLIC_LAUNCH_SCOPE || 'FL').split(',')[0].trim().toUpperCase()
-}
-
-function getScopeLabel(): string {
-  const scope = (process.env.NEXT_PUBLIC_LAUNCH_SCOPE || 'FL').toUpperCase()
-  if (scope === 'NATIONAL') return 'Nationwide'
-  const names: Record<string, string> = { FL: 'Florida', TX: 'Texas', CA: 'California', NY: 'New York', GA: 'Georgia' }
-  const states = scope.split(',').map(s => names[s.trim()] || s.trim())
-  if (states.length === 1) return states[0]
-  if (states.length === 2) return `${states[0]} & ${states[1]}`
-  return `${states.slice(0, -1).join(', ')} & ${states[states.length - 1]}`
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-export default function HomePage() {
-  const router = useRouter()
-  const [trade, setTrade]               = useState('')
-  const [city, setCity]                 = useState('')
-  const [zipResolving, setZipResolving] = useState(false)
-  const [activeTab, setActiveTab]       = useState<'homeowner' | 'pro'>('homeowner')
-  const tradeRef = useRef<HTMLInputElement>(null)
-  const cityRef  = useRef<HTMLInputElement>(null)
-
-  const scopeLabel = getScopeLabel()
-  const scopeState = getScopeState().toLowerCase()
-
-  function cSlug(c: string) {
-    return c.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-  }
-
-  async function resolveCity(raw: string): Promise<string | null> {
-    const trimmed = raw.trim()
-    if (!trimmed) return null
-    if (/^\d{5}$/.test(trimmed)) {
-      setZipResolving(true)
-      try {
-        const res  = await fetch(`/api/zip?zip=${trimmed}`)
-        const data = await res.json()
-        if (data.city) return cSlug(data.city)
-      } catch {}
-      finally { setZipResolving(false) }
-      return null
-    }
-    return cSlug(trimmed)
-  }
-
-  async function navigate(tradeSlug: string, rawCity?: string) {
-    const citySlug = rawCity ? await resolveCity(rawCity) : null
-    if (citySlug) {
-      router.push(`/${scopeState}/${tradeSlug}/${citySlug}`)
-    } else {
-      router.push(`/${scopeState}/${tradeSlug}`)
-    }
-  }
-
-  async function handleSearch(e?: React.FormEvent, overrideTrade?: string, overrideCity?: string) {
-    e?.preventDefault()
-    const t = (overrideTrade ?? trade).trim()
-    const c = (overrideCity  ?? city).trim()
-    if (!t && !c) return
-
-    if (t) {
-      const res  = await fetch('/api/match-trade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: t }),
+  async function handleSubmit() {
+    if (!email.trim() || !email.includes('@')) { setError('Please enter a valid email address.'); return }
+    setLoading(true); setError('')
+    try {
+      const r = await fetch('/api/waitlist', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), role }),
       })
-      const data = await res.json()
-      const threshold = data.method === 'keyword' ? 0.80 : 0.85
-      if (data.slug && data.confidence >= threshold) {
-        await navigate(data.slug, c)
-        return
-      }
-    }
-
-    const params = new URLSearchParams()
-    if (t) params.set('q', t)
-    if (c) params.set('city', c)
-    router.push(`/search?${params}`)
-  }
-
-  async function handleTileTap(slug: string) {
-    await navigate(slug, city.trim() || undefined)
-  }
-
-  function detectLocation() {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const { latitude: lat, longitude: lng } = pos.coords
-        const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
-        const data = await res.json()
-        const detected = data.address?.city || data.address?.town || data.address?.village || ''
-        if (detected) setCity(detected)
-      } catch {}
-    })
+      if (r.ok) { setDone(true) }
+      else { const d = await r.json(); setError(d.error || 'Something went wrong.') }
+    } catch { setError('Something went wrong — try again.') }
+    setLoading(false)
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: '100vh', background: '#0A1628', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 60px' }}>
 
-      <Navbar />
-
-      {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
-
-        {/* Live badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
-          style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-          📍 Now live in {scopeLabel}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 52 }}>
+        <div style={{ width: 36, height: 36, background: '#0F766E', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+          </svg>
         </div>
+        <span style={{ fontSize: 20, fontWeight: 700, color: 'white', letterSpacing: '-0.3px' }}>
+          ProGuild<span style={{ color: '#14B8A6' }}>.ai</span>
+        </span>
+      </div>
 
-        {/* Headline */}
-        <h1 className="font-bold leading-none tracking-tight mb-6"
-          style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628' }}>
-          CRAFT.<br />
-          <span style={{ color: '#0F766E' }}>GUILD.</span><br />
-          VERIFIED.
-        </h1>
+      <div style={{ background: 'rgba(20,184,166,0.1)', border: '1px solid rgba(20,184,166,0.25)', color: '#5EEAD4', fontSize: 11, fontWeight: 600, padding: '5px 16px', borderRadius: 100, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 28 }}>
+        Launching 2026
+      </div>
 
-        <p className="text-lg mb-10 max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
-          {scopeLabel !== 'Florida' ? scopeLabel + "'s" : 'The'} verified trades network — for homeowners who need a pro, and pros who deserve better.
-        </p>
+      <h1 style={{ fontSize: 'clamp(2rem, 6vw, 3.2rem)', fontWeight: 700, color: 'white', textAlign: 'center', lineHeight: 1.15, letterSpacing: '-1px', marginBottom: 18, maxWidth: 580, fontFamily: "'DM Serif Display', serif" }}>
+        Hire a licensed contractor<br />
+        <span style={{ color: '#14B8A6' }}>you can actually verify.</span>
+      </h1>
 
-        {/* ── SEARCH BAR — autocomplete + fuzzy matching ───────────────── */}
-        <div className="max-w-3xl mx-auto mb-5">
-          <SearchAutocomplete
-            tradeValue={trade}
-            cityValue={city}
-            onTradeChange={setTrade}
-            onCityChange={setCity}
-            onSearch={(t, c) => handleSearch(undefined, t, c)}
-            loading={zipResolving}
-          />
-        </div>
+      <p style={{ fontSize: 17, color: '#94A3B8', textAlign: 'center', lineHeight: 1.65, maxWidth: 440, marginBottom: 10 }}>
+        Every contractor on ProGuild is verified against official state licensing databases. Zero per-lead fees. Direct contact.
+      </p>
+      <p style={{ fontSize: 13, color: '#475569', marginBottom: 36, textAlign: 'center' }}>
+        United States &mdash; Starting in Florida &amp; California
+      </p>
 
-        {/* AI hint */}
-        <div className="flex items-center justify-center gap-2 mb-5">
-          <span style={{ color: '#0F766E' }}>✦</span>
-          <span className="text-sm font-medium" style={{ color: '#4B5563' }}>
-            Describe your problem — AI finds the right trade automatically
-          </span>
-        </div>
-
-        {/* Trust stats */}
-        <div className="flex items-center justify-center gap-6 flex-wrap mb-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm">🛡</span>
-            <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>134,000+</span>
-            <span className="text-sm" style={{ color: '#6B7280' }}>state-verified licensed pros</span>
+      <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '28px 28px 24px', width: '100%', maxWidth: 420, marginBottom: 52 }}>
+        {done ? (
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: 'white', marginBottom: 6 }}>You are on the list!</div>
+            <div style={{ fontSize: 14, color: '#64748B' }}>We will email you the moment ProGuild launches in your area.</div>
           </div>
-          <div className="w-px h-4 bg-gray-200 hidden sm:block" />
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>Zero</span>
-            <span className="text-sm" style={{ color: '#6B7280' }}>lead fees, ever</span>
-          </div>
-          <div className="w-px h-4 bg-gray-200 hidden sm:block" />
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>License</span>
-            <span className="text-sm" style={{ color: '#6B7280' }}>state-verified</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pb-12">
-        <div className="text-center mb-6">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Or tap a trade</div>
-          <p className="text-sm" style={{ color: '#6B7280' }}>
-            {city.trim() ? `Will search near "${city.trim()}"` : 'Enter a city above to find local pros, or tap a trade to browse'}
-          </p>
-        </div>
-
-        {/* 3×2 primary trade grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-          {PRIMARY_TRADES.map(t => (
-            <button key={t.slug} onClick={() => handleTileTap(t.slug)}
-              className="group bg-white rounded-2xl border p-4 flex flex-col text-left hover:-translate-y-0.5 transition-all duration-200 cursor-pointer w-full"
-              style={{ borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-              <span className="text-2xl mb-2">{t.icon}</span>
-              <span className="text-sm font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              {t.count && <span className="text-sm font-medium" style={{ color: '#6B7280' }}>{t.count} licensed</span>}
-              <span className="text-xs font-semibold mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ color: '#0F766E' }}>
-                {city.trim() ? `Near ${city.trim()} →` : 'Browse pros →'}
-              </span>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 14 }}>Get early access</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              {([{ value: 'homeowner' as const, label: '🏠 I need a contractor' }, { value: 'contractor' as const, label: '🔧 I am a contractor' }]).map(opt => (
+                <button key={opt.value} onClick={() => setRole(opt.value)} style={{ flex: 1, padding: '9px 8px', borderRadius: 10, border: role === opt.value ? '1.5px solid #14B8A6' : '1px solid rgba(255,255,255,0.1)', background: role === opt.value ? 'rgba(20,184,166,0.1)' : 'transparent', color: role === opt.value ? '#5EEAD4' : '#64748B', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <input type="email" value={email} onChange={e => { setEmail(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && handleSubmit()} placeholder="your@email.com"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: error ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '12px 14px', color: 'white', fontSize: 14, outline: 'none', marginBottom: error ? 8 : 12, boxSizing: 'border-box' }} />
+            {error && <p style={{ fontSize: 12, color: '#F87171', marginBottom: 10 }}>{error}</p>}
+            <button onClick={handleSubmit} disabled={loading} style={{ width: '100%', background: loading ? 'rgba(15,118,110,0.5)' : 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', border: 'none', borderRadius: 10, padding: '13px', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(15,118,110,0.3)' }}>
+              {loading ? 'Saving...' : 'Notify me at launch \u2192'}
             </button>
-          ))}
-        </div>
+            <p style={{ fontSize: 11, color: '#334155', textAlign: 'center', marginTop: 10 }}>No spam. Unsubscribe anytime.</p>
+          </>
+        )}
+      </div>
 
-        {/* Secondary trades as pills */}
-        <div className="flex flex-wrap gap-2 justify-center">
-          {SECONDARY_TRADES.map(t => (
-            <button key={t.slug} onClick={() => handleTileTap(t.slug)}
-              className="text-sm font-medium px-3 py-1.5 rounded-full border transition-all hover:border-teal-400 hover:text-teal-700 cursor-pointer"
-              style={{ color: '#6B7280', borderColor: '#E8E2D9', background: '#FAF9F6' }}>
-              {t.label}
-            </button>
-          ))}
-          <a href={`/${scopeState}`}
-            className="text-sm font-semibold px-3 py-1.5 rounded-full border transition-all"
-            style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>
-            All trades →
-          </a>
-        </div>
-      </section>
+      <div style={{ width: '100%', maxWidth: 480, borderTop: '1px solid rgba(255,255,255,0.06)', marginBottom: 28 }} />
+      <p style={{ fontSize: 11, fontWeight: 600, color: '#334155', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 16 }}>Trades we cover</p>
 
-      {/* ── TRUST STRIP ──────────────────────────────────────────────────── */}
-      <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
-        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          {[
-            { icon: '🛡', title: 'License Verified', sub: 'Every pro checked against their state licensing board' },
-            { icon: '✦', title: 'Zero Lead Fees. Ever.', sub: 'One flat monthly subscription — keep every dollar' },
-            { icon: '✓', title: 'ID + Background Checked', sub: 'Didit-powered identity verification on signup' },
-          ].map(item => (
-            <div key={item.title}>
-              <div className="text-3xl mb-3">{item.icon}</div>
-              <div className="font-bold text-sm mb-1" style={{ color: '#0A1628' }}>{item.title}</div>
-              <div className="text-xs leading-relaxed" style={{ color: '#A89F93' }}>{item.sub}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
-        <div className="text-center mb-10">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>How it works</div>
-          <h2 className="text-2xl font-bold mb-6" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-            Simple. Direct. Transparent.
-          </h2>
-          {/* Tab switcher */}
-          <div className="inline-flex rounded-xl border p-1" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
-            {(['homeowner', 'pro'] as const).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className="px-5 py-2 rounded-lg text-sm font-semibold transition-all"
-                style={activeTab === tab
-                  ? { background: '#0F766E', color: '#FFFFFF' }
-                  : { color: '#6B7280' }}>
-                {tab === 'homeowner' ? '🏠 For homeowners' : '🔧 For pros'}
-              </button>
-            ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, width: '100%', maxWidth: 480, marginBottom: 44 }}>
+        {TRADES.map(t => (
+          <div key={t.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 6px', textAlign: 'center' }}>
+            <div style={{ fontSize: 18, marginBottom: 4 }}>{t.icon}</div>
+            <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, lineHeight: 1.3 }}>{t.label}</div>
           </div>
-        </div>
+        ))}
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {(activeTab === 'homeowner' ? HOW_STEPS_HOMEOWNER : HOW_STEPS_PRO).map((step, i) => (
-            <div key={step.n} className="relative">
-
-              <div className="text-3xl font-bold mb-4" style={{ color: '#A89F93', fontFamily: "'DM Serif Display', serif" }}>
-                {step.n}
-              </div>
-              <div className="font-bold mb-2" style={{ color: '#0A1628' }}>{step.title}</div>
-              <div className="text-base leading-relaxed" style={{ color: '#6B7280' }}>{step.desc}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── PRO CTA BANNER ───────────────────────────────────────────────── */}
-      <section className="mx-6 mb-16">
-        <div className="max-w-5xl mx-auto rounded-2xl p-10 text-center"
-          style={{ background: 'linear-gradient(135deg, #0A1628, #0D2D4A)' }}>
-          <div className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: '#5EEAD4' }}>
-            For trade professionals
+      <div style={{ display: 'flex', gap: 36, marginBottom: 44, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {[{ num: '$0', label: 'Per-lead fees, ever' }, { num: 'DBPR', label: 'License verified' }, { num: '1:1', label: 'Direct pro contact' }].map(s => (
+          <div key={s.num} style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 26, fontWeight: 700, color: 'white', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
+            <div style={{ fontSize: 11, color: '#334155', marginTop: 3 }}>{s.label}</div>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-3"
-            style={{ fontFamily: "'DM Serif Display', serif" }}>
-            Your craft shouldn't cost you a lead fee.
-          </h2>
-          <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-            Other platforms charge pros per lead — sometimes more than the job is worth. ProGuild is one flat fee. Zero per-lead charges. Every dollar you earn stays yours.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/login?tab=signup"
-              className="px-8 py-3.5 rounded-xl font-bold text-white transition-all hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-              Join the Guild — Free
-            </Link>
-            <Link href="/community"
-              className="px-8 py-3.5 rounded-xl font-semibold border transition-all hover:bg-white/5"
-              style={{ color: '#94A3B8', borderColor: 'rgba(255,255,255,0.15)' }}>
-              Explore the Community
-            </Link>
-          </div>
-        </div>
-      </section>
+        ))}
+      </div>
 
-      {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-      <footer className="border-t py-12 px-6" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-wrap items-start justify-between gap-10 mb-10">
-            <div className="max-w-xs">
-              <div className="flex items-baseline gap-0.5 mb-3">
-                <span className="text-xl font-bold" style={{ color: '#0A1628' }}>ProGuild</span>
-                <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
-              </div>
-              <p className="text-base leading-relaxed" style={{ color: '#A89F93' }}>
-                {scopeLabel}'s verified professional trades network. State-licensed pros. Zero lead fees. Your Craft. Your Guild.
-              </p>
-            </div>
-
-            <div className="flex gap-16 text-sm">
-              <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#A89F93' }}>Platform</div>
-                <div className="space-y-3">
-                  {[['/search','Find a Pro'],['/post-job','Request a Pro'],['/jobs','Find Work'],['/community','Community']].map(([href, label]) => (
-                    <Link key={href} href={href}
-                      className="block transition-colors text-sm"
-                      style={{ color: '#6B7280' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}>
-                      {label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#A89F93' }}>Company</div>
-                <div className="space-y-3">
-                  {[['/about','About'],['/contact','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([href, label]) => (
-                    <Link key={href} href={href}
-                      className="block transition-colors text-sm"
-                      style={{ color: '#6B7280' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}>
-                      {label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#A89F93' }}>Top Trades</div>
-                <div className="space-y-3">
-                  {[['electrician','Electrician'],['plumber','Plumber'],['hvac-technician','HVAC'],['general-contractor','General Contractor']].map(([slug, label]) => (
-                    <Link key={slug} href={`/${scopeState}/${slug}`}
-                      className="block transition-colors text-sm"
-                      style={{ color: '#6B7280' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}>
-                      {label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t pt-6 flex flex-wrap items-center justify-between gap-3"
-            style={{ borderColor: '#E8E2D9' }}>
-            <div className="text-xs" style={{ color: '#C4BAB0' }}>© 2026 ProGuild.ai</div>
-            <div className="text-xs" style={{ color: '#C4BAB0' }}>Verified against state licensing boards · OSHA · Background checked</div>
-          </div>
-        </div>
-      </footer>
+      <p style={{ fontSize: 12, color: '#1E293B' }}>&copy; 2026 ProGuild.ai &mdash; Your Craft. Your Guild.</p>
     </div>
   )
 }

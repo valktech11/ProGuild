@@ -1,4 +1,23 @@
-# ProGuild.ai — indexing paused during development
-# Will reopen when product is ready for public launch
 User-agent: *
-Disallow: /
+# Block private/app routes
+Disallow: /dashboard
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /admin
+Disallow: /admin/
+Disallow: /onboarding
+Disallow: /onboarding/
+Disallow: /edit-profile
+Disallow: /messages
+Disallow: /upgrade
+Disallow: /claim/
+Disallow: /api/
+
+# Allow public SEO routes
+Allow: /fl/
+Allow: /pro/
+Allow: /sitemaps/
+Allow: /about
+Allow: /contact
+
+Sitemap: https://proguild.ai/sitemaps
