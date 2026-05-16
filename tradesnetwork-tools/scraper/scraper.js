@@ -23,7 +23,7 @@ const IS_TEST       = process.argv.includes('--test')
 const BATCH_SIZE    = 10          // records processed per batch
 const DELAY_MS      = 1200        // ms between Bing API calls (avoid rate limits)
 const SCRAPE_TIMEOUT = 8000       // ms to wait for website response
-const MAX_RECORDS   = IS_TEST ? 10 : 10000
+const MAX_RECORDS   = IS_TEST ? 20 : 10000
 
 // Target trades — exact category_name values from DB
 const TARGET_TRADES = [
@@ -48,6 +48,10 @@ const SKIP_DOMAINS = [
   'whitepages.com', 'spokeo.com', 'peoplefinder.com',
   'imdb.com', 'wikipedia.org', 'indeed.com', 'glassdoor.com',
   'zabasearch.com', 'radaris.com', 'intelius.com',
+  'chamberofcommerce.com', 'bisprofiles.com', 'bizStanding.com',
+  'dnb.com', 'dun.com', 'datanyze.com', 'zoominfo.com',
+  'contractors.com', 'contractorplanet.com', 'contractorfinder.com',
+  'findagrave.com', 'legacy.com', 'yelp.com',
 ]
 
 // ── Supabase client ───────────────────────────────────────────────────────────
