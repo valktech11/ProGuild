@@ -137,23 +137,31 @@ async function findWebsite(pro) {
   const city = pro.city ? pro.city.charAt(0) + pro.city.slice(1).toLowerCase() : 'Florida'
 
   try {
-    // Single targeted search — license number + name anchors the result
-    // Adding "site:*.com" bias pushes Bing toward actual business websites
-    const query = `${pro.license_number} "${pro.full_name}" Florida contractor`
+    // Use business_name if available — far more accurate than person name
+    const searchName = pro.business_name
+      ? pro.business_name.trim()
+      : pro.full_name
+
+    if (process.env.DEBUG) console.log(`  [DEBUG] Searching as: "${searchName}"`)
+
+    // Pass 1 — search by business/person name + city
+    const query = pro.business_name
+      ? `"${searchName}" ${city} Florida`
+      : `${searchName} ${city} Florida ${pro.trade} contractor`
+
     const results1 = await searchBing(query)
 
-    // Extract business name from any BuildZoom result in the results
-    const bizName = extractBusinessName(results1)
-
+    // If no business_name, try to extract one from BuildZoom result
     let allResults = [...results1]
-
-    // Pass 2 only if we got a clean business name (not person name)
-    if (bizName && bizName.split(' ').length >= 2 &&
-        !bizName.toLowerCase().includes(pro.full_name.split(' ')[0].toLowerCase())) {
-      if (process.env.DEBUG) console.log(`  [DEBUG] Biz name: "${bizName}" — running Pass 2`)
-      await sleep(DELAY_MS)
-      const results2 = await searchBing(`"${bizName}" ${city} Florida -buildzoom -licensedcheck -mylife -spokeo`)
-      allResults = [...results2, ...results1]
+    if (!pro.business_name) {
+      const bizName = extractBusinessName(results1)
+      if (bizName && bizName.split(' ').length >= 2 &&
+          !bizName.toLowerCase().startsWith(pro.full_name.split(' ')[0].toLowerCase())) {
+        if (process.env.DEBUG) console.log(`  [DEBUG] Found biz: "${bizName}" — Pass 2`)
+        await sleep(DELAY_MS)
+        const results2 = await searchBing(`"${bizName}" ${city} Florida`)
+        allResults = [...results2, ...results1]
+      }
     }
 
     if (process.env.DEBUG) console.log('  [DEBUG] Top results:', allResults.slice(0,3).map(r=>r.link).join(', '))
@@ -275,6 +283,7 @@ async function main() {
     .select(`
       id,
       full_name,
+      business_name,
       city,
       state,
       license_number,
