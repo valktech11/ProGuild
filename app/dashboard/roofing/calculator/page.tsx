@@ -1,383 +1,475 @@
+// app/dashboard/roofing/calculator/page.tsx
+// Reads pg_report_data from sessionStorage (set by satellite report pipeline).
+// Pre-populates squares, pitch, waste. Runs roofing calculator formula.
+// Pushes line items directly into a new or existing estimate via /api/estimates.
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
-import { theme } from '@/lib/tokens'
-import { fmtCurrency } from '@/lib/utils'
+import { theme } from '@/lib/theme'
 
-// Pitch factor lookup
-const PITCH_FACTORS: Record<string, number> = {
-  '2/12': 1.014, '3/12': 1.031, '4/12': 1.054, '5/12': 1.083,
-  '6/12': 1.118, '7/12': 1.158, '8/12': 1.202, '9/12': 1.250,
-  '10/12': 1.302, '11/12': 1.357, '12/12': 1.414,
-}
-
-interface MaterialPrices {
-  shingle_cost: number       // per square
-  underlayment_cost: number  // per square
-  ridge_cap_cost: number     // per bundle (35 LF each)
-  starter_strip_cost: number // per bundle (105 LF each)
-  nail_cost: number          // per lb
-  // labour
-  labor_cost: number         // per square installed
-  tear_off_cost: number      // per square (optional)
-}
-
-const DEFAULT_PRICES: MaterialPrices = {
-  shingle_cost: 120,      // ~$120/sq for architectural shingles
-  underlayment_cost: 18,
-  ridge_cap_cost: 55,
-  starter_strip_cost: 45,
-  nail_cost: 4.50,
-  labor_cost: 150,
-  tear_off_cost: 45,
+// ── Types ──────────────────────────────────────────────────────────────────
+interface ReportData {
+  squares:      number
+  pitch:        string   // e.g. "6/12"
+  waste:        number   // percentage, e.g. 10
+  address:      string
+  reportId:     string
 }
 
 interface LineItem {
   description: string
-  qty: number
-  unit: string
-  unit_price: number
-  total: number
+  quantity:    number
+  unit:        string
+  unitPrice:   number
+  total:       number
 }
 
-function Ic({ children, size = 16, color = 'currentColor' }: { children: React.ReactNode; size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
-      strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
-  )
+// Pitch factor lookup — matches lib/roofing/reportPdf.ts degreesToPitch()
+const PITCH_FACTORS: Record<string, number> = {
+  '2/12': 1.014,
+  '3/12': 1.031,
+  '4/12': 1.054,
+  '5/12': 1.083,
+  '6/12': 1.118,
+  '7/12': 1.158,
+  '8/12': 1.202,
+  '9/12': 1.250,
+  '10/12': 1.302,
+  '11/12': 1.357,
+  '12/12': 1.414,
 }
 
+const PITCH_OPTIONS = Object.keys(PITCH_FACTORS)
+
+// Default material prices — pro overrides in Settings (future)
+// These are reasonable FL market defaults
+const DEFAULT_PRICES: Record<string, number> = {
+  shingles:      95,   // per bundle (3 bundles = 1 square)
+  underlayment:  45,   // per square
+  ridgeCap:      55,   // per bundle (35 LF/bundle)
+  starterStrip:  50,   // per bundle (105 LF/bundle)
+  nails:          8,   // per lb
+  dripEdge:      12,   // per 10ft piece
+  iceWater:      75,   // per square
+}
+
+// ── Calculator logic — pure function, no side effects ─────────────────────
+function calculateMaterials(
+  squares: number,
+  pitchKey: string,
+  wastePct: number
+): { items: LineItem[]; adjustedSquares: number } {
+  const pitchFactor    = PITCH_FACTORS[pitchKey] ?? 1.118
+  const adjustedSquares = squares * pitchFactor * (1 + wastePct / 100)
+
+  const items: LineItem[] = [
+    {
+      description: `Architectural shingles (${pitchKey} pitch, ${wastePct}% waste)`,
+      quantity:    Math.ceil(adjustedSquares * 3),
+      unit:        'bundles',
+      unitPrice:   DEFAULT_PRICES.shingles,
+      total:       Math.ceil(adjustedSquares * 3) * DEFAULT_PRICES.shingles,
+    },
+    {
+      description: 'Synthetic underlayment',
+      quantity:    Math.ceil(adjustedSquares * 1.1 * 10) / 10,
+      unit:        'squares',
+      unitPrice:   DEFAULT_PRICES.underlayment,
+      total:       Math.ceil(adjustedSquares * 1.1) * DEFAULT_PRICES.underlayment,
+    },
+    {
+      description: 'Ridge cap shingles',
+      quantity:    1,   // placeholder — requires linear footage from DSM
+      unit:        'bundles',
+      unitPrice:   DEFAULT_PRICES.ridgeCap,
+      total:       DEFAULT_PRICES.ridgeCap,
+    },
+    {
+      description: 'Starter strip',
+      quantity:    1,   // placeholder — requires eave LF from DSM
+      unit:        'bundles',
+      unitPrice:   DEFAULT_PRICES.starterStrip,
+      total:       DEFAULT_PRICES.starterStrip,
+    },
+    {
+      description: 'Roofing nails',
+      quantity:    Math.ceil(adjustedSquares * 2.5),
+      unit:        'lbs',
+      unitPrice:   DEFAULT_PRICES.nails,
+      total:       Math.ceil(adjustedSquares * 2.5) * DEFAULT_PRICES.nails,
+    },
+    {
+      description: 'Drip edge',
+      quantity:    1,   // placeholder — requires perimeter LF
+      unit:        'pieces',
+      unitPrice:   DEFAULT_PRICES.dripEdge,
+      total:       DEFAULT_PRICES.dripEdge,
+    },
+    {
+      description: 'Ice and water shield (FL code — 3ft from eave)',
+      quantity:    1,   // placeholder — requires eave LF
+      unit:        'squares',
+      unitPrice:   DEFAULT_PRICES.iceWater,
+      total:       DEFAULT_PRICES.iceWater,
+    },
+  ]
+
+  return { items, adjustedSquares: Math.round(adjustedSquares * 10) / 10 }
+}
+
+// ── Inner component (needs useSearchParams — must be inside Suspense) ──────
 function CalculatorInner() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const fromProMeasure = searchParams.get('from') === 'promeasure'
-  const sqParam = searchParams.get('sq')
+  const router        = useRouter()
+  const searchParams  = useSearchParams()
 
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
     const s = sessionStorage.getItem('pg_pro')
     return s ? JSON.parse(s) : null
   })
-  const [dk, setDk] = useState(() =>
-    typeof window !== 'undefined' && localStorage.getItem('pg_darkmode') === '1'
-  )
-  const t = theme(dk)
+  const [dk, setDk] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('pg_darkmode') === '1'
+  })
 
-  // Inputs
-  const [squares, setSquares] = useState(sqParam ? Number(sqParam) : 0)
-  const [pitch, setPitch] = useState('4/12')
-  const [waste, setWaste] = useState(10)
-  const [ridgeLF, setRidgeLF] = useState(0)    // linear feet of ridge
-  const [eaveLF, setEaveLF] = useState(0)       // linear feet of eave
-  const [tearOff, setTearOff] = useState(true)
-  const [prices, setPrices] = useState<MaterialPrices>(DEFAULT_PRICES)
-  const [editPrices, setEditPrices] = useState(false)
-  const [savingPrices, setSavingPrices] = useState(false)
-  const [pricesSaved, setPricesSaved] = useState(false)
-  const [sendingToEstimate, setSendingToEstimate] = useState(false)
+  // ── Pre-fill state from sessionStorage report data ─────────────────────
+  const [reportData,  setReportData]  = useState<ReportData | null>(null)
+  const [squares,     setSquares]     = useState<string>('')
+  const [pitch,       setPitch]       = useState<string>('6/12')
+  const [waste,       setWaste]       = useState<string>('10')
+  const [lineItems,   setLineItems]   = useState<LineItem[]>([])
+  const [adjSq,       setAdjSq]       = useState<number>(0)
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
+  const [success,     setSuccess]     = useState<string | null>(null)
 
-  // Load saved prices and ProMeasure data
+  // leadId can come from URL param (if opened from a lead detail page)
+  const leadId = searchParams.get('lead_id') ?? null
+
   useEffect(() => {
-    if (!session) return
+    if (!session) { router.push('/login'); return }
 
-    // Load ProMeasure data if coming from ProMeasure
-    if (fromProMeasure) {
-      const raw = sessionStorage.getItem('pg_promeasure')
-      if (raw) {
-        const data = JSON.parse(raw)
-        if (data.squares) setSquares(+data.squares.toFixed(1))
-        if (data.pitch) setPitch(data.pitch)
-        if (data.waste) setWaste(data.waste)
-        if (data.perimeter) setEaveLF(Math.round(data.perimeter))
+    // Read report data from sessionStorage — set by satellite report pipeline
+    const raw = sessionStorage.getItem('pg_report_data')
+    if (raw) {
+      try {
+        const data = JSON.parse(raw) as ReportData
+        setReportData(data)
+        setSquares(String(Math.round(data.squares * 10) / 10))
+        // Normalize pitch — report stores e.g. "6/12" or numeric
+        const pitchKey = normalizePitch(data.pitch)
+        setPitch(pitchKey)
+        setWaste(String(Math.round(data.waste)))
+      } catch {
+        // sessionStorage had bad data — start fresh
+        sessionStorage.removeItem('pg_report_data')
       }
     }
+  }, [session, router])
 
-    // Load saved material prices
-    fetch(`/api/roofing/settings?pro_id=${session.id}`)
-      .then(r => r.json())
-      .then(d => { if (d.material_prices) setPrices({ ...DEFAULT_PRICES, ...d.material_prices }) })
-  }, [session, fromProMeasure])
+  // Recalculate whenever inputs change
+  useEffect(() => {
+    const sq = parseFloat(squares)
+    if (!sq || sq <= 0) { setLineItems([]); setAdjSq(0); return }
+    const { items, adjustedSquares } = calculateMaterials(sq, pitch, parseFloat(waste) || 0)
+    setLineItems(items)
+    setAdjSq(adjustedSquares)
+  }, [squares, pitch, waste])
 
-  async function savePrices() {
-    if (!session) return
-    setSavingPrices(true)
-    await fetch('/api/roofing/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: session.id, material_prices: prices }),
-    })
-    setSavingPrices(false)
-    setPricesSaved(true)
-    setEditPrices(false)
-    setTimeout(() => setPricesSaved(false), 2000)
-  }
+  // Push to estimate
+  const handleApplyToEstimate = useCallback(async () => {
+    if (!session || lineItems.length === 0) return
+    setSaving(true)
+    setError(null)
+    setSuccess(null)
 
-  // ── Calculations (Founders Bible formula) ─────────────────────────────────
-  const pitchFactor = PITCH_FACTORS[pitch] ?? 1.054
-  const adjustedSq  = squares * pitchFactor * (1 + waste / 100)
+    try {
+      const res = await fetch('/api/estimates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pro_id:       session.id,
+          lead_id:      leadId,
+          source:       'roofing_calculator',
+          report_data:  reportData,
+          line_items:   lineItems.map(i => ({
+            description: i.description,
+            quantity:    i.quantity,
+            unit_price:  i.unitPrice,
+          })),
+        }),
+      })
 
-  const shingleBundles   = Math.ceil(adjustedSq * 3)           // 3 bundles per square
-  const underlaymentSq   = adjustedSq * 1.1                    // 10% overlap
-  const ridgeCapBundles  = ridgeLF > 0 ? Math.ceil(ridgeLF / 35) : Math.ceil(adjustedSq * 0.08)  // estimate if no LF
-  const starterBundles   = eaveLF > 0 ? Math.ceil(eaveLF / 105) : Math.ceil(adjustedSq * 0.06)
-  const nailLbs          = adjustedSq * 2.5
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error((d as {error?:string}).error ?? `HTTP ${res.status}`)
+      }
 
-  const lineItems: LineItem[] = [
-    {
-      description: 'Architectural Shingles',
-      qty: shingleBundles, unit: 'bundle',
-      unit_price: prices.shingle_cost / 3,
-      total: shingleBundles * (prices.shingle_cost / 3),
-    },
-    {
-      description: 'Synthetic Underlayment',
-      qty: +underlaymentSq.toFixed(1), unit: 'sq',
-      unit_price: prices.underlayment_cost,
-      total: underlaymentSq * prices.underlayment_cost,
-    },
-    {
-      description: 'Ridge Cap Shingles',
-      qty: ridgeCapBundles, unit: 'bundle',
-      unit_price: prices.ridge_cap_cost,
-      total: ridgeCapBundles * prices.ridge_cap_cost,
-    },
-    {
-      description: 'Starter Strip',
-      qty: starterBundles, unit: 'bundle',
-      unit_price: prices.starter_strip_cost,
-      total: starterBundles * prices.starter_strip_cost,
-    },
-    {
-      description: 'Coil Nails',
-      qty: +nailLbs.toFixed(1), unit: 'lb',
-      unit_price: prices.nail_cost,
-      total: nailLbs * prices.nail_cost,
-    },
-    {
-      description: 'Labor — Installation',
-      qty: +adjustedSq.toFixed(1), unit: 'sq',
-      unit_price: prices.labor_cost,
-      total: adjustedSq * prices.labor_cost,
-    },
-    ...(tearOff ? [{
-      description: 'Tear-Off & Disposal',
-      qty: +adjustedSq.toFixed(1), unit: 'sq',
-      unit_price: prices.tear_off_cost,
-      total: adjustedSq * prices.tear_off_cost,
-    }] : []),
-  ]
+      const { id: estimateId } = await res.json() as { id: string }
 
-  const materialTotal = lineItems.slice(0, 5).reduce((s, i) => s + i.total, 0)
-  const laborTotal    = lineItems.slice(5).reduce((s, i) => s + i.total, 0)
-  const grandTotal    = materialTotal + laborTotal
+      // Clear sessionStorage — report data consumed
+      sessionStorage.removeItem('pg_report_data')
 
-  async function pushToEstimate() {
-    // Store line items in sessionStorage and navigate to estimate builder
-    const payload = {
-      items: lineItems.map(i => ({
-        description: i.description,
-        quantity: i.qty,
-        unit: i.unit,
-        unit_price: +i.unit_price.toFixed(2),
-        total: +i.total.toFixed(2),
-      })),
-      squares: +adjustedSq.toFixed(2),
-      source: 'roofing-calculator',
+      setSuccess('Estimate created with calculator line items.')
+
+      // Navigate to the new estimate after a brief moment
+      setTimeout(() => {
+        router.push(`/dashboard/estimates/${estimateId}`)
+      }, 1200)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create estimate'
+      setError(msg)
+    } finally {
+      setSaving(false)
     }
-    setSendingToEstimate(true)
-    sessionStorage.setItem('pg_calc_items', JSON.stringify(payload))
-    // Navigate to new estimate — pipeline page with create param
-    router.push('/dashboard/estimates?new=1&from=calculator')
-  }
+  }, [session, lineItems, leadId, reportData, router])
 
   if (!session) return null
+  const t = theme(dk)
+
+  const totalCost = lineItems.reduce((s, i) => s + i.total, 0)
 
   return (
-    <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk}
-      onToggleDark={() => { const n = !dk; localStorage.setItem('pg_darkmode', n ? '1' : '0'); setDk(n) }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
+    <DashboardShell
+      session={session}
+      newLeads={0}
+      onAddLead={() => {}}
+      darkMode={dk}
+      onToggleDark={() => {
+        const n = !dk
+        localStorage.setItem('pg_darkmode', n ? '1' : '0')
+        setDk(n)
+      }}
+    >
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <button onClick={() => router.back()}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 6px' }}>
-              <Ic size={14}><polyline points="15 18 9 12 15 6"/></Ic> Back
-            </button>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: t.textPri, margin: 0 }}>🔢 Roofing Calculator</h1>
-            <p style={{ fontSize: 14, color: t.textSubtle, marginTop: 2 }}>Material quantities & cost estimate</p>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 600, color: t.textPri, margin: 0 }}>
+            Roofing Calculator
+          </h1>
+          {reportData && (
+            <p style={{ fontSize: 13, color: t.textMuted, marginTop: 4 }}>
+              Pre-filled from report: {reportData.address}
+            </p>
+          )}
+        </div>
+
+        {/* Inputs */}
+        <div style={{
+          background: t.cardBg,
+          border: `1px solid ${t.cardBorder}`,
+          borderRadius: 12,
+          padding: 20,
+          marginBottom: 20,
+        }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: t.textPri, marginBottom: 16 }}>
+            Measurements
+          </h2>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+            {/* Squares */}
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
+                Squares (flat area)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={squares}
+                onChange={e => setSquares(e.target.value)}
+                placeholder="e.g. 28.5"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: `1.5px solid ${t.inputBorder}`,
+                  background: t.cardBg,
+                  color: t.textPri,
+                  fontSize: 14,
+                }}
+              />
+            </div>
+
+            {/* Pitch */}
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
+                Pitch
+              </label>
+              <select
+                value={pitch}
+                onChange={e => setPitch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: `1.5px solid ${t.inputBorder}`,
+                  background: t.cardBg,
+                  color: t.textPri,
+                  fontSize: 14,
+                }}
+              >
+                {PITCH_OPTIONS.map(p => (
+                  <option key={p} value={p}>
+                    {p} (×{PITCH_FACTORS[p].toFixed(3)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Waste */}
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
+                Waste %
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="30"
+                step="1"
+                value={waste}
+                onChange={e => setWaste(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: `1.5px solid ${t.inputBorder}`,
+                  background: t.cardBg,
+                  color: t.textPri,
+                  fontSize: 14,
+                }}
+              />
+            </div>
           </div>
-          {fromProMeasure && (
-            <div style={{ padding: '6px 14px', borderRadius: 20, background: '#F0FDFA', border: '1.5px solid #14B8A6', color: '#0F766E', fontSize: 12, fontWeight: 700 }}>
-              📐 From ProMeasure
+
+          {adjSq > 0 && (
+            <div style={{
+              marginTop: 16,
+              padding: '10px 14px',
+              background: '#F0FDFA',
+              borderRadius: 8,
+              fontSize: 13,
+              color: '#0F766E',
+            }}>
+              Adjusted squares: <strong>{adjSq}</strong> &nbsp;·&nbsp;
+              Pitch factor: <strong>{PITCH_FACTORS[pitch]?.toFixed(3)}</strong>
             </div>
           )}
         </div>
 
-        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+        {/* Line items */}
+        {lineItems.length > 0 && (
+          <div style={{
+            background: t.cardBg,
+            border: `1px solid ${t.cardBorder}`,
+            borderRadius: 12,
+            padding: 20,
+            marginBottom: 20,
+          }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: t.textPri, marginBottom: 16 }}>
+              Material Quantities
+            </h2>
 
-          {/* Inputs */}
-          <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20 }}>
-            <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, marginBottom: 16, marginTop: 0 }}>Inputs</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSubtle, display: 'block', marginBottom: 4 }}>ROOF AREA (squares)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="number" min={0} step={0.5} value={squares || ''} onChange={e => setSquares(+e.target.value || 0)}
-                    placeholder="0"
-                    style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 15, fontWeight: 700 }} />
-                  <span style={{ fontSize: 13, color: t.textSubtle }}>sq</span>
-                </div>
-                <p style={{ fontSize: 12, color: t.textSubtle, margin: '4px 0 0' }}>1 square = 100 sq ft. {squares > 0 && `= ${(squares * 100).toLocaleString()} sq ft`}</p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSubtle, display: 'block', marginBottom: 4 }}>PITCH</label>
-                  <select value={pitch} onChange={e => setPitch(e.target.value)}
-                    style={{ width: '100%', padding: '9px 10px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 13 }}>
-                    {Object.entries(PITCH_FACTORS).map(([p, f]) => <option key={p} value={p}>{p} (×{f})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSubtle, display: 'block', marginBottom: 4 }}>WASTE %</label>
-                  <select value={waste} onChange={e => setWaste(Number(e.target.value))}
-                    style={{ width: '100%', padding: '9px 10px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 13 }}>
-                    {[5,8,10,12,15,20].map(w => <option key={w} value={w}>{w}%</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSubtle, display: 'block', marginBottom: 4 }}>RIDGE LF (optional)</label>
-                  <input type="number" min={0} value={ridgeLF || ''} onChange={e => setRidgeLF(+e.target.value || 0)} placeholder="auto"
-                    style={{ width: '100%', padding: '9px 10px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSubtle, display: 'block', marginBottom: 4 }}>EAVE LF (optional)</label>
-                  <input type="number" min={0} value={eaveLF || ''} onChange={e => setEaveLF(+e.target.value || 0)} placeholder="auto"
-                    style={{ width: '100%', padding: '9px 10px', borderRadius: 10, border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-              </div>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                <input type="checkbox" checked={tearOff} onChange={e => setTearOff(e.target.checked)}
-                  style={{ width: 18, height: 18, accentColor: '#0F766E', cursor: 'pointer' }} />
-                <span style={{ fontSize: 14, color: t.textBody, fontWeight: 600 }}>Include tear-off & disposal</span>
-              </label>
-
-              {/* Adjusted output */}
-              {squares > 0 && (
-                <div style={{ background: '#F0FDFA', border: '1.5px solid #14B8A6', borderRadius: 12, padding: '12px 14px' }}>
-                  <p style={{ fontSize: 11, color: '#14B8A6', margin: '0 0 2px' }}>Adjusted squares</p>
-                  <p style={{ fontSize: 28, fontWeight: 900, color: '#0F766E', margin: '0 0 2px' }}>{adjustedSq.toFixed(2)}</p>
-                  <p style={{ fontSize: 11, color: '#14B8A6', margin: 0 }}>{squares} × {pitchFactor} pitch × {1 + waste/100} waste</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Material prices */}
-          <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, margin: 0 }}>Material Prices</h2>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {pricesSaved && <span style={{ fontSize: 12, color: '#0F766E', fontWeight: 700 }}>✓ Saved</span>}
-                {editPrices ? (
-                  <>
-                    <button onClick={() => setEditPrices(false)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, border: `1px solid ${t.cardBorder}`, background: t.cardBgAlt, color: t.textMuted, cursor: 'pointer' }}>Cancel</button>
-                    <button onClick={savePrices} disabled={savingPrices} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', cursor: 'pointer', fontWeight: 700 }}>{savingPrices ? '…' : 'Save'}</button>
-                  </>
-                ) : (
-                  <button onClick={() => setEditPrices(true)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, cursor: 'pointer' }}>Edit prices</button>
-                )}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {([
-                ['shingle_cost',       'Shingles (per sq)'],
-                ['underlayment_cost',  'Underlayment (per sq)'],
-                ['ridge_cap_cost',     'Ridge Cap (per bundle)'],
-                ['starter_strip_cost', 'Starter Strip (per bundle)'],
-                ['nail_cost',          'Nails (per lb)'],
-                ['labor_cost',         'Labor (per sq installed)'],
-                ['tear_off_cost',      'Tear-Off (per sq)'],
-              ] as [keyof MaterialPrices, string][]).map(([key, label]) => (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, color: t.textBody }}>{label}</span>
-                  {editPrices ? (
-                    <input type="number" min={0} step={0.5} value={prices[key]}
-                      onChange={e => setPrices(p => ({ ...p, [key]: +e.target.value || 0 }))}
-                      style={{ width: 80, padding: '5px 8px', borderRadius: 8, border: `1px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize: 13, textAlign: 'right' }} />
-                  ) : (
-                    <span style={{ fontSize: 13, fontWeight: 700, color: t.textPri }}>${prices[key].toFixed(2)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            {!editPrices && (
-              <p style={{ fontSize: 11, color: t.textSubtle, marginTop: 12 }}>Prices are saved to your account and pre-fill every new estimate.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Line items output */}
-        {squares > 0 && (
-          <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, padding: 20, marginTop: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: t.textSubtle, margin: 0 }}>Material Takeoff</h2>
-              <button onClick={pushToEstimate} disabled={sendingToEstimate}
-                style={{ padding: '9px 18px', borderRadius: 11, border: 'none', background: '#0F766E', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                {sendingToEstimate ? 'Loading…' : <>Push to Estimate <Ic size={13} color="white"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Ic></>}
-              </button>
-            </div>
-
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
-                    {['Description', 'Qty', 'Unit', 'Unit Price', 'Total'].map(h => (
-                      <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Description' ? 'left' : 'right', fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineItems.map((item, i) => (
-                    <tr key={i} style={{ borderBottom: `1px solid ${t.divider}`, background: i % 2 === 1 ? t.tableRowAlt : 'transparent' }}>
-                      <td style={{ padding: '10px 10px', fontSize: 14, color: t.textBody, fontWeight: 500 }}>{item.description}</td>
-                      <td style={{ padding: '10px 10px', fontSize: 14, color: t.textPri, fontWeight: 700, textAlign: 'right' }}>{item.qty.toLocaleString()}</td>
-                      <td style={{ padding: '10px 10px', fontSize: 13, color: t.textSubtle, textAlign: 'right' }}>{item.unit}</td>
-                      <td style={{ padding: '10px 10px', fontSize: 13, color: t.textSubtle, textAlign: 'right' }}>{fmtCurrency(item.unit_price)}</td>
-                      <td style={{ padding: '10px 10px', fontSize: 14, color: t.textPri, fontWeight: 700, textAlign: 'right' }}>{fmtCurrency(item.total)}</td>
-                    </tr>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
+                  {['Material', 'Qty', 'Unit', 'Unit price', 'Total'].map(h => (
+                    <th key={h} style={{
+                      padding: '6px 8px',
+                      textAlign: h === 'Material' ? 'left' : 'right',
+                      color: t.textMuted,
+                      fontWeight: 500,
+                    }}>{h}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
+                    <td style={{ padding: '8px', color: t.textPri }}>{item.description}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', color: t.textPri }}>{item.quantity}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', color: t.textMuted }}>{item.unit}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', color: t.textMuted }}>${item.unitPrice}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', color: t.textPri, fontWeight: 500 }}>
+                      ${item.total.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={4} style={{ padding: '10px 8px', fontWeight: 600, color: t.textPri }}>
+                    Materials total
+                  </td>
+                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 600, fontSize: 15, color: '#0F766E' }}>
+                    ${totalCost.toLocaleString()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
 
-            {/* Subtotals */}
-            <div style={{ borderTop: `2px solid ${t.cardBorder}`, marginTop: 8, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 14, color: t.textMuted }}>Materials</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: t.textBody }}>{fmtCurrency(materialTotal)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 14, color: t.textMuted }}>Labor</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: t.textBody }}>{fmtCurrency(laborTotal)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${t.cardBorder}`, paddingTop: 8, marginTop: 4 }}>
-                <span style={{ fontSize: 16, fontWeight: 800, color: t.textPri }}>Total</span>
-                <span style={{ fontSize: 20, fontWeight: 900, color: '#0F766E' }}>{fmtCurrency(grandTotal)}</span>
-              </div>
-              <p style={{ fontSize: 11, color: t.textSubtle, margin: '4px 0 0' }}>
-                {fmtCurrency(grandTotal / (squares || 1))}/sq · Tax not included
-              </p>
-            </div>
+            <p style={{ fontSize: 12, color: t.textMuted, marginTop: 12 }}>
+              Ridge cap, starter strip, drip edge, and ice/water shield quantities require linear footage — 
+              shown as 1 unit placeholder until DSM measurement is available.
+            </p>
+          </div>
+        )}
+
+        {/* Error / success */}
+        {error && (
+          <div style={{
+            padding: '10px 14px', borderRadius: 8,
+            background: '#FEF2F2', color: '#DC2626',
+            fontSize: 13, marginBottom: 16,
+          }}>{error}</div>
+        )}
+        {success && (
+          <div style={{
+            padding: '10px 14px', borderRadius: 8,
+            background: '#F0FDF4', color: '#15803D',
+            fontSize: 13, marginBottom: 16,
+          }}>{success}</div>
+        )}
+
+        {/* Actions */}
+        {lineItems.length > 0 && (
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button
+              onClick={handleApplyToEstimate}
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: '12px 24px',
+                borderRadius: 8,
+                background: saving ? '#9CA3AF' : '#0F766E',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 15,
+                border: 'none',
+                cursor: saving ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saving ? 'Creating estimate…' : 'Apply to estimate →'}
+            </button>
+
+            <button
+              onClick={() => router.back()}
+              style={{
+                padding: '12px 20px',
+                borderRadius: 8,
+                background: 'transparent',
+                color: t.textMuted,
+                fontWeight: 500,
+                fontSize: 14,
+                border: `1px solid ${t.cardBorder}`,
+                cursor: 'pointer',
+              }}
+            >
+              Back
+            </button>
           </div>
         )}
       </div>
@@ -385,9 +477,23 @@ function CalculatorInner() {
   )
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+function normalizePitch(raw: string | number): string {
+  if (typeof raw === 'number') {
+    // Convert degrees to pitch if needed (satellite report stores dominant pitch as string)
+    return '6/12'
+  }
+  const s = String(raw).trim()
+  if (PITCH_FACTORS[s]) return s
+  // Handle "6:12" or "6.0/12" formats
+  const normalized = s.replace(':', '/').replace(/\.0\//,'/')
+  return PITCH_FACTORS[normalized] ? normalized : '6/12'
+}
+
+// ── Page export — Suspense required for useSearchParams ───────────────────
 export default function CalculatorPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading calculator…</div>}>
+    <Suspense fallback={null}>
       <CalculatorInner />
     </Suspense>
   )
