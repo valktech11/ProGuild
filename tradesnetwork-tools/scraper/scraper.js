@@ -56,6 +56,15 @@ const SKIP_DOMAINS = [
   'zhihu.com', 'wikipedia.org', 'buildzoom.com',
   'sunbiz.org', 'myfloridalicense.com', 'floridacontractors.com',
   'contractorcheck.com', 'licensecheck.com', 'verifycontractor.com',
+  'usajobs.gov', 'va.usajobs.gov', 'airbnb.com', 'vrbo.com',
+  'emojitool.com', 'piliapp.com', 'glyphy.io',
+  'rasmussen.edu', 'bluera.com', 'zeromotorcycles.com',
+  'zerohedge.com', 'thezeusnetwork.com', 'britannica.com',
+  'yahoo.com', 'stockanalysis.com', 'finance.yahoo.com',
+  'sunbiz.org', 'opengovus.com', 'floridareg.com',
+  't-mobile.com', 'att.com', 'techradar.com',
+  'lambertswinery.com', 'westonmo.com', 'zeromotorcycles.com',
+  'usajobs.gov', 'trustburn.com', 'flbusinessgo.com',
 ]
 
 // ── Supabase client ───────────────────────────────────────────────────────────
@@ -79,21 +88,39 @@ function isSkippedDomain(url) {
   }
 }
 
+// Known filler/placeholder email patterns — never real contact emails
+const JUNK_EMAIL_PATTERNS = [
+  'example.com', 'sentry.io', 'wix.com', 'squarespace.com',
+  'godaddy.com', 'wordpress.com', 'domain.com', 'yourdomain.com',
+  'email.com', 'test.com', 'sample.com', 'placeholder',
+  'filler', 'noreply', 'no-reply', 'donotreply',
+  'mailer-daemon', 'postmaster', 'webmaster',
+]
+
+function isJunkEmail(email) {
+  const lower = email.toLowerCase()
+  // Must have exactly one @ and valid TLD
+  const parts = lower.split('@')
+  if (parts.length !== 2) return true
+  const domain = parts[1]
+  if (!domain.includes('.')) return true
+  // Domain must be under 50 chars — longer = concatenated junk
+  if (domain.length > 50) return true
+  // Local part must be under 40 chars
+  if (parts[0].length > 40) return true
+  // Check known junk patterns
+  if (JUNK_EMAIL_PATTERNS.some(p => lower.includes(p))) return true
+  // Reject if email looks concatenated (contains two TLDs)
+  if (/\.(com|net|org|io|co).*\.(com|net|org|io|co)/.test(lower)) return true
+  if (lower.includes('@2x')) return true
+  if (/\.(png|jpg|gif|svg|webp)$/.test(lower)) return true
+  return false
+}
+
 function extractEmails(text) {
-  // Match standard emails, avoid false positives like image@2x.png
   const regex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g
   const found = text.match(regex) || []
-  return found.filter(e => {
-    const lower = e.toLowerCase()
-    // Filter out common non-contact emails
-    if (lower.includes('example.com')) return false
-    if (lower.includes('sentry.io')) return false
-    if (lower.includes('wix.com')) return false
-    if (lower.includes('squarespace.com')) return false
-    if (lower.includes('@2x')) return false
-    if (lower.endsWith('.png') || lower.endsWith('.jpg')) return false
-    return true
-  })
+  return found.filter(e => !isJunkEmail(e))
 }
 
 function pickBestEmail(emails) {
