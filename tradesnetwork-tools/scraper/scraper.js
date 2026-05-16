@@ -294,7 +294,8 @@ async function main() {
     .eq('profile_status', 'Active')
     .is('scraped_email', null)
     .is('scrape_status', null)
-    .limit(MAX_RECORDS * 3)  // fetch more, filter in JS since join filter unreliable
+    .order('business_name', { ascending: false, nullsFirst: false })
+    .limit(MAX_RECORDS * 5)
 
   if (error) {
     console.error('✗ Supabase fetch failed:', error.message)
