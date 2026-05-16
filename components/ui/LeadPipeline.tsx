@@ -121,7 +121,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = DEFAULT_S
 
   function handleStageClick(newStage: string) {
     if (newStage === status) return
-    const isBackward = (stageOrder[newStage] ?? 0) < (stageOrder[status] ?? 0)
+    const isBackward = (STAGE_ORDER[newStage] ?? 0) < (STAGE_ORDER[status] ?? 0)
     if (isBackward) setPendingStage(newStage)
     else setStatus(newStage as StageKey)
   }
