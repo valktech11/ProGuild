@@ -49,9 +49,13 @@ const SKIP_DOMAINS = [
   'imdb.com', 'wikipedia.org', 'indeed.com', 'glassdoor.com',
   'zabasearch.com', 'radaris.com', 'intelius.com',
   'chamberofcommerce.com', 'bisprofiles.com', 'bizStanding.com',
-  'dnb.com', 'dun.com', 'datanyze.com', 'zoominfo.com',
-  'contractors.com', 'contractorplanet.com', 'contractorfinder.com',
-  'findagrave.com', 'legacy.com', 'yelp.com',
+  'dnb.com', 'datanyze.com', 'zoominfo.com',
+  'findagrave.com', 'legacy.com',
+  'intercreditreport.com', 'flcompanyregistry.com', 'mylife.com',
+  'bizprofile.net', 'licensedcheck.com', 'biblestudy.org',
+  'zhihu.com', 'wikipedia.org', 'buildzoom.com',
+  'sunbiz.org', 'myfloridalicense.com', 'floridacontractors.com',
+  'contractorcheck.com', 'licensecheck.com', 'verifycontractor.com',
 ]
 
 // ── Supabase client ───────────────────────────────────────────────────────────
@@ -106,25 +110,51 @@ function pickBestEmail(emails) {
 }
 
 // ── Step 1: Search via RapidAPI Bing Web Search ──────────────────────────────
+async function searchBing(query) {
+  const res = await axios.get('https://bing-search-scraper-api-10x-cheaper.p.rapidapi.com/search', {
+    headers: {
+      'x-rapidapi-key':  process.env.RAPIDAPI_KEY,
+      'x-rapidapi-host': 'bing-search-scraper-api-10x-cheaper.p.rapidapi.com',
+    },
+    params: { query, device: 'desktop', count: 10, max_pages: 1, setLang: 'en', cc: 'US' },
+    timeout: 10000,
+  })
+  return res.data?.pages?.[1]?.search_results || []
+}
+
+function extractBusinessName(searchResults) {
+  // BuildZoom titles often contain the real business name: "Tyco Electric | FL | ..."
+  for (const r of searchResults) {
+    if (r.source === 'buildzoom.com' || r.link?.includes('buildzoom.com')) {
+      const match = r.title?.match(/^([^|\-]+)/)
+      if (match) return match[1].trim()
+    }
+  }
+  return null
+}
+
 async function findWebsite(pro) {
   const city = pro.city ? pro.city.charAt(0) + pro.city.slice(1).toLowerCase() : 'Florida'
   const query = `${pro.full_name} ${city} Florida ${pro.trade} contractor website`
 
   try {
-    const res = await axios.get('https://bing-search-scraper-api-10x-cheaper.p.rapidapi.com/search', {
-      headers: {
-        'x-rapidapi-key':  process.env.RAPIDAPI_KEY,
-        'x-rapidapi-host': 'bing-search-scraper-api-10x-cheaper.p.rapidapi.com',
-      },
-      params: { query, device: 'desktop', count: 10, max_pages: 1, setLang: 'en', cc: 'US' },
-      timeout: 10000,
-    })
+    // Pass 1 — search by person name
+    let searchResults = await searchBing(query)
 
     if (process.env.DEBUG) {
-      console.log('  [DEBUG] pages[1]:', JSON.stringify(res.data?.pages?.[1]).slice(0, 400))
+      console.log('  [DEBUG] Pass 1 results:', searchResults.slice(0,2).map(r=>r.link).join(', '))
     }
 
-    const searchResults = res.data?.pages?.[1]?.search_results || []
+    // Try to extract real business name from BuildZoom result
+    const bizName = extractBusinessName(searchResults)
+    if (bizName && bizName.toLowerCase() !== pro.full_name.toLowerCase()) {
+      // Pass 2 — search by business name (more accurate)
+      if (process.env.DEBUG) console.log(`  [DEBUG] Found biz name: "${bizName}" — running Pass 2`)
+      const pass2 = await searchBing(`${bizName} ${city} Florida contractor website`)
+      await sleep(DELAY_MS)
+      searchResults = pass2.length ? pass2 : searchResults
+    }
+
     for (const result of searchResults) {
       const url = result.link
       if (url && !isSkippedDomain(url)) return url
