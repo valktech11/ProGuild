@@ -14,12 +14,12 @@ import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
 
 // ── 6 primary trade tiles — 3×2 grid, direct to /fl/[slug] ──────────────────
 const PRIMARY_TRADES = [
-  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️', count: '430+' },
-  { slug: 'electrician',        label: 'Electrician',        icon: '⚡', count: '154+' },
-  { slug: 'plumber',            label: 'Plumber',            icon: '🔧', count: '213+' },
-  { slug: 'roofer',             label: 'Roofer',             icon: '🏠', count: '1,386+' },
-  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️', count: '2,751+' },
-  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊', count: '128+' },
+  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️', count: '15,252' },
+  { slug: 'electrician',        label: 'Electrician',        icon: '⚡', count: '14,057' },
+  { slug: 'plumber',            label: 'Plumber',            icon: '🪠', count: '9,550' },
+  { slug: 'roofer',             label: 'Roofer',             icon: '🏠', count: '11,501' },
+  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️', count: '68,341' },
+  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊', count: '5,569' },
 ]
 
 // Secondary trades — pills below the main grid
@@ -160,19 +160,18 @@ export default function HomePage() {
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
           style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-          📍 Now live in {scopeLabel}
+          🛡️ 124,503 verified FL contractors
         </div>
 
         {/* Headline */}
-        <h1 className="font-bold leading-none tracking-tight mb-6"
-          style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628' }}>
-          CRAFT.<br />
-          <span style={{ color: '#0F766E' }}>GUILD.</span><br />
-          VERIFIED.
+        <h1 className="font-bold leading-tight tracking-tight mb-6"
+          style={{ fontSize: 'clamp(2.2rem, 5.5vw, 4rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628' }}>
+          Find a licensed Florida<br />
+          <span style={{ color: '#0F766E' }}>contractor you can trust.</span>
         </h1>
 
-        <p className="text-lg mb-10 max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
-          {scopeLabel !== 'Florida' ? scopeLabel + "'s" : 'The'} verified trades network — for homeowners who need a pro, and pros who deserve better.
+        <p className="text-lg mb-10 max-w-lg mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
+          Every contractor on ProGuild is verified against Florida's DBPR license database. Search by trade and city — contact any pro directly, no middleman.
         </p>
 
         {/* ── SEARCH BAR — autocomplete + fuzzy matching ───────────────── */}
@@ -195,30 +194,25 @@ export default function HomePage() {
           </span>
         </div>
 
-        {/* Trust stats */}
-        <div className="flex items-center justify-center gap-6 flex-wrap mb-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm">🛡</span>
-            <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>134,000+</span>
-            <span className="text-sm" style={{ color: '#6B7280' }}>state-verified licensed pros</span>
-          </div>
-          <div className="w-px h-4 bg-gray-200 hidden sm:block" />
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>Zero</span>
-            <span className="text-sm" style={{ color: '#6B7280' }}>lead fees, ever</span>
-          </div>
-          <div className="w-px h-4 bg-gray-200 hidden sm:block" />
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold" style={{ color: '#0A1628' }}>License</span>
-            <span className="text-sm" style={{ color: '#6B7280' }}>state-verified</span>
-          </div>
+        {/* Trust stats — real numbers, prominent */}
+        <div className="flex items-center justify-center gap-8 flex-wrap mt-2">
+          {[
+            { num: '124,503', label: 'Licensed FL Contractors' },
+            { num: '$0', label: 'Per-lead fees, ever' },
+            { num: 'DBPR', label: 'Verified every license' },
+          ].map(s => (
+            <div key={s.num} className="text-center">
+              <div className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
+              <div className="text-xs font-medium mt-0.5" style={{ color: '#9CA3AF' }}>{s.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 pb-12">
         <div className="text-center mb-6">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Or tap a trade</div>
+          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Browse by trade</div>
           <p className="text-sm" style={{ color: '#6B7280' }}>
             {city.trim() ? `Will search near "${city.trim()}"` : 'Enter a city above to find local pros, or tap a trade to browse'}
           </p>
@@ -262,9 +256,9 @@ export default function HomePage() {
       <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           {[
-            { icon: '🛡', title: 'License Verified', sub: 'Every pro checked against their state licensing board' },
-            { icon: '✦', title: 'Zero Lead Fees. Ever.', sub: 'One flat monthly subscription — keep every dollar' },
-            { icon: '✓', title: 'ID + Background Checked', sub: 'Didit-powered identity verification on signup' },
+            { icon: "🛡", title: "DBPR License Verified", sub: "Every pro checked against Florida state licensing database" },
+            { icon: "💰", title: "Zero Lead Fees. Ever.", sub: "One flat monthly subscription - pros keep every dollar they earn" },
+            { icon: '🎯', title: 'Direct Contact', sub: 'Message any pro directly. No middleman, no bidding wars, no spam calls' },
           ].map(item => (
             <div key={item.title}>
               <div className="text-3xl mb-3">{item.icon}</div>
@@ -319,10 +313,10 @@ export default function HomePage() {
           </div>
           <h2 className="text-2xl font-bold text-white mb-3"
             style={{ fontFamily: "'DM Serif Display', serif" }}>
-            Your craft shouldn't cost you a lead fee.
+            Your license is already on ProGuild.
           </h2>
           <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-            Other platforms charge pros per lead — sometimes more than the job is worth. ProGuild is one flat fee. Zero per-lead charges. Every dollar you earn stays yours.
+            We've already imported 124,503 Florida contractors from the DBPR database. Search your name — your profile is waiting. Claim it free, start receiving leads, and pay zero per-lead fees forever.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/login?tab=signup"

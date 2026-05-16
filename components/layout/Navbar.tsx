@@ -24,7 +24,7 @@ function StagingBadge() {
 // Pro (logged in):        Find Work · Community · Dashboard
 const HOMEOWNER_LINKS = [
   { href: '/',           label: 'Find a Pro',     match: (p: string) => p === '/' },
-  { href: '/post-job',   label: 'Request a Pro',  match: (p: string) => p === '/post-job' },
+  { href: '/fl',         label: 'Browse Trades',  match: (p: string) => p === '/fl' },
   { href: '/community',  label: 'Community',      match: (p: string) => p.startsWith('/community') },
 ]
 
@@ -337,8 +337,9 @@ export default function Navbar() {
                   Log in
                 </Link>
                 <Link href="/login?tab=signup"
-                  className="text-sm font-semibold px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors">
-                  Join as pro
+                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white hover:opacity-90 transition-all"
+                  style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 2px 8px rgba(15,118,110,0.3)' }}>
+                  Claim your profile →
                 </Link>
               </div>
             )}

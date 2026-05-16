@@ -32,16 +32,16 @@ function LoginPageInner() {
           </div>
           {/* Headline */}
           <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-            Your CRM for<br/>winning more jobs
+            Your license is already<br/>on ProGuild.
           </h1>
           <p className="text-teal-200 text-lg leading-relaxed mb-10">
-            Manage leads, send estimates, and collect payment — all in one place built for trade pros.
+            We've imported 124,503 Florida contractors from the DBPR database. Claim your profile free — start receiving leads from homeowners in your area.
           </p>
           {/* Feature bullets */}
           {[
-            'Pipeline & lead tracking',
-            'Professional estimates & invoices',
-            'Review management',
+            '124,503 FL contractors pre-verified',
+            'Zero per-lead fees — flat $49/mo',
+            'Estimates, invoices, CRM in one place',
           ].map(f => (
             <div key={f} className="flex items-center gap-3 mb-4">
               <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(20,184,166,0.25)' }}>
@@ -133,7 +133,7 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
       ) : (
         <>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
-          <p className="text-sm text-gray-500 mb-7">Enter your email to access your dashboard.</p>
+          <p className="text-sm text-gray-500 mb-7">Enter your email — no password needed.</p>
           {error && <div className="mb-5 p-3 rounded-xl text-sm font-medium" style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>{error}</div>}
           <div className="mb-5">
             <label className="text-xs font-bold text-gray-600 uppercase tracking-wider block mb-2">Email address</label>
@@ -248,8 +248,8 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Join as a pro</h1>
-      <p className="text-sm text-gray-500 mb-6">Create your free profile and start receiving leads.</p>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">Claim your free profile</h1>
+      <p className="text-sm text-gray-500 mb-6">Your FL license is already in our system. Claim it and start receiving leads.</p>
       {error && <div className="mb-4 p-3 rounded-xl text-sm font-medium" style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' }}>{error}</div>}
 
       <div className="grid grid-cols-2 gap-3 mb-4">

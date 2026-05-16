@@ -601,7 +601,7 @@ export default function ProProfilePage() {
                 <button onClick={() => setShowModal(true)}
                   className="hidden sm:flex items-center gap-2 px-7 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-sm"
                   style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                  Contact {firstName}
+                  Send an enquiry →
                 </button>
               )}
             </div>
@@ -664,13 +664,12 @@ export default function ProProfilePage() {
                 </span>
               )}
               {pro.license_number && (
-                <span className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full"
-                  style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.15)' }}>
-                  🛡 #{pro.license_number}
-                  <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${pro.license_number}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="underline text-xs ml-0.5">Verify ↗</a>
-                </span>
+                <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${pro.license_number}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-80"
+                  style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.2)' }}>
+                  🛡 FL License #{pro.license_number} · Verify on DBPR ↗
+                </a>
               )}
               {hasLicense && !pro.license_number && (
                 <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
