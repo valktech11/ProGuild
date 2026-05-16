@@ -63,7 +63,7 @@ export default function ComingSoonPage() {
       <p style={{ fontSize: 17, color: '#94A3B8', textAlign: 'center', lineHeight: 1.65, maxWidth: 440, marginBottom: 10 }}>
         Every contractor on ProGuild is verified against official state licensing databases. Zero per-lead fees. Direct contact.
       </p>
-      <p style={{ fontSize: 13, color: '#475569', marginBottom: 36, textAlign: 'center' }}>
+      <p style={{ fontSize: 13, color: '#64748B', marginBottom: 36, textAlign: 'center' }}>
         United States &mdash; Starting in Florida &amp; California
       </p>
 
@@ -76,7 +76,7 @@ export default function ComingSoonPage() {
           </div>
         ) : (
           <>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 14 }}>Get early access</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 14 }}>Get early access</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               {([{ value: 'homeowner' as const, label: '🏠 I need a contractor' }, { value: 'contractor' as const, label: '🔧 I am a contractor' }]).map(opt => (
                 <button key={opt.value} onClick={() => setRole(opt.value)} style={{ flex: 1, padding: '9px 8px', borderRadius: 10, border: role === opt.value ? '1.5px solid #14B8A6' : '1px solid rgba(255,255,255,0.1)', background: role === opt.value ? 'rgba(20,184,166,0.1)' : 'transparent', color: role === opt.value ? '#5EEAD4' : '#64748B', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
@@ -90,19 +90,19 @@ export default function ComingSoonPage() {
             <button onClick={handleSubmit} disabled={loading} style={{ width: '100%', background: loading ? 'rgba(15,118,110,0.5)' : 'linear-gradient(135deg, #0F766E, #0D9488)', color: 'white', border: 'none', borderRadius: 10, padding: '13px', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(15,118,110,0.3)' }}>
               {loading ? 'Saving...' : 'Notify me at launch \u2192'}
             </button>
-            <p style={{ fontSize: 11, color: '#334155', textAlign: 'center', marginTop: 10 }}>No spam. Unsubscribe anytime.</p>
+            <p style={{ fontSize: 11, color: '#64748B', textAlign: 'center', marginTop: 10 }}>No spam. Unsubscribe anytime.</p>
           </>
         )}
       </div>
 
       <div style={{ width: '100%', maxWidth: 480, borderTop: '1px solid rgba(255,255,255,0.06)', marginBottom: 28 }} />
-      <p style={{ fontSize: 11, fontWeight: 600, color: '#334155', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 16 }}>Trades we cover</p>
+      <p style={{ fontSize: 11, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 16 }}>Trades we cover</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, width: '100%', maxWidth: 480, marginBottom: 44 }}>
         {TRADES.map(t => (
           <div key={t.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 6px', textAlign: 'center' }}>
             <div style={{ fontSize: 18, marginBottom: 4 }}>{t.icon}</div>
-            <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, lineHeight: 1.3 }}>{t.label}</div>
+            <div style={{ fontSize: 11, color: '#CBD5E1', fontWeight: 500, lineHeight: 1.3 }}>{t.label}</div>
           </div>
         ))}
       </div>
@@ -111,12 +111,12 @@ export default function ComingSoonPage() {
         {[{ num: '$0', label: 'Per-lead fees, ever' }, { num: 'DBPR', label: 'License verified' }, { num: '1:1', label: 'Direct pro contact' }].map(s => (
           <div key={s.num} style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 26, fontWeight: 700, color: 'white', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
-            <div style={{ fontSize: 11, color: '#334155', marginTop: 3 }}>{s.label}</div>
+            <div style={{ fontSize: 11, color: '#64748B', marginTop: 3 }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      <p style={{ fontSize: 12, color: '#1E293B' }}>&copy; 2026 ProGuild.ai &mdash; Your Craft. Your Guild.</p>
+      <p style={{ fontSize: 12, color: '#475569' }}>&copy; 2026 ProGuild.ai &mdash; Your Craft. Your Guild.</p>
     </div>
   )
 }
