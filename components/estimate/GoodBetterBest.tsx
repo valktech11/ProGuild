@@ -96,10 +96,10 @@ export default function GoodBetterBest({ estimateId, proId, initial, darkMode, o
     setSaved(false)
 
     try {
-      const res = await fetch(`/api/estimates/${estimateId}/tiers`, {
-        method: 'PUT',
+      const res = await fetch(`/api/estimates/${estimateId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pro_id: proId, tiers }),
+        body: JSON.stringify({ pro_id: proId, tiered_data: tiers }),
       })
 
       if (!res.ok) {
