@@ -133,27 +133,47 @@ function extractBusinessName(searchResults) {
   return null
 }
 
+async function getBizNameFromBuildZoom(licenseNumber) {
+  // BuildZoom indexes every DBPR license — scrape company name directly
+  const url = `https://www.buildzoom.com/contractor/${licenseNumber.toLowerCase()}`
+  try {
+    const res = await axios.get(url, {
+      timeout: SCRAPE_TIMEOUT,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProGuildBot/1.0)', 'Accept': 'text/html' },
+      maxRedirects: 3,
+    })
+    const $ = cheerio.load(res.data)
+    // BuildZoom h1 contains the company name
+    const name = $('h1').first().text().trim()
+      || $('title').text().split('|')[0].trim()
+    return name || null
+  } catch {
+    return null
+  }
+}
+
 async function findWebsite(pro) {
   const city = pro.city ? pro.city.charAt(0) + pro.city.slice(1).toLowerCase() : 'Florida'
 
   try {
-    // Pass 1 — search by license number (unique, unambiguous)
-    let searchResults = []
+    // Pass 1 — get real business name from BuildZoom by license number (100% precise)
+    let bizName = null
     if (pro.license_number) {
-      searchResults = await searchBing(`${pro.license_number} Florida contractor`)
-      if (process.env.DEBUG) console.log('  [DEBUG] Pass 1 (license):', searchResults.slice(0,2).map(r=>r.link).join(', '))
+      bizName = await getBizNameFromBuildZoom(pro.license_number)
+      if (process.env.DEBUG) console.log(`  [DEBUG] BuildZoom biz name: "${bizName}"`)
+      await sleep(500)
     }
 
-    // Extract business name from BuildZoom — license search is precise so this is reliable
-    const bizName = extractBusinessName(searchResults)
+    // Fall back to person name if BuildZoom returns nothing useful
+    const searchName = (bizName && bizName.length > 3 && !bizName.toLowerCase().includes('not found'))
+      ? bizName
+      : pro.full_name
 
-    // Pass 2 — search by business name + website keyword
-    if (bizName) {
-      if (process.env.DEBUG) console.log(`  [DEBUG] Biz name: "${bizName}" — Pass 2`)
-      await sleep(DELAY_MS)
-      const pass2 = await searchBing(`"${bizName}" ${city} Florida website`)
-      searchResults = pass2.length ? pass2 : searchResults
-    }
+    // Pass 2 — Bing search for their actual website
+    const query = `"${searchName}" ${city} Florida website`
+    const searchResults = await searchBing(query)
+
+    if (process.env.DEBUG) console.log('  [DEBUG] Search results:', searchResults.slice(0,3).map(r=>r.link).join(', '))
 
     for (const result of searchResults) {
       const url = result.link
