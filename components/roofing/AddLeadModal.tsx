@@ -73,6 +73,10 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   const addressRef = useRef<HTMLInputElement>(null)
   usePlacesAutocomplete(addressRef, (addr) => setAddress(addr))
 
+  // Reset scroll to top whenever modal mounts
+  // Without this, the modal body inherits scroll position from previous open
+  const scrollBodyRef = useRef<HTMLDivElement>(null)
+
   const fo = (k: string) => setFocus(f => ({ ...f, [k]: true }))
   const fb = (k: string) => setFocus(f => ({ ...f, [k]: false }))
 
@@ -118,7 +122,7 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   function Lbl({ text, req, opt }: { text: string; req?: boolean; opt?: boolean }) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: labelColor }}>{text}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: labelColor }}>{text}</span>
         {req && <span style={{ color: '#EF4444', fontSize: 13 }}>*</span>}
         {opt && <span style={{ fontSize: 11, fontWeight: 500, color: dk ? '#475569' : '#9CA3AF',
           background: dk ? '#0F172A' : '#F9FAFB', padding: '1px 8px', borderRadius: 20, border: `1px solid ${sep}` }}>optional</span>}
@@ -165,8 +169,8 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
           </button>
         </div>
 
-        {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '0 24px 8px' }}>
+        {/* Scrollable body — ref used to reset scroll on open */}
+        <div ref={scrollBodyRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '0 24px 8px' }}>
 
           {/* Source section */}
           <div style={{ marginBottom: 24 }}>
@@ -271,7 +275,7 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
 
         {/* Footer — sticky, never clips */}
         <div style={{ flexShrink: 0, padding: '16px 24px',
-          paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+          paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
           borderTop: `1px solid ${sep}`, background: bg }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
             <button onClick={onClose} style={{

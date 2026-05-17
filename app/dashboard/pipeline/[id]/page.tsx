@@ -11,7 +11,16 @@ import JobPhotoLog from '@/components/roofing/JobPhotoLog'
 import WarrantyRecord from '@/components/roofing/WarrantyRecord'
 
 const STAGES: LeadStatus[] = ['New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid']
-const STAGE_ORDER: Record<string, number> = { New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5 }
+const STAGE_ORDER: Record<string, number> = {
+  // Generic
+  New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5,
+  // Roofing — matches registry order
+  lead_in: 0, inspection_scheduled: 1, proposal_sent: 2, proposal_signed: 3,
+  insurance_approved: 4, scheduled: 5, in_progress: 6, job_won: 7,
+  lost: 8, unqualified: 9,
+  // HVAC
+  new_call: 0, diagnosed: 1, quoted: 2, parts_ordered: 3,
+}
 
 const SOURCE_OPTIONS = ['Profile Page','Job Post','Search Result','Direct','Registry Card','Phone Call','Facebook','Instagram','Referral','Website','Yard Sign','Walk In','Other']
 const STATUS_OPTIONS: LeadStatus[] = ['New','Contacted','Quoted','Scheduled','Completed','Paid']
@@ -252,7 +261,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
     setStageSaving(true)
     const ok = await patchLead({ lead_status: stage })
     setStageSaving(false)
-    if (ok) { setLead(l => l ? { ...l, lead_status: stage } : l); addToast(`Moved to ${stage}`, 'success', prev) }
+    if (ok) { setLead(l => l ? { ...l, lead_status: stage } : l); addToast(`Moved to ${stage.replace(/_/g,' ')}`, 'success', prev) }
     else { setCurrentStage(prev); addToast('Failed to update stage', 'error') }
   }
 
@@ -778,42 +787,110 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                 </div>
 
-                {/* Stage strip — horizontal scrollable pills */}
-                <div style={{ borderTop: `1px solid ${border}` }}>
-                  <div ref={stageBarRef} style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none', padding: '10px 16px', gap: 3 }}>
-                    {stages.filter(s => !s.terminal).map((stg, i, arr) => {
-                      const stgStages = arr.map(s => s.key)
-                      const curPos  = stgStages.indexOf(currentStage)
-                      const thisPos = i
-                      const done   = thisPos < curPos
-                      const active = stg.key === currentStage
-                      return (
-                        <div key={stg.key} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                          <button
-                            onClick={() => handleStageClick(stg.key as LeadStatus)}
-                            disabled={stageSaving}
-                            ref={active ? activePillRef : undefined}
-                            style={{
-                              padding: '5px 12px', borderRadius: 20, fontSize: 13, fontWeight: active ? 700 : 500,
-                              whiteSpace: 'nowrap', cursor: stageSaving ? 'wait' : 'pointer',
-                              background: active ? stg.color : done ? stg.bg : 'transparent',
-                              border: `1.5px solid ${active ? stg.color : done ? stg.color + '40' : border}`,
-                              color: active ? 'white' : done ? stg.color : ts,
-                              display: 'flex', alignItems: 'center', gap: 4,
-                              transition: 'all 0.15s',
-                            }}
-                          >
-                            {done && <Ic color={stg.color} size={10}><polyline points="20 6 9 17 4 12"/></Ic>}
-                            {stg.label}
-                          </button>
-                          {i < arr.length - 1 && (
-                            <Ic color={border} size={10}><polyline points="9 18 15 12 9 6"/></Ic>
+                {/* ── Progress dots + stage labels — read-only indicator ── */}
+                <div style={{ borderTop: `1px solid ${border}`, padding: '14px 18px 10px' }}>
+                  {(() => {
+                    const activeStages = stages.filter(s => !s.terminal)
+                    const curPos = activeStages.findIndex(s => s.key === currentStage)
+                    return (
+                      <>
+                        {/* Dot progress bar */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 8 }}>
+                          {activeStages.map((stg, i) => {
+                            const done   = i < curPos
+                            const active = i === curPos
+                            const isLast = i === activeStages.length - 1
+                            return (
+                              <div key={stg.key} style={{ display: 'flex', alignItems: 'center', flex: isLast ? 0 : 1 }}>
+                                {/* Dot */}
+                                <button
+                                  onClick={() => {
+                                    if (active || stageSaving) return
+                                    // Only allow backward via confirm — forward via advance button
+                                    if (i < curPos) setConfirmBack(stg.key as LeadStatus)
+                                  }}
+                                  title={stg.label}
+                                  style={{
+                                    width: active ? 14 : 10, height: active ? 14 : 10,
+                                    borderRadius: '50%', flexShrink: 0,
+                                    background: active ? stg.color : done ? stg.color : (dk ? '#334155' : '#E5E7EB'),
+                                    border: active ? `2px solid white` : 'none',
+                                    boxShadow: active ? `0 0 0 2px ${stg.color}` : 'none',
+                                    cursor: i < curPos ? 'pointer' : 'default',
+                                    transition: 'all 0.2s', padding: 0,
+                                  }}
+                                />
+                                {/* Connector line */}
+                                {!isLast && (
+                                  <div style={{
+                                    flex: 1, height: 2, margin: '0 2px',
+                                    background: done ? stg.color : (dk ? '#1E293B' : '#E5E7EB'),
+                                    transition: 'background 0.3s',
+                                  }} />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {/* Stage labels — current + next */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: stageObj?.color ?? '#0F766E' }}>
+                            {stageObj?.label ?? currentStage}
+                          </span>
+                          {curPos < activeStages.length - 1 && (
+                            <span style={{ fontSize: 12, color: ts }}>
+                              Next: {activeStages[curPos + 1]?.label}
+                            </span>
                           )}
                         </div>
-                      )
-                    })}
-                  </div>
+                      </>
+                    )
+                  })()}
                 </div>
+
+                {/* ── Advance button — the ONE primary action ── */}
+                {(() => {
+                  const activeStages = stages.filter(s => !s.terminal)
+                  const curPos = activeStages.findIndex(s => s.key === currentStage)
+                  const nextStage = activeStages[curPos + 1]
+                  if (!nextStage) return null  // terminal — job won, no advance
+
+                  // nextLabel from stage config (e.g. "Schedule Inspection")
+                  const nextLabel = stageObj?.nextLabel ?? `Move to ${nextStage.label}`
+
+                  return (
+                    <div style={{ padding: '0 18px 14px' }}>
+                      <button
+                        onClick={() => handleStageClick(nextStage.key as LeadStatus)}
+                        disabled={stageSaving}
+                        style={{
+                          width: '100%', padding: '13px 20px',
+                          borderRadius: 12, border: 'none', cursor: stageSaving ? 'wait' : 'pointer',
+                          background: stageSaving ? '#94A3B8' : `linear-gradient(135deg, ${nextStage.color}, ${nextStage.color}CC)`,
+                          color: 'white', fontSize: 15, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          boxShadow: stageSaving ? 'none' : `0 4px 14px ${nextStage.color}40`,
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {stageSaving ? (
+                          <span style={{ opacity: 0.7 }}>Updating...</span>
+                        ) : (
+                          <>
+                            <span>{nextLabel}</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                              <line x1="5" y1="12" x2="19" y2="12"/>
+                              <polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                      <div style={{ textAlign: 'center', marginTop: 7, fontSize: 12, color: ts }}>
+                        Tap the progress dots above to move back
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* ── Next Action ─────────────────────────────────────── */}
