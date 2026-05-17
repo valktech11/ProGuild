@@ -735,116 +735,100 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
               )}
 
               {/* ── Move sheet — valid transitions from current stage ── */}
+                            {/* ── Mobile move sheet (md and below) ──────────────────── */}
               {showMoveSheet && (
-                <div style={{
+                <div className="md:hidden" style={{
                   position: 'fixed', inset: 0, zIndex: 60,
-                  background: 'rgba(5,10,20,0.75)', backdropFilter: 'blur(8px)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                  background: 'rgba(5,10,20,0.65)', backdropFilter: 'blur(6px)',
+                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
                 }} onClick={() => setShowMoveSheet(false)}>
                   <div style={{
-                    width: '100%', maxWidth: 440,
-                    background: dk ? '#0F172A' : '#FFFFFF',
-                    borderRadius: 20, overflow: 'hidden',
-                    boxShadow: '0 40px 100px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)',
+                    width: '100%', background: card, borderRadius: '20px 20px 0 0',
                     maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+                    boxShadow: '0 -20px 60px rgba(0,0,0,0.3)',
+                    paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
                   }} onClick={e => e.stopPropagation()}>
-
-                    {/* Header */}
-                    <div style={{ padding: '20px 20px 14px', borderBottom: `1px solid ${dk ? '#1E293B' : '#F1F5F9'}`, flexShrink: 0 }}>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: tp, letterSpacing: '-0.025em' }}>Move this job</div>
-                      <div style={{ fontSize: 13, color: ts, marginTop: 3 }}>
-                        Currently: <span style={{ fontWeight: 700, color: stageObj?.color ?? '#0F766E' }}>{stageObj?.label ?? currentStage}</span>
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+                      <div style={{ width: 32, height: 4, borderRadius: 2, background: dk ? '#334155' : '#E5E7EB' }} />
+                    </div>
+                    <div style={{ padding: '8px 20px 14px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: tp, letterSpacing: '-0.02em' }}>Move this job</div>
+                      <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>
+                        Currently: <span style={{ fontWeight: 700, color: stageObj?.color }}>{stageObj?.label}</span>
                       </div>
                     </div>
-
-                    {/* Options */}
-                    <div style={{ overflowY: 'auto', flex: 1, padding: '10px 12px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '10px 16px' }}>
                       {(() => {
                         const validKeys = isRoofingTrade
                           ? (ROOFING_VALID_TRANSITIONS[currentStage as keyof typeof ROOFING_VALID_TRANSITIONS] ?? [])
                           : stages.filter(s => s.key !== currentStage).map(s => s.key)
-
                         const validStages = validKeys.map(k => stages.find(s => s.key === k)).filter(Boolean) as typeof stages
                         const curPos   = stages.findIndex(s => s.key === currentStage)
                         const forward  = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) > curPos)
                         const terminal = validStages.filter(s => s.terminal)
                         const backward = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) < curPos)
+                        const nextKey  = forward[0]?.key
                         const allOther = stages.filter(s => s.key !== currentStage && !validKeys.includes(s.key as any))
 
-                        function SectionLabel({ text, accent }: { text: string; accent?: string }) {
-                          return (
-                            <div style={{
-                              display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '14px 4px 6px',
-                            }}>
-                              {accent && <div style={{ width: 3, height: 14, borderRadius: 2, background: accent }} />}
-                              <span style={{
-                                fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
-                                textTransform: 'uppercase',
-                                color: dk ? '#94A3B8' : '#6B7280',
-                              }}>{text}</span>
-                            </div>
-                          )
-                        }
-
-                        function MoveRow({ stg, dir }: { stg: typeof stages[0]; dir: 'forward'|'back'|'terminal'|'all' }) {
-                          const isTerminal = dir === 'terminal'
-                          const isBack     = dir === 'back'
-                          const rowColor   = isTerminal ? '#DC2626' : isBack ? (dk ? '#64748B' : '#6B7280') : stg.color
-                          const rowBg      = isTerminal
-                            ? (dk ? 'rgba(220,38,38,0.1)' : '#FFF5F5')
-                            : dir === 'forward' || dir === 'all'
-                              ? (dk ? `${stg.color}15` : stg.bg)
-                              : (dk ? '#1A2332' : '#F8F9FA')
+                        function MobileRow({ stg, isNext, dir }: { stg: typeof stages[0]; isNext?: boolean; dir: 'fwd'|'back'|'terminal' }) {
+                          const dotColor = dir === 'terminal' ? '#EF4444' : dir === 'back' ? '#9CA3AF' : stg.color
                           return (
                             <button onClick={() => {
                               setShowMoveSheet(false)
-                              if (isBack || isTerminal) setConfirmBack(stg.key as LeadStatus)
+                              if (dir === 'back' || dir === 'terminal') setConfirmBack(stg.key as LeadStatus)
                               else handleStageClick(stg.key as LeadStatus)
                             }} style={{
                               width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                              padding: '13px 14px', borderRadius: 10, marginBottom: 5,
-                              border: `1.5px solid ${isTerminal ? '#FECACA' : isBack ? (dk ? '#2D3748' : '#E5E7EB') : stg.color + '30'}`,
-                              background: rowBg, cursor: 'pointer',
-                              transition: 'all 0.12s', textAlign: 'left' as const,
+                              padding: '13px 14px', borderRadius: 10, marginBottom: 6,
+                              border: `1px solid ${isNext ? stg.color + '35' : (dk ? '#1E293B' : '#F1F5F9')}`,
+                              borderLeft: `3px solid ${dotColor}`,
+                              background: isNext ? (dk ? `${stg.color}12` : stg.bg) : (dk ? '#0F172A' : 'white'),
+                              cursor: 'pointer', textAlign: 'left' as const,
+                              boxShadow: isNext ? `0 2px 8px ${stg.color}15` : 'none',
                             }}>
-                              <div style={{ width: 13, height: 13, borderRadius: '50%', flexShrink: 0,
-                                background: rowColor, boxShadow: `0 0 0 3px ${rowColor}20` }} />
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: rowColor, letterSpacing: '-0.01em' }}>
+                              <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                                background: dotColor, boxShadow: isNext ? `0 0 0 3px ${dotColor}25` : 'none' }} />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 14, fontWeight: isNext ? 700 : 600,
+                                  color: dir === 'terminal' ? '#EF4444' : dir === 'back' ? ts : stg.color }}>
                                   {stg.label}
+                                  {isNext && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600,
+                                    color: stg.color, background: stg.bg, padding: '1px 6px', borderRadius: 10 }}>Recommended</span>}
                                 </div>
-                                {stg.subLabel && (
-                                  <div style={{ fontSize: 12, color: ts, marginTop: 1, lineHeight: 1.3 }}>{stg.subLabel}</div>
-                                )}
+                                {stg.subLabel && <div style={{ fontSize: 12, color: ts, marginTop: 1 }}>{stg.subLabel}</div>}
                               </div>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                                stroke={rowColor} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.7 }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                stroke={dotColor} strokeWidth="2.5" strokeLinecap="round" style={{ opacity: 0.6 }}>
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                               </svg>
                             </button>
                           )
                         }
 
+                        function MobileSectionLbl({ text, color }: { text: string; color: string }) {
+                          return <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 4px 5px' }}>
+                            <div style={{ width: 3, height: 12, borderRadius: 2, background: color }} />
+                            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
+                              textTransform: 'uppercase', color: dk ? '#94A3B8' : '#6B7280' }}>{text}</span>
+                          </div>
+                        }
+
                         return (
                           <>
-                            {forward.length > 0 && (<><SectionLabel text="Move forward" accent="#0F766E" />{forward.map(s => <MoveRow key={s.key} stg={s} dir="forward" />)}</>)}
-                            {terminal.length > 0 && (<><SectionLabel text="Close job" accent="#DC2626" />{terminal.map(s => <MoveRow key={s.key} stg={s} dir="terminal" />)}</>)}
-                            {backward.length > 0 && (<><SectionLabel text="Move back" accent="#94A3B8" />{backward.map(s => <MoveRow key={s.key} stg={s} dir="back" />)}</>)}
+                            {forward.length > 0 && (<><MobileSectionLbl text="Move forward" color="#0F766E"/>{forward.map(s => <MobileRow key={s.key} stg={s} isNext={s.key===nextKey} dir="fwd"/>)}</>)}
+                            {terminal.length > 0 && (<><MobileSectionLbl text="Close job" color="#EF4444"/>{terminal.map(s => <MobileRow key={s.key} stg={s} dir="terminal"/>)}</>)}
+                            {backward.length > 0 && (<><MobileSectionLbl text="Move back" color="#9CA3AF"/>{backward.map(s => <MobileRow key={s.key} stg={s} dir="back"/>)}</>)}
                             {allOther.length > 0 && (
-                              <details>
-                                <summary style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
-                                  textTransform: 'uppercase', padding: '8px 4px 5px',
-                                  cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 5,
-                                  color: dk ? '#334155' : '#D1D5DB' }}>
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-                                  All stages
-                                </summary>
-                                <div style={{ marginTop: 2 }}>
+                              <details><summary style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
+                                textTransform: 'uppercase', padding: '10px 4px 5px',
+                                cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                                color: dk ? '#94A3B8' : '#9CA3AF' }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                All stages</summary>
+                                <div style={{ marginTop: 4 }}>
                                   {allOther.map(s => {
                                     const tgt = stages.findIndex(s2 => s2.key === s.key)
-                                    const dir = s.terminal ? 'terminal' : tgt > curPos ? 'all' : 'back'
-                                    return <MoveRow key={s.key} stg={s} dir={dir} />
+                                    return <MobileRow key={s.key} stg={s} dir={s.terminal ? 'terminal' : tgt > curPos ? 'fwd' : 'back'} />
                                   })}
                                 </div>
                               </details>
@@ -853,13 +837,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         )
                       })()}
                     </div>
-
-                    {/* Cancel */}
-                    <div style={{ padding: '8px 12px 16px', borderTop: `1px solid ${dk ? '#1E293B' : '#F1F5F9'}`, flexShrink: 0 }}>
+                    <div style={{ padding: '8px 16px 0', flexShrink: 0 }}>
                       <button onClick={() => setShowMoveSheet(false)} style={{
-                        width: '100%', padding: '13px', borderRadius: 11, border: 'none',
-                        background: dk ? '#1E293B' : '#F3F4F6',
-                        color: dk ? '#64748B' : '#6B7280',
+                        width: '100%', padding: '13px', borderRadius: 10, border: 'none',
+                        background: dk ? '#1E293B' : '#F3F4F6', color: dk ? '#64748B' : '#6B7280',
                         fontSize: 14, fontWeight: 600, cursor: 'pointer',
                       }}>Cancel</button>
                     </div>
@@ -867,7 +848,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 </div>
               )}
 
-                            {/* ── Top nav ────────────────────────────────────────────── */}
+              {/* ── Top nav ────────────────────────────────────────────── */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <button onClick={() => router.push(backNav().href)}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: ts,
@@ -1038,7 +1019,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                           ) : 'Lead Unqualified'}
                         </div>
                       ) : (
-                        <button onClick={() => setShowMoveSheet(true)} disabled={stageSaving}
+                        <button onClick={() => setShowMoveSheet(v => !v)} disabled={stageSaving}
                           style={{
                             width: '100%', padding: '14px 20px', borderRadius: 12, border: 'none',
                             cursor: stageSaving ? 'wait' : 'pointer',
@@ -1266,44 +1247,194 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                 </div>{/* end left column */}
 
-                {/* ── RIGHT COLUMN — Activity sidebar (desktop only) ─── */}
+                {/* ── RIGHT COLUMN — Move Sheet OR Activity (desktop only) ─── */}
                 <div className="hidden md:block">
-                  <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 12,
-                    position: 'sticky', top: 16, maxHeight: 'calc(100vh - 120px)', overflow: 'hidden',
-                    display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ padding: '14px 16px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: tp }}>Activity</div>
-                    </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
-                      {activity.length === 0 ? (
-                        <div style={{ fontSize: 13, color: ts, textAlign: 'center', padding: '24px 0' }}>No activity yet</div>
-                      ) : activity.map((item, i) => {
-                        const iconColor = item.type === 'note' ? '#854F0B' : item.type === 'quote' ? '#3C3489' : '#0F766E'
-                        const iconBg    = item.type === 'note' ? '#FAEEDA' : item.type === 'quote' ? '#EEEDFE' : '#E1F5EE'
-                        return (
-                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10,
-                            paddingBottom: 12, marginBottom: 12,
-                            borderBottom: i < activity.length - 1 ? `1px solid ${border}` : 'none' }}>
-                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: iconBg,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <Ic color={iconColor} size={12}>
-                                {item.type === 'note'      && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
-                                {item.type === 'quote'     && <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
-                                {item.type === 'created'   && <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
-                                {item.type === 'scheduled' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-                              </Ic>
+                  <div style={{
+                    background: card, border: `1px solid ${border}`, borderRadius: 12,
+                    position: 'sticky', top: 16, maxHeight: 'calc(100vh - 120px)',
+                    overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                    boxShadow: dk ? 'none' : '0 2px 12px rgba(0,0,0,0.06)',
+                    transition: 'all 0.2s',
+                  }}>
+
+                    {showMoveSheet ? (
+                      // ── MOVE SHEET PANEL ──────────────────────────────────
+                      <>
+                        <div style={{ padding: '16px 18px 12px', borderBottom: `1px solid ${border}`, flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: tp, letterSpacing: '-0.02em' }}>
+                              Move this job
                             </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: tp }}>{item.title}</div>
-                              <div style={{ fontSize: 12, color: ts, marginTop: 1, lineHeight: 1.4 }}>{item.sub}</div>
-                              <div style={{ fontSize: 11, color: ts, opacity: 0.6, marginTop: 3 }}>
-                                {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </div>
+                            <div style={{ fontSize: 12, color: ts, marginTop: 2 }}>
+                              Currently: <span style={{ fontWeight: 700, color: stageObj?.color }}>{stageObj?.label}</span>
                             </div>
                           </div>
-                        )
-                      })}
-                    </div>
+                          <button onClick={() => setShowMoveSheet(false)}
+                            style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${border}`,
+                              background: 'transparent', color: ts, cursor: 'pointer', fontSize: 16,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            ×
+                          </button>
+                        </div>
+
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px' }}>
+                          {(() => {
+                            const validKeys = isRoofingTrade
+                              ? (ROOFING_VALID_TRANSITIONS[currentStage as keyof typeof ROOFING_VALID_TRANSITIONS] ?? [])
+                              : stages.filter(s => s.key !== currentStage).map(s => s.key)
+                            const validStages = validKeys.map(k => stages.find(s => s.key === k)).filter(Boolean) as typeof stages
+                            const curPos   = stages.findIndex(s => s.key === currentStage)
+                            const forward  = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) > curPos)
+                            const terminal = validStages.filter(s => s.terminal)
+                            const backward = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) < curPos)
+                            const allOther = stages.filter(s => s.key !== currentStage && !validKeys.includes(s.key as any))
+                            const nextKey  = forward[0]?.key
+
+                            function SectionLbl({ text, color }: { text: string; color: string }) {
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7,
+                                  padding: '12px 4px 6px' }}>
+                                  <div style={{ width: 3, height: 12, borderRadius: 2, background: color, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
+                                    textTransform: 'uppercase', color: dk ? '#94A3B8' : '#6B7280' }}>{text}</span>
+                                </div>
+                              )
+                            }
+
+                            function StageRow({ stg, isNext, dir }: { stg: typeof stages[0]; isNext?: boolean; dir: 'fwd'|'back'|'terminal' }) {
+                              const isTerminal = dir === 'terminal'
+                              const isBack     = dir === 'back'
+                              const dotColor   = isTerminal ? '#EF4444' : isBack ? (dk ? '#4B5563' : '#9CA3AF') : stg.color
+                              return (
+                                <button
+                                  onClick={() => {
+                                    setShowMoveSheet(false)
+                                    if (isBack || isTerminal) setConfirmBack(stg.key as LeadStatus)
+                                    else handleStageClick(stg.key as LeadStatus)
+                                  }}
+                                  style={{
+                                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                                    padding: '11px 12px', borderRadius: 10, marginBottom: 4,
+                                    border: `1px solid ${isNext ? stg.color + '40' : (dk ? '#1E293B' : '#F1F5F9')}`,
+                                    borderLeft: `3px solid ${dotColor}`,
+                                    background: isNext
+                                      ? (dk ? `${stg.color}12` : stg.bg)
+                                      : (dk ? '#0F172A' : 'white'),
+                                    cursor: 'pointer', textAlign: 'left' as const,
+                                    boxShadow: isNext ? `0 2px 8px ${stg.color}18` : 'none',
+                                    transition: 'all 0.15s',
+                                  }}>
+                                  {/* Dot */}
+                                  <div style={{
+                                    width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                                    background: dotColor,
+                                    boxShadow: isNext ? `0 0 0 3px ${dotColor}25` : 'none',
+                                  }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: isNext ? 700 : 600,
+                                      color: isTerminal ? '#EF4444' : isBack ? ts : stg.color,
+                                      letterSpacing: '-0.01em' }}>
+                                      {stg.label}
+                                      {isNext && (
+                                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600,
+                                          color: stg.color, background: stg.bg,
+                                          padding: '1px 6px', borderRadius: 10 }}>
+                                          Recommended
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: ts, marginTop: 1 }}>{stg.subLabel}</div>
+                                  </div>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                    stroke={dotColor} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.7 }}>
+                                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                                  </svg>
+                                </button>
+                              )
+                            }
+
+                            return (
+                              <>
+                                {forward.length > 0 && (
+                                  <><SectionLbl text="Move forward" color="#0F766E" />
+                                  {forward.map(s => <StageRow key={s.key} stg={s} isNext={s.key === nextKey} dir="fwd" />)}</>
+                                )}
+                                {terminal.length > 0 && (
+                                  <><SectionLbl text="Close job" color="#EF4444" />
+                                  {terminal.map(s => <StageRow key={s.key} stg={s} dir="terminal" />)}</>
+                                )}
+                                {backward.length > 0 && (
+                                  <><SectionLbl text="Move back" color="#9CA3AF" />
+                                  {backward.map(s => <StageRow key={s.key} stg={s} dir="back" />)}</>
+                                )}
+                                {allOther.length > 0 && (
+                                  <details style={{ marginTop: 4 }}>
+                                    <summary style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
+                                      textTransform: 'uppercase', padding: '10px 4px 6px',
+                                      cursor: 'pointer', listStyle: 'none',
+                                      display: 'flex', alignItems: 'center', gap: 6,
+                                      color: dk ? '#94A3B8' : '#9CA3AF' }}>
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                                        <polyline points="6 9 12 15 18 9"/>
+                                      </svg>
+                                      All stages
+                                    </summary>
+                                    <div style={{ marginTop: 4 }}>
+                                      {allOther.filter(s => !s.terminal).map(s => {
+                                        const tgt = stages.findIndex(s2 => s2.key === s.key)
+                                        return <StageRow key={s.key} stg={s} dir={tgt > curPos ? 'fwd' : 'back'} />
+                                      })}
+                                      {allOther.filter(s => s.terminal).map(s => (
+                                        <StageRow key={s.key} stg={s} dir="terminal" />
+                                      ))}
+                                    </div>
+                                  </details>
+                                )}
+                              </>
+                            )
+                          })()}
+                        </div>
+                      </>
+                    ) : (
+                      // ── ACTIVITY PANEL ────────────────────────────────────
+                      <>
+                        <div style={{ padding: '14px 16px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: tp }}>Activity</div>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+                          {activity.length === 0 ? (
+                            <div style={{ fontSize: 13, color: ts, textAlign: 'center', padding: '24px 0' }}>No activity yet</div>
+                          ) : activity.map((item, i) => {
+                            const iconColor = item.type === 'note' ? '#854F0B' : item.type === 'quote' ? '#6366F1' : '#0F766E'
+                            const iconBg    = item.type === 'note' ? '#FAEEDA' : item.type === 'quote' ? '#EEF2FF'  : '#E1F5EE'
+                            return (
+                              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10,
+                                paddingBottom: 12, marginBottom: 12,
+                                borderBottom: i < activity.length - 1 ? `1px solid ${border}` : 'none' }}>
+                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: iconBg,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <Ic color={iconColor} size={12}>
+                                    {item.type === 'note'      && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+                                    {item.type === 'quote'     && <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                                    {item.type === 'created'   && <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                                    {item.type === 'scheduled' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                                  </Ic>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: tp }}>{item.title}</div>
+                                  <div style={{ fontSize: 12, color: ts, marginTop: 1, lineHeight: 1.4 }}>{item.sub}</div>
+                                  <div style={{ fontSize: 11, color: ts, opacity: 0.6, marginTop: 3 }}>
+                                    {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>{/* end right column */}
 

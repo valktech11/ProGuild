@@ -27,7 +27,7 @@ export const roofingConfig: RoofingConfig = {
       label: 'Lead In',
       icon:  '📥',
       color: '#F59E0B',
-      bg:    '#FEF3C7',
+      bg:    '#FFF7E8',
       dot:   '#F59E0B',
     },
     {
@@ -42,9 +42,9 @@ export const roofingConfig: RoofingConfig = {
       key:   'proposal_sent',
       label: 'Proposal Sent',
       icon:  '📄',
-      color: '#8B5CF6',
-      bg:    '#F5F3FF',
-      dot:   '#8B5CF6',
+      color: '#6366F1',
+      bg:    '#EEF2FF',
+      dot:   '#6366F1',
     },
     {
       key:   'proposal_signed',
@@ -52,7 +52,7 @@ export const roofingConfig: RoofingConfig = {
       icon:  '✍️',
       color: '#0EA5E9',
       bg:    '#F0F9FF',
-      dot:   '#0EA5E9',
+      dot:   '#0EA5E9',  // sky blue — agreement/progress
     },
     {
       key:   'insurance_approved',
@@ -75,7 +75,7 @@ export const roofingConfig: RoofingConfig = {
       label: 'In Progress',
       icon:  '🔨',
       color: '#7C3AED',
-      bg:    '#F5F3FF',
+      bg:    '#F3F0FF',
       dot:   '#7C3AED',
     },
     {
