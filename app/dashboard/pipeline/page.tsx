@@ -120,98 +120,153 @@ export default function PipelinePage() {
     )
   }
 
+  // Derived metrics for command bar
+  const activeLeads   = leads.filter(l => !['Lost','Archived','Unqualified','unqualified'].includes(l.lead_status))
+  const pipelineValue = activeLeads.filter(l => l.quoted_amount).reduce((s, l) => s + (l.quoted_amount || 0), 0)
+  const overdueCount  = overdue.length
+  const wonThisMonth  = leads.filter(l => ['Paid','job_won'].includes(l.lead_status) && new Date(l.updated_at || l.created_at) > new Date(Date.now() - 30 * 86400000)).length
+
   return (
     <DashboardShell session={session} newLeads={newLeads.length} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
-      <div className="px-4 py-6" style={{ color: textMain }}>
+      <div style={{ padding: '16px 20px 0', color: textMain }}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold" style={{ color: textMain }}>{noun}</h1>
-        </div>
-
-        {/* Stats bar — slim single line */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '10px 16px', borderRadius: 12, background: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)', flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
-            <div style={{ paddingRight: 24 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 1 }}>Total Leads</div>
-              <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.1, color: textMain }}>
-                {filteredLeads.length}
+        {/* ── Command bar — full width, always visible ─────────────────────── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 14, gap: 12, flexWrap: 'wrap',
+        }}>
+          {/* Left: page title + metrics inline */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: textMain, margin: 0 }}>
+              {noun}
+            </h1>
+            {/* Metric pills — only show when there's data */}
+            {leads.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: t.textMuted }}>
+                  {activeLeads.length} active
+                </span>
+                {pipelineValue > 0 && (
+                  <>
+                    <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0F766E' }}>
+                      ${pipelineValue.toLocaleString()} pipeline
+                    </span>
+                  </>
+                )}
+                {overdueCount > 0 && (
+                  <>
+                    <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>
+                      {overdueCount} overdue
+                    </span>
+                  </>
+                )}
+                {wonThisMonth > 0 && (
+                  <>
+                    <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: t.textMuted }}>
+                      {wonThisMonth} won this month
+                    </span>
+                  </>
+                )}
                 {activeFilterCount > 0 && (
-                  <span style={{ fontSize: 14, fontWeight: 500, marginLeft: 8, color: t.textSubtle }}>of {leads.length}</span>
+                  <>
+                    <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>
+                    <button onClick={() => setFilters(DEFAULT_FILTERS)}
+                      style={{ fontSize: 12, fontWeight: 600, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
+                    </button>
+                  </>
                 )}
-              </div>
-            </div>
-            <div style={{ paddingLeft: 24, borderLeft: `1px solid ${t.cardBorder}` }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 1 }}>{`${noun} Value`}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.1, color: textMain }}>
-                ${filteredLeads.filter(l => l.quoted_amount && !['Lost','Archived','Paid','Completed'].includes(l.lead_status)).reduce((s, l) => s + (l.quoted_amount || 0), 0).toLocaleString()}
-              </div>
-            </div>
-            {/* Active filter chips */}
-            {activeFilterCount > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 16 }}>
-                {filters.stages.map(s => (
-                  <span key={s}><Chip label={s} onRemove={() => setFilters(f => ({ ...f, stages: f.stages.filter(x => x !== s) }))} /></span>
-                ))}
-                {filters.sources.map(s => (
-                  <span key={s}><Chip label={s.replace('_', ' ')} onRemove={() => setFilters(f => ({ ...f, sources: f.sources.filter(x => x !== s) }))} /></span>
-                ))}
-                {filters.needsAttention && (
-                  <Chip label="🔥 Needs attention" onRemove={() => setFilters(f => ({ ...f, needsAttention: false }))} />
-                )}
-                {(filters.minValue || filters.maxValue) && (
-                  <Chip label={`$${filters.minValue || '0'} – $${filters.maxValue || '∞'}`} onRemove={() => setFilters(f => ({ ...f, minValue: '', maxValue: '' }))} />
-                )}
-                {filters.dateReceived && (
-                  <Chip label={{ today: 'Today', week: 'This week', month: 'This month' }[filters.dateReceived] || ''} onRemove={() => setFilters(f => ({ ...f, dateReceived: '' }))} />
-                )}
-                {filters.followUpDue && (
-                  <Chip label={`Follow-up: ${{ overdue: 'Overdue', today: 'Today', week: 'This week' }[filters.followUpDue] || ''}`} onRemove={() => setFilters(f => ({ ...f, followUpDue: '' }))} />
-                )}
-                <button onClick={() => setFilters(DEFAULT_FILTERS)} style={{ fontSize: 13, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer' }}>
-                  Clear all
-                </button>
               </div>
             )}
           </div>
-          {/* Filter button — prominent on mobile */}
-          <button
-            onClick={() => setShowFilter(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '10px 18px', borderRadius: 12, fontSize: 15, fontWeight: 700,
-              cursor: 'pointer', flexShrink: 0,
-              border: `1.5px solid ${activeFilterCount > 0 ? '#0F766E' : t.inputBorder}`,
-              color: activeFilterCount > 0 ? '#0F766E' : t.textBody,
-              background: activeFilterCount > 0
-                ? (dk ? 'rgba(15,118,110,0.15)' : '#F0FDFA')
-                : (dk ? t.cardBg : '#F9FAFB'),
-              boxShadow: activeFilterCount > 0 ? '0 0 0 3px rgba(15,118,110,0.12)' : 'none',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-            </svg>
-            Filter
-            {activeFilterCount > 0 && (
-              <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#0F766E', color: '#fff', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 8px rgba(15,118,110,0.4)' }}>
-                {activeFilterCount}
-              </span>
+
+          {/* Right: filter + add lead */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Overdue badge — tight, urgent */}
+            {overdueCount > 0 && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
+                background: dk ? 'rgba(220,38,38,0.12)' : '#FEF2F2',
+                border: '1px solid rgba(220,38,38,0.2)',
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#DC2626' }}>{overdueCount} overdue</span>
+              </div>
             )}
-          </button>
+            {/* Filter */}
+            <button onClick={() => setShowFilter(true)} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', border: `1.5px solid ${activeFilterCount > 0 ? '#0F766E' : t.inputBorder}`,
+              color: activeFilterCount > 0 ? '#0F766E' : t.textBody,
+              background: activeFilterCount > 0 ? (dk ? 'rgba(15,118,110,0.12)' : '#F0FDFA') : (dk ? t.cardBg : 'white'),
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              Filter
+              {activeFilterCount > 0 && (
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#0F766E', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            {/* Add lead — premium CTA */}
+            <button onClick={() => setShowAddLead(true)} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', border: 'none', color: 'white',
+              background: 'linear-gradient(135deg, #0F766E 0%, #0C5F57 100%)',
+              boxShadow: '0 2px 8px rgba(15,118,110,0.25)',
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add Lead
+            </button>
+          </div>
         </div>
 
-        {/* Save error toast */}
-        {saveError && (
-          <div className="mb-4 px-4 py-3 rounded-xl text-sm font-medium"
-            style={{ background: '#FEE2E2', color: '#B91C1C', border: '1px solid #FECACA' }}>
-            ⚠️ {saveError}
+        {/* Active filter chips — inline below command bar, only when active */}
+        {activeFilterCount > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+            {filters.stages.map(s => (
+              <span key={s}><Chip label={s} onRemove={() => setFilters(f => ({ ...f, stages: f.stages.filter(x => x !== s) }))} /></span>
+            ))}
+            {filters.sources.map(s => (
+              <span key={s}><Chip label={s.replace('_', ' ')} onRemove={() => setFilters(f => ({ ...f, sources: f.sources.filter(x => x !== s) }))} /></span>
+            ))}
+            {filters.needsAttention && (
+              <Chip label="Needs attention" onRemove={() => setFilters(f => ({ ...f, needsAttention: false }))} />
+            )}
+            {(filters.minValue || filters.maxValue) && (
+              <Chip label={`$${filters.minValue || '0'} – $${filters.maxValue || '∞'}`} onRemove={() => setFilters(f => ({ ...f, minValue: '', maxValue: '' }))} />
+            )}
+            {filters.dateReceived && (
+              <Chip label={{ today: 'Today', week: 'This week', month: 'This month' }[filters.dateReceived] || ''} onRemove={() => setFilters(f => ({ ...f, dateReceived: '' }))} />
+            )}
+            {filters.followUpDue && (
+              <Chip label={`Follow-up: ${{ overdue: 'Overdue', today: 'Today', week: 'This week' }[filters.followUpDue] || ''}`} onRemove={() => setFilters(f => ({ ...f, followUpDue: '' }))} />
+            )}
           </div>
         )}
 
-        {/* Overdue alerts */}
+        {/* Save error toast */}
+        {saveError && (
+          <div style={{ marginBottom: 10, padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>
+            {saveError}
+          </div>
+        )}
+
+        {/* Overdue alerts — compact, below command bar */}
         {overdue.length > 0 && (
-          <div className="mb-4">
+          <div style={{ marginBottom: 10 }}>
             <ActionAlert
               leads={overdue.slice(0, 3)}
               onRespond={(leadId) => {
@@ -222,27 +277,12 @@ export default function PipelinePage() {
           </div>
         )}
 
+        {/* ── Empty state — minimal, no illustration ───────────────────────── */}
         {session && leads.length === 0 && !dataLoading && (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'32px 24px', textAlign:'center' }}>
-            <div style={{ width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 24, marginBottom:12 }}>📋</div>
-            <h3 style={{ fontSize: 16, fontWeight:700, color: t.textPri, margin:'0 0 6px' }}>{`No ${noun.toLowerCase()} yet`}</h3>
-            <p style={{ fontSize: 13, color: t.textBody, marginBottom:20, maxWidth:300, lineHeight:1.5 }}>
-              Add enquiries from calls, texts, social media, or anywhere you get job requests.
-            </p>
-            <div style={{ display:'flex', flexDirection:'column', gap:10, width:'100%', maxWidth:300 }}>
-              <button onClick={() => setShowAddLead(true)}
-                style={{ padding:'14px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 14px rgba(15,118,110,0.3)' }}>
-                + Add Your First Lead
-              </button>
-              <div style={{ display:'flex', gap:8 }}>
-                {[['📞','Missed call'],['💬','Text enquiry'],['📱','Social DM']].map(([icon, label]) => (
-                  <div key={label} style={{ flex:1, padding:'10px 6px', borderRadius:10, background: t.cardBg, border:`1px solid ${t.cardBorder}`, textAlign:'center' }}>
-                    <div style={{ fontSize: 18, marginBottom:4 }}>{icon}</div>
-                    <div style={{ fontSize: 10, fontWeight:600, color: t.textMuted }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div style={{ marginBottom: 8, padding: '8px 4px' }}>
+            <span style={{ fontSize: 13, color: t.textMuted, fontStyle: 'italic' }}>
+              No {noun.toLowerCase()} yet — add your first lead above
+            </span>
           </div>
         )}
 
