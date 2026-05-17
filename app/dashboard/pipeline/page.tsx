@@ -6,6 +6,8 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import LeadPipeline from '@/components/ui/LeadPipeline'
 import ActionAlert from '@/components/ui/ActionAlert'
 import AddLeadModal from '@/components/ui/AddLeadModal'
+import RoofingAddLeadModal from '@/components/roofing/AddLeadModal'
+import { isRoofing } from '@/lib/trades/_registry'
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
 import { theme, T } from '@/lib/tokens'
 import { resolveTradeConfig } from '@/lib/trade-resolver'
@@ -273,14 +275,17 @@ export default function PipelinePage() {
       />
 
       {showAddLead && session && (
-        <AddLeadModal
-          proId={session.id}
-          onClose={() => setShowAddLead(false)}
-          onAdded={async () => {
-            setShowAddLead(false)
-            await fetchLeads()  // re-fetch from DB, not optimistic
-          }}
-        />
+        isRoofing(session.trade_slug)
+          ? <RoofingAddLeadModal
+              proId={session.id}
+              onClose={() => setShowAddLead(false)}
+              onAdded={async () => { setShowAddLead(false); await fetchLeads() }}
+            />
+          : <AddLeadModal
+              proId={session.id}
+              onClose={() => setShowAddLead(false)}
+              onAdded={async () => { setShowAddLead(false); await fetchLeads() }}
+            />
       )}
     </DashboardShell>
   )

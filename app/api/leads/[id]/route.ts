@@ -102,7 +102,7 @@ export async function PATCH(
   const STRING_FIELDS = [
     'notes', 'scheduled_date', 'scheduled_time', 'follow_up_date',
     'client_id', 'contact_phone', 'contact_email', 'contact_city',
-    'contact_state', 'lead_source',
+    'contact_state', 'lead_source', 'property_address',
   ] as const
   for (const key of STRING_FIELDS) {
     if (key in body) {
