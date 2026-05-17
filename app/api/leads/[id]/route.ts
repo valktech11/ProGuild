@@ -32,6 +32,7 @@ interface LeadUpdateFields {
   contact_city?:     string | null
   contact_state?:    string | null
   lead_source?:      string | null
+  property_address?: string | null
   quoted_amount?:    number | null
   updated_at:        string
 }
