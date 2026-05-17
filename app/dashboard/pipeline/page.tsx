@@ -7,7 +7,6 @@ import LeadPipeline from '@/components/ui/LeadPipeline'
 import ActionAlert from '@/components/ui/ActionAlert'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 import RoofingAddLeadModal from '@/components/roofing/AddLeadModal'
-import { isRoofing } from '@/lib/trades/_registry'
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
 import { theme, T } from '@/lib/tokens'
 import { resolveTradeConfig } from '@/lib/trade-resolver'
@@ -275,7 +274,7 @@ export default function PipelinePage() {
       />
 
       {showAddLead && session && (
-        isRoofing(session.trade_slug)
+        (session.trade_slug === 'roofing-contractor' || session.trade_slug === 'roofing')
           ? <RoofingAddLeadModal
               proId={session.id}
               onClose={() => setShowAddLead(false)}
