@@ -6,50 +6,79 @@ import { Lead } from '@/types'
 import { initials, avatarColor, timeAgo, capName, fmtCurrency } from '@/lib/utils'
 import { stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
+import { getTradeConfig, getActiveStages, getTerminalStages } from '@/lib/trades/_registry'
 
 // ── Stage definitions ──────────────────────────────────────────────────────────
+// PipelineStage is the display contract used throughout this file.
+// Built from AnyPipelineStage (registry) — color/bg come from trade config directly.
 
 export type PipelineStage = {
-  key: string
-  label: string
-  subLabel: string
+  key:       string
+  label:     string
+  subLabel:  string
   nextLabel: string
+  color:     string   // from trade config — used in column header, chips
+  bg:        string   // from trade config — column header background
+  terminal?: boolean
 }
 
-// Default stages for all trades
-const DEFAULT_STAGES: PipelineStage[] = [
-  { key: 'New',       label: 'New',       subLabel: 'Not yet contacted',  nextLabel: 'Call' },
-  { key: 'Contacted', label: 'Contacted', subLabel: 'In conversation',    nextLabel: 'Follow Up' },
-  { key: 'Quoted',    label: 'Quoted',    subLabel: 'Proposal sent',      nextLabel: 'Send Estimate' },
-  { key: 'Scheduled', label: 'Scheduled', subLabel: 'Job confirmed',      nextLabel: 'Job Day' },
-  { key: 'Completed', label: 'Completed', subLabel: 'Job completed',      nextLabel: 'Generate Invoice' },
-  { key: 'Paid',      label: 'Job Won',   subLabel: 'Payment received',   nextLabel: '✓ Job Won' },
-]
+// Sub/next labels for generic stages (default trade)
+const GENERIC_SUB: Record<string, string> = {
+  New: 'Not yet contacted', Contacted: 'In conversation', Quoted: 'Proposal sent',
+  Scheduled: 'Job confirmed', Completed: 'Job completed', Paid: 'Payment received',
+}
+const GENERIC_NEXT: Record<string, string> = {
+  New: 'Call', Contacted: 'Follow Up', Quoted: 'Send Estimate',
+  Scheduled: 'Job Day', Completed: 'Generate Invoice', Paid: '✓ Job Won',
+}
 
-// Roofing-specific stage labels — map onto the same 6 DB statuses
-// Insurance Review + Approved surface via the insurance toggle fields on lead detail
-const ROOFING_STAGES: PipelineStage[] = [
-  { key: 'New',       label: 'Lead In',       subLabel: 'Awaiting inspection',    nextLabel: 'Schedule Inspection' },
-  { key: 'Contacted', label: 'Inspection',    subLabel: 'Inspection scheduled',   nextLabel: 'Run Inspection' },
-  { key: 'Quoted',    label: 'Estimate Sent', subLabel: 'Proposal sent to owner', nextLabel: 'Send Proposal' },
-  { key: 'Scheduled', label: 'Approved',      subLabel: 'Owner/insurer approved', nextLabel: 'Schedule Job' },
-  { key: 'Completed', label: 'In Progress',   subLabel: 'Crew on site',           nextLabel: 'Mark Complete' },
-  { key: 'Paid',      label: 'Signed',        subLabel: 'Job complete & paid',    nextLabel: '✓ Signed' },
-]
+// Sub/next labels for roofing stages
+const ROOFING_SUB: Record<string, string> = {
+  lead_in: 'Awaiting inspection', inspection_scheduled: 'Inspection booked',
+  proposal_sent: 'Proposal with owner', proposal_signed: 'Owner signed',
+  insurance_approved: 'Insurer approved', scheduled: 'Date & materials set',
+  in_progress: 'Crew on site', job_won: 'Complete & paid',
+  lost: 'Job lost', unqualified: 'Bad lead',
+}
+const ROOFING_NEXT: Record<string, string> = {
+  lead_in: 'Schedule Inspection', inspection_scheduled: 'Run Inspection',
+  proposal_sent: 'Get Signature', proposal_signed: 'Submit to Insurance',
+  insurance_approved: 'Schedule Install', scheduled: 'Start Job',
+  in_progress: 'Mark Complete', job_won: '✓ Job Won',
+  lost: 'Reopen', unqualified: '',
+}
 
-/** Returns trade-specific pipeline stages. Pure, safe to call on every render. */
+/** Build PipelineStage[] from the trade registry. Single source of truth. */
 export function getPipelineStages(tradeSlug?: string | null): PipelineStage[] {
-  if (tradeSlug === 'roofing-contractor') return ROOFING_STAGES
-  return DEFAULT_STAGES
+  const tc = getTradeConfig(tradeSlug)
+  const isRoofingTrade = tc.slug === 'roofing' || tc.slug === 'roofing-contractor'
+  return getActiveStages(tradeSlug).map(s => ({
+    key:       s.key,
+    label:     s.label,
+    color:     s.color,
+    bg:        s.bg,
+    terminal:  s.terminal,
+    subLabel:  isRoofingTrade
+      ? (ROOFING_SUB[s.key]  ?? s.label)
+      : (GENERIC_SUB[s.key]  ?? s.label),
+    nextLabel: isRoofingTrade
+      ? (ROOFING_NEXT[s.key] ?? 'Open')
+      : (GENERIC_NEXT[s.key] ?? 'Open'),
+  }))
 }
 
 // Keep legacy export for components that import it directly
-export const PIPELINE_STAGES = DEFAULT_STAGES
+export const PIPELINE_STAGES = getPipelineStages(null)
 
 type StageKey = string
 
+// Stage order is now derived dynamically from the trade config in LeadPipeline
+// Kept as a fallback for the BackwardConfirm check on generic trades
 const STAGE_ORDER: Record<string, number> = {
   New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5, Lost: 6,
+  // Roofing
+  lead_in: 0, inspection_scheduled: 1, proposal_sent: 2, proposal_signed: 3,
+  insurance_approved: 4, scheduled: 5, in_progress: 6, job_won: 7, lost: 8, unqualified: 9,
 }
 
 interface Props {
@@ -104,7 +133,7 @@ function BackwardConfirm({ fromStage, toStage, isPaidMove, onConfirm, onCancel, 
 }
 
 // ── Lead detail modal ──────────────────────────────────────────────────────────
-function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = DEFAULT_STAGES, dk = false }: {
+function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipelineStages(null), dk = false }: {
   lead: Lead; onClose: () => void
   onStatusChange: (id: string, status: string) => Promise<void>
   onUpdate: (id: string, fields: Partial<Lead>) => Promise<void>
@@ -145,7 +174,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = DEFAULT_S
     <>
       {pendingStage && (
         <BackwardConfirm
-          fromStage={status} toStage={pendingStage} isPaidMove={status === 'Paid'}
+          fromStage={status} toStage={pendingStage} isPaidMove={status === 'Paid' || status === 'job_won'}
           onConfirm={() => { setStatus(pendingStage as StageKey); setPendingStage(null) }}
           onCancel={() => setPendingStage(null)}
         />
@@ -508,7 +537,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
 }
 
 // ── Lead List View — full sortable table for dense triage ──────────────────────
-function LeadListView({ leads, onOpen, dk, stages = DEFAULT_STAGES }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[] }) {
+function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[] }) {
   const router = useRouter()
   const t = theme(dk)
   const [sort, setSort] = useState<'age' | 'name' | 'stage' | 'value'>('age')
@@ -636,7 +665,7 @@ function LeadListView({ leads, onOpen, dk, stages = DEFAULT_STAGES }: { leads: L
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-function LeadQuickView({ leadId, onClose, onFullDetail, stages = DEFAULT_STAGES, dk = false }: {
+function LeadQuickView({ leadId, onClose, onFullDetail, stages = getPipelineStages(null), dk = false }: {
   leadId: string
   onClose: () => void
   onFullDetail: () => void
@@ -927,23 +956,23 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
         />
       )}
       <div className="flex flex-col min-w-0" style={{ minWidth: 220 }}>
-        {/* Column header */}
+        {/* Column header — colors come from trade config via stage.color/stage.bg */}
         <div className="rounded-xl px-3 py-2.5 mb-2" style={{
-          background: stageStyle(stage.key, dk).bg,
-          borderTop: `3px solid ${stageStyle(stage.key).color}`
+          background: dk ? stage.color + '1A' : stage.bg,
+          borderTop: `3px solid ${stage.color}`
         }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <span className="text-[14px] font-bold" style={{ color: stageStyle(stage.key).color }}>
+              <span className="text-[14px] font-bold" style={{ color: stage.color }}>
                 {stage.label}
               </span>
               <span className="text-[12px] font-bold px-1.5 py-0.5 rounded-full"
-                style={{ background: stageStyle(stage.key).color, color: 'white' }}>
+                style={{ background: stage.color, color: 'white' }}>
                 {leads.length}
               </span>
             </div>
             {colValue > 0 && (
-              <span className="text-[12px] font-bold" style={{ color: stageStyle(stage.key).color }}>
+              <span className="text-[12px] font-bold" style={{ color: stage.color }}>
                 ${colValue.toLocaleString()}
               </span>
             )}
@@ -998,7 +1027,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const router = useRouter()
   const t = theme(dk)
   const stages = getPipelineStages(tradeSlug)
-  const [mobileStage, setMobileStage] = useState<StageKey>('New')
+  const [mobileStage, setMobileStage] = useState<StageKey>(() => stages[0]?.key ?? 'New')
   const [showLost, setShowLost] = useState(false)
   const [listView, setListView] = useState(false)
 
@@ -1009,22 +1038,25 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   function leadsForStage(key: string) {
     const stageleads = leads.filter(l => l.lead_status === key)
     return stageleads.sort((a, b) => {
-      // Scheduled: soonest job date first
-      if (key === 'Scheduled') {
+      // Scheduled stage (generic or roofing): soonest job date first
+      if (key === 'Scheduled' || key === 'scheduled') {
         const da = a.scheduled_date ? new Date(a.scheduled_date).getTime() : Infinity
         const db = b.scheduled_date ? new Date(b.scheduled_date).getTime() : Infinity
         return da - db
       }
-      // Job Won (Paid): newest first — celebrate recent wins at top
-      if (key === 'Paid') {
+      // Job Won (generic=Paid, roofing=job_won): newest first
+      if (key === 'Paid' || key === 'job_won') {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
-      // All active stages (New, Contacted, Quoted, Completed): oldest first — most urgent
+      // All other active stages: oldest first — most urgent at top
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     })
   }
 
-  const lostLeads = leads.filter(l => l.lead_status === 'Lost')
+  // Terminal stages — lost + unqualified (roofing) or just Lost (generic)
+  const terminalStageKeys = getTerminalStages(tradeSlug).map(s => s.key as string)
+  const terminalKeys = new Set<string>([...terminalStageKeys, 'Lost', 'lost'])
+  const lostLeads = leads.filter(l => terminalKeys.has(l.lead_status as string))
 
   return (
     <>
@@ -1056,7 +1088,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
             <button key={s.key} onClick={() => setMobileStage(s.key as StageKey)}
               className="flex-shrink-0 px-4 py-2.5 rounded-full text-[13px] border transition-all"
               style={active
-                ? { background: stageStyle(s.key, dk).bg, color: stageStyle(s.key, dk).color, borderColor: stageStyle(s.key, dk).color, fontWeight: 700, boxShadow: `0 0 0 1.5px ${stageStyle(s.key, dk).color}` }
+                ? { background: dk ? s.color + '1A' : s.bg, color: s.color, borderColor: s.color, fontWeight: 700, boxShadow: `0 0 0 1.5px ${s.color}` }
                 : { background: dk ? 'rgba(255,255,255,0.04)' : '#F5F4F0', color: dk ? '#9CA3AF' : '#6B7280', borderColor: dk ? '#334155' : '#D1C9C0', fontWeight: 500 }}>
               {s.label} {cnt > 0 && <span style={{ fontWeight: active ? 800 : 600 }}>({cnt})</span>}
             </button>
@@ -1128,15 +1160,15 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                         Open
                       </button>
                     </div>
-                    {/* Stage move actions */}
+                    {/* Stage move actions — reopen to first two active stages */}
                     <div className="flex border-t" style={{ borderColor: t.cardBorder }}>
-                      {(['New', 'Contacted'] as const).map((stageName, i) => (
+                      {(stages.slice(0, 2).map(s => s.key) as string[]).map((stageName, i) => (
                         <button key={stageName}
                           onClick={async () => { await onStatusChange(lead.id, stageName) }}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-semibold transition-opacity hover:opacity-70"
                           style={{
                             background: 'transparent',
-                            color: stageName === 'New' ? '#D97706' : '#2563EB',
+                            color: stages.find(s => s.key === stageName)?.color ?? '#6B7280',
                             borderRight: i === 0 ? `1px solid ${t.cardBorder}` : 'none',
                             borderTop: 'none', borderLeft: 'none', borderBottom: 'none',
                             cursor: 'pointer',

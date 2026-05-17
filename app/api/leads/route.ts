@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { leadNotificationEmail } from '@/lib/email'
 import { Resend } from 'resend'
 import { moderateContent } from '@/lib/moderation'
+import { getInitialStage } from '@/lib/trades/_registry'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -32,13 +33,18 @@ export async function POST(req: NextRequest) {
     }, { status: 422 })
   }
 
+  // Resolve trade_slug from the pro's profile so new leads start at the correct initial stage
+  const { data: proRecord } = await getSupabaseAdmin()
+    .from('pros').select('trade_slug').eq('id', pro_id).single()
+  const initialStage = getInitialStage(proRecord?.trade_slug)
+
   const { data: lead, error } = await getSupabaseAdmin()
     .from('leads')
     .insert({
       pro_id, job_id: job_id || null,
       contact_name, contact_email: contact_email ? contact_email.toLowerCase().trim() : null,
       contact_phone: contact_phone || null, message,
-      lead_status: 'New', lead_source: lead_source || 'Profile_Page',
+      lead_status: initialStage, lead_source: lead_source || 'Profile_Page',
       client_id: client_id || null,
     })
     .select().single()

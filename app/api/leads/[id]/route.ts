@@ -6,8 +6,18 @@ import { LeadStatus } from '@/types'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 const VALID_STATUSES = new Set<LeadStatus>([
+  // Generic stages — kept for backward compat with existing leads
   'New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid', 'Lost', 'Archived',
   'Queued_Manual', 'Converted',
+  // Roofing trade stages — 10-stage state machine
+  'lead_in', 'inspection_scheduled', 'proposal_sent', 'proposal_signed',
+  'insurance_approved', 'in_progress', 'job_won', 'unqualified',
+  // HVAC stages
+  'new_call', 'diagnosed', 'parts_ordered',
+  // Plumbing
+  'assessed',
+  // Electrician
+  'site_visit', 'permit_submitted', 'permit_approved',
 ])
 
 interface LeadUpdateFields {
