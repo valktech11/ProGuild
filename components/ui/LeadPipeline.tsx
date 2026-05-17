@@ -1115,11 +1115,15 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       )}
 
       {/* ── Desktop: all stages, horizontal scroll — column count driven by trade config ── */}
-      <div className={`${listView ? 'hidden' : 'hidden md:block'} overflow-x-auto pb-4`} style={{ scrollbarWidth: 'thin' }}>
+      <div className={`${listView ? 'hidden' : 'hidden md:block'} relative`}>
+        {/* Right fade — signals horizontal scroll without a scrollbar */}
+        <div className="pointer-events-none absolute right-0 top-0 bottom-4 w-16 z-10" style={{ background: 'linear-gradient(90deg, transparent, var(--pg-fade, #F5F4F0))' }} />
+        <div className="overflow-x-auto pb-2 pg-kanban-scroll">
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 1fr))`, minWidth: stages.length * 212 }}>
           {stages.map(stage => (
             <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
           ))}
+        </div>
         </div>
       </div>
 

@@ -108,11 +108,23 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 2px rgba(15,118,110,0.25);
 }
 
-/* ── Scrollbar styling ──────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* ── Scrollbar styling — refined, near-invisible by default ────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.22); }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.16); }
+
+/* Kanban board — no visible scrollbar, still scrollable */
+.pg-kanban-scroll::-webkit-scrollbar { display: none; }
+.pg-kanban-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* Stage strip — also hidden scrollbar */
+.pg-stage-strip::-webkit-scrollbar { display: none; }
+.pg-stage-strip { scrollbar-width: none; }
+
+/* Kanban right-fade default color — overridden per theme in JS if needed */
+:root { --pg-fade: #F5F4F0; }
+.dark { --pg-fade: #0F172A; }
 
 /* ── Google Places Autocomplete — force above modals ───────────────────── */
 /* backdrop-filter on modal overlay creates a new stacking context that     */
