@@ -771,11 +771,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         const backward = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) < curPos)
                         const allOther = stages.filter(s => s.key !== currentStage && !validKeys.includes(s.key as any))
 
-                        function SectionLabel({ text }: { text: string }) {
+                        function SectionLabel({ text, accent }: { text: string; accent?: string }) {
                           return (
-                            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
-                              textTransform: 'uppercase', padding: '8px 4px 5px',
-                              color: dk ? '#334155' : '#D1D5DB' }}>{text}</div>
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              padding: '14px 4px 6px',
+                            }}>
+                              {accent && <div style={{ width: 3, height: 14, borderRadius: 2, background: accent }} />}
+                              <span style={{
+                                fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                                textTransform: 'uppercase',
+                                color: dk ? '#94A3B8' : '#6B7280',
+                              }}>{text}</span>
+                            </div>
                           )
                         }
 
@@ -795,12 +803,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                               else handleStageClick(stg.key as LeadStatus)
                             }} style={{
                               width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                              padding: '13px 14px', borderRadius: 11, border: 'none',
-                              background: rowBg, cursor: 'pointer', marginBottom: 5,
-                              transition: 'opacity 0.1s', textAlign: 'left' as const,
+                              padding: '13px 14px', borderRadius: 10, marginBottom: 5,
+                              border: `1.5px solid ${isTerminal ? '#FECACA' : isBack ? (dk ? '#2D3748' : '#E5E7EB') : stg.color + '30'}`,
+                              background: rowBg, cursor: 'pointer',
+                              transition: 'all 0.12s', textAlign: 'left' as const,
                             }}>
-                              <div style={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
-                                background: rowColor, boxShadow: `0 0 0 3px ${rowColor}25` }} />
+                              <div style={{ width: 13, height: 13, borderRadius: '50%', flexShrink: 0,
+                                background: rowColor, boxShadow: `0 0 0 3px ${rowColor}20` }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 14, fontWeight: 700, color: rowColor, letterSpacing: '-0.01em' }}>
                                   {stg.label}
@@ -819,9 +828,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
                         return (
                           <>
-                            {forward.length > 0 && (<><SectionLabel text="Move forward" />{forward.map(s => <MoveRow key={s.key} stg={s} dir="forward" />)}</>)}
-                            {terminal.length > 0 && (<><SectionLabel text="Close job" />{terminal.map(s => <MoveRow key={s.key} stg={s} dir="terminal" />)}</>)}
-                            {backward.length > 0 && (<><SectionLabel text="Move back" />{backward.map(s => <MoveRow key={s.key} stg={s} dir="back" />)}</>)}
+                            {forward.length > 0 && (<><SectionLabel text="Move forward" accent="#0F766E" />{forward.map(s => <MoveRow key={s.key} stg={s} dir="forward" />)}</>)}
+                            {terminal.length > 0 && (<><SectionLabel text="Close job" accent="#DC2626" />{terminal.map(s => <MoveRow key={s.key} stg={s} dir="terminal" />)}</>)}
+                            {backward.length > 0 && (<><SectionLabel text="Move back" accent="#94A3B8" />{backward.map(s => <MoveRow key={s.key} stg={s} dir="back" />)}</>)}
                             {allOther.length > 0 && (
                               <details>
                                 <summary style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
@@ -953,9 +962,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                       </div>
                     </div>
 
-                    {/* ── Progress bar ─────────────────────────────────── */}
-                    <div style={{ borderTop: `1px solid ${border}`, padding: '14px 20px 10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 8 }}>
+                    {/* ── Progress bar — done=checkmark, active=ringed, future=grey ── */}
+                    <div style={{ borderTop: `1px solid ${border}`, padding: '16px 20px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 10 }}>
                         {activeStgs.map((stg, i) => {
                           const done   = i < curPos
                           const active = i === curPos
@@ -963,25 +972,35 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                           return (
                             <div key={stg.key} style={{ display: 'flex', alignItems: 'center', flex: isLast ? 0 : 1 }}>
                               <button
-                                onClick={() => {
-                                  if (active || stageSaving) return
-                                  if (i < curPos) setConfirmBack(stg.key as LeadStatus)
-                                }}
+                                onClick={() => { if (!done || stageSaving) return; setConfirmBack(stg.key as LeadStatus) }}
                                 title={stg.label}
                                 style={{
-                                  width: active ? 16 : 10, height: active ? 16 : 10,
+                                  width: active ? 20 : done ? 18 : 10,
+                                  height: active ? 20 : done ? 18 : 10,
                                   borderRadius: '50%', flexShrink: 0, padding: 0,
-                                  background: active ? stg.color : done ? stg.color : (dk ? '#334155' : '#E2E8F0'),
-                                  border: active ? `2.5px solid white` : 'none',
-                                  boxShadow: active ? `0 0 0 2.5px ${stg.color}` : 'none',
-                                  cursor: i < curPos ? 'pointer' : 'default',
+                                  background: active ? stg.color : done ? stg.color : (dk ? '#2D3748' : '#E2E8F0'),
+                                  border: active ? `3px solid white` : 'none',
+                                  boxShadow: active
+                                    ? `0 0 0 3px ${stg.color}, 0 4px 12px ${stg.color}50`
+                                    : done ? `0 2px 6px ${stg.color}40` : 'none',
+                                  cursor: done ? 'pointer' : 'default',
                                   transition: 'all 0.25s',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 }}
-                              />
+                              >
+                                {done && (
+                                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
+                                    stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                  </svg>
+                                )}
+                              </button>
                               {!isLast && (
                                 <div style={{
                                   flex: 1, height: 2, margin: '0 2px',
-                                  background: done ? stg.color : (dk ? '#1E293B' : '#E2E8F0'),
+                                  background: done
+                                    ? `linear-gradient(90deg, ${stg.color}, ${activeStgs[Math.min(i+1, activeStgs.length-1)]?.color ?? stg.color})`
+                                    : (dk ? '#1E293B' : '#E8ECEF'),
                                   transition: 'background 0.3s',
                                 }} />
                               )}
