@@ -11,7 +11,7 @@ const VALID_STATUSES = new Set<LeadStatus>([
   'Queued_Manual', 'Converted',
   // Roofing trade stages — 10-stage state machine
   'lead_in', 'inspection_scheduled', 'proposal_sent', 'proposal_signed',
-  'insurance_approved', 'in_progress', 'job_won', 'unqualified',
+  'insurance_approved', 'scheduled', 'in_progress', 'job_won', 'lost', 'unqualified',
   // HVAC stages
   'new_call', 'diagnosed', 'parts_ordered',
   // Plumbing

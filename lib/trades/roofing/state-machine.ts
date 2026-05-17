@@ -1,129 +1,103 @@
 // ── Roofing State Machine ───────────────────────────────────────────────────
-// Single source of truth for all valid roofing pipeline transitions.
-// The API route, unit tests, and UI all import from here.
-// Never duplicate this logic elsewhere.
+// Option C: state machine defines SUGGESTED transitions for the UI move sheet.
+// The API accepts any known LeadStatus — no hard 422 gating.
+// Discipline is in the UI (move sheet shows suggestions), not the API.
 
 import type { RoofingStage, RoofingAutoAction } from './types'
 
 export const ROOFING_STAGES: readonly RoofingStage[] = [
-  'lead_in',
-  'inspection_scheduled',
-  'proposal_sent',
-  'proposal_signed',
-  'insurance_approved',
-  'scheduled',
-  'in_progress',
-  'job_won',
-  'lost',
-  'unqualified',
+  'lead_in', 'inspection_scheduled', 'proposal_sent', 'proposal_signed',
+  'insurance_approved', 'scheduled', 'in_progress', 'job_won', 'lost', 'unqualified',
 ] as const
 
 export const ROOFING_ACTIVE_STAGES: readonly RoofingStage[] = [
-  'lead_in',
-  'inspection_scheduled',
-  'proposal_sent',
-  'proposal_signed',
-  'insurance_approved',
-  'scheduled',
-  'in_progress',
-  'job_won',
+  'lead_in', 'inspection_scheduled', 'proposal_sent', 'proposal_signed',
+  'insurance_approved', 'scheduled', 'in_progress', 'job_won',
 ]
 
-export const ROOFING_TERMINAL_STAGES: readonly RoofingStage[] = [
-  'lost',
-  'unqualified',
-]
+export const ROOFING_TERMINAL_STAGES: readonly RoofingStage[] = ['lost', 'unqualified']
 
-// Stage order for backward-move detection (UI warning)
 export const ROOFING_STAGE_ORDER: Record<RoofingStage, number> = {
-  lead_in:              0,
-  inspection_scheduled: 1,
-  proposal_sent:        2,
-  proposal_signed:      3,
-  insurance_approved:   4,
-  scheduled:            5,
-  in_progress:          6,
-  job_won:              7,
-  lost:                 8,
-  unqualified:          9,
+  lead_in: 0, inspection_scheduled: 1, proposal_sent: 2, proposal_signed: 3,
+  insurance_approved: 4, scheduled: 5, in_progress: 6, job_won: 7,
+  lost: 8, unqualified: 9,
 }
 
-// Every valid transition. Explicit — no implicit "you can go anywhere".
-// Backward moves are allowed (homeowners change mind) but must be deliberate.
+// Suggested transitions — shown prominently in the move sheet.
+// Not enforced at API level. Roofer can always access all stages via "All stages".
 export const ROOFING_VALID_TRANSITIONS: Record<RoofingStage, RoofingStage[]> = {
   lead_in: [
     'inspection_scheduled',
-    'proposal_sent',      // referral — skip inspection
+    'proposal_sent',        // referral — skip inspection
+    'proposal_signed',      // referral, signs immediately
     'lost',
     'unqualified',
   ],
   inspection_scheduled: [
-    'lead_in',            // no show — back to new
     'proposal_sent',
+    'lead_in',              // no show — reschedule
     'lost',
     'unqualified',
   ],
   proposal_sent: [
-    'inspection_scheduled', // homeowner wants re-inspection
-    'lead_in',              // went cold
     'proposal_signed',
+    'insurance_approved',   // insurer approves without signed contract (rare)
+    'inspection_scheduled', // homeowner wants re-inspection
+    'lead_in',              // went cold — back to start
     'lost',
     'unqualified',
   ],
   proposal_signed: [
+    'insurance_approved',   // insurance job — submit to insurer
+    'scheduled',            // cash job — skip insurance
     'proposal_sent',        // homeowner wants changes
-    'insurance_approved',   // insurance job
-    'scheduled',            // retail job — skip insurance
     'lost',
   ],
   insurance_approved: [
-    'proposal_signed',      // adjuster reduced scope
     'scheduled',
+    'proposal_sent',        // insurer disputes scope — re-negotiate
+    'proposal_signed',      // adjuster reduced scope — re-sign
     'lost',
   ],
   scheduled: [
-    'insurance_approved',   // schedule fell through
     'in_progress',
+    'proposal_signed',      // contract dispute — re-sign
+    'insurance_approved',   // scheduling issue, back to approved
     'lost',
   ],
   in_progress: [
-    'scheduled',            // weather delay
     'job_won',
+    'scheduled',            // weather delay / rescheduled
     'lost',
   ],
   job_won: [
-    'in_progress',          // re-open: punch list, warranty issue
-    'lost',                 // extreme edge case: chargeback, dispute
+    'in_progress',          // punch list / warranty issue
+    'scheduled',            // major rework needed
+    'lost',                 // chargeback / dispute
   ],
   lost: [
-    'lead_in',              // homeowner came back months later
+    'lead_in',              // homeowner came back
+    'inspection_scheduled', // came back, wants inspection immediately
   ],
   unqualified: [
-    // Truly terminal — intentional dead end
-    // Bad lead, fraud, outside service area
+    'lead_in',              // mis-classified — recover
   ],
 }
 
-// Auto-triggers fire when a stage transition completes successfully.
-// API route executes these after the DB update confirms.
 export const ROOFING_AUTO_TRIGGERS: Partial<Record<RoofingStage, RoofingAutoAction[]>> = {
-  proposal_signed: [
-    'stripe_deposit',
-    'send_proposal_signed_email',
-  ],
-  job_won: [
-    'create_warranty_record',
-    'queue_review_request',
-    'generate_job_summary',
-  ],
+  proposal_signed: ['stripe_deposit', 'send_proposal_signed_email'],
+  job_won:         ['create_warranty_record', 'queue_review_request', 'generate_job_summary'],
 }
 
-// ── Pure functions — no side effects, fully unit-testable ──────────────────
+// ── Pure functions ──────────────────────────────────────────────────────────
 
-export function isValidRoofingTransition(
-  from: RoofingStage,
-  to:   RoofingStage,
-): boolean {
+/** Returns suggested next stages for the move sheet UI. Not API-enforced. */
+export function getSuggestedTransitions(from: RoofingStage): RoofingStage[] {
+  return ROOFING_VALID_TRANSITIONS[from] ?? []
+}
+
+/** For backward compat — still used in unit tests and stage API (soft check only). */
+export function isValidRoofingTransition(from: RoofingStage, to: RoofingStage): boolean {
   if (from === to) return false
   return ROOFING_VALID_TRANSITIONS[from]?.includes(to) ?? false
 }

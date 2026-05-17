@@ -739,10 +739,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 <div style={{ position: 'fixed', inset: 0, zIndex: 60,
                   background: 'rgba(10,22,40,0.6)', backdropFilter: 'blur(4px)',
                   display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+                  className="md:items-center"
                   onClick={() => setShowMoveSheet(false)}>
-                  <div style={{ width: '100%', maxWidth: 520, background: card,
+                  <div style={{ width: '100%', maxWidth: 480, background: card,
                     borderRadius: '20px 20px 0 0', padding: '0 0 max(20px, env(safe-area-inset-bottom))',
-                    boxShadow: '0 -24px 60px rgba(0,0,0,0.2)' }}
+                    boxShadow: '0 -24px 60px rgba(0,0,0,0.2)', maxHeight: '85vh',
+                    display: 'flex', flexDirection: 'column' }}
+                    className="md:rounded-2xl md:mb-0"
                     onClick={e => e.stopPropagation()}>
                     {/* Handle */}
                     <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 4px' }}>
@@ -757,8 +760,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         Currently: <span style={{ fontWeight: 600, color: stageObj?.color ?? '#0F766E' }}>{stageObj?.label ?? currentStage}</span>
                       </div>
                     </div>
-                    {/* Valid transitions */}
-                    <div style={{ padding: '8px 16px' }}>
+                    {/* Valid transitions — scrollable */}
+                    <div style={{ padding: '8px 16px', overflowY: 'auto', flex: 1 }}>
                       {(() => {
                         const validKeys = isRoofingTrade
                           ? (ROOFING_VALID_TRANSITIONS[currentStage as keyof typeof ROOFING_VALID_TRANSITIONS] ?? [])
@@ -838,11 +841,36 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                                 {backward.map(s => <MoveBtn key={s.key} stg={s} fwd={false} />)}
                               </div>
                             )}
+                          {/* All stages — collapsed, for non-standard moves */}
+                            <div>
+                              <details>
+                                <summary style={{ fontSize: 11, fontWeight: 700,
+                                  color: dk ? '#475569' : '#9CA3AF',
+                                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                                  margin: '10px 0 8px', cursor: 'pointer', listStyle: 'none',
+                                  display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                  All stages
+                                </summary>
+                                <div style={{ marginTop: 6 }}>
+                                  {stages.filter(s => s.key !== currentStage).map(s => {
+                                    const alreadyShown = validKeys.includes(s.key as any)
+                                    if (alreadyShown) return null
+                                    const fwd = (() => {
+                                      const curPos = stages.findIndex(s2 => s2.key === currentStage)
+                                      const tgtPos = stages.findIndex(s2 => s2.key === s.key)
+                                      return tgtPos > curPos
+                                    })()
+                                    return <MoveBtn key={s.key} stg={s} fwd={fwd} />
+                                  })}
+                                </div>
+                              </details>
+                            </div>
                           </>
                         )
                       })()}
                     </div>
-                    <div style={{ padding: '4px 16px 0' }}>
+                    <div style={{ padding: '4px 16px 0', flexShrink: 0 }}>
                       <button onClick={() => setShowMoveSheet(false)}
                         style={{ width: '100%', padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`,
                           background: 'transparent', color: ts, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>

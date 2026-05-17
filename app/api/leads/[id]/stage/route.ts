@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { getTradeConfig, getIsValidTransition } from '@/lib/trades/_registry'
+import { getTradeConfig } from '@/lib/trades/_registry'
 
 type RouteParams = { params: Promise<{ id: string }> }
 
@@ -69,18 +69,20 @@ export async function PATCH(
     const tradeSlug    = (lead.trade_slug as string | null) ?? ''
     const tradeConfig  = getTradeConfig(tradeSlug)
 
-    // Validate transition — static lookup via registry, no dynamic imports
-    const isValidTransition = getIsValidTransition(tradeSlug)
+    // Option C: API accepts any known LeadStatus — no hard transition gating.
+    // The state machine defines suggested transitions for the UI only.
+    // This allows roofers to handle real-world non-linear job flows.
+    const KNOWN_STATUSES = new Set([
+      'New','Contacted','Quoted','Scheduled','Completed','Paid','Lost','Archived','Queued_Manual','Converted',
+      'lead_in','inspection_scheduled','proposal_sent','proposal_signed','insurance_approved',
+      'scheduled','in_progress','job_won','lost','unqualified',
+      'new_call','diagnosed','parts_ordered','assessed','site_visit','permit_submitted','permit_approved',
+    ])
 
-    if (!isValidTransition(currentStage, newStage)) {
+    if (!KNOWN_STATUSES.has(newStage)) {
       return NextResponse.json(
-        {
-          error: 'Invalid stage transition',
-          from: currentStage,
-          to: newStage,
-          trade: tradeSlug,
-        },
-        { status: 422 }
+        { error: `Unknown stage: "${newStage}"` },
+        { status: 400 }
       )
     }
 
