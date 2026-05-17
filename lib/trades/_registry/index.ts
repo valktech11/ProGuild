@@ -129,3 +129,36 @@ export function getAllTradeSlugs(): string[] {
 // Re-export types for convenience
 export type { AnyTradeConfig, RoofingConfig, HVACConfig, PlumbingConfig, ElectricianConfig, GCConfig, DefaultConfig }
 export type { AnyPipelineStage, AnyNavItem, AnyNavSection } from './types'
+
+
+// ── Stage transition validator ─────────────────────────────────────────────
+// Single entry point for isValidTransition — no dynamic imports, no template
+// literal module resolution (breaks Turbopack). Always statically imported.
+
+import { isValidRoofingTransition }     from '../roofing/state-machine'
+import { isValidHVACTransition }        from '../hvac/state-machine'
+import { isValidPlumbingTransition }    from '../plumbing/state-machine'
+import { isValidElectricianTransition } from '../electrician/state-machine'
+import { isValidGCTransition }          from '../general-contractor/state-machine'
+
+// Default: allow any transition (for misc trades with no state machine)
+function isValidDefaultTransition(_from: string, _to: string): boolean {
+  return _from !== _to
+}
+
+// Returns the correct isValidTransition fn for a given trade slug.
+// Used by the stage API route — replaces dynamic import() pattern.
+export function getIsValidTransition(tradeSlug: string | null | undefined): (from: string, to: string) => boolean {
+  const slug = (tradeSlug ?? '').toLowerCase().trim()
+  if (slug === 'roofing' || slug === 'roofing-contractor' || slug === 'roofer')
+    return isValidRoofingTransition as (from: string, to: string) => boolean
+  if (slug === 'hvac-technician' || slug === 'hvac')
+    return isValidHVACTransition as (from: string, to: string) => boolean
+  if (slug === 'plumber' || slug === 'plumbing')
+    return isValidPlumbingTransition as (from: string, to: string) => boolean
+  if (slug === 'electrician' || slug === 'electrical')
+    return isValidElectricianTransition as (from: string, to: string) => boolean
+  if (slug === 'general-contractor' || slug === 'gc')
+    return isValidGCTransition as (from: string, to: string) => boolean
+  return isValidDefaultTransition
+}

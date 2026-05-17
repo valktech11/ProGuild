@@ -1,17 +1,17 @@
 // app/api/leads/[id]/stage/route.ts
 // PATCH /api/leads/[id]/stage
-// Validates stage transitions using isValidTransition() from trade state machine.
+// Validates stage transitions using getIsValidTransition() from trade registry.
 // Returns 422 on invalid transition — never silently accepts bad state.
-// Ownership enforced at DB level: pro_id must match session.
+// Ownership enforced at DB level: pro_id must match lead.
 
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { getTradeConfig } from '@/lib/trades/_registry'
+import { getTradeConfig, getIsValidTransition } from '@/lib/trades/_registry'
 
-// ── Type guard helpers ─────────────────────────────────────────────────────
 type RouteParams = { params: Promise<{ id: string }> }
 
-// ── PATCH — Transition a lead to a new stage ───────────────────────────────
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function PATCH(
   req: Request,
   { params }: RouteParams
@@ -19,13 +19,10 @@ export async function PATCH(
   try {
     const { id: leadId } = await params
 
-    // ── Validate UUID format before hitting DB ─────────────────────────────
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!UUID_RE.test(leadId)) {
       return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 })
     }
 
-    // ── Parse and validate body ────────────────────────────────────────────
     let body: unknown
     try {
       body = await req.json()
@@ -53,12 +50,12 @@ export async function PATCH(
 
     const sb = getSupabaseAdmin()
 
-    // ── Fetch current lead — ownership check at DB level ───────────────────
+    // Fetch lead — ownership enforced at DB level
     const { data: lead, error: fetchError } = await sb
       .from('leads')
       .select('id, lead_status, trade_slug, pro_id')
       .eq('id', leadId)
-      .eq('pro_id', pro_id)   // ownership enforced here, not just in app logic
+      .eq('pro_id', pro_id)
       .single()
 
     if (fetchError || !lead) {
@@ -70,18 +67,10 @@ export async function PATCH(
 
     const currentStage = lead.lead_status as string
     const tradeSlug    = (lead.trade_slug as string | null) ?? ''
+    const tradeConfig  = getTradeConfig(tradeSlug)
 
-    // ── Load trade config + validate transition ────────────────────────────
-    const tradeConfig = getTradeConfig(tradeSlug)
-
-    // isValidTransition comes from the trade's state-machine.ts
-    // It is the same function used in unit tests — one source of truth
-    const { isValidTransition } = await import(
-      `@/lib/trades/${tradeConfig.slug}/state-machine`
-    ).catch(() =>
-      // Fallback: import default state machine if trade-specific one missing
-      import('@/lib/trades/_default/state-machine')
-    )
+    // Validate transition — static lookup via registry, no dynamic imports
+    const isValidTransition = getIsValidTransition(tradeSlug)
 
     if (!isValidTransition(currentStage, newStage)) {
       return NextResponse.json(
@@ -95,32 +84,23 @@ export async function PATCH(
       )
     }
 
-    // ── Persist the transition ─────────────────────────────────────────────
+    // Persist
     const { error: updateError } = await sb
       .from('leads')
       .update({ lead_status: newStage, updated_at: new Date().toISOString() })
       .eq('id', leadId)
-      .eq('pro_id', pro_id)   // double-check ownership on write
+      .eq('pro_id', pro_id)
 
     if (updateError) {
       console.error('[stage/route] update error:', updateError.message)
-      return NextResponse.json(
-        { error: 'Failed to update stage' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Failed to update stage' }, { status: 500 })
     }
 
-    // ── Fire auto-triggers if applicable ──────────────────────────────────
-    // Triggers are queued, not executed inline — prevents slow response times
-    // and makes each trigger independently retryable.
+    // Queue auto-triggers (non-blocking)
     await queueAutoTriggers(leadId, pro_id, newStage, tradeConfig, sb)
 
-    return NextResponse.json({
-      success: true,
-      leadId,
-      from: currentStage,
-      to: newStage,
-    })
+    return NextResponse.json({ success: true, leadId, from: currentStage, to: newStage })
+
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
     console.error('[stage/route]', msg)
@@ -128,10 +108,7 @@ export async function PATCH(
   }
 }
 
-// ── Auto-trigger queue ─────────────────────────────────────────────────────
-// Each trigger is a row in lead_trigger_log.
-// A background process (or next API call) processes pending triggers.
-// This pattern prevents a Stripe timeout from blocking a stage change.
+// Auto-triggers are queued rows — processed async, never block the response
 async function queueAutoTriggers(
   leadId: string,
   proId: string,
@@ -159,7 +136,7 @@ async function queueAutoTriggers(
 
   const { error } = await sb.from('lead_trigger_log').insert(rows)
   if (error) {
-    // Non-fatal — log and continue. Stage transition already succeeded.
+    // Non-fatal — stage transition already committed
     console.error('[stage/route] trigger queue error:', error.message)
   }
 }
