@@ -89,7 +89,6 @@ export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: Ad
         message:       need.trim(),
         lead_source:   source,
         is_manual:     true,
-        lead_status:   'New',
       }),
     })
     const d = await r.json()
