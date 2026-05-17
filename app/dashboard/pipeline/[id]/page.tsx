@@ -772,7 +772,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     overflow: 'hidden',
                     border: `1px solid ${border}`,
                     borderLeft: `5px solid ${stageObj?.color ?? '#0F766E'}`,
-                    boxShadow: dk ? 'none' : '0 2px 12px rgba(0,0,0,0.06)',
+                    boxShadow: dk ? 'none' : '0 4px 20px rgba(0,0,0,0.08)',
                   }}>
                     {/* Identity */}
                     <div style={{ padding: '18px 20px 14px' }}>
@@ -926,30 +926,40 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     )}
                   </div>
 
-                  {/* ── Tabs ─────────────────────────────────────────────── */}
-                  <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 12, overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', borderBottom: `1px solid ${border}` }}>
-                      {tabs.map(tab => (
-                        <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                          style={{
-                            flex: 1, padding: '12px 8px', fontSize: 13,
-                            fontWeight: activeTab === tab.key ? 700 : 500,
-                            color: activeTab === tab.key ? '#0F766E' : ts,
-                            background: 'transparent',
-                            border: 'none',
-                            borderBottom: activeTab === tab.key ? '2px solid #0F766E' : '2px solid transparent',
-                            cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
-                          }}>
-                          {tab.label}
-                        </button>
-                      ))}
+                  {/* ── Tabs — visible tab UI with background differentiation ── */}
+                  <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 12,
+                    overflow: 'hidden', boxShadow: dk ? 'none' : '0 2px 10px rgba(0,0,0,0.06)' }}>
+                    <div style={{ display: 'flex', background: dk ? '#111827' : '#F5F4F0',
+                      borderBottom: `1px solid ${border}`, padding: '4px 4px 0' }}>
+                      {tabs.map(tab => {
+                        const active = activeTab === tab.key
+                        return (
+                          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                            style={{
+                              flex: 1, padding: '10px 12px', fontSize: 13,
+                              fontWeight: active ? 700 : 500,
+                              color: active ? '#0F766E' : (dk ? '#64748B' : '#6B7280'),
+                              background: active ? card : 'transparent',
+                              border: 'none',
+                              borderRadius: active ? '8px 8px 0 0' : '8px 8px 0 0',
+                              borderBottom: active ? `none` : 'none',
+                              boxShadow: active ? `0 -1px 0 ${border}, 1px 0 0 ${border}, -1px 0 0 ${border}` : 'none',
+                              cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                              position: 'relative' as const,
+                              zIndex: active ? 1 : 0,
+                              marginBottom: active ? -1 : 0,
+                            }}>
+                            {tab.label}
+                          </button>
+                        )
+                      })}
                     </div>
 
                     {/* Tab: Job Details */}
                     {activeTab === 'details' && (
                       <div style={{ padding: '16px 18px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, marginBottom: 14,
-                          background: border, borderRadius: 8, overflow: 'hidden', border: `1px solid ${border}` }}>
+                        {/* Contact grid — alternating rows, visible borders, readable labels */}
+                        <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${border}`, marginBottom: 18 }}>
                           {[
                             { label: 'Phone',     value: fmtPhone(lead.contact_phone),                             copy: lead.contact_phone },
                             { label: 'Email',     value: lead.contact_email || '—',                                copy: lead.contact_email },
@@ -962,13 +972,28 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                                   {overdueFU && <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 600 }}>Overdue</span>}
                                 </span>
                               : '—', copy: null },
-                          ].map(cell => (
-                            <div key={cell.label} style={{ padding: '12px 14px', background: card, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: ts, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{cell.label}</div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: tp, display: 'flex', alignItems: 'center', gap: 4, wordBreak: 'break-word' }}>
-                                {cell.value}
-                                {cell.copy && typeof cell.copy === 'string' && <CopyBtn text={cell.copy} color={ts} />}
-                              </div>
+                          ].reduce((rows: any[][], cell, i) => {
+                            if (i % 2 === 0) rows.push([cell])
+                            else rows[rows.length - 1].push(cell)
+                            return rows
+                          }, []).map((row, rowIdx) => (
+                            <div key={rowIdx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
+                              background: rowIdx % 2 === 1 ? (dk ? '#111827' : '#F9F8F6') : card,
+                              borderBottom: rowIdx < 2 ? `1px solid ${border}` : 'none' }}>
+                              {row.map(cell => (
+                                <div key={cell.label} style={{ padding: '13px 16px',
+                                  borderRight: row.indexOf(cell) === 0 ? `1px solid ${border}` : 'none' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#64748B' : '#9CA3AF',
+                                    textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>
+                                    {cell.label}
+                                  </div>
+                                  <div style={{ fontSize: 14, fontWeight: 600, color: tp,
+                                    display: 'flex', alignItems: 'center', gap: 4, wordBreak: 'break-word' }}>
+                                    {cell.value}
+                                    {cell.copy && typeof cell.copy === 'string' && <CopyBtn text={cell.copy} color={ts} />}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           ))}
                         </div>
@@ -980,8 +1005,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                             onSaved={(data) => setLead(l => l ? { ...l, insurance_data: data } as any : l)}
                           />
                         )}
-                        <div style={{ marginTop: 14 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: ts, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Notes</div>
+                        <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${border}` }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: dk ? '#94A3B8' : '#4B5563',
+                            textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Notes</div>
                           {lead.notes && (
                             <div style={{ fontSize: 14, color: tp, lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: 10,
                               padding: '10px 12px', background: t.cardBgAlt, borderRadius: 8, border: `1px solid ${border}` }}>
@@ -1003,7 +1029,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                         </div>
                         {lead.message && (
                           <div style={{ marginTop: 14, padding: '12px 14px', background: t.cardBgAlt, borderRadius: 8, border: `1px solid ${border}` }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: ts, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Original message</div>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: dk ? '#94A3B8' : '#4B5563', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Original message</div>
                             <div style={{ fontSize: 14, color: tp, lineHeight: 1.6, fontStyle: 'italic' }}>"{lead.message}"</div>
                           </div>
                         )}
