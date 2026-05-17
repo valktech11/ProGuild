@@ -66,10 +66,6 @@ export async function PATCH(
   const { id } = await params
   if (!isValidUuid(id)) return apiError('id must be a valid UUID', 400)
 
-  // Ownership: pro_id required on PATCH — prevents cross-account mutations
-  const proId = new URL(req.url).searchParams.get('pro_id')
-  if (!isValidUuid(proId)) return apiError('pro_id query param required', 401)
-
   let body: Record<string, unknown>
   try {
     body = await req.json()
@@ -78,6 +74,10 @@ export async function PATCH(
   }
 
   if (!body || typeof body !== 'object') return apiError('Request body must be a JSON object', 400)
+
+  // Ownership: pro_id accepted from body OR query param — frontend sends in body
+  const proId = (body.pro_id as string) || new URL(req.url).searchParams.get('pro_id')
+  if (!isValidUuid(proId)) return apiError('pro_id required', 401)
 
   const updateFields: Partial<LeadUpdateFields> = {}
 

@@ -736,79 +736,81 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
               {/* ── Move sheet — valid transitions from current stage ── */}
               {showMoveSheet && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 60,
-                  background: 'rgba(10,22,40,0.6)', backdropFilter: 'blur(4px)',
-                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
-                  className="md:items-center"
-                  onClick={() => setShowMoveSheet(false)}>
-                  <div style={{ width: '100%', maxWidth: 480, background: card,
-                    borderRadius: '20px 20px 0 0', padding: '0 0 max(20px, env(safe-area-inset-bottom))',
-                    boxShadow: '0 -24px 60px rgba(0,0,0,0.2)', maxHeight: '85vh',
-                    display: 'flex', flexDirection: 'column' }}
-                    className="md:rounded-2xl md:mb-0"
-                    onClick={e => e.stopPropagation()}>
-                    {/* Handle */}
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 4px' }}>
-                      <div style={{ width: 32, height: 4, borderRadius: 2, background: dk ? '#334155' : '#E5E7EB' }} />
-                    </div>
+                <div style={{
+                  position: 'fixed', inset: 0, zIndex: 60,
+                  background: 'rgba(5,10,20,0.75)', backdropFilter: 'blur(8px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }} onClick={() => setShowMoveSheet(false)}>
+                  <div style={{
+                    width: '100%', maxWidth: 440,
+                    background: dk ? '#0F172A' : '#FFFFFF',
+                    borderRadius: 20, overflow: 'hidden',
+                    boxShadow: '0 40px 100px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)',
+                    maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+                  }} onClick={e => e.stopPropagation()}>
+
                     {/* Header */}
-                    <div style={{ padding: '8px 20px 14px', borderBottom: `1px solid ${border}` }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: tp, letterSpacing: '-0.02em' }}>
-                        Move job
-                      </div>
-                      <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>
-                        Currently: <span style={{ fontWeight: 600, color: stageObj?.color ?? '#0F766E' }}>{stageObj?.label ?? currentStage}</span>
+                    <div style={{ padding: '20px 20px 14px', borderBottom: `1px solid ${dk ? '#1E293B' : '#F1F5F9'}`, flexShrink: 0 }}>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: tp, letterSpacing: '-0.025em' }}>Move this job</div>
+                      <div style={{ fontSize: 13, color: ts, marginTop: 3 }}>
+                        Currently: <span style={{ fontWeight: 700, color: stageObj?.color ?? '#0F766E' }}>{stageObj?.label ?? currentStage}</span>
                       </div>
                     </div>
-                    {/* Valid transitions — scrollable */}
-                    <div style={{ padding: '8px 16px', overflowY: 'auto', flex: 1 }}>
+
+                    {/* Options */}
+                    <div style={{ overflowY: 'auto', flex: 1, padding: '10px 12px' }}>
                       {(() => {
                         const validKeys = isRoofingTrade
                           ? (ROOFING_VALID_TRANSITIONS[currentStage as keyof typeof ROOFING_VALID_TRANSITIONS] ?? [])
                           : stages.filter(s => s.key !== currentStage).map(s => s.key)
-                        const validStages = validKeys
-                          .map(k => stages.find(s => s.key === k))
-                          .filter(Boolean) as typeof stages
-                        const forward  = validStages.filter(s => {
-                          const curPos = stages.findIndex(s2 => s2.key === currentStage)
-                          const tgtPos = stages.findIndex(s2 => s2.key === s.key)
-                          return tgtPos > curPos && !s.terminal
-                        })
-                        const terminal = validStages.filter(s => s.terminal)
-                        const backward = validStages.filter(s => {
-                          const curPos = stages.findIndex(s2 => s2.key === currentStage)
-                          const tgtPos = stages.findIndex(s2 => s2.key === s.key)
-                          return tgtPos < curPos && !s.terminal
-                        })
 
-                        function MoveBtn({ stg, fwd }: { stg: typeof stages[0]; fwd: boolean }) {
+                        const validStages = validKeys.map(k => stages.find(s => s.key === k)).filter(Boolean) as typeof stages
+                        const curPos   = stages.findIndex(s => s.key === currentStage)
+                        const forward  = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) > curPos)
+                        const terminal = validStages.filter(s => s.terminal)
+                        const backward = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) < curPos)
+                        const allOther = stages.filter(s => s.key !== currentStage && !validKeys.includes(s.key as any))
+
+                        function SectionLabel({ text }: { text: string }) {
                           return (
-                            <button
-                              onClick={() => {
-                                setShowMoveSheet(false)
-                                if (!fwd) { setConfirmBack(stg.key as LeadStatus); return }
-                                handleStageClick(stg.key as LeadStatus)
-                              }}
-                              style={{
-                                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                                padding: '13px 14px', borderRadius: 10, border: `1.5px solid ${border}`,
-                                background: fwd ? (dk ? '#0F1A2B' : stg.bg) : (dk ? '#1E293B' : '#F9F8F6'),
-                                cursor: 'pointer', marginBottom: 6, transition: 'all 0.15s',
-                                textAlign: 'left' as const,
-                              }}>
-                              {/* Color dot */}
-                              <div style={{ width: 10, height: 10, borderRadius: '50%',
-                                background: stg.color, flexShrink: 0 }} />
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: fwd ? stg.color : ts }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
+                              textTransform: 'uppercase', padding: '8px 4px 5px',
+                              color: dk ? '#334155' : '#D1D5DB' }}>{text}</div>
+                          )
+                        }
+
+                        function MoveRow({ stg, dir }: { stg: typeof stages[0]; dir: 'forward'|'back'|'terminal'|'all' }) {
+                          const isTerminal = dir === 'terminal'
+                          const isBack     = dir === 'back'
+                          const rowColor   = isTerminal ? '#DC2626' : isBack ? (dk ? '#64748B' : '#6B7280') : stg.color
+                          const rowBg      = isTerminal
+                            ? (dk ? 'rgba(220,38,38,0.1)' : '#FFF5F5')
+                            : dir === 'forward' || dir === 'all'
+                              ? (dk ? `${stg.color}15` : stg.bg)
+                              : (dk ? '#1A2332' : '#F8F9FA')
+                          return (
+                            <button onClick={() => {
+                              setShowMoveSheet(false)
+                              if (isBack || isTerminal) setConfirmBack(stg.key as LeadStatus)
+                              else handleStageClick(stg.key as LeadStatus)
+                            }} style={{
+                              width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                              padding: '13px 14px', borderRadius: 11, border: 'none',
+                              background: rowBg, cursor: 'pointer', marginBottom: 5,
+                              transition: 'opacity 0.1s', textAlign: 'left' as const,
+                            }}>
+                              <div style={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
+                                background: rowColor, boxShadow: `0 0 0 3px ${rowColor}25` }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: rowColor, letterSpacing: '-0.01em' }}>
                                   {stg.label}
                                 </div>
                                 {stg.subLabel && (
-                                  <div style={{ fontSize: 12, color: ts, marginTop: 1 }}>{stg.subLabel}</div>
+                                  <div style={{ fontSize: 12, color: ts, marginTop: 1, lineHeight: 1.3 }}>{stg.subLabel}</div>
                                 )}
                               </div>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                stroke={fwd ? stg.color : ts} strokeWidth="2.5" strokeLinecap="round">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                stroke={rowColor} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.7 }}>
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                               </svg>
                             </button>
@@ -817,71 +819,46 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
                         return (
                           <>
-                            {forward.length > 0 && (
-                              <div>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#475569' : '#9CA3AF',
-                                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                                  margin: '10px 0 8px' }}>Move forward</div>
-                                {forward.map(s => <MoveBtn key={s.key} stg={s} fwd={true} />)}
-                              </div>
-                            )}
-                            {terminal.length > 0 && (
-                              <div>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#475569' : '#9CA3AF',
-                                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                                  margin: '10px 0 8px' }}>Close job</div>
-                                {terminal.map(s => <MoveBtn key={s.key} stg={s} fwd={false} />)}
-                              </div>
-                            )}
-                            {backward.length > 0 && (
-                              <div>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#475569' : '#9CA3AF',
-                                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                                  margin: '10px 0 8px' }}>Move back</div>
-                                {backward.map(s => <MoveBtn key={s.key} stg={s} fwd={false} />)}
-                              </div>
-                            )}
-                          {/* All stages — collapsed, for non-standard moves */}
-                            <div>
+                            {forward.length > 0 && (<><SectionLabel text="Move forward" />{forward.map(s => <MoveRow key={s.key} stg={s} dir="forward" />)}</>)}
+                            {terminal.length > 0 && (<><SectionLabel text="Close job" />{terminal.map(s => <MoveRow key={s.key} stg={s} dir="terminal" />)}</>)}
+                            {backward.length > 0 && (<><SectionLabel text="Move back" />{backward.map(s => <MoveRow key={s.key} stg={s} dir="back" />)}</>)}
+                            {allOther.length > 0 && (
                               <details>
-                                <summary style={{ fontSize: 11, fontWeight: 700,
-                                  color: dk ? '#475569' : '#9CA3AF',
-                                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                                  margin: '10px 0 8px', cursor: 'pointer', listStyle: 'none',
-                                  display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                <summary style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
+                                  textTransform: 'uppercase', padding: '8px 4px 5px',
+                                  cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 5,
+                                  color: dk ? '#334155' : '#D1D5DB' }}>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                                   All stages
                                 </summary>
-                                <div style={{ marginTop: 6 }}>
-                                  {stages.filter(s => s.key !== currentStage).map(s => {
-                                    const alreadyShown = validKeys.includes(s.key as any)
-                                    if (alreadyShown) return null
-                                    const fwd = (() => {
-                                      const curPos = stages.findIndex(s2 => s2.key === currentStage)
-                                      const tgtPos = stages.findIndex(s2 => s2.key === s.key)
-                                      return tgtPos > curPos
-                                    })()
-                                    return <MoveBtn key={s.key} stg={s} fwd={fwd} />
+                                <div style={{ marginTop: 2 }}>
+                                  {allOther.map(s => {
+                                    const tgt = stages.findIndex(s2 => s2.key === s.key)
+                                    const dir = s.terminal ? 'terminal' : tgt > curPos ? 'all' : 'back'
+                                    return <MoveRow key={s.key} stg={s} dir={dir} />
                                   })}
                                 </div>
                               </details>
-                            </div>
+                            )}
                           </>
                         )
                       })()}
                     </div>
-                    <div style={{ padding: '4px 16px 0', flexShrink: 0 }}>
-                      <button onClick={() => setShowMoveSheet(false)}
-                        style={{ width: '100%', padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`,
-                          background: 'transparent', color: ts, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                        Cancel
-                      </button>
+
+                    {/* Cancel */}
+                    <div style={{ padding: '8px 12px 16px', borderTop: `1px solid ${dk ? '#1E293B' : '#F1F5F9'}`, flexShrink: 0 }}>
+                      <button onClick={() => setShowMoveSheet(false)} style={{
+                        width: '100%', padding: '13px', borderRadius: 11, border: 'none',
+                        background: dk ? '#1E293B' : '#F3F4F6',
+                        color: dk ? '#64748B' : '#6B7280',
+                        fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      }}>Cancel</button>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* ── Top nav ────────────────────────────────────────────── */}
+                            {/* ── Top nav ────────────────────────────────────────────── */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <button onClick={() => router.push(backNav().href)}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: ts,
