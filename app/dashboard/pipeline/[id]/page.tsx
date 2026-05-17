@@ -6,6 +6,7 @@ import { avatarColor, initials, timeAgo, capName, US_STATES } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getPipelineStages } from '@/components/ui/LeadPipeline'
+import { ROOFING_VALID_TRANSITIONS } from '@/lib/trades/roofing/state-machine'
 import InsuranceClaimFields from '@/components/roofing/InsuranceClaimFields'
 import JobPhotoLog from '@/components/roofing/JobPhotoLog'
 import WarrantyRecord from '@/components/roofing/WarrantyRecord'
@@ -160,6 +161,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
   type DetailTab = 'details' | 'photos' | 'estimate' | 'activity'
   const [activeTab,     setActiveTab]     = useState<DetailTab>('details')
   const [showWarranty,  setShowWarranty]  = useState(false)
+  const [showMoveSheet, setShowMoveSheet] = useState(false)
   const isRoofingTrade = ['roofing-contractor','roofing','roofer'].includes(session?.trade_slug ?? '')
 
   useEffect(() => {
@@ -732,6 +734,125 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                 />
               )}
 
+              {/* ── Move sheet — valid transitions from current stage ── */}
+              {showMoveSheet && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 60,
+                  background: 'rgba(10,22,40,0.6)', backdropFilter: 'blur(4px)',
+                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+                  onClick={() => setShowMoveSheet(false)}>
+                  <div style={{ width: '100%', maxWidth: 520, background: card,
+                    borderRadius: '20px 20px 0 0', padding: '0 0 max(20px, env(safe-area-inset-bottom))',
+                    boxShadow: '0 -24px 60px rgba(0,0,0,0.2)' }}
+                    onClick={e => e.stopPropagation()}>
+                    {/* Handle */}
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 4px' }}>
+                      <div style={{ width: 32, height: 4, borderRadius: 2, background: dk ? '#334155' : '#E5E7EB' }} />
+                    </div>
+                    {/* Header */}
+                    <div style={{ padding: '8px 20px 14px', borderBottom: `1px solid ${border}` }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: tp, letterSpacing: '-0.02em' }}>
+                        Move job
+                      </div>
+                      <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>
+                        Currently: <span style={{ fontWeight: 600, color: stageObj?.color ?? '#0F766E' }}>{stageObj?.label ?? currentStage}</span>
+                      </div>
+                    </div>
+                    {/* Valid transitions */}
+                    <div style={{ padding: '8px 16px' }}>
+                      {(() => {
+                        const validKeys = isRoofingTrade
+                          ? (ROOFING_VALID_TRANSITIONS[currentStage as keyof typeof ROOFING_VALID_TRANSITIONS] ?? [])
+                          : stages.filter(s => s.key !== currentStage).map(s => s.key)
+                        const validStages = validKeys
+                          .map(k => stages.find(s => s.key === k))
+                          .filter(Boolean) as typeof stages
+                        const forward  = validStages.filter(s => {
+                          const curPos = stages.findIndex(s2 => s2.key === currentStage)
+                          const tgtPos = stages.findIndex(s2 => s2.key === s.key)
+                          return tgtPos > curPos && !s.terminal
+                        })
+                        const terminal = validStages.filter(s => s.terminal)
+                        const backward = validStages.filter(s => {
+                          const curPos = stages.findIndex(s2 => s2.key === currentStage)
+                          const tgtPos = stages.findIndex(s2 => s2.key === s.key)
+                          return tgtPos < curPos && !s.terminal
+                        })
+
+                        function MoveBtn({ stg, fwd }: { stg: typeof stages[0]; fwd: boolean }) {
+                          return (
+                            <button
+                              onClick={() => {
+                                setShowMoveSheet(false)
+                                if (!fwd) { setConfirmBack(stg.key as LeadStatus); return }
+                                handleStageClick(stg.key as LeadStatus)
+                              }}
+                              style={{
+                                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                                padding: '13px 14px', borderRadius: 10, border: `1.5px solid ${border}`,
+                                background: fwd ? (dk ? '#0F1A2B' : stg.bg) : (dk ? '#1E293B' : '#F9F8F6'),
+                                cursor: 'pointer', marginBottom: 6, transition: 'all 0.15s',
+                                textAlign: 'left' as const,
+                              }}>
+                              {/* Color dot */}
+                              <div style={{ width: 10, height: 10, borderRadius: '50%',
+                                background: stg.color, flexShrink: 0 }} />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: fwd ? stg.color : ts }}>
+                                  {stg.label}
+                                </div>
+                                {stg.subLabel && (
+                                  <div style={{ fontSize: 12, color: ts, marginTop: 1 }}>{stg.subLabel}</div>
+                                )}
+                              </div>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                stroke={fwd ? stg.color : ts} strokeWidth="2.5" strokeLinecap="round">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                              </svg>
+                            </button>
+                          )
+                        }
+
+                        return (
+                          <>
+                            {forward.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#475569' : '#9CA3AF',
+                                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                                  margin: '10px 0 8px' }}>Move forward</div>
+                                {forward.map(s => <MoveBtn key={s.key} stg={s} fwd={true} />)}
+                              </div>
+                            )}
+                            {terminal.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#475569' : '#9CA3AF',
+                                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                                  margin: '10px 0 8px' }}>Close job</div>
+                                {terminal.map(s => <MoveBtn key={s.key} stg={s} fwd={false} />)}
+                              </div>
+                            )}
+                            {backward.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#475569' : '#9CA3AF',
+                                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                                  margin: '10px 0 8px' }}>Move back</div>
+                                {backward.map(s => <MoveBtn key={s.key} stg={s} fwd={false} />)}
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </div>
+                    <div style={{ padding: '4px 16px 0' }}>
+                      <button onClick={() => setShowMoveSheet(false)}
+                        style={{ width: '100%', padding: '13px', borderRadius: 10, border: `1.5px solid ${border}`,
+                          background: 'transparent', color: ts, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── Top nav ────────────────────────────────────────────── */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <button onClick={() => router.push(backNav().href)}
@@ -875,55 +996,55 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                       </div>
                     </div>
 
-                    {/* ── Primary action button ─────────────────────────── */}
-                    {nextStage ? (
-                      <div style={{ padding: '0 20px 18px' }}>
-                        <button
-                          onClick={() => handleStageClick(nextStage.key as LeadStatus)}
-                          disabled={stageSaving}
+                    {/* ── Move this job — opens valid-transitions sheet ────── */}
+                    <div style={{ padding: '0 20px 18px' }}>
+                      {(currentStage === 'job_won' || currentStage === 'unqualified') ? (
+                        <div style={{ padding: '14px 20px', borderRadius: 12, textAlign: 'center',
+                          background: currentStage === 'job_won'
+                            ? 'linear-gradient(135deg, #065F46, #047857)'
+                            : (dk ? '#1E293B' : '#F3F4F6'),
+                          color: currentStage === 'job_won' ? 'white' : ts,
+                          fontSize: 15, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                          {currentStage === 'job_won' ? (
+                            <>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                              Job Complete
+                            </>
+                          ) : 'Lead Unqualified'}
+                        </div>
+                      ) : (
+                        <button onClick={() => setShowMoveSheet(true)} disabled={stageSaving}
                           style={{
-                            width: '100%', padding: '14px 20px',
-                            borderRadius: 12, border: 'none',
+                            width: '100%', padding: '14px 20px', borderRadius: 12, border: 'none',
                             cursor: stageSaving ? 'wait' : 'pointer',
-                            background: stageSaving
-                              ? (dk ? '#334155' : '#E5E7EB')
+                            background: stageSaving ? (dk ? '#334155' : '#E5E7EB')
                               : 'linear-gradient(135deg, #0F766E, #0D9488)',
                             color: stageSaving ? ts : 'white',
                             fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                             boxShadow: stageSaving ? 'none' : '0 4px 16px rgba(15,118,110,0.28)',
                             transition: 'all 0.2s',
-                          }}
-                        >
+                          }}>
                           {stageSaving ? 'Updating...' : (
                             <>
-                              <span>{nextLabel}</span>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                                <line x1="5" y1="12" x2="19" y2="12"/>
-                                <polyline points="12 5 19 12 12 19"/>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                              </svg>
+                              Move this job
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                                <polyline points="6 9 12 15 18 9"/>
                               </svg>
                             </>
                           )}
                         </button>
-                        {stageTip && (
-                          <div style={{ marginTop: 8, fontSize: 12, color: ts, textAlign: 'center', lineHeight: 1.4 }}>
-                            💡 {stageTip}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={{ padding: '0 20px 18px' }}>
-                        <div style={{
-                          padding: '14px 20px', borderRadius: 12, textAlign: 'center',
-                          background: 'linear-gradient(135deg, #065F46, #047857)',
-                          color: 'white', fontSize: 15, fontWeight: 700,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                          Job Complete
+                      )}
+                      {stageTip && currentStage !== 'job_won' && currentStage !== 'unqualified' && (
+                        <div style={{ marginTop: 8, fontSize: 12, color: ts, textAlign: 'center', lineHeight: 1.4 }}>
+                          💡 {stageTip}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
 
                   {/* ── Tabs — visible tab UI with background differentiation ── */}
