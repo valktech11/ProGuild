@@ -4,7 +4,8 @@
 // sharp typographic hierarchy, smooth focus transitions, no input icons.
 
 import { theme } from '@/lib/tokens'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 function PhoneIcon({ a }: { a: boolean }) {
@@ -68,6 +69,9 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   const [saving,  setSaving]  = useState(false)
   const [err,     setErr]     = useState('')
   const [focus,   setFocus]   = useState<Record<string,boolean>>({})
+
+  const addressRef = useRef<HTMLInputElement>(null)
+  usePlacesAutocomplete(addressRef, (addr) => setAddress(addr))
 
   const fo = (k: string) => setFocus(f => ({ ...f, [k]: true }))
   const fb = (k: string) => setFocus(f => ({ ...f, [k]: false }))
@@ -218,9 +222,10 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
             {/* Address */}
             <div>
               <Lbl text="Property address" opt />
-              <input value={address} onChange={e => setAddress(san(e.target.value))}
+              <input ref={addressRef} value={address} onChange={e => setAddress(san(e.target.value))}
                 placeholder="3919 Highgate Dr, Tampa, FL 33614"
                 style={iStyle('address')}
+                autoComplete="off"
                 onFocus={() => fo('address')} onBlur={() => fb('address')} />
             </div>
 
