@@ -121,6 +121,7 @@ export interface Lead {
   follow_up_date: string | null
   contact_city: string | null
   contact_state: string | null
+  property_address: string | null
   // joined
   pro?: Pro
   job?: Job

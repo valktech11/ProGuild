@@ -397,32 +397,31 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
       onMouseEnter={e => (e.currentTarget.style.boxShadow = dk ? '0 0 0 1px rgba(15,118,110,0.3)' : '0 3px 10px rgba(0,0,0,0.09)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)')}>
 
-      {/* Row 1: avatar + name + age */}
+      {/* Row 1: avatar + address (primary) or name (fallback) + age */}
       <div className="flex items-center gap-2 mb-2">
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
           style={{ background: bg, color: fg }}>
           {initials(lead.contact_name)}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-bold truncate leading-tight" style={{ color: t.textPri }}>
-            {capName(lead.contact_name)}
+          {/* Address is the job identity for roofing; name is the contact */}
+          <p className="text-[13px] font-bold truncate leading-tight" style={{ color: t.textPri }}>
+            {lead.property_address
+              ? lead.property_address.replace(/, USA$/, '')  // strip trailing USA
+              : capName(lead.contact_name)}
           </p>
+          {lead.property_address && (
+            <p className="text-[11px] truncate" style={{ color: t.textSubtle }}>
+              {capName(lead.contact_name)}
+            </p>
+          )}
           {lead.quoted_amount ? (
             <p className="text-[12px] font-bold" style={{ color: '#0F766E' }}>
               ${lead.quoted_amount.toLocaleString()}
-              {lead.lead_status === 'Quoted' && (
-                <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#FEF3C7', color: '#B45309' }}>SENT</span>
-              )}
-              {lead.lead_status === 'Scheduled' && (
-                <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#DCFCE7', color: '#166534' }}>APPROVED</span>
-              )}
-              {lead.lead_status === 'Completed' && (
-                <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#F0FDFA', color: '#0F766E' }}>INVOICED</span>
-              )}
             </p>
-          ) : (
-            <p className="text-[12px]" style={{ color: t.textSubtle }}>{timeAgo(lead.created_at)}</p>
-          )}
+          ) : !lead.property_address ? (
+            <p className="text-[11px]" style={{ color: t.textSubtle }}>{timeAgo(lead.created_at)}</p>
+          ) : null}
         </div>
         <span className="text-[12px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
           style={{ background: ageBg, color: ageColor }}>

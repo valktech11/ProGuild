@@ -786,20 +786,20 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                             {initials(lead.contact_name)}
                           </div>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 20, fontWeight: 800, color: tp, letterSpacing: '-0.03em', lineHeight: 1.2 }}>
-                              {capName(lead.contact_name)}
+                            {/* Address = primary job identity; name = contact */}
+                            <div style={{ fontSize: 19, fontWeight: 800, color: tp, letterSpacing: '-0.03em', lineHeight: 1.2 }}>
+                              {lead.property_address
+                                ? lead.property_address.replace(/, USA$/, '')
+                                : capName(lead.contact_name)}
                             </div>
-                            {(lead as any).property_address ? (
-                              <div style={{ fontSize: 13, color: '#0F766E', fontWeight: 600, marginTop: 3,
-                                display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                                {(lead as any).property_address}
-                              </div>
-                            ) : (
-                              <div style={{ fontSize: 12, color: ts, marginTop: 2 }}>
-                                {[lead.contact_phone, lead.lead_source?.replace(/_/g,' ')].filter(Boolean).join(' · ')}
-                              </div>
-                            )}
+                            <div style={{ fontSize: 12, color: ts, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={ts} strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                              {capName(lead.contact_name)}
+                              {lead.property_address && (
+                                <><span style={{ opacity: 0.4 }}>·</span>
+                                <span>{[lead.contact_phone, lead.lead_source?.replace(/_/g,' ')].filter(Boolean)[0] ?? ''}</span></>
+                              )}
+                            </div>
                           </div>
                         </div>
                         {/* Value badge */}
@@ -876,24 +876,31 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                           )
                         })}
                       </div>
-                      {/* Stage labels under dots */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {curPos > 0 && (
-                            <span style={{ fontSize: 11, color: ts, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={ts} strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                              {activeStgs[curPos - 1]?.label}
-                            </span>
-                          )}
-                        </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: stageObj?.color ?? '#0F766E' }}>
-                          {stageObj?.label}
-                        </span>
-                        {nextStage && (
-                          <span style={{ fontSize: 11, color: ts }}>
-                            Next: {nextStage.label}
-                          </span>
-                        )}
+                      {/* Stage labels below ALL dots */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, marginTop: 6 }}>
+                        {activeStgs.map((stg, i) => {
+                          const done   = i < curPos
+                          const active = i === curPos
+                          const isLast = i === activeStgs.length - 1
+                          return (
+                            <div key={stg.key} style={{
+                              flex: isLast ? 0 : 1, display: 'flex',
+                              flexDirection: 'column', alignItems: 'center',
+                              minWidth: 0,
+                            }}>
+                              <span style={{
+                                fontSize: 9, fontWeight: active ? 700 : 500,
+                                color: active ? stg.color : done ? (dk ? '#4B5563' : '#9CA3AF') : (dk ? '#374151' : '#CBD5E1'),
+                                whiteSpace: 'nowrap', overflow: 'hidden',
+                                textOverflow: 'ellipsis', maxWidth: '100%',
+                                textAlign: 'center', lineHeight: 1.3,
+                                textTransform: active ? 'none' : 'none',
+                              }}>
+                                {done ? '✓' : active ? stg.label : ''}
+                              </span>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
 
@@ -941,10 +948,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
                             function SectionHead({ text, color }: { text: string; color: string }) {
                               return (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0 3px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 5px' }}>
                                   <div style={{ width: 3, height: 14, borderRadius: 2, background: color, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: dk ? '#94A3B8' : '#374151',
-                                    textTransform: 'uppercase', letterSpacing: '0.06em' }}>{text}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: dk ? '#CBD5E1' : '#1F2937',
+                                    textTransform: 'uppercase', letterSpacing: '0.07em' }}>{text}</span>
                                 </div>
                               )
                             }
@@ -1064,7 +1071,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                               </svg>
-                              Move this job
+                              {nextStage ? `Move to ${nextStage.label}` : 'Move this job'}
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
                                 <polyline points="6 9 12 15 18 9"/>
                               </svg>
@@ -1275,49 +1282,155 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   </div>
                 </div>{/* end left column */}
 
-                {/* ── RIGHT COLUMN — Activity (desktop only) ─── */}
+                {/* ── RIGHT COLUMN — Activity + always-visible Stage Selector ── */}
                 <div className="hidden md:block">
-                  <div style={{
-                    background: card, border: `1px solid ${border}`, borderRadius: 12,
-                    position: 'sticky', top: 16, maxHeight: 'calc(100vh - 120px)',
-                    overflow: 'hidden', display: 'flex', flexDirection: 'column',
-                    boxShadow: dk ? 'none' : '0 2px 12px rgba(0,0,0,0.06)',
-                  }}>
-                    <div style={{ padding: '14px 16px 12px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: tp }}>Activity</div>
-                    </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
-                      {activity.length === 0 ? (
-                        <div style={{ fontSize: 13, color: ts, textAlign: 'center', padding: '24px 0' }}>
-                          No activity yet
-                        </div>
-                      ) : activity.map((item, i) => {
-                        const iconColor = item.type === 'note' ? '#854F0B' : item.type === 'quote' ? '#6366F1' : '#0F766E'
-                        const iconBg    = item.type === 'note' ? '#FAEEDA' : item.type === 'quote' ? '#EEF2FF'  : '#E1F5EE'
-                        return (
-                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10,
-                            paddingBottom: 12, marginBottom: 12,
-                            borderBottom: i < activity.length - 1 ? `1px solid ${border}` : 'none' }}>
-                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: iconBg,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <Ic color={iconColor} size={12}>
-                                {item.type === 'note'      && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
-                                {item.type === 'quote'     && <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
-                                {item.type === 'created'   && <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
-                                {item.type === 'scheduled' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-                              </Ic>
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: tp }}>{item.title}</div>
-                              <div style={{ fontSize: 12, color: ts, marginTop: 1, lineHeight: 1.4 }}>{item.sub}</div>
-                              <div style={{ fontSize: 11, color: ts, opacity: 0.6, marginTop: 3 }}>
-                                {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  <div style={{ position: 'sticky', top: 16, maxHeight: 'calc(100vh - 120px)',
+                    display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                    {/* Activity panel */}
+                    <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 12,
+                      overflow: 'hidden', boxShadow: dk ? 'none' : '0 2px 8px rgba(0,0,0,0.05)',
+                      flex: '0 0 auto' }}>
+                      <div style={{ padding: '12px 16px 10px', borderBottom: `1px solid ${border}` }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: tp, textTransform: 'uppercase',
+                          letterSpacing: '0.06em' }}>Activity</div>
+                      </div>
+                      <div style={{ maxHeight: 160, overflowY: 'auto', padding: '10px 14px' }}>
+                        {activity.length === 0 ? (
+                          <div style={{ fontSize: 12, color: ts, textAlign: 'center', padding: '16px 0' }}>No activity yet</div>
+                        ) : activity.map((item, i) => {
+                          const iconColor = item.type === 'note' ? '#854F0B' : item.type === 'quote' ? '#6366F1' : '#0F766E'
+                          const iconBg    = item.type === 'note' ? '#FAEEDA' : item.type === 'quote' ? '#EEF2FF'  : '#E1F5EE'
+                          return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8,
+                              paddingBottom: 10, marginBottom: 10,
+                              borderBottom: i < activity.length - 1 ? `1px solid ${border}` : 'none' }}>
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: iconBg,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <Ic color={iconColor} size={11}>
+                                  {item.type === 'note'      && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+                                  {item.type === 'quote'     && <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                                  {item.type === 'created'   && <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                                  {item.type === 'scheduled' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                                </Ic>
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: tp }}>{item.title}</div>
+                                <div style={{ fontSize: 11, color: ts, marginTop: 1, lineHeight: 1.4 }}>{item.sub}</div>
+                                <div style={{ fontSize: 10, color: ts, opacity: 0.5, marginTop: 2 }}>
+                                  {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
+
+                    {/* Always-visible stage selector */}
+                    {currentStage !== 'job_won' && currentStage !== 'unqualified' && (
+                      <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 12,
+                        overflow: 'hidden', boxShadow: dk ? 'none' : '0 2px 8px rgba(0,0,0,0.05)',
+                        flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+                        <div style={{ padding: '12px 16px 10px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: tp, textTransform: 'uppercase',
+                            letterSpacing: '0.06em' }}>Move this job</div>
+                          <div style={{ fontSize: 11, color: ts, marginTop: 2 }}>
+                            <span style={{ fontWeight: 600, color: stageObj?.color }}>{stageObj?.label}</span>
+                          </div>
+                        </div>
+                        <div style={{ padding: '8px 12px 12px', overflowY: 'auto', flex: 1 }}>
+                          {(() => {
+                            const validKeys = isRoofingTrade
+                              ? (ROOFING_VALID_TRANSITIONS[currentStage as keyof typeof ROOFING_VALID_TRANSITIONS] ?? [])
+                              : stages.filter(s => s.key !== currentStage).map(s => s.key)
+                            const validStages = validKeys.map(k => stages.find(s => s.key === k)).filter(Boolean) as typeof stages
+                            const allOther = stages.filter(s => s.key !== currentStage && !validKeys.includes(s.key as any) && !s.terminal)
+                            const curPos2  = stages.findIndex(s => s.key === currentStage)
+                            const forward  = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) > curPos2)
+                            const terminal = validStages.filter(s => s.terminal)
+                            const backward = validStages.filter(s => !s.terminal && stages.findIndex(s2 => s2.key === s.key) < curPos2)
+                            const nextKey  = forward[0]?.key
+
+                            function SLabel({ text, accent }: { text: string; accent: string }) {
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 2px 4px' }}>
+                                  <div style={{ width: 3, height: 12, borderRadius: 2, background: accent }} />
+                                  <span style={{ fontSize: 10, fontWeight: 800, color: dk ? '#CBD5E1' : '#1F2937',
+                                    textTransform: 'uppercase', letterSpacing: '0.07em' }}>{text}</span>
+                                </div>
+                              )
+                            }
+
+                            function SRow({ stg, isNext, dir }: { stg: typeof stages[0]; isNext?: boolean; dir: 'fwd'|'back'|'terminal' }) {
+                              const isT = dir === 'terminal', isB = dir === 'back'
+                              const dotC = isT ? '#EF4444' : isB ? '#94A3B8' : stg.color
+                              return (
+                                <button onClick={() => {
+                                  if (isB || isT) setConfirmBack(stg.key as LeadStatus)
+                                  else handleStageClick(stg.key as LeadStatus)
+                                }} style={{
+                                  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                                  padding: '9px 12px', borderRadius: 8, marginBottom: 4,
+                                  border: `1px solid ${isNext ? stg.color + '45' : (dk ? '#1E293B' : '#EEF0F3')}`,
+                                  borderLeft: `3px solid ${dotC}`,
+                                  background: isNext ? (dk ? `${stg.color}12` : stg.bg) : isT ? (dk ? 'rgba(239,68,68,0.06)' : '#FFF5F5') : (dk ? '#0F172A' : 'white'),
+                                  cursor: 'pointer', textAlign: 'left' as const,
+                                  boxShadow: isNext ? `0 2px 8px ${stg.color}18` : 'none',
+                                  transition: 'all 0.12s',
+                                }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                                    background: dotC, boxShadow: isNext ? `0 0 0 3px ${dotC}20` : 'none' }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                      <span style={{ fontSize: 12, fontWeight: isNext ? 700 : 600,
+                                        color: isT ? '#EF4444' : isB ? ts : stg.color, letterSpacing: '-0.01em' }}>
+                                        {stg.label}
+                                      </span>
+                                      {isNext && (
+                                        <span style={{ fontSize: 9, fontWeight: 700, color: stg.color,
+                                          background: dk ? `${stg.color}20` : stg.bg,
+                                          padding: '1px 5px', borderRadius: 20 }}>Recommended</span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: 10, color: ts, marginTop: 1 }}>{stg.subLabel}</div>
+                                  </div>
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                                    stroke={dotC} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.5 }}>
+                                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                                  </svg>
+                                </button>
+                              )
+                            }
+
+                            return (
+                              <>
+                                {forward.length > 0 && (<><SLabel text="Move forward" accent="#0F766E" />{forward.map(s => <SRow key={s.key} stg={s} isNext={s.key===nextKey} dir="fwd" />)}</>)}
+                                {terminal.length > 0 && (<><SLabel text="Close job" accent="#EF4444" />{terminal.map(s => <SRow key={s.key} stg={s} dir="terminal" />)}</>)}
+                                {backward.length > 0 && (<><SLabel text="Move back" accent="#94A3B8" />{backward.map(s => <SRow key={s.key} stg={s} dir="back" />)}</>)}
+                                {allOther.length > 0 && (
+                                  <details>
+                                    <summary style={{ fontSize: 10, fontWeight: 700, color: dk ? '#94A3B8' : '#6B7280',
+                                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                                      padding: '8px 2px 4px', cursor: 'pointer', listStyle: 'none',
+                                      display: 'flex', alignItems: 'center', gap: 5 }}>
+                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                      All stages
+                                    </summary>
+                                    <div style={{ marginTop: 4 }}>
+                                      {allOther.map(s => {
+                                        const tgt = stages.findIndex(s2 => s2.key === s.key)
+                                        return <SRow key={s.key} stg={s} dir={tgt > curPos2 ? 'fwd' : 'back'} />
+                                      })}
+                                    </div>
+                                  </details>
+                                )}
+                              </>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>{/* end right column */}
 
