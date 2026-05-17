@@ -6,6 +6,9 @@ import { avatarColor, initials, timeAgo, capName, US_STATES } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getPipelineStages } from '@/components/ui/LeadPipeline'
+import InsuranceClaimFields from '@/components/roofing/InsuranceClaimFields'
+import JobPhotoLog from '@/components/roofing/JobPhotoLog'
+import WarrantyRecord from '@/components/roofing/WarrantyRecord'
 
 const STAGES: LeadStatus[] = ['New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid']
 const STAGE_ORDER: Record<string, number> = { New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5 }
@@ -143,6 +146,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const [toastSeq, setToastSeq] = useState(0)
   const stageBarRef = useRef<HTMLDivElement>(null)
   const activePillRef = useRef<HTMLButtonElement>(null)
+
+  // Tab + trade state
+  type DetailTab = 'details' | 'photos' | 'estimate' | 'activity'
+  const [activeTab,     setActiveTab]     = useState<DetailTab>('details')
+  const [showWarranty,  setShowWarranty]  = useState(false)
+  const isRoofingTrade = ['roofing-contractor','roofing','roofer'].includes(session?.trade_slug ?? '')
 
   useEffect(() => {
     if (typeof window !== 'undefined') setDk(localStorage.getItem('pg_darkmode') === '1')
@@ -678,93 +687,139 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
         {!loading && !notFound && lead && (() => {
           const nbaData = getNBA(lead, currentStage)
+          const stages  = getPipelineStages(session?.trade_slug)
+          const stageObj = stages.find(s => s.key === currentStage)
+
+          // Tab config — Photos only for roofing initially, expand later
+          const tabs: { key: DetailTab; label: string }[] = [
+            { key: 'details',  label: 'Job Details' },
+            ...(isRoofingTrade ? [{ key: 'photos' as DetailTab, label: 'Photos' }] : []),
+            { key: 'estimate', label: 'Estimate' },
+            { key: 'activity', label: 'Activity' },
+          ]
+
           return (
             <>
-              {/* Top nav */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                <button onClick={() => router.push(backNav().href)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 'auto' }}>
+              {/* Warranty modal — roofing job_won */}
+              {showWarranty && isRoofingTrade && (
+                <WarrantyRecord
+                  leadId={lead.id}
+                  proId={session!.id}
+                  propertyId={null}
+                  darkMode={dk}
+                  onSaved={() => { setShowWarranty(false); addToast('Warranty recorded') }}
+                  onDismiss={() => setShowWarranty(false)}
+                />
+              )}
+
+              {/* ── Top nav bar ─────────────────────────────────────── */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                <button onClick={() => router.push(backNav().href)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: ts, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 'auto' }}>
                   <Ic color={ts}><polyline points="15 18 9 12 15 6"/></Ic>
                   {backNav().label}
                 </button>
-                {lead.contact_phone ? (
+                {lead.contact_phone && (
                   <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, fontSize: 15, textDecoration: 'none', fontWeight: 500 }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, fontSize: 14, textDecoration: 'none', fontWeight: 500 }}>
                     <Ic color={tp}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
                     Call
                   </a>
-                ) : null}
+                )}
+                <button onClick={openDrawer}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${border}`, background: 'none', color: ts, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit
+                </button>
               </div>
 
-              {/* Hero — clean mobile-first layout */}
-              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '16px 20px', marginBottom: 10 }}>
-                {/* Row 1: avatar + name + edit button */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: avBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 600, color: avFg, flexShrink: 0 }}>
-                    {initials(lead.contact_name)}
+              {/* ── Hero card — identity + stage ────────────────────── */}
+              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, marginBottom: 10, overflow: 'hidden' }}>
+
+                {/* Stage colour bar at top */}
+                <div style={{ height: 3, background: stageObj?.color ?? '#0F766E' }} />
+
+                <div style={{ padding: '14px 18px' }}>
+                  {/* Name + stage chip */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: '50%', background: avBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: avFg, flexShrink: 0 }}>
+                        {initials(lead.contact_name)}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: tp, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>
+                          {capName(lead.contact_name)}
+                        </div>
+                        {(lead as any).property_address && (
+                          <div style={{ fontSize: 13, color: ts, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Ic color={ts} size={12}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></Ic>
+                            {(lead as any).property_address}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: stageObj?.bg ?? '#F0FDFA', color: stageObj?.color ?? '#0F766E', whiteSpace: 'nowrap' }}>
+                        {stageObj?.label ?? currentStage}
+                      </span>
+                      {lead.quoted_amount != null && (
+                        <span style={{ fontSize: 14, fontWeight: 800, color: '#0F766E' }}>
+                          ${Number(lead.quoted_amount).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: T.fontHeading, fontWeight: 800, color: tp, wordBreak: 'break-word' }}>{capName(lead.contact_name)}</span>
-                      {overdueFU && <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 600 }}>Overdue</span>}
-                    </div>
-                    {/* Row 2: stage + amount + source + time */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 13, padding: '3px 10px', borderRadius: 20, background: '#EEEDFE', color: '#3C3489', fontWeight: 600 }}>{currentStage}</span>
-                      {lead.quoted_amount != null && <span style={{ color: '#0F766E', fontWeight: 700, fontSize: 15 }}>${Number(lead.quoted_amount).toLocaleString()}</span>}
-                      {lead.lead_source && <span style={{ background: t.cardBgAlt, padding: '2px 8px', borderRadius: T.radXs, fontSize: 12, fontWeight: 500, color: ts }}>{lead.lead_source.replace(/_/g,' ')}</span>}
-                      <span style={{ fontSize: 13, color: ts, opacity: 0.7 }}>{timeAgo(lead.created_at)}</span>
-                    </div>
+
+                  {/* Meta strip */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: ts, flexWrap: 'wrap' }}>
+                    <span>{timeAgo(lead.created_at)}</span>
+                    {lead.lead_source && <><span style={{ opacity: 0.4 }}>·</span><span>{lead.lead_source.replace(/_/g,' ')}</span></>}
+                    {nbaData.urgent && <><span style={{ opacity: 0.4 }}>·</span><span style={{ color: '#DC2626', fontWeight: 600 }}>Needs attention</span></>}
                   </div>
-                  {/* Edit button */}
-                  <button onClick={openDrawer} style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 8, border: `1.5px solid ${border}`, background: 'none', color: ts, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Edit
-                  </button>
                 </div>
-                {/* Last activity — desktop only, compact */}
-                <div className="hidden md:flex" style={{ gap: 16, fontSize: 13, color: ts, paddingTop: 10, borderTop: `1px solid ${border}` }}>
-                  <span>Last updated: <strong style={{ color: tp }}>{new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong></span>
-                  <span style={{ color: nbaData.urgent ? '#C2410C' : '#0F766E', fontWeight: 600 }}>{nbaData.urgent ? '🔥 Needs attention' : '✓ On track'}</span>
+
+                {/* Stage strip — horizontal scrollable pills */}
+                <div style={{ borderTop: `1px solid ${border}` }}>
+                  <div ref={stageBarRef} style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none', padding: '10px 16px', gap: 3 }}>
+                    {stages.filter(s => !s.terminal).map((stg, i, arr) => {
+                      const stgStages = arr.map(s => s.key)
+                      const curPos  = stgStages.indexOf(currentStage)
+                      const thisPos = i
+                      const done   = thisPos < curPos
+                      const active = stg.key === currentStage
+                      return (
+                        <div key={stg.key} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                          <button
+                            onClick={() => handleStageClick(stg.key as LeadStatus)}
+                            disabled={stageSaving}
+                            ref={active ? activePillRef : undefined}
+                            style={{
+                              padding: '5px 12px', borderRadius: 20, fontSize: 13, fontWeight: active ? 700 : 500,
+                              whiteSpace: 'nowrap', cursor: stageSaving ? 'wait' : 'pointer',
+                              background: active ? stg.color : done ? stg.bg : 'transparent',
+                              border: `1.5px solid ${active ? stg.color : done ? stg.color + '40' : border}`,
+                              color: active ? 'white' : done ? stg.color : ts,
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {done && <Ic color={stg.color} size={10}><polyline points="20 6 9 17 4 12"/></Ic>}
+                            {stg.label}
+                          </button>
+                          {i < arr.length - 1 && (
+                            <Ic color={border} size={10}><polyline points="9 18 15 12 9 6"/></Ic>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
 
-              {/* Stage pills */}
-              <div style={{ position: 'relative', marginBottom: 10 }}>
-                <div ref={stageBarRef} style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, scrollbarWidth: 'none' }}>
-                {getPipelineStages(session?.trade_slug).map((stageObj, i) => {
-                  const stage = stageObj.key as LeadStatus
-                  const done = i < curIdx; const active = i === curIdx
-                  return (
-                    <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                      <button
-                        onClick={() => handleStageClick(stage)}
-                        disabled={stageSaving}
-                        ref={active ? activePillRef : undefined}
-                        style={{
-                          padding: '6px 14px', borderRadius: 20, fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap',
-                          background: done ? '#DCFCE7' : 'transparent',
-                          border: `1.5px solid ${done ? '#22C55E' : active ? '#7C3AED' : (t.inputBorder)}`,
-                          color: done ? '#166534' : active ? '#7C3AED' : ts,
-                          cursor: stageSaving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-                        }}
-                      >
-                        {done   && <Ic color="#166534" size={12}><polyline points="20 6 9 17 4 12"/></Ic>}
-                        {active && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7C3AED', display: 'inline-block' }} />}
-                        {stageObj.label}
-                      </button>
-                      {i < getPipelineStages(session?.trade_slug).length - 1 && <Ic color={ts} size={12}><polyline points="9 18 15 12 9 6"/></Ic>}
-                    </div>
-                  )
-                })}
-                </div>
-                {/* Fade gradient — hints more content to the right */}
-                <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 48, borderRadius: '0 14px 14px 0', background: `linear-gradient(90deg, transparent, ${card})`, pointerEvents: 'none' }} />
-              </div>
-
-              {/* Next Action card */}
-              <div style={{ background: t.infoBg, border: `1px solid ${t.infoBorder}`, borderRadius: 14, padding: '16px 20px', marginBottom: 10, display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: dk ? '#2D2D5E' : '#DDD9FC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Ic color="#7C3AED" size={22}>
+              {/* ── Next Action ─────────────────────────────────────── */}
+              <div style={{ background: t.infoBg, border: `1px solid ${t.infoBorder}`, borderRadius: 12, padding: '12px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: dk ? '#2D2D5E' : '#DDD9FC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Ic color="#7C3AED" size={18}>
                     {nbaData.icon === 'bell'  && <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>}
                     {nbaData.icon === 'alert' && <><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>}
                     {nbaData.icon === 'doc'   && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
@@ -772,191 +827,207 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                     {nbaData.icon === 'star'  && <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>}
                   </Ic>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Next action</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: t.accentPurpleText, marginBottom: 4 }}>{nbaData.label}</div>
-                  <div style={{ fontSize: 14, color: t.accentPurpleText }}>{nbaData.sub}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Next action</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: t.accentPurpleText, marginTop: 2 }}>{nbaData.label}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: '100%' }}>
-                  {(currentStage === 'Contacted' || currentStage === 'Quoted') ? (
-                    leadEstimate ? (
-                      <button onClick={() => router.push(`/dashboard/estimates/${leadEstimate.id}?from=pipeline&lead_id=${id}`)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
-                        View Estimate #{leadEstimate.estimate_number}
-                      </button>
-                    ) : (
-                      <button onClick={createEstimate} disabled={creatingEst}
-                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: creatingEst ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: creatingEst ? 0.7 : 1 }}>
-                        <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
-                        {creatingEst ? 'Creating...' : 'Create Estimate'}
-                      </button>
-                    )
-                  ) : currentStage === 'Completed' ? (
-                    leadInvoice ? (
-                      <button onClick={() => router.push(`/dashboard/invoices/${leadInvoice.id}?from=pipeline&lead_id=${id}`)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
-                        View Invoice #{leadInvoice.invoice_number}
-                      </button>
-                    ) : (
-                      <>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: t.textBody, cursor: 'pointer', marginBottom: 8 }}>
-                          <input type="checkbox" checked={depositCollected} onChange={e => setDepositCollected(e.target.checked)}
-                            style={{ width: 16, height: 16, accentColor: '#0F766E', cursor: 'pointer' }} />
-                          Deposit already collected
-                        </label>
-                        <button onClick={createInvoice} disabled={creatingInv}
-                          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: creatingInv ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: creatingInv ? 0.7 : 1 }}>
-                          <Ic color="white" size={14}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></Ic>
-                          {creatingInv ? 'Creating...' : '📄 Generate Invoice'}
-                        </button>
-                      </>
-                    )
-                  ) : (
-                    <button style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: '#0F766E', color: 'white', border: 'none', borderRadius: T.radSm, fontSize: 15, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      <Ic color="white" size={14}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Ic>
-                      Call Now
+                {/* CTA button — context-aware */}
+                {(currentStage === 'Contacted' || currentStage === 'Quoted' || currentStage === 'proposal_sent') ? (
+                  leadEstimate ? (
+                    <button onClick={() => router.push(`/dashboard/estimates/${leadEstimate.id}?from=pipeline&lead_id=${id}`)}
+                      style={{ flexShrink: 0, padding: '8px 14px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                      View Est.
                     </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Contact info strip */}
-              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, marginBottom: 10 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                {[
-                  { icon: 'phone', label: 'Phone', value: fmtPhone(lead.contact_phone), copy: lead.contact_phone },
-                  { icon: 'email', label: 'Email', value: lead.contact_email || '—', copy: lead.contact_email },
-                  { icon: 'pin', label: 'Location', value: locationStr || '—', copy: null },
-                  { icon: 'source', label: 'Source', value: (lead.lead_source || '—').replace(/_/g,' '), copy: null },
-                  { icon: 'calendar', label: 'Scheduled Date', value: fmt(lead.scheduled_date), copy: null },
-                  {
-                    icon: 'followup', label: 'Follow-up Date',
-                    value: lead.follow_up_date
-                      ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {fmt(lead.follow_up_date)}
-                          {tomorrowFU && <span style={{ fontSize: 12, padding: '1px 7px', borderRadius: 20, background: '#FEF3C7', color: '#92400E', fontWeight: 500 }}>Tomorrow</span>}
-                          {overdueFU && !tomorrowFU && <span style={{ fontSize: 12, padding: '1px 7px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 500 }}>Overdue</span>}
-                        </span>
-                      : '—',
-                    copy: null
-                  },
-                ].map((cell, ci, arr) => (
-                  <div key={cell.label} style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 5, borderRight: `1px solid ${border}`, borderBottom: `1px solid ${border}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#F0FDFA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Ic color="#0F766E" size={14}>
-                          {cell.icon === 'phone'    && <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>}
-                          {cell.icon === 'email'    && <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>}
-                          {cell.icon === 'pin'      && <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>}
-                          {cell.icon === 'source'   && <><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.87"/></>}
-                          {cell.icon === 'calendar' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-                          {cell.icon === 'followup' && <><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></>}
-                        </Ic>
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: ts }}>{cell.label}</span>
-                    </div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: tp, display: 'flex', alignItems: 'center', gap: 4, wordBreak: 'break-word' }}>
-                      {cell.value}
-                      {cell.copy && typeof cell.copy === 'string' && <CopyBtn text={cell.copy} color={ts} />}
-                    </div>
-                  </div>
-                ))}
-                </div>
-                {/* Edit pencil */}
-                <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', borderTop: `1px solid ${border}` }}>
-                  <button onClick={openDrawer} title="Edit lead info" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    <Ic color="#0F766E" size={14}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Ic>
-                    Edit Lead
+                  ) : (
+                    <button onClick={createEstimate} disabled={creatingEst}
+                      style={{ flexShrink: 0, padding: '8px 14px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: creatingEst ? 0.7 : 1 }}>
+                      {creatingEst ? '...' : 'Estimate'}
+                    </button>
+                  )
+                ) : (currentStage === 'Completed' || currentStage === 'in_progress') ? (
+                  <button onClick={createInvoice} disabled={creatingInv}
+                    style={{ flexShrink: 0, padding: '8px 14px', background: '#0F766E', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: creatingInv ? 0.7 : 1 }}>
+                    {creatingInv ? '...' : 'Invoice'}
                   </button>
-                </div>
+                ) : lead.contact_phone ? (
+                  <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
+                    style={{ flexShrink: 0, padding: '8px 14px', background: '#0F766E', color: 'white', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+                    Call
+                  </a>
+                ) : null}
               </div>
 
-              {/* Conversation */}
-              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '20px 24px' }}>
-                <div style={{ marginBottom: 16 }}>
-                  <span style={{ fontSize: 17, fontWeight: 500, color: tp }}>Conversation</span>
+              {/* ── Tab strip ───────────────────────────────────────── */}
+              <div style={{ background: card, border: `1px solid ${border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{ display: 'flex', borderBottom: `1px solid ${border}` }}>
+                  {tabs.map(tab => (
+                    <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                      style={{
+                        flex: 1, padding: '11px 8px', fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500,
+                        color: activeTab === tab.key ? '#0F766E' : ts,
+                        background: activeTab === tab.key ? '#F0FDFA' : 'transparent',
+                        border: 'none', borderBottom: activeTab === tab.key ? '2px solid #0F766E' : '2px solid transparent',
+                        cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                      }}>
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Activity feed */}
-                {activity.length === 0
-                  ? <div style={{ textAlign: 'center', padding: '32px 0', color: ts, fontSize: 15 }}>No activity yet.</div>
-                  : activity.map((item, i) => {
-                    const iconColor = item.type === 'note' ? '#854F0B' : item.type === 'quote' ? '#3C3489' : item.type === 'scheduled' ? '#0F766E' : '#0F766E'
-                    const iconBg = item.type === 'note' ? '#FAEEDA' : item.type === 'quote' ? '#EEEDFE' : '#E1F5EE'
-                    return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 0', borderBottom: i < activity.length - 1 ? `1px solid ${border}` : 'none', background: i % 2 === 1 ? (t.tableRowOdd) : 'transparent', paddingLeft: 4, paddingRight: 4 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Ic color={iconColor} size={16}>
-                            {item.type === 'note'      && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>}
-                            {item.type === 'quote'     && <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
-                            {item.type === 'created'   && <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
-                            {item.type === 'scheduled' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-                          </Ic>
+                {/* ── Tab: Job Details ── */}
+                {activeTab === 'details' && (
+                  <div style={{ padding: '16px 18px' }}>
+                    {/* Contact grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, marginBottom: 14, background: border, borderRadius: 8, overflow: 'hidden', border: `1px solid ${border}` }}>
+                      {[
+                        { icon: 'phone', label: 'Phone', value: fmtPhone(lead.contact_phone), copy: lead.contact_phone },
+                        { icon: 'email', label: 'Email', value: lead.contact_email || '—', copy: lead.contact_email },
+                        { icon: 'pin', label: 'Location', value: locationStr || ((lead as any).property_address ?? '—'), copy: null },
+                        { icon: 'source', label: 'Source', value: (lead.lead_source || '—').replace(/_/g,' '), copy: null },
+                        { icon: 'calendar', label: 'Job Date', value: fmt(lead.scheduled_date), copy: null },
+                        { icon: 'followup', label: 'Follow-up', value: lead.follow_up_date
+                          ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              {fmt(lead.follow_up_date)}
+                              {overdueFU && <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 20, background: '#FCEBEB', color: '#A32D2D', fontWeight: 600 }}>Overdue</span>}
+                            </span>
+                          : '—', copy: null },
+                      ].map(cell => (
+                        <div key={cell.label} style={{ padding: '12px 14px', background: card, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: ts, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{cell.label}</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: tp, display: 'flex', alignItems: 'center', gap: 4, wordBreak: 'break-word' }}>
+                            {cell.value}
+                            {cell.copy && typeof cell.copy === 'string' && <CopyBtn text={cell.copy} color={ts} />}
+                          </div>
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 15, fontWeight: 500, color: tp }}>{item.title}</div>
-                          <div style={{ fontSize: 15, color: ts, marginTop: 3 }}>{item.sub}</div>
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: 14, color: ts }}>{new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                          <div style={{ fontSize: 14, color: ts }}>{new Date(item.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
-                        </div>
-                      </div>
-                    )
-                  })
-                }
+                      ))}
+                    </div>
 
-                {/* Composer — stacks vertically on mobile */}
-                <div style={{ marginTop: 16, borderTop: `1px solid ${border}`, paddingTop: 14 }}>
-                  {/* Text input — full width */}
-                  <div style={{ padding: '10px 14px', background: inputBg, borderRadius: 10, marginBottom: 8 }}>
-                    <input
-                      value={composerText}
-                      onChange={e => setComposerText(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && composerText.trim()) { e.preventDefault(); handleAddNote() } }}
-                      placeholder="Add a note or send a message..."
-                      style={{ width: '100%', fontSize: 15, background: 'transparent', color: tp, border: 'none', outline: 'none', fontFamily: 'inherit' }}
+                    {/* Insurance fields — roofing only */}
+                    {isRoofingTrade && (
+                      <InsuranceClaimFields
+                        leadId={lead.id}
+                        proId={session!.id}
+                        initial={(lead as any).insurance_data ?? {}}
+                        darkMode={dk}
+                        onSaved={(data) => setLead(l => l ? { ...l, insurance_data: data } as any : l)}
+                      />
+                    )}
+
+                    {/* Notes */}
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: ts, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Notes</div>
+                      {lead.notes && (
+                        <div style={{ fontSize: 14, color: tp, lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: 10, padding: '10px 12px', background: t.cardBgAlt, borderRadius: 8, border: `1px solid ${border}` }}>
+                          {lead.notes}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          value={composerText} onChange={e => setComposerText(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && composerText.trim()) { e.preventDefault(); handleAddNote() } }}
+                          placeholder="Add a note..."
+                          style={{ flex: 1, fontSize: 14, padding: '9px 12px', borderRadius: 8, border: `1px solid ${border}`, background: card, color: tp, outline: 'none', fontFamily: 'inherit' }}
+                        />
+                        <button onClick={handleAddNote} disabled={savingNote || !composerText.trim()}
+                          style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: !composerText.trim() ? 0.4 : 1 }}>
+                          {savingNote ? '...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Original message */}
+                    {lead.message && (
+                      <div style={{ marginTop: 14, padding: '12px 14px', background: t.cardBgAlt, borderRadius: 8, border: `1px solid ${border}` }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: ts, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Original message</div>
+                        <div style={{ fontSize: 14, color: tp, lineHeight: 1.6, fontStyle: 'italic' }}>"{lead.message}"</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Tab: Photos (roofing) ── */}
+                {activeTab === 'photos' && isRoofingTrade && (
+                  <div style={{ padding: '16px 18px' }}>
+                    <JobPhotoLog
+                      leadId={lead.id}
+                      proId={session!.id}
+                      isRoofing={isRoofingTrade}
+                      darkMode={dk}
                     />
                   </div>
-                  {/* Action buttons row — equal width, all visible */}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {[
-                      { label: 'Add Note', icon: 'note', color: '#16A34A' },
-                      { label: 'Send SMS', icon: 'sms',  color: '#2563EB' },
-                      { label: 'Log Call', icon: 'call', color: '#7C3AED' },
-                    ].map((btn) => {
-                      const isNote = btn.icon === 'note'
-                      const action = isNote ? handleAddNote : () => addToast(`${btn.label} coming in v76`, 'error')
-                      return (
-                        <button
-                          key={btn.label}
-                          onClick={action}
-                          disabled={isNote && (savingNote || !composerText.trim())}
-                          style={{
-                            flex: isNote ? 2 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            padding: '11px 4px', borderRadius: 10, fontSize: 14, fontWeight: 600,
-                            cursor: isNote && !composerText.trim() ? 'default' : 'pointer',
-                            border: isNote ? '1.5px solid #16A34A' : `1px solid ${border}`,
-                            background: isNote ? '#F0FDF4' : (dk ? '#1E293B' : '#FAFAFA'),
-                            color: isNote ? '#16A34A' : tp,
-                            opacity: isNote && !composerText.trim() ? 0.45 : 1,
-                            transition: 'opacity 0.15s',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill={btn.color} stroke="none">
-                            {btn.icon === 'note' && <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h5v1.5H8V16z"/>}
-                            {btn.icon === 'sms'  && <path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/>}
-                            {btn.icon === 'call' && <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>}
-                          </svg>
-                          {isNote && savingNote ? 'Saving…' : btn.label}
+                )}
+
+                {/* ── Tab: Estimate ── */}
+                {activeTab === 'estimate' && (
+                  <div style={{ padding: '16px 18px' }}>
+                    {leadEstimate ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ padding: '14px 16px', borderRadius: 10, background: '#F0FDFA', border: '1px solid #CCFBF1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#0F766E', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Estimate</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: '#0F766E' }}>${leadEstimate.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                          </div>
+                          <button onClick={() => router.push(`/dashboard/estimates/${leadEstimate.id}?from=pipeline&lead_id=${id}`)}
+                            style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                            Open #{leadEstimate.estimate_number}
+                          </button>
+                        </div>
+                        {leadInvoice && (
+                          <div style={{ padding: '14px 16px', borderRadius: 10, background: '#FFF7ED', border: '1px solid #FED7AA', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#C2410C', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Invoice</div>
+                              <div style={{ fontSize: 18, fontWeight: 700, color: '#C2410C' }}>${leadInvoice.balance_due.toLocaleString('en-US', { minimumFractionDigits: 2 })} due</div>
+                            </div>
+                            <button onClick={() => router.push(`/dashboard/invoices/${leadInvoice.id}?from=pipeline&lead_id=${id}`)}
+                              style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#C2410C', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                              View Invoice
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                        <div style={{ fontSize: 14, color: ts, marginBottom: 16 }}>No estimate created yet</div>
+                        <button onClick={createEstimate} disabled={creatingEst}
+                          style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#0F766E', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: creatingEst ? 0.7 : 1 }}>
+                          {creatingEst ? 'Creating...' : '+ Create Estimate'}
                         </button>
-                      )
-                    })}
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
+
+                {/* ── Tab: Activity ── */}
+                {activeTab === 'activity' && (
+                  <div style={{ padding: '16px 18px' }}>
+                    {activity.length === 0
+                      ? <div style={{ textAlign: 'center', padding: '32px 0', color: ts, fontSize: 14 }}>No activity recorded yet.</div>
+                      : activity.map((item, i) => {
+                        const iconColor = item.type === 'note' ? '#854F0B' : item.type === 'quote' ? '#3C3489' : '#0F766E'
+                        const iconBg    = item.type === 'note' ? '#FAEEDA' : item.type === 'quote' ? '#EEEDFE' : '#E1F5EE'
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0', borderBottom: i < activity.length - 1 ? `1px solid ${border}` : 'none' }}>
+                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <Ic color={iconColor} size={14}>
+                                {item.type === 'note'      && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+                                {item.type === 'quote'     && <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                                {item.type === 'created'   && <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                                {item.type === 'scheduled' && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                              </Ic>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: tp }}>{item.title}</div>
+                              <div style={{ fontSize: 13, color: ts, marginTop: 2 }}>{item.sub}</div>
+                            </div>
+                            <div style={{ fontSize: 12, color: ts, flexShrink: 0, textAlign: 'right' }}>
+                              {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </div>
+                          </div>
+                        )
+                      })
+                    }
+                  </div>
+                )}
               </div>
             </>
           )
