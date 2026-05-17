@@ -229,7 +229,7 @@ export default function PipelinePage() {
         {session && leads.length === 0 && !dataLoading && (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'64px 24px', textAlign:'center' }}>
             <div style={{ width:72, height:72, borderRadius:'50%', background:'linear-gradient(135deg,#0F766E18,#14B8A618)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 32, marginBottom:20 }}>📋</div>
-            <h3 style={{ fontSize: 20, fontWeight:800, color: t.textPri, margin:'0 0 10px' }}>{`Your ${noun.toLowerCase()} is empty`}</h3>
+            <h3 style={{ fontSize: 20, fontWeight:800, color: t.textPri, margin:'0 0 10px' }}>{`No ${noun.toLowerCase()} yet`}</h3>
             <p style={{ fontSize: 15, color: t.textBody, marginBottom:28, maxWidth:340, lineHeight:1.6 }}>
               Start tracking your leads — add enquiries from calls, texts, social media, or anywhere you get job requests.
             </p>

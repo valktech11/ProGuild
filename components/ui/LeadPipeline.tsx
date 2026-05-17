@@ -1099,7 +1099,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       </div>
       <div className="md:hidden space-y-2 px-4">
         {leadsForStage(mobileStage).length === 0
-          ? <p className="text-center py-8 text-sm text-gray-500">No leads in {mobileStage}</p>
+          ? <p className="text-center py-8 text-sm text-gray-500">No leads in {stages.find(s => s.key === mobileStage)?.label ?? mobileStage}</p>
           : leadsForStage(mobileStage).map(lead => {
               const stage = stages.find(s => s.key === lead.lead_status) || stages[0]
               return <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
@@ -1114,9 +1114,9 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         </div>
       )}
 
-      {/* ── Desktop: all 6 columns, horizontal scroll ── */}
+      {/* ── Desktop: all stages, horizontal scroll — column count driven by trade config ── */}
       <div className={`${listView ? 'hidden' : 'hidden md:block'} overflow-x-auto pb-4`} style={{ scrollbarWidth: 'thin' }}>
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(6, minmax(220px, 1fr))', minWidth: 1320 }}>
+        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 1fr))`, minWidth: stages.length * 212 }}>
           {stages.map(stage => (
             <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
           ))}
