@@ -124,7 +124,7 @@ export default function PipelinePage() {
   const activeLeads   = leads.filter(l => !['Lost','Archived','Unqualified','unqualified'].includes(l.lead_status))
   const pipelineValue = activeLeads.filter(l => l.quoted_amount).reduce((s, l) => s + (l.quoted_amount || 0), 0)
   const overdueCount  = overdue.length
-  const wonThisMonth  = leads.filter(l => ['Paid','job_won'].includes(l.lead_status) && new Date(l.updated_at || l.created_at) > new Date(Date.now() - 30 * 86400000)).length
+  const wonThisMonth  = leads.filter(l => ['Paid','job_won'].includes(l.lead_status) && new Date(l.created_at) > new Date(Date.now() - 30 * 86400000)).length
 
   return (
     <DashboardShell session={session} newLeads={newLeads.length} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
