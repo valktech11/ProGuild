@@ -597,60 +597,61 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   position:'fixed',
                                   top:(typeof window!=='undefined'?(window as any).__pgPickerY:200),
                                   left:(typeof window!=='undefined'?(window as any).__pgPickerX:0),
-                                  zIndex:200,background:card,
+                                  zIndex:200,
+                                  background:card,
                                   border:`1px solid ${bdr}`,
                                   borderRadius:T.radMd,
-                                  boxShadow:'0 8px 40px rgba(0,0,0,0.16)',
-                                  minWidth:280,maxWidth:340,
-                                  // Never clip — show all stages without scroll
-                                  overflow:'visible',
-                                  display:'flex',flexDirection:'column',
+                                  boxShadow:'0 12px 40px rgba(0,0,0,0.18)',
+                                  minWidth:280,maxWidth:320,
+                                  overflow:'hidden',
                                 }}>
-                                  {/* CURRENT row */}
-                                  <div style={{flexShrink:0,padding:'6px 12px 4px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em',background:dk?'#111827':t.cardBgAlt,borderBottom:`1px solid ${bdr}`}}>Current</div>
-                                  <div style={{flexShrink:0,padding:'8px 12px 10px',background:dk?stgObj?.color+'15':stgObj?.bg??'#F0FDFA',borderBottom:`1px solid ${bdr}`}}>
+                                  {/* ── CURRENT ── */}
+                                  <div style={{padding:'8px 14px 6px',fontSize:10,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',background:t.cardBgAlt}}>Current</div>
+                                  <div style={{padding:'8px 14px 10px',background:stgObj?.bg??'#F0FDFA',borderBottom:`1px solid ${bdr}`}}>
                                     <div style={{display:'flex',alignItems:'center',gap:10}}>
-                                      <StageIcon k={stage} color={stgObj?.color??BRAND.teal} size={28}/>
-                                      <div style={{flex:1}}>
-                                        <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal}}>{stgObj?.label??stage}</div>
+                                      <div style={{width:20,height:20,borderRadius:'50%',background:stgObj?.color??BRAND.teal,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                        <Svg size={11} stroke="#fff" sw={2.5}><polyline points="20 6 9 17 4 12"/></Svg>
+                                      </div>
+                                      <div style={{flex:1,minWidth:0}}>
+                                        <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal,lineHeight:1.2}}>{stgObj?.label??stage}</div>
                                         <div style={{fontSize:11,color:tsu,marginTop:1}}>{stgObj?.subLabel}</div>
                                       </div>
-                                      <Svg size={14} stroke={stgObj?.color??BRAND.teal}><polyline points="20 6 9 17 4 12"/></Svg>
                                     </div>
                                   </div>
 
-                                  {/* CHANGE TO — scrollable only if truly needed */}
-                                  <div style={{flexShrink:0,padding:'6px 12px 4px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em',background:dk?'#111827':t.cardBgAlt,borderBottom:`1px solid ${bdr}`}}>Change To</div>
-                                  <div>
-                                    {pickerGroups.map((grp,gi)=>{
-                                      const gStages=stages.filter(s=>grp.keys.includes(s.key)&&s.key!==stage)
-                                      if(!gStages.length) return null
-                                      return (
-                                        <div key={grp.label}>
-                                          {/* Group header — subtle, indented */}
-                                          <div style={{padding:'8px 14px 3px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em',background:dk?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)'}}>{grp.label}</div>
-                                          {gStages.map((stg,si)=>{
-                                            const dc=stg.terminal?t.accentRed:stg.color
-                                            const isLast = si===gStages.length-1
-                                            return (
-                                              <button key={stg.key}
-                                                onClick={()=>{setShowPicker(false);moveStage(stg.key as LeadStatus)}}
-                                                style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'9px 14px',background:'transparent',border:'none',borderBottom:isLast&&gi<pickerGroups.length-1?`1px solid ${bdr}`:'none',cursor:'pointer',textAlign:'left'}}
-                                                onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background=dk?'#1F2937':'#F8FAFC'}}
-                                                onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background='transparent'}}>
-                                                <StageIcon k={stg.key} color={dc} size={26}/>
-                                                <div style={{flex:1,minWidth:0}}>
-                                                  <div style={{fontSize:13,fontWeight:500,color:tp,lineHeight:1.3}}>{stg.label}</div>
-                                                  <div style={{fontSize:11,color:tsu,marginTop:1}}>{stg.subLabel}</div>
-                                                </div>
-                                              </button>
-                                            )
-                                          })}
-                                        </div>
-                                      )
-                                    })}
-                                    <div style={{height:6}}/>{/* bottom breathing room */}
-                                  </div>
+                                  {/* ── CHANGE TO ── */}
+                                  <div style={{padding:'8px 14px 4px',fontSize:10,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',background:t.cardBgAlt,borderBottom:`1px solid ${bdr}`}}>Change To</div>
+                                  {pickerGroups.map((grp,gi)=>{
+                                    const gStages=stages.filter(s=>grp.keys.includes(s.key)&&s.key!==stage)
+                                    if(!gStages.length) return null
+                                    return (
+                                      <div key={grp.label}>
+                                        {/* Group label */}
+                                        <div style={{padding:'7px 14px 2px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em'}}>{grp.label}</div>
+                                        {gStages.map(stg=>{
+                                          const dc=stg.terminal?t.accentRed:stg.color
+                                          return (
+                                            <button key={stg.key}
+                                              onClick={()=>{setShowPicker(false);moveStage(stg.key as LeadStatus)}}
+                                              style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'7px 14px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left'}}
+                                              onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background=dk?'#1F2937':'#F8FAFC'}}
+                                              onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background='transparent'}}>
+                                              {/* Small icon — no circle background, just the icon */}
+                                              <div style={{width:32,height:32,borderRadius:8,background:dc+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                                <StageIcon k={stg.key} color={dc} size={22}/>
+                                              </div>
+                                              <div style={{flex:1,minWidth:0}}>
+                                                <div style={{fontSize:13,fontWeight:500,color:tp,lineHeight:1.2}}>{stg.label}</div>
+                                                <div style={{fontSize:11,color:tsu,marginTop:1}}>{stg.subLabel}</div>
+                                              </div>
+                                            </button>
+                                          )
+                                        })}
+                                        {gi<pickerGroups.length-1&&<div style={{height:1,background:bdr,margin:'4px 0'}}/>}
+                                      </div>
+                                    )
+                                  })}
+                                  <div style={{height:8}}/>
                                 </div>
                               </>
                             )}
