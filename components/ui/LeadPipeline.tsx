@@ -1101,6 +1101,19 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const [listView, setListView] = useState(false)
   const kanbanRef = useRef<HTMLDivElement>(null)
   const dragState = useRef<{startX:number;scrollLeft:number;isDragging:boolean}>({startX:0,scrollLeft:0,isDragging:false})
+  const [scrollPct, setScrollPct] = useState(0)
+  const [pillVisible, setPillVisible] = useState(false)
+  const pillTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function onKanbanScroll() {
+    const el = kanbanRef.current
+    if (!el) return
+    const max = el.scrollWidth - el.clientWidth
+    setScrollPct(max > 0 ? el.scrollLeft / max : 0)
+    setPillVisible(true)
+    if (pillTimer.current) clearTimeout(pillTimer.current)
+    pillTimer.current = setTimeout(() => setPillVisible(false), 1800)
+  }
 
   const onBoardMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const el = kanbanRef.current
@@ -1270,16 +1283,34 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
 
       {/* ── Desktop: all stages, horizontal scroll — column count driven by trade config ── */}
       <div className={`${listView ? 'hidden' : 'hidden md:block'} relative`}>
-        {/* Right fade — elegant scroll hint, no scrollbar */}
+        {/* Right fade — elegant scroll hint */}
         <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-20 z-10"
           style={{ background: `linear-gradient(90deg, transparent, ${dk ? '#0E1118' : '#F5F4F0'})` }} />
+        {/* Scroll position pill — Roofr-style, fades after 1.8s idle */}
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20"
+          style={{ transform:'translateX(-50%)', transition:'opacity 300ms ease',
+            opacity: pillVisible ? 1 : 0 }}>
+          <div style={{ width:120, height:4, borderRadius:4,
+            background: dk ? '#1E293B' : '#E2E8F0',
+            position:'relative', overflow:'hidden' }}>
+            <div style={{
+              position:'absolute', top:0, height:'100%',
+              width:`${Math.max(16, scrollPct * 100)}%`,
+              left:`${scrollPct * (100 - Math.max(16, scrollPct * 100))}%`,
+              borderRadius:4,
+              background: dk ? '#475569' : '#94A3B8',
+              transition:'left 80ms ease, width 80ms ease',
+            }} />
+          </div>
+        </div>
         <div
           className="pg-kanban-scroll"
           style={{ overflowX:'auto', paddingBottom:16,
             scrollbarWidth:'none', msOverflowStyle:'none',
             cursor: 'grab' }}
           ref={kanbanRef}
-          onMouseDown={onBoardMouseDown}>
+          onMouseDown={onBoardMouseDown}
+          onScroll={onKanbanScroll}>
           <style>{`.pg-kanban-scroll::-webkit-scrollbar{display:none}.pg-kanban-scroll:active{cursor:grabbing}`}</style>
           <div style={{ display:'flex', gap:12, minWidth: stages.length * 292,
             alignItems:'flex-start', paddingBottom:4, paddingRight:40 }}>

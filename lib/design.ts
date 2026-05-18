@@ -75,14 +75,16 @@ const STAGE_BASE: Record<string, { color: string; lightBg: string; lightChip: st
   Paid:      { color: '#059669', lightBg: '#ECFDF5', lightChip: '#D1FAE5', label: 'Job Won'   },
   Lost:      { color: '#6B7280', lightBg: '#F9FAFB', lightChip: '#F3F4F6', label: 'Lost'      },
   // Roofing stage fallbacks (stageStyle used as secondary source)
-  lead_in:              { color: '#64748B', lightBg: '#F8FAFC', lightChip: '#F1F5F9', label: 'Lead In'              },
-  inspection_scheduled: { color: '#475569', lightBg: '#F1F5F9', lightChip: '#E2E8F0', label: 'Inspection Scheduled' },
+  // ── Roofing stages — each a distinct hue, no same-family pairs ──────────
+  // Indigo → Sky → Teal → Violet → Amber → Blue → Navy → Emerald
+  lead_in:              { color: '#4F46E5', lightBg: '#EEF2FF', lightChip: '#E0E7FF', label: 'Lead In'              },
+  inspection_scheduled: { color: '#0284C7', lightBg: '#F0F9FF', lightChip: '#BAE6FD', label: 'Inspection Scheduled' },
   proposal_sent:        { color: '#0F766E', lightBg: '#F0FDFA', lightChip: '#CCFBF1', label: 'Proposal Sent'        },
-  proposal_signed:      { color: '#0D9488', lightBg: '#CCFBF1', lightChip: '#99F6E4', label: 'Proposal Signed'      },
-  insurance_approved:   { color: '#92400E', lightBg: '#FEF3C7', lightChip: '#FDE68A', label: 'Insurance Approved'   },
-  scheduled:            { color: '#155E75', lightBg: '#ECFEFF', lightChip: '#A5F3FC', label: 'Scheduled'            },
-  in_progress:          { color: '#1E40AF', lightBg: '#EFF6FF', lightChip: '#DBEAFE', label: 'In Progress'          },
-  job_won:              { color: '#047857', lightBg: '#D1FAE5', lightChip: '#A7F3D0', label: 'Job Won'              },
+  proposal_signed:      { color: '#7C3AED', lightBg: '#F5F3FF', lightChip: '#EDE9FE', label: 'Proposal Signed'      },
+  insurance_approved:   { color: '#D97706', lightBg: '#FFFBEB', lightChip: '#FEF3C7', label: 'Insurance Approved'   },
+  scheduled:            { color: '#2563EB', lightBg: '#EFF6FF', lightChip: '#DBEAFE', label: 'Scheduled'            },
+  in_progress:          { color: '#0369A1', lightBg: '#F0F9FF', lightChip: '#E0F2FE', label: 'In Progress'          },
+  job_won:              { color: '#059669', lightBg: '#ECFDF5', lightChip: '#D1FAE5', label: 'Job Won'              },
   unqualified:          { color: '#6B7280', lightBg: '#F9FAFB', lightChip: '#F3F4F6', label: 'Unqualified'          },
 }
 
