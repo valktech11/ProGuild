@@ -383,134 +383,167 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   const ageColor= urgency === 'high' ? '#EF4444' : urgency === 'mid' ? '#B45309' : '#6B7280'
   const t       = theme(dk)
 
+  // Derived values used in new card layout
+  const minsOld  = Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 60000)
+  const priority = minsOld < 30 ? 'hot' : minsOld < 360 ? 'warm' : null
+  const isStale  = days >= 7
+  const src      = (lead.lead_source || '').replace(/_/g,' ')
+  const amt      = lead.quoted_amount
+  const schedDate = lead.scheduled_date
+    ? new Date(lead.scheduled_date).toLocaleDateString('en-US',{month:'short',day:'numeric'})
+    : null
+  const isInsuranceStage = ['insurance_approved','proposal_signed','in_progress','job_won'].includes(stage.key)
+
   return (
     <>
     <div
       onClick={onOpen}
-      className="rounded-xl cursor-pointer transition-all active:scale-[0.98]"
+      className="cursor-pointer transition-all active:scale-[0.98]"
       style={{
-        border: `1px solid ${dk ? '#1E293B' : '#EEE8E0'}`,
-        borderLeft: days >= 7 ? '3px solid #F59E0B' : `1px solid ${dk ? '#1E293B' : '#EEE8E0'}`,
-        borderRadius: 10,
-        padding: '10px 12px',
+        border: isStale
+          ? '1.5px solid #FCD34D'
+          : `1px solid ${dk ? '#1E293B' : '#E2E8F0'}`,
+        borderRadius: 14,
+        padding: '14px',
         background: t.cardBg,
-        boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.07)',
+        boxShadow: isStale
+          ? (dk ? 'none' : '0 2px 8px rgba(245,158,11,0.12)')
+          : (dk ? 'none' : '0 1px 4px rgba(0,0,0,0.06)'),
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = dk ? '0 0 0 1px #334155' : '0 4px 14px rgba(0,0,0,0.11)'; (e.currentTarget as HTMLDivElement).style.borderColor = dk ? '#334155' : '#D1C9C0' }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = dk ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'; (e.currentTarget as HTMLDivElement).style.borderColor = dk ? '#1E293B' : '#EEE8E0' }}>
+      onMouseEnter={e => {
+        const el = e.currentTarget as HTMLDivElement
+        el.style.boxShadow = dk ? '0 0 0 1px #334155' : '0 6px 20px rgba(0,0,0,0.10)'
+        el.style.transform = 'translateY(-1px)'
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLDivElement
+        el.style.boxShadow = isStale ? '0 2px 8px rgba(245,158,11,0.12)' : (dk ? 'none' : '0 1px 4px rgba(0,0,0,0.06)')
+        el.style.transform = 'translateY(0)'
+      }}>
 
-      {/* Row 1: avatar + name/address + priority badge + age */}
-      {(() => {
-        const minsOld = Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 60000)
-        const priority = minsOld < 30 ? 'hot' : minsOld < 360 ? 'warm' : null
-        return (
-      <div className="flex items-start gap-2 mb-2">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
-          style={{ background: bg, color: fg }}>
+      {/* ── Top row: avatar + name + age + badge ── */}
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:10 }}>
+        {/* Square avatar — matches mockup rounded-2xl style */}
+        <div style={{
+          width:40, height:40, borderRadius:10, flexShrink:0,
+          background:bg, color:fg,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:13, fontWeight:700, letterSpacing:'-0.01em',
+        }}>
           {initials(lead.contact_name)}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-1 mb-0.5">
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold truncate leading-tight" style={{ color: t.textPri }}>
-                {capName(lead.contact_name)}
-              </p>
-              {(lead.property_address || (lead.contact_city && lead.contact_state)) && (
-                <p className="text-[11px] truncate" style={{ color: t.textSubtle }}>
-                  {lead.property_address
-                    ? lead.property_address.replace(/, USA$/, '')
-                    : `${lead.contact_city}, ${lead.contact_state}`}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
+            <p style={{ fontSize:15, fontWeight:700, color:t.textPri, margin:0,
+              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', letterSpacing:'-0.01em' }}>
+              {capName(lead.contact_name)}
+            </p>
+            <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
               {priority === 'hot' && (
-                <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 5,
-                  background: '#FEF3C7', color: '#92400E', letterSpacing: '0.03em' }}>🔥</span>
+                <span style={{ fontSize:10, fontWeight:800, padding:'2px 7px', borderRadius:20,
+                  background:'#FEF2F2', color:'#DC2626', border:'1px solid #FECACA' }}>HOT</span>
               )}
-              {priority === 'warm' && (
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 5,
-                  background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A', letterSpacing: '0.02em' }}>WARM</span>
+              {priority === 'warm' && !priority.includes('hot') && (
+                <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20,
+                  background:'#FEF3C7', color:'#92400E', border:'1px solid #FDE68A' }}>WARM</span>
               )}
-              <span className="text-[11px] font-semibold" style={{ color: ageColor }}>{ageLabel}</span>
+              <span style={{ fontSize:11, color:ageColor, fontWeight:isStale?700:500 }}>
+                {isStale ? `⚠ ${ageLabel}` : ageLabel}
+              </span>
             </div>
           </div>
-          {/* Context row: source + quoted amount + scheduled date */}
-          {(() => {
-            const src = lead.lead_source?.replace(/_/g,' ')
-            const amt = lead.quoted_amount
-            const sched = lead.scheduled_date
-              ? new Date(lead.scheduled_date).toLocaleDateString('en-US',{month:'short',day:'numeric'})
-              : null
-            const chips = []
-            if (src && src !== 'undefined') chips.push({ label: src, color: '#64748B', bg: '#F1F5F9' })
-            if (amt) chips.push({ label: `${amt.toLocaleString()}`, color: '#047857', bg: '#D1FAE5' })
-            if (sched) chips.push({ label: sched, color: '#155E75', bg: '#ECFEFF' })
-            if (!chips.length) return null
-            return (
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                {chips.map((chip,i) => (
-                  <span key={i} style={{
-                    fontSize: 10, fontWeight: 600,
-                    padding: '1px 6px', borderRadius: 5,
-                    background: chip.bg, color: chip.color,
-                    whiteSpace: 'nowrap',
-                  }}>{chip.label}</span>
-                ))}
-              </div>
-            )
-          })()}
+          {/* Address */}
+          {(lead.property_address || (lead.contact_city && lead.contact_state)) && (
+            <p style={{ fontSize:12, color:t.textSubtle, margin:'2px 0 0',
+              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+              {lead.property_address
+                ? lead.property_address.replace(/, USA$/,'')
+                : `${lead.contact_city}, ${lead.contact_state}`}
+            </p>
+          )}
         </div>
       </div>
-        )
-      })()}
 
-
-      {/* Row 2: action buttons — always visible, never hidden */}
-      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-        {/* Call button — if phone exists */}
-        {lead.contact_phone ? (
-          <a href={`tel:${lead.contact_phone}`}
-            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-opacity hover:opacity-80"
-            style={{ background: 'transparent', color: '#475569', border: `1px solid ${dk ? '#334155' : '#CBD5E1'}` }}>
-            <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={11} c="#0F766E" />
-            Call
-          </a>
-        ) : (
-          <button onClick={e => { e.stopPropagation(); onOpen() }}
-            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-opacity hover:opacity-80"
-            style={{ background: dk ? '#334155' : '#F9FAFB', color: t.textMuted, border: `1px solid ${dk ? '#475569' : '#E5E7EB'}` }}>
-            <Ic d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M21 15v2M21 19v2M24 17h-6" s={11} c={t.textMuted} />
-            Add Phone
-          </button>
-        )}
-
-        {/* Primary stage action — smart, not duplicate of Call */}
-        <button
-          onClick={handlePrimaryAction}
-          disabled={creatingEst}
-          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-50 min-w-0"
-          style={{
-            background: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key, dk).bg,
-            color: stageStyle(stage.key === 'New' ? 'Contacted' : stage.key, dk).color,
-            border: `1px solid ${stageStyle(stage.key === 'New' ? 'Contacted' : stage.key, dk).chipBg}`
-          }}>
-          {stage.key === 'New' && (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+      {/* ── Chips row: source · insurance · scheduled ── */}
+      {(src || isInsuranceStage || schedDate) && (
+        <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:10 }}>
+          {src && src !== 'undefined' && (
+            <span style={{ fontSize:11, fontWeight:500, padding:'3px 8px', borderRadius:20,
+              background:dk?'#1E293B':'#F1F5F9', color:dk?'#94A3B8':'#475569' }}>
+              {src}
+            </span>
           )}
-          {primaryLabel}
-        </button>
+          {isInsuranceStage && (
+            <span style={{ fontSize:11, fontWeight:600, padding:'3px 8px', borderRadius:20,
+              background:dk?'rgba(245,158,11,0.15)':'#FEF3C7', color:'#92400E',
+              border:`1px solid ${dk?'rgba(245,158,11,0.3)':'#FDE68A'}` }}>
+              🌩 Insurance
+            </span>
+          )}
+          {schedDate && (
+            <span style={{ fontSize:11, fontWeight:500, padding:'3px 8px', borderRadius:20,
+              background:dk?'#0E2A3A':'#ECFEFF', color:'#155E75' }}>
+              📅 {schedDate}
+            </span>
+          )}
+        </div>
+      )}
 
-        {/* Open detail arrow */}
-        <button
-          onClick={e => { e.stopPropagation(); onOpen() }}
-          className="w-7 h-7 flex items-center justify-center rounded-lg flex-shrink-0 transition-colors"
-          style={{ background: t.cardBorder, color: t.textMuted }}
-          title="Open lead detail">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-        </button>
+      {/* ── Value + actions row — value prominent, matches mockup bottom section ── */}
+      <div style={{ borderTop:`1px solid ${dk?'#1E293B':'#F1F5F9'}`, paddingTop:10,
+        display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Value — large, prominent */}
+        <div>
+          {amt && amt > 0 ? (
+            <>
+              <div style={{ fontSize:10, fontWeight:700, color:t.textSubtle,
+                textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:1 }}>Value</div>
+              <div style={{ fontSize:18, fontWeight:800, color:t.textPri, letterSpacing:'-0.02em', lineHeight:1 }}>
+                ${amt.toLocaleString()}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize:11, color:t.textSubtle, fontStyle:'italic' }}>No estimate yet</div>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+          {lead.contact_phone ? (
+            <a href={`tel:${lead.contact_phone}`}
+              style={{ display:'flex', alignItems:'center', gap:4,
+                padding:'6px 10px', borderRadius:8, fontSize:11, fontWeight:600,
+                background:'transparent', color:'#475569',
+                border:`1px solid ${dk?'#334155':'#CBD5E1'}`,
+                textDecoration:'none', flexShrink:0 }}
+              onClick={e => e.stopPropagation()}>
+              <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={11} c="#475569" />
+              Call
+            </a>
+          ) : null}
+          <button
+            onClick={handlePrimaryAction}
+            disabled={creatingEst}
+            style={{ padding:'6px 12px', borderRadius:8, fontSize:11, fontWeight:700,
+              background:'linear-gradient(135deg,#0F766E,#0D9488)',
+              color:'#fff', border:'none', cursor:'pointer',
+              boxShadow:'0 2px 8px rgba(15,118,110,0.25)',
+              opacity: creatingEst ? 0.6 : 1,
+              whiteSpace:'nowrap', flexShrink:0 }}>
+            {primaryLabel}
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onOpen() }}
+            style={{ width:30, height:30, borderRadius:8, flexShrink:0,
+              display:'flex', alignItems:'center', justifyContent:'center',
+              background:'transparent', border:`1px solid ${dk?'#334155':'#E2E8F0'}`,
+              cursor:'pointer', color:t.textSubtle }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -992,113 +1025,101 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
         />
       )}
       <div className="flex flex-col min-w-0" style={{
-        minWidth: 220,
-        background: dk ? '#1E293B' : '#FFFFFF',
-        borderRadius: 12,
-        border: `1px solid ${dk ? '#334155' : '#EEE8E0'}`,
-        boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
+        minWidth: 280,
+        width: 280,
+        background: dk ? '#151E2D' : '#FFFFFF',
+        borderRadius: 16,
+        border: `1px solid ${dk ? '#1E293B' : '#E2E8F0'}`,
+        boxShadow: dk ? 'none' : '0 1px 6px rgba(0,0,0,0.05)',
         overflow: 'hidden',
+        flexShrink: 0,
       }}>
-        {/* Column header — colored top bar only, white/neutral body */}
+        {/* 2px top accent bar */}
+        <div style={{ height: 3, background: stage.color, flexShrink: 0 }} />
+
+        {/* Column header */}
         <div style={{
-          background: dk ? '#1E293B' : '#FAFAFA',
-          borderBottom: `1px solid ${dk ? '#334155' : '#EEE8E0'}`,
-          borderTop: `3px solid ${stage.color}`,
-          padding: '10px 12px 8px',
+          background: dk ? '#151E2D' : '#FAFAFA',
+          borderBottom: `1px solid ${dk ? '#1E293B' : '#F1F5F9'}`,
+          padding: '12px 14px 10px',
         }}>
-          {/* Stage name + count */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: colValue > 0 || leads.length > 0 ? 4 : 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: stage.color, letterSpacing: '-0.01em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            {/* Stage name + bubble */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: t.textPri, letterSpacing: '-0.01em' }}>
                 {stage.label}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: 10,
-                background: stage.color, color: 'white', letterSpacing: '0.01em' }}>
+              <span style={{
+                fontSize: 11, fontWeight: 800,
+                padding: '1px 7px', borderRadius: 20,
+                background: leads.length > 0 ? stage.color : (dk ? '#1E293B' : '#E2E8F0'),
+                color: leads.length > 0 ? '#fff' : t.textSubtle,
+              }}>
                 {leads.length}
               </span>
             </div>
+            {/* Column total */}
             {colValue > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: stage.color }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#047857' }}>
                 ${colValue.toLocaleString()}
               </span>
             )}
           </div>
-          {/* Avg age row — only when there are leads */}
-          {leads.length > 0 && (() => {
-            const avgDays = (leads.reduce((s,l) => s + (Date.now()-new Date(l.created_at).getTime())/86400000, 0) / leads.length).toFixed(1)
-            return (
-              <div style={{ fontSize: 11, color: t.textSubtle }}>
-                {leads.length} lead{leads.length!==1?'s':''} · avg {avgDays}d
-              </div>
-            )
-          })()}
+          {/* Meta line */}
+          <div style={{ fontSize: 11, color: t.textSubtle }}>
+            {leads.length === 0
+              ? 'No leads'
+              : `${leads.length} lead${leads.length!==1?'s':''} · avg ${(leads.reduce((s,l) => s+(Date.now()-new Date(l.created_at).getTime())/86400000,0)/leads.length).toFixed(1)}d`}
+          </div>
         </div>
 
-        {/* Cards */}
-        <div className="space-y-2 flex-1" style={{ padding: '8px 8px 10px' }}>
-          {leads.length === 0 ? (
-            <div style={{
-                border: `1.5px dashed ${emptyBorder}`,
-                borderRadius: 10, padding: '16px 12px',
-                textAlign: 'center',
-              }}>
-              {(() => {
-                const coaching: Record<string,string> = {
-                  lead_in: 'New leads land here',
-                  inspection_scheduled: 'Schedule from Lead In',
-                  proposal_sent: 'Create a proposal first',
-                  proposal_signed: 'Send proposal for signature',
-                  insurance_approved: 'Follow up after adjuster',
-                  scheduled: 'Book from Insurance Approved',
-                  in_progress: 'Move a scheduled job here',
-                  job_won: 'Close a job to see it here',
-                  New: 'Add a lead to get started',
-                  Contacted: 'Mark a lead as Contacted',
-                  Quoted: 'Send a proposal first',
-                  Scheduled: 'Schedule a quoted job',
-                  Completed: 'Complete a scheduled job',
-                  Paid: 'Mark a job as paid',
-                }
-                return (
-                  <>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: emptyText, marginBottom: 3 }}>Empty</div>
-                    <div style={{ fontSize: 11, color: emptyText, opacity: 0.7, lineHeight: 1.4 }}>
-                      {coaching[stage.key] ?? 'Drag a lead here'}
-                    </div>
-                  </>
-                )
-              })()}
+        {/* Cards area */}
+        <div style={{ padding: '10px 10px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {visibleLeads.map(lead => (
+            <div key={lead.id}>
+              <LeadCard lead={lead} stage={stage} onOpen={() => onOpen(lead)} dk={dk} onStatusChange={onStatusChange} />
             </div>
-          ) : (
-            <>
-              {visibleLeads.map(lead => (
-                <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => onOpen(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
-              ))}
-              {!expanded && overflow > 0 && (
-                <div className="flex gap-2">
-                  <button onClick={() => setExpanded(true)}
-                    className="flex-1 py-2 text-[12px] font-semibold rounded-xl border transition-colors hover:opacity-80"
-                    style={{ borderColor: stageStyle(stage.key, dk).color + '44', color: stageStyle(stage.key, dk).color, background: stageStyle(stage.key, dk).bg }}>
-                    + {overflow} more leads ∨
-                  </button>
-                  {leads.length > 3 && (
-                    <button onClick={() => setShowSlide(true)}
-                      className="w-8 h-8 flex items-center justify-center rounded-xl border transition-colors hover:opacity-80 flex-shrink-0"
-                      style={{ borderColor: stageStyle(stage.key, dk).color + '44', color: stageStyle(stage.key, dk).color, background: stageStyle(stage.key, dk).bg }}>
-                      <Ic d="M9 18l6-6-6-6" s={14} c={stageStyle(stage.key).color} />
-                    </button>
-                  )}
-                </div>
-              )}
-              {expanded && (
-                <button onClick={() => setExpanded(false)}
-                  className="w-full py-2 text-[12px] font-semibold rounded-xl border transition-colors hover:opacity-80"
-                  style={{ borderColor: stageStyle(stage.key, dk).color + '44', color: stageStyle(stage.key, dk).color, background: stageStyle(stage.key, dk).bg }}>
-                  Show less ∧
-                </button>
-              )}
-            </>
+          ))}
+          {!expanded && overflow > 0 && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setExpanded(true)}
+                style={{ flex:1, padding:'7px 0', fontSize:12, fontWeight:600, borderRadius:8, cursor:'pointer',
+                  borderColor: stageStyle(stage.key,dk).color+'44', color:stageStyle(stage.key,dk).color,
+                  background:stageStyle(stage.key,dk).bg, border:`1px solid ${stageStyle(stage.key,dk).color}44` }}>
+                + {overflow} more ∨
+              </button>
+              <button onClick={() => setShowSlide(true)}
+                style={{ width:32, height:32, borderRadius:8, cursor:'pointer', flexShrink:0,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  borderColor:stageStyle(stage.key,dk).color+'44', color:stageStyle(stage.key,dk).color,
+                  background:stageStyle(stage.key,dk).bg, border:`1px solid ${stageStyle(stage.key,dk).color}44` }}>
+                <Ic d="M9 18l6-6-6-6" s={13} c={stageStyle(stage.key).color} />
+              </button>
+            </div>
           )}
+          {expanded && (
+            <button onClick={() => setExpanded(false)}
+              style={{ width:'100%', padding:'7px 0', fontSize:12, fontWeight:600, borderRadius:8, cursor:'pointer',
+                borderColor:stageStyle(stage.key,dk).color+'44', color:stageStyle(stage.key,dk).color,
+                background:stageStyle(stage.key,dk).bg, border:`1px solid ${stageStyle(stage.key,dk).color}44` }}>
+              Show less ∧
+            </button>
+          )}
+        </div>
+
+        {/* Dashed "+ Add Lead" footer — always visible */}
+        <div style={{ padding: '8px 10px 12px' }}>
+          <div style={{
+            border: `1.5px dashed ${dk ? '#1E293B' : '#E2E8F0'}`,
+            borderRadius: 10, padding: '10px',
+            textAlign: 'center', cursor: 'pointer',
+            color: t.textSubtle, fontSize: 12, fontWeight: 500,
+          }}
+          onClick={e => { e.stopPropagation() }}
+          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = stage.color}
+          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = dk ? '#1E293B' : '#E2E8F0'}>
+            + Add Lead
+          </div>
         </div>
       </div>
     </>
@@ -1158,11 +1179,16 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         ? (activeLeads.reduce((s,l) => s + (Date.now()-new Date(l.created_at).getTime())/86400000, 0) / activeLeads.length).toFixed(1)
         : '0'
       const totalThisMonth = leads.filter(l => new Date(l.created_at).getTime() >= monthStart).length
+      const ageNum = parseFloat(String(avgAge))
       const kpis = [
-        { label: 'Pipeline Value', value: pipelineVal > 0 ? `${pipelineVal.toLocaleString()}` : '—', sub: `${activeLeads.length} active leads`, color: '#0F766E' },
-        { label: 'Won This Month', value: wonVal > 0 ? `${wonVal.toLocaleString()}` : '—', sub: `${wonThisMonth.length} job${wonThisMonth.length!==1?'s':''}`, color: '#047857' },
-        { label: 'New This Month', value: String(totalThisMonth), sub: 'leads received', color: '#1E40AF' },
-        { label: 'Avg Lead Age', value: parseFloat(String(avgAge)) < 1 ? '< 1d' : `${avgAge}d`, sub: 'active pipeline', color: parseFloat(String(avgAge)) > 7 ? '#92400E' : '#64748B' },
+        { label: 'Pipeline Value', value: pipelineVal > 0 ? `$${pipelineVal.toLocaleString()}` : '—',
+          sub: `${activeLeads.length} active leads`, trend: `${activeLeads.length} active`, color: '#0F766E', icon: '💰' },
+        { label: 'Won This Month', value: wonVal > 0 ? `$${wonVal.toLocaleString()}` : '—',
+          sub: `${wonThisMonth.length} job${wonThisMonth.length!==1?'s':''}`, trend: `${wonThisMonth.length} job${wonThisMonth.length!==1?'s':''}`, color: '#047857', icon: '🏆' },
+        { label: 'New This Month', value: String(totalThisMonth),
+          sub: 'leads received', trend: 'leads received', color: '#1E40AF', icon: '📥' },
+        { label: 'Avg Lead Age', value: ageNum < 1 ? '< 1d' : `${avgAge}d`,
+          sub: 'active pipeline', trend: ageNum > 7 ? '⚠ Above target' : 'On track', color: ageNum > 7 ? '#92400E' : '#64748B', icon: '⏱' },
       ]
       return (
         <div className="hidden md:grid mb-4 gap-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
@@ -1170,14 +1196,24 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
             <div key={k.label} style={{
               background: t.cardBg, border: `1px solid ${t.cardBorder}`,
               borderTop: `3px solid ${k.color}`,
-              borderRadius: 10, padding: '12px 16px',
-              boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
+              borderRadius: 14, padding: '16px 18px',
+              boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.05)',
+              display:'flex', alignItems:'flex-start', justifyContent:'space-between',
             }}>
-              <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:5 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle,
+                  textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{k.label}</div>
+                <div style={{ fontSize: 30, fontWeight: 800, color: t.textPri,
+                  letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>{k.value}</div>
+                <div style={{ fontSize: 12, color: k.trend?.startsWith('+') ? '#16A34A' : k.trend?.startsWith('-') ? '#DC2626' : t.textSubtle, fontWeight: 500 }}>
+                  {k.trend || k.sub}
+                </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: k.color, letterSpacing: '-0.03em', lineHeight: 1 }}>{k.value}</div>
-              <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 3 }}>{k.sub}</div>
+              <div style={{ width:44, height:44, borderRadius:12, flexShrink:0,
+                background: dk ? '#1E293B' : '#F8FAFC',
+                display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>
+                {k.icon}
+              </div>
             </div>
           ))}
         </div>
@@ -1242,12 +1278,12 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       <div className={`${listView ? 'hidden' : 'hidden md:block'} relative`}>
         {/* Right fade — signals horizontal scroll without a scrollbar */}
         <div className="pointer-events-none absolute right-0 top-0 bottom-4 w-16 z-10" style={{ background: 'linear-gradient(90deg, transparent, var(--pg-fade, #F5F4F0))' }} />
-        <div className="overflow-x-auto pb-2 pg-kanban-scroll">
-        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 1fr))`, minWidth: stages.length * 212 }}>
-          {stages.map(stage => (
-            <div key={stage.key}><PipelineColumn stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
-          ))}
-        </div>
+        <div className="overflow-x-auto pb-4 pg-kanban-scroll" style={{ scrollbarWidth:'thin', scrollbarColor:'#E2E8F0 transparent' }}>
+          <div style={{ display:'flex', gap:12, minWidth: stages.length * 292, alignItems:'flex-start', paddingBottom:8 }}>
+            {stages.map(stage => (
+              <PipelineColumn key={stage.key} stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} />
+            ))}
+          </div>
         </div>
       </div>
 
