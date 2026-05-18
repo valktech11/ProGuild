@@ -63,15 +63,17 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   const [name,    setName]    = useState('')
   const [phone,   setPhone]   = useState('')
   const [email,   setEmail]   = useState('')
-  const [address, setAddress] = useState('')
+  const [street,  setStreet]  = useState('')
+  const [city,    setCity]    = useState('')
+  const [addrState, setAddrState] = useState('')
+  const [zip,     setZip]     = useState('')
   const [scope,   setScope]   = useState('')
   const [source,  setSource]  = useState('Phone_Call')
   const [saving,  setSaving]  = useState(false)
   const [err,     setErr]     = useState('')
   const [focus,   setFocus]   = useState<Record<string,boolean>>({})
 
-  const addressRef = useRef<HTMLInputElement>(null)
-  usePlacesAutocomplete(addressRef, (addr) => setAddress(addr))
+  // Structured address — no autocomplete needed
 
   // Reset scroll to top whenever modal mounts
   // Without this, the modal body inherits scroll position from previous open
@@ -92,7 +94,9 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
         pro_id: proId, contact_name: name.trim(),
         contact_phone: phone.trim() || null,
         contact_email: email.trim() || null,
-        property_address: address.trim() || null,
+        property_address: [street.trim(), city.trim(), addrState.trim(), zip.trim()].filter(Boolean).join(', ') || null,
+        contact_city: city.trim() || null,
+        contact_state: addrState.trim() || null,
         message: scope.trim(), lead_source: source, is_manual: true,
       }),
     })
@@ -223,14 +227,39 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
               </div>
             </div>
 
-            {/* Address */}
+            {/* Address — structured US fields */}
             <div>
-              <Lbl text="Property address" opt />
-              <input ref={addressRef} value={address} onChange={e => setAddress(san(e.target.value))}
-                placeholder="3919 Highgate Dr, Tampa, FL 33614"
-                style={iStyle('address')}
-                autoComplete="off"
-                onFocus={() => fo('address')} onBlur={() => fb('address')} />
+              <Lbl text="Street address" opt />
+              <input value={street} onChange={e => setStreet(san(e.target.value))}
+                placeholder="3919 Highgate Dr"
+                style={iStyle('street')} autoComplete="address-line1"
+                onFocus={() => fo('street')} onBlur={() => fb('street')} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px', gap: 10 }}>
+              <div>
+                <Lbl text="City" opt />
+                <input value={city} onChange={e => setCity(san(e.target.value))}
+                  placeholder="Tampa" style={iStyle('city')} autoComplete="address-level2"
+                  onFocus={() => fo('city')} onBlur={() => fb('city')} />
+              </div>
+              <div>
+                <Lbl text="State" opt />
+                <select value={addrState} onChange={e => setAddrState(e.target.value)}
+                  style={{ ...iStyle('addrState'), paddingRight: 8 }}
+                  onFocus={() => fo('addrState')} onBlur={() => fb('addrState')}>
+                  <option value="">—</option>
+                  {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Lbl text="Zip" opt />
+                <input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))}
+                  placeholder="33614" maxLength={5} inputMode="numeric"
+                  style={iStyle('zip')} autoComplete="postal-code"
+                  onFocus={() => fo('zip')} onBlur={() => fb('zip')} />
+              </div>
             </div>
 
             {/* Email */}

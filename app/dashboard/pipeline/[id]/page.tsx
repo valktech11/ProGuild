@@ -154,6 +154,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [eEmail, setEEmail] = useState('')
   const [eCity,  setECity]  = useState('')
   const [eState, setEState] = useState('')
+  const [eZip,   setEZip]   = useState('')
   const [eSrc,   setESrc]   = useState('')
   const [eDate,  setEDate]  = useState('')
   const [eTime,  setETime]  = useState('')
@@ -250,6 +251,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     setEEmail(lead.contact_email||'')
     setECity(lead.contact_city||'')
     setEState(lead.contact_state||'')
+    setEZip((lead as any).contact_zip||'')
     setESrc((lead.lead_source||'').replace(/_/g,' '))
     setEDate(lead.scheduled_date||'')
     setETime((lead as any).scheduled_time||'')
@@ -262,7 +264,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     const ok = await patch({
       property_address: eAddr||null,
       contact_phone: ePhone||null, contact_email: eEmail||null,
-      contact_city: eCity||null, contact_state: eState||null,
+      contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
       lead_source: eSrc.replace(/ /g,'_')||null,
       scheduled_date: eDate||null, scheduled_time: eTime||null,
       follow_up_date: eFU||null, notes: eNotes||null,
@@ -272,7 +274,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       setLead(l=>l?{...l,
         property_address: eAddr||null,
         contact_phone: ePhone||null, contact_email: eEmail||null,
-        contact_city: eCity||null, contact_state: eState||null,
+        contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
         lead_source: eSrc.replace(/ /g,'_') as any||null,
         scheduled_date: eDate||null, follow_up_date: eFU||null, notes: eNotes||null,
       }:l)
@@ -839,7 +841,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <div><label style={labelCls}>Phone</label><input value={ePhone} onChange={e=>setEPhone(e.target.value)} style={inputCls}/></div>
                                 <div><label style={labelCls}>Email</label><input value={eEmail} onChange={e=>setEEmail(e.target.value)} style={inputCls}/></div>
                               </div>
-                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 90px',gap:12}}>
                                 <div><label style={labelCls}>City</label><input value={eCity} onChange={e=>setECity(e.target.value)} placeholder="Jacksonville" style={inputCls}/></div>
                                 <div><label style={labelCls}>State</label>
                                   <select value={eState} onChange={e=>setEState(e.target.value)} style={inputCls}>
@@ -847,6 +849,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     {US_STATES.map(([code,name])=><option key={code} value={code}>{code} — {name}</option>)}
                                   </select>
                                 </div>
+                                <div><label style={labelCls}>Zip</label><input value={eZip} onChange={e=>setEZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="32207" maxLength={5} inputMode="numeric" style={inputCls}/></div>
                               </div>
                               <div><label style={labelCls}>Source</label>
                                 <select value={eSrc} onChange={e=>setESrc(e.target.value)} style={inputCls}>
