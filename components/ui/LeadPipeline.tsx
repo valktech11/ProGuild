@@ -4,27 +4,17 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface Lead {
-  id: string
-  contact_name: string
-  contact_phone?: string
-  lead_status: string
-  lead_source?: string
-  quoted_amount?: number
-  property_address?: string
-  created_at: string
-  trade_slug?: string
-  scheduled_date?: string
-  // roofing_job_data fields (joined)
-  insurance_claim?: boolean
-  claim_status?: string
-}
+import type { Lead } from '@/types'
 
 interface LeadPipelineProps {
   leads: Lead[]
   darkMode?: boolean
+  dk?: boolean
   onAddLead?: () => void
-  tradeSlug?: string
+  onStatusChange?: (leadId: string, status: string) => void
+  onUpdate?: (leadId: string, fields: Partial<Lead>) => void
+  isPaid?: boolean
+  tradeSlug?: string | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -331,10 +321,10 @@ function LeadCard({ lead, stageKey, dk, onClick }: {
     : 'Unknown'
 
   const src = lead.lead_source
-  const hasAddress = !!lead.property_address
-  const hasAmount = !!lead.quoted_amount && lead.quoted_amount > 0
-  const hasScheduled = !!lead.scheduled_date
-  const isInsurance = stageKey === 'insurance_approved' || lead.insurance_claim
+  const hasAddress = lead.property_address !== null && lead.property_address !== undefined && lead.property_address !== ''
+  const hasAmount = lead.quoted_amount !== null && lead.quoted_amount !== undefined && lead.quoted_amount > 0
+  const hasScheduled = lead.scheduled_date !== null && lead.scheduled_date !== undefined
+  const isInsurance = stageKey === 'insurance_approved' || (lead as any).insurance_claim
   const ctaLabel = STAGE_CTAS[stageKey] || 'Next Step'
   const isWon = stageKey === 'job_won'
 
@@ -513,7 +503,7 @@ function LeadCard({ lead, stageKey, dk, onClick }: {
           {/* Call — ghost */}
           {lead.contact_phone && (
             <a
-              href={`tel:${lead.contact_phone}`}
+              href={`tel:${lead.contact_phone ?? ""}`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -716,10 +706,10 @@ export function getPipelineStages(_tradeSlug?: string | null) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function LeadPipeline({ leads, darkMode = false, onAddLead, tradeSlug }: LeadPipelineProps) {
+export default function LeadPipeline({ leads, darkMode = false, dk: dkProp, onAddLead, onStatusChange, onUpdate, isPaid, tradeSlug }: LeadPipelineProps) {
   const router = useRouter()
   const boardRef = useRef<HTMLDivElement>(null)
-  const dk = darkMode
+  const dk = dkProp !== undefined ? dkProp : darkMode
 
   const pageBg = dk ? '#0B1120' : '#F5F4F0'
   const textPrimary = dk ? '#F1F5F9' : '#0A1628'
@@ -731,13 +721,23 @@ export default function LeadPipeline({ leads, darkMode = false, onAddLead, trade
   const leadsByStage: Record<string, Lead[]> = {}
   ROOFING_STAGES.forEach(s => { leadsByStage[s.key] = [] })
   leads.forEach(lead => {
-    const key = lead.lead_status
-    if (leadsByStage[key]) leadsByStage[key].push(lead)
-    // map legacy stage names
-    else if (key === 'new' || key === 'lead_in') leadsByStage['lead_in']?.push(lead)
-    else if (key === 'contacted' || key === 'inspection_scheduled') leadsByStage['inspection_scheduled']?.push(lead)
-    else if (key === 'quoted' || key === 'proposal_sent') leadsByStage['proposal_sent']?.push(lead)
-    else if (key === 'paid' || key === 'job_won') leadsByStage['job_won']?.push(lead)
+    const key = lead.lead_status as string
+    if (leadsByStage[key]) {
+      leadsByStage[key].push(lead)
+    } else {
+      // Map legacy/generic stage names to roofing stages
+      const legacyMap: Record<string, string> = {
+        'new':       'lead_in',
+        'New':       'lead_in',
+        'Contacted': 'inspection_scheduled',
+        'Quoted':    'proposal_sent',
+        'Scheduled': 'scheduled',
+        'Completed': 'in_progress',
+        'Paid':      'job_won',
+      }
+      const mapped = legacyMap[key]
+      if (mapped && leadsByStage[mapped]) leadsByStage[mapped].push(lead)
+    }
   })
 
   const handleCardClick = (id: string) => {
