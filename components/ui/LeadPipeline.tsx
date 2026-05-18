@@ -402,6 +402,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
     <div
       data-card="true"
       onClick={onOpen}
+      onMouseDown={e => e.stopPropagation()}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -1042,7 +1043,7 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
             )}
           </div>
           {/* Meta line */}
-          <div style={{ fontSize: 11, color: t.textSubtle }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted }}>
             {leads.length === 0
               ? 'No leads'
               : `${leads.length} lead${leads.length!==1?'s':''} · avg ${(leads.reduce((s,l) => s+(Date.now()-new Date(l.created_at).getTime())/86400000,0)/leads.length).toFixed(1)}d`}
@@ -1083,20 +1084,8 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
           )}
         </div>
 
-        {/* Dashed "+ Add Lead" footer — always visible */}
-        <div style={{ padding: '8px 10px 12px' }}>
-          <div style={{
-            border: `1.5px dashed ${dk ? '#1E293B' : '#E2E8F0'}`,
-            borderRadius: 10, padding: '10px',
-            textAlign: 'center', cursor: 'pointer',
-            color: t.textSubtle, fontSize: 12, fontWeight: 500,
-          }}
-          onClick={e => { e.stopPropagation() }}
-          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = stage.color}
-          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = dk ? '#1E293B' : '#E2E8F0'}>
-            + Add Lead
-          </div>
-        </div>
+        {/* bottom padding */}
+        <div style={{ height: 10 }} />
       </div>
     </>
   )
@@ -1116,20 +1105,23 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const onBoardMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const el = kanbanRef.current
     if (!el) return
-    // Only drag on the board background, not on cards
+    // Cards handle their own click — only drag from column bg / header / empty space
     if ((e.target as HTMLElement).closest('[data-card]')) return
     dragState.current = { startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft, isDragging: false }
+    // Prevent text selection while dragging
+    const prevSelect = document.body.style.userSelect
+    document.body.style.userSelect = 'none'
+    el.style.cursor = 'grabbing'
     const onMove = (ev: MouseEvent) => {
       const walk = (ev.pageX - el.offsetLeft) - dragState.current.startX
-      if (Math.abs(walk) > 4) {
+      if (Math.abs(walk) > 3) {
         dragState.current.isDragging = true
-        el.style.cursor = 'grabbing'
         el.scrollLeft = dragState.current.scrollLeft - walk
       }
     }
     const onUp = () => {
-      el.style.cursor = 'default'
-      dragState.current.isDragging = false
+      document.body.style.userSelect = prevSelect
+      el.style.cursor = 'grab'
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -1285,10 +1277,10 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           className="pg-kanban-scroll"
           style={{ overflowX:'auto', paddingBottom:16,
             scrollbarWidth:'none', msOverflowStyle:'none',
-            cursor: 'default' }}
+            cursor: 'grab' }}
           ref={kanbanRef}
           onMouseDown={onBoardMouseDown}>
-          <style>{`.pg-kanban-scroll::-webkit-scrollbar{display:none}`}</style>
+          <style>{`.pg-kanban-scroll::-webkit-scrollbar{display:none}.pg-kanban-scroll:active{cursor:grabbing}`}</style>
           <div style={{ display:'flex', gap:12, minWidth: stages.length * 292,
             alignItems:'flex-start', paddingBottom:4, paddingRight:40 }}>
             {stages.map(stage => (
