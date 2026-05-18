@@ -77,9 +77,9 @@ const STAGE_BASE: Record<string, { color: string; lightBg: string; lightChip: st
   // Roofing stage fallbacks (stageStyle used as secondary source)
   // ── Roofing stages — each a distinct hue, no same-family pairs ──────────
   // Indigo → Sky → Teal → Violet → Amber → Blue → Navy → Emerald
-  lead_in:              { color: '#7C3AED', lightBg: '#F5F3FF', lightChip: '#EDE9FE', label: 'Lead In'              },
+  lead_in:              { color: '#0369A1', lightBg: '#F0F9FF', lightChip: '#BAE6FD', label: 'Lead In'              },
   inspection_scheduled: { color: '#0284C7', lightBg: '#F0F9FF', lightChip: '#BAE6FD', label: 'Inspection Scheduled' },
-  proposal_sent:        { color: '#0F766E', lightBg: '#F0FDFA', lightChip: '#CCFBF1', label: 'Proposal Sent'        },
+  proposal_sent:        { color: '#D97706', lightBg: '#FFFBEB', lightChip: '#FEF3C7', label: 'Proposal Sent'        },
   proposal_signed:      { color: '#059669', lightBg: '#ECFDF5', lightChip: '#D1FAE5', label: 'Proposal Signed'      },
   insurance_approved:   { color: '#0891B2', lightBg: '#F0F9FF', lightChip: '#BAE6FD', label: 'Insurance Approved'   },
   scheduled:            { color: '#2563EB', lightBg: '#EFF6FF', lightChip: '#DBEAFE', label: 'Scheduled'            },
