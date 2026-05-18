@@ -453,99 +453,92 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
               </div>
 
               {/* ── 2-col grid ─────────────────────────────────────────── */}
-              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 300px':'1fr',gap:T.sp3}}>
+              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 300px':'1fr',gap:16}}>
 
-                {/* ══ LEFT ══ */}
+                {/* ══ LEFT ══════════════════════════════════════════════ */}
                 <div style={{minWidth:0}}>
 
                   {/* ─── HERO CARD ─────────────────────────────────────── */}
-                  <div style={{background:card,borderRadius:T.radLg,marginBottom:T.sp3,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 12px rgba(0,0,0,0.06)'}}>
+                  <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.06)'}}>
 
-                    {/* Identity */}
-                    <div style={{padding:`${T.sp5}px ${T.sp5}px ${T.sp4}px`}}>
-                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:T.sp3}}>
-                        {/* Left */}
-                        <div style={{display:'flex',alignItems:'flex-start',gap:T.sp3,minWidth:0,flex:1}}>
-                          <div style={{width:48,height:48,borderRadius:T.radMd,background:avBg,color:avFg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:T.fontLabel,fontWeight:800,flexShrink:0,letterSpacing:'-0.02em'}}>
+                    {/* Identity row */}
+                    <div style={{padding:'20px 24px 16px'}}>
+                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12}}>
+                        <div style={{display:'flex',alignItems:'flex-start',gap:14,minWidth:0,flex:1}}>
+                          <div style={{width:52,height:52,borderRadius:12,background:avBg,color:avFg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,fontWeight:800,flexShrink:0,letterSpacing:'-0.02em'}}>
                             {initials(lead.contact_name)}
                           </div>
                           <div style={{minWidth:0,flex:1,paddingTop:2}}>
-                            <div style={{fontSize:20,fontWeight:800,color:tp,letterSpacing:'-0.025em',lineHeight:1.2,marginBottom:3}}>
+                            <div style={{fontSize:20,fontWeight:800,color:tp,letterSpacing:'-0.025em',lineHeight:1.2,marginBottom:4}}>
                               {heroLabel}
                             </div>
-                            <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.5}}>
+                            <div style={{fontSize:13,color:tsu,lineHeight:1.5}}>
                               {heroSub||'No contact info'}
+                            </div>
+                            {/* Stage + timestamp inline */}
+                            <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,flexWrap:'wrap'}}>
+                              <span style={{fontSize:12,fontWeight:700,padding:'3px 8px',borderRadius:20,background:stgObj?.bg??'#F0FDFA',color:stgObj?.color??BRAND.teal}}>
+                                {stgObj?.label??stage}
+                              </span>
+                              <span style={{fontSize:12,color:tsu}}>
+                                {'• '}{new Date(lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                                {' at '}
+                                {new Date(lead.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+                              </span>
+                              {lead.quoted_amount!=null&&(
+                                <span style={{fontSize:14,fontWeight:700,color:BRAND.teal,marginLeft:'auto'}}>
+                                  ${Number(lead.quoted_amount).toLocaleString()}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
-                        {/* Buttons */}
+                        {/* Action buttons */}
                         <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
                           {lead.contact_phone&&(
                             <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
-                              style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:T.fontSub,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap'}}>
+                              style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:13,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap'}}>
                               <Svg size={13} stroke={tp}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Svg>
                               Call
                             </a>
                           )}
                           <button onClick={startEdit}
-                            style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,fontSize:T.fontSub,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,fontSize:13,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                             <Svg size={13} stroke={ts}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
                             Edit
                           </button>
                         </div>
                       </div>
-
-                      {/* Stage chip + date */}
-                      <div style={{display:'flex',alignItems:'center',gap:T.sp2,marginTop:T.sp3,flexWrap:'wrap'}}>
-                        <span style={{fontSize:T.fontSub,fontWeight:700,padding:'4px 10px',borderRadius:20,background:stgObj?.bg??'#F0FDFA',color:stgObj?.color??BRAND.teal}}>
-                          {stgObj?.label??stage}
-                        </span>
-                        <span style={{fontSize:T.fontSub,color:tsu}}>
-                          {new Date(lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
-                          {' at '}
-                          {new Date(lead.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
-                        </span>
-                        {lead.quoted_amount!=null&&(
-                          <span style={{fontSize:T.fontBody,fontWeight:700,color:BRAND.teal,marginLeft:'auto'}}>
-                            ${Number(lead.quoted_amount).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
                     </div>
 
                     {/* ─── Progress bar ───────────────────────────────── */}
-                    <div style={{borderTop:`1px solid ${bdr}`,padding:`${T.sp4}px ${T.sp5}px ${T.sp3}px`}}>
-                      {/* Single relative container — line behind, dots + labels on top */}
+                    <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 12px'}}>
                       <div style={{position:'relative',display:'flex',alignItems:'flex-start'}}>
-                        {/* Connector line — sits at dot vertical center (dot is 20px, padded by 0) */}
+                        {/* Track line */}
                         <div style={{
-                          position:'absolute', top:9, zIndex:0,
+                          position:'absolute',top:9,zIndex:0,
                           left:`${100/active.length/2}%`,
                           right:`${100/active.length/2}%`,
                           height:2,
-                          background: curPos>0
-                            ? `linear-gradient(to right, ${active[curPos-1]?.color??BRAND.teal} 0%, ${stgObj?.color??BRAND.teal} ${Math.round((curPos/(active.length-1))*100)}%, ${dk?'#1E293B':'#E2E8F0'} ${Math.round((curPos/(active.length-1))*100)}%)`
-                            : (dk?'#1E293B':'#E2E8F0'),
+                          background:curPos>0
+                            ?`linear-gradient(to right,${active[curPos-1]?.color??BRAND.teal} 0%,${stgObj?.color??BRAND.teal} ${Math.round((curPos/(active.length-1))*100)}%,${dk?'#1E293B':'#E5E7EB'} ${Math.round((curPos/(active.length-1))*100)}%)`
+                            :(dk?'#1E293B':'#E5E7EB'),
                         }}/>
-                        {/* Stage columns */}
                         {active.map((stg,i)=>{
-                          const done   = i<curPos
-                          const isAct  = i===curPos
-                          const dotSz  = isAct ? 22 : done ? 20 : 14
-                          const dotR   = done||isAct ? '50%' : '3px'
-                          const dotBg  = done ? stg.color : isAct ? stg.color : (dk?'#374151':'#E2E8F0')
-                          const dotBdr = isAct ? `2.5px solid ${card}` : 'none'
-                          const dotShd = isAct ? `0 0 0 2.5px ${stg.color}` : done ? `0 1px 4px ${stg.color}40` : 'none'
-                          const lblClr = isAct ? stg.color : done ? (dk?'#4B5563':'#9CA3AF') : (dk?'#374151':'#C5CAD3')
-                          const lblWt  = isAct ? 700 : 500
+                          const done  = i<curPos
+                          const isAct = i===curPos
+                          const sz    = isAct?22:done?20:14
+                          const rad   = done||isAct?'50%':'3px'
+                          const bg    = done?stg.color:isAct?stg.color:(dk?'#374151':'#E5E7EB')
+                          const bdr2  = isAct?`2.5px solid ${card}`:'none'
+                          const shd   = isAct?`0 0 0 2.5px ${stg.color},0 2px 8px ${stg.color}40`:done?`0 1px 4px ${stg.color}30`:'none'
+                          const lc    = isAct?stg.color:done?(dk?'#4B5563':'#9CA3AF'):(dk?'#374151':'#CBD5E1')
                           return (
                             <div key={stg.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',position:'relative',zIndex:1}}>
-                              {/* Dot */}
-                              <div style={{width:dotSz,height:dotSz,borderRadius:dotR,background:dotBg,border:dotBdr,boxShadow:dotShd,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:6}}>
+                              <div style={{width:sz,height:sz,borderRadius:rad,background:bg,border:bdr2,boxShadow:shd,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:6}}>
                                 {done&&<Svg size={9} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
                               </div>
-                              {/* Label */}
-                              <span style={{fontSize:9,fontWeight:lblWt,color:lblClr,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 1px'}}>
+                              <span style={{fontSize:9,fontWeight:isAct?700:500,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 1px'}}>
                                 {stg.label}
                               </span>
                             </div>
@@ -555,140 +548,198 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     </div>
 
                     {/* ─── Status row ─────────────────────────────────── */}
-                    <div style={{borderTop:`1px solid ${bdr}`,padding:`${T.sp4}px ${T.sp5}px`}}>
-                      <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:T.sp5,alignItems:'start'}}>
-                        {/* Status picker */}
+                    <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px'}}>
+                      <div style={{display:'grid',gridTemplateColumns:'auto 1fr auto',gap:24,alignItems:'start'}}>
+
+                        {/* Left: status picker */}
                         <div>
-                          <div style={labelCls}>Current Status</div>
-                          <div style={{display:'inline-block'}}>
+                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>Current Status</div>
+                          <div style={{position:'relative',display:'inline-block'}}>
                             <button
-                              ref={(el)=>{ if(el&&showPicker){ const r=el.getBoundingClientRect(); (window as any).__pgPickerY=r.bottom+6; (window as any).__pgPickerX=r.left; } }}
-                              onClick={(e)=>{ const r=(e.currentTarget as HTMLButtonElement).getBoundingClientRect(); (window as any).__pgPickerY=r.bottom+6; (window as any).__pgPickerX=r.left; setShowPicker(v=>!v); }}
+                              onClick={(e)=>{
+                                const r=(e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                (window as any).__pgPickerY=r.bottom+4;
+                                (window as any).__pgPickerX=r.left;
+                                setShowPicker(v=>!v);
+                              }}
                               disabled={saving}
-                              style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:T.radSm,border:`1.5px solid ${stgObj?.color??BRAND.teal}40`,background:stgObj?.bg??'#F0FDFA',color:stgObj?.color??BRAND.teal,fontSize:T.fontBody,fontWeight:700,cursor:saving?'wait':'pointer',whiteSpace:'nowrap',transition:'opacity 0.15s',opacity:saving?0.7:1}}>
+                              style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:T.radSm,border:`1.5px solid ${stgObj?.color??BRAND.teal}35`,background:stgObj?.bg??'#F0FDFA',color:stgObj?.color??BRAND.teal,fontSize:14,fontWeight:700,cursor:saving?'wait':'pointer',whiteSpace:'nowrap'}}>
                               <span style={{width:8,height:8,borderRadius:'50%',background:stgObj?.color??BRAND.teal,flexShrink:0}}/>
                               {saving?'Updating...':(stgObj?.label??stage)}
                               <Svg size={13} stroke={stgObj?.color??BRAND.teal}><polyline points="6 9 12 15 18 9"/></Svg>
                             </button>
+                            {/* Human description under pill */}
+                            <div style={{fontSize:12,color:tsu,marginTop:4,paddingLeft:2}}>{stgObj?.subLabel}</div>
 
-                            {/* Dropdown — fixed position to escape any overflow:hidden parent */}
+                            {/* ── Dropdown ── */}
                             {showPicker&&(
                               <>
                                 <div style={{position:'fixed',inset:0,zIndex:199}} onClick={()=>setShowPicker(false)}/>
-                                <div style={{position:'fixed',top:(typeof window!=='undefined'?(window as any).__pgPickerY:200),left:(typeof window!=='undefined'?(window as any).__pgPickerX:0),zIndex:200,background:card,border:`1px solid ${bdr}`,borderRadius:T.radMd,boxShadow:'0 8px 32px rgba(0,0,0,0.14)',minWidth:260,maxWidth:340,overflow:'hidden'}}>
-                                  {pickerGroups.map((grp,gi)=>{
-                                    const gStages = stages.filter(s=>grp.keys.includes(s.key))
-                                    if (!gStages.length) return null
-                                    return (
-                                      <div key={grp.label}>
-                                        {gi>0&&<div style={{height:1,background:t.divider}}/>}
-                                        <div style={{padding:'8px 14px 4px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em'}}>{grp.label}</div>
-                                        {gStages.map(stg=>{
-                                          const isCur  = stg.key===stage
-                                          const dotClr = stg.terminal ? t.accentRed : stg.color
-                                          return (
-                                            <button key={stg.key}
-                                              onClick={()=>{setShowPicker(false);if(!isCur)moveStage(stg.key as LeadStatus)}}
-                                              style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:isCur?(dk?dotClr+'18':stg.bg):'transparent',border:'none',cursor:'pointer',textAlign:'left',transition:'background 0.1s'}}
-                                              onMouseEnter={e=>{if(!isCur)(e.currentTarget as HTMLButtonElement).style.background=t.cardBgAlt}}
-                                              onMouseLeave={e=>{if(!isCur)(e.currentTarget as HTMLButtonElement).style.background='transparent'}}>
-                                              <StageIcon k={stg.key} color={dotClr} size={26}/>
-                                              <div style={{flex:1,minWidth:0}}>
-                                                <div style={{fontSize:T.fontBody,fontWeight:isCur?700:500,color:stg.terminal?t.accentRed:tp}}>{stg.label}</div>
-                                                <div style={{fontSize:T.fontBadge,color:tsu,marginTop:1}}>{stg.subLabel}</div>
-                                              </div>
-                                              {isCur&&<Svg size={14} stroke={dotClr}><polyline points="20 6 9 17 4 12"/></Svg>}
-                                            </button>
-                                          )
-                                        })}
+                                <div style={{
+                                  position:'fixed',
+                                  top:(typeof window!=='undefined'?(window as any).__pgPickerY:200),
+                                  left:(typeof window!=='undefined'?(window as any).__pgPickerX:0),
+                                  zIndex:200,background:card,
+                                  border:`1px solid ${bdr}`,
+                                  borderRadius:T.radMd,
+                                  boxShadow:'0 8px 40px rgba(0,0,0,0.16)',
+                                  minWidth:270,maxWidth:320,
+                                  overflow:'hidden',
+                                }}>
+                                  {/* CURRENT section */}
+                                  <div style={{padding:'6px 12px 4px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em',background:dk?'#111827':t.cardBgAlt}}>Current</div>
+                                  <div style={{padding:'8px 12px 10px',background:dk?stgObj?.color+'15':stgObj?.bg??'#F0FDFA',borderBottom:`1px solid ${bdr}`}}>
+                                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                      <StageIcon k={stage} color={stgObj?.color??BRAND.teal} size={28}/>
+                                      <div style={{flex:1}}>
+                                        <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal}}>{stgObj?.label??stage}</div>
+                                        <div style={{fontSize:11,color:tsu,marginTop:1}}>{stgObj?.subLabel}</div>
                                       </div>
-                                    )
-                                  })}
+                                      <Svg size={14} stroke={stgObj?.color??BRAND.teal}><polyline points="20 6 9 17 4 12"/></Svg>
+                                    </div>
+                                  </div>
+
+                                  {/* CHANGE TO section */}
+                                  <div style={{padding:'6px 12px 4px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em',background:dk?'#111827':t.cardBgAlt}}>Change To</div>
+                                  <div style={{maxHeight:320,overflowY:'auto'}}>
+                                    {pickerGroups.map((grp,gi)=>{
+                                      const gStages=stages.filter(s=>grp.keys.includes(s.key)&&s.key!==stage)
+                                      if(!gStages.length) return null
+                                      return (
+                                        <div key={grp.label}>
+                                          {gi>0&&<div style={{height:1,background:bdr,margin:'2px 0'}}/>}
+                                          <div style={{padding:'7px 12px 3px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em'}}>{grp.label}</div>
+                                          {gStages.map(stg=>{
+                                            const dc=stg.terminal?t.accentRed:stg.color
+                                            return (
+                                              <button key={stg.key}
+                                                onClick={()=>{setShowPicker(false);moveStage(stg.key as LeadStatus)}}
+                                                style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left'}}
+                                                onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background=dk?'#1F2937':'#F9FAFB'}}
+                                                onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background='transparent'}}>
+                                                <StageIcon k={stg.key} color={dc} size={26}/>
+                                                <div style={{flex:1,minWidth:0}}>
+                                                  <div style={{fontSize:13,fontWeight:500,color:tp}}>{stg.label}</div>
+                                                  <div style={{fontSize:11,color:tsu,marginTop:1}}>{stg.subLabel}</div>
+                                                </div>
+                                              </button>
+                                            )
+                                          })}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
                                 </div>
                               </>
                             )}
                           </div>
                         </div>
 
-                        {/* Status since */}
+                        {/* Middle: status since */}
                         <div>
-                          <div style={labelCls}>Status Since</div>
-                          <div style={{fontSize:T.fontBody,fontWeight:600,color:tp}}>
-                            {new Date(lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>Status Since</div>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <div style={{width:32,height:32,borderRadius:8,background:t.cardBgAlt,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              <Svg size={15} stroke={ts}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                            </div>
+                            <div>
+                              <div style={{fontSize:14,fontWeight:600,color:tp}}>
+                                {new Date(lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                              </div>
+                              <div style={{fontSize:12,color:tsu,marginTop:1}}>
+                                {daysAgo(lead.updated_at||lead.created_at)===0?'Today':`${daysAgo(lead.updated_at||lead.created_at)} days in stage`}
+                              </div>
+                            </div>
                           </div>
-                          <div style={{fontSize:T.fontBadge,color:tsu,marginTop:2}}>
-                            {daysAgo(lead.updated_at||lead.created_at)} days ago
+                        </div>
+
+                        {/* Right: owner */}
+                        <div>
+                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>Owner</div>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <div style={{width:32,height:32,borderRadius:'50%',background:avBg,color:avFg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,flexShrink:0}}>
+                              {initials(session?.name||'SA')}
+                            </div>
+                            <div>
+                              <div style={{fontSize:13,fontWeight:600,color:tp}}>{session?.name||session?.full_name||'Sam Altman'}</div>
+                              <div style={{fontSize:11,color:tsu,marginTop:1,textTransform:'capitalize'}}>{session?.trade||'Roofer'}</div>
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Stage tip */}
+                      {/* Stage tip — plain, no box */}
                       {TIPS[stage]&&(
-                        <div style={{marginTop:T.sp3,padding:'10px 12px',borderRadius:T.radSm,background:t.cardBgAlt,border:`1px solid ${bdr}`,fontSize:T.fontSub,color:tsu,lineHeight:1.5}}>
+                        <div style={{marginTop:12,fontSize:12,color:tsu,lineHeight:1.5}}>
                           💡 {TIPS[stage]}
                         </div>
                       )}
-
-                      {/* Terminal banner */}
                       {isTerminal&&(
-                        <div style={{marginTop:T.sp3,padding:'12px 16px',borderRadius:T.radSm,textAlign:'center',background:stage==='job_won'?'linear-gradient(135deg,#065F46,#047857)':t.cardBgAlt,color:stage==='job_won'?'#fff':ts,fontSize:T.fontBody,fontWeight:700}}>
+                        <div style={{marginTop:12,padding:'10px 14px',borderRadius:T.radSm,textAlign:'center',background:stage==='job_won'?'linear-gradient(135deg,#065F46,#047857)':t.cardBgAlt,color:stage==='job_won'?'#fff':ts,fontSize:14,fontWeight:700}}>
                           {stage==='job_won'?'🏆 Job Complete':stage==='lost'?'Job Lost':'Lead Unqualified'}
                         </div>
                       )}
                     </div>
-                  </div>{/* end hero card */}
+                  </div>{/* end hero */}
 
                   {/* ─── TABS CARD ───────────────────────────────────────── */}
-                  <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,overflow:'hidden',boxShadow:dk?'none':'0 2px 10px rgba(0,0,0,0.05)'}}>
+                  <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
 
-                    {/* Tab strip — inline icon + text, teal underline */}
-                    <div style={{display:'flex',borderBottom:`1px solid ${bdr}`,background:t.cardBgAlt}}>
+                    {/* Tab strip — underline style, clean */}
+                    <div style={{display:'flex',borderBottom:`1px solid ${bdr}`,paddingLeft:4,paddingRight:4}}>
                       {tabs.map(tb2=>{
-                        const isAct = tab===tb2.key
+                        const isAct=tab===tb2.key
                         return (
-                          <button key={tb2.key} onClick={()=>{setTab(tb2.key);if(isEditing&&tb2.key!=='details')setIsEditing(false)}}
-                            style={{flex:1,padding:'12px 8px',border:'none',borderBottom:isAct?`2px solid ${BRAND.teal}`:'2px solid transparent',background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,color:isAct?BRAND.teal:ts,fontWeight:isAct?700:500,fontSize:T.fontSub,whiteSpace:'nowrap',transition:'all 0.15s',marginBottom:-1}}>
-                            <Svg size={14} stroke={isAct?BRAND.teal:tsu}>{tb2.icon}</Svg>
+                          <button key={tb2.key}
+                            onClick={()=>{setTab(tb2.key);if(isEditing&&tb2.key!=='details')setIsEditing(false)}}
+                            style={{
+                              display:'flex',alignItems:'center',gap:6,
+                              padding:'13px 14px 11px',
+                              border:'none',
+                              borderBottom:isAct?`2px solid ${BRAND.teal}`:'2px solid transparent',
+                              background:'transparent',cursor:'pointer',
+                              color:isAct?BRAND.teal:ts,
+                              fontWeight:isAct?700:500,
+                              fontSize:13,whiteSpace:'nowrap',
+                              marginBottom:-1,
+                              transition:'color 0.15s',
+                            }}>
+                            <Svg size={13} stroke={isAct?BRAND.teal:tsu}>{tb2.icon}</Svg>
                             {tb2.label}
                           </button>
                         )
                       })}
                     </div>
 
-                    {/* ── Tab: Job Details ─────────────────────────────── */}
+                    {/* ── Details tab ──────────────────────────────────── */}
                     {tab==='details'&&(
-                      <div style={{padding:`${T.sp4}px ${T.sp4+2}px`}}>
-                        {/* View mode */}
+                      <div style={{padding:'18px 20px'}}>
                         {!isEditing&&(
                           <>
-                            {/* Data grid */}
-                            <div style={{borderRadius:T.radSm,overflow:'hidden',border:`1px solid ${bdr}`,marginBottom:T.sp4}}>
+                            {/* Fields grid — teal icon circles */}
+                            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,background:bdr,border:`1px solid ${bdr}`,borderRadius:T.radMd,overflow:'hidden',marginBottom:16}}>
                               {([
-                                {label:'Phone',    icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
-                                {label:'Email',    icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
-                                {label:'Address',  icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—', copy:null},
-                                {label:'Source',   icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
-                                {label:'Job Date', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>, val:fmt(lead.scheduled_date), copy:null},
-                                {label:'Follow-up',icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, val:lead.follow_up_date
-                                  ?<span style={{display:'flex',alignItems:'center',gap:5}}>{fmt(lead.follow_up_date)}{isOverdue(lead.follow_up_date)&&<span style={{fontSize:T.fontBadge,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:600}}>Overdue</span>}</span>
+                                {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
+                                {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
+                                {label:'Address',  color:'#0F766E', icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—', copy:null},
+                                {label:'Source',   color:'#6366F1', icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
+                                {label:'Job Date', color:'#F59E0B', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>, val:fmt(lead.scheduled_date), copy:null},
+                                {label:'Follow-up',color:'#F59E0B', icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, val:lead.follow_up_date
+                                  ?<span style={{display:'flex',alignItems:'center',gap:5}}>{fmt(lead.follow_up_date)}{isOverdue(lead.follow_up_date)&&<span style={{fontSize:11,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:600}}>Overdue</span>}</span>
                                   :'—', copy:null},
-                              ] as {label:string;icon:React.ReactNode;val:React.ReactNode;copy:string|null}[]).reduce((rows:any[][], cell,i)=>{
-                                if(i%2===0) rows.push([cell]); else rows[rows.length-1].push(cell)
-                                return rows
-                              },[]).map((row,ri)=>(
-                                <div key={ri} style={{display:'grid',gridTemplateColumns:'1fr 1fr',background:ri%2===1?t.tableRowAlt:card,borderBottom:ri<2?`1px solid ${bdr}`:'none'}}>
-                                  {row.map((cell:any)=>(
-                                    <div key={cell.label} style={{padding:'14px 16px',borderRight:row.indexOf(cell)===0?`1px solid ${bdr}`:'none'}}>
-                                      <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:6}}>
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tsu} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{cell.icon}</svg>
-                                        <span style={{fontSize:11,fontWeight:600,color:tsu,letterSpacing:'0.01em'}}>{cell.label}</span>
-                                      </div>
-                                      <div style={{fontSize:T.fontBody,fontWeight:600,color:tp,display:'flex',alignItems:'center',gap:4,wordBreak:'break-word'}}>
-                                        {cell.val}
-                                        {cell.copy&&<CopyBtn text={cell.copy} color={ts}/>}
-                                      </div>
+                              ] as {label:string;color:string;icon:React.ReactNode;val:React.ReactNode;copy:string|null}[]).map((cell,ci)=>(
+                                <div key={cell.label} style={{padding:'13px 16px',background:card,display:'flex',alignItems:'flex-start',gap:12}}>
+                                  {/* Teal icon circle */}
+                                  <div style={{width:32,height:32,borderRadius:8,background:cell.color+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={cell.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{cell.icon}</svg>
+                                  </div>
+                                  <div style={{minWidth:0,flex:1}}>
+                                    <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:3}}>{cell.label}</div>
+                                    <div style={{fontSize:14,fontWeight:600,color:tp,display:'flex',alignItems:'center',gap:4,wordBreak:'break-word',lineHeight:1.4}}>
+                                      {cell.val}
+                                      {cell.copy&&cell.val!=='—'&&<CopyBtn text={cell.copy} color={ts}/>}
                                     </div>
-                                  ))}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -699,29 +750,29 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             )}
 
                             {/* Notes */}
-                            <div style={{marginTop:T.sp4,paddingTop:T.sp4,borderTop:`1px solid ${bdr}`}}>
-                              <div style={{fontSize:T.fontSub,fontWeight:700,color:ts,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:T.sp3}}>Notes</div>
+                            <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
+                              <div style={{fontSize:12,fontWeight:700,color:ts,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10}}>Notes</div>
                               {lead.notes&&(
-                                <div style={{fontSize:T.fontBody,color:tb,lineHeight:1.65,whiteSpace:'pre-wrap',marginBottom:T.sp3,padding:'10px 12px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
+                                <div style={{fontSize:14,color:tb,lineHeight:1.65,whiteSpace:'pre-wrap',marginBottom:10,padding:'10px 12px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
                                   {lead.notes}
                                 </div>
                               )}
-                              <div style={{display:'flex',gap:T.sp2}}>
+                              <div style={{display:'flex',gap:8}}>
                                 <input value={noteText} onChange={e=>setNoteText(e.target.value)}
                                   onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&noteText.trim()){e.preventDefault();saveNote()}}}
                                   placeholder="Add a note..."
-                                  style={{flex:1,fontSize:T.fontBody,padding:'9px 12px',borderRadius:T.radSm,border:`1px solid ${t.inputBorder}`,background:t.inputBg,color:tp,outline:'none',fontFamily:'inherit'}}/>
+                                  style={{flex:1,fontSize:14,padding:'9px 12px',borderRadius:T.radSm,border:`1px solid ${t.inputBorder}`,background:t.inputBg,color:tp,outline:'none',fontFamily:'inherit'}}/>
                                 <button onClick={saveNote} disabled={savingNote||!noteText.trim()}
-                                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:T.fontSub,fontWeight:700,cursor:'pointer',opacity:!noteText.trim()?0.4:1}}>
+                                  style={{padding:'9px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:!noteText.trim()?0.4:1}}>
                                   {savingNote?'...':'Save'}
                                 </button>
                               </div>
                             </div>
 
                             {lead.message&&(
-                              <div style={{marginTop:T.sp3,padding:'12px 14px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
-                                <div style={{fontSize:9,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>Original message</div>
-                                <div style={{fontSize:T.fontBody,color:tb,lineHeight:1.65,fontStyle:'italic'}}>"{lead.message}"</div>
+                              <div style={{marginTop:10,padding:'11px 14px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
+                                <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:5}}>Original Message</div>
+                                <div style={{fontSize:14,color:tb,lineHeight:1.65,fontStyle:'italic'}}>"{lead.message}"</div>
                               </div>
                             )}
                           </>
@@ -730,19 +781,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {/* Edit mode */}
                         {isEditing&&(
                           <>
-                            <div style={{display:'flex',flexDirection:'column',gap:T.sp3+2}}>
-                              {/* Address — full width */}
+                            <div style={{display:'flex',flexDirection:'column',gap:14}}>
                               <div>
                                 <label style={labelCls}>Property Address</label>
                                 <input value={eAddr} onChange={e=>setEAddr(e.target.value)} placeholder="123 Maple St, Jacksonville, FL 32207" style={inputCls}/>
                               </div>
-                              {/* Phone + Email */}
-                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:T.sp3}}>
+                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                                 <div><label style={labelCls}>Phone</label><input value={ePhone} onChange={e=>setEPhone(e.target.value)} style={inputCls}/></div>
                                 <div><label style={labelCls}>Email</label><input value={eEmail} onChange={e=>setEEmail(e.target.value)} style={inputCls}/></div>
                               </div>
-                              {/* City + State */}
-                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:T.sp3}}>
+                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                                 <div><label style={labelCls}>City</label><input value={eCity} onChange={e=>setECity(e.target.value)} placeholder="Jacksonville" style={inputCls}/></div>
                                 <div><label style={labelCls}>State</label>
                                   <select value={eState} onChange={e=>setEState(e.target.value)} style={inputCls}>
@@ -751,34 +799,29 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   </select>
                                 </div>
                               </div>
-                              {/* Source */}
                               <div><label style={labelCls}>Source</label>
                                 <select value={eSrc} onChange={e=>setESrc(e.target.value)} style={inputCls}>
                                   {SOURCE_OPTIONS.map(s=><option key={s}>{s}</option>)}
                                 </select>
                               </div>
-                              {/* Job date + time */}
                               <div><label style={labelCls}>Job Date &amp; Time</label>
-                                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:T.sp2}}>
+                                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                                   <input type="date" value={eDate} onChange={e=>setEDate(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
                                   <input type="time" value={eTime} onChange={e=>setETime(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
                                 </div>
                               </div>
-                              {/* Follow-up */}
                               <div><label style={labelCls}>Follow-up Date</label>
                                 <input type="date" value={eFU} onChange={e=>setEFU(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
                               </div>
-                              {/* Notes */}
                               <div><label style={labelCls}>Notes</label>
                                 <textarea value={eNotes} onChange={e=>setENotes(e.target.value)} rows={4} maxLength={500}
                                   style={{...inputCls,resize:'vertical',lineHeight:1.6,minHeight:90}}/>
-                                <div style={{fontSize:T.fontSub,color:tsu,textAlign:'right',marginTop:3}}>{eNotes.length}/500</div>
+                                <div style={{fontSize:12,color:tsu,textAlign:'right',marginTop:3}}>{eNotes.length}/500</div>
                               </div>
                             </div>
-                            {/* Edit actions */}
-                            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:T.sp3,marginTop:T.sp4,paddingTop:T.sp4,borderTop:`1px solid ${bdr}`}}>
-                              <button onClick={()=>setIsEditing(false)} style={{padding:'12px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:t.cardBgAlt,color:tp,cursor:'pointer',fontSize:T.fontEmphasis,fontWeight:600}}>Cancel</button>
-                              <button onClick={saveEdit} disabled={eSaving} style={{padding:'12px',borderRadius:T.radSm,border:'none',background:`linear-gradient(135deg,${BRAND.teal},${BRAND.tealLight})`,color:'#fff',cursor:'pointer',fontSize:T.fontEmphasis,fontWeight:700}}>
+                            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
+                              <button onClick={()=>setIsEditing(false)} style={{padding:'11px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:t.cardBgAlt,color:tp,cursor:'pointer',fontSize:14,fontWeight:600}}>Cancel</button>
+                              <button onClick={saveEdit} disabled={eSaving} style={{padding:'11px',borderRadius:T.radSm,border:'none',background:`linear-gradient(135deg,${BRAND.teal},${BRAND.tealLight})`,color:'#fff',cursor:'pointer',fontSize:14,fontWeight:700}}>
                                 {eSaving?'Saving…':'Save Changes'}
                               </button>
                             </div>
@@ -787,36 +830,36 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                     )}
 
-                    {/* ── Tab: Photos ─────────────────────────────────── */}
+                    {/* Photos tab */}
                     {tab==='photos'&&isRoofing&&(
-                      <div style={{padding:`${T.sp4}px ${T.sp4+2}px`}}>
+                      <div style={{padding:'18px 20px'}}>
                         <JobPhotoLog leadId={lead.id} proId={session!.id} isRoofing={isRoofing} darkMode={dk}/>
                       </div>
                     )}
 
-                    {/* ── Tab: Estimate ────────────────────────────────── */}
+                    {/* Estimate tab */}
                     {tab==='estimate'&&(
-                      <div style={{padding:`${T.sp4}px ${T.sp4+2}px`}}>
+                      <div style={{padding:'18px 20px'}}>
                         {est?(
-                          <div style={{display:'flex',flexDirection:'column',gap:T.sp3}}>
+                          <div style={{display:'flex',flexDirection:'column',gap:12}}>
                             <div style={{padding:'16px 18px',borderRadius:T.radMd,background:t.successBg,border:`1px solid ${t.successBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                               <div>
-                                <div style={{fontSize:9,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Estimate #{est.estimate_number}</div>
-                                <div style={{fontSize:28,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.03em'}}>${est.total.toLocaleString('en-US',{minimumFractionDigits:2})}</div>
+                                <div style={{fontSize:10,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Estimate #{est.estimate_number}</div>
+                                <div style={{fontSize:26,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.03em'}}>${est.total.toLocaleString('en-US',{minimumFractionDigits:2})}</div>
                               </div>
                               <button onClick={()=>router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)}
-                                style={{padding:'10px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:T.fontBody,fontWeight:700,cursor:'pointer'}}>
+                                style={{padding:'10px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
                                 Open
                               </button>
                             </div>
                             {inv&&(
                               <div style={{padding:'14px 18px',borderRadius:T.radSm,background:t.warningBg,border:`1px solid ${t.warningBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                                 <div>
-                                  <div style={{fontSize:9,fontWeight:700,color:'#B45309',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Invoice #{inv.invoice_number}</div>
-                                  <div style={{fontSize:T.fontHeading,fontWeight:700,color:'#B45309'}}>${inv.balance_due.toLocaleString('en-US',{minimumFractionDigits:2})} due</div>
+                                  <div style={{fontSize:10,fontWeight:700,color:'#B45309',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Invoice #{inv.invoice_number}</div>
+                                  <div style={{fontSize:18,fontWeight:700,color:'#B45309'}}>${inv.balance_due.toLocaleString('en-US',{minimumFractionDigits:2})} due</div>
                                 </div>
                                 <button onClick={()=>router.push(`/dashboard/invoices/${inv.id}`)}
-                                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:'#B45309',color:'#fff',fontSize:T.fontBody,fontWeight:700,cursor:'pointer'}}>
+                                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:'#B45309',color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
                                   View
                                 </button>
                               </div>
@@ -824,9 +867,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           </div>
                         ):(
                           <div style={{textAlign:'center',padding:'40px 0'}}>
-                            <div style={{fontSize:T.fontBody,color:ts,marginBottom:T.sp4}}>No estimate yet</div>
+                            <div style={{fontSize:14,color:ts,marginBottom:16}}>No estimate yet</div>
                             <button onClick={createEst} disabled={creatingEst}
-                              style={{padding:'11px 28px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:T.fontBody,fontWeight:700,cursor:'pointer',opacity:creatingEst?0.7:1}}>
+                              style={{padding:'11px 28px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer',opacity:creatingEst?0.7:1}}>
                               {creatingEst?'Creating...':'+ Create Estimate'}
                             </button>
                           </div>
@@ -834,107 +877,121 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                     )}
 
-                    {/* ── Tab: Activity ────────────────────────────────── */}
+                    {/* Activity tab — full timeline */}
                     {tab==='activity'&&(
-                      <div style={{padding:`${T.sp4}px ${T.sp4+2}px`}}>
+                      <div style={{padding:'18px 20px'}}>
                         {acts.length===0
-                          ?<div style={{textAlign:'center',padding:'40px 0',color:ts,fontSize:T.fontBody}}>No activity yet.</div>
-                          :acts.map((item,i)=>{
-                            const ic = item.type==='note'?'#854F0B':item.type==='quote'?'#3C3489':BRAND.teal
-                            const ib = item.type==='note'?'#FAEEDA':item.type==='quote'?'#EEEDFE':'#E1F5EE'
-                            return (
-                              <div key={i} style={{display:'flex',alignItems:'flex-start',gap:T.sp3,padding:`${T.sp3}px 0`,borderBottom:i<acts.length-1?`1px solid ${bdr}`:'none'}}>
-                                <div style={{width:32,height:32,borderRadius:'50%',background:ib,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                  <Svg size={14} stroke={ic}>
-                                    {item.type==='note'     &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
-                                    {item.type==='quote'    &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
-                                    {item.type==='created'  &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
-                                    {item.type==='scheduled'&&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-                                  </Svg>
+                          ?<div style={{textAlign:'center',padding:'40px 0',color:ts,fontSize:14}}>No activity yet.</div>
+                          :<div style={{position:'relative'}}>
+                            {/* Vertical rail */}
+                            <div style={{position:'absolute',left:15,top:16,bottom:16,width:1,background:bdr,zIndex:0}}/>
+                            {acts.map((item,i)=>{
+                              const ic=item.type==='note'?'#854F0B':item.type==='quote'?'#6366F1':item.type==='scheduled'?'#F59E0B':BRAND.teal
+                              const ib=item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
+                              return (
+                                <div key={i} style={{display:'flex',alignItems:'flex-start',gap:14,paddingBottom:i<acts.length-1?18:0,position:'relative',zIndex:1}}>
+                                  {/* Timeline dot */}
+                                  <div style={{width:30,height:30,borderRadius:'50%',background:ib,border:`2px solid ${ic}25`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                    <Svg size={13} stroke={ic}>
+                                      {item.type==='note'     &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+                                      {item.type==='quote'    &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                                      {item.type==='created'  &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                                      {item.type==='scheduled'&&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                                    </Svg>
+                                  </div>
+                                  <div style={{flex:1,paddingTop:3}}>
+                                    <div style={{fontSize:14,fontWeight:600,color:tp,lineHeight:1.3}}>{item.title}</div>
+                                    <div style={{fontSize:12,color:ts,marginTop:2,lineHeight:1.4}}>{item.sub}</div>
+                                  </div>
+                                  <div style={{fontSize:11,color:tsu,flexShrink:0,paddingTop:4,textAlign:'right',lineHeight:1.4}}>
+                                    <div>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+                                    <div>{new Date(item.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+                                  </div>
                                 </div>
-                                <div style={{flex:1}}>
-                                  <div style={{fontSize:T.fontBody,fontWeight:600,color:tp}}>{item.title}</div>
-                                  <div style={{fontSize:T.fontSub,color:ts,marginTop:2}}>{item.sub}</div>
-                                </div>
-                                <div style={{fontSize:T.fontSub,color:tsu,flexShrink:0,paddingTop:2}}>
-                                  {new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
-                                </div>
-                              </div>
-                            )
-                          })
+                              )
+                            })}
+                          </div>
                         }
                       </div>
                     )}
                   </div>{/* end tabs card */}
                 </div>{/* end left col */}
 
-                {/* ══ RIGHT COLUMN (desktop sticky) ══ */}
+                {/* ══ RIGHT COLUMN ══════════════════════════════════════ */}
                 <div style={{display:isWide?'block':'none'}}>
-                  <div style={{position:'sticky',top:20,display:'flex',flexDirection:'column',gap:T.sp3}}>
+                  <div style={{position:'sticky',top:20,display:'flex',flexDirection:'column',gap:12}}>
 
-                    {/* Activity */}
-                    <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 2px 10px rgba(0,0,0,0.05)'}}>
-                      <div style={{padding:`${T.sp3}px ${T.sp4}px`,borderBottom:`1px solid ${bdr}`}}>
-                        <div style={{fontSize:T.fontBody,fontWeight:700,color:tp}}>Activity</div>
+                    {/* Insights — horizontal cards */}
+                    <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                      <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
+                        <Svg size={14} stroke="#6366F1"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>
+                        <span style={{fontSize:14,fontWeight:700,color:tp}}>Insights</span>
                       </div>
-                      <div style={{padding:`${T.sp3}px ${T.sp4}px`}}>
-                        {acts.length===0
-                          ?<div style={{fontSize:T.fontSub,color:tsu,textAlign:'center',padding:'12px 0'}}>No activity yet</div>
-                          :acts.slice(0,5).map((item,i)=>{
-                            const ic = item.type==='note'?'#854F0B':item.type==='quote'?'#6366F1':BRAND.teal
-                            const ib = item.type==='note'?'#FAEEDA':item.type==='quote'?'#EEF2FF':'#E1F5EE'
-                            return (
-                              <div key={i} style={{display:'flex',alignItems:'flex-start',gap:T.sp2,paddingBottom:i<Math.min(acts.length,5)-1?T.sp2:0,marginBottom:i<Math.min(acts.length,5)-1?T.sp2:0,borderBottom:i<Math.min(acts.length,5)-1?`1px solid ${t.divider}`:'none'}}>
-                                <div style={{width:22,height:22,borderRadius:'50%',background:ib,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
-                                  <Svg size={11} stroke={ic}>
-                                    {item.type==='created'  &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
-                                    {item.type==='note'     &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
-                                    {item.type==='quote'    &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
-                                    {item.type==='scheduled'&&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-                                  </Svg>
-                                </div>
-                                <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontSize:T.fontBody,fontWeight:600,color:tp,lineHeight:1.3}}>{item.title}</div>
-                                  <div style={{fontSize:T.fontSub,color:ts,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.sub}</div>
-                                </div>
-                                <div style={{fontSize:T.fontSub,color:ts,flexShrink:0,whiteSpace:'nowrap',paddingTop:1}}>
-                                  {new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
-                                </div>
-                              </div>
-                            )
-                          })
-                        }
-                      </div>
-                    </div>
-
-                    {/* Insights */}
-                    <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 2px 10px rgba(0,0,0,0.05)'}}>
-                      <div style={{padding:`${T.sp4}px ${T.sp4}px ${T.sp3}px`,borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:6}}>
-                        <Svg size={15} stroke="#6366F1"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>
-                        <div style={{fontSize:T.fontBody,fontWeight:700,color:tp}}>Insights</div>
-                      </div>
-                      <div style={{padding:`${T.sp3}px ${T.sp4}px`,display:'flex',flexDirection:'column',gap:T.sp3}}>
+                      {/* Horizontal row of insight cards */}
+                      <div style={{padding:'12px',display:'flex',gap:8}}>
                         {(()=>{
-                          const mins = Math.floor((Date.now()-new Date(lead.created_at).getTime())/60000)
-                          const hour = new Date().getHours()
-                          const items = [
-                            ...(mins<=30?[{color:'#10B981',title:'Hot lead',body:`Responded ${mins<1?'just now':`${mins}m ago`}`,sub:'Call within 1 hour',icon:<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>}]:[]),
-                            {color:'#6366F1',title:'Best callback window',body:hour<17?'5:00 PM – 7:00 PM':hour<20?'Right now':'10 AM – 12 PM',sub:'Today',icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>},
-                            ...(isRoofing?[{color:'#F59E0B',title:'Roof size estimate',body:'28–34 squares',sub:'Based on satellite scan',icon:<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}]:[]),
+                          const mins=Math.floor((Date.now()-new Date(lead.created_at).getTime())/60000)
+                          const hour=new Date().getHours()
+                          const items=[
+                            ...(mins<=30?[{color:'#10B981',bg:'#ECFDF5',title:'High close probability',body:`Lead responded within ${mins<1?'1':mins} min`,icon:<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>}]:[]),
+                            {color:'#6366F1',bg:'#EEF2FF',title:'Best callback window',body:hour<17?'5:00 PM – 7:00 PM':hour<20?'Right now':'10 AM – 12 PM',icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>},
+                            ...(isRoofing?[{color:'#F59E0B',bg:'#FFFBEB',title:'Roof size estimate',body:'28 – 34 squares',icon:<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}]:[]),
                           ]
                           return items.map((ins,i)=>(
-                            <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                              <div style={{width:28,height:28,borderRadius:6,background:ins.color+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                            <div key={i} style={{flex:1,background:ins.bg,borderRadius:T.radMd,padding:'10px 10px 10px',minWidth:0}}>
+                              <div style={{width:28,height:28,borderRadius:7,background:ins.color+'22',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:7}}>
                                 <Svg size={13} stroke={ins.color}>{ins.icon}</Svg>
                               </div>
-                              <div style={{minWidth:0}}>
-                                <div style={{fontSize:T.fontSub,fontWeight:700,color:tp,marginBottom:2}}>{ins.title}</div>
-                                <div style={{fontSize:T.fontBody,fontWeight:700,color:ins.color}}>{ins.body}</div>
-                                <div style={{fontSize:T.fontSub,color:ts,marginTop:2}}>{ins.sub}</div>
-                              </div>
+                              <div style={{fontSize:10,fontWeight:700,color:ins.color,lineHeight:1.3,marginBottom:3}}>{ins.title}</div>
+                              <div style={{fontSize:12,fontWeight:700,color:ins.color}}>{ins.body}</div>
                             </div>
                           ))
                         })()}
+                      </div>
+                    </div>
+
+                    {/* Activity — timeline */}
+                    <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                      <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                        <span style={{fontSize:14,fontWeight:700,color:tp}}>Activity</span>
+                        {acts.length>3&&(
+                          <button onClick={()=>setTab('activity')} style={{fontSize:12,color:BRAND.teal,fontWeight:600,background:'none',border:'none',cursor:'pointer',padding:0}}>
+                            View all →
+                          </button>
+                        )}
+                      </div>
+                      <div style={{padding:'14px 16px'}}>
+                        {acts.length===0
+                          ?<div style={{fontSize:13,color:tsu,textAlign:'center',padding:'10px 0'}}>No activity yet</div>
+                          :<div style={{position:'relative'}}>
+                            {/* Timeline rail */}
+                            <div style={{position:'absolute',left:11,top:12,bottom:12,width:1,background:bdr,zIndex:0}}/>
+                            {acts.slice(0,5).map((item,i)=>{
+                              const ic=item.type==='note'?'#854F0B':item.type==='quote'?'#6366F1':item.type==='scheduled'?'#F59E0B':BRAND.teal
+                              const ib=item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
+                              return (
+                                <div key={i} style={{display:'flex',gap:10,paddingBottom:i<Math.min(acts.length,5)-1?14:0,position:'relative',zIndex:1}}>
+                                  <div style={{width:22,height:22,borderRadius:'50%',background:ib,border:`1.5px solid ${ic}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
+                                    <Svg size={10} stroke={ic}>
+                                      {item.type==='created'  &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                                      {item.type==='note'     &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+                                      {item.type==='quote'    &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                                      {item.type==='scheduled'&&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                                    </Svg>
+                                  </div>
+                                  <div style={{flex:1,minWidth:0,paddingTop:1}}>
+                                    <div style={{fontSize:13,fontWeight:600,color:tp,lineHeight:1.3}}>{item.title}</div>
+                                    <div style={{fontSize:11,color:ts,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.sub}</div>
+                                  </div>
+                                  <div style={{fontSize:10,color:tsu,flexShrink:0,textAlign:'right',paddingTop:1,lineHeight:1.5}}>
+                                    <div>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+                                    <div>{new Date(item.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        }
                       </div>
                     </div>
 
