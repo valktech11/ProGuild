@@ -353,13 +353,8 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
     return (e: React.MouseEvent) => { e.stopPropagation(); onOpen() }
   }
 
-  const primaryLabel =
-    stage.key === 'New'       ? 'Mark Contacted' :
-    stage.key === 'Contacted' ? 'Send Estimate' :
-    stage.key === 'Quoted'    ? (creatingEst ? 'Opening…' : 'Estimate →') :
-    stage.key === 'Scheduled' ? 'View Job' :
-    stage.key === 'Completed' ? 'Invoice' :
-    stage.key === 'Paid'      ? '✓ Won' : 'Open'
+  // Use stage.nextLabel from trade config (ROOFING_NEXT / GENERIC_NEXT)
+  const primaryLabel = creatingEst ? 'Opening…' : (stage.nextLabel || 'Open')
 
   // Smart primary action handler
   async function handlePrimaryAction(e: React.MouseEvent) {
@@ -439,11 +434,31 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
               <span className="text-[11px] font-semibold" style={{ color: ageColor }}>{ageLabel}</span>
             </div>
           </div>
-          {lead.quoted_amount && (
-            <p className="text-[12px] font-bold" style={{ color: '#059669' }}>
-              ${lead.quoted_amount.toLocaleString()}
-            </p>
-          )}
+          {/* Context row: source + quoted amount + scheduled date */}
+          {(() => {
+            const src = lead.lead_source?.replace(/_/g,' ')
+            const amt = lead.quoted_amount
+            const sched = lead.scheduled_date
+              ? new Date(lead.scheduled_date).toLocaleDateString('en-US',{month:'short',day:'numeric'})
+              : null
+            const chips = []
+            if (src && src !== 'undefined') chips.push({ label: src, color: '#64748B', bg: '#F1F5F9' })
+            if (amt) chips.push({ label: `${amt.toLocaleString()}`, color: '#047857', bg: '#D1FAE5' })
+            if (sched) chips.push({ label: sched, color: '#155E75', bg: '#ECFEFF' })
+            if (!chips.length) return null
+            return (
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                {chips.map((chip,i) => (
+                  <span key={i} style={{
+                    fontSize: 10, fontWeight: 600,
+                    padding: '1px 6px', borderRadius: 5,
+                    background: chip.bg, color: chip.color,
+                    whiteSpace: 'nowrap',
+                  }}>{chip.label}</span>
+                ))}
+              </div>
+            )
+          })()}
         </div>
       </div>
         )
@@ -990,7 +1005,8 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
           borderTop: `3px solid ${stage.color}`,
           padding: '10px 12px 8px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Stage name + count */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: colValue > 0 || leads.length > 0 ? 4 : 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: stage.color, letterSpacing: '-0.01em' }}>
                 {stage.label}
@@ -1001,11 +1017,20 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
               </span>
             </div>
             {colValue > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: stage.color, opacity: 0.85 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: stage.color }}>
                 ${colValue.toLocaleString()}
               </span>
             )}
           </div>
+          {/* Avg age row — only when there are leads */}
+          {leads.length > 0 && (() => {
+            const avgDays = (leads.reduce((s,l) => s + (Date.now()-new Date(l.created_at).getTime())/86400000, 0) / leads.length).toFixed(1)
+            return (
+              <div style={{ fontSize: 11, color: t.textSubtle }}>
+                {leads.length} lead{leads.length!==1?'s':''} · avg {avgDays}d
+              </div>
+            )
+          })()}
         </div>
 
         {/* Cards */}
@@ -1117,6 +1142,44 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
 
   return (
     <>
+    {/* ── KPI Stats Bar — desktop only, computed from leads ── */}
+    {(() => {
+      const now = new Date()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+      const activeLeads = leads.filter(l => !['job_won','Paid','lost','unqualified','Lost'].includes(l.lead_status))
+      const pipelineVal = activeLeads.reduce((s,l) => s + (l.quoted_amount||0), 0)
+      const wonThisMonth = leads.filter(l =>
+        (l.lead_status === 'job_won' || l.lead_status === 'Paid') &&
+        new Date((l as any).updated_at || l.created_at).getTime() >= monthStart
+      )
+      const wonVal = wonThisMonth.reduce((s,l) => s + (l.quoted_amount||0), 0)
+      const avgAge = activeLeads.length
+        ? (activeLeads.reduce((s,l) => s + (Date.now()-new Date(l.created_at).getTime())/86400000, 0) / activeLeads.length).toFixed(1)
+        : '0'
+      const totalThisMonth = leads.filter(l => new Date(l.created_at).getTime() >= monthStart).length
+      const kpis = [
+        { label: 'Pipeline Value', value: pipelineVal > 0 ? `${pipelineVal.toLocaleString()}` : '—', sub: `${activeLeads.length} active leads`, color: '#0F766E' },
+        { label: 'Won This Month', value: wonVal > 0 ? `${wonVal.toLocaleString()}` : '—', sub: `${wonThisMonth.length} job${wonThisMonth.length!==1?'s':''}`, color: '#047857' },
+        { label: 'New This Month', value: String(totalThisMonth), sub: 'leads received', color: '#1E40AF' },
+        { label: 'Avg Lead Age', value: `${avgAge}d`, sub: 'active pipeline', color: parseFloat(String(avgAge)) > 7 ? '#92400E' : '#64748B' },
+      ]
+      return (
+        <div className="hidden md:grid mb-4 gap-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {kpis.map(k => (
+            <div key={k.label} style={{
+              background: t.cardBg, border: `1px solid ${t.cardBorder}`,
+              borderRadius: 10, padding: '12px 16px',
+              boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{k.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: k.color, letterSpacing: '-0.03em', lineHeight: 1 }}>{k.value}</div>
+              <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 3 }}>{k.sub}</div>
+            </div>
+          ))}
+        </div>
+      )
+    })()}
+
     {/* ── List / Board toggle bar — desktop only ── */}
     <div className="hidden md:flex items-center gap-2 mb-3 px-1">
       <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: t.cardBorder }}>
