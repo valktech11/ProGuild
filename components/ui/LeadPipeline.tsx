@@ -472,7 +472,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
         <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:8 }}>
           {src && src !== 'undefined' && (
             <span style={{ fontSize:10, fontWeight:500, padding:'2px 7px', borderRadius:20,
-              background:dk?'#1E293B':'#F1F5F9', color:dk?'#94A3B8':'#64748B' }}>
+              background:dk?'#1E293B':'#F1F5F9', color:dk?'#94A3B8':'#475569' }}>
               {src}
             </span>
           )}
@@ -484,7 +484,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
           )}
           {schedDate && (
             <span style={{ fontSize:10, fontWeight:500, padding:'2px 7px', borderRadius:20,
-              background:dk?'#0E2A3A':'#ECFEFF', color:'#155E75' }}>
+              background:dk?'#0E2A3A':'#ECFEFF', color:'#2563EB' }}>
               📅 {schedDate}
             </span>
           )}
