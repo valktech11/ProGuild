@@ -113,6 +113,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   })
   const [dk, setDk] = useState(false)
   useEffect(() => { if (typeof window!=='undefined') setDk(localStorage.getItem('pg_darkmode')==='1') }, [])
+
+  const [isWide, setIsWide] = useState(false)
+
+  // Responsive 2-col grid — pure JS, no Tailwind arbitrary values
+  useEffect(() => {
+    function check() { setIsWide(window.innerWidth >= 900) }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const toggleDark = () => { const n=!dk; setDk(n); localStorage.setItem('pg_darkmode',n?'1':'0') }
 
   // ── Lead data ────────────────────────────────────────────────────────────
@@ -443,7 +453,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
               </div>
 
               {/* ── 2-col grid ─────────────────────────────────────────── */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr',gap:T.sp3}} className="lg:grid-cols-[1fr_300px]">
+              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 300px':'1fr',gap:T.sp3}}>
 
                 {/* ══ LEFT ══ */}
                 <div style={{minWidth:0}}>
@@ -859,7 +869,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 </div>{/* end left col */}
 
                 {/* ══ RIGHT COLUMN (desktop sticky) ══ */}
-                <div className="hidden lg:block">
+                <div style={{display:isWide?'block':'none'}}>
                   <div style={{position:'sticky',top:20,display:'flex',flexDirection:'column',gap:T.sp3}}>
 
                     {/* Activity */}
