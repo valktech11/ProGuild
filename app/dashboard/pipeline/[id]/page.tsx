@@ -453,6 +453,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
               </div>
 
               {/* ── 2-col grid ─────────────────────────────────────────── */}
+              <div style={{maxWidth:1400,margin:'0 auto',width:'100%'}}>
               <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 300px':'1fr',gap:16}}>
 
                 {/* ══ LEFT ══════════════════════════════════════════════ */}
@@ -515,16 +516,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 0px'}}>
                       {/* Fixed-height dot row — all dots same container height so labels align */}
                       <div style={{position:'relative',display:'flex',alignItems:'flex-end',height:28}}>
-                        {/* Track line — centered at dot midpoint (14px from top of 28px row) */}
-                        <div style={{
-                          position:'absolute',top:5,zIndex:0,
-                          left:`${100/active.length/2}%`,
-                          right:`${100/active.length/2}%`,
-                          height:2,
-                          background:curPos>0
-                            ?`linear-gradient(to right,${active[curPos-1]?.color??BRAND.teal} 0%,${stgObj?.color??BRAND.teal} ${Math.round((curPos/(active.length-1))*100)}%,${dk?'#1E293B':'#E5E7EB'} ${Math.round((curPos/(active.length-1))*100)}%)`
-                            :(dk?'#1E293B':'#E5E7EB'),
-                        }}/>
+                        {/* Track: grey base + colored progress overlay */}
+                        <div style={{position:'absolute',top:5,zIndex:0,left:`${100/active.length/2}%`,right:`${100/active.length/2}%`,height:2,background:dk?'#1E293B':'#E5E7EB',borderRadius:2}}/>
+                        {curPos>0&&(
+                          <div style={{position:'absolute',top:5,zIndex:0,left:`${100/active.length/2}%`,width:`${(curPos/(active.length-1))*100*(1-1/active.length)}%`,height:2,background:`linear-gradient(to right,${active[0]?.color??BRAND.teal},${stgObj?.color??BRAND.teal})`,borderRadius:2,transition:'width 0.4s ease'}}/>
+                        )}
                         {active.map((stg,i)=>{
                           const done  = i<curPos
                           const isAct = i===curPos
@@ -567,27 +563,44 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                     {/* ─── Status row ─────────────────────────────────── */}
                     <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px'}}>
-                      <div style={{display:'grid',gridTemplateColumns:'auto 1fr auto',gap:24,alignItems:'start'}}>
+                      <div style={{display:'grid',gridTemplateColumns:'200px 1fr auto',gap:20,alignItems:'start'}}>
 
-                        {/* Left: status picker */}
+                        {/* Left: status picker — full-width card style */}
                         <div>
-                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>Current Status</div>
-                          <div style={{position:'relative',display:'inline-block'}}>
+                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Current Status</div>
+                          <div style={{position:'relative'}}>
                             <button
                               onClick={(e)=>{
                                 const r=(e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                (window as any).__pgPickerY=r.bottom+4;
+                                (window as any).__pgPickerY=r.bottom+8;
                                 (window as any).__pgPickerX=r.left;
                                 setShowPicker(v=>!v);
                               }}
                               disabled={saving}
-                              style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:T.radSm,border:`1.5px solid ${stgObj?.color??BRAND.teal}35`,background:stgObj?.bg??'#F0FDFA',color:stgObj?.color??BRAND.teal,fontSize:14,fontWeight:700,cursor:saving?'wait':'pointer',whiteSpace:'nowrap'}}>
-                              <span style={{width:8,height:8,borderRadius:'50%',background:stgObj?.color??BRAND.teal,flexShrink:0}}/>
-                              {saving?'Updating...':(stgObj?.label??stage)}
-                              <Svg size={13} stroke={stgObj?.color??BRAND.teal}><polyline points="6 9 12 15 18 9"/></Svg>
+                              style={{
+                                width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
+                                padding:'12px 14px',borderRadius:T.radMd,
+                                border:`1px solid ${bdr}`,
+                                background:stgObj?.bg??'#F0FDFA',
+                                cursor:saving?'wait':'pointer',
+                                boxShadow:showPicker?`0 0 0 3px ${stgObj?.color??BRAND.teal}20`:'0 1px 3px rgba(0,0,0,0.06)',
+                                transition:'box-shadow 0.15s',
+                              }}>
+                              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                <span style={{width:10,height:10,borderRadius:'50%',background:stgObj?.color??BRAND.teal,flexShrink:0}}/>
+                                <div style={{textAlign:'left'}}>
+                                  <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal,lineHeight:1.2}}>
+                                    {saving?'Updating...':(stgObj?.label??stage)}
+                                  </div>
+                                  <div style={{fontSize:11,color:tsu,marginTop:2}}>{stgObj?.subLabel}</div>
+                                </div>
+                              </div>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke={tsu} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                style={{transform:showPicker?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s',flexShrink:0}}>
+                                <polyline points="6 9 12 15 18 9"/>
+                              </svg>
                             </button>
-                            {/* Human description under pill */}
-                            <div style={{fontSize:12,color:tsu,marginTop:4,paddingLeft:2}}>{stgObj?.subLabel}</div>
 
                             {/* ── Dropdown ── */}
                             {showPicker&&(
@@ -658,12 +671,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           </div>
                         </div>
 
-                        {/* Middle: status since */}
+                        {/* Middle: status since — card style */}
                         <div>
-                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>Status Since</div>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <div style={{width:32,height:32,borderRadius:8,background:t.cardBgAlt,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                              <Svg size={15} stroke={ts}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Status Since</div>
+                          <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderRadius:T.radMd,border:`1px solid ${bdr}`,background:t.cardBgAlt,boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
+                            <div style={{width:36,height:36,borderRadius:9,background:card,boxShadow:'0 1px 4px rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              <Svg size={16} stroke={ts}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
                             </div>
                             <div>
                               <div style={{fontSize:14,fontWeight:600,color:tp}}>
@@ -691,10 +704,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         </div>
                       </div>
 
-                      {/* Stage tip — plain, no box */}
+                      {/* Stage tip — amber card */}
                       {TIPS[stage]&&(
-                        <div style={{marginTop:12,fontSize:12,color:tsu,lineHeight:1.5}}>
-                          💡 {TIPS[stage]}
+                        <div style={{marginTop:14,padding:'10px 14px',borderRadius:T.radMd,background:'#FFFBEB',border:'1px solid #FDE68A',display:'flex',alignItems:'flex-start',gap:8}}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,marginTop:1}}>
+                            <path d="M12 3a6 6 0 00-6 6c0 3 1.5 5 3 7h6c1.5-2 3-4 3-7a6 6 0 00-6-6z"/>
+                            <line x1="8.5" y1="19" x2="15.5" y2="19"/><line x1="9" y1="22" x2="15" y2="22"/>
+                          </svg>
+                          <span style={{fontSize:12,fontWeight:500,color:'#92400E',lineHeight:1.5}}>{TIPS[stage]}</span>
                         </div>
                       )}
                       {isTerminal&&(
@@ -1022,6 +1039,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 </div>{/* end right col */}
 
               </div>{/* end grid */}
+              </div>{/* end max-width wrapper */}
             </>
           )
         })()}
