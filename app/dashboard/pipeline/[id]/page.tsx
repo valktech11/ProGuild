@@ -512,11 +512,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     </div>
 
                     {/* ─── Progress bar ───────────────────────────────── */}
-                    <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 12px'}}>
-                      <div style={{position:'relative',display:'flex',alignItems:'flex-start'}}>
-                        {/* Track line */}
+                    <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 0px'}}>
+                      {/* Fixed-height dot row — all dots same container height so labels align */}
+                      <div style={{position:'relative',display:'flex',alignItems:'flex-end',height:28}}>
+                        {/* Track line — centered at dot midpoint (14px from top of 28px row) */}
                         <div style={{
-                          position:'absolute',top:9,zIndex:0,
+                          position:'absolute',top:5,zIndex:0,
                           left:`${100/active.length/2}%`,
                           right:`${100/active.length/2}%`,
                           height:2,
@@ -527,20 +528,37 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {active.map((stg,i)=>{
                           const done  = i<curPos
                           const isAct = i===curPos
-                          const sz    = isAct?22:done?20:14
+                          const sz    = isAct?22:done?20:12
                           const rad   = done||isAct?'50%':'3px'
                           const bg    = done?stg.color:isAct?stg.color:(dk?'#374151':'#E5E7EB')
                           const bdr2  = isAct?`2.5px solid ${card}`:'none'
                           const shd   = isAct?`0 0 0 2.5px ${stg.color},0 2px 8px ${stg.color}40`:done?`0 1px 4px ${stg.color}30`:'none'
-                          const lc    = isAct?stg.color:done?(dk?'#4B5563':'#9CA3AF'):(dk?'#374151':'#CBD5E1')
                           return (
-                            <div key={stg.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',position:'relative',zIndex:1}}>
-                              <div style={{width:sz,height:sz,borderRadius:rad,background:bg,border:bdr2,boxShadow:shd,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:6}}>
+                            <div key={stg.key} style={{flex:1,display:'flex',justifyContent:'center',position:'relative',zIndex:1}}>
+                              <div style={{width:sz,height:sz,borderRadius:rad,background:bg,border:bdr2,boxShadow:shd,display:'flex',alignItems:'center',justifyContent:'center'}}>
                                 {done&&<Svg size={9} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
                               </div>
-                              <span style={{fontSize:9,fontWeight:isAct?700:500,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 1px'}}>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {/* Label row — separate, always same height, always aligned under dots */}
+                      <div style={{display:'flex',marginTop:6,marginBottom:0}}>
+                        {active.map((stg,i)=>{
+                          const done  = i<curPos
+                          const isAct = i===curPos
+                          const lc    = isAct?stg.color:done?(dk?'#4B5563':'#9CA3AF'):(dk?'#374151':'#CBD5E1')
+                          return (
+                            <div key={stg.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
+                              <span style={{fontSize:9,fontWeight:isAct?700:500,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 2px'}}>
                                 {stg.label}
                               </span>
+                              {/* Active stage: downward caret pointing to status row below */}
+                              {isAct&&(
+                                <svg width="10" height="6" viewBox="0 0 10 6" style={{marginTop:4,flexShrink:0}} fill={stg.color}>
+                                  <path d="M5 6L0 0h10L5 6z"/>
+                                </svg>
+                              )}
                             </div>
                           )
                         })}
@@ -584,9 +602,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   borderRadius:T.radMd,
                                   boxShadow:'0 8px 40px rgba(0,0,0,0.16)',
                                   minWidth:280,maxWidth:340,
-                                  // Fit available screen height — never scroll
-                                  maxHeight:(typeof window!=='undefined'?`calc(100vh - ${(window as any).__pgPickerY}px - 16px)`:'80vh'),
-                                  overflow:'hidden',
+                                  // Never clip — show all stages without scroll
+                                  overflow:'visible',
                                   display:'flex',flexDirection:'column',
                                 }}>
                                   {/* CURRENT row */}
@@ -604,7 +621,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                                   {/* CHANGE TO — scrollable only if truly needed */}
                                   <div style={{flexShrink:0,padding:'6px 12px 4px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em',background:dk?'#111827':t.cardBgAlt,borderBottom:`1px solid ${bdr}`}}>Change To</div>
-                                  <div style={{overflowY:'auto',flex:1}}>
+                                  <div>
                                     {pickerGroups.map((grp,gi)=>{
                                       const gStages=stages.filter(s=>grp.keys.includes(s.key)&&s.key!==stage)
                                       if(!gStages.length) return null
