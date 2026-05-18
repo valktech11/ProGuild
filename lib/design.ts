@@ -66,13 +66,24 @@ export type StageStyle = {
 
 // Light-mode base definitions — only `color` and `label` are invariant
 const STAGE_BASE: Record<string, { color: string; lightBg: string; lightChip: string; label: string }> = {
-  New:       { color: '#D97706', lightBg: '#FFFBEB', lightChip: '#FEF3C7', label: 'New'       },
-  Contacted: { color: '#2563EB', lightBg: '#EFF6FF', lightChip: '#DBEAFE', label: 'Contacted' },
-  Quoted:    { color: '#7C3AED', lightBg: '#F5F3FF', lightChip: '#EDE9FE', label: 'Quoted'    },
+  // Generic trade stages — same minimal palette principle
+  New:       { color: '#64748B', lightBg: '#F8FAFC', lightChip: '#F1F5F9', label: 'New'       },
+  Contacted: { color: '#475569', lightBg: '#F1F5F9', lightChip: '#E2E8F0', label: 'Contacted' },
+  Quoted:    { color: BRAND.teal, lightBg: '#F0FDFA', lightChip: '#CCFBF1', label: 'Quoted'    },
   Scheduled: { color: BRAND.teal, lightBg: '#F0FDFA', lightChip: '#CCFBF1', label: 'Scheduled' },
-  Completed: { color: '#374151', lightBg: '#F9FAFB', lightChip: '#F3F4F6', label: 'Completed' },
-  Paid:      { color: '#15803D', lightBg: '#DCFCE7', lightChip: '#BBF7D0', label: 'Job Won'   },
-  Lost:      { color: '#9CA3AF', lightBg: '#F9FAFB', lightChip: '#F3F4F6', label: 'Lost'      },
+  Completed: { color: '#0D9488', lightBg: '#F0FDFA', lightChip: '#CCFBF1', label: 'Completed' },
+  Paid:      { color: '#059669', lightBg: '#ECFDF5', lightChip: '#D1FAE5', label: 'Job Won'   },
+  Lost:      { color: '#6B7280', lightBg: '#F9FAFB', lightChip: '#F3F4F6', label: 'Lost'      },
+  // Roofing stage fallbacks (stageStyle used as secondary source)
+  lead_in:              { color: '#64748B', lightBg: '#F8FAFC', lightChip: '#F1F5F9', label: 'Lead In'              },
+  inspection_scheduled: { color: '#475569', lightBg: '#F1F5F9', lightChip: '#E2E8F0', label: 'Inspection Scheduled' },
+  proposal_sent:        { color: '#0F766E', lightBg: '#F0FDFA', lightChip: '#CCFBF1', label: 'Proposal Sent'        },
+  proposal_signed:      { color: '#0D9488', lightBg: '#CCFBF1', lightChip: '#99F6E4', label: 'Proposal Signed'      },
+  insurance_approved:   { color: '#B45309', lightBg: '#FFFBEB', lightChip: '#FEF3C7', label: 'Insurance Approved'   },
+  scheduled:            { color: '#0F766E', lightBg: '#F0FDFA', lightChip: '#CCFBF1', label: 'Scheduled'            },
+  in_progress:          { color: '#1D4ED8', lightBg: '#EFF6FF', lightChip: '#DBEAFE', label: 'In Progress'          },
+  job_won:              { color: '#059669', lightBg: '#ECFDF5', lightChip: '#D1FAE5', label: 'Job Won'              },
+  unqualified:          { color: '#6B7280', lightBg: '#F9FAFB', lightChip: '#F3F4F6', label: 'Unqualified'          },
 }
 
 /**

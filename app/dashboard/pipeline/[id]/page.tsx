@@ -763,9 +763,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
                                 {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
                                 {label:'Address',  color:'#0F766E', icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—', copy:null},
-                                {label:'Source',   color:'#6366F1', icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
-                                {label:'Job Date', color:'#F59E0B', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>, val:fmt(lead.scheduled_date), copy:null},
-                                {label:'Follow-up',color:'#F59E0B', icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, val:lead.follow_up_date
+                                {label:'Source',   color:'#64748B', icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
+                                {label:'Job Date', color:'#64748B', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>, val:fmt(lead.scheduled_date), copy:null},
+                                {label:'Follow-up',color:'#64748B', icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, val:lead.follow_up_date
                                   ?<span style={{display:'flex',alignItems:'center',gap:5}}>{fmt(lead.follow_up_date)}{isOverdue(lead.follow_up_date)&&<span style={{fontSize:11,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:600}}>Overdue</span>}</span>
                                   :'—', copy:null},
                               ] as {label:string;color:string;icon:React.ReactNode;val:React.ReactNode;copy:string|null}[]).map((cell,ci)=>(
@@ -927,7 +927,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {/* Vertical rail */}
                             <div style={{position:'absolute',left:15,top:16,bottom:16,width:1,background:bdr,zIndex:0}}/>
                             {acts.map((item,i)=>{
-                              const ic=item.type==='note'?'#854F0B':item.type==='quote'?'#6366F1':item.type==='scheduled'?'#F59E0B':BRAND.teal
+                              const ic=item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':BRAND.teal
                               const ib=item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
                               return (
                                 <div key={i} style={{display:'flex',alignItems:'flex-start',gap:14,paddingBottom:i<acts.length-1?18:0,position:'relative',zIndex:1}}>
@@ -965,7 +965,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     {/* Insights — horizontal cards */}
                     <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
                       <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
-                        <Svg size={14} stroke="#6366F1"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>
+                        <Svg size={14} stroke="#1D4ED8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>
                         <span style={{fontSize:14,fontWeight:700,color:tp}}>Insights</span>
                       </div>
                       {/* Horizontal row of insight cards */}
@@ -974,9 +974,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           const mins=Math.floor((Date.now()-new Date(lead.created_at).getTime())/60000)
                           const hour=new Date().getHours()
                           const items=[
-                            ...(mins<=30?[{color:'#10B981',bg:'#ECFDF5',title:'High close probability',body:`Lead responded within ${mins<1?'1':mins} min`,icon:<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>}]:[]),
-                            {color:'#6366F1',bg:'#EEF2FF',title:'Best callback window',body:hour<17?'5:00 PM – 7:00 PM':hour<20?'Right now':'10 AM – 12 PM',icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>},
-                            ...(isRoofing?[{color:'#F59E0B',bg:'#FFFBEB',title:'Roof size estimate',body:'28 – 34 squares',icon:<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}]:[]),
+                            ...(mins<=30?[{color:'#059669',bg:'#ECFDF5',title:'High close probability',body:`Lead responded within ${mins<1?'1':mins} min`,icon:<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>}]:[]),
+                            {color:'#1D4ED8',bg:'#EFF6FF',title:'Best callback window',body:hour<17?'5:00 PM – 7:00 PM':hour<20?'Right now':'10 AM – 12 PM',icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>},
+                            ...(isRoofing?[{color:'#B45309',bg:'#FFFBEB',title:'Roof size estimate',body:'28 – 34 squares',icon:<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}]:[]),
                           ]
                           return items.map((ins,i)=>(
                             <div key={i} style={{flex:1,background:ins.bg,borderRadius:T.radMd,padding:'10px 10px 10px',minWidth:0}}>
@@ -1008,7 +1008,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {/* Timeline rail */}
                             <div style={{position:'absolute',left:11,top:12,bottom:12,width:1,background:bdr,zIndex:0}}/>
                             {acts.slice(0,5).map((item,i)=>{
-                              const ic=item.type==='note'?'#854F0B':item.type==='quote'?'#6366F1':item.type==='scheduled'?'#F59E0B':BRAND.teal
+                              const ic=item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':BRAND.teal
                               const ib=item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
                               return (
                                 <div key={i} style={{display:'flex',gap:10,paddingBottom:i<Math.min(acts.length,5)-1?14:0,position:'relative',zIndex:1}}>

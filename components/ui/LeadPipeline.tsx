@@ -282,6 +282,12 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   const router = useRouter()
   const [bg, fg] = avatarColor(lead.contact_name)
   const days     = daysSince(lead.created_at)
+  const ageLabel = (() => {
+    const mins = Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 60000)
+    if (mins < 60)   return `${mins}m`
+    if (mins < 1440) return `${Math.floor(mins / 60)}h`
+    return `${Math.floor(mins / 1440)}d`
+  })()
   const [creatingEst, setCreatingEst] = useState(false)
   const [existingEst, setExistingEst] = useState<{ id: string; estimate_number: string; status: string; total: number; created_at: string } | null>(null)
 
@@ -378,8 +384,8 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   }
 
   const urgency = days > 3 ? 'high' : days >= 2 ? 'mid' : 'low'
-  const ageBg   = dk ? 'rgba(0,0,0,0.0)' : (urgency === 'high' ? '#FEE2E2' : urgency === 'mid' ? '#FEF3C7' : '#D1FAE5')
-  const ageColor= urgency === 'high' ? '#EF4444' : urgency === 'mid' ? '#F59E0B' : '#34D399'
+  const ageBg   = 'transparent'
+  const ageColor= urgency === 'high' ? '#EF4444' : urgency === 'mid' ? '#B45309' : '#6B7280'
   const t       = theme(dk)
 
   return (
@@ -397,37 +403,52 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
       onMouseEnter={e => (e.currentTarget.style.boxShadow = dk ? '0 0 0 1px rgba(15,118,110,0.3)' : '0 3px 10px rgba(0,0,0,0.09)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)')}>
 
-      {/* Row 1: avatar + address (primary) or name (fallback) + age */}
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+      {/* Row 1: avatar + name/address + priority badge + age */}
+      {(() => {
+        const minsOld = Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 60000)
+        const priority = minsOld < 30 ? 'hot' : minsOld < 360 ? 'warm' : null
+        return (
+      <div className="flex items-start gap-2 mb-2">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
           style={{ background: bg, color: fg }}>
           {initials(lead.contact_name)}
         </div>
         <div className="flex-1 min-w-0">
-          {/* Address is the job identity for roofing; name is the contact */}
-          <p className="text-[13px] font-bold truncate leading-tight" style={{ color: t.textPri }}>
-            {lead.property_address
-              ? lead.property_address.replace(/, USA$/, '')  // strip trailing USA
-              : capName(lead.contact_name)}
-          </p>
-          {lead.property_address && (
-            <p className="text-[11px] truncate" style={{ color: t.textSubtle }}>
-              {capName(lead.contact_name)}
-            </p>
-          )}
-          {lead.quoted_amount ? (
-            <p className="text-[12px] font-bold" style={{ color: '#0F766E' }}>
+          <div className="flex items-start justify-between gap-1 mb-0.5">
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-bold truncate leading-tight" style={{ color: t.textPri }}>
+                {capName(lead.contact_name)}
+              </p>
+              {(lead.property_address || (lead.contact_city && lead.contact_state)) && (
+                <p className="text-[11px] truncate" style={{ color: t.textSubtle }}>
+                  {lead.property_address
+                    ? lead.property_address.replace(/, USA$/, '')
+                    : `${lead.contact_city}, ${lead.contact_state}`}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+              {priority === 'hot' && (
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 6,
+                  background: '#FEF3C7', color: '#92400E', letterSpacing: '0.02em' }}>HOT</span>
+              )}
+              {priority === 'warm' && (
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 6,
+                  background: '#F1F5F9', color: '#475569', letterSpacing: '0.02em' }}>WARM</span>
+              )}
+              <span className="text-[11px] font-semibold" style={{ color: ageColor }}>{ageLabel}</span>
+            </div>
+          </div>
+          {lead.quoted_amount && (
+            <p className="text-[12px] font-bold" style={{ color: '#059669' }}>
               ${lead.quoted_amount.toLocaleString()}
             </p>
-          ) : !lead.property_address ? (
-            <p className="text-[11px]" style={{ color: t.textSubtle }}>{timeAgo(lead.created_at)}</p>
-          ) : null}
+          )}
         </div>
-        <span className="text-[12px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0"
-          style={{ background: ageBg, color: ageColor }}>
-          {days}d
-        </span>
       </div>
+        )
+      })()}
+
 
       {/* Row 2: action buttons — always visible, never hidden */}
       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
@@ -954,24 +975,33 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
           onOpen={onOpen}
         />
       )}
-      <div className="flex flex-col min-w-0" style={{ minWidth: 220 }}>
-        {/* Column header — colors come from trade config via stage.color/stage.bg */}
-        <div className="rounded-xl px-3 py-2.5 mb-2" style={{
-          background: dk ? stage.color + '1A' : stage.bg,
-          borderTop: `3px solid ${stage.color}`
+      <div className="flex flex-col min-w-0" style={{
+        minWidth: 220,
+        background: dk ? '#1E293B' : '#FFFFFF',
+        borderRadius: 12,
+        border: `1px solid ${dk ? '#334155' : '#EEE8E0'}`,
+        boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
+        overflow: 'hidden',
+      }}>
+        {/* Column header */}
+        <div style={{
+          background: dk ? stage.color + '14' : stage.bg,
+          borderBottom: `1px solid ${dk ? '#334155' : '#EEE8E0'}`,
+          borderTop: `3px solid ${stage.color}`,
+          padding: '10px 12px 8px',
         }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[14px] font-bold" style={{ color: stage.color }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: stage.color, letterSpacing: '-0.01em' }}>
                 {stage.label}
               </span>
-              <span className="text-[12px] font-bold px-1.5 py-0.5 rounded-full"
-                style={{ background: stage.color, color: 'white' }}>
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: 10,
+                background: stage.color, color: 'white', letterSpacing: '0.01em' }}>
                 {leads.length}
               </span>
             </div>
             {colValue > 0 && (
-              <span className="text-[12px] font-bold" style={{ color: stage.color }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: stage.color, opacity: 0.85 }}>
                 ${colValue.toLocaleString()}
               </span>
             )}
@@ -979,11 +1009,39 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
         </div>
 
         {/* Cards */}
-        <div className="space-y-2 flex-1">
+        <div className="space-y-2 flex-1" style={{ padding: '8px 8px 10px' }}>
           {leads.length === 0 ? (
-            <div className="flex items-center justify-center py-8 rounded-xl text-[12px]"
-              style={{ border: `1.5px dashed ${emptyBorder}`, color: emptyText }}>
-              Empty
+            <div style={{
+                border: `1.5px dashed ${emptyBorder}`,
+                borderRadius: 10, padding: '16px 12px',
+                textAlign: 'center',
+              }}>
+              {(() => {
+                const coaching: Record<string,string> = {
+                  lead_in: 'New leads land here',
+                  inspection_scheduled: 'Schedule from Lead In',
+                  proposal_sent: 'Create a proposal first',
+                  proposal_signed: 'Send proposal for signature',
+                  insurance_approved: 'Follow up after adjuster',
+                  scheduled: 'Book from Insurance Approved',
+                  in_progress: 'Move a scheduled job here',
+                  job_won: 'Close a job to see it here',
+                  New: 'Add a lead to get started',
+                  Contacted: 'Mark a lead as Contacted',
+                  Quoted: 'Send a proposal first',
+                  Scheduled: 'Schedule a quoted job',
+                  Completed: 'Complete a scheduled job',
+                  Paid: 'Mark a job as paid',
+                }
+                return (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: emptyText, marginBottom: 3 }}>Empty</div>
+                    <div style={{ fontSize: 11, color: emptyText, opacity: 0.7, lineHeight: 1.4 }}>
+                      {coaching[stage.key] ?? 'Drag a lead here'}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           ) : (
             <>
