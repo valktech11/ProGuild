@@ -146,7 +146,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const [warnNewEstimate,  setWarnNewEstimate]  = useState(false)
   const [drawerOpen,       setDrawerOpen]       = useState(false)
   const [showWarranty,     setShowWarranty]     = useState(false)
-  const [showAllStages,    setShowAllStages]    = useState(false)   // mobile bottom sheet
+  const [showStatusPicker, setShowStatusPicker] = useState(false)   // status dropdown
   type DetailTab = 'details' | 'photos' | 'estimate' | 'activity'
   const [activeTab, setActiveTab] = useState<DetailTab>('details')
 
@@ -521,16 +521,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
         )}
 
         {/* Mobile: All Stages bottom sheet */}
-        {showAllStages && (
+        {showStatusPicker && (
           <>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowAllStages(false)} />
+            <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowStatusPicker(false)} />
             <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 501, background: card, borderRadius: `${T.radXl}px ${T.radXl}px 0 0`, padding: `${T.sp5}px ${T.sp4}px`, paddingBottom: 'calc(20px + env(safe-area-inset-bottom))', maxHeight: '80dvh', overflowY: 'auto' }}>
               <div style={{ textAlign: 'center', marginBottom: T.sp4 }}><div style={{ width: 40, height: 4, borderRadius: 2, background: border, margin: '0 auto 16px' }} /></div>
               <div style={{ fontSize: T.fontLabel, fontWeight: 700, color: tp, marginBottom: T.sp3 }}>All Stages</div>
               {lead && (() => {
                 const stages = getPipelineStages(session?.trade_slug)
                 return stages.filter(s => s.key !== currentStage).map(stg => (
-                  <button key={stg.key} onClick={() => { setShowAllStages(false); moveToStage(stg.key as LeadStatus) }}
+                  <button key={stg.key} onClick={() => { setShowStatusPicker(false); moveToStage(stg.key as LeadStatus) }}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: T.sp3, padding: '11px 14px', borderRadius: T.radSm, border: `1px solid ${border}`, borderLeft: `3px solid ${stg.terminal ? t.accentRed : stg.color}`, background: card, cursor: 'pointer', textAlign: 'left', marginBottom: T.sp2 }}>
                     <StageIcon stageKey={stg.key} color={stg.terminal ? t.accentRed : stg.color} size={30} />
                     <div><div style={{ fontSize: T.fontBody, fontWeight: 600, color: stg.terminal ? t.accentRed : stg.color }}>{stg.label}</div><div style={{ fontSize: T.fontSub, color: ts }}>{stg.subLabel}</div></div>
@@ -727,7 +727,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                           return (
                             <div key={stg.key} style={{ display: 'flex', alignItems: 'center', flex: isLast ? '0 0 auto' : 1 }}>
                               <button
-                                onClick={() => done && !stageSaving ? setConfirmBack(stg.key as LeadStatus) : undefined}
+                                onClick={undefined}
                                 title={stg.label}
                                 style={{
                                   width: dotSize, height: dotSize,
@@ -740,7 +740,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                                     : done
                                       ? `0 1px 4px ${stg.color}40`
                                       : 'none',
-                                  cursor: done ? 'pointer' : 'default',
+                                  cursor: 'default',
                                   transition: 'all 0.2s',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 }}>
@@ -789,7 +789,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                                 display: 'block',
                               }}>
                                 {/* Show label for active and future; checkmark for done */}
-                                {done ? '✓' : stg.label}
+                                {stg.label}
                               </span>
                             </div>
                           )
@@ -810,7 +810,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                                 <Svg size={14} stroke="#fff"><><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></></Svg>
                                 Move to {nextStage.label}
                                 {/* dropdown chevron — opens all stages on mobile */}
-                                <span onClick={e => { e.stopPropagation(); setShowAllStages(true) }}
+                                <span onClick={e => { e.stopPropagation(); setShowStatusPicker(true) }}
                                   style={{ marginLeft: 'auto', paddingLeft: T.sp2, borderLeft: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center' }} className="lg:hidden">
                                   <Svg size={14} stroke="#fff"><polyline points="6 9 12 15 18 9"/></Svg>
                                 </span>
@@ -818,7 +818,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                             )}
                           </button>
                         ) : (
-                          <button onClick={() => setShowAllStages(true)}
+                          <button onClick={() => setShowStatusPicker(true)}
                             style={{ width: '100%', padding: '13px 20px', borderRadius: T.radMd, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg, ${BRAND.teal}, ${BRAND.tealLight})`, color: '#fff', fontSize: T.fontEmphasis, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: T.sp2, boxShadow: '0 4px 16px rgba(15,118,110,0.25)' }}>
                             <Svg size={14} stroke="#fff"><path d="M5 12h14M12 5l7 7-7 7"/></Svg>
                             Move this job
@@ -843,15 +843,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                   {/* ── TABS CARD ────────────────────────────────────────────── */}
                   <div style={{ background: card, borderRadius: T.radLg, border: `1px solid ${border}`, overflow: 'hidden', boxShadow: dk ? 'none' : '0 2px 10px rgba(0,0,0,0.05)' }}>
 
-                    {/* Tab strip */}
-                    <div style={{ display: 'flex', background: t.cardBgAlt, borderBottom: `1px solid ${border}`, padding: '4px 4px 0' }}>
+                    {/* Tab strip — stacked icon + label, teal underline */}
+                    <div style={{ display: 'flex', background: t.cardBgAlt, borderBottom: `1px solid ${border}` }}>
                       {tabs.map(tab => {
                         const isActive = activeTab === tab.key
+                        const iconColor = isActive ? BRAND.teal : (dk ? '#64748B' : '#94A3B8')
                         return (
                           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                            style={{ flex: 1, padding: '9px 8px', fontSize: T.fontSub, fontWeight: isActive ? 700 : 500, color: isActive ? BRAND.teal : tsu, background: isActive ? card : 'transparent', border: 'none', borderRadius: `${T.radSm}px ${T.radSm}px 0 0`, boxShadow: isActive ? `0 -1px 0 ${border}, 1px 0 0 ${border}, -1px 0 0 ${border}` : 'none', cursor: 'pointer', whiteSpace: 'nowrap', position: 'relative', zIndex: isActive ? 1 : 0, marginBottom: isActive ? -1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                            <Svg size={12} stroke={isActive ? BRAND.teal : tsu}>{TAB_ICON[tab.key]}</Svg>
-                            {tab.label}
+                            style={{ flex: 1, padding: '10px 8px 8px', border: 'none', borderBottom: isActive ? `2px solid ${BRAND.teal}` : '2px solid transparent', background: isActive ? card : 'transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, transition: 'all 0.15s', marginBottom: -1 }}>
+                            <div style={{ width: 30, height: 30, borderRadius: T.radXs, background: isActive ? BRAND.teal + '14' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Svg size={16} stroke={iconColor}>{TAB_ICON[tab.key]}</Svg>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: isActive ? 700 : 500, color: isActive ? BRAND.teal : ts, whiteSpace: 'nowrap' }}>{tab.label}</span>
                           </button>
                         )
                       })}
