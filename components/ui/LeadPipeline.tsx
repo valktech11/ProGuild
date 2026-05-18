@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Lead } from '@/types'
@@ -394,69 +394,70 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
     : null
   const isInsuranceStage = ['insurance_approved','proposal_signed','in_progress','job_won'].includes(stage.key)
 
+  const [hovered, setHovered] = useState(false)
+
   return (
     <>
+    {/* ── TILE CARD — click to open, hover reveals call icon ── */}
     <div
+      data-card="true"
       onClick={onOpen}
-      className="cursor-pointer transition-all active:scale-[0.98]"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        border: isStale
-          ? '1.5px solid #FCD34D'
-          : `1px solid ${dk ? '#1E293B' : '#E2E8F0'}`,
-        borderRadius: 14,
-        padding: '14px',
+        position: 'relative',
+        border: isStale ? '1.5px solid #FCD34D' : `1px solid ${dk ? '#1E293B' : '#E8E4DE'}`,
+        borderRadius: 10,
+        padding: '12px 12px 10px',
         background: t.cardBg,
-        boxShadow: isStale
-          ? (dk ? 'none' : '0 2px 8px rgba(245,158,11,0.12)')
-          : (dk ? 'none' : '0 1px 4px rgba(0,0,0,0.06)'),
-      }}
-      onMouseEnter={e => {
-        const el = e.currentTarget as HTMLDivElement
-        el.style.boxShadow = dk ? '0 0 0 1px #334155' : '0 6px 20px rgba(0,0,0,0.10)'
-        el.style.transform = 'translateY(-1px)'
-      }}
-      onMouseLeave={e => {
-        const el = e.currentTarget as HTMLDivElement
-        el.style.boxShadow = isStale ? '0 2px 8px rgba(245,158,11,0.12)' : (dk ? 'none' : '0 1px 4px rgba(0,0,0,0.06)')
-        el.style.transform = 'translateY(0)'
+        cursor: 'pointer',
+        boxShadow: hovered
+          ? (dk ? '0 0 0 1px #334155' : '0 4px 16px rgba(0,0,0,0.09)')
+          : (isStale ? '0 2px 6px rgba(245,158,11,0.10)' : (dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)')),
+        transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+        transition: 'box-shadow 150ms ease, transform 150ms ease',
       }}>
 
-      {/* ── Top row: avatar + name + age + badge ── */}
-      <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:10 }}>
-        {/* Square avatar — matches mockup rounded-2xl style */}
+      {/* ── Row 1: avatar + name + age ── */}
+      <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:6 }}>
+        {/* Avatar */}
         <div style={{
-          width:40, height:40, borderRadius:10, flexShrink:0,
+          width:34, height:34, borderRadius:8, flexShrink:0,
           background:bg, color:fg,
           display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:13, fontWeight:700, letterSpacing:'-0.01em',
+          fontSize:12, fontWeight:700,
         }}>
           {initials(lead.contact_name)}
         </div>
 
         <div style={{ flex:1, minWidth:0 }}>
+          {/* Name row */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
-            <p style={{ fontSize:15, fontWeight:700, color:t.textPri, margin:0,
-              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', letterSpacing:'-0.01em' }}>
+            <span style={{ fontSize:14, fontWeight:700, color:t.textPri,
+              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+              letterSpacing:'-0.01em', lineHeight:1.2 }}>
               {capName(lead.contact_name)}
-            </p>
+            </span>
             <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
               {priority === 'hot' && (
-                <span style={{ fontSize:10, fontWeight:800, padding:'2px 7px', borderRadius:20,
-                  background:'#FEF2F2', color:'#DC2626', border:'1px solid #FECACA' }}>HOT</span>
+                <span style={{ fontSize:9, fontWeight:800, padding:'1px 6px', borderRadius:20,
+                  background:'#FEF2F2', color:'#DC2626', border:'1px solid #FECACA',
+                  letterSpacing:'0.04em' }}>HOT</span>
               )}
-              {priority === 'warm' && !priority.includes('hot') && (
-                <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20,
-                  background:'#FEF3C7', color:'#92400E', border:'1px solid #FDE68A' }}>WARM</span>
+              {priority === 'warm' && (
+                <span style={{ fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:20,
+                  background:'#FEF3C7', color:'#92400E', border:'1px solid #FDE68A',
+                  letterSpacing:'0.04em' }}>WARM</span>
               )}
-              <span style={{ fontSize:11, color:ageColor, fontWeight:isStale?700:500 }}>
+              <span style={{ fontSize:11, color:ageColor, fontWeight:isStale?700:400 }}>
                 {isStale ? `⚠ ${ageLabel}` : ageLabel}
               </span>
             </div>
           </div>
-          {/* Address */}
+          {/* Address — single truncated line */}
           {(lead.property_address || (lead.contact_city && lead.contact_state)) && (
-            <p style={{ fontSize:12, color:t.textSubtle, margin:'2px 0 0',
-              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+            <p style={{ fontSize:11, color:t.textSubtle, margin:'2px 0 0',
+              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', lineHeight:1.3 }}>
               {lead.property_address
                 ? lead.property_address.replace(/, USA$/,'')
                 : `${lead.contact_city}, ${lead.contact_state}`}
@@ -465,24 +466,23 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
         </div>
       </div>
 
-      {/* ── Chips row: source · insurance · scheduled ── */}
+      {/* ── Row 2: chips ── */}
       {(src || isInsuranceStage || schedDate) && (
-        <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:10 }}>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:8 }}>
           {src && src !== 'undefined' && (
-            <span style={{ fontSize:11, fontWeight:500, padding:'3px 8px', borderRadius:20,
-              background:dk?'#1E293B':'#F1F5F9', color:dk?'#94A3B8':'#475569' }}>
+            <span style={{ fontSize:10, fontWeight:500, padding:'2px 7px', borderRadius:20,
+              background:dk?'#1E293B':'#F1F5F9', color:dk?'#94A3B8':'#64748B' }}>
               {src}
             </span>
           )}
           {isInsuranceStage && (
-            <span style={{ fontSize:11, fontWeight:600, padding:'3px 8px', borderRadius:20,
-              background:dk?'rgba(245,158,11,0.15)':'#FEF3C7', color:'#92400E',
-              border:`1px solid ${dk?'rgba(245,158,11,0.3)':'#FDE68A'}` }}>
+            <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:20,
+              background:'#FEF3C7', color:'#92400E', border:'1px solid #FDE68A' }}>
               🌩 Insurance
             </span>
           )}
           {schedDate && (
-            <span style={{ fontSize:11, fontWeight:500, padding:'3px 8px', borderRadius:20,
+            <span style={{ fontSize:10, fontWeight:500, padding:'2px 7px', borderRadius:20,
               background:dk?'#0E2A3A':'#ECFEFF', color:'#155E75' }}>
               📅 {schedDate}
             </span>
@@ -490,60 +490,36 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
         </div>
       )}
 
-      {/* ── Value + actions row — value prominent, matches mockup bottom section ── */}
-      <div style={{ borderTop:`1px solid ${dk?'#1E293B':'#F1F5F9'}`, paddingTop:10,
-        display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}
-        onClick={e => e.stopPropagation()}>
+      {/* ── Row 3: value — prominent, no label clutter ── */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        {amt && amt > 0 ? (
+          <span style={{ fontSize:16, fontWeight:800, color:t.textPri,
+            letterSpacing:'-0.02em', lineHeight:1 }}>
+            ${amt.toLocaleString()}
+          </span>
+        ) : (
+          <span style={{ fontSize:11, color:dk?'#374151':'#D1D5DB' }}>—</span>
+        )}
 
-        {/* Value — large, prominent */}
-        <div>
-          {amt && amt > 0 ? (
-            <>
-              <div style={{ fontSize:10, fontWeight:700, color:t.textSubtle,
-                textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:1 }}>Value</div>
-              <div style={{ fontSize:18, fontWeight:800, color:t.textPri, letterSpacing:'-0.02em', lineHeight:1 }}>
-                ${amt.toLocaleString()}
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize:11, color:t.textSubtle, fontStyle:'italic' }}>No estimate yet</div>
-          )}
-        </div>
-
-        {/* Action buttons */}
-        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-          {lead.contact_phone ? (
-            <a href={`tel:${lead.contact_phone}`}
-              style={{ display:'flex', alignItems:'center', gap:4,
-                padding:'6px 10px', borderRadius:8, fontSize:11, fontWeight:600,
-                background:'transparent', color:'#475569',
-                border:`1px solid ${dk?'#334155':'#CBD5E1'}`,
-                textDecoration:'none', flexShrink:0 }}
-              onClick={e => e.stopPropagation()}>
-              <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={11} c="#475569" />
-              Call
-            </a>
-          ) : null}
-          <button
-            onClick={handlePrimaryAction}
-            disabled={creatingEst}
-            style={{ padding:'6px 12px', borderRadius:8, fontSize:11, fontWeight:700,
-              background:'linear-gradient(135deg,#0F766E,#0D9488)',
-              color:'#fff', border:'none', cursor:'pointer',
-              boxShadow:'0 2px 8px rgba(15,118,110,0.25)',
-              opacity: creatingEst ? 0.6 : 1,
-              whiteSpace:'nowrap', flexShrink:0 }}>
-            {primaryLabel}
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onOpen() }}
-            style={{ width:30, height:30, borderRadius:8, flexShrink:0,
+        {/* Hover-reveal: phone icon only */}
+        {lead.contact_phone && (
+          <a
+            href={`tel:${lead.contact_phone}`}
+            onClick={e => e.stopPropagation()}
+            style={{
               display:'flex', alignItems:'center', justifyContent:'center',
-              background:'transparent', border:`1px solid ${dk?'#334155':'#E2E8F0'}`,
-              cursor:'pointer', color:t.textSubtle }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-          </button>
-        </div>
+              width:28, height:28, borderRadius:7,
+              background: hovered ? (dk?'#1E293B':'#F1F5F9') : 'transparent',
+              border: hovered ? `1px solid ${dk?'#334155':'#E2E8F0'}` : '1px solid transparent',
+              color:'#0F766E', textDecoration:'none', flexShrink:0,
+              transition:'all 150ms ease',
+              opacity: hovered ? 1 : 0,
+            }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/>
+            </svg>
+          </a>
+        )}
       </div>
     </div>
 
@@ -1134,6 +1110,32 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const [mobileStage, setMobileStage] = useState<StageKey>(() => stages[0]?.key ?? 'New')
   const [showLost, setShowLost] = useState(false)
   const [listView, setListView] = useState(false)
+  const kanbanRef = useRef<HTMLDivElement>(null)
+  const dragState = useRef<{startX:number;scrollLeft:number;isDragging:boolean}>({startX:0,scrollLeft:0,isDragging:false})
+
+  const onBoardMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = kanbanRef.current
+    if (!el) return
+    // Only drag on the board background, not on cards
+    if ((e.target as HTMLElement).closest('[data-card]')) return
+    dragState.current = { startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft, isDragging: false }
+    const onMove = (ev: MouseEvent) => {
+      const walk = (ev.pageX - el.offsetLeft) - dragState.current.startX
+      if (Math.abs(walk) > 4) {
+        dragState.current.isDragging = true
+        el.style.cursor = 'grabbing'
+        el.scrollLeft = dragState.current.scrollLeft - walk
+      }
+    }
+    const onUp = () => {
+      el.style.cursor = 'default'
+      dragState.current.isDragging = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [])
 
   function openLead(lead: Lead) {
     router.push('/dashboard/pipeline/' + lead.id)
@@ -1276,10 +1278,19 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
 
       {/* ── Desktop: all stages, horizontal scroll — column count driven by trade config ── */}
       <div className={`${listView ? 'hidden' : 'hidden md:block'} relative`}>
-        {/* Right fade — signals horizontal scroll without a scrollbar */}
-        <div className="pointer-events-none absolute right-0 top-0 bottom-4 w-16 z-10" style={{ background: 'linear-gradient(90deg, transparent, var(--pg-fade, #F5F4F0))' }} />
-        <div className="overflow-x-auto pb-4 pg-kanban-scroll" style={{ scrollbarWidth:'thin', scrollbarColor:'#E2E8F0 transparent' }}>
-          <div style={{ display:'flex', gap:12, minWidth: stages.length * 292, alignItems:'flex-start', paddingBottom:8 }}>
+        {/* Right fade — elegant scroll hint, no scrollbar */}
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-20 z-10"
+          style={{ background: `linear-gradient(90deg, transparent, ${dk ? '#0E1118' : '#F5F4F0'})` }} />
+        <div
+          className="pg-kanban-scroll"
+          style={{ overflowX:'auto', paddingBottom:16,
+            scrollbarWidth:'none', msOverflowStyle:'none',
+            cursor: 'default' }}
+          ref={kanbanRef}
+          onMouseDown={onBoardMouseDown}>
+          <style>{`.pg-kanban-scroll::-webkit-scrollbar{display:none}`}</style>
+          <div style={{ display:'flex', gap:12, minWidth: stages.length * 292,
+            alignItems:'flex-start', paddingBottom:4, paddingRight:40 }}>
             {stages.map(stage => (
               <PipelineColumn key={stage.key} stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} />
             ))}
