@@ -520,22 +520,57 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
           </>
         )}
 
-        {/* Mobile: All Stages bottom sheet */}
+        {/* Status picker — bottom sheet on mobile */}
         {showStatusPicker && (
           <>
             <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowStatusPicker(false)} />
-            <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 501, background: card, borderRadius: `${T.radXl}px ${T.radXl}px 0 0`, padding: `${T.sp5}px ${T.sp4}px`, paddingBottom: 'calc(20px + env(safe-area-inset-bottom))', maxHeight: '80dvh', overflowY: 'auto' }}>
-              <div style={{ textAlign: 'center', marginBottom: T.sp4 }}><div style={{ width: 40, height: 4, borderRadius: 2, background: border, margin: '0 auto 16px' }} /></div>
-              <div style={{ fontSize: T.fontLabel, fontWeight: 700, color: tp, marginBottom: T.sp3 }}>All Stages</div>
+            <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 501, background: card, borderRadius: `${T.radXl}px ${T.radXl}px 0 0`, maxHeight: '82dvh', overflowY: 'auto', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
+              {/* Drag handle */}
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: border }} />
+              </div>
+              <div style={{ padding: `0 ${T.sp4}px ${T.sp3}px` }}>
+                <div style={{ fontSize: T.fontLabel, fontWeight: 700, color: tp, marginBottom: 4 }}>Change Status</div>
+                <div style={{ fontSize: T.fontSub, color: tsu }}>Select any stage — forward or backward</div>
+              </div>
               {lead && (() => {
-                const stages = getPipelineStages(session?.trade_slug)
-                return stages.filter(s => s.key !== currentStage).map(stg => (
-                  <button key={stg.key} onClick={() => { setShowStatusPicker(false); moveToStage(stg.key as LeadStatus) }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: T.sp3, padding: '11px 14px', borderRadius: T.radSm, border: `1px solid ${border}`, borderLeft: `3px solid ${stg.terminal ? t.accentRed : stg.color}`, background: card, cursor: 'pointer', textAlign: 'left', marginBottom: T.sp2 }}>
-                    <StageIcon stageKey={stg.key} color={stg.terminal ? t.accentRed : stg.color} size={30} />
-                    <div><div style={{ fontSize: T.fontBody, fontWeight: 600, color: stg.terminal ? t.accentRed : stg.color }}>{stg.label}</div><div style={{ fontSize: T.fontSub, color: ts }}>{stg.subLabel}</div></div>
-                  </button>
-                ))
+                const allStages = getPipelineStages(session?.trade_slug)
+                const groups = isRoofing
+                  ? [
+                      { label: 'SALES',      keys: ['lead_in','inspection_scheduled','proposal_sent','proposal_signed'] },
+                      { label: 'OPERATIONS', keys: ['insurance_approved','scheduled','in_progress'] },
+                      { label: 'CLOSED',     keys: ['job_won','lost','unqualified'] },
+                    ]
+                  : [
+                      { label: 'ACTIVE', keys: ['New','Contacted','Quoted','Scheduled','Completed'] },
+                      { label: 'CLOSED', keys: ['Paid'] },
+                    ]
+                return groups.map(group => {
+                  const groupStages = allStages.filter(s => group.keys.includes(s.key))
+                  if (!groupStages.length) return null
+                  return (
+                    <div key={group.label}>
+                      <div style={{ padding: `${T.sp2}px ${T.sp4}px 6px`, fontSize: 10, fontWeight: 800, color: tsu, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{group.label}</div>
+                      {groupStages.map(stg => {
+                        const isCurrent = stg.key === currentStage
+                        const dotColor  = stg.terminal ? t.accentRed : stg.color
+                        return (
+                          <button key={stg.key}
+                            onClick={() => { setShowStatusPicker(false); if (!isCurrent) moveToStage(stg.key as LeadStatus) }}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: T.sp3, padding: '11px 16px', background: isCurrent ? (dk ? dotColor + '18' : stg.bg) : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                            <span style={{ width: 10, height: 10, borderRadius: '50%', background: dotColor, flexShrink: 0, boxShadow: isCurrent ? `0 0 0 3px ${dotColor}25` : 'none' }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: T.fontBody, fontWeight: isCurrent ? 700 : 500, color: stg.terminal ? t.accentRed : tp }}>{stg.label}</div>
+                              <div style={{ fontSize: T.fontBadge, color: tsu, marginTop: 1 }}>{stg.subLabel}</div>
+                            </div>
+                            {isCurrent && <Svg size={14} stroke={dotColor}><polyline points="20 6 9 17 4 12"/></Svg>}
+                          </button>
+                        )
+                      })}
+                      <div style={{ height: 1, background: t.divider, margin: '4px 0' }} />
+                    </div>
+                  )
+                })
               })()}
             </div>
           </>
@@ -726,13 +761,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
                           return (
                             <div key={stg.key} style={{ display: 'flex', alignItems: 'center', flex: isLast ? '0 0 auto' : 1 }}>
-                              <button
-                                onClick={undefined}
+                              <div
                                 title={stg.label}
                                 style={{
                                   width: dotSize, height: dotSize,
                                   borderRadius: dotRadius,
-                                  flexShrink: 0, padding: 0,
+                                  flexShrink: 0,
                                   background: done ? stg.color : active ? stg.color : (dk ? '#374151' : '#E2E8F0'),
                                   border: active ? '3px solid ' + card : 'none',
                                   boxShadow: active
@@ -740,8 +774,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                                     : done
                                       ? `0 1px 4px ${stg.color}40`
                                       : 'none',
-                                  cursor: 'default',
-                                  transition: 'all 0.2s',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 }}>
                                 {done && (
@@ -749,7 +781,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                                     <polyline points="20 6 9 17 4 12"/>
                                   </Svg>
                                 )}
-                              </button>
+                              </div>
                               {!isLast && (
                                 <div style={{ flex: 1, height: 2, margin: '0 2px', background: done ? `linear-gradient(90deg, ${stg.color}, ${nextColor})` : (dk ? '#1E293B' : '#E2E8F0'), transition: 'background 0.3s' }} />
                               )}
@@ -767,11 +799,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                           return (
                             <div key={stg.key}
                               style={{
-                                flex: isLast ? '0 0 auto' : 1,
+                                flex: 1,
                                 display: 'flex',
                                 justifyContent: 'center',
                                 paddingTop: 4,
                                 minWidth: 0,
+                                maxWidth: isLast ? 36 : undefined,
                               }}>
                               <span style={{
                                 fontSize: 9,
@@ -797,47 +830,85 @@ function LeadDetailInner({ params }: { params: Promise<{ id: string }> }) {
                       </div>
                     </div>
 
-                    {/* ── Move button ───────────────────────────────────────── */}
-                    {!isTerminal && (
-                      <div style={{ padding: `0 ${T.sp5}px ${T.sp5}px` }}>
-                        {nextStage ? (
-                          <button
-                            onClick={() => moveToStage(nextStage.key as LeadStatus)}
-                            disabled={stageSaving}
-                            style={{ width: '100%', padding: '13px 20px', borderRadius: T.radMd, border: 'none', cursor: stageSaving ? 'wait' : 'pointer', background: stageSaving ? t.cardBgAlt : `linear-gradient(135deg, ${BRAND.teal}, ${BRAND.tealLight})`, color: stageSaving ? ts : '#fff', fontSize: T.fontEmphasis, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: T.sp2, boxShadow: stageSaving ? 'none' : '0 4px 16px rgba(15,118,110,0.25)', transition: 'all 0.2s' }}>
-                            {stageSaving ? 'Updating...' : (
+                    {/* ── Status row ───────────────────────────────────────── */}
+                    <div style={{ borderTop: `1px solid ${border}`, padding: `${T.sp4}px ${T.sp5}px` }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: T.sp4 }}>
+
+                        {/* Status pill — click to open picker */}
+                        <div>
+                          <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Current Status</div>
+                          <div style={{ position: 'relative', display: 'inline-block' }}>
+                            <button
+                              onClick={() => setShowStatusPicker(v => !v)}
+                              disabled={stageSaving}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: T.radSm, border: `1.5px solid ${stageObj?.color ?? BRAND.teal}40`, background: stageObj?.bg ?? '#F0FDFA', color: stageObj?.color ?? BRAND.teal, fontSize: T.fontBody, fontWeight: 700, cursor: stageSaving ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: stageObj?.color ?? BRAND.teal, flexShrink: 0 }} />
+                              {stageSaving ? 'Updating...' : (stageObj?.label ?? currentStage)}
+                              <Svg size={13} stroke={stageObj?.color ?? BRAND.teal}><polyline points="6 9 12 15 18 9"/></Svg>
+                            </button>
+
+                            {/* Inline dropdown — desktop */}
+                            {showStatusPicker && (
                               <>
-                                <Svg size={14} stroke="#fff"><><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></></Svg>
-                                Move to {nextStage.label}
-                                {/* dropdown chevron — opens all stages on mobile */}
-                                <span onClick={e => { e.stopPropagation(); setShowStatusPicker(true) }}
-                                  style={{ marginLeft: 'auto', paddingLeft: T.sp2, borderLeft: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center' }} className="lg:hidden">
-                                  <Svg size={14} stroke="#fff"><polyline points="6 9 12 15 18 9"/></Svg>
-                                </span>
+                                <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setShowStatusPicker(false)} />
+                                <div className="hidden lg:block" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200, background: card, border: `1px solid ${border}`, borderRadius: T.radMd, boxShadow: '0 8px 32px rgba(0,0,0,0.14)', minWidth: 240, overflow: 'hidden' }}>
+                                  {[
+                                    { label: isRoofing ? 'SALES'      : 'ACTIVE',    keys: isRoofing ? ['lead_in','inspection_scheduled','proposal_sent','proposal_signed'] : ['New','Contacted','Quoted'] },
+                                    { label: isRoofing ? 'OPERATIONS' : 'PROGRESS',  keys: isRoofing ? ['insurance_approved','scheduled','in_progress'] : ['Scheduled','Completed'] },
+                                    { label: 'CLOSED',                               keys: isRoofing ? ['job_won','lost','unqualified'] : ['Paid'] },
+                                  ].map((group, gi) => {
+                                    const groupStages = stages.filter(s => group.keys.includes(s.key))
+                                    if (!groupStages.length) return null
+                                    return (
+                                      <div key={group.label}>
+                                        {gi > 0 && <div style={{ height: 1, background: t.divider }} />}
+                                        <div style={{ padding: '8px 14px 3px', fontSize: 9, fontWeight: 800, color: tsu, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{group.label}</div>
+                                        {groupStages.map(stg => {
+                                          const isCurrent = stg.key === currentStage
+                                          const dotColor  = stg.terminal ? t.accentRed : stg.color
+                                          return (
+                                            <button key={stg.key}
+                                              onClick={() => { setShowStatusPicker(false); if (!isCurrent) moveToStage(stg.key as LeadStatus) }}
+                                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', background: isCurrent ? (dk ? dotColor + '18' : stg.bg) : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+                                              <span style={{ fontSize: T.fontBody, fontWeight: isCurrent ? 700 : 400, color: stg.terminal ? t.accentRed : tp, flex: 1 }}>{stg.label}</span>
+                                              {isCurrent && <Svg size={13} stroke={dotColor}><polyline points="20 6 9 17 4 12"/></Svg>}
+                                            </button>
+                                          )
+                                        })}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
                               </>
                             )}
-                          </button>
-                        ) : (
-                          <button onClick={() => setShowStatusPicker(true)}
-                            style={{ width: '100%', padding: '13px 20px', borderRadius: T.radMd, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg, ${BRAND.teal}, ${BRAND.tealLight})`, color: '#fff', fontSize: T.fontEmphasis, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: T.sp2, boxShadow: '0 4px 16px rgba(15,118,110,0.25)' }}>
-                            <Svg size={14} stroke="#fff"><path d="M5 12h14M12 5l7 7-7 7"/></Svg>
-                            Move this job
-                          </button>
-                        )}
-                        {stageTip && (
-                          <p style={{ marginTop: T.sp2, fontSize: T.fontSub, color: tsu, textAlign: 'center', lineHeight: 1.5 }}>
-                            💡 {stageTip}
-                          </p>
-                        )}
+                          </div>
+                        </div>
+
+                        {/* Status Since */}
+                        <div>
+                          <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Status Since</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Svg size={13} stroke={ts}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                            <div>
+                              <div style={{ fontSize: T.fontBody, fontWeight: 600, color: tp }}>{new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                              <div style={{ fontSize: T.fontBadge, color: tsu }}>{Math.floor((Date.now() - new Date(lead.updated_at || lead.created_at).getTime()) / 86400000)} days</div>
+                            </div>
+                          </div>
+                        </div>
+
                       </div>
-                    )}
-                    {isTerminal && (
-                      <div style={{ padding: `0 ${T.sp5}px ${T.sp5}px` }}>
-                        <div style={{ padding: '14px 20px', borderRadius: T.radMd, textAlign: 'center', background: currentStage === 'job_won' ? 'linear-gradient(135deg, #065F46, #047857)' : t.cardBgAlt, color: currentStage === 'job_won' ? '#fff' : ts, fontSize: T.fontEmphasis, fontWeight: 700 }}>
+                      {stageTip && (
+                        <div style={{ marginTop: T.sp3, fontSize: T.fontSub, color: tsu, lineHeight: 1.5 }}>
+                          {'💡'} {stageTip}
+                        </div>
+                      )}
+                      {isTerminal && (
+                        <div style={{ marginTop: T.sp3, padding: '12px 16px', borderRadius: T.radSm, background: currentStage === 'job_won' ? 'linear-gradient(135deg, #065F46, #047857)' : t.cardBgAlt, color: currentStage === 'job_won' ? '#fff' : ts, fontSize: T.fontBody, fontWeight: 700, textAlign: 'center' }}>
                           {currentStage === 'job_won' ? '🏆 Job Complete' : currentStage === 'lost' ? 'Job Lost' : 'Lead Unqualified'}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>{/* end hero card */}
 
                   {/* ── TABS CARD ────────────────────────────────────────────── */}
