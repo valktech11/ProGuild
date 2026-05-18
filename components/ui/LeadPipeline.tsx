@@ -394,14 +394,14 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
       onClick={onOpen}
       className="rounded-xl cursor-pointer transition-all active:scale-[0.98]"
       style={{
-        border: `1px solid ${stageStyle(stage.key, dk).color}${dk ? '33' : '22'}`,
-        borderLeft: `3px solid ${stageStyle(stage.key, dk).color}`,
+        border: `1px solid ${dk ? '#1E293B' : '#EEE8E0'}`,
+        borderRadius: 10,
         padding: '10px 12px',
         background: t.cardBg,
-        boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
+        boxShadow: dk ? 'none' : '0 1px 2px rgba(0,0,0,0.04)',
       }}
-      onMouseEnter={e => (e.currentTarget.style.boxShadow = dk ? '0 0 0 1px rgba(15,118,110,0.3)' : '0 3px 10px rgba(0,0,0,0.09)')}
-      onMouseLeave={e => (e.currentTarget.style.boxShadow = dk ? 'none' : '0 1px 3px rgba(0,0,0,0.05)')}>
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = dk ? '0 0 0 1px #334155' : '0 3px 12px rgba(0,0,0,0.08)'; (e.currentTarget as HTMLDivElement).style.borderColor = dk ? '#334155' : '#D1C9C0' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = dk ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'; (e.currentTarget as HTMLDivElement).style.borderColor = dk ? '#1E293B' : '#EEE8E0' }}>
 
       {/* Row 1: avatar + name/address + priority badge + age */}
       {(() => {
@@ -429,12 +429,12 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
             </div>
             <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
               {priority === 'hot' && (
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 6,
-                  background: '#FEF3C7', color: '#92400E', letterSpacing: '0.02em' }}>HOT</span>
+                <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 5,
+                  background: '#FEF3C7', color: '#92400E', letterSpacing: '0.03em' }}>🔥</span>
               )}
               {priority === 'warm' && (
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 6,
-                  background: '#F1F5F9', color: '#475569', letterSpacing: '0.02em' }}>WARM</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 5,
+                  background: '#FEF9C3', color: '#A16207', letterSpacing: '0.02em' }}>WARM</span>
               )}
               <span className="text-[11px] font-semibold" style={{ color: ageColor }}>{ageLabel}</span>
             </div>
@@ -983,9 +983,9 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
         boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
         overflow: 'hidden',
       }}>
-        {/* Column header */}
+        {/* Column header — colored top bar only, white/neutral body */}
         <div style={{
-          background: dk ? stage.color + '14' : stage.bg,
+          background: dk ? '#1E293B' : '#FAFAFA',
           borderBottom: `1px solid ${dk ? '#334155' : '#EEE8E0'}`,
           borderTop: `3px solid ${stage.color}`,
           padding: '10px 12px 8px',
