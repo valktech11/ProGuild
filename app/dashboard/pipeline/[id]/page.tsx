@@ -100,10 +100,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const fromEst   = sp.get('est_id')
 
   function backNav() {
+    // Trade term: roofing/hvac/etc = "Jobs", default = "Pipeline"
+    const pipelineTerm = (() => {
+      const slug = session?.trade_slug ?? ''
+      if (slug.includes('roof') || slug.includes('hvac') || slug.includes('electric') || slug.includes('plumb') || slug.includes('solar')) return 'Jobs'
+      return 'Pipeline'
+    })()
     if (fromParam==='calendar')  return { label:'Back to Calendar',  href:'/dashboard/calendar' }
     if (fromParam==='clients')   return { label:'Back to Clients',   href:'/dashboard/clients' }
     if (fromParam==='estimates') return { label:'Back to Estimate',  href: fromEst?`/dashboard/estimates/${fromEst}`:'/dashboard/estimates' }
-    return { label:'Back to Pipeline', href:'/dashboard/pipeline' }
+    return { label:`Back to ${pipelineTerm}`, href:'/dashboard/pipeline' }
   }
 
   // ── Session ─────────────────────────────────────────────────────────────
@@ -164,6 +170,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number}|null>(null)
   const [creatingEst, setCreatingEst] = useState(false)
   const [creatingInv, setCreatingInv] = useState(false)
+  const [photoCount, setPhotoCount]   = useState(0)
 
   // ── Toasts ───────────────────────────────────────────────────────────────
   const [toasts,   setToasts]   = useState<Toast[]>([])
@@ -430,9 +437,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
           const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
             {key:'details', label:'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
-            ...(isRoofing?[{key:'photos' as Tab, label:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
+            ...(isRoofing?[{key:'photos' as Tab, label:photoCount>0?`Photos (${photoCount})`:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
             {key:'estimate',label:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>},
-            {key:'activity',label:'Activity',   icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>},
+            {key:'activity',label:acts.length>0?`Activity (${acts.length})`:'Activity', icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>},
           ]
 
           return (
@@ -470,7 +477,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {initials(lead.contact_name)}
                           </div>
                           <div style={{minWidth:0,flex:1,paddingTop:2}}>
-                            <div style={{fontSize:20,fontWeight:800,color:tp,letterSpacing:'-0.025em',lineHeight:1.2,marginBottom:4}}>
+                            <div style={{fontSize:22,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15,marginBottom:5}}>
                               {heroLabel}
                             </div>
                             <div style={{fontSize:13,color:tsu,lineHeight:1.5}}>
@@ -478,7 +485,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             </div>
                             {/* Stage + timestamp inline */}
                             <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,flexWrap:'wrap'}}>
-                              <span style={{fontSize:12,fontWeight:700,padding:'3px 8px',borderRadius:20,background:stgObj?.bg??'#F0FDFA',color:stgObj?.color??BRAND.teal}}>
+                              <span style={{fontSize:13,fontWeight:700,padding:'4px 10px',borderRadius:20,background:stgObj?.color??BRAND.teal,color:'#fff',letterSpacing:'-0.01em'}}>
                                 {stgObj?.label??stage}
                               </span>
                               <span style={{fontSize:12,color:tsu}}>
@@ -546,7 +553,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           const lc    = isAct?stg.color:done?(dk?'#4B5563':'#9CA3AF'):(dk?'#374151':'#CBD5E1')
                           return (
                             <div key={stg.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
-                              <span style={{fontSize:9,fontWeight:isAct?700:500,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 2px'}}>
+                              <span style={{fontSize:isAct?11:done?9:9,fontWeight:isAct?800:done?500:400,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 2px'}}>
                                 {stg.label}
                               </span>
                               {/* Active stage: downward caret pointing to status row below */}
@@ -574,24 +581,23 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               disabled={saving}
                               style={{
                                 display:'inline-flex',alignItems:'center',gap:8,
-                                padding:'9px 12px',borderRadius:T.radMd,
-                                border:`1.5px solid ${stgObj?.color??BRAND.teal}30`,
-                                background:stgObj?.bg??'#F0FDFA',
+                                padding:'10px 14px',borderRadius:T.radMd,
+                                border:'none',
+                                background:stgObj?.color??BRAND.teal,
                                 cursor:saving?'wait':'pointer',
-                                boxShadow:showPicker?`0 0 0 3px ${stgObj?.color??BRAND.teal}18`:'none',
+                                boxShadow:showPicker?`0 0 0 4px ${stgObj?.color??BRAND.teal}30`:`0 2px 8px ${stgObj?.color??BRAND.teal}40`,
                                 transition:'box-shadow 0.15s',
                                 whiteSpace:'nowrap',
                               }}>
-                              <span style={{width:9,height:9,borderRadius:'50%',background:stgObj?.color??BRAND.teal,flexShrink:0}}/>
                               <div style={{textAlign:'left'}}>
-                                <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal,lineHeight:1.2}}>
+                                <div style={{fontSize:14,fontWeight:700,color:'#fff',lineHeight:1.2}}>
                                   {saving?'Updating...':(stgObj?.label??stage)}
                                 </div>
-                                <div style={{fontSize:11,color:stgObj?.color??BRAND.teal,opacity:0.75,marginTop:1}}>{stgObj?.subLabel}</div>
+                                <div style={{fontSize:11,color:'rgba(255,255,255,0.75)',marginTop:1}}>{stgObj?.subLabel}</div>
                               </div>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                stroke={stgObj?.color??BRAND.teal} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                style={{transform:showPicker?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s',flexShrink:0,opacity:0.7}}>
+                                stroke="rgba(255,255,255,0.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                style={{transform:showPicker?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s',flexShrink:0}}>
                                 <polyline points="6 9 12 15 18 9"/>
                               </svg>
                             </button>
@@ -868,7 +874,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     {/* Photos tab */}
                     {tab==='photos'&&isRoofing&&(
                       <div style={{padding:'18px 20px'}}>
-                        <JobPhotoLog leadId={lead.id} proId={session!.id} isRoofing={isRoofing} darkMode={dk}/>
+                        <JobPhotoLog leadId={lead.id} proId={session!.id} isRoofing={isRoofing} darkMode={dk} onPhotosLoaded={(n:number)=>setPhotoCount(n)}/>
                       </div>
                     )}
 

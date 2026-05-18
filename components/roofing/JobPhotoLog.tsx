@@ -25,10 +25,11 @@ export interface JobPhoto {
 }
 
 interface Props {
-  leadId:     string
-  proId:      string
-  isRoofing:  boolean   // shows Insurance phase label if true
-  darkMode:   boolean
+  leadId:           string
+  proId:            string
+  isRoofing:        boolean
+  darkMode:         boolean
+  onPhotosLoaded?:  (count: number) => void
 }
 
 const PHASES: PhotoPhase[] = [
@@ -53,7 +54,7 @@ const PHASE_COLORS: Record<PhotoPhase, { bg: string; text: string }> = {
 const MAX_BYTES = 10 * 1024 * 1024
 
 // ── Component ─────────────────────────────────────────────────────────────
-export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode }: Props) {
+export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhotosLoaded }: Props) {
   const [photos,       setPhotos]       = useState<JobPhoto[]>([])
   const [loading,      setLoading]      = useState(true)
   const [uploading,    setUploading]    = useState(false)
@@ -73,7 +74,7 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode }: Prop
     fetch(`/api/leads/${leadId}/photos?pro_id=${proId}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then((data: { photos: JobPhoto[] }) => {
-        if (!cancelled) setPhotos(data.photos ?? [])
+        if (!cancelled) { const photos_ = data.photos ?? []; setPhotos(photos_); onPhotosLoaded?.(photos_.length) }
       })
       .catch(err => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load photos')

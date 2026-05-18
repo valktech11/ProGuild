@@ -186,7 +186,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipeli
 
           <div className="flex items-start justify-between px-6 py-5" style={{ borderBottom: `1px solid ${theme(dk).cardBorder}` }}>
             <div className="flex-1 min-w-0 pr-4">
-              <h2 className="text-xl font-bold text-gray-900">{capName(lead.contact_name)}</h2>
+              <h2 className="text-xl font-bold text-gray-900">{(lead as any).property_address ? (lead as any).property_address.replace(/, USA$/, '') : capName(lead.contact_name)}</h2>
               <p className="text-sm text-gray-500 mt-0.5">{timeAgo(lead.created_at)} · {lead.lead_source?.replace(/_/g, ' ')}</p>
               <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
                 style={{ background: currentStageSS.bg, color: currentStageSS.color }}>
@@ -613,8 +613,8 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
                           {initials(lead.contact_name)}
                         </div>
                         <div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri }}>{capName(lead.contact_name)}</div>
-                          {lead.contact_phone && <div style={{ fontSize: 12, color: t.textSubtle }}>{lead.contact_phone}</div>}
+                          <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri }}>{(lead as any).property_address ? (lead as any).property_address.replace(/, USA$/, '') : capName(lead.contact_name)}</div>
+                          <div style={{ fontSize: 12, color: t.textSubtle }}>{(lead as any).property_address ? capName(lead.contact_name) : (lead.contact_phone || '')}</div>
                         </div>
                       </div>
                     </td>
