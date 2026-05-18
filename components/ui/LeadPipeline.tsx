@@ -1210,10 +1210,15 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle,
                   textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{k.label}</div>
-                <div style={{ fontSize: 30, fontWeight: 800, color: t.textPri,
+                <div style={{ fontSize: k.value === '—' ? 22 : 30,
+                  fontWeight: 800,
+                  color: k.value === '—' ? t.textSubtle : t.textPri,
                   letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>{k.value}</div>
-                <div style={{ fontSize: 12, color: k.trend?.startsWith('+') ? '#16A34A' : k.trend?.startsWith('-') ? '#DC2626' : t.textSubtle, fontWeight: 500 }}>
-                  {k.trend || k.sub}
+                <div style={{ fontSize: 12, fontWeight: 500,
+                  color: k.value === '—' ? t.textSubtle :
+                    k.trend?.startsWith('+') ? '#16A34A' :
+                    k.trend?.startsWith('-') ? '#DC2626' : t.textMuted }}>
+                  {k.value === '—' ? k.sub : (k.trend || k.sub)}
                 </div>
               </div>
               <div style={{ width:44, height:44, borderRadius:12, flexShrink:0,
@@ -1286,19 +1291,36 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         {/* Right fade — elegant scroll hint */}
         <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-20 z-10"
           style={{ background: `linear-gradient(90deg, transparent, ${dk ? '#0E1118' : '#F5F4F0'})` }} />
-        {/* Scroll position pill — always visible, shows position on load */}
-        <div className="pointer-events-none absolute bottom-4 left-1/2 z-20"
-          style={{ transform:'translateX(-50%)' }}>
-          <div style={{ width:140, height:4, borderRadius:4,
+        {/* Scroll position pill — always visible, draggable thumb */}
+        <div className="absolute bottom-4 left-1/2 z-20"
+          style={{ transform:'translateX(-50%)', cursor:'pointer' }}
+          onMouseDown={(e) => {
+            const track = e.currentTarget.querySelector('[data-track]') as HTMLElement
+            const board = kanbanRef.current
+            if (!track || !board) return
+            const trackRect = track.getBoundingClientRect()
+            const seek = (clientX: number) => {
+              const pct = Math.max(0, Math.min(1, (clientX - trackRect.left) / trackRect.width))
+              board.scrollLeft = pct * (board.scrollWidth - board.clientWidth)
+            }
+            seek(e.clientX)
+            const onMove = (ev: MouseEvent) => seek(ev.clientX)
+            const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+            window.addEventListener('mousemove', onMove)
+            window.addEventListener('mouseup', onUp)
+            e.stopPropagation()
+          }}>
+          <div data-track="true" style={{ width:140, height:6, borderRadius:6,
             background: dk ? '#1E293B' : '#E2E8F0',
-            position:'relative', overflow:'hidden' }}>
+            position:'relative' }}>
             <div style={{
               position:'absolute', top:0, height:'100%',
-              width:`${Math.max(14, (1 - scrollPct) * 40 + 14)}%`,
-              left:`${scrollPct * (100 - Math.max(14, (1 - scrollPct) * 40 + 14))}%`,
-              borderRadius:4,
-              background: dk ? '#475569' : '#94A3B8',
-              transition:'left 100ms ease',
+              width:`${Math.max(16, (1 - scrollPct) * 36 + 16)}%`,
+              left:`${scrollPct * (100 - Math.max(16, (1 - scrollPct) * 36 + 16))}%`,
+              borderRadius:6,
+              background: dk ? '#64748B' : '#94A3B8',
+              transition:'left 80ms ease',
+              cursor:'grab',
             }} />
           </div>
         </div>

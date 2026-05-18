@@ -445,9 +445,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           return (
             <>
               {showWarranty&&isRoofing&&(
-                <WarrantyRecord leadId={lead.id} proId={session!.id} propertyId={null} darkMode={dk}
-                  onSaved={()=>{setShowWarranty(false);addToast('Warranty recorded')}}
-                  onDismiss={()=>setShowWarranty(false)}/>
+                <div style={{
+                  position:'fixed', inset:0, zIndex:60,
+                  background:'rgba(0,0,0,0.55)', backdropFilter:'blur(2px)',
+                  display:'flex', alignItems:'center', justifyContent:'center', padding:16,
+                }} onClick={()=>setShowWarranty(false)}>
+                  <div onClick={e=>e.stopPropagation()} style={{ width:'100%', maxWidth:480 }}>
+                    <WarrantyRecord leadId={lead.id} proId={session!.id} propertyId={null} darkMode={dk}
+                      onSaved={()=>{setShowWarranty(false);addToast('Warranty recorded')}}
+                      onDismiss={()=>setShowWarranty(false)}/>
+                  </div>
+                </div>
               )}
 
               {/* back nav */}
