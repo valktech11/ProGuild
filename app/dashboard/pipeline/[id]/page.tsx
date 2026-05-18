@@ -865,7 +865,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     {/* Activity */}
                     <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 2px 10px rgba(0,0,0,0.05)'}}>
                       <div style={{padding:`${T.sp3}px ${T.sp4}px`,borderBottom:`1px solid ${bdr}`}}>
-                        <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em'}}>Activity</div>
+                        <div style={{fontSize:T.fontBody,fontWeight:700,color:tp}}>Activity</div>
                       </div>
                       <div style={{padding:`${T.sp3}px ${T.sp4}px`}}>
                         {acts.length===0
@@ -884,10 +884,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   </Svg>
                                 </div>
                                 <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontSize:T.fontSub,fontWeight:600,color:tp,lineHeight:1.3}}>{item.title}</div>
-                                  <div style={{fontSize:T.fontBadge,color:tsu,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.sub}</div>
+                                  <div style={{fontSize:T.fontBody,fontWeight:600,color:tp,lineHeight:1.3}}>{item.title}</div>
+                                  <div style={{fontSize:T.fontSub,color:ts,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.sub}</div>
                                 </div>
-                                <div style={{fontSize:T.fontBadge,color:tsu,flexShrink:0,whiteSpace:'nowrap',paddingTop:1}}>
+                                <div style={{fontSize:T.fontSub,color:ts,flexShrink:0,whiteSpace:'nowrap',paddingTop:1}}>
                                   {new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
                                 </div>
                               </div>
@@ -899,9 +899,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                     {/* Insights */}
                     <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 2px 10px rgba(0,0,0,0.05)'}}>
-                      <div style={{padding:`${T.sp3}px ${T.sp4}px`,borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:6}}>
-                        <Svg size={13} stroke="#6366F1"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>
-                        <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em'}}>Insights</div>
+                      <div style={{padding:`${T.sp4}px ${T.sp4}px ${T.sp3}px`,borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:6}}>
+                        <Svg size={15} stroke="#6366F1"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>
+                        <div style={{fontSize:T.fontBody,fontWeight:700,color:tp}}>Insights</div>
                       </div>
                       <div style={{padding:`${T.sp3}px ${T.sp4}px`,display:'flex',flexDirection:'column',gap:T.sp3}}>
                         {(()=>{
@@ -918,9 +918,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <Svg size={13} stroke={ins.color}>{ins.icon}</Svg>
                               </div>
                               <div style={{minWidth:0}}>
-                                <div style={{fontSize:T.fontBadge,fontWeight:700,color:tp}}>{ins.title}</div>
-                                <div style={{fontSize:T.fontBody,fontWeight:600,color:ins.color,marginTop:1}}>{ins.body}</div>
-                                <div style={{fontSize:T.fontBadge,color:tsu,marginTop:1}}>{ins.sub}</div>
+                                <div style={{fontSize:T.fontSub,fontWeight:700,color:tp,marginBottom:2}}>{ins.title}</div>
+                                <div style={{fontSize:T.fontBody,fontWeight:700,color:ins.color}}>{ins.body}</div>
+                                <div style={{fontSize:T.fontSub,color:ts,marginTop:2}}>{ins.sub}</div>
                               </div>
                             </div>
                           ))
