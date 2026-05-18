@@ -1286,20 +1286,19 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         {/* Right fade — elegant scroll hint */}
         <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-20 z-10"
           style={{ background: `linear-gradient(90deg, transparent, ${dk ? '#0E1118' : '#F5F4F0'})` }} />
-        {/* Scroll position pill — Roofr-style, fades after 1.8s idle */}
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20"
-          style={{ transform:'translateX(-50%)', transition:'opacity 300ms ease',
-            opacity: pillVisible ? 1 : 0 }}>
-          <div style={{ width:120, height:4, borderRadius:4,
+        {/* Scroll position pill — always visible, shows position on load */}
+        <div className="pointer-events-none absolute bottom-4 left-1/2 z-20"
+          style={{ transform:'translateX(-50%)' }}>
+          <div style={{ width:140, height:4, borderRadius:4,
             background: dk ? '#1E293B' : '#E2E8F0',
             position:'relative', overflow:'hidden' }}>
             <div style={{
               position:'absolute', top:0, height:'100%',
-              width:`${Math.max(16, scrollPct * 100)}%`,
-              left:`${scrollPct * (100 - Math.max(16, scrollPct * 100))}%`,
+              width:`${Math.max(14, (1 - scrollPct) * 40 + 14)}%`,
+              left:`${scrollPct * (100 - Math.max(14, (1 - scrollPct) * 40 + 14))}%`,
               borderRadius:4,
               background: dk ? '#475569' : '#94A3B8',
-              transition:'left 80ms ease, width 80ms ease',
+              transition:'left 100ms ease',
             }} />
           </div>
         </div>
@@ -1313,7 +1312,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           onScroll={onKanbanScroll}>
           <style>{`.pg-kanban-scroll::-webkit-scrollbar{display:none}.pg-kanban-scroll:active{cursor:grabbing}`}</style>
           <div style={{ display:'flex', gap:12, minWidth: stages.length * 292,
-            alignItems:'flex-start', paddingBottom:4, paddingRight:40 }}>
+            alignItems:'flex-start', paddingBottom:28, paddingRight:40 }}>
             {stages.map(stage => (
               <PipelineColumn key={stage.key} stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} />
             ))}
