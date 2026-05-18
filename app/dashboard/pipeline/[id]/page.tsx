@@ -661,7 +661,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               {initials(session?.name||'SA')}
                             </div>
                             <div>
-                              <div style={{fontSize:13,fontWeight:600,color:tp}}>{session?.name||session?.full_name||'Sam Altman'}</div>
+                              <div style={{fontSize:13,fontWeight:600,color:tp}}>{session?.name||'Pro'}</div>
                               <div style={{fontSize:11,color:tsu,marginTop:1,textTransform:'capitalize'}}>{session?.trade||'Roofer'}</div>
                             </div>
                           </div>
