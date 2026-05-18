@@ -563,36 +563,35 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                     {/* ─── Status row ─────────────────────────────────── */}
                     <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px'}}>
-                      <div style={{display:'grid',gridTemplateColumns:'200px 1fr auto',gap:20,alignItems:'start'}}>
+                      <div style={{display:'grid',gridTemplateColumns:'auto 1fr auto',gap:32,alignItems:'start'}}>
 
-                        {/* Left: status picker — full-width card style */}
+                        {/* Left: status picker — compact inline pill */}
                         <div>
                           <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Current Status</div>
-                          <div style={{position:'relative'}}>
+                          <div style={{position:'relative',display:'inline-block'}}>
                             <button
                               onClick={()=>setShowPicker(v=>!v)}
                               disabled={saving}
                               style={{
-                                width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
-                                padding:'12px 14px',borderRadius:T.radMd,
-                                border:`1px solid ${bdr}`,
+                                display:'inline-flex',alignItems:'center',gap:8,
+                                padding:'9px 12px',borderRadius:T.radMd,
+                                border:`1.5px solid ${stgObj?.color??BRAND.teal}30`,
                                 background:stgObj?.bg??'#F0FDFA',
                                 cursor:saving?'wait':'pointer',
-                                boxShadow:showPicker?`0 0 0 3px ${stgObj?.color??BRAND.teal}20`:'0 1px 3px rgba(0,0,0,0.06)',
+                                boxShadow:showPicker?`0 0 0 3px ${stgObj?.color??BRAND.teal}18`:'none',
                                 transition:'box-shadow 0.15s',
+                                whiteSpace:'nowrap',
                               }}>
-                              <div style={{display:'flex',alignItems:'center',gap:10}}>
-                                <span style={{width:10,height:10,borderRadius:'50%',background:stgObj?.color??BRAND.teal,flexShrink:0}}/>
-                                <div style={{textAlign:'left'}}>
-                                  <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal,lineHeight:1.2}}>
-                                    {saving?'Updating...':(stgObj?.label??stage)}
-                                  </div>
-                                  <div style={{fontSize:11,color:tsu,marginTop:2}}>{stgObj?.subLabel}</div>
+                              <span style={{width:9,height:9,borderRadius:'50%',background:stgObj?.color??BRAND.teal,flexShrink:0}}/>
+                              <div style={{textAlign:'left'}}>
+                                <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal,lineHeight:1.2}}>
+                                  {saving?'Updating...':(stgObj?.label??stage)}
                                 </div>
+                                <div style={{fontSize:11,color:stgObj?.color??BRAND.teal,opacity:0.75,marginTop:1}}>{stgObj?.subLabel}</div>
                               </div>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke={tsu} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                                style={{transform:showPicker?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s',flexShrink:0}}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                stroke={stgObj?.color??BRAND.teal} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                style={{transform:showPicker?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s',flexShrink:0,opacity:0.7}}>
                                 <polyline points="6 9 12 15 18 9"/>
                               </svg>
                             </button>
@@ -667,11 +666,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           </div>
                         </div>
 
-                        {/* Middle: status since — card style */}
+                        {/* Middle: status since — flat */}
                         <div>
                           <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Status Since</div>
-                          <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderRadius:T.radMd,border:`1px solid ${bdr}`,background:t.cardBgAlt,boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
-                            <div style={{width:36,height:36,borderRadius:9,background:card,boxShadow:'0 1px 4px rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                          <div style={{display:'flex',alignItems:'center',gap:10}}>
+                            <div style={{width:34,height:34,borderRadius:9,background:t.cardBgAlt,border:`1px solid ${bdr}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                               <Svg size={16} stroke={ts}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
                             </div>
                             <div>
