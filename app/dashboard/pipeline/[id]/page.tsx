@@ -449,7 +449,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 <div style={{minWidth:0}}>
 
                   {/* ─── HERO CARD ─────────────────────────────────────── */}
-                  <div style={{background:card,borderRadius:T.radLg,marginBottom:T.sp3,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 12px rgba(0,0,0,0.06)',overflow:'hidden'}}>
+                  <div style={{background:card,borderRadius:T.radLg,marginBottom:T.sp3,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 12px rgba(0,0,0,0.06)'}}>
 
                     {/* Identity */}
                     <div style={{padding:`${T.sp5}px ${T.sp5}px ${T.sp4}px`}}>
@@ -550,9 +550,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {/* Status picker */}
                         <div>
                           <div style={labelCls}>Current Status</div>
-                          <div style={{position:'relative',display:'inline-block'}}>
+                          <div style={{display:'inline-block'}}>
                             <button
-                              onClick={()=>setShowPicker(v=>!v)}
+                              ref={(el)=>{ if(el&&showPicker){ const r=el.getBoundingClientRect(); (window as any).__pgPickerY=r.bottom+6; (window as any).__pgPickerX=r.left; } }}
+                              onClick={(e)=>{ const r=(e.currentTarget as HTMLButtonElement).getBoundingClientRect(); (window as any).__pgPickerY=r.bottom+6; (window as any).__pgPickerX=r.left; setShowPicker(v=>!v); }}
                               disabled={saving}
                               style={{display:'inline-flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:T.radSm,border:`1.5px solid ${stgObj?.color??BRAND.teal}40`,background:stgObj?.bg??'#F0FDFA',color:stgObj?.color??BRAND.teal,fontSize:T.fontBody,fontWeight:700,cursor:saving?'wait':'pointer',whiteSpace:'nowrap',transition:'opacity 0.15s',opacity:saving?0.7:1}}>
                               <span style={{width:8,height:8,borderRadius:'50%',background:stgObj?.color??BRAND.teal,flexShrink:0}}/>
@@ -560,11 +561,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               <Svg size={13} stroke={stgObj?.color??BRAND.teal}><polyline points="6 9 12 15 18 9"/></Svg>
                             </button>
 
-                            {/* Dropdown — works on all screen sizes */}
+                            {/* Dropdown — fixed position to escape any overflow:hidden parent */}
                             {showPicker&&(
                               <>
                                 <div style={{position:'fixed',inset:0,zIndex:199}} onClick={()=>setShowPicker(false)}/>
-                                <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,zIndex:200,background:card,border:`1px solid ${bdr}`,borderRadius:T.radMd,boxShadow:'0 8px 32px rgba(0,0,0,0.14)',minWidth:250,maxWidth:320,overflow:'hidden'}}>
+                                <div style={{position:'fixed',top:(typeof window!=='undefined'?(window as any).__pgPickerY:200),left:(typeof window!=='undefined'?(window as any).__pgPickerX:0),zIndex:200,background:card,border:`1px solid ${bdr}`,borderRadius:T.radMd,boxShadow:'0 8px 32px rgba(0,0,0,0.14)',minWidth:260,maxWidth:340,overflow:'hidden'}}>
                                   {pickerGroups.map((grp,gi)=>{
                                     const gStages = stages.filter(s=>grp.keys.includes(s.key))
                                     if (!gStages.length) return null
@@ -653,22 +654,25 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {/* Data grid */}
                             <div style={{borderRadius:T.radSm,overflow:'hidden',border:`1px solid ${bdr}`,marginBottom:T.sp4}}>
                               {([
-                                {label:'PHONE',    val:fmtPhone(lead.contact_phone),   copy:lead.contact_phone},
-                                {label:'EMAIL',    val:lead.contact_email||'—',        copy:lead.contact_email},
-                                {label:'ADDRESS',  val:(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—', copy:null},
-                                {label:'SOURCE',   val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
-                                {label:'JOB DATE', val:fmt(lead.scheduled_date),       copy:null},
-                                {label:'FOLLOW-UP',val:lead.follow_up_date
+                                {label:'Phone',    icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
+                                {label:'Email',    icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
+                                {label:'Address',  icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—', copy:null},
+                                {label:'Source',   icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
+                                {label:'Job Date', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>, val:fmt(lead.scheduled_date), copy:null},
+                                {label:'Follow-up',icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, val:lead.follow_up_date
                                   ?<span style={{display:'flex',alignItems:'center',gap:5}}>{fmt(lead.follow_up_date)}{isOverdue(lead.follow_up_date)&&<span style={{fontSize:T.fontBadge,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:600}}>Overdue</span>}</span>
                                   :'—', copy:null},
-                              ] as {label:string;val:React.ReactNode;copy:string|null}[]).reduce((rows:any[][], cell,i)=>{
+                              ] as {label:string;icon:React.ReactNode;val:React.ReactNode;copy:string|null}[]).reduce((rows:any[][], cell,i)=>{
                                 if(i%2===0) rows.push([cell]); else rows[rows.length-1].push(cell)
                                 return rows
                               },[]).map((row,ri)=>(
                                 <div key={ri} style={{display:'grid',gridTemplateColumns:'1fr 1fr',background:ri%2===1?t.tableRowAlt:card,borderBottom:ri<2?`1px solid ${bdr}`:'none'}}>
                                   {row.map((cell:any)=>(
-                                    <div key={cell.label} style={{padding:'12px 16px',borderRight:row.indexOf(cell)===0?`1px solid ${bdr}`:'none'}}>
-                                      <div style={{fontSize:9,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>{cell.label}</div>
+                                    <div key={cell.label} style={{padding:'14px 16px',borderRight:row.indexOf(cell)===0?`1px solid ${bdr}`:'none'}}>
+                                      <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:6}}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tsu} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{cell.icon}</svg>
+                                        <span style={{fontSize:11,fontWeight:600,color:tsu,letterSpacing:'0.01em'}}>{cell.label}</span>
+                                      </div>
                                       <div style={{fontSize:T.fontBody,fontWeight:600,color:tp,display:'flex',alignItems:'center',gap:4,wordBreak:'break-word'}}>
                                         {cell.val}
                                         {cell.copy&&<CopyBtn text={cell.copy} color={ts}/>}
