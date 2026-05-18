@@ -570,12 +570,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Current Status</div>
                           <div style={{position:'relative'}}>
                             <button
-                              onClick={(e)=>{
-                                const r=(e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                (window as any).__pgPickerY=r.bottom+8;
-                                (window as any).__pgPickerX=r.left;
-                                setShowPicker(v=>!v);
-                              }}
+                              onClick={()=>setShowPicker(v=>!v)}
                               disabled={saving}
                               style={{
                                 width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
@@ -602,20 +597,21 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               </svg>
                             </button>
 
-                            {/* ── Dropdown ── */}
+                            {/* ── Dropdown — position:absolute, attached directly below pill ── */}
                             {showPicker&&(
                               <>
                                 <div style={{position:'fixed',inset:0,zIndex:199}} onClick={()=>setShowPicker(false)}/>
                                 <div style={{
-                                  position:'fixed',
-                                  top:(typeof window!=='undefined'?(window as any).__pgPickerY:200),
-                                  left:(typeof window!=='undefined'?(window as any).__pgPickerX:0),
+                                  position:'absolute',
+                                  top:'calc(100% + 6px)',
+                                  left:0,
                                   zIndex:200,
                                   background:card,
                                   border:`1px solid ${bdr}`,
                                   borderRadius:T.radMd,
                                   boxShadow:'0 12px 40px rgba(0,0,0,0.18)',
-                                  minWidth:280,maxWidth:320,
+                                  minWidth:'100%',
+                                  width:300,
                                   overflow:'hidden',
                                 }}>
                                   {/* ── CURRENT ── */}
