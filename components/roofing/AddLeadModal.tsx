@@ -73,7 +73,21 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   const [err,     setErr]     = useState('')
   const [focus,   setFocus]   = useState<Record<string,boolean>>({})
 
-  // Structured address — no autocomplete needed
+  // Autocomplete on street — parses result into street/city/state/zip
+  const streetRef = useRef<HTMLInputElement>(null)
+  usePlacesAutocomplete(streetRef, (formatted: string) => {
+    // formatted: "3919 Highgate Dr, Tampa, FL 33614, USA"
+    const parts = formatted.replace(', USA', '').split(', ')
+    // Last part is zip+country or just zip, second-last is state, third-last is city
+    const zipMatch = formatted.match(/\b(\d{5})\b/)
+    const stateMatch = formatted.match(/,\s*([A-Z]{2})\s+\d{5}/)
+    if (zipMatch) setZip(zipMatch[1])
+    if (stateMatch) setAddrState(stateMatch[1])
+    // City is typically the part before state
+    if (parts.length >= 3) setCity(parts[parts.length - 3] || '')
+    // Street is everything before city
+    if (parts.length >= 1) setStreet(parts[0] || '')
+  })
 
   // Reset scroll to top whenever modal mounts
   // Without this, the modal body inherits scroll position from previous open
@@ -109,7 +123,7 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   function iStyle(k: string): React.CSSProperties {
     const active = focus[k]
     return {
-      width: '100%', padding: '13px 14px', fontSize: 15, borderRadius: 10,
+      width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8,
       border: `1.5px solid ${active ? TEAL : (dk ? '#2D3748' : '#D1D5DB')}`,
       background: dk ? '#0F172A' : 'white',
       color: dk ? '#F1F5F9' : '#111827',
@@ -135,21 +149,19 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end',
-      justifyContent: 'center', background: 'rgba(10,22,40,0.65)', backdropFilter: 'blur(6px)' }}
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', padding: '16px', background: 'rgba(10,22,40,0.65)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}>
-      <div style={{ width: '100%', maxWidth: 520, background: bg, borderRadius: '20px 20px 0 0',
-        maxHeight: '96dvh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 -32px 80px rgba(0,0,0,0.25)' }}
+      <div style={{ width: '100%', maxWidth: 640, background: bg, borderRadius: 20,
+        maxHeight: '92dvh', display: 'flex', flexDirection: 'column',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.30)' }}
         onClick={e => e.stopPropagation()}>
 
-        {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 8px', flexShrink: 0 }}>
-          <div style={{ width: 32, height: 4, borderRadius: 2, background: dk ? '#2D3748' : '#E5E7EB' }} />
-        </div>
+        {/* spacing */}
+        <div style={{ height: 8, flexShrink: 0 }} />
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 24px 18px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 24px 14px', flexShrink: 0 }}>
           <div style={{ width: 46, height: 46, borderRadius: 14, background: '#F0FDFA',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -177,25 +189,25 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
         <div ref={scrollBodyRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '0 24px 8px' }}>
 
           {/* Source section */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: dk ? '#94A3B8' : '#6B7280',
-              textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: dk ? '#94A3B8' : '#6B7280',
+              textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
               Lead source
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
               {SOURCES.map(({ v, l, I }) => {
                 const active = source === v
                 return (
                   <button key={v} onClick={() => setSource(v)} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                    padding: '8px 6px', borderRadius: 10, cursor: 'pointer',
                     border: `1.5px solid ${active ? TEAL : (dk ? '#2D3748' : '#E5E7EB')}`,
                     background: active ? TEAL : (dk ? '#0F172A' : '#FAFAFA'),
-                    transition: 'all 160ms ease', textAlign: 'left' as const,
+                    transition: 'all 160ms ease',
                   }}>
                     <I a={active} />
-                    <span style={{ fontSize: 13, fontWeight: 600,
-                      color: active ? 'white' : (dk ? '#CBD5E1' : '#374151') }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'center' as const,
+                      color: active ? 'white' : (dk ? '#CBD5E1' : '#374151'), lineHeight: 1.2 }}>
                       {l}
                     </span>
                   </button>
@@ -205,10 +217,10 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
           </div>
 
           {/* Separator */}
-          <div style={{ height: 1, background: sep, marginBottom: 24 }} />
+          <div style={{ height: 1, background: sep, marginBottom: 16 }} />
 
           {/* Form */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 4 }}>
 
             {/* Name + Phone */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -230,9 +242,9 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
             {/* Address — structured US fields */}
             <div>
               <Lbl text="Street address" opt />
-              <input value={street} onChange={e => setStreet(san(e.target.value))}
+              <input ref={streetRef} value={street} onChange={e => setStreet(san(e.target.value))}
                 placeholder="3919 Highgate Dr"
-                style={iStyle('street')} autoComplete="address-line1"
+                style={iStyle('street')} autoComplete="off"
                 onFocus={() => fo('street')} onBlur={() => fb('street')} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px', gap: 10 }}>
