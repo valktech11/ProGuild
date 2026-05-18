@@ -30,14 +30,14 @@ interface LeadPipelineProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ROOFING_STAGES = [
-  { key: 'lead_in',             label: 'Lead In',            color: '#64748B', bg: '#F8FAFC', topBar: '#64748B' },
-  { key: 'inspection_scheduled',label: 'Inspection Sched.',  color: '#475569', bg: '#F1F5F9', topBar: '#475569' },
-  { key: 'proposal_sent',       label: 'Proposal Sent',      color: '#0F766E', bg: '#F0FDFA', topBar: '#0F766E' },
-  { key: 'proposal_signed',     label: 'Proposal Signed',    color: '#0D9488', bg: '#CCFBF1', topBar: '#0D9488' },
-  { key: 'insurance_approved',  label: 'Insurance Approved', color: '#92400E', bg: '#FEF3C7', topBar: '#F59E0B' },
-  { key: 'scheduled',           label: 'Scheduled',          color: '#155E75', bg: '#ECFEFF', topBar: '#155E75' },
-  { key: 'in_progress',         label: 'In Progress',        color: '#1E40AF', bg: '#EFF6FF', topBar: '#1E40AF' },
-  { key: 'job_won',             label: 'Job Won',            color: '#047857', bg: '#D1FAE5', topBar: '#047857' },
+  { key: 'lead_in',             label: 'Lead In',            subLabel: 'New inquiry',          color: '#64748B', bg: '#F8FAFC', topBar: '#64748B' },
+  { key: 'inspection_scheduled',label: 'Inspection Sched.',  subLabel: 'Inspection booked',    color: '#475569', bg: '#F1F5F9', topBar: '#475569' },
+  { key: 'proposal_sent',       label: 'Proposal Sent',      subLabel: 'Proposal with owner',  color: '#0F766E', bg: '#F0FDFA', topBar: '#0F766E' },
+  { key: 'proposal_signed',     label: 'Proposal Signed',    subLabel: 'Ready for insurance',  color: '#0D9488', bg: '#CCFBF1', topBar: '#0D9488' },
+  { key: 'insurance_approved',  label: 'Insurance Approved', subLabel: 'Waiting on carrier',   color: '#92400E', bg: '#FEF3C7', topBar: '#F59E0B' },
+  { key: 'scheduled',           label: 'Scheduled',          subLabel: 'Job on calendar',      color: '#155E75', bg: '#ECFEFF', topBar: '#155E75' },
+  { key: 'in_progress',         label: 'In Progress',        subLabel: 'Crew on site',         color: '#1E40AF', bg: '#EFF6FF', topBar: '#1E40AF' },
+  { key: 'job_won',             label: 'Job Won',            subLabel: 'Completed',            color: '#047857', bg: '#D1FAE5', topBar: '#047857' },
 ]
 
 const STAGE_CTAS: Record<string, string> = {
@@ -709,10 +709,9 @@ function KanbanColumn({
 export function getPipelineStages(_tradeSlug?: string | null) {
   return [
     ...ROOFING_STAGES.map(s => ({ ...s, terminal: false })),
-    { key: 'job_won',      label: 'Job Won',      color: '#047857', bg: '#D1FAE5', topBar: '#047857', terminal: true },
-    { key: 'lost',         label: 'Lost',         color: '#6B7280', bg: '#F3F4F6', topBar: '#6B7280', terminal: true },
-    { key: 'unqualified',  label: 'Unqualified',  color: '#6B7280', bg: '#F3F4F6', topBar: '#6B7280', terminal: true },
-  ].filter((s, i, arr) => arr.findIndex(x => x.key === s.key) === i) // dedupe job_won
+    { key: 'lost',        label: 'Lost',        subLabel: 'Not proceeding', color: '#6B7280', bg: '#F3F4F6', topBar: '#6B7280', terminal: true },
+    { key: 'unqualified', label: 'Unqualified', subLabel: 'Not a fit',      color: '#6B7280', bg: '#F3F4F6', topBar: '#6B7280', terminal: true },
+  ]
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
