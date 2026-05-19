@@ -50,7 +50,7 @@ export interface RoofingNavItem {
 }
 
 export interface RoofingNavSection {
-  title:  'JOBS' | 'ROOFING TOOLS' | 'DOCUMENTS' | 'REPORTS'
+  title:  'JOBS' | 'MONEY' | 'ROOFING TOOLS' | 'DOCUMENTS' | 'REPORTS'
   items:  RoofingNavItem[]
 }
 

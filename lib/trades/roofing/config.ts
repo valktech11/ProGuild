@@ -145,47 +145,41 @@ export const roofingConfig: RoofingConfig = {
 
   // ── Navigation — roofing sidebar ────────────────────────────────────────────
   // DashboardShell renders this directly. No buildNav() logic needed.
+  // ── Navigation — roofing sidebar ─────────────────────────────────────────────
+  // Exact section order: JOBS → MONEY → ROOFING TOOLS → REPORTS
   nav: [
     {
       title: 'JOBS',
       items: [
-        { label: 'Overview',    href: '/dashboard',                   icon: '⚡', description: 'Today\'s snapshot' },
-        { label: 'Jobs',        href: '/dashboard/pipeline',          icon: '📋', description: 'Your full roofing pipeline' },
-        { label: 'Calendar',    href: '/dashboard/calendar',          icon: '📅', description: 'Inspections and installs' },
-        { label: 'Messages',    href: '/messages',                    icon: '💬', description: 'Leads and homeowner messages' },
+        { label: 'Overview',    href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Jobs',        href: '/dashboard/pipeline', icon: '📋', description: 'Your full roofing pipeline' },
+        { label: 'Calendar',    href: '/dashboard/calendar', icon: '📅', description: 'Inspections and installs' },
+        { label: 'Messages',    href: '/messages',           icon: '💬', description: 'Leads and homeowner messages' },
       ],
     },
     {
-      title: 'DOCUMENTS',
+      title: 'MONEY',
       items: [
-        { label: 'Proposals',   href: '/dashboard/estimates',         icon: '📝', description: 'Good / Better / Best proposals' },
-        { label: 'Invoices',    href: '/dashboard/invoices',          icon: '💰', description: 'Payments and outstanding balances' },
-        { label: 'Revenue',     href: '/dashboard/revenue',           icon: '📈', description: 'Revenue and performance', badge: 'pro', comingSoon: true },
+        { label: 'Proposals', href: '/dashboard/estimates', icon: '📝', description: 'Good / Better / Best proposals' },
+        { label: 'Invoices',  href: '/dashboard/invoices',  icon: '💰', description: 'Payments and outstanding balances' },
+        { label: 'Revenue',   href: '/dashboard/revenue',   icon: '📈', description: 'Revenue and performance', badge: 'pro', comingSoon: true },
       ],
     },
     {
       title: 'ROOFING TOOLS',
       items: [
-        { label: 'Properties',    href: '/dashboard/clients',               icon: '🏠', description: 'Property records and job history' },
-        { label: 'ProMeasure',    href: '/dashboard/roofing/promeasure',    icon: '📐', description: 'Satellite polygon measurement' },
-        { label: 'Quick Bid PDF', href: '/dashboard/roofing/report',        icon: '📊', description: 'Instant 5-page measurement report', badge: 'pro' },
-        { label: 'Calculator',    href: '/dashboard/roofing/calculator',    icon: '🔢', description: 'Squares + pitch + waste calculator' },
-        { label: 'Warranties',    href: '/dashboard/roofing/warranties',    icon: '🛡️', description: 'Shingle warranty records', comingSoon: true },
-        { label: 'Permits',       href: '/dashboard/roofing/permits',       icon: '📋', description: 'Permit tracking and status', comingSoon: true },
-      ],
-    },
-    {
-      title: 'DOCUMENTS',
-      items: [
-        { label: 'Contracts',     href: '/dashboard/roofing/contracts',     icon: '🤝', description: 'FL roofing contracts', badge: 'elite', comingSoon: true },
-        { label: 'Lien Waivers',  href: '/dashboard/roofing/liens',         icon: '⚖️', description: 'FL lien waivers — 4 types', badge: 'elite', comingSoon: true },
+        { label: 'Properties',    href: '/dashboard/clients',            icon: '🏠', description: 'Property records and job history' },
+        { label: 'ProMeasure',    href: '/dashboard/roofing/promeasure', icon: '📐', description: 'Satellite polygon measurement' },
+        { label: 'Calculator',    href: '/dashboard/roofing/calculator', icon: '🔢', description: 'Squares + pitch + waste calculator' },
+        { label: 'Quick Bid PDF', href: '/dashboard/roofing/report',     icon: '📊', description: 'Instant measurement report', badge: 'pro' },
+        { label: 'Warranties',    href: '/dashboard/roofing/warranties', icon: '🛡️', description: 'Shingle warranty records', comingSoon: true },
       ],
     },
     {
       title: 'REPORTS',
       items: [
-        { label: 'Performance',   href: '/dashboard/performance',           icon: '📈', description: 'Win rate, revenue, pipeline value', badge: 'pro' },
-        { label: 'Storm Alerts',  href: '/dashboard/roofing/storm',         icon: '⛈️', description: 'Hail events near your service area', badge: 'elite', comingSoon: true },
+        { label: 'Performance',  href: '/dashboard/performance',      icon: '📈', description: 'Win rate, revenue, pipeline value', badge: 'pro' },
+        { label: 'Storm Alerts', href: '/dashboard/roofing/storm',    icon: '⛈️', description: 'Hail events near you', badge: 'elite', comingSoon: true },
       ],
     },
   ],
