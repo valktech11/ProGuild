@@ -6,6 +6,7 @@ import { avatarColor, initials, capName, fmtPhone, US_STATES } from '@/lib/utils
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getPipelineStages } from '@/components/ui/LeadPipeline'
+import { getTradeConfig, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
 import InsuranceClaimFields from '@/components/roofing/InsuranceClaimFields'
 import JobPhotoLog from '@/components/roofing/JobPhotoLog'
 import WarrantyRecord from '@/components/roofing/WarrantyRecord'
@@ -183,7 +184,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   }
   function killToast(tid:number) { setToasts(t=>t.filter(x=>x.id!==tid)) }
 
-  const isRoofing = isRoofing_guard(getTradeConfig(session?.trade_slug))
+  const tradePlugin = getTradeConfig(session?.trade_slug)
+  const isRoofing = isRoofing_guard(tradePlugin)
 
   // ── Fetch lead ───────────────────────────────────────────────────────────
   useEffect(() => {
