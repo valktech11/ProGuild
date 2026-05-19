@@ -8,7 +8,7 @@ import { Session } from '@/types'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { estimateStatusStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
-import { resolveTradeConfig } from '@/lib/trade-resolver'
+import { getTradeConfig } from '@/lib/trades/_registry'
 
 // Separated out because useSearchParams() requires Suspense boundary in App Router
 function VoidedToast({ onToast }: { onToast: (msg: string) => void }) {
@@ -59,8 +59,8 @@ export default function EstimatesPage() {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
   })
-  const tc   = resolveTradeConfig(session?.trade_slug, session?.trade)
-  const noun = tc.terms.estimates ?? 'Proposals'
+  const tc   = getTradeConfig(session?.trade_slug)
+  const noun = tc.labels.estimate ?? 'Proposals'
 
   const [estimates,    setEstimates]    = useState<EstimateSummary[]>([])
   const [loading,      setLoading]      = useState(true)

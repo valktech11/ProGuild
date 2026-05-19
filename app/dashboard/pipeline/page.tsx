@@ -9,7 +9,7 @@ import AddLeadModal from '@/components/ui/AddLeadModal'
 import RoofingAddLeadModal from '@/components/roofing/AddLeadModal'
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
 import { theme, T } from '@/lib/tokens'
-import { resolveTradeConfig } from '@/lib/trade-resolver'
+import { getTradeConfig, isRoofing } from '@/lib/trades/_registry'
 
 export default function PipelinePage() {
   const router = useRouter()
@@ -25,8 +25,8 @@ export default function PipelinePage() {
     return localStorage.getItem('pg_darkmode') === '1'
   })
 
-  const tc   = resolveTradeConfig(session?.trade_slug, session?.trade)
-  const noun = tc.terms.pipeline ?? 'Pipeline'
+  const tc   = getTradeConfig(session?.trade_slug)
+  const noun = tc.labels.pipeline ?? 'Pipeline'
 
   function toggleDark() {
     setDk(prev => {
@@ -309,7 +309,7 @@ export default function PipelinePage() {
       />
 
       {showAddLead && session && (
-        (['roofing-contractor', 'roofing', 'roofer'].includes(session.trade_slug ?? ''))
+        (isRoofing(getTradeConfig(session.trade_slug)))
           ? <RoofingAddLeadModal
               proId={session.id}
               onClose={() => setShowAddLead(false)}

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Session, isPaidPlan } from '@/types'
 import { initials, avatarColor, planLabel } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
-import { resolveTradeConfig } from '@/lib/trade-resolver'
+import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
 
 type NavItem  = { label: string; href: string; icon: (a: boolean) => React.ReactNode; badge?: number | null; soon?: boolean; exact?: boolean }
 type NavGroup = { title: string; items: NavItem[] }
@@ -146,55 +146,32 @@ const icon = {
 }
 
 // ── Nav config ────────────────────────────────────────────────────────────────
-// buildNav consumes TradeConfig from lib/trade-config.ts.
-// Never add trade-specific branches here — edit lib/trade-config.ts instead.
-function buildNav(nl: number, tradeSlug?: string | null, tradeName?: string | null): NavGroup[] {
-  const tc = resolveTradeConfig(tradeSlug, tradeName)
-  const t  = tc.terms
+// buildNav reads trade plugin nav directly — no trade-specific branches here.
+// To change a trade's sidebar: edit lib/trades/{trade}/config.ts nav array.
+function buildNav(nl: number, tradeSlug?: string | null, _tradeName?: string | null): NavGroup[] {
+  const plugin = getTradeConfig(tradeSlug)
 
-  // Resolve icon safely — falls back to clients icon if key not found in map
-  function navIcon(key: string): (a: boolean) => React.ReactNode {
-    return (icon as Record<string, (a: boolean) => React.ReactNode>)[key] ?? icon.clients
+  // Resolve icon safely — trade nav uses emoji icons, shell uses svg icons for TODAY/MONEY
+  function navIcon(emoji: string): (a: boolean) => React.ReactNode {
+    return () => <span className="text-base leading-none flex-shrink-0">{emoji}</span>
   }
 
-  const groups: NavGroup[] = [
-    { title: 'TODAY', items: [
-      { label: t.overview  ?? 'Overview',  href: '/dashboard',          icon: icon.overview,  exact: true },
-      { label: t.pipeline  ?? 'Pipeline',  href: '/dashboard/pipeline', icon: icon.pipeline,  badge: nl },
-      { label: 'Calendar',                 href: '/dashboard/calendar', icon: icon.calendar },
-      { label: 'Messages',                 href: '/messages',           icon: icon.messages },
-    ]},
-    { title: 'MONEY', items: [
-      { label: t.estimates ?? 'Proposals', href: '/dashboard/estimates', icon: icon.estimates },
-      { label: 'Invoices',                 href: '/dashboard/invoices',  icon: icon.invoices },
-      { label: 'Revenue',                  href: '/dashboard/revenue',   icon: icon.revenue,   soon: true },
-    ]},
-  ]
+  // Build from plugin.nav — completely trade-driven
+  const groups: NavGroup[] = (plugin.nav as { title: string; items: { label: string; href: string; icon: string; description: string; badge?: string; comingSoon?: boolean }[] }[]).map(section => ({
+    title: section.title,
+    items: section.items.map(item => ({
+      label: item.label,
+      href:  item.href,
+      icon:  navIcon(item.icon),
+      soon:  item.comingSoon,
+      badge: undefined as number | null | undefined,
+    })),
+  }))
 
-  // Trade-specific section (MY EQUIPMENT, ROOFING TOOLS, GC TOOLS, etc.)
-  if (tc.tradeSection) {
-    groups.push({
-      title: tc.tradeSection.title,
-      items: [
-        // First item is always Clients/Customers/Owners/Properties
-        { label: t.clients ?? 'Clients', href: '/dashboard/clients', icon: icon.clients },
-        // Then trade-specific items from config
-        ...tc.tradeSection.items.map(item => ({
-          label: item.label,
-          href:  item.href,
-          icon:  navIcon(item.iconKey),
-          soon:  item.soon,
-        })),
-      ],
-    })
-  } else {
-    // No trade section — Clients lives in MY BUSINESS (default)
-    groups.push({ title: 'MY BUSINESS', items: [
-      { label: t.clients ?? 'Clients', href: '/dashboard/clients',    icon: icon.clients },
-      { label: 'Photo Vault',          href: '/dashboard/photos',     icon: icon.photos,    soon: true },
-      { label: 'Compliance',           href: '/dashboard/compliance', icon: icon.compliance, soon: true },
-    ]})
-  }
+  // Inject new-lead count badge onto the pipeline nav item
+  groups.forEach(g => g.items.forEach(item => {
+    if (item.href === '/dashboard/pipeline' || item.href === '/dashboard/jobs') { if (nl > 0) (item as Record<string,unknown>).badge = nl }
+  }))
 
   groups.push({ title: 'THE GUILD', items: [
     { label: 'Learn',       href: '/dashboard/learn', icon: icon.learn,     soon: true },
@@ -891,7 +868,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
           <main className="pb-[68px] min-h-screen" style={{ backgroundColor: t.pageBg }}>
             {children}
           </main>
-          <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} pipelineLabel={resolveTradeConfig(session?.trade_slug, session?.trade).terms.pipeline} />
+          <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} pipelineLabel={getTradeConfig(session?.trade_slug).labels.pipeline} />
           <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} session={session} nl={newLeads} dk={dk} onToggleDark={onToggleDark} />
           <QuickSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onAddLead={() => { if (onAddLead) onAddLead() }} />
         </div>

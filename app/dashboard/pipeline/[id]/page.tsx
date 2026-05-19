@@ -183,7 +183,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   }
   function killToast(tid:number) { setToasts(t=>t.filter(x=>x.id!==tid)) }
 
-  const isRoofing = ['roofing-contractor','roofing','roofer'].includes(session?.trade_slug??'')
+  const isRoofing = isRoofing_guard(getTradeConfig(session?.trade_slug))
 
   // ── Fetch lead ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -224,7 +224,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     }
     const prev=stage; setStage(s); setSaving(true)
     const ok = await patch({lead_status:s}); setSaving(false)
-    if (ok) { setLead(l=>l?{...l,lead_status:s}:l); addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev); if(s==='job_won'&&isRoofing) setShowWarranty(true) }
+    if (ok) { setLead(l=>l?{...l,lead_status:s}:l); addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev); if(tradePlugin && _isRoofing(tradePlugin) && s===tradePlugin.stageAnchors.warrantyTrigger) setShowWarranty(true) }
     else { setStage(prev); addToast('Failed to update stage','error') }
   }
 

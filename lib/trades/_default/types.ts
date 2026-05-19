@@ -24,9 +24,19 @@ export interface DefaultNavSection {
 }
 
 export interface DefaultLabels {
-  pipeline: 'Jobs'; estimate: 'Estimate'; client: 'Client'
-  newButton: 'New Lead'; wonStage: 'Job Won'
-  addClient: 'Add Client'; clientsPage: 'Clients'
+  pipeline:  'Jobs'
+  estimate:  'Estimate'
+  invoice:   'Invoice'
+  client:    'Client'
+  clients:   'Clients'
+  newButton: 'New Lead'
+  wonStage:  'Job Won'
+}
+
+export interface DefaultStageAnchors {
+  entry: DefaultStage   // 'new'
+  won:   DefaultStage   // 'job_won'
+  lost:  DefaultStage   // 'lost'
 }
 
 export interface DefaultFeatures {
@@ -39,8 +49,9 @@ export interface DefaultConfig {
   readonly displayName: string
   readonly emoji:       '🛠️'
   readonly brandColor:  string
-  labels:   DefaultLabels
-  stages:   DefaultPipelineStage[]
+  labels:       DefaultLabels
+  stageAnchors:  DefaultStageAnchors
+  stages:        DefaultPipelineStage[]
   nav:      DefaultNavSection[]
   features: DefaultFeatures
 }

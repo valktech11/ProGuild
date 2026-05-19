@@ -37,13 +37,19 @@ export interface HVACNavSection {
 }
 
 export interface HVACLabels {
-  pipeline:     'Jobs'
-  estimate:     'Estimate'
-  client:       'Client'
-  newButton:    'New Call'
-  wonStage:     'Job Won'
-  addClient:    'Add Client'
-  clientsPage:  'Clients'
+  pipeline:    'Jobs'
+  estimate:    'Estimate'
+  invoice:     'Invoice'
+  client:      'Client'
+  clients:     'Clients'
+  newButton:   'New Call'
+  wonStage:    'Job Won'
+}
+
+export interface HVACStageAnchors {
+  entry:  HVACStage   // 'new_call'
+  won:    HVACStage   // 'job_won'
+  lost:   HVACStage   // 'lost'
 }
 
 export type HVACAutoAction =
@@ -74,7 +80,8 @@ export interface HVACConfig {
   readonly emoji:        '❄️'
   readonly brandColor:   string   // '#0EA5E9' — cool blue
   readonly dbprCodes:    string[] // ['CA', 'RA']
-  labels:   HVACLabels
+  labels:       HVACLabels
+  stageAnchors:  HVACStageAnchors
   stages:   HVACPipelineStage[]
   nav:      HVACNavSection[]
   features: HVACFeatures

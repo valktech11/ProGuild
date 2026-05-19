@@ -7,9 +7,18 @@ export const defaultConfig: DefaultConfig = {
   brandColor:  '#0F766E',
 
   labels: {
-    pipeline: 'Jobs', estimate: 'Estimate', client: 'Client',
-    newButton: 'New Lead', wonStage: 'Job Won',
-    addClient: 'Add Client', clientsPage: 'Clients',
+    pipeline:  'Jobs',
+    estimate:  'Estimate',
+    invoice:   'Invoice',
+    client:    'Client',
+    clients:   'Clients',
+    newButton: 'New Lead',
+    wonStage:  'Job Won',
+  },
+  stageAnchors: {
+    entry: 'new',
+    won:   'job_won',
+    lost:  'lost',
   },
 
   stages: [

@@ -51,7 +51,7 @@ const ROOFING_NEXT: Record<string, string> = {
 /** Build PipelineStage[] from the trade registry. Single source of truth. */
 export function getPipelineStages(tradeSlug?: string | null): PipelineStage[] {
   const tc = getTradeConfig(tradeSlug)
-  const isRoofingTrade = tc.slug === 'roofing' || tc.slug === 'roofing-contractor'
+  // subLabel/nextLabel now come from stage config directly
   return getActiveStages(tradeSlug).map(s => ({
     key:       s.key,
     label:     s.label,

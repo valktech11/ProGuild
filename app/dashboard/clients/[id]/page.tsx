@@ -6,7 +6,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { capName, timeAgo, avatarColor, initials } from '@/lib/utils'
 import { theme } from '@/lib/theme'
-import { hasFeature } from '@/lib/trade-resolver'
+import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   Residential: { bg: '#EFF6FF', text: '#1D4ED8' },
@@ -64,7 +64,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [equipErr,      setEquipErr]      = useState('')
   const [deletingEquip, setDeletingEquip] = useState<string|null>(null)
 
-  const hvac = hasFeature(session?.trade_slug, session?.trade, 'equipment_records')
+  const hvac = isHVAC(getTradeConfig(session?.trade_slug))
 
   const loadEquipment = useCallback(async () => {
     if (!session || !hvac) return

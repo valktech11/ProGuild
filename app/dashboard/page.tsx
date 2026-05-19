@@ -8,10 +8,9 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 import TradeSidebar from '@/components/dashboard/TradeSidebar'
 import TradeWidget from '@/components/dashboard/TradeWidget'
-import { getTradeConfig } from '@/lib/trades/_registry'
 
 import { theme, T, BRAND } from '@/lib/tokens'
-import { hasFeature, tradeTerm } from '@/lib/trade-resolver'
+import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
 
 const TEAL   = '#0F766E'
 const NAVY   = '#0A1628'
@@ -193,12 +192,12 @@ export default function OverviewPage() {
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
-    const isHVAC = hasFeature(session.trade_slug, session.trade, 'maintenance_reminders')
+    const isHVACTrade = isHVAC(getTradeConfig(session.trade_slug))
     Promise.all([
       fetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/reviews?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/estimates?pro_id=${session.id}`).then(r => r.json()),
-      isHVAC ? fetch(`/api/hvac/maintenance-reminders?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
+      isHVACTrade ? fetch(`/api/hvac/maintenance-reminders?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
     ]).then(([leadsData, reviewsData, estimatesData, remindersData]) => {
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))
@@ -637,7 +636,7 @@ export default function OverviewPage() {
         </div>
 
         {/* ── HVAC Maintenance Reminders (HVAC pros only) ───────────────── */}
-        {session && hasFeature(session.trade_slug, session.trade, 'maintenance_reminders') && maintenanceReminders.length > 0 && (
+        {session && isHVACTrade && maintenanceReminders.length > 0 && (
           <div className="rounded-2xl mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}`, overflow:'hidden' }}>
             <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:`1px solid ${cardBdr}` }}>
               <div className="flex items-center gap-2">

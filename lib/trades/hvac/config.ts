@@ -10,13 +10,18 @@ export const hvacConfig: HVACConfig = {
   dbprCodes:   ['CA', 'RA'],
 
   labels: {
-    pipeline:    'Jobs',
-    estimate:    'Estimate',
-    client:      'Client',
-    newButton:   'New Call',
-    wonStage:    'Job Won',
-    addClient:   'Add Client',
-    clientsPage: 'Clients',
+    pipeline:  'Jobs',
+    estimate:  'Estimate',
+    invoice:   'Invoice',
+    client:    'Client',
+    clients:   'Clients',
+    newButton: 'New Call',
+    wonStage:  'Job Won',
+  },
+  stageAnchors: {
+    entry: 'new_call',
+    won:   'job_won',
+    lost:  'lost',
   },
 
   stages: [
