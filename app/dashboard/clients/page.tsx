@@ -267,6 +267,13 @@ export default function ClientsPage() {
   )
 }
 
+function formatPhone(raw: string) {
+  const d = raw.replace(/\D/g, '').slice(0, 10)
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0,3)}-${d.slice(3)}`
+  return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`
+}
+
 // ─── AddClientModal ───────────────────────────────────────────────────────────
 // Separate component so usePlacesAutocomplete runs when the input is in the DOM.
 // The parent conditionally renders this — on mount the street input exists
@@ -385,7 +392,7 @@ function AddClientModal({ dk, proId, onClose, onSaved }: AddClientModalProps) {
             </div>
             <div>
               <p style={lbl}>Phone</p>
-              <input value={phone} onChange={e => setPhone(e.target.value.replace(/[^\d\s\-\(\)\+]/g, ''))}
+              <input value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
                 placeholder="(555) 555-5555" type="tel" autoComplete="off"
                 style={inp} onFocus={focus} onBlur={blur} />
             </div>
