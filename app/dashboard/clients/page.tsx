@@ -394,7 +394,8 @@ function AddClientModal({ dk, proId, onClose, onSaved }: AddClientModalProps) {
               <p style={lbl}>Phone</p>
               <input value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
                 placeholder="(555) 555-5555" type="tel" autoComplete="off"
-                style={inp} onFocus={focus} onBlur={blur} />
+                style={inp} onFocus={focus}
+                onBlur={e => { setPhone(formatPhone(e.target.value)); blur(e) }} />
             </div>
           </div>
 
