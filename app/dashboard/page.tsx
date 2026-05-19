@@ -189,10 +189,10 @@ export default function OverviewPage() {
   const [dataLoading, setDataLoading] = useState(true)
   const [showAddLead, setShowAddLead] = useState(false)
   const [maintenanceReminders, setMaintenanceReminders] = useState<any[]>([])
+  const isHVACTrade = isHVAC(getTradeConfig(session?.trade_slug))
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
-    const isHVACTrade = isHVAC(getTradeConfig(session.trade_slug))
     Promise.all([
       fetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/reviews?pro_id=${session.id}`).then(r => r.json()),
