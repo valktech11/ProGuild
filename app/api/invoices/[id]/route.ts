@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { getStageAnchors } from '@/lib/trades/_registry'
 
 // ── GET /api/invoices/[id] ───────────────────────────────────────────────
 export async function GET(
@@ -42,6 +43,25 @@ export async function PATCH(
 
   const { data, error } = await sb.from('invoices').update(payload).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // ── Invoice paid → auto-advance lead to job_won ──────────────────────────
+  if (body.status === 'paid' && data?.lead_id) {
+    const { data: leadRow } = await sb
+      .from('leads').select('lead_status, pro_id').eq('id', data.lead_id).single()
+    if (leadRow) {
+      const { data: proRow } = await sb
+        .from('pros').select('trade_slug').eq('id', leadRow.pro_id).single()
+      const anchors = getStageAnchors(proRow?.trade_slug)
+      // Only advance if not already won/lost/unqualified
+      const terminal = [anchors.won, anchors.lost ?? 'lost', 'unqualified']
+      if (!terminal.includes(leadRow.lead_status)) {
+        await sb.from('leads')
+          .update({ lead_status: anchors.won })
+          .eq('id', data.lead_id)
+      }
+    }
+  }
+
   return NextResponse.json({ invoice: { ...data, timeline: buildTimeline(data) } })
 }
 

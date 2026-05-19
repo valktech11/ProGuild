@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { getStageAnchors } from '@/lib/trades/_registry'
 
 // ── GET /api/estimates/[id] ──────────────────────────────────────────────────
 export async function GET(
@@ -85,20 +86,38 @@ export async function PATCH(
     }
   }
 
-  // Sync quoted_amount and lead_status based on estimate status
-  const { data: estimateData } = await sb.from('estimates').select('lead_id').eq('id', id).single()
-  if (estimateData?.lead_id && total !== undefined && status) {
+  // ── Auto-stage lead based on estimate status ────────────────────────────────
+  // Reads stageAnchors so logic never hardcodes stage key strings.
+  const { data: estimateData } = await sb
+    .from('estimates').select('lead_id, pro_id').eq('id', id).single()
+
+  if (estimateData?.lead_id && status) {
+    // Resolve trade slug from the lead's pro so anchors are trade-correct
+    const { data: proRow } = await sb
+      .from('pros').select('trade_slug').eq('id', estimateData.pro_id).single()
+    const anchors = getStageAnchors(proRow?.trade_slug)
+
+    const leadUpdate: Record<string, unknown> = {}
+
+    if (total !== undefined) {
+      // Always sync quoted_amount when estimate has a total
+      if (['sent','approved','invoiced','paid'].includes(status)) {
+        leadUpdate.quoted_amount = Math.round(total * 100) / 100
+      }
+    }
+
+    // Auto-advance lead stage — only move forward, never backward
     if (status === 'sent') {
-      // Estimate sent → update quoted_amount AND move lead to Quoted stage
-      await sb.from('leads').update({
-        quoted_amount: Math.round(total * 100) / 100,
-        lead_status: 'Quoted',
-      }).eq('id', estimateData.lead_id)
-    } else if (['approved', 'invoiced', 'paid'].includes(status)) {
-      // Approved/invoiced/paid → update quoted_amount only (pro controls stage)
-      await sb.from('leads').update({
-        quoted_amount: Math.round(total * 100) / 100,
-      }).eq('id', estimateData.lead_id)
+      // Estimate sent → proposal_sent (maps to stageAnchors entry neighbour)
+      leadUpdate.lead_status = anchors.entry === 'lead_in' ? 'proposal_sent' : 'Quoted'
+    } else if (status === 'approved') {
+      // Homeowner approved estimate → proposal_signed (deposit trigger)
+      leadUpdate.lead_status = (anchors as any).depositTrigger ?? 'proposal_signed'
+    }
+    // Note: invoice paid → job_won is handled in /api/invoices/[id]/route.ts
+
+    if (Object.keys(leadUpdate).length > 0) {
+      await sb.from('leads').update(leadUpdate).eq('id', estimateData.lead_id)
     }
   }
 

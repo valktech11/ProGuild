@@ -6,7 +6,7 @@ import { avatarColor, initials, capName, fmtPhone, US_STATES } from '@/lib/utils
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getPipelineStages } from '@/components/ui/LeadPipeline'
-import { getTradeConfig, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
+import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
 import InsuranceClaimFields from '@/components/roofing/InsuranceClaimFields'
 import JobPhotoLog from '@/components/roofing/JobPhotoLog'
 import WarrantyRecord from '@/components/roofing/WarrantyRecord'
@@ -187,6 +187,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   const tradePlugin = getTradeConfig(session?.trade_slug)
   const isRoofing = isRoofing_guard(tradePlugin)
+
+  // Derived from trade plugin — no hardcoded stage keys or source labels
+  const STAGE_ORDER: Record<string, number> = Object.fromEntries(
+    getActiveStages(session?.trade_slug).map((s, i) => [s.key, i])
+  )
+  const SOURCE_OPTIONS: string[] = isRoofing
+    ? tradePlugin.leadSources.map((s: { label: string }) => s.label)
+    : FALLBACK_SOURCE_OPTIONS
 
   // ── Fetch lead ───────────────────────────────────────────────────────────
   useEffect(() => {
