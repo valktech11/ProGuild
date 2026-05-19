@@ -12,17 +12,11 @@ import JobPhotoLog from '@/components/roofing/JobPhotoLog'
 import WarrantyRecord from '@/components/roofing/WarrantyRecord'
 
 // ─── Stage order map ──────────────────────────────────────────────────────────
-const STAGE_ORDER: Record<string, number> = {
-  New:0,Contacted:1,Quoted:2,Scheduled:3,Completed:4,Paid:5,
-  lead_in:0,inspection_scheduled:1,proposal_sent:2,proposal_signed:3,
-  insurance_approved:4,scheduled:5,in_progress:6,job_won:7,lost:8,unqualified:9,
-  new_call:0,diagnosed:1,quoted:2,parts_ordered:3,
-}
-
-const SOURCE_OPTIONS = [
-  'Phone Call','Profile Page','Job Post','Search Result','Direct',
-  'Registry Card','Facebook','Instagram','Referral','Website',
-  'Yard Sign','Walk In','Other','Insurance','Canvassing',
+// STAGE_ORDER and SOURCE_OPTIONS are derived inside the component from the trade plugin.
+// This fallback is used for non-roofing trades until their configs define leadSources.
+const FALLBACK_SOURCE_OPTIONS = [
+  'Phone Call','Profile Page','Referral','Facebook','Instagram',
+  'Yard Sign','Canvassing','Insurance','Website','Other',
 ]
 
 interface LeadExt extends Lead {
