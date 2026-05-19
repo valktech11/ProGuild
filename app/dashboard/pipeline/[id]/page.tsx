@@ -409,7 +409,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           const curPos   = active.findIndex(s=>s.key===stage)
           const anchors2   = getStageAnchors(session?.trade_slug)
           const termKeys   = tradePlugin.stages.filter(s => s.terminal).map(s => s.key)
-          const isTerminal = stage === anchors2.won || termKeys.includes(stage)
+          const isTerminal = stage === anchors2.won || termKeys.some(k => k === stage)
 
           // Stage tips — roofing-specific content gated by isRoofing
           // Generic tip shown for all trades; trade-specific tips only for roofing

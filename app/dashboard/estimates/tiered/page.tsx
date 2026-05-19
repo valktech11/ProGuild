@@ -88,7 +88,7 @@ export default function GBBNewPage() {
     if (!session) return
     fetch(`/api/leads?pro_id=${session.id}`)
       .then(r => r.json())
-      .then(d => setLeads((d.leads || []).filter((l: { lead_status: string }) => !['Paid','Lost','Archived'].includes(l.lead_status))))
+      .then(d => setLeads((d.leads || []).filter((l: { lead_status: string }) => !['Paid','Lost','Archived'].some(k => k === l.lead_status))))
     fetch(`/api/roofing/settings?pro_id=${session.id}`)
       .then(r => r.json())
       .then(d => { if (d.gbb_templates) setTemplates(d.gbb_templates) })
