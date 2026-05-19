@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     // Fetch the pro
     const { data: pro, error: proErr } = await sb
       .from('pros')
-      .select('id, full_name, email, phone_cell, phone_work, city, state, license_number, is_claimed, trade_category:trade_categories(category_name)')
+      .select('id, full_name, email, phone_cell, phone_work, city, state, license_number, is_claimed, trade_slug, trade_category:trade_categories(category_name)')
       .eq('id', pro_id)
       .single()
 
