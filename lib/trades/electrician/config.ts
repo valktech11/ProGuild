@@ -1,4 +1,5 @@
 import type { ElectricianConfig } from './types'
+import DefaultAddLeadModal from '../_default/components/AddLeadModal'
 
 export const electricianConfig: ElectricianConfig = {
   slug: 'electrician', displayName: 'Electrician', emoji: '⚡',
@@ -54,5 +55,10 @@ export const electricianConfig: ElectricianConfig = {
     permitTracking: false,  // Phase 2
     codeCompliance: false,  // Phase 2
     loadCalculator: false,  // Phase 2
+  },
+
+  // ── Components — use default until trade gets its own ──────────────────────
+  components: {
+    AddLeadModal: DefaultAddLeadModal,
   },
 }

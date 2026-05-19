@@ -1,4 +1,5 @@
 import type { PlumbingConfig } from './types'
+import DefaultAddLeadModal from '../_default/components/AddLeadModal'
 
 export const plumbingConfig: PlumbingConfig = {
   slug:        'plumber',
@@ -54,5 +55,10 @@ export const plumbingConfig: PlumbingConfig = {
     permitTracking:    false,  // Phase 2
     emergencyDispatch: false,  // Phase 2
     waterHeaterLog:    false,  // Phase 2
+  },
+
+  // ── Components — use default until trade gets its own ──────────────────────
+  components: {
+    AddLeadModal: DefaultAddLeadModal,
   },
 }

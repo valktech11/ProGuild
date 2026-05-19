@@ -4,6 +4,7 @@
 // Business logic reads stageAnchors — never hardcodes stage key strings.
 
 import type { RoofingConfig } from './types'
+import RoofingAddLeadModal from './components/AddLeadModal'
 
 export const roofingConfig: RoofingConfig = {
   slug:        'roofing',
@@ -226,4 +227,10 @@ export const roofingConfig: RoofingConfig = {
     { value: 'Canvassing',    label: 'Canvassing',     icon: '🏘️' },
     { value: 'Other',         label: 'Other',          icon: '📌' },
   ],
+
+  // ── Components ────────────────────────────────────────────────────────────
+  // Shell pages import via plugin.components — never import roofing components directly.
+  components: {
+    AddLeadModal: RoofingAddLeadModal,
+  },
 }

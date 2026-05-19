@@ -1,3 +1,4 @@
+import type { AnyTradeComponents } from '../_registry/types'
 // ── Plumbing Trade — Types ──────────────────────────────────────────────────
 
 export type PlumbingStage =
@@ -61,5 +62,6 @@ export interface PlumbingConfig {
   labels:   PlumbingLabels
   stages:   PlumbingPipelineStage[]
   nav:      PlumbingNavSection[]
+  components:   AnyTradeComponents
   features: PlumbingFeatures
 }

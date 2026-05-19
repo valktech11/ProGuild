@@ -10,7 +10,7 @@ import TradeSidebar from '@/components/dashboard/TradeSidebar'
 import TradeWidget from '@/components/dashboard/TradeWidget'
 
 import { theme, T, BRAND } from '@/lib/tokens'
-import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
+import { getTradeConfig, isHVAC, getStageAnchors } from '@/lib/trades/_registry'
 
 const TEAL   = '#0F766E'
 const NAVY   = '#0A1628'
@@ -208,16 +208,27 @@ export default function OverviewPage() {
     }).catch(() => setDataLoading(false))
   }, [session, router])
 
-  const newLeads       = leads.filter(l => l.lead_status === 'New')
-  const contactedLeads = leads.filter(l => l.lead_status === 'Contacted')
-  const quotedLeads    = leads.filter(l => l.lead_status === 'Quoted')
-  const scheduledLeads = leads.filter(l => l.lead_status === 'Scheduled')
-  const completedLeads = leads.filter(l => l.lead_status === 'Completed')
-  const paidLeads      = leads.filter(l => l.lead_status === 'Paid')
-  const revenueLeads   = leads.filter(l => l.lead_status === 'Paid')  // A6 FIX: Completed = unpaid, not revenue
-  const activeLeads    = leads.filter(l => !['Paid','Lost','Archived','Converted','Completed'].includes(l.lead_status))
-  const awaitingResp   = contactedLeads.filter(l => (Date.now() - new Date(l.created_at).getTime()) / 86400000 >= 1)
+  // Stage filters derived from trade plugin — no hardcoded stage key strings
+  const anchors        = getStageAnchors(session?.trade_slug)
+  const tc             = getTradeConfig(session?.trade_slug)
+  const terminalKeys   = tc.stages.filter(s => s.terminal).map(s => s.key)
+  const newLeads       = leads.filter(l => l.lead_status === anchors.entry)
+  const quotedLeads    = leads.filter(l => {
+    // "quoted/proposal" = stage after entry, before won — use position heuristic
+    const activeStages = tc.stages.filter(s => !s.terminal)
+    const entryIdx     = activeStages.findIndex(s => s.key === anchors.entry)
+    const wonIdx       = activeStages.findIndex(s => s.key === anchors.won)
+    const midStages    = activeStages.slice(entryIdx + 1, wonIdx).map(s => s.key)
+    return midStages.includes(l.lead_status)
+  })
+  const paidLeads      = leads.filter(l => l.lead_status === anchors.won)
+  const revenueLeads   = paidLeads
+  const activeLeads    = leads.filter(l => !terminalKeys.includes(l.lead_status) && l.lead_status !== anchors.won)
+  const awaitingResp   = newLeads.filter(l => (Date.now() - new Date(l.created_at).getTime()) / 86400000 >= 1)
   const waitingOnCust  = quotedLeads
+  const contactedLeads = quotedLeads  // alias for legacy references
+  const scheduledLeads: typeof leads = []
+  const completedLeads: typeof leads = []
 
   const revenue  = revenueLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
   const pipeline = activeLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
@@ -752,13 +763,20 @@ export default function OverviewPage() {
 
       </div>
 
-      {showAddLead && session && (
-        <AddLeadModal
-          proId={session.id}
-          onClose={() => setShowAddLead(false)}
-          onAdded={() => { setShowAddLead(false); window.location.reload() }}
-        />
-      )}
+      {showAddLead && session && (() => {
+        // Use trade plugin's AddLeadModal — roofing gets roofing modal, HVAC gets HVAC modal
+        const plugin = getTradeConfig(session.trade_slug)
+        const TradeAddLeadModal = (plugin as any).components?.AddLeadModal ?? AddLeadModal
+        return (
+          <TradeAddLeadModal
+            proId={session.id}
+            tradeSlug={session.trade_slug}
+            onClose={() => setShowAddLead(false)}
+            onAdded={() => { setShowAddLead(false); window.location.reload() }}
+            dk={dk}
+          />
+        )
+      })()}
     </DashboardShell>
   )
 }

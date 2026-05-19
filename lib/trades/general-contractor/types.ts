@@ -1,3 +1,4 @@
+import type { AnyTradeComponents } from '../_registry/types'
 // ── General Contractor — Types ──────────────────────────────────────────────
 
 export type GCStage =
@@ -44,5 +45,6 @@ export interface GCConfig {
   labels: GCLabels
   stages: GCPipelineStage[]
   nav: GCNavSection[]
+  components:   AnyTradeComponents
   features: GCFeatures
 }

@@ -7,9 +7,10 @@ import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getPipelineStages } from '@/components/ui/LeadPipeline'
 import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
-import InsuranceClaimFields from '@/components/roofing/InsuranceClaimFields'
-import JobPhotoLog from '@/components/roofing/JobPhotoLog'
-import WarrantyRecord from '@/components/roofing/WarrantyRecord'
+// Roofing components accessed via trade module path — not components/roofing
+import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
+import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
+import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
 
 // ─── Stage order map ──────────────────────────────────────────────────────────
 // STAGE_ORDER and SOURCE_OPTIONS are derived inside the component from the trade plugin.
@@ -96,12 +97,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const fromEst   = sp.get('est_id')
 
   function backNav() {
-    // Trade term: roofing/hvac/etc = "Jobs", default = "Pipeline"
-    const pipelineTerm = (() => {
-      const slug = session?.trade_slug ?? ''
-      if (slug.includes('roof') || slug.includes('hvac') || slug.includes('electric') || slug.includes('plumb') || slug.includes('solar')) return 'Jobs'
-      return 'Pipeline'
-    })()
+    // Trade label from plugin — no slug string comparisons
+    const pipelineTerm = tradePlugin.labels.pipeline ?? 'Jobs'
     if (fromParam==='calendar')  return { label:'Back to Calendar',  href:'/dashboard/calendar' }
     if (fromParam==='clients')   return { label:'Back to Clients',   href:'/dashboard/clients' }
     if (fromParam==='estimates') return { label:'Back to Estimate',  href: fromEst?`/dashboard/estimates/${fromEst}`:'/dashboard/estimates' }
@@ -229,7 +226,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     }
     const prev=stage; setStage(s); setSaving(true)
     const ok = await patch({lead_status:s}); setSaving(false)
-    if (ok) { setLead(l=>l?{...l,lead_status:s}:l); addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev); if(tradePlugin && _isRoofing(tradePlugin) && s===tradePlugin.stageAnchors.warrantyTrigger) setShowWarranty(true) }
+    if (ok) { setLead(l=>l?{...l,lead_status:s}:l); addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev); if(tradePlugin && _isRoofing(tradePlugin) && s===((tradePlugin as any).stageAnchors?.warrantyTrigger ?? getStageAnchors(session?.trade_slug).won)) setShowWarranty(true) }
     else { setStage(prev); addToast('Failed to update stage','error') }
   }
 
@@ -410,9 +407,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           const stgObj   = stages.find(s=>s.key===stage)
           const active   = stages.filter(s=>!s.terminal)
           const curPos   = active.findIndex(s=>s.key===stage)
-          const isTerminal = stage==='job_won'||stage==='unqualified'||stage==='lost'
+          const anchors2   = getStageAnchors(session?.trade_slug)
+          const termKeys   = tradePlugin.stages.filter(s => s.terminal).map(s => s.key)
+          const isTerminal = stage === anchors2.won || termKeys.includes(stage)
 
-          const TIPS:Record<string,string> = {
+          // Stage tips — roofing-specific content gated by isRoofing
+          // Generic tip shown for all trades; trade-specific tips only for roofing
+          const ROOFING_TIPS:Record<string,string> = {
             lead_in:              'Call within 1 hour — response rate drops 80% after 24hrs.',
             inspection_scheduled: 'Confirm the night before. Bring a moisture meter.',
             proposal_sent:        'Follow up in 48hrs. Most jobs are won on the follow-up.',
@@ -422,6 +423,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
             in_progress:          'Take photos at each phase: decking, install, completion.',
             job_won:              'Request a Google review within 24hrs — 70% response rate.',
           }
+          const GENERIC_TIPS:Record<string,string> = {
+            [getStageAnchors(session?.trade_slug).entry]: 'Call within 1 hour — response rate drops 80% after 24hrs.',
+            [getStageAnchors(session?.trade_slug).won]:   'Request a Google review within 24hrs — 70% response rate.',
+          }
+          const TIPS = isRoofing ? ROOFING_TIPS : GENERIC_TIPS
 
           const isRoofingGroups = isRoofing
           const pickerGroups = isRoofingGroups
@@ -431,8 +437,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 {label:'CLOSED',     keys:['job_won','lost','unqualified']},
               ]
             : [
-                {label:'ACTIVE', keys:['New','Contacted','Quoted','Scheduled','Completed']},
-                {label:'CLOSED', keys:['Paid']},
+                {label:'ACTIVE', keys: tradePlugin.stages.filter(s => !s.terminal && s.key !== getStageAnchors(session?.trade_slug).won).map(s => s.key)},
+                {label:'CLOSED', keys: [getStageAnchors(session?.trade_slug).won, ...tradePlugin.stages.filter(s => s.terminal).map(s => s.key)]},
               ]
 
           // ── Identity ────────────────────────────────────────────────────
@@ -731,8 +737,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         </div>
                       )}
                       {isTerminal&&(
-                        <div style={{marginTop:12,padding:'10px 14px',borderRadius:T.radSm,textAlign:'center',background:stage==='job_won'?'linear-gradient(135deg,#065F46,#047857)':t.cardBgAlt,color:stage==='job_won'?'#fff':ts,fontSize:14,fontWeight:700}}>
-                          {stage==='job_won'?'🏆 Job Complete':stage==='lost'?'Job Lost':'Lead Unqualified'}
+                        <div style={{marginTop:12,padding:'10px 14px',borderRadius:T.radSm,textAlign:'center',background:stage===getStageAnchors(session?.trade_slug).won?'linear-gradient(135deg,#065F46,#047857)':t.cardBgAlt,color:stage===getStageAnchors(session?.trade_slug).won?'#fff':ts,fontSize:14,fontWeight:700}}>
+                          {stage===getStageAnchors(session?.trade_slug).won?'🏆 Job Complete':stage===getStageAnchors(session?.trade_slug).lost?'Job Lost':'Lead Unqualified'}
                         </div>
                       )}
                     </div>

@@ -1,3 +1,4 @@
+import type { AnyTradeComponents } from '../_registry/types'
 // ── Default Trade Config ────────────────────────────────────────────────────
 // Fallback for any trade not in the registry:
 // painter, mason, carpenter, landscaper, pool-spa, gutters etc.
@@ -53,5 +54,6 @@ export interface DefaultConfig {
   stageAnchors:  DefaultStageAnchors
   stages:        DefaultPipelineStage[]
   nav:      DefaultNavSection[]
+  components:   AnyTradeComponents
   features: DefaultFeatures
 }

@@ -6,10 +6,10 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import LeadPipeline from '@/components/ui/LeadPipeline'
 import ActionAlert from '@/components/ui/ActionAlert'
 import AddLeadModal from '@/components/ui/AddLeadModal'
-import RoofingAddLeadModal from '@/components/roofing/AddLeadModal'
+// RoofingAddLeadModal now accessed via plugin.components.AddLeadModal
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
 import { theme, T } from '@/lib/tokens'
-import { getTradeConfig, isRoofing } from '@/lib/trades/_registry'
+import { getTradeConfig, getStageAnchors, isRoofing } from '@/lib/trades/_registry'
 
 export default function PipelinePage() {
   const router = useRouter()
@@ -57,10 +57,11 @@ export default function PipelinePage() {
     fetchLeads().finally(() => setDataLoading(false))
   }, [session, router, fetchLeads])
 
-  const newLeads = leads.filter(l => l.lead_status === 'New')
+  const anchors  = getStageAnchors(session?.trade_slug)
+  const newLeads = leads.filter(l => l.lead_status === anchors.entry)
   const overdue  = leads.filter(l => {
     const days = (Date.now() - new Date(l.created_at).getTime()) / 86400000
-    return days >= 3 && l.lead_status === 'New'
+    return days >= 3 && l.lead_status === anchors.entry
   })
 
   const filteredLeads = applyFilters(leads, filters)
@@ -121,10 +122,12 @@ export default function PipelinePage() {
   }
 
   // Derived metrics for command bar
-  const activeLeads   = leads.filter(l => !['Lost','Archived','Unqualified','unqualified'].includes(l.lead_status))
+  const tc2           = getTradeConfig(session?.trade_slug)
+  const terminalKeys2 = tc2.stages.filter(s => s.terminal).map(s => s.key)
+  const activeLeads   = leads.filter(l => !terminalKeys2.includes(l.lead_status))
   const pipelineValue = activeLeads.filter(l => l.quoted_amount).reduce((s, l) => s + (l.quoted_amount || 0), 0)
   const overdueCount  = overdue.length
-  const wonThisMonth  = leads.filter(l => ['Paid','job_won'].includes(l.lead_status) && new Date(l.created_at) > new Date(Date.now() - 30 * 86400000)).length
+  const wonThisMonth  = leads.filter(l => l.lead_status === anchors.won && new Date(l.created_at) > new Date(Date.now() - 30 * 86400000)).length
 
   return (
     <DashboardShell session={session} newLeads={newLeads.length} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
@@ -308,20 +311,20 @@ export default function PipelinePage() {
         dk={dk}
       />
 
-      {showAddLead && session && (
-        (isRoofing(getTradeConfig(session.trade_slug)))
-          ? <RoofingAddLeadModal
-              proId={session.id}
-              onClose={() => setShowAddLead(false)}
-              onAdded={async () => { setShowAddLead(false); await fetchLeads() }}
-            />
-          : <AddLeadModal
-              proId={session.id}
-              tradeSlug={session.trade_slug}
-              onClose={() => setShowAddLead(false)}
-              onAdded={async () => { setShowAddLead(false); await fetchLeads() }}
-            />
-      )}
+      {showAddLead && session && (() => {
+        // Shell delegates to trade plugin — no direct trade component imports
+        const plugin = getTradeConfig(session.trade_slug)
+        const TradeAddLeadModal = (plugin as any).components?.AddLeadModal ?? AddLeadModal
+        return (
+          <TradeAddLeadModal
+            proId={session.id}
+            tradeSlug={session.trade_slug}
+            onClose={() => setShowAddLead(false)}
+            onAdded={async (lead: any) => { setShowAddLead(false); await fetchLeads() }}
+            dk={dk}
+          />
+        )
+      })()}
     </DashboardShell>
   )
 }

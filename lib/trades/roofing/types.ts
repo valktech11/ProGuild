@@ -1,3 +1,4 @@
+import type { AnyTradeComponents } from '../_registry/types'
 // ── Roofing Trade — Isolated Type Definitions ──────────────────────────────
 // No imports from other trade modules. Zero shared interfaces.
 // If another trade happens to have a field with the same name, that is
@@ -118,6 +119,7 @@ export interface RoofingConfig {
   stageAnchors: RoofingStageAnchors
   stages:       RoofingPipelineStage[]
   nav:          RoofingNavSection[]
+  components:   AnyTradeComponents
   features:     RoofingFeatures
   leadSources:  RoofingLeadSource[]
 }

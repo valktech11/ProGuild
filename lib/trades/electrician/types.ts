@@ -1,3 +1,4 @@
+import type { AnyTradeComponents } from '../_registry/types'
 export type ElectricianStage =
   | 'new_call' | 'site_visit' | 'quoted' | 'permit_submitted'
   | 'permit_approved' | 'scheduled' | 'in_progress' | 'job_won'
@@ -41,5 +42,6 @@ export interface ElectricianConfig {
   labels: ElectricianLabels
   stages: ElectricianPipelineStage[]
   nav: ElectricianNavSection[]
+  components:   AnyTradeComponents
   features: ElectricianFeatures
 }

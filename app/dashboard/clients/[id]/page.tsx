@@ -6,7 +6,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { capName, timeAgo, avatarColor, initials } from '@/lib/utils'
 import { theme } from '@/lib/theme'
-import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
+import { getTradeConfig, isHVAC, getTradeLabels } from '@/lib/trades/_registry'
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   Residential: { bg: '#EFF6FF', text: '#1D4ED8' },
@@ -203,7 +203,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
             <div style={{ display:'flex', gap:24, marginTop:20, paddingTop:16, borderTop:`1px solid ${t.divider}`, flexWrap:'wrap' }}>
               {[
-                { label:'Jobs', value: leads.length },
+                { label: getTradeLabels(session?.trade_slug).pipeline, value: leads.length },
                 { label:'Lifetime Value', value: lifetimeValue > 0 ? `$${lifetimeValue.toLocaleString()}` : '—' },
                 { label:'Last Contact', value: timeAgo(client.last_contact || client.created_at) },
                 ...(hvac ? [{ label:'Equipment', value: equipment.length }] : []),

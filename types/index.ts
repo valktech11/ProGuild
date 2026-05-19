@@ -11,26 +11,10 @@ export type PlanTier =
 
 export type ProfileStatus = 'Active' | 'Suspended' | 'Pending_Review'
 export type JobStatus = 'Open' | 'In_Progress' | 'Filled' | 'Expired' | 'Cancelled'
-export type LeadStatus =
-  // Generic / existing — keep for backward compat
-  | 'New' | 'Contacted' | 'Quoted' | 'Scheduled'
-  | 'Completed' | 'Paid' | 'Lost' | 'Archived'
-  | 'Queued_Manual' | 'Converted'
-  // Roofing stages
-  | 'lead_in' | 'inspection_scheduled' | 'proposal_sent'
-  | 'proposal_signed' | 'insurance_approved' | 'scheduled'
-  | 'in_progress' | 'job_won' | 'lost' | 'unqualified'
-  // HVAC stages
-  | 'new_call' | 'diagnosed' | 'parts_ordered'
-  // Plumbing stages
-  | 'assessed'
-  // Electrician stages
-  | 'site_visit' | 'permit_submitted' | 'permit_approved'
-  // GC stages
-  | 'lead_in' | 'bidding' | 'contract_signed'
-  | 'milestone_1' | 'milestone_2' | 'closeout'
-  // Default stages
-  | 'new'
+// LeadStatus — broad string type to accept any trade's stage key.
+// Source of truth is the trade registry: getAllTradeStageKeys().
+// Never hand-maintain this list — adding a trade to the registry is sufficient.
+export type LeadStatus = string
 export type LeadSource = 'Profile_Page' | 'Job_Post' | 'Search_Result' | 'Direct' | 'Registry_Card' | 'Phone_Call' | 'Facebook' | 'Instagram' | 'Referral' | 'Website' | 'Yard_Sign' | 'Walk_In' | 'Other'
 export type ApplicationStatus = 'Submitted' | 'Viewed' | 'Shortlisted' | 'Rejected' | 'Hired'
 export type BudgetRange = 'Under $500' | '$500–$2K' | '$2K–$10K' | '$10K+' | 'Negotiable'

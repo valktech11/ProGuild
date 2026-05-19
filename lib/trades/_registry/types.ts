@@ -1,3 +1,5 @@
+import type React from 'react'
+
 // ── Trade Registry — Shared Contract ────────────────────────────────────────
 // THE ONLY shared type file in the trade system.
 // Every trade imports FROM here (for shared interfaces) but never from each
@@ -22,12 +24,50 @@ import type { DefaultConfig }     from '../_default/types'
 // ── Minimal shared base — every trade config satisfies this ─────────────────
 // Registry functions (getStageAnchors, getTradeLabels) read these safely
 // without needing a type guard first.
+// ── Component prop interfaces ─────────────────────────────────────────────────
+// The contract between shell pages and trade components.
+// Shell pages only know these interfaces — never the concrete implementations.
+
+export interface AddLeadModalProps {
+  proId:    string
+  tradeSlug?: string
+  onClose:  () => void
+  onAdded:  (lead: any) => void
+  dk?:      boolean
+}
+
+export interface PipelineDetailExtrasProps {
+  leadId:   string
+  proId:    string
+  lead:     any
+  session:  any
+  dk:       boolean
+  // Roofing-specific extras passed through — ignored by non-roofing
+  isRoofing?: boolean
+  onWarrantySaved?: () => void
+  onPhotosLoaded?:  (n: number) => void
+}
+
+// ── Components slot on every trade plugin ────────────────────────────────────
+// Shell pages delegate rendering to these. No direct trade imports in shell.
+export interface AnyTradeComponents {
+  // Add lead modal — trade-specific source picker, fields, placeholders
+  AddLeadModal: React.ComponentType<AddLeadModalProps>
+  // Future slots — uncomment as built:
+  // PipelineBoardPage:   React.ComponentType<PipelineBoardProps>
+  // PipelineDetailPage:  React.ComponentType<PipelineDetailExtrasProps>
+  // EstimatePage:        React.ComponentType<EstimatePageProps>
+  // InvoicePage:         React.ComponentType<InvoicePageProps>
+  // OverviewWidget:      React.ComponentType<OverviewWidgetProps>
+}
+
 export interface AnyTradeBase {
   slug:         string
   labels:       AnyTradeLabels
   stageAnchors: AnyStageAnchors
   stages:       AnyPipelineStage[]
   nav:          AnyNavSection[]
+  components:   AnyTradeComponents
 }
 
 // ── Discriminated union ───────────────────────────────────────────────────────

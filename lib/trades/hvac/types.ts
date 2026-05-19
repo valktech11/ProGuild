@@ -1,3 +1,4 @@
+import type { AnyTradeComponents } from '../_registry/types'
 // ── HVAC Trade — Isolated Type Definitions ─────────────────────────────────
 
 export type HVACStage =
@@ -84,5 +85,6 @@ export interface HVACConfig {
   stageAnchors:  HVACStageAnchors
   stages:   HVACPipelineStage[]
   nav:      HVACNavSection[]
+  components:   AnyTradeComponents
   features: HVACFeatures
 }

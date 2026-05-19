@@ -1,6 +1,7 @@
 // ── HVAC Trade Config ───────────────────────────────────────────────────────
 
 import type { HVACConfig } from './types'
+import DefaultAddLeadModal from '../_default/components/AddLeadModal'
 
 export const hvacConfig: HVACConfig = {
   slug:        'hvac-technician',
@@ -79,5 +80,10 @@ export const hvacConfig: HVACConfig = {
     serviceChecklists:     false,  // Phase 2
     qrHomeownerPortal:     false,  // Phase 2
     maintenanceMembership: false,  // Phase 2
+  },
+
+  // ── Components — use default until trade gets its own ──────────────────────
+  components: {
+    AddLeadModal: DefaultAddLeadModal,
   },
 }

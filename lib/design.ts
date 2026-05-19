@@ -93,13 +93,29 @@ const STAGE_BASE: Record<string, { color: string; lightBg: string; lightChip: st
  * Dark mode: bg and chipBg are derived transparently from the accent colour.
  * Always pass dk so dark mode works automatically everywhere.
  */
-export function stageStyle(status: string, dk = false): StageStyle {
+export function stageStyle(status: string, dk = false, tradeSlug?: string): StageStyle {
+  // Primary source: trade config stage (single source of truth for colors)
+  // Fallback: STAGE_BASE (for generic/legacy stages not in any trade config)
+  if (tradeSlug) {
+    const { getTradeConfig } = require('./trades/_registry')
+    const plugin = getTradeConfig(tradeSlug)
+    const stage  = plugin?.stages?.find((s: any) => s.key === status)
+    if (stage) {
+      return {
+        color:  stage.color,
+        bg:     dk ? stage.color + '1A' : stage.bg,
+        chipBg: dk ? stage.color + '33' : (stage.dot + '33'),
+        label:  stage.label,
+      }
+    }
+  }
+  // Fallback to STAGE_BASE for generic stages (Paid, Lost, New, etc.)
   const base = STAGE_BASE[status] || STAGE_BASE['New']
   if (dk) {
     return {
       color:  base.color,
-      bg:     base.color + '1A',   // 10% opacity tint — visible but not garish
-      chipBg: base.color + '33',   // 20% opacity for pills/chips
+      bg:     base.color + '1A',
+      chipBg: base.color + '33',
       label:  base.label,
     }
   }

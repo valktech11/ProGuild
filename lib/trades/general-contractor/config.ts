@@ -1,4 +1,5 @@
 import type { GCConfig } from './types'
+import DefaultAddLeadModal from '../_default/components/AddLeadModal'
 
 export const gcConfig: GCConfig = {
   slug: 'general-contractor', displayName: 'General Contractor',
@@ -56,5 +57,10 @@ export const gcConfig: GCConfig = {
     materialsBudget:     false,  // Phase 5
     permitTracking:      false,  // Phase 5
     changeOrders:        false,  // Phase 6
+  },
+
+  // ── Components — use default until trade gets its own ──────────────────────
+  components: {
+    AddLeadModal: DefaultAddLeadModal,
   },
 }

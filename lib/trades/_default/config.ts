@@ -1,4 +1,5 @@
 import type { DefaultConfig } from './types'
+import DefaultAddLeadModal from './components/AddLeadModal'
 
 export const defaultConfig: DefaultConfig = {
   slug:        '_default',
@@ -50,6 +51,11 @@ export const defaultConfig: DefaultConfig = {
   ],
 
   features: { _placeholder: true },
+
+  // ── Components ────────────────────────────────────────────────────────────
+  components: {
+    AddLeadModal: DefaultAddLeadModal,
+  },
 }
 
 export const DEFAULT_STAGE_ORDER: Record<string, number> = {
