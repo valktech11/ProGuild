@@ -250,51 +250,79 @@ export default function ClientsPage() {
 
           {/* Add client modal */}
           {showAdd && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}
+            <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', padding: '16px' }}
               onClick={() => setShowAdd(false)}>
-              <div style={{ background: t.cardBg, width: '100%', maxWidth: 480, borderRadius: '24px 24px 0 0', boxShadow: '0 -8px 40px rgba(0,0,0,0.25)' }}
+              <div style={{ background: t.cardBg, width: '100%', maxWidth: 640, borderRadius: 20, boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column' }}
                 onClick={e => e.stopPropagation()}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: `1px solid ${t.cardBorder}` }}>
-                  <h2 style={{ fontSize: 17, fontWeight: 700, color: t.textPri }}>New client</h2>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 28px', borderBottom: `1px solid ${t.cardBorder}`, flexShrink: 0 }}>
+                  <div>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, color: t.textPri, margin: 0 }}>New client</h2>
+                    <p style={{ fontSize: 13, color: t.textMuted, margin: '2px 0 0' }}>Add a client manually or save from a lead</p>
+                  </div>
                   <button onClick={() => setShowAdd(false)}
-                    style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: t.cardBgAlt, color: t.textMuted, cursor: 'pointer', fontSize: 18 }}>×</button>
+                    style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: t.cardBgAlt, color: t.textMuted, cursor: 'pointer', fontSize: 20, flexShrink: 0 }}>×</button>
                 </div>
-                <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '70vh', overflowY: 'auto' }}>
-                  {/* Name / Phone / Email */}
-                  {[
-                    { label: 'Full name *', value: newName,  set: setNewName,  placeholder: 'John Smith',       type: 'text' },
-                    { label: 'Phone',       value: newPhone, set: (v: string) => setNewPhone(v.replace(/[^\d\s\-\(\)\+]/g, '')), placeholder: '(555) 555-5555', type: 'tel' },
-                    { label: 'Email',       value: newEmail, set: setNewEmail, placeholder: 'john@example.com', type: 'email' },
-                  ].map(f => (
-                    <div key={f.label}>
-                      <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>{f.label}</p>
-                      <input value={f.value} onChange={e => f.set(e.target.value)}
-                        placeholder={f.placeholder} type={f.type}
+
+                {/* Body */}
+                <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
+
+                  {/* Name + Phone — 2 col */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>Full name *</p>
+                      <input value={newName} onChange={e => setNewName(e.target.value)}
+                        placeholder="John Smith" type="text" autoComplete="off"
                         style={inputStyle}
                         onFocus={e => (e.target.style.borderColor = '#0F766E')}
                         onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
                     </div>
-                  ))}
-                  {/* Street address */}
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>Phone</p>
+                      <input value={newPhone} onChange={e => setNewPhone(e.target.value.replace(/[^\d\s\-\(\)\+]/g, ''))}
+                        placeholder="(555) 555-5555" type="tel" autoComplete="off"
+                        style={inputStyle}
+                        onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                        onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
+                    </div>
+                  </div>
+
+                  {/* Email — full width */}
                   <div>
-                    <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Street address <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></p>
-                    <input value={newStreet} onChange={e => setNewStreet(e.target.value)}
-                      placeholder="3919 Highgate Dr" autoComplete="address-line1"
+                    <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>Email</p>
+                    <input value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                      placeholder="john@example.com" type="email" autoComplete="off"
                       style={inputStyle}
                       onFocus={e => (e.target.style.borderColor = '#0F766E')}
                       onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
                   </div>
-                  {/* City / State / Zip */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px', gap: 10 }}>
+
+                  {/* Divider */}
+                  <div style={{ borderTop: `1px solid ${t.divider}`, margin: '2px 0' }} />
+
+                  {/* Street address — full width, no autocomplete */}
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>Street address</p>
+                    <input value={newStreet} onChange={e => setNewStreet(e.target.value)}
+                      placeholder="9933 Orchard Hills Rd"
+                      autoComplete="off"
+                      style={inputStyle}
+                      onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                      onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
+                  </div>
+
+                  {/* City / State / Zip — 3 col */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 90px', gap: 14 }}>
                     <div>
-                      <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>City</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>City</p>
                       <input value={newCity} onChange={e => setNewCity(e.target.value)}
-                        placeholder="Jacksonville" style={inputStyle}
+                        placeholder="Jacksonville" autoComplete="off"
+                        style={inputStyle}
                         onFocus={e => (e.target.style.borderColor = '#0F766E')}
                         onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
                     </div>
                     <div>
-                      <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>State</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>State</p>
                       <select value={newState} onChange={e => setNewState(e.target.value)}
                         style={{ ...inputStyle, paddingRight: 6 }}
                         onFocus={e => (e.target.style.borderColor = '#0F766E')}
@@ -306,27 +334,34 @@ export default function ClientsPage() {
                       </select>
                     </div>
                     <div>
-                      <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Zip</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>Zip</p>
                       <input value={newZip} onChange={e => setNewZip(e.target.value.replace(/\D/g,'').slice(0,5))}
-                        placeholder="32207" maxLength={5} inputMode="numeric"
+                        placeholder="32207" maxLength={5} inputMode="numeric" autoComplete="off"
                         style={inputStyle}
                         onFocus={e => (e.target.style.borderColor = '#0F766E')}
                         onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
                     </div>
                   </div>
+
+                  {/* Divider */}
+                  <div style={{ borderTop: `1px solid ${t.divider}`, margin: '2px 0' }} />
+
+                  {/* Tags */}
                   <div>
-                    <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Tags</p>
+                    <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 10 }}>Tags</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {['Residential','Commercial','Repeat','VIP'].map(tag => (
                         <button key={tag} onClick={() => toggleTag(tag)}
-                          style={{ fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 20, cursor: 'pointer', border: `1.5px solid ${newTags.includes(tag) ? '#0F766E' : t.inputBorder}`, background: newTags.includes(tag) ? '#0F766E' : 'transparent', color: newTags.includes(tag) ? '#fff' : t.textMuted }}>
+                          style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 20, cursor: 'pointer', border: `1.5px solid ${newTags.includes(tag) ? '#0F766E' : t.inputBorder}`, background: newTags.includes(tag) ? '#0F766E' : 'transparent', color: newTags.includes(tag) ? '#fff' : t.textMuted, transition: 'all 0.15s' }}>
                           {tag}
                         </button>
                       ))}
                     </div>
                   </div>
+
+                  {/* Notes */}
                   <div>
-                    <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Notes</p>
+                    <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>Notes</p>
                     <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)}
                       placeholder="Gate code 1234, has two dogs, prefers morning appointments..."
                       rows={3}
@@ -334,17 +369,20 @@ export default function ClientsPage() {
                       onFocus={e => (e.target.style.borderColor = '#0F766E')}
                       onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
                   </div>
-                  {err && <p style={{ fontSize: 14, color: '#EF4444' }}>{err}</p>}
-                  <div style={{ display: 'flex', gap: 10, paddingTop: 8 }}>
-                    <button onClick={() => setShowAdd(false)}
-                      style={{ flex: 1, padding: '13px', borderRadius: 14, fontSize: 14, fontWeight: 700, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
-                      Cancel
-                    </button>
-                    <button onClick={addClient} disabled={saving}
-                      style={{ flex: 1, padding: '13px', borderRadius: 14, fontSize: 14, fontWeight: 700, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0C5F57)', color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                      {saving ? 'Saving...' : 'Save client'}
-                    </button>
-                  </div>
+
+                  {err && <p style={{ fontSize: 14, color: '#EF4444', margin: 0 }}>{err}</p>}
+                </div>
+
+                {/* Footer */}
+                <div style={{ display: 'flex', gap: 10, padding: '16px 28px 24px', borderTop: `1px solid ${t.cardBorder}`, flexShrink: 0 }}>
+                  <button onClick={() => setShowAdd(false)}
+                    style={{ flex: 1, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                  <button onClick={addClient} disabled={saving}
+                    style={{ flex: 2, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0C5F57)', color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+                    {saving ? 'Saving...' : 'Save client'}
+                  </button>
                 </div>
               </div>
             </div>
