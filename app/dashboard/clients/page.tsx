@@ -35,11 +35,15 @@ export default function ClientsPage() {
   const [search,  setSearch]    = useState('')
   const [sort,    setSort]      = useState<'name' | 'value' | 'recent'>('recent')
   const [showAdd, setShowAdd]   = useState(false)
-  const [newName,  setNewName]  = useState('')
-  const [newPhone, setNewPhone] = useState('')
-  const [newEmail, setNewEmail] = useState('')
-  const [newNotes, setNewNotes] = useState('')
-  const [newTags,  setNewTags]  = useState<string[]>([])
+  const [newName,   setNewName]   = useState('')
+  const [newPhone,  setNewPhone]  = useState('')
+  const [newEmail,  setNewEmail]  = useState('')
+  const [newStreet, setNewStreet] = useState('')
+  const [newCity,   setNewCity]   = useState('')
+  const [newState,  setNewState]  = useState('')
+  const [newZip,    setNewZip]    = useState('')
+  const [newNotes,  setNewNotes]  = useState('')
+  const [newTags,   setNewTags]   = useState<string[]>([])
   const [saving,   setSaving]   = useState(false)
   const [err,      setErr]      = useState('')
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
@@ -61,14 +65,25 @@ export default function ClientsPage() {
     const r = await fetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: session.id, full_name: newName.trim(), phone: newPhone.trim() || null, email: newEmail.trim() || null, notes: newNotes.trim() || null, tags: newTags }),
+      body: JSON.stringify({
+        pro_id: session.id,
+        full_name:    newName.trim(),
+        phone:        newPhone.trim()  || null,
+        email:        newEmail.trim()  || null,
+        address_line1: newStreet.trim() || null,
+        city:         newCity.trim()   || null,
+        state:        newState.trim()  || null,
+        zip:          newZip.trim()    || null,
+        notes:        newNotes.trim()  || null,
+        tags:         newTags,
+      }),
     })
     const d = await r.json()
     setSaving(false)
     if (r.ok) {
       setClients(prev => [{ ...d.client, job_count: 0, lifetime_value: 0 }, ...prev])
       setShowAdd(false)
-      setNewName(''); setNewPhone(''); setNewEmail(''); setNewNotes(''); setNewTags([])
+      setNewName(''); setNewPhone(''); setNewEmail(''); setNewStreet(''); setNewCity(''); setNewState(''); setNewZip(''); setNewNotes(''); setNewTags([])
     } else setErr(d.error || 'Failed to save')
   }
 
@@ -177,6 +192,11 @@ export default function ClientsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 16, fontWeight: 700, color: t.textPri }}>{client.full_name}</span>
+                      {(client.address_line1 || client.city) && (
+                        <span style={{ fontSize: 12, color: t.textMuted, display: 'block', marginTop: 1 }}>
+                          {[client.address_line1, client.city, client.state].filter(Boolean).join(', ')}
+                        </span>
+                      )}
                       {(client.tags || []).map((tag: string) => {
                         const tc = TAG_COLORS(dk)[tag] || { bg: t.cardBgAlt, text: t.textMuted }
                         return (
@@ -240,10 +260,11 @@ export default function ClientsPage() {
                     style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: t.cardBgAlt, color: t.textMuted, cursor: 'pointer', fontSize: 18 }}>×</button>
                 </div>
                 <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '70vh', overflowY: 'auto' }}>
+                  {/* Name / Phone / Email */}
                   {[
-                    { label: 'Full name *', value: newName, set: setNewName, placeholder: 'John Smith', type: 'text' },
-                    { label: 'Phone', value: newPhone, set: (v: string) => setNewPhone(v.replace(/[^\d\s\-\(\)\+]/g, '')), placeholder: '(555) 555-5555', type: 'tel' },
-                    { label: 'Email', value: newEmail, set: setNewEmail, placeholder: 'john@example.com', type: 'email' },
+                    { label: 'Full name *', value: newName,  set: setNewName,  placeholder: 'John Smith',       type: 'text' },
+                    { label: 'Phone',       value: newPhone, set: (v: string) => setNewPhone(v.replace(/[^\d\s\-\(\)\+]/g, '')), placeholder: '(555) 555-5555', type: 'tel' },
+                    { label: 'Email',       value: newEmail, set: setNewEmail, placeholder: 'john@example.com', type: 'email' },
                   ].map(f => (
                     <div key={f.label}>
                       <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>{f.label}</p>
@@ -254,6 +275,45 @@ export default function ClientsPage() {
                         onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
                     </div>
                   ))}
+                  {/* Street address */}
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Street address <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></p>
+                    <input value={newStreet} onChange={e => setNewStreet(e.target.value)}
+                      placeholder="3919 Highgate Dr" autoComplete="address-line1"
+                      style={inputStyle}
+                      onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                      onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
+                  </div>
+                  {/* City / State / Zip */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px', gap: 10 }}>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>City</p>
+                      <input value={newCity} onChange={e => setNewCity(e.target.value)}
+                        placeholder="Jacksonville" style={inputStyle}
+                        onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                        onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>State</p>
+                      <select value={newState} onChange={e => setNewState(e.target.value)}
+                        style={{ ...inputStyle, paddingRight: 6 }}
+                        onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                        onBlur={e => (e.target.style.borderColor = t.inputBorder)}>
+                        <option value="">—</option>
+                        {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Zip</p>
+                      <input value={newZip} onChange={e => setNewZip(e.target.value.replace(/\D/g,'').slice(0,5))}
+                        placeholder="32207" maxLength={5} inputMode="numeric"
+                        style={inputStyle}
+                        onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                        onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
+                    </div>
+                  </div>
                   <div>
                     <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 8 }}>Tags</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

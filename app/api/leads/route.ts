@@ -80,5 +80,39 @@ export async function POST(req: NextRequest) {
     } catch (e) { console.error('Email failed:', e) }
   }
 
-  return NextResponse.json({ lead }, { status: 201 })
+  // ── Auto-link lead to client record ─────────────────────────────────────
+  if (data && contact_name) {
+    try {
+      const supabase = getSupabaseAdmin()
+      let clientId: string | null = null
+      if (contact_phone) {
+        const { data: byPhone } = await supabase.from('clients').select('id')
+          .eq('pro_id', pro_id).eq('phone', contact_phone.trim()).maybeSingle()
+        if (byPhone) clientId = byPhone.id
+      }
+      if (!clientId && contact_email) {
+        const { data: byEmail } = await supabase.from('clients').select('id')
+          .eq('pro_id', pro_id).eq('email', contact_email.toLowerCase().trim()).maybeSingle()
+        if (byEmail) clientId = byEmail.id
+      }
+      if (!clientId) {
+        const addrParts = (property_address || '').split(',').map((s: string) => s.trim())
+        const { data: newClient } = await supabase.from('clients').insert({
+          pro_id, full_name: contact_name.trim(),
+          phone: contact_phone?.trim() || null,
+          email: contact_email?.toLowerCase().trim() || null,
+          address_line1: addrParts[0] || null,
+          city:  contact_city?.trim()  || addrParts[1] || null,
+          state: contact_state?.trim() || null,
+        }).select('id').single()
+        if (newClient) clientId = newClient.id
+      }
+      if (clientId) {
+        await supabase.from('leads').update({ client_id: clientId }).eq('id', data.id)
+        data.client_id = clientId
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  return NextResponse.json({ lead: data }, { status: 201 })
 }
