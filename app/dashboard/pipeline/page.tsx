@@ -124,7 +124,7 @@ export default function PipelinePage() {
   // Derived metrics for command bar
   const tc2           = getTradeConfig(session?.trade_slug)
   const terminalKeys2 = tc2.stages.filter(s => s.terminal).map(s => s.key)
-  const activeLeads   = leads.filter(l => !terminalKeys2.includes(l.lead_status))
+  const activeLeads   = leads.filter(l => !terminalKeys2.some(k => k === l.lead_status))
   const pipelineValue = activeLeads.filter(l => l.quoted_amount).reduce((s, l) => s + (l.quoted_amount || 0), 0)
   const overdueCount  = overdue.length
   const wonThisMonth  = leads.filter(l => l.lead_status === anchors.won && new Date(l.created_at) > new Date(Date.now() - 30 * 86400000)).length

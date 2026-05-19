@@ -219,11 +219,11 @@ export default function OverviewPage() {
     const entryIdx     = activeStages.findIndex(s => s.key === anchors.entry)
     const wonIdx       = activeStages.findIndex(s => s.key === anchors.won)
     const midStages    = activeStages.slice(entryIdx + 1, wonIdx).map(s => s.key)
-    return midStages.includes(l.lead_status as string)
+    return midStages.some(k => k === l.lead_status)
   })
   const paidLeads      = leads.filter(l => l.lead_status === anchors.won)
   const revenueLeads   = paidLeads
-  const activeLeads    = leads.filter(l => !terminalKeys.includes(l.lead_status as string) && l.lead_status !== anchors.won)
+  const activeLeads    = leads.filter(l => !terminalKeys.some(k => k === l.lead_status) && l.lead_status !== anchors.won)
   const awaitingResp   = newLeads.filter(l => (Date.now() - new Date(l.created_at).getTime()) / 86400000 >= 1)
   const waitingOnCust  = quotedLeads
   const contactedLeads = quotedLeads  // alias for legacy references
