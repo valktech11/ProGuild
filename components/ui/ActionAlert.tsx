@@ -2,18 +2,20 @@
 
 import { useState } from 'react'
 import { Lead } from '@/types'
+import { getStageAnchors, getTerminalStages } from '@/lib/trades/_registry'
 import { capName } from '@/lib/utils'
 
 interface ActionAlertProps {
   leads: Lead[]
   onRespond: (leadId: string) => void
+  tradeSlug?: string | null
 }
 
 function daysSince(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
 }
 
-export default function ActionAlert({ leads, onRespond }: ActionAlertProps) {
+export default function ActionAlert({ leads, onRespond, tradeSlug }: ActionAlertProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [expanded, setExpanded] = useState(false)
 
@@ -29,8 +31,12 @@ export default function ActionAlert({ leads, onRespond }: ActionAlertProps) {
     days: number
   }>()
 
+  const anchors     = getStageAnchors(tradeSlug)
+  const termKeys    = new Set([...getTerminalStages(tradeSlug).map(s => s.key),
+    anchors.won, 'Completed', 'Archived']) // legacy compat
+
   leads
-    .filter(l => !['Completed', 'Paid', 'Lost', 'Archived'].includes(l.lead_status))
+    .filter(l => !termKeys.has(l.lead_status as string))
     .forEach(l => {
       const days = daysSince(l.created_at)
       if (days >= 3) {

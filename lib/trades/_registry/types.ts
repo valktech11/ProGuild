@@ -133,11 +133,12 @@ export interface AnyNavSection {
 // Every trade customises these display terms.
 // DashboardShell, pipeline page, estimates page read plugin.labels — no tradeTerm() calls.
 export interface AnyTradeLabels {
-  pipeline:    string   // "Jobs" | "Pipeline" | "Projects"
-  estimate:    string   // "Proposal" | "Estimate" | "Quote"
-  invoice:     string   // "Invoice" | "Bill"
-  client:      string   // "Property" | "Client" | "Customer"
-  clients:     string   // plural — "Properties" | "Clients"
-  newButton:   string   // "New Job" | "New Call" | "New Lead"
-  wonStage:    string   // "Job Won" | "Completed" | "Closed Won"
+  pipeline:         string   // "Jobs" | "Pipeline" | "Projects"
+  estimate:         string   // "Proposal" | "Estimate" | "Quote"
+  invoice:          string   // "Invoice" | "Bill"
+  client:           string   // "Property" | "Client" | "Customer"
+  clients:          string   // plural — "Properties" | "Clients"
+  newButton:        string   // "New Job" | "New Call" | "New Lead"
+  wonStage:         string   // "Job Won" | "Completed" | "Closed Won"
+  scopePlaceholder?: string  // Add Lead modal scope field placeholder — trade-specific
 }

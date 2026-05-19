@@ -11,6 +11,7 @@ export const plumbingConfig: PlumbingConfig = {
   labels: {
     pipeline: 'Jobs', estimate: 'Estimate', client: 'Client',
     newButton: 'New Call', wonStage: 'Job Won',
+    scopePlaceholder: 'Kitchen sink leaking under cabinet, also need water heater checked...',
     addClient: 'Add Client', clientsPage: 'Clients',
   },
 

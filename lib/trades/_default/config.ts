@@ -15,6 +15,7 @@ export const defaultConfig: DefaultConfig = {
     clients:   'Clients',
     newButton: 'New Lead',
     wonStage:  'Job Won',
+    scopePlaceholder: 'Describe what needs to be done, size of job, any urgency...',
   },
   stageAnchors: {
     entry: 'new',

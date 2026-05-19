@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { Resend } from 'resend'
+import { getInitialStage } from '@/lib/trades/_registry'
 
 // ── Feature flag — set true when ready for Phase 2 auto-send ─────────────────
 const AUTO_SEND_EMAIL = false
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
         contact_email: contact_email?.toLowerCase().trim() || null,
         contact_phone: contact_phone || null,
         message,
-        lead_status: 'New',
+        lead_status: getInitialStage(pro?.trade_slug),
         lead_source: 'Registry_Card',
       })
       .select()

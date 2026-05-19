@@ -44,6 +44,7 @@ export interface PlumbingLabels {
   wonStage:     'Job Won'
   addClient:    'Add Client'
   clientsPage:  'Clients'
+  scopePlaceholder?: string
 }
 
 export interface PlumbingFeatures {

@@ -64,7 +64,9 @@ interface EventChipProps {
 export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, isOverdue = false }: EventChipProps) {
   const t   = theme(dk)
   const isFollowup  = ev._type === 'followup'
-  const isCompleted = ev.lead_status === 'Completed' || ev.lead_status === 'Paid'
+  // 'Completed'/'Paid' = old generic; 'job_won' = new roofing; both mean done
+  const DONE_STATUSES = new Set(['Completed', 'Paid', 'job_won', 'Converted'])
+  const isCompleted = DONE_STATUSES.has(ev.lead_status)
   const es  = eventStyle({ isOverdue, isFollowup, isCompleted, leadStatus: ev.lead_status }, dk)
   const timeLabel = ev.scheduled_time ? fmtTime(ev.scheduled_time) : ''
   const iconPath  = isOverdue ? ICON_PATH.warning : isFollowup ? ICON_PATH.phone : ICON_PATH.wrench
@@ -155,7 +157,7 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <Svg path={iconPath} size={13} color={es.border} sw={2} />
           <span style={{ fontSize: 12, fontWeight: 700, color: es.mutedText, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {isFollowup ? 'Follow-up' : ev.lead_status === 'Paid' ? 'Job Won' : ev.lead_status}
+            {isFollowup ? 'Follow-up' : DONE_STATUSES.has(ev.lead_status) ? 'Job Won' : ev.lead_status}
           </span>
           {timeLabel && (
             <>

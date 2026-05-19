@@ -18,6 +18,7 @@ export const hvacConfig: HVACConfig = {
     clients:   'Clients',
     newButton: 'New Call',
     wonStage:  'Job Won',
+    scopePlaceholder: 'AC not cooling, unit is 12 years old, needs inspection and possible replacement...',
   },
   stageAnchors: {
     entry: 'new_call',

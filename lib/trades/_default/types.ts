@@ -32,6 +32,7 @@ export interface DefaultLabels {
   clients:   'Clients'
   newButton: 'New Lead'
   wonStage:  'Job Won'
+  scopePlaceholder?: string
 }
 
 export interface DefaultStageAnchors {

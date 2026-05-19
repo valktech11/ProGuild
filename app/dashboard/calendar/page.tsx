@@ -1,4 +1,5 @@
 'use client'
+import { getStageAnchors, getTerminalStages } from '@/lib/trades/_registry'
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
@@ -7,6 +8,8 @@ import { Session } from '@/types'
 import { capName } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import { ICON_PATH } from '@/lib/design'
+const CALENDAR_DONE_STATUSES = new Set(['Completed','Paid','job_won','Converted'])
+
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 const DAYS         = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
@@ -57,7 +60,7 @@ function getEventDate(ev: CalEvent): Date | null {
 
 // Only followups are "overdue" — a job with a past scheduled_date just needs marking complete
 function isOverdueEvent(ev: CalEvent, today0: Date): boolean {
-  if (['Completed','Paid'].includes(ev.lead_status)) return false
+  if (CALENDAR_DONE_STATUSES.has(ev.lead_status)) return false
   if (ev._type !== 'followup') return false
   const d = getEventDate(ev)
   return !!d && d < today0
@@ -126,7 +129,7 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
 }) {
   const t = theme(dk)
   const isFollowup  = ev._type==='followup'
-  const isCompleted = ev.lead_status==='Completed'||ev.lead_status==='Paid'
+  const isCompleted = CALENDAR_DONE_STATUSES.has(ev.lead_status)
   const overdue     = isOverdueEvent(ev, today0)
   const phone = fmtPhone(ev.contact_phone)
   const timeStr = fmtTime(ev.scheduled_time)
@@ -152,7 +155,7 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
             <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
               <Svg path={isFollowup?ICON_PATH.phone:ICON_PATH.wrench} size={11} color={accentColor} sw={2}/>
               <span style={{ fontSize: 12, fontWeight:700, color:accentColor, textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                {isFollowup?'Follow-up':ev.lead_status==='Paid'?'Job Won':ev.lead_status}
+                {isFollowup?'Follow-up':CALENDAR_DONE_STATUSES.has(ev.lead_status)?'Job Won':ev.lead_status}
               </span>
               {overdue && <span style={{ fontSize: 11, fontWeight:700, padding:'1px 6px', borderRadius:8, background:t.dangerBg, color:'#DC2626' }}>Overdue</span>}
             </div>
@@ -174,7 +177,7 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
               Open Lead <Svg path={ICON_PATH.chevronR} size={12} color="white" sw={2.5}/>
             </button>
           </div>
-          {ev._type==='job' && ev.lead_status==='Scheduled' && onMarkComplete && (
+          {ev._type==='job' && (ev.lead_status==='Scheduled'||ev.lead_status==='scheduled') && onMarkComplete && (
             <button onClick={onMarkComplete} disabled={completing}
               style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:10, background:completing?t.cardBgAlt:'#DCFCE7', border:'1.5px solid #86EFAC', color:'#15803D', fontSize: 14, fontWeight:700, cursor:'pointer', opacity:completing?0.6:1 }}>
               {completing ? 'Marking complete…' : (<><Svg path={ICON_PATH.check} size={13} color="#15803D" sw={2.5}/>Mark Job Complete</>)}
@@ -517,7 +520,7 @@ function CalendarInner() {
     return d.getFullYear() === selectedDate.getFullYear() && d.getMonth() === selectedDate.getMonth()
   })
   const monthValue = monthJobs.reduce((s,ev) => s + (ev.quoted_amount||0), 0)
-  const monthDone  = monthJobs.filter(ev => ev.lead_status==='Completed'||ev.lead_status==='Paid').length
+  const monthDone  = monthJobs.filter(ev => CALENDAR_DONE_STATUSES.has(ev.lead_status)).length
 
   // Month agenda date
   const agendaDate = monthAgendaDate||selectedDate
@@ -900,7 +903,7 @@ function CalendarInner() {
       <div style={{ width:selectedEvent?330:0, flexShrink:0, borderLeft:selectedEvent?`1px solid ${t.cardBorder}`:'none', overflow:'hidden', transition:'width 0.2s ease' }}>
         {selectedEvent && (
           <DetailPanel ev={selectedEvent} onClose={() => setSelectedEvent(null)} onOpenLead={openLead} dk={dk} today0={today0}
-            onMarkComplete={selectedEvent._type==='job'&&selectedEvent.lead_status==='Scheduled'?()=>markComplete(selectedEvent):undefined}
+            onMarkComplete={selectedEvent._type==='job'&&(selectedEvent.lead_status==='Scheduled'||selectedEvent.lead_status==='scheduled')?()=>markComplete(selectedEvent):undefined}
             completing={completing===selectedEvent.id}/>
         )}
       </div>
@@ -1020,7 +1023,7 @@ function CalendarInner() {
       {/* Stats strip — scope matches active view */}
       {mobileView==='agenda' && (() => {
         const dj = selectedDayEvs.filter(ev => ev._type==='job')
-        const dc = dj.filter(ev => ev.lead_status==='Completed'||ev.lead_status==='Paid')
+        const dc = dj.filter(ev => CALENDAR_DONE_STATUSES.has(ev.lead_status))
         const dv = dj.reduce((s,ev)=>s+(ev.quoted_amount||0),0)
         return (
           <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
@@ -1035,7 +1038,7 @@ function CalendarInner() {
       })()}
       {mobileView==='week' && (() => {
         const wDone = weekDays.reduce((sum,d) => {
-          return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job'&&(ev.lead_status==='Completed'||ev.lead_status==='Paid')).length
+          return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job'&&CALENDAR_DONE_STATUSES.has(ev.lead_status)).length
         }, 0)
         return (
           <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
@@ -1121,7 +1124,7 @@ function CalendarInner() {
                             {dayEvs2.map(ev => (
                               <EventChip key={ev.id+ev._type} ev={ev} dk={dk} size="full"
                                 onClick={() => setSelectedEvent(ev)}
-                                onMarkComplete={ev._type==='job'&&ev.lead_status==='Scheduled'?()=>markComplete(ev):undefined}
+                                onMarkComplete={ev._type==='job'&&(ev.lead_status==='Scheduled'||ev.lead_status==='scheduled')?()=>markComplete(ev):undefined}
                                 completing={completing===ev.id}
                                 isOverdue={isOverdueEvent(ev,today0)}/>
                             ))}
@@ -1220,7 +1223,7 @@ function CalendarInner() {
                   const isOverdue2  = isOverdueEvent(ev, today0)
                   const isFollowup  = ev._type === 'followup'
                   const isJob       = ev._type === 'job'
-                  const isDone      = ev.lead_status === 'Completed' || ev.lead_status === 'Paid'
+                  const isDone      = CALENDAR_DONE_STATUSES.has(ev.lead_status)
                   const accentColor = isOverdue2 ? '#DC2626' : isFollowup ? '#D97706' : isDone ? '#9CA3AF' : '#0F766E'
                   const timeLabel   = ev.scheduled_time ? fmtTime(ev.scheduled_time) : (isFollowup ? 'Follow-up' : 'All day')
                   const statusLabel = isOverdue2 ? 'Overdue' : isDone ? 'Done' : ev.lead_status
@@ -1346,7 +1349,7 @@ function CalendarInner() {
             <div style={{ maxHeight:'calc(82vh - 20px)', overflowY:'auto' }}>
               <DetailPanel ev={selectedEvent} onClose={() => setSelectedEvent(null)}
                 onOpenLead={id => { setSelectedEvent(null); openLead(id) }} dk={dk} today0={today0}
-                onMarkComplete={selectedEvent._type==='job'&&selectedEvent.lead_status==='Scheduled'?()=>markComplete(selectedEvent):undefined}
+                onMarkComplete={selectedEvent._type==='job'&&(selectedEvent.lead_status==='Scheduled'||selectedEvent.lead_status==='scheduled')?()=>markComplete(selectedEvent):undefined}
                 completing={completing===selectedEvent.id}/>
             </div>
           </div>

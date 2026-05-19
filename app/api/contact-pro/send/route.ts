@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    if (lead.lead_status === 'Contacted') {
+    if (lead.lead_status === 'Contacted' || lead.lead_status === 'lead_in') {
       return NextResponse.json({ error: 'Already sent' }, { status: 400 })
     }
 
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
 
     // Mark lead as Contacted
     await sb.from('leads')
-      .update({ lead_status: 'Contacted' })
+      .update({ lead_status: 'Contacted' }) // legacy generic stage — unclaimed pro outreach flow
       .eq('id', lead_id)
 
     return NextResponse.json({ success: true, sent_to: proEmail })

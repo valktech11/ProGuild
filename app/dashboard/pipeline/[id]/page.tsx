@@ -66,8 +66,8 @@ function CopyBtn({ text, color }: { text:string; color:string }) {
 // ─── Stage icon for dropdown rows ─────────────────────────────────────────────
 function StageIcon({ k, color, size=24 }: { k:string; color:string; size?:number }) {
   const ic = size * 0.48
-  const isDate = ['inspection_scheduled','scheduled','Scheduled'].includes(k)
-  const isDoc  = ['proposal_sent','proposal_signed','Quoted'].includes(k)
+  const isDate = ['inspection_scheduled','scheduled','Scheduled'].some(x => x === k)
+  const isDoc  = ['proposal_sent','proposal_signed','Quoted'].some(x => x === k)
   return (
     <div style={{ width:size, height:size, borderRadius:'50%', background:color+'1A',
       display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -80,9 +80,10 @@ function StageIcon({ k, color, size=24 }: { k:string; color:string; size?:number
         {k==='job_won'           && <polyline points="8 6 2 12 8 18"/>}
         {k==='lost'              && <><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>}
         {k==='unqualified'       && <><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></>}
+        {/* Default icon for any stage key not matched above */}
         {!['lead_in','inspection_scheduled','scheduled','Scheduled',
            'proposal_sent','proposal_signed','Quoted','insurance_approved',
-           'in_progress','job_won','lost','unqualified'].includes(k) && <circle cx="12" cy="12" r="10"/>}
+           'in_progress','job_won','lost','unqualified'].some(x => x === k) && <circle cx="12" cy="12" r="10"/>}
       </Svg>
     </div>
   )

@@ -45,6 +45,7 @@ export interface HVACLabels {
   clients:     'Clients'
   newButton:   'New Call'
   wonStage:    'Job Won'
+  scopePlaceholder?: string
 }
 
 export interface HVACStageAnchors {

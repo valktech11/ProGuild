@@ -62,20 +62,14 @@ interface AddLeadModalProps {
   dk?: boolean
 }
 
-// Trade-specific scope placeholder — keeps the generic modal feeling native
+// Trade-specific scope placeholder — reads from trade config if available
+// Each trade config can define labels.scopePlaceholder; falls back to generic
 function getScopePlaceholder(tradeSlug?: string): string {
-  const slug = tradeSlug ?? ''
-  if (slug.includes('hvac') || slug.includes('heat') || slug.includes('air'))
-    return 'AC not cooling, unit is 12 years old, needs inspection and possible replacement...'
-  if (slug.includes('plumb'))
-    return 'Kitchen sink leaking under cabinet, also need water heater checked...'
-  if (slug.includes('electric'))
-    return 'Breaker keeps tripping in master bedroom, need panel inspection...'
-  if (slug.includes('general') || slug === 'gc')
-    return 'Bathroom remodel, gut and redo, approximately 80 sq ft, need permits...'
-  if (slug.includes('solar'))
-    return '2,400 sq ft home, interested in solar panels and battery backup...'
-  // Default — generic enough for any trade
+  try {
+    const { getTradeLabels } = require('@/lib/trades/_registry')
+    const labels = getTradeLabels(tradeSlug)
+    if ((labels as any).scopePlaceholder) return (labels as any).scopePlaceholder
+  } catch {}
   return 'Describe what needs to be done, size of job, any urgency...'
 }
 

@@ -32,21 +32,7 @@ const GENERIC_NEXT: Record<string, string> = {
   Scheduled: 'Job Day', Completed: 'Generate Invoice', Paid: '✓ Job Won',
 }
 
-// Sub/next labels for roofing stages
-const ROOFING_SUB: Record<string, string> = {
-  lead_in: 'Awaiting inspection', inspection_scheduled: 'Inspection booked',
-  proposal_sent: 'Proposal with owner', proposal_signed: 'Owner signed',
-  insurance_approved: 'Insurer approved', scheduled: 'Date & materials set',
-  in_progress: 'Crew on site', job_won: 'Complete & paid',
-  lost: 'Job lost', unqualified: 'Bad lead',
-}
-const ROOFING_NEXT: Record<string, string> = {
-  lead_in: 'Schedule Inspection', inspection_scheduled: 'Run Inspection',
-  proposal_sent: 'Get Signature', proposal_signed: 'Submit to Insurance',
-  insurance_approved: 'Schedule Install', scheduled: 'Start Job',
-  in_progress: 'Mark Complete', job_won: '✓ Job Won',
-  lost: 'Reopen', unqualified: '',
-}
+// subLabel and nextLabel come from stage config — no trade-specific maps needed here
 
 /** Build PipelineStage[] from the trade registry. Single source of truth.
  *  subLabel + nextLabel come directly from stage config — no trade checks needed.
@@ -71,11 +57,10 @@ type StageKey = string
 
 // Stage order is now derived dynamically from the trade config in LeadPipeline
 // Kept as a fallback for the BackwardConfirm check on generic trades
-const STAGE_ORDER: Record<string, number> = {
-  New: 0, Contacted: 1, Quoted: 2, Scheduled: 3, Completed: 4, Paid: 5, Lost: 6,
-  // Roofing
-  lead_in: 0, inspection_scheduled: 1, proposal_sent: 2, proposal_signed: 3,
-  insurance_approved: 4, scheduled: 5, in_progress: 6, job_won: 7, lost: 8, unqualified: 9,
+// STAGE_ORDER is now derived dynamically from the trade plugin stages inside the component.
+// This empty fallback is only used by LeadListView which receives stages as a prop.
+function buildStageOrder(stages: PipelineStage[]): Record<string, number> {
+  return Object.fromEntries(stages.map((s, i) => [s.key, i]))
 }
 
 interface Props {
@@ -101,8 +86,8 @@ function Ic({ d, s = 14, sw = 2.0, c = 'currentColor' }: { d: string; s?: number
 }
 
 // ── Backward confirmation ──────────────────────────────────────────────────────
-function BackwardConfirm({ fromStage, toStage, isPaidMove, onConfirm, onCancel, dk = false }: {
-  fromStage: string; toStage: string; isPaidMove: boolean; onConfirm: () => void; onCancel: () => void; dk?: boolean
+function BackwardConfirm({ fromStage, toStage, isWonMove, onConfirm, onCancel, dk = false }: {
+  fromStage: string; toStage: string; isWonMove: boolean; onConfirm: () => void; onCancel: () => void; dk?: boolean
 }) {
   const t = theme(dk)
   return (
@@ -115,7 +100,7 @@ function BackwardConfirm({ fromStage, toStage, isPaidMove, onConfirm, onCancel, 
         <p style={{ fontSize: 14, color: t.textMuted, textAlign: 'center', marginBottom: 12, lineHeight: 1.5 }}>
           This lead is <span style={{ fontWeight: 600, color: t.textBody }}>{fromStage}</span>. Moving it back is allowed but tracked.
         </p>
-        {isPaidMove && (
+        {isWonMove && (
           <p style={{ fontSize: 13, color: '#92400E', background: t.warningBg, border: `1px solid ${t.warningBorder}`, borderRadius: 12, padding: '10px 16px', textAlign: 'center', marginBottom: 12 }}>
             ⚠️ Moving a <strong>Job Won</strong> lead back will affect your revenue stats.
           </p>
@@ -147,7 +132,8 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipeli
 
   function handleStageClick(newStage: string) {
     if (newStage === status) return
-    const isBackward = (STAGE_ORDER[newStage] ?? 0) < (STAGE_ORDER[status] ?? 0)
+    const stageOrderMap = buildStageOrder(stages)
+    const isBackward = (stageOrderMap[newStage] ?? 0) < (stageOrderMap[status] ?? 0)
     if (isBackward) setPendingStage(newStage)
     else setStatus(newStage as StageKey)
   }
@@ -171,7 +157,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipeli
     <>
       {pendingStage && (
         <BackwardConfirm
-          fromStage={status} toStage={pendingStage} isPaidMove={status === 'Paid' || status === 'job_won'}
+          fromStage={status} toStage={pendingStage} isWonMove={tradeSlug ? status === (require('@/lib/trades/_registry').getStageAnchors(tradeSlug).won) : (status === 'Paid' || status === 'job_won')}
           onConfirm={() => { setStatus(pendingStage as StageKey); setPendingStage(null) }}
           onCancel={() => setPendingStage(null)}
         />
@@ -346,7 +332,7 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
 
   // Stage-specific primary action
   const primaryAction = () => {
-    if (stage.key === 'Quoted') return openEstimate
+    if (stage.key === 'Quoted' || stage.key === 'proposal_sent') return openEstimate
     return (e: React.MouseEvent) => { e.stopPropagation(); onOpen() }
   }
 
@@ -356,17 +342,13 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   // Smart primary action handler
   async function handlePrimaryAction(e: React.MouseEvent) {
     e.stopPropagation()
-    if (stage.key === 'New') {
-      // Mark as Contacted — 1-tap stage advance
-      if (onStatusChange) await onStatusChange(lead.id, 'Contacted')
+    // For entry stage (New/lead_in) — advance to next stage via 1-tap
+    if (stage.key === stages[0]?.key && stages.length > 1) {
+      if (onStatusChange) await onStatusChange(lead.id, stages[1].key)
       return
     }
-    if (stage.key === 'Contacted') {
-      // Open/create estimate directly
-      openEstimate(e)
-      return
-    }
-    if (stage.key === 'Quoted') {
+    // For stages near the estimate phase — open/create estimate
+    if (stage.key === 'Quoted' || stage.key === 'proposal_sent' || stage.key === 'Contacted') {
       openEstimate(e)
       return
     }
@@ -389,7 +371,10 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   const schedDate = lead.scheduled_date
     ? new Date(lead.scheduled_date).toLocaleDateString('en-US',{month:'short',day:'numeric'})
     : null
-  const isInsuranceStage = ['insurance_approved','proposal_signed','in_progress','job_won'].includes(stage.key)
+  // Insurance stage display: driven by whether the stage has insurance context
+  // For roofing these specific stages show insurance chip; for other trades never shown
+  const ROOFING_INSURANCE_STAGES = new Set(['insurance_approved','proposal_signed','in_progress','job_won'])
+  const isInsuranceStage = ROOFING_INSURANCE_STAGES.has(stage.key)
 
   const [hovered, setHovered] = useState(false)
 
@@ -593,7 +578,10 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
       let v = 0
       if (sort === 'age')   v = new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       if (sort === 'name')  v = a.contact_name.localeCompare(b.contact_name)
-      if (sort === 'stage') v = (STAGE_ORDER[a.lead_status]||0) - (STAGE_ORDER[b.lead_status]||0)
+      if (sort === 'stage') {
+        const so = buildStageOrder(stages)
+        v = (so[a.lead_status]||0) - (so[b.lead_status]||0)
+      }
       if (sort === 'value') v = (b.quoted_amount||0) - (a.quoted_amount||0)
       return asc ? -v : v
     })
@@ -1093,7 +1081,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const router = useRouter()
   const t = theme(dk)
   const stages = getPipelineStages(tradeSlug)
-  const [mobileStage, setMobileStage] = useState<StageKey>(() => stages[0]?.key ?? 'New')
+  const [mobileStage, setMobileStage] = useState<StageKey>(() => stages[0]?.key ?? '')
   const [showLost, setShowLost] = useState(false)
   const [listView, setListView] = useState(false)
   const kanbanRef = useRef<HTMLDivElement>(null)
@@ -1152,8 +1140,8 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         const db = b.scheduled_date ? new Date(b.scheduled_date).getTime() : Infinity
         return da - db
       }
-      // Job Won (generic=Paid, roofing=job_won): newest first
-      if (key === 'Paid' || key === 'job_won') {
+      // Won stage: newest first
+      if (key === (require('@/lib/trades/_registry').getStageAnchors(tradeSlug)).won || key === 'Paid') {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
       // All other active stages: oldest first — most urgent at top
@@ -1163,8 +1151,10 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
 
   // Terminal stages — lost + unqualified (roofing) or just Lost (generic)
   const terminalStageKeys = getTerminalStages(tradeSlug).map(s => s.key as string)
-  const terminalKeys = new Set<string>([...terminalStageKeys, 'Lost', 'lost'])
+  const terminalKeys = new Set<string>([...terminalStageKeys, 'Lost', 'lost'])  // legacy compat for old DB records
   const lostLeads = leads.filter(l => terminalKeys.has(l.lead_status as string))
+  // wonLeads: leads in the won stage (job_won for roofing, Paid for legacy)
+  const wonAnchors = require('@/lib/trades/_registry').getStageAnchors(tradeSlug)
 
   return (
     <>
@@ -1172,10 +1162,13 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
     {(() => {
       const now = new Date()
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
-      const activeLeads = leads.filter(l => !['job_won','Paid','lost','unqualified','Lost'].includes(l.lead_status))
+      const { getStageAnchors: gsa, getTerminalStages: gts } = require('@/lib/trades/_registry')
+      const kpiAnchors  = gsa(tradeSlug)
+      const kpiTermKeys = new Set([...gts(tradeSlug).map((s: any) => s.key), kpiAnchors.won, 'Paid', 'Lost'])
+      const activeLeads = leads.filter(l => !kpiTermKeys.has(l.lead_status as string))
       const pipelineVal = activeLeads.reduce((s,l) => s + (l.quoted_amount||0), 0)
       const wonThisMonth = leads.filter(l =>
-        (l.lead_status === 'job_won' || l.lead_status === 'Paid') &&
+        (l.lead_status === kpiAnchors.won || l.lead_status === 'Paid') &&
         new Date((l as any).updated_at || l.created_at).getTime() >= monthStart
       )
       const wonVal = wonThisMonth.reduce((s,l) => s + (l.quoted_amount||0), 0)

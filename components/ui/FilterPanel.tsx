@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
+import { getStageAnchors } from '@/lib/trades/_registry'
 import { Lead } from '@/types'
 import { theme, T } from '@/lib/tokens'
 
@@ -35,15 +36,11 @@ export function isFilterActive(f: FilterState): boolean {
   )
 }
 
-export function applyFilters(leads: Lead[], f: FilterState): Lead[] {
+export function applyFilters(leads: Lead[], f: FilterState, tradeSlug?: string | null): Lead[] {
   let result = leads
 
   if (f.stages.length > 0) {
-    result = result.filter(l => {
-      // 'Job Won' in filter UI maps to 'Paid' in DB
-      const mappedStages = f.stages.map(s => s === 'Job Won' ? 'Paid' : s)
-      return mappedStages.includes(l.lead_status)
-    })
+    result = result.filter(l => f.stages.some(s => s === l.lead_status))
   }
 
   if (f.sources.length > 0) {
@@ -51,12 +48,12 @@ export function applyFilters(leads: Lead[], f: FilterState): Lead[] {
   }
 
   if (f.needsAttention) {
+    const anchors  = getStageAnchors(tradeSlug)
+    const tc       = anchors  // entry = new leads, first mid stage = quoted equiv
     result = result.filter(l => {
       const days = (Date.now() - new Date(l.created_at).getTime()) / 86400000
-      return (
-        (l.lead_status === 'New' && days > 3) ||
-        (l.lead_status === 'Quoted' && days > 3)
-      )
+      // Stale new leads or leads that have been quoted but no response
+      return days > 3 && l.lead_status !== anchors.won
     })
   }
 

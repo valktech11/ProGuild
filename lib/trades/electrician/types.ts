@@ -22,7 +22,7 @@ export interface ElectricianNavSection {
 
 export interface ElectricianLabels {
   pipeline: 'Jobs'; estimate: 'Estimate'; client: 'Client'
-  newButton: 'New Call'; wonStage: 'Job Won'
+  newButton: 'New Call'; wonStage: 'Job Won'; scopePlaceholder?: string
   addClient: 'Add Client'; clientsPage: 'Clients'
 }
 

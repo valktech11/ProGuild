@@ -8,6 +8,7 @@ export const electricianConfig: ElectricianConfig = {
   labels: {
     pipeline: 'Jobs', estimate: 'Estimate', client: 'Client',
     newButton: 'New Call', wonStage: 'Job Won',
+    scopePlaceholder: 'Breaker keeps tripping in master bedroom, need panel inspection...',
     addClient: 'Add Client', clientsPage: 'Clients',
   },
 

@@ -2,22 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { apiError, isValidUuid } from '@/lib/api/utils'
 import { LeadStatus } from '@/types'
+import { getAllTradeStageKeys } from '@/lib/trades/_registry'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-const VALID_STATUSES = new Set<LeadStatus>([
-  // Generic stages — kept for backward compat with existing leads
-  'New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid', 'Lost', 'Archived',
-  'Queued_Manual', 'Converted',
-  // Roofing trade stages — 10-stage state machine
-  'lead_in', 'inspection_scheduled', 'proposal_sent', 'proposal_signed',
-  'insurance_approved', 'scheduled', 'in_progress', 'job_won', 'lost', 'unqualified',
-  // HVAC stages
-  'new_call', 'diagnosed', 'parts_ordered',
-  // Plumbing
-  'assessed',
-  // Electrician
-  'site_visit', 'permit_submitted', 'permit_approved',
+// Derived from registry — never hand-maintained.
+// Adding a new trade to the registry automatically includes its stages here.
+const VALID_STATUSES = new Set<string>([
+  ...getAllTradeStageKeys(),
+  // Legacy generic stages kept for backward compat with existing lead records
+  'New', 'Contacted', 'Quoted', 'Scheduled', 'Completed', 'Paid', 'Lost',
+  'Archived', 'Queued_Manual', 'Converted',
 ])
 
 interface LeadUpdateFields {

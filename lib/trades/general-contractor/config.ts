@@ -8,6 +8,7 @@ export const gcConfig: GCConfig = {
   labels: {
     pipeline: 'Pipeline', estimate: 'Estimate', client: 'Client',
     newButton: 'New Project', wonStage: 'Project Won',
+    scopePlaceholder: 'Bathroom remodel, approximately 80 sq ft, need permits...',
     addClient: 'Add Client', clientsPage: 'Clients',
   },
 

@@ -24,7 +24,7 @@ export interface GCNavSection {
 
 export interface GCLabels {
   pipeline: 'Pipeline'; estimate: 'Estimate'; client: 'Client'
-  newButton: 'New Project'; wonStage: 'Project Won'
+  newButton: 'New Project'; wonStage: 'Project Won'; scopePlaceholder?: string
   addClient: 'Add Client'; clientsPage: 'Clients'
 }
 

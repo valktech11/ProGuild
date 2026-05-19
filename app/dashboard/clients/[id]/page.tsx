@@ -6,7 +6,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { capName, timeAgo, avatarColor, initials } from '@/lib/utils'
 import { theme } from '@/lib/theme'
-import { getTradeConfig, isHVAC, getTradeLabels } from '@/lib/trades/_registry'
+import { getTradeConfig, isHVAC, getTradeLabels, getStageAnchors } from '@/lib/trades/_registry'
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   Residential: { bg: '#EFF6FF', text: '#1D4ED8' },
@@ -149,7 +149,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
   const t = theme(dk)
   const [avBg, avFg] = client ? avatarColor(client.full_name) : ['#E5E7EB', '#6B7280']
-  const lifetimeValue = leads.filter((l: any) => l.lead_status === 'Paid').reduce((s: number, l: any) => s + (l.quoted_amount || 0), 0)
+  const clientAnchors  = getStageAnchors(session?.trade_slug)
+  const lifetimeValue  = leads.filter((l: any) => l.lead_status === clientAnchors.won || l.lead_status === 'Paid').reduce((s: number, l: any) => s + (l.quoted_amount || 0), 0)
 
   const STAGE_COLOR: Record<string, string> = {
     New:'#D97706', Contacted:'#2563EB', Quoted:'#7C3AED', Scheduled:'#0F766E', Completed:'#374151', Paid:'#15803D', Lost:'#DC2626'
@@ -306,7 +307,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       <span style={{ fontSize:13, fontWeight:700, color:'#0F766E' }}>${lead.quoted_amount.toLocaleString()}</span>
                     )}
                     <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:12, background: STAGE_COLOR[lead.lead_status] + '18', color: STAGE_COLOR[lead.lead_status] || t.textMuted }}>
-                      {lead.lead_status === 'Paid' ? 'Job Won' : lead.lead_status}
+                      {lead.lead_status === clientAnchors.won || lead.lead_status === 'Paid' ? getTradeLabels(session?.trade_slug).wonStage : lead.lead_status}
                     </span>
                   </div>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
