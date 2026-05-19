@@ -1,11 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { initials, avatarColor, timeAgo, fmtCurrency } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
+import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
 
 function TAG_COLORS(dk: boolean): Record<string, { bg: string; text: string }> {
   return {
@@ -47,6 +48,18 @@ export default function ClientsPage() {
   const [saving,   setSaving]   = useState(false)
   const [err,      setErr]      = useState('')
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
+
+  // Google Places autocomplete on street address
+  const streetRef = useRef<HTMLInputElement>(null)
+  usePlacesAutocomplete(streetRef, (formatted: string) => {
+    const zipMatch   = formatted.match(/\b(\d{5})\b/)
+    const stateMatch = formatted.match(/,\s*([A-Z]{2})\s+\d{5}/)
+    const parts      = formatted.replace(', USA', '').split(', ')
+    if (zipMatch)   setNewZip(zipMatch[1])
+    if (stateMatch) setNewState(stateMatch[1])
+    if (parts.length >= 3) setNewCity(parts[parts.length - 3] || '')
+    if (parts.length >= 1) setNewStreet(parts[0] || '')
+  })
 
   useEffect(() => {
     const raw = sessionStorage.getItem('pg_pro')
@@ -300,10 +313,10 @@ export default function ClientsPage() {
                   {/* Divider */}
                   <div style={{ borderTop: `1px solid ${t.divider}`, margin: '2px 0' }} />
 
-                  {/* Street address — full width, no autocomplete */}
+                  {/* Street address — Google Places autocomplete */}
                   <div>
                     <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7 }}>Street address</p>
-                    <input value={newStreet} onChange={e => setNewStreet(e.target.value)}
+                    <input ref={streetRef} value={newStreet} onChange={e => setNewStreet(e.target.value)}
                       placeholder="9933 Orchard Hills Rd"
                       autoComplete="off"
                       style={inputStyle}
