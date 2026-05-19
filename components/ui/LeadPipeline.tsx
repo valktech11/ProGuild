@@ -962,9 +962,10 @@ function SlidePanel({ stage, leads, onClose, onOpen, dk = false }: {
 }
 
 // ── Pipeline column ────────────────────────────────────────────────────────────
-function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
+function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onStatusChange }: {
   stage: PipelineStage
   leads: Lead[]
+  allStages?: PipelineStage[]
   onOpen: (lead: Lead) => void
   dk?: boolean
   onStatusChange?: (leadId: string, status: string) => Promise<void>
@@ -1041,7 +1042,7 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
         <div style={{ padding: '10px 10px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {visibleLeads.map(lead => (
             <div key={lead.id}>
-              <LeadCard lead={lead} stage={stage} allStages={stages} onOpen={() => onOpen(lead)} dk={dk} onStatusChange={onStatusChange} />
+              <LeadCard lead={lead} stage={stage} allStages={allStages} onOpen={() => onOpen(lead)} dk={dk} onStatusChange={onStatusChange} />
             </div>
           ))}
           {!expanded && overflow > 0 && (
@@ -1327,7 +1328,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           <div style={{ display:'flex', gap:12, minWidth: stages.length * 292,
             alignItems:'flex-start', paddingBottom:28, paddingRight:40 }}>
             {stages.map(stage => (
-              <PipelineColumn key={stage.key} stage={stage} leads={leadsForStage(stage.key)} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} />
+              <PipelineColumn key={stage.key} stage={stage} leads={leadsForStage(stage.key)} allStages={stages} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} />
             ))}
           </div>
         </div>
