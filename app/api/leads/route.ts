@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Auto-link lead to client record ─────────────────────────────────────
-  if (data && contact_name) {
+  if (lead && contact_name) {
     try {
       const supabase = getSupabaseAdmin()
       let clientId: string | null = null
@@ -108,11 +108,11 @@ export async function POST(req: NextRequest) {
         if (newClient) clientId = newClient.id
       }
       if (clientId) {
-        await supabase.from('leads').update({ client_id: clientId }).eq('id', data.id)
-        data.client_id = clientId
+        await supabase.from('leads').update({ client_id: clientId }).eq('id', lead.id)
+        lead.client_id = clientId
       }
     } catch { /* non-fatal */ }
   }
 
-  return NextResponse.json({ lead: data }, { status: 201 })
+  return NextResponse.json({ lead }, { status: 201 })
 }
