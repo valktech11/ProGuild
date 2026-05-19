@@ -10,6 +10,7 @@
  */
 
 import { BRAND } from './tokens'
+import { getTradeConfig } from './trades/_registry'
 
 // ─── Calendar event urgency ───────────────────────────────────────────────────
 
@@ -97,7 +98,6 @@ export function stageStyle(status: string, dk = false, tradeSlug?: string): Stag
   // Primary source: trade config stage (single source of truth for colors)
   // Fallback: STAGE_BASE (for generic/legacy stages not in any trade config)
   if (tradeSlug) {
-    const { getTradeConfig } = require('./trades/_registry')
     const plugin = getTradeConfig(tradeSlug)
     const stage  = plugin?.stages?.find((s: any) => s.key === status)
     if (stage) {

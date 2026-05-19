@@ -6,7 +6,7 @@ import { Lead } from '@/types'
 import { initials, avatarColor, timeAgo, capName, fmtCurrency } from '@/lib/utils'
 import { stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
-import { getTradeConfig, getActiveStages, getTerminalStages } from '@/lib/trades/_registry'
+import { getTradeConfig, getActiveStages, getTerminalStages, getStageAnchors } from '@/lib/trades/_registry'
 
 // ── Stage definitions ──────────────────────────────────────────────────────────
 // PipelineStage is the display contract used throughout this file.
@@ -157,7 +157,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipeli
     <>
       {pendingStage && (
         <BackwardConfirm
-          fromStage={status} toStage={pendingStage} isWonMove={tradeSlug ? status === (require('@/lib/trades/_registry').getStageAnchors(tradeSlug).won) : (status === 'Paid' || status === 'job_won')}
+          fromStage={status} toStage={pendingStage} isWonMove={status === getStageAnchors(tradeSlug).won || status === 'Paid'}
           onConfirm={() => { setStatus(pendingStage as StageKey); setPendingStage(null) }}
           onCancel={() => setPendingStage(null)}
         />
@@ -1141,7 +1141,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         return da - db
       }
       // Won stage: newest first
-      if (key === (require('@/lib/trades/_registry').getStageAnchors(tradeSlug)).won || key === 'Paid') {
+      if (key === getStageAnchors(tradeSlug).won || key === 'Paid') {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
       // All other active stages: oldest first — most urgent at top
@@ -1154,7 +1154,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const terminalKeys = new Set<string>([...terminalStageKeys, 'Lost', 'lost'])  // legacy compat for old DB records
   const lostLeads = leads.filter(l => terminalKeys.has(l.lead_status as string))
   // wonLeads: leads in the won stage (job_won for roofing, Paid for legacy)
-  const wonAnchors = require('@/lib/trades/_registry').getStageAnchors(tradeSlug)
+  const wonAnchors = getStageAnchors(tradeSlug)
 
   return (
     <>
@@ -1162,9 +1162,8 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
     {(() => {
       const now = new Date()
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
-      const { getStageAnchors: gsa, getTerminalStages: gts } = require('@/lib/trades/_registry')
-      const kpiAnchors  = gsa(tradeSlug)
-      const kpiTermKeys = new Set([...gts(tradeSlug).map((s: any) => s.key), kpiAnchors.won, 'Paid', 'Lost'])
+      const kpiAnchors  = getStageAnchors(tradeSlug)
+      const kpiTermKeys = new Set([...getTerminalStages(tradeSlug).map((s: any) => s.key), kpiAnchors.won, 'Paid', 'Lost'])
       const activeLeads = leads.filter(l => !kpiTermKeys.has(l.lead_status as string))
       const pipelineVal = activeLeads.reduce((s,l) => s + (l.quoted_amount||0), 0)
       const wonThisMonth = leads.filter(l =>

@@ -2,7 +2,7 @@
 import { theme, T } from '@/lib/tokens'
 import { capName } from '@/lib/utils'
 import { useState } from 'react'
-import { getTradeConfig } from '@/lib/trades/_registry'
+import { getTradeConfig, getTradeLabels } from '@/lib/trades/_registry'
 
 const SOURCES = [
   { value: 'Phone_Call', label: 'Phone call' },
@@ -65,11 +65,8 @@ interface AddLeadModalProps {
 // Trade-specific scope placeholder — reads from trade config if available
 // Each trade config can define labels.scopePlaceholder; falls back to generic
 function getScopePlaceholder(tradeSlug?: string): string {
-  try {
-    const { getTradeLabels } = require('@/lib/trades/_registry')
-    const labels = getTradeLabels(tradeSlug)
-    if ((labels as any).scopePlaceholder) return (labels as any).scopePlaceholder
-  } catch {}
+  const labels = getTradeLabels(tradeSlug)
+  if ((labels as any).scopePlaceholder) return (labels as any).scopePlaceholder
   return 'Describe what needs to be done, size of job, any urgency...'
 }
 
