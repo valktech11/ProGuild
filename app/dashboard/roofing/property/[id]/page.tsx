@@ -515,9 +515,31 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
                             <span style={{ fontSize: 13, fontWeight: 700, color: '#0F766E' }}>{report.dominant_pitch}</span>
                             <span style={{ fontSize: 11, color: t.textSubtle }}>{report.facet_count} facets</span>
                           </div>
-                          <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 1 }}>
+                          {/* Linear footage breakdown — shown when DSM has run */}
+                          {report.linear_footage && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '4px 10px', marginTop: 5 }}>
+                              {[
+                                { label: 'Ridge',  val: report.linear_footage.ridge_ft,  color: '#7C3AED' },
+                                { label: 'Hip',    val: report.linear_footage.hip_ft,    color: '#0891B2' },
+                                { label: 'Valley', val: report.linear_footage.valley_ft, color: '#EA580C' },
+                                { label: 'Rake',   val: report.linear_footage.rake_ft,   color: '#D97706' },
+                                { label: 'Eave',   val: report.linear_footage.eave_ft,   color: '#059669' },
+                              ].map(m => (
+                                <span key={m.label} style={{ fontSize: 10, fontWeight: 600, color: m.color }}>
+                                  {m.label} {Math.round(m.val)}ft
+                                </span>
+                              ))}
+                              <span style={{ fontSize: 10, fontWeight: 700, color: t.textSubtle }}>
+                                · {Math.round(report.linear_footage.total_linear_ft)}ft total
+                              </span>
+                            </div>
+                          )}
+                          <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 3 }}>
                             {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             {' · '}{new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            {!report.linear_footage && (
+                              <span style={{ marginLeft: 6, color: '#7C3AED', fontWeight: 600 }}>· Tap Material Order for linear footage</span>
+                            )}
                           </div>
                         </div>
                         <div className="rpt-acts">
