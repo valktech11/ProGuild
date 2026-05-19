@@ -48,22 +48,19 @@ const ROOFING_NEXT: Record<string, string> = {
   lost: 'Reopen', unqualified: '',
 }
 
-/** Build PipelineStage[] from the trade registry. Single source of truth. */
+/** Build PipelineStage[] from the trade registry. Single source of truth.
+ *  subLabel + nextLabel come directly from stage config — no trade checks needed.
+ *  To change a stage label: edit lib/trades/{trade}/config.ts stages array.
+ */
 export function getPipelineStages(tradeSlug?: string | null): PipelineStage[] {
-  const tc = getTradeConfig(tradeSlug)
-  // subLabel/nextLabel now come from stage config directly
   return getActiveStages(tradeSlug).map(s => ({
     key:       s.key,
     label:     s.label,
     color:     s.color,
     bg:        s.bg,
     terminal:  s.terminal,
-    subLabel:  isRoofingTrade
-      ? (ROOFING_SUB[s.key]  ?? s.label)
-      : (GENERIC_SUB[s.key]  ?? s.label),
-    nextLabel: isRoofingTrade
-      ? (ROOFING_NEXT[s.key] ?? 'Open')
-      : (GENERIC_NEXT[s.key] ?? 'Open'),
+    subLabel:  s.subLabel  ?? s.label,
+    nextLabel: s.nextLabel ?? s.label,
   }))
 }
 
