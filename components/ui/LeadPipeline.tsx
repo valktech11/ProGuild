@@ -157,7 +157,7 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipeli
     <>
       {pendingStage && (
         <BackwardConfirm
-          fromStage={status} toStage={pendingStage} isWonMove={status === getStageAnchors(tradeSlug).won || status === 'Paid'}
+          fromStage={status} toStage={pendingStage} isWonMove={status === (stages.filter(s => !s.terminal).slice(-1)[0]?.key ?? '') || status === 'Paid'}
           onConfirm={() => { setStatus(pendingStage as StageKey); setPendingStage(null) }}
           onCancel={() => setPendingStage(null)}
         />
@@ -255,9 +255,10 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipeli
 }
 
 // ── Lead card ──────────────────────────────────────────────────────────────────
-function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
+function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusChange }: {
   lead: Lead
   stage: PipelineStage
+  allStages?: PipelineStage[]
   onOpen: () => void
   dk?: boolean
   onStatusChange?: (leadId: string, status: string) => Promise<void>
@@ -343,8 +344,9 @@ function LeadCard({ lead, stage, onOpen, dk = false, onStatusChange }: {
   async function handlePrimaryAction(e: React.MouseEvent) {
     e.stopPropagation()
     // For entry stage (New/lead_in) — advance to next stage via 1-tap
-    if (stage.key === stages[0]?.key && stages.length > 1) {
-      if (onStatusChange) await onStatusChange(lead.id, stages[1].key)
+    const activeStages = allStages.filter(s => !s.terminal)
+    if (stage.key === activeStages[0]?.key && activeStages.length > 1) {
+      if (onStatusChange) await onStatusChange(lead.id, activeStages[1].key)
       return
     }
     // For stages near the estimate phase — open/create estimate
@@ -1039,7 +1041,7 @@ function PipelineColumn({ stage, leads, onOpen, dk = false, onStatusChange }: {
         <div style={{ padding: '10px 10px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {visibleLeads.map(lead => (
             <div key={lead.id}>
-              <LeadCard lead={lead} stage={stage} onOpen={() => onOpen(lead)} dk={dk} onStatusChange={onStatusChange} />
+              <LeadCard lead={lead} stage={stage} allStages={stages} onOpen={() => onOpen(lead)} dk={dk} onStatusChange={onStatusChange} />
             </div>
           ))}
           {!expanded && overflow > 0 && (
@@ -1263,7 +1265,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           ? <p className="text-center py-8 text-sm text-gray-500">No leads in {stages.find(s => s.key === mobileStage)?.label ?? mobileStage}</p>
           : leadsForStage(mobileStage).map(lead => {
               const stage = stages.find(s => s.key === lead.lead_status) || stages[0]
-              return <div key={lead.id}><LeadCard lead={lead} stage={stage} onOpen={() => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
+              return <div key={lead.id}><LeadCard lead={lead} stage={stage} allStages={stages} onOpen={() => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
             })
         }
       </div>
