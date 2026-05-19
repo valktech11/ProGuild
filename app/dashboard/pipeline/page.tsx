@@ -317,6 +317,7 @@ export default function PipelinePage() {
             />
           : <AddLeadModal
               proId={session.id}
+              tradeSlug={session.trade_slug}
               onClose={() => setShowAddLead(false)}
               onAdded={async () => { setShowAddLead(false); await fetchLeads() }}
             />

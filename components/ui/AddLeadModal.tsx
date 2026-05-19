@@ -2,6 +2,7 @@
 import { theme, T } from '@/lib/tokens'
 import { capName } from '@/lib/utils'
 import { useState } from 'react'
+import { getTradeConfig } from '@/lib/trades/_registry'
 
 const SOURCES = [
   { value: 'Phone_Call', label: 'Phone call' },
@@ -55,16 +56,36 @@ function sanitize(val: string): string {
 
 interface AddLeadModalProps {
   proId: string
+  tradeSlug?: string
   onClose: () => void
   onAdded: (lead: any) => void
   dk?: boolean
 }
 
+// Trade-specific scope placeholder — keeps the generic modal feeling native
+function getScopePlaceholder(tradeSlug?: string): string {
+  const slug = tradeSlug ?? ''
+  if (slug.includes('hvac') || slug.includes('heat') || slug.includes('air'))
+    return 'AC not cooling, unit is 12 years old, needs inspection and possible replacement...'
+  if (slug.includes('plumb'))
+    return 'Kitchen sink leaking under cabinet, also need water heater checked...'
+  if (slug.includes('electric'))
+    return 'Breaker keeps tripping in master bedroom, need panel inspection...'
+  if (slug.includes('general') || slug === 'gc')
+    return 'Bathroom remodel, gut and redo, approximately 80 sq ft, need permits...'
+  if (slug.includes('solar'))
+    return '2,400 sq ft home, interested in solar panels and battery backup...'
+  // Default — generic enough for any trade
+  return 'Describe what needs to be done, size of job, any urgency...'
+}
+
 const TEAL = '#0F766E'
 const NAVY = '#0A1628'
 
-export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: AddLeadModalProps) {
+export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = false }: AddLeadModalProps) {
   const t = theme(dk)
+  const tradePlugin = getTradeConfig(tradeSlug)
+  const scopePlaceholder = getScopePlaceholder(tradeSlug)
   const [name,   setName]   = useState('')
   const [phone,  setPhone]  = useState('')
   const [email,  setEmail]  = useState('')
@@ -235,7 +256,7 @@ export default function AddLeadModal({ proId, onClose, onAdded, dk = false }: Ad
                   <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
                 </svg>
                 <textarea value={need} onChange={e => setNeed(sanitize(e.target.value))}
-                  placeholder="Full interior repaint, 3-bed house, wants it done before Christmas..."
+                  placeholder={scopePlaceholder}
                   rows={3} maxLength={250}
                   className="w-full pl-10 pr-4 py-3 text-[14px] rounded-xl outline-none text-gray-900 placeholder-gray-400 transition-all bg-white resize-none"
                   style={{ border: '2px solid #CBD5E1' }}
