@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
-import { getStageAnchors } from '@/lib/trades/_registry'
+import { getStageAnchors, getActiveStages, getTradeConfig, isRoofing } from '@/lib/trades/_registry'
 import { Lead } from '@/types'
 import { theme, T } from '@/lib/tokens'
 
@@ -128,11 +128,21 @@ interface Props {
   onClose: () => void
   onClear: () => void
   dk: boolean
+  tradeSlug?: string | null
 }
 
-export default function FilterPanel({ open, filters, onChange, onClose, onClear, dk }: Props) {
+export default function FilterPanel({ open, filters, onChange, onClose, onClear, dk, tradeSlug }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
   const t = theme(dk)
+
+  // Derive stages and sources from trade plugin — no hardcoded values
+  const plugin        = getTradeConfig(tradeSlug)
+  const activeStages  = getActiveStages(tradeSlug).filter(s => !s.terminal)
+  const wonStage      = { key: getStageAnchors(tradeSlug).won, label: plugin.labels.wonStage, color: '#4A7B4A', bg: '#F0FDF4' }
+  const stageOptions  = [...activeStages, ...getActiveStages(tradeSlug).filter(s => s.terminal && s.key === wonStage.key)]
+  const sourceOptions = (plugin as any).leadSources
+    ? (plugin as any).leadSources.map((s: any) => ({ key: s.value ?? s.label, label: s.label }))
+    : SOURCES  // fallback for trades without leadSources
 
   // Close on Escape only — no document mousedown listener (caused close-on-pill-click bug)
   useEffect(() => {
@@ -200,24 +210,26 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
           {/* Stage */}
           <Section label="Stage" color={text}>
             <div className="flex flex-wrap gap-2">
-              {STAGES.map(s => {
-                const active = filters.stages.includes(s)
+              {stageOptions.map(s => {
+                const active = filters.stages.some(f => f === s.key)
+                const color  = s.color || '#374151'
+                const bg     = (s as any).bg || (s as any).lightBg || '#F9FAFB'
                 return (
                   <button
-                    key={s}
-                    onClick={() => onChange({ ...filters, stages: toggleArr(filters.stages, s) })}
+                    key={s.key}
+                    onClick={() => onChange({ ...filters, stages: toggleArr(filters.stages, s.key) })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all"
                     style={{
-                      background: active ? STAGE_BGS[s] : (dk ? '#1E293B' : '#F3F4F6'),
-                      color: active ? STAGE_COLORS[s] : muted,
-                      border: active ? `1.5px solid ${STAGE_COLORS[s]}` : `1.5px solid ${t.cardBorder}`,
+                      background: active ? bg : (dk ? '#1E293B' : '#F3F4F6'),
+                      color: active ? color : muted,
+                      border: active ? `1.5px solid ${color}` : `1.5px solid ${t.cardBorder}`,
                     }}
                   >
                     <span
                       className="w-2 h-2 rounded-full"
-                      style={{ background: active ? STAGE_COLORS[s] : (STAGE_COLORS[s] + '80') }}
+                      style={{ background: active ? color : (color + '80') }}
                     />
-                    {s}
+                    {s.label}
                   </button>
                 )
               })}
@@ -227,7 +239,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
           {/* Lead Source */}
           <Section label="Lead Source" color={text}>
             <div className="grid grid-cols-3 gap-2">
-              {SOURCES.map(({ key, label }) => {
+              {sourceOptions.map(({ key, label }) => {
                 const active = filters.sources.includes(key)
                 return (
                   <button
@@ -261,7 +273,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
               <span className="text-base">🔥</span>
               <span>Needs attention</span>
               <span className="ml-auto text-[12px] font-normal" style={{ color: t.textSubtle }}>
-                New or Quoted &gt; 3 days
+                {plugin.labels.pipeline} stage &gt; 3 days
               </span>
               {filters.needsAttention && (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round">

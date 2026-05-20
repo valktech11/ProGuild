@@ -309,6 +309,7 @@ export default function PipelinePage() {
         onClose={() => setShowFilter(false)}
         onClear={() => setFilters(DEFAULT_FILTERS)}
         dk={dk}
+        tradeSlug={session?.trade_slug}
       />
 
       {showAddLead && session && (() => {
