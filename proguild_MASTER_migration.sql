@@ -236,6 +236,12 @@ ON CONFLICT (version) DO NOTHING;
 -- Drop duplicate column (tiered_data from v82 is canonical)
 ALTER TABLE estimates DROP COLUMN IF EXISTS tiers;
 
+-- Add scope_of_work column for roofing narrative proposal text
+ALTER TABLE estimates ADD COLUMN IF NOT EXISTS scope_of_work TEXT;
+
+-- Add payment_milestones JSONB for inline milestone storage (before payment_schedules table created)
+ALTER TABLE estimates ADD COLUMN IF NOT EXISTS payment_milestones JSONB;
+
 CREATE INDEX IF NOT EXISTS idx_estimates_pro_status
   ON estimates (pro_id, status);
 

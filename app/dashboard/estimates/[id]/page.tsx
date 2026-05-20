@@ -12,6 +12,8 @@ import EstimateProgressBar from '@/components/estimate/EstimateProgressBar'
 import { Session } from '@/types'
 import { theme, T } from '@/lib/tokens'
 import { estimateStatusStyle } from '@/lib/design'
+import { isRoofing, getTradeConfig } from '@/lib/trades/_registry'
+import RoofingEstimatePage from '@/lib/trades/roofing/components/EstimatePage'
 import { timeAgo } from '@/lib/utils'
 
 export type EstimateItem = {

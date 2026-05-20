@@ -1,0 +1,1134 @@
+'use client'
+// lib/trades/roofing/components/EstimatePage.tsx
+// Roofing-specific estimate builder. Rendered by app/dashboard/estimates/[id]/page.tsx
+// when session.trade_slug is roofing. DashboardShell is NOT rendered here — shell wraps this.
+
+import React, { useState, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export type TierKey = 'standard' | 'upgraded' | 'premium'
+
+export interface TierLineItem {
+  id: string
+  name: string
+  qty: number
+  unit: string        // 'sq' | 'ea' | 'lf' | 'hr'
+  unit_price: number
+  amount: number
+}
+
+export interface Tier {
+  key: TierKey
+  label: string           // editable — default: Standard / Upgraded / Premium
+  shingle_brand: string
+  warranty: string
+  items: TierLineItem[]
+  subtotal: number
+}
+
+export interface PaymentMilestone {
+  id: string
+  name: string
+  pct: number
+  amount: number
+  due_when: string
+}
+
+export interface RoofingEstimate {
+  id: string
+  estimate_number: string
+  status: 'draft' | 'sent' | 'viewed' | 'approved' | 'declined' | 'invoiced' | 'paid' | 'void'
+  lead_id?: string
+  lead_name: string
+  contact_phone?: string
+  contact_email?: string
+  property_address?: string
+  created_at: string
+  updated_at?: string
+  valid_until: string
+  // Proposal type
+  estimate_type: 'standard' | 'tiered'
+  tiered_data?: { tiers: Tier[]; selected_tier?: TierKey }
+  // Standard estimate items
+  items?: TierLineItem[]
+  // Roofing measurements (from roofing_job_data)
+  square_count?: number
+  pitch?: string
+  waste_pct?: number
+  // Insurance
+  insurance_claim?: boolean
+  insurance_company?: string
+  claim_number?: string
+  adjuster_name?: string
+  approved_amount?: number
+  deductible?: number
+  supplement_amount?: number
+  // Financials
+  subtotal: number
+  tax_rate: number
+  tax_amount: number
+  total: number
+  scope_of_work?: string
+  terms?: string
+  payment_milestones?: PaymentMilestone[]
+  // Timeline
+  timeline?: { event: string; label: string; timestamp: string | null }[]
+  // Pro info
+  pro_name?: string
+  pro_phone?: string
+  pro_email?: string
+}
+
+export interface GBBTemplate {
+  id: string
+  name: string
+  use_count: number
+  last_used?: string
+  tiers: { standard_ppsq: number; upgraded_ppsq: number; premium_ppsq: number }
+}
+
+interface Props {
+  estimate: RoofingEstimate
+  templates?: GBBTemplate[]
+  onSave: (updates: Partial<RoofingEstimate>) => Promise<void>
+  onSend: () => Promise<void>
+  onBack: () => void
+  darkMode?: boolean
+}
+
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const C = {
+  teal:       '#0F766E',
+  tealLight:  '#F0FDFA',
+  tealGlow:   'rgba(15,118,110,0.12)',
+  navy:       '#0C3547',
+  navyDark:   '#0A2535',
+  bg:         '#F1F5F9',
+  card:       '#FFFFFF',
+  text:       '#0F172A',
+  secondary:  '#64748B',
+  muted:      '#94A3B8',
+  border:     '#E2E8F0',
+  amber:      '#F59E0B',
+  amberBg:    '#FFFBEB',
+  amberBorder:'#FDE68A',
+  green:      '#16A34A',
+  greenBg:    '#ECFDF5',
+  danger:     '#DC2626',
+}
+
+const SHADOW_SM  = '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)'
+const SHADOW_MD  = '0 4px 16px rgba(0,0,0,0.08)'
+const SHADOW_SEL = '0 8px 32px rgba(15,118,110,0.16)'
+
+const font = "'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif"
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const fmt = (n: number) =>
+  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+
+const fmtDec = (n: number) =>
+  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+function newId() { return Math.random().toString(36).slice(2, 10) }
+
+const DEFAULT_MILESTONES = (total: number): PaymentMilestone[] => [
+  { id: newId(), name: 'Deposit',              pct: 30, amount: Math.round(total * 0.3), due_when: 'Due at signing' },
+  { id: newId(), name: 'At Material Delivery', pct: 40, amount: Math.round(total * 0.4), due_when: 'Due at delivery' },
+  { id: newId(), name: 'On Completion',        pct: 30, amount: Math.round(total * 0.3), due_when: 'Due on completion' },
+]
+
+const DEFAULT_TIERS: Tier[] = [
+  {
+    key: 'standard', label: 'Standard',
+    shingle_brand: 'CertainTeed Landmark', warranty: '30-year warranty',
+    subtotal: 0,
+    items: [
+      { id: newId(), name: 'Shingles', qty: 0, unit: 'sq', unit_price: 285, amount: 0 },
+      { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: 22, amount: 0 },
+      { id: newId(), name: 'Ridge cap', qty: 0, unit: 'lf', unit_price: 4, amount: 0 },
+      { id: newId(), name: 'Starter strip', qty: 0, unit: 'lf', unit_price: 2, amount: 0 },
+      { id: newId(), name: 'Labor', qty: 0, unit: 'sq', unit_price: 85, amount: 0 },
+    ],
+  },
+  {
+    key: 'upgraded', label: 'Upgraded',
+    shingle_brand: 'Owens Corning Duration', warranty: '30-year warranty',
+    subtotal: 0,
+    items: [
+      { id: newId(), name: 'Shingles', qty: 0, unit: 'sq', unit_price: 340, amount: 0 },
+      { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: 22, amount: 0 },
+      { id: newId(), name: 'Ice & water shield', qty: 0, unit: 'sq', unit_price: 35, amount: 0 },
+      { id: newId(), name: 'Ridge cap', qty: 0, unit: 'lf', unit_price: 4, amount: 0 },
+      { id: newId(), name: 'Starter strip', qty: 0, unit: 'lf', unit_price: 2, amount: 0 },
+      { id: newId(), name: 'Labor', qty: 0, unit: 'sq', unit_price: 90, amount: 0 },
+    ],
+  },
+  {
+    key: 'premium', label: 'Premium',
+    shingle_brand: 'GAF Timberline HDZ', warranty: 'Lifetime warranty',
+    subtotal: 0,
+    items: [
+      { id: newId(), name: 'Shingles', qty: 0, unit: 'sq', unit_price: 420, amount: 0 },
+      { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: 22, amount: 0 },
+      { id: newId(), name: 'Ice & water shield', qty: 0, unit: 'sq', unit_price: 35, amount: 0 },
+      { id: newId(), name: 'Drip edge upgrade', qty: 0, unit: 'lf', unit_price: 3, amount: 0 },
+      { id: newId(), name: 'Ridge cap', qty: 0, unit: 'lf', unit_price: 5, amount: 0 },
+      { id: newId(), name: 'Starter strip', qty: 0, unit: 'lf', unit_price: 2, amount: 0 },
+      { id: newId(), name: 'Labor', qty: 0, unit: 'sq', unit_price: 100, amount: 0 },
+    ],
+  },
+]
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
+export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode }: Props) {
+  const dk = darkMode ?? false
+
+  // Proposal type
+  const [estType, setEstType] = useState<'standard' | 'tiered'>(
+    estimate.estimate_type ?? 'tiered'
+  )
+
+  // GBB state — initialise from DB or defaults
+  const [tiers, setTiers] = useState<Tier[]>(() => {
+    if (estimate.tiered_data?.tiers?.length) return estimate.tiered_data.tiers
+    // Pre-fill quantities from square_count
+    const sq = estimate.square_count ?? 0
+    return DEFAULT_TIERS.map(t => ({
+      ...t,
+      items: t.items.map(item => {
+        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? sq * 10 : 0
+        return { ...item, qty, amount: Math.round(qty * item.unit_price) }
+      }),
+      subtotal: t.items.reduce((s, item) => {
+        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? sq * 10 : 0
+        return s + Math.round(qty * item.unit_price)
+      }, 0),
+    }))
+  })
+
+  const [selectedTier, setSelectedTier] = useState<TierKey>(
+    estimate.tiered_data?.selected_tier ?? 'upgraded'
+  )
+
+  // Standard items
+  const [stdItems, setStdItems] = useState<TierLineItem[]>(
+    estimate.items ?? DEFAULT_TIERS[0].items
+  )
+
+  // Other fields
+  const [scope, setScope]       = useState(estimate.scope_of_work ?? '')
+  const [terms, setTerms]       = useState(estimate.terms ?? 'This proposal is valid for 14 days. Payment is due per the schedule above. A deposit is required before work begins. Prices may adjust if insurance supplements are approved.')
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [showTerms, setShowTerms]         = useState(false)
+  const [saving, setSaving]               = useState(false)
+  const [saveMsg, setSaveMsg]             = useState<string | null>(null)
+
+  // Payment milestones — derived from selected tier total
+  const activeTierSubtotal = estType === 'tiered'
+    ? (tiers.find(t => t.key === selectedTier)?.subtotal ?? 0)
+    : (stdItems.reduce((s, i) => s + i.amount, 0))
+
+  const taxAmt  = Math.round(activeTierSubtotal * (estimate.tax_rate / 100))
+  const total   = activeTierSubtotal + taxAmt
+
+  const [milestones, setMilestones] = useState<PaymentMilestone[]>(
+    estimate.payment_milestones ?? DEFAULT_MILESTONES(total)
+  )
+
+  // Recalc milestone amounts when total changes
+  const recalcMilestones = useCallback((newTotal: number) => {
+    setMilestones(ms => ms.map(m => ({ ...m, amount: Math.round(newTotal * m.pct / 100) })))
+  }, [])
+
+  // ── Tier item editing ────────────────────────────────────────────────────────
+
+  const updateTierItem = (tierKey: TierKey, itemId: string, field: keyof TierLineItem, val: string | number) => {
+    setTiers(prev => prev.map(t => {
+      if (t.key !== tierKey) return t
+      const items = t.items.map(item => {
+        if (item.id !== itemId) return item
+        const updated = { ...item, [field]: val }
+        updated.amount = Math.round(Number(updated.qty) * Number(updated.unit_price))
+        return updated
+      })
+      const subtotal = items.reduce((s, i) => s + i.amount, 0)
+      return { ...t, items, subtotal }
+    }))
+  }
+
+  const addTierItem = (tierKey: TierKey) => {
+    setTiers(prev => prev.map(t => {
+      if (t.key !== tierKey) return t
+      const newItem: TierLineItem = { id: newId(), name: 'New item', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }
+      return { ...t, items: [...t.items, newItem] }
+    }))
+  }
+
+  const deleteTierItem = (tierKey: TierKey, itemId: string) => {
+    setTiers(prev => prev.map(t => {
+      if (t.key !== tierKey) return t
+      const items    = t.items.filter(i => i.id !== itemId)
+      const subtotal = items.reduce((s, i) => s + i.amount, 0)
+      return { ...t, items, subtotal }
+    }))
+  }
+
+  // ── Save ─────────────────────────────────────────────────────────────────────
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await onSave({
+        estimate_type:      estType,
+        tiered_data:        estType === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
+        items:              estType === 'standard' ? stdItems : undefined,
+        scope_of_work:      scope,
+        terms,
+        payment_milestones: milestones,
+        subtotal:           activeTierSubtotal,
+        tax_amount:         taxAmt,
+        total,
+      })
+      setSaveMsg('Saved ✓')
+    } catch { setSaveMsg('Save failed') }
+    finally { setSaving(false); setTimeout(() => setSaveMsg(null), 2500) }
+  }
+
+  // ── Selected tier data for right panel ───────────────────────────────────────
+  const selTierData = tiers.find(t => t.key === selectedTier)
+  const tierLabels: Record<TierKey, string> = {
+    standard: tiers[0]?.label ?? 'Standard',
+    upgraded: tiers[1]?.label ?? 'Upgraded',
+    premium:  tiers[2]?.label ?? 'Premium',
+  }
+  const tierTotals: Record<TierKey, number> = {
+    standard: tiers[0]?.subtotal ?? 0,
+    upgraded: tiers[1]?.subtotal ?? 0,
+    premium:  tiers[2]?.subtotal ?? 0,
+  }
+
+  const pct21 = tierTotals.standard > 0
+    ? Math.round(((tierTotals.upgraded - tierTotals.standard) / tierTotals.standard) * 100)
+    : 0
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  const bg    = dk ? '#0A1628' : C.bg
+  const card  = dk ? '#0F1E35' : C.card
+  const textP = dk ? '#F1F5F9' : C.text
+  const textS = dk ? '#94A3B8' : C.secondary
+  const border= dk ? '#1E293B' : C.border
+
+  return (
+    <div style={{ fontFamily: font, background: bg, minHeight: '100vh', color: textP }}>
+
+      {/* ── Top header ── */}
+      <div style={{ background: card, borderBottom: `1px solid ${border}`, padding: '14px 32px',
+        display: 'flex', alignItems: 'center', gap: 16, position: 'sticky', top: 0, zIndex: 30,
+        boxShadow: SHADOW_SM }}>
+        <button onClick={onBack}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, color: textS, background: 'none',
+            border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to Jobs
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 'auto' }}>
+          <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>
+            #{estimate.estimate_number}
+          </span>
+          <span style={{ padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+            background: estimate.status === 'draft' ? '#FEF9C3' : C.tealLight,
+            color: estimate.status === 'draft' ? '#854D0E' : C.teal }}>
+            {estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)}
+          </span>
+          {saveMsg && (
+            <span style={{ fontSize: 13, color: saveMsg.includes('✓') ? C.green : C.danger }}>
+              {saveMsg}
+            </span>
+          )}
+        </div>
+
+        <button onClick={handleSave} disabled={saving}
+          style={{ padding: '9px 20px', borderRadius: 10, border: `1.5px solid ${border}`,
+            background: 'transparent', color: textP, fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button onClick={onSend}
+          style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
+            background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
+            color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+          Send to Homeowner
+        </button>
+        <div style={{ fontSize: 12, color: textS }}>Client can approve &amp; pay instantly</div>
+      </div>
+
+      {/* ── Progress timeline ── */}
+      <ProgressTimeline timeline={estimate.timeline ?? []} border={border} textS={textS} card={card} />
+
+      {/* ── Two-column layout ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, padding: '24px 32px',
+        alignItems: 'start', maxWidth: 1400, margin: '0 auto' }}>
+
+        {/* ── LEFT PANEL ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Property + measurements */}
+          <PropertyCard estimate={estimate} card={card} border={border} textP={textP} textS={textS} />
+
+          {/* Proposal type toggle */}
+          <ProposalTypeToggle
+            value={estType} onChange={v => { setEstType(v); }}
+            card={card} border={border} textP={textP} textS={textS}
+          />
+
+          {/* GBB tiers OR standard items */}
+          {estType === 'tiered' ? (
+            <GBBSection
+              tiers={tiers} selectedTier={selectedTier}
+              onSelect={t => { setSelectedTier(t); recalcMilestones(tierTotals[t] + Math.round(tierTotals[t] * estimate.tax_rate / 100)) }}
+              onUpdateItem={updateTierItem} onAddItem={addTierItem} onDeleteItem={deleteTierItem}
+              onUpdateLabel={(key, label) => setTiers(prev => prev.map(t => t.key === key ? { ...t, label } : t))}
+              onUpdateBrand={(key, brand) => setTiers(prev => prev.map(t => t.key === key ? { ...t, shingle_brand: brand } : t))}
+              onUpdateWarranty={(key, w) => setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t))}
+              showTemplates={showTemplates} setShowTemplates={setShowTemplates}
+              templates={templates}
+              card={card} border={border} textP={textP} textS={textS}
+            />
+          ) : (
+            <StandardSection
+              items={stdItems} onUpdateItem={(id, field, val) => {
+                setStdItems(prev => prev.map(i => {
+                  if (i.id !== id) return i
+                  const up = { ...i, [field]: val }
+                  up.amount = Math.round(Number(up.qty) * Number(up.unit_price))
+                  return up
+                }))
+              }}
+              onAdd={() => setStdItems(prev => [...prev, { id: newId(), name: 'New item', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }])}
+              onDelete={(id) => setStdItems(prev => prev.filter(i => i.id !== id))}
+              card={card} border={border} textP={textP} textS={textS}
+            />
+          )}
+
+          {/* Scope of work */}
+          <ScopeCard scope={scope} onChange={setScope} card={card} border={border} textP={textP} textS={textS} />
+
+          {/* Insurance claim — only when relevant */}
+          {estimate.insurance_claim && (
+            <InsuranceCard estimate={estimate} card={card} border={border} textP={textP} textS={textS} />
+          )}
+
+          {/* Terms */}
+          <TermsCard terms={terms} onChange={setTerms} show={showTerms} onToggle={() => setShowTerms(p => !p)}
+            card={card} border={border} textP={textP} textS={textS} />
+        </div>
+
+        {/* ── RIGHT PANEL ── */}
+        <RightPanel
+          estType={estType} tiers={tiers} tierLabels={tierLabels} tierTotals={tierTotals}
+          selectedTier={selectedTier} selTierData={selTierData}
+          total={total} taxAmt={taxAmt} taxRate={estimate.tax_rate}
+          pct21={pct21} validUntil={estimate.valid_until}
+          milestones={milestones} onUpdateMilestone={(id, field, val) =>
+            setMilestones(prev => prev.map(m => m.id === id ? { ...m, [field]: val } : m))
+          }
+          onAddMilestone={() => setMilestones(prev => [...prev, { id: newId(), name: 'Milestone', pct: 0, amount: 0, due_when: 'TBD' }])}
+          estimate={estimate}
+          card={card} border={border} textP={textP} textS={textS}
+          dk={dk}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── ProgressTimeline ───────────────────────────────────────────────────────────
+function ProgressTimeline({ timeline, border, textS, card }: {
+  timeline: { event: string; label: string; timestamp: string | null }[]
+  border: string; textS: string; card: string
+}) {
+  const steps = [
+    { key: 'sent',     icon: '✉', label: 'Sent' },
+    { key: 'viewed',   icon: '👁', label: 'Viewed' },
+    { key: 'approved', icon: '✓',  label: 'Approved' },
+    { key: 'invoiced', icon: '📄', label: 'Invoice' },
+    { key: 'paid',     icon: '$',  label: 'Payment received' },
+  ]
+  const doneKeys = timeline.filter(t => t.timestamp).map(t => t.event)
+
+  return (
+    <div style={{ background: card, borderBottom: `1px solid ${border}`, padding: '16px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', maxWidth: 700, gap: 0 }}>
+        {steps.map((step, i) => {
+          const done = doneKeys.includes(step.key)
+          const tl = timeline.find(t => t.event === step.key)
+          return (
+            <React.Fragment key={step.key}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700,
+                  background: done ? C.teal : '#F1F5F9',
+                  color: done ? '#fff' : C.muted,
+                  border: done ? 'none' : `1.5px solid ${C.border}`,
+                  transition: 'all 0.2s',
+                }}>
+                  {step.icon}
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: done ? C.teal : textS }}>{step.label}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>
+                    {tl?.timestamp ? new Date(tl.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Not yet'}
+                  </div>
+                </div>
+              </div>
+              {i < steps.length - 1 && (
+                <div style={{ flex: 1, height: 2, background: done ? C.teal : C.border,
+                  margin: '-20px 8px 0', transition: 'background 0.3s' }} />
+              )}
+            </React.Fragment>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── PropertyCard ───────────────────────────────────────────────────────────────
+function PropertyCard({ estimate, card, border, textP, textS }: {
+  estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
+}) {
+  return (
+    <div style={{ background: card, borderRadius: 16, padding: '20px 24px', boxShadow: SHADOW_SM,
+      display: 'flex', alignItems: 'center', gap: 20, border: `1px solid ${border}` }}>
+      <div style={{ width: 80, height: 64, borderRadius: 10, overflow: 'hidden', flexShrink: 0,
+        background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.5">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+          <span style={{ fontSize: 16, fontWeight: 700, color: textP }}>
+            {estimate.property_address ?? 'No address on file'}
+          </span>
+        </div>
+        <div style={{ fontSize: 13, color: textS }}>{estimate.lead_name} · Lead</div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[
+          estimate.square_count ? `${estimate.square_count} sq` : null,
+          estimate.pitch ? `${estimate.pitch} pitch` : null,
+          estimate.waste_pct ? `${estimate.waste_pct}% waste` : null,
+        ].filter(Boolean).map(tag => (
+          <span key={tag} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: C.tealLight, color: C.teal, border: `1px solid #99F6E4` }}>
+            {tag}
+          </span>
+        ))}
+        <button style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+          background: 'transparent', color: C.secondary, border: `1.5px solid ${border}`, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 4 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+          </svg>
+          Edit
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── ProposalTypeToggle ──────────────────────────────────────────────────────────
+function ProposalTypeToggle({ value, onChange, card, border, textP, textS }: {
+  value: 'standard' | 'tiered'
+  onChange: (v: 'standard' | 'tiered') => void
+  card: string; border: string; textP: string; textS: string
+}) {
+  return (
+    <div style={{ background: card, borderRadius: 16, padding: '20px 24px', boxShadow: SHADOW_SM,
+      border: `1px solid ${border}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: textS }}>
+          Proposal Type
+        </span>
+        <div style={{ display: 'flex', background: '#F8FAFC', borderRadius: 10, border: `1px solid ${border}`, padding: 4, gap: 4 }}>
+          {(['standard', 'tiered'] as const).map(v => (
+            <button key={v} onClick={() => onChange(v)}
+              style={{ padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                fontWeight: 700, fontSize: 13,
+                background: value === v ? C.teal : 'transparent',
+                color: value === v ? '#fff' : textS }}>
+              {v === 'standard' ? 'Standard' : 'Good / Better / Best'}
+            </button>
+          ))}
+        </div>
+        <span style={{ fontSize: 13, color: textS, marginLeft: 'auto' }}>
+          {value === 'tiered'
+            ? '↑ Homeowners who choose close 40% higher value'
+            : 'Single option estimate'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ── GBBSection ─────────────────────────────────────────────────────────────────
+function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, onDeleteItem,
+  onUpdateLabel, onUpdateBrand, onUpdateWarranty,
+  showTemplates, setShowTemplates, templates,
+  card, border, textP, textS }: {
+  tiers: Tier[]
+  selectedTier: TierKey
+  onSelect: (k: TierKey) => void
+  onUpdateItem: (tier: TierKey, itemId: string, field: keyof TierLineItem, val: string | number) => void
+  onAddItem: (tier: TierKey) => void
+  onDeleteItem: (tier: TierKey, itemId: string) => void
+  onUpdateLabel: (tier: TierKey, label: string) => void
+  onUpdateBrand: (tier: TierKey, brand: string) => void
+  onUpdateWarranty: (tier: TierKey, w: string) => void
+  showTemplates: boolean
+  setShowTemplates: (v: boolean) => void
+  templates: GBBTemplate[]
+  card: string; border: string; textP: string; textS: string
+}) {
+  return (
+    <div style={{ background: card, borderRadius: 16, padding: '24px', boxShadow: SHADOW_SM,
+      border: `1px solid ${border}` }}>
+      {/* 3-col tier grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
+        {tiers.map(tier => (
+          <TierCard key={tier.key} tier={tier} selected={selectedTier === tier.key}
+            onSelect={() => onSelect(tier.key)}
+            onUpdateItem={(itemId, field, val) => onUpdateItem(tier.key, itemId, field, val)}
+            onAddItem={() => onAddItem(tier.key)}
+            onDeleteItem={(itemId) => onDeleteItem(tier.key, itemId)}
+            onUpdateLabel={label => onUpdateLabel(tier.key, label)}
+            onUpdateBrand={brand => onUpdateBrand(tier.key, brand)}
+            onUpdateWarranty={w => onUpdateWarranty(tier.key, w)}
+            border={border} textP={textP} textS={textS}
+          />
+        ))}
+      </div>
+
+      {/* Template drawer */}
+      <button onClick={() => setShowTemplates(!showTemplates)}
+        style={{ background: 'none', border: 'none', color: C.teal, fontWeight: 700, fontSize: 14,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+        Load saved template {showTemplates ? '▲' : '▼'}
+      </button>
+
+      {showTemplates && (
+        <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {templates.length === 0 ? (
+            <div style={{ gridColumn: '1/-1', padding: 20, textAlign: 'center', color: textS, fontSize: 14 }}>
+              No saved templates yet. Save a template from the template manager.
+            </div>
+          ) : templates.map(tpl => (
+            <div key={tpl.id} style={{ background: '#F8FAFC', borderRadius: 12, padding: 16,
+              border: `1px solid ${border}` }}>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: C.tealLight,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: textP }}>{tpl.name}</div>
+                  <div style={{ fontSize: 12, color: textS }}>
+                    Std: ${tpl.tiers.standard_ppsq}/sq · Upg: ${tpl.tiers.upgraded_ppsq}/sq · Pre: ${tpl.tiers.premium_ppsq}/sq
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted }}>
+                    Used {tpl.use_count} times · Last {tpl.last_used ?? 'never'}
+                  </div>
+                </div>
+              </div>
+              <button style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1.5px solid ${border}`,
+                background: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', color: textP }}>
+                Load
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── TierCard ───────────────────────────────────────────────────────────────────
+function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteItem,
+  onUpdateLabel, onUpdateBrand, onUpdateWarranty, border, textP, textS }: {
+  key?: React.Key
+  tier: Tier; selected: boolean
+  onSelect: () => void
+  onUpdateItem: (itemId: string, field: keyof TierLineItem, val: string | number) => void
+  onAddItem: () => void
+  onDeleteItem: (itemId: string) => void
+  onUpdateLabel: (label: string) => void
+  onUpdateBrand: (brand: string) => void
+  onUpdateWarranty: (w: string) => void
+  border: string; textP: string; textS: string
+}) {
+  const [editingItem, setEditingItem] = useState<string | null>(null)
+
+  const cardBg = selected ? C.tealLight : '#fff'
+  const cardBorder = selected ? `2px solid ${C.teal}` : `1px solid ${border}`
+  const cardShadow = selected ? SHADOW_SEL : SHADOW_SM
+
+  return (
+    <div style={{ background: cardBg, borderRadius: 16, border: cardBorder, boxShadow: cardShadow,
+      padding: 20, position: 'relative', transition: 'all 0.2s',
+      transform: selected ? 'translateY(-2px)' : 'none' }}>
+
+      {/* Most popular badge */}
+      {tier.key === 'upgraded' && (
+        <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
+          background: C.teal, color: '#fff', padding: '5px 16px', borderRadius: 999,
+          fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap' }}>
+          👑 MOST POPULAR
+        </div>
+      )}
+
+      {/* Tier label */}
+      <input value={tier.label} onChange={e => onUpdateLabel(e.target.value)}
+        style={{ border: 'none', background: 'transparent', fontSize: 11, fontWeight: 800,
+          letterSpacing: '0.1em', textTransform: 'uppercase', color: selected ? C.teal : textS,
+          width: '100%', outline: 'none', cursor: 'text', marginBottom: 8 }} />
+
+      {/* Brand */}
+      <input value={tier.shingle_brand} onChange={e => onUpdateBrand(e.target.value)}
+        style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 800,
+          color: textP, width: '100%', outline: 'none', cursor: 'text', marginBottom: 2 }} />
+
+      {/* Warranty */}
+      <input value={tier.warranty} onChange={e => onUpdateWarranty(e.target.value)}
+        style={{ border: 'none', background: 'transparent', fontSize: 13, color: textS,
+          width: '100%', outline: 'none', cursor: 'text', marginBottom: 18 }} />
+
+      {/* Line items */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+        {tier.items.map(item => (
+          <div key={item.id}>
+            {editingItem === item.id ? (
+              // Edit mode
+              <div style={{ background: '#fff', border: `1px solid ${border}`, borderRadius: 10,
+                padding: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input defaultValue={item.name}
+                  onBlur={e => onUpdateItem(item.id, 'name', e.target.value)}
+                  style={{ border: 'none', background: '#F8FAFC', padding: '6px 8px',
+                    borderRadius: 6, fontSize: 12, width: 110, outline: 'none' }} />
+                <input defaultValue={item.qty} type="number"
+                  onBlur={e => onUpdateItem(item.id, 'qty', Number(e.target.value))}
+                  style={{ border: 'none', background: '#F8FAFC', padding: '6px 6px',
+                    borderRadius: 6, fontSize: 12, width: 40, outline: 'none', textAlign: 'center' }} />
+                <span style={{ fontSize: 11, color: textS }}>{item.unit}</span>
+                <span style={{ fontSize: 11, color: textS }}>@</span>
+                <input defaultValue={item.unit_price} type="number"
+                  onBlur={e => { onUpdateItem(item.id, 'unit_price', Number(e.target.value)); setEditingItem(null) }}
+                  style={{ border: 'none', background: '#F8FAFC', padding: '6px 6px',
+                    borderRadius: 6, fontSize: 12, width: 55, outline: 'none' }} />
+                <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 12 }}>
+                  {fmt(item.amount)}
+                </span>
+                <button onClick={() => onDeleteItem(item.id)}
+                  style={{ border: 'none', background: 'none', color: C.danger,
+                    cursor: 'pointer', fontSize: 16, padding: 0 }}>×</button>
+              </div>
+            ) : (
+              // Read mode
+              <button onClick={() => setEditingItem(item.id)}
+                style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left',
+                  cursor: 'pointer', padding: '3px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 16, height: 16, borderRadius: '50%', background: C.teal,
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, flexShrink: 0 }}>✓</div>
+                <span style={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</span>
+                {item.amount > 0 && (
+                  <span style={{ fontSize: 12, color: textS, fontWeight: 600 }}>{fmt(item.amount)}</span>
+                )}
+              </button>
+            )}
+          </div>
+        ))}
+        <button onClick={onAddItem}
+          style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
+            padding: '6px', fontSize: 12, color: textS, cursor: 'pointer', width: '100%',
+            marginTop: 4 }}>
+          + Add item
+        </button>
+      </div>
+
+      {/* Subtotal */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        borderTop: `1px solid ${border}`, paddingTop: 14, marginBottom: 14 }}>
+        <span style={{ fontSize: 13, color: textS }}>Subtotal</span>
+        <span style={{ fontSize: 28, fontWeight: 900, color: selected ? C.teal : textP }}>
+          {fmt(tier.subtotal)}
+        </span>
+      </div>
+
+      {/* Select button */}
+      <button onClick={onSelect}
+        style={{ width: '100%', padding: '13px', borderRadius: 12, border: 'none',
+          cursor: 'pointer', fontSize: 14, fontWeight: 700, transition: 'all 0.15s',
+          background: selected ? C.green : tier.key === 'premium' ? C.navy : '#F8FAFC',
+          color: selected ? '#fff' : tier.key === 'premium' ? '#fff' : textP }}>
+        {selected ? '✓ Selected' : `Select ${tier.label}`}
+      </button>
+
+      {/* Recommended microcopy */}
+      {selected && tier.key === 'upgraded' && (
+        <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: C.tealLight,
+          fontSize: 12, color: C.teal, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Recommended for most homes in your area
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ── StandardSection ────────────────────────────────────────────────────────────
+function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, textP, textS }: {
+  items: TierLineItem[]
+  onUpdateItem: (id: string, field: keyof TierLineItem, val: string | number) => void
+  onAdd: () => void; onDelete: (id: string) => void
+  card: string; border: string; textP: string; textS: string
+}) {
+  return (
+    <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
+      border: `1px solid ${border}` }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em',
+        textTransform: 'uppercase', color: textS, marginBottom: 16 }}>
+        Line Items
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {items.map(item => (
+          <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 90px 32px',
+            gap: 10, alignItems: 'center', padding: '10px 14px', borderRadius: 10,
+            background: '#F8FAFC', border: `1px solid ${border}` }}>
+            <input value={item.name} onChange={e => onUpdateItem(item.id, 'name', e.target.value)}
+              style={{ border: 'none', background: 'transparent', fontSize: 14, fontWeight: 600,
+                color: textP, outline: 'none' }} />
+            <input value={item.qty} type="number" onChange={e => onUpdateItem(item.id, 'qty', Number(e.target.value))}
+              style={{ background: '#fff', padding: '6px 8px', borderRadius: 6,
+                border: `1px solid ${border}`,
+                fontSize: 14, textAlign: 'center', outline: 'none', color: textP }} />
+            <input value={item.unit_price} type="number"
+              onChange={e => onUpdateItem(item.id, 'unit_price', Number(e.target.value))}
+              style={{ border: `1px solid ${border}`, background: '#fff', padding: '6px 8px',
+                borderRadius: 6, fontSize: 14, textAlign: 'right', outline: 'none', color: textP }} />
+            <div style={{ fontSize: 14, fontWeight: 700, color: textP, textAlign: 'right' }}>
+              {fmt(item.amount)}
+            </div>
+            <button onClick={() => onDelete(item.id)}
+              style={{ border: 'none', background: 'none', color: C.danger, cursor: 'pointer', fontSize: 18 }}>
+              ×
+            </button>
+          </div>
+        ))}
+        <button onClick={onAdd}
+          style={{ border: `1px dashed ${border}`, borderRadius: 10, padding: '10px',
+            background: 'transparent', color: textS, cursor: 'pointer', fontSize: 14,
+            fontWeight: 600, textAlign: 'center' }}>
+          + Add Item
+        </button>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16, paddingTop: 16,
+        borderTop: `1px solid ${border}` }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: textP }}>
+          {fmt(items.reduce((s, i) => s + i.amount, 0))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── ScopeCard ──────────────────────────────────────────────────────────────────
+function ScopeCard({ scope, onChange, card, border, textP, textS }: {
+  scope: string; onChange: (v: string) => void
+  card: string; border: string; textP: string; textS: string
+}) {
+  return (
+    <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
+      border: `1px solid ${border}` }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em',
+        textTransform: 'uppercase', color: textS, marginBottom: 14 }}>
+        Scope of Work
+      </div>
+      <textarea value={scope} onChange={e => onChange(e.target.value)}
+        rows={4}
+        placeholder="Remove and replace 28 squares of roofing. Install synthetic underlayment, replace all pipe boots and step flashings, install new drip edge on all eaves and rakes. Clean up all debris and haul away."
+        style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 10, padding: '12px 14px',
+          fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
+          background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
+        onFocus={e => (e.target.style.borderColor = C.teal)}
+        onBlur={e => (e.target.style.borderColor = border)} />
+      <div style={{ textAlign: 'right', fontSize: 12, color: C.muted, marginTop: 6 }}>
+        {scope.length} characters
+      </div>
+    </div>
+  )
+}
+
+// ── InsuranceCard ──────────────────────────────────────────────────────────────
+function InsuranceCard({ estimate, card, border, textP, textS }: {
+  estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
+}) {
+  const net = (estimate.approved_amount ?? 0) - (estimate.deductible ?? 0) + (estimate.supplement_amount ?? 0)
+  return (
+    <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
+      border: `1px solid ${border}`, borderLeft: `4px solid ${C.amber}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase',
+          letterSpacing: '0.08em', color: C.amber }}>🛡️ Insurance Claim</span>
+        <span style={{ padding: '3px 10px', borderRadius: 999, background: C.green,
+          color: '#fff', fontSize: 11, fontWeight: 800 }}>ON</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 14 }}>
+        {[
+          { label: 'Approved', value: fmtDec(estimate.approved_amount ?? 0) },
+          { label: 'Deductible', value: fmtDec(estimate.deductible ?? 0) },
+          { label: 'Net to collect', value: fmtDec(net) },
+        ].map(({ label, value }) => (
+          <div key={label}>
+            <div style={{ fontSize: 12, color: textS, marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: textP }}>{value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 13, color: textS }}>
+        {estimate.insurance_company} · Claim #{estimate.claim_number}
+        {estimate.adjuster_name ? ` · Adjuster: ${estimate.adjuster_name}` : ''}
+      </div>
+    </div>
+  )
+}
+
+// ── TermsCard ──────────────────────────────────────────────────────────────────
+function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS }: {
+  terms: string; onChange: (v: string) => void
+  show: boolean; onToggle: () => void
+  card: string; border: string; textP: string; textS: string
+}) {
+  return (
+    <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
+      border: `1px solid ${border}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
+          letterSpacing: '0.1em', color: textS }}>Terms &amp; Conditions</span>
+        <button onClick={onToggle}
+          style={{ background: 'none', border: 'none', color: C.teal, fontWeight: 700,
+            fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+          {show ? 'Collapse ▲' : 'Edit ▼'}
+        </button>
+      </div>
+      {!show && (
+        <div style={{ marginTop: 10, fontSize: 13, color: textS, lineHeight: 1.6 }}>
+          {terms.slice(0, 120)}{terms.length > 120 ? '...' : ''}
+        </div>
+      )}
+      {show && (
+        <textarea value={terms} onChange={e => onChange(e.target.value)}
+          rows={5}
+          style={{ width: '100%', marginTop: 14, border: `1.5px solid ${border}`, borderRadius: 10,
+            padding: '12px 14px', fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
+            background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
+          onFocus={e => (e.target.style.borderColor = C.teal)}
+          onBlur={e => (e.target.style.borderColor = border)} />
+      )}
+    </div>
+  )
+}
+
+// ── RightPanel ─────────────────────────────────────────────────────────────────
+function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selTierData,
+  total, taxAmt, taxRate, pct21, validUntil, milestones, onUpdateMilestone, onAddMilestone,
+  estimate, card, border, textP, textS, dk }: {
+  estType: 'standard' | 'tiered'
+  tiers: Tier[]; tierLabels: Record<TierKey, string>; tierTotals: Record<TierKey, number>
+  selectedTier: TierKey; selTierData?: Tier
+  total: number; taxAmt: number; taxRate: number; pct21: number
+  validUntil: string
+  milestones: PaymentMilestone[]
+  onUpdateMilestone: (id: string, field: string, val: unknown) => void
+  onAddMilestone: () => void
+  estimate: RoofingEstimate
+  card: string; border: string; textP: string; textS: string; dk: boolean
+}) {
+  const expiring = new Date(validUntil) < new Date(Date.now() + 3 * 86400000)
+
+  return (
+    <div style={{ position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Selected tier / summary */}
+      <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_MD,
+        border: `1px solid ${border}`, overflow: 'hidden' }}>
+
+        {/* Selected tier header */}
+        {estType === 'tiered' && selTierData && (
+          <div style={{ background: C.tealLight, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: C.teal, fontWeight: 700, marginBottom: 4 }}>
+              ✓ You selected
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: C.teal, marginBottom: 2 }}>
+              {selTierData.label.toUpperCase()}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: textP }}>{selTierData.shingle_brand}</div>
+            <div style={{ fontSize: 12, color: textS }}>{selTierData.warranty}</div>
+          </div>
+        )}
+
+        {/* Tier breakdown for GBB */}
+        {estType === 'tiered' && (
+          <div style={{ marginBottom: 16 }}>
+            {(Object.keys(tierTotals) as TierKey[]).map(k => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between',
+                marginBottom: 8, fontSize: 14,
+                fontWeight: k === selectedTier ? 700 : 400,
+                color: k === selectedTier ? C.teal : textS }}>
+                <span>{tierLabels[k]}</span>
+                <span>{fmt(tierTotals[k])}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Financials */}
+        <div style={{ borderTop: `1px solid ${border}`, paddingTop: 14, marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13,
+            color: textS, marginBottom: 8 }}>
+            <span>Tax ({taxRate}%)</span><span>{fmt(taxAmt)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: textP }}>
+              {estType === 'tiered' ? 'Total You\'ll Earn' : 'Total'}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {pct21 > 0 && estType === 'tiered' && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px',
+                  borderRadius: 999, background: C.greenBg, color: C.green }}>
+                  +{pct21}%
+                </span>
+              )}
+              <span style={{ fontSize: 36, fontWeight: 900, color: C.teal }}>{fmt(total)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Validity */}
+        <div style={{ padding: '10px 14px', borderRadius: 10, marginBottom: 0,
+          background: expiring ? C.amberBg : '#F8FAFC',
+          border: `1px solid ${expiring ? C.amberBorder : border}` }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: expiring ? C.amber : textS }}>
+            📅 Valid until: {new Date(validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
+        </div>
+      </div>
+
+      {/* Payment schedule */}
+      <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
+        border: `1px solid ${border}` }}>
+        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
+          letterSpacing: '0.1em', color: textS, marginBottom: 16 }}>
+          Payment Schedule
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {milestones.map((m, i) => (
+            <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '20px 1fr auto',
+              gap: 10, padding: '10px 0', alignItems: 'start',
+              borderBottom: i < milestones.length - 1 ? `1px solid ${border}` : 'none' }}>
+              <div style={{ width: 20, height: 20, borderRadius: '50%', background: C.teal,
+                color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex',
+                alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                {i + 1}
+              </div>
+              <div>
+                <input value={m.name} onChange={e => onUpdateMilestone(m.id, 'name', e.target.value)}
+                  style={{ border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600,
+                    color: textP, outline: 'none', width: '100%' }} />
+                <div style={{ fontSize: 11, color: textS }}>{m.pct}% · {m.due_when}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: textP }}>{fmt(m.amount)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12,
+          borderTop: `1px solid ${border}`, marginTop: 8 }}>
+          <button onClick={onAddMilestone}
+            style={{ background: 'none', border: 'none', color: C.teal, fontSize: 13,
+              fontWeight: 700, cursor: 'pointer' }}>
+            + Add milestone
+          </button>
+          <div style={{ fontSize: 14, fontWeight: 800, color: textP }}>
+            Total {fmt(total)}
+          </div>
+        </div>
+      </div>
+
+      {/* Smart nudge */}
+      <div style={{ background: C.amberBg, borderRadius: 16, padding: 20,
+        border: `1px solid ${C.amberBorder}` }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: '#92400E', marginBottom: 6 }}>
+          ⚡ Estimates sent within 10 minutes close 2× faster
+        </div>
+        <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.6, marginBottom: 10 }}>
+          Send this estimate now to improve your chances.
+        </div>
+        <button style={{ background: 'none', border: 'none', color: C.amber,
+          fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+          See Tips →
+        </button>
+      </div>
+
+      {/* Recipient */}
+      <div style={{ background: card, borderRadius: 16, padding: 20, boxShadow: SHADOW_SM,
+        border: `1px solid ${border}` }}>
+        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
+          letterSpacing: '0.1em', color: textS, marginBottom: 14 }}>Recipient</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.tealLight,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 15, fontWeight: 800, color: C.teal }}>
+            {estimate.lead_name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: textP }}>{estimate.lead_name}</div>
+            {estimate.contact_phone && (
+              <div style={{ fontSize: 13, color: textS }}>{estimate.contact_phone}</div>
+            )}
+            {estimate.contact_email && (
+              <div style={{ fontSize: 13, color: textS }}>{estimate.contact_email}</div>
+            )}
+          </div>
+        </div>
+        <button style={{ background: 'none', border: 'none', color: C.teal,
+          fontWeight: 700, fontSize: 13, cursor: 'pointer', padding: 0 }}>
+          Edit contact
+        </button>
+      </div>
+    </div>
+  )
+}
