@@ -6,7 +6,7 @@ export const electricianConfig: ElectricianConfig = {
   brandColor: '#EAB308', dbprCodes: ['EC', 'ER'],
 
   labels: {
-    pipeline: 'Jobs', estimate: 'Estimate', client: 'Client',
+    pipeline: 'Jobs', estimate: 'Quote', client: 'Client',
     newButton: 'New Call', wonStage: 'Job Won',
     scopePlaceholder: 'Breaker keeps tripping in master bedroom, need panel inspection...',
     addClient: 'Add Client', clientsPage: 'Clients',
@@ -27,20 +27,27 @@ export const electricianConfig: ElectricianConfig = {
 
   nav: [
     {
-      title: 'JOBS',
+      title: 'TODAY',
       items: [
-        { label: 'Job Board', href: '/dashboard/jobs',     icon: '📋', description: 'Your electrical pipeline' },
+        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Jobs',      href: '/dashboard/pipeline', icon: '⚡', description: 'Your electrical service board' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '📅', description: 'Service appointments' },
-        { label: 'Clients',   href: '/dashboard/clients',  icon: '👤', description: 'Client records' },
-        { label: 'Invoices',  href: '/dashboard/invoices', icon: '💰', description: 'Payments and balances' },
       ],
     },
     {
-      title: 'ELECTRICAL TOOLS',
+      title: 'MONEY',
       items: [
-        { label: 'Panel Records',   href: '/dashboard/electrician/panels',  icon: '⚡', description: 'Panel amps, age, last inspection', comingSoon: true },
-        { label: 'Permit Tracker',  href: '/dashboard/electrician/permits', icon: '📋', description: 'Permit status and inspections', comingSoon: true },
-        { label: 'Code Reference',  href: '/dashboard/electrician/code',    icon: '📖', description: 'NEC code compliance notes', comingSoon: true },
+        { label: 'Quotes',   href: '/dashboard/estimates', icon: '📝', description: 'Electrical quotes and proposals' },
+        { label: 'Invoices', href: '/dashboard/invoices',  icon: '💰', description: 'Payments and balances' },
+      ],
+    },
+    {
+      title: 'ELECTRICAL',
+      items: [
+        { label: 'Clients',        href: '/dashboard/clients',                icon: '👤', description: 'Client records' },
+        { label: 'Panel Records',  href: '/dashboard/electrician/panels',     icon: '🔌', description: 'Panel amps, age, last inspection', comingSoon: true },
+        { label: 'Permit Tracker', href: '/dashboard/electrician/permits',    icon: '📋', description: 'Permit status and inspections', comingSoon: true },
+        { label: 'Code Reference', href: '/dashboard/electrician/code',       icon: '📖', description: 'NEC code compliance notes', comingSoon: true },
       ],
     },
     {
@@ -51,7 +58,7 @@ export const electricianConfig: ElectricianConfig = {
     },
   ],
 
-  features: {
+    features: {
     panelRecords:   false,  // Phase 2
     permitTracking: false,  // Phase 2
     codeCompliance: false,  // Phase 2

@@ -35,23 +35,30 @@ export const defaultConfig: DefaultConfig = {
 
   nav: [
     {
-      title: 'JOBS',
+      title: 'TODAY',
       items: [
-        { label: 'Job Board', href: '/dashboard/jobs',     icon: '📋', description: 'Your pipeline' },
+        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Jobs',      href: '/dashboard/pipeline', icon: '📋', description: 'Your job pipeline' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '📅', description: 'Appointments and schedule' },
-        { label: 'Clients',   href: '/dashboard/clients',  icon: '👤', description: 'Client records' },
-        { label: 'Invoices',  href: '/dashboard/invoices', icon: '💰', description: 'Payments and balances' },
       ],
     },
     {
-      title: 'REPORTS',
+      title: 'MONEY',
       items: [
+        { label: 'Estimates', href: '/dashboard/estimates', icon: '📝', description: 'Quotes and proposals' },
+        { label: 'Invoices',  href: '/dashboard/invoices',  icon: '💰', description: 'Payments and balances' },
+      ],
+    },
+    {
+      title: 'MY BUSINESS',
+      items: [
+        { label: 'Clients',     href: '/dashboard/clients',     icon: '👤', description: 'Client records' },
         { label: 'Performance', href: '/dashboard/performance', icon: '📈', description: 'Revenue and win rate', badge: 'pro' },
       ],
     },
   ],
 
-  features: { _placeholder: true },
+    features: { _placeholder: true },
 
   // ── Components ────────────────────────────────────────────────────────────
   components: {

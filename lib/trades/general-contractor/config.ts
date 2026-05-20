@@ -6,7 +6,7 @@ export const gcConfig: GCConfig = {
   emoji: '🏗️', brandColor: '#374151', dbprCodes: ['CGC', 'RG'],
 
   labels: {
-    pipeline: 'Pipeline', estimate: 'Estimate', client: 'Client',
+    pipeline: 'Projects', estimate: 'Bid', client: 'Client',
     newButton: 'New Project', wonStage: 'Project Won',
     scopePlaceholder: 'Bathroom remodel, approximately 80 sq ft, need permits...',
     addClient: 'Add Client', clientsPage: 'Clients',
@@ -27,17 +27,24 @@ export const gcConfig: GCConfig = {
 
   nav: [
     {
-      title: 'JOBS',
+      title: 'TODAY',
       items: [
-        { label: 'Pipeline',  href: '/dashboard/jobs',     icon: '📋', description: 'Your project pipeline' },
+        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Projects',  href: '/dashboard/pipeline', icon: '🏗️', description: 'Your project pipeline' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '📅', description: 'Milestones and site visits' },
-        { label: 'Clients',   href: '/dashboard/clients',  icon: '👤', description: 'Client and project records' },
-        { label: 'Invoices',  href: '/dashboard/invoices', icon: '💰', description: 'Payments and balances' },
       ],
     },
     {
-      title: 'GC TOOLS',
+      title: 'MONEY',
       items: [
+        { label: 'Bids',     href: '/dashboard/estimates', icon: '📝', description: 'Project bids and contracts' },
+        { label: 'Invoices', href: '/dashboard/invoices',  icon: '💰', description: 'Milestone payments and balances' },
+      ],
+    },
+    {
+      title: 'MY PROJECTS',
+      items: [
+        { label: 'Clients',        href: '/dashboard/clients',       icon: '👤', description: 'Client and project records' },
         { label: 'Subcontractors', href: '/dashboard/gc/subs',       icon: '👷', description: 'Verified sub roster', comingSoon: true },
         { label: 'Milestones',     href: '/dashboard/gc/milestones', icon: '🏁', description: 'Project milestone tracking', comingSoon: true },
         { label: 'Change Orders',  href: '/dashboard/gc/changes',    icon: '📝', description: 'Change order log', comingSoon: true },
@@ -52,7 +59,7 @@ export const gcConfig: GCConfig = {
     },
   ],
 
-  features: {
+    features: {
     subcontractorRoster: false,  // Phase 5
     milestoneTracking:   false,  // Phase 5
     materialsBudget:     false,  // Phase 5

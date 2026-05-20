@@ -33,13 +33,13 @@ export interface HVACNavItem {
 }
 
 export interface HVACNavSection {
-  title:  'JOBS' | 'MY EQUIPMENT' | 'COMPLIANCE' | 'REPORTS'
+  title:  'TODAY' | 'MONEY' | 'MY EQUIPMENT' | 'COMPLIANCE' | 'REPORTS'
   items:  HVACNavItem[]
 }
 
 export interface HVACLabels {
   pipeline:    'Jobs'
-  estimate:    'Estimate'
+  estimate:    'Quote'
   invoice:     'Invoice'
   client:      'Client'
   clients:     'Clients'

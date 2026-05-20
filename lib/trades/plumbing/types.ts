@@ -32,13 +32,13 @@ export interface PlumbingNavItem {
 }
 
 export interface PlumbingNavSection {
-  title:  'JOBS' | 'PLUMBING TOOLS' | 'REPORTS'
+  title:  'TODAY' | 'MONEY' | 'PLUMBING TOOLS' | 'REPORTS'
   items:  PlumbingNavItem[]
 }
 
 export interface PlumbingLabels {
   pipeline:     'Jobs'
-  estimate:     'Estimate'
+  estimate:     'Quote'
   client:       'Client'
   newButton:    'New Call'
   wonStage:     'Job Won'

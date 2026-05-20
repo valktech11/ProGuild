@@ -18,12 +18,12 @@ export interface GCNavItem {
 }
 
 export interface GCNavSection {
-  title: 'JOBS' | 'GC TOOLS' | 'REPORTS'
+  title: 'TODAY' | 'MONEY' | 'MY PROJECTS' | 'REPORTS'
   items: GCNavItem[]
 }
 
 export interface GCLabels {
-  pipeline: 'Pipeline'; estimate: 'Estimate'; client: 'Client'
+  pipeline: 'Projects'; estimate: 'Bid'; client: 'Client'
   newButton: 'New Project'; wonStage: 'Project Won'; scopePlaceholder?: string
   addClient: 'Add Client'; clientsPage: 'Clients'
 }

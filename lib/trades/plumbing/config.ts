@@ -9,7 +9,7 @@ export const plumbingConfig: PlumbingConfig = {
   dbprCodes:   ['CFC', 'RF'],
 
   labels: {
-    pipeline: 'Jobs', estimate: 'Estimate', client: 'Client',
+    pipeline: 'Jobs', estimate: 'Quote', client: 'Client',
     newButton: 'New Call', wonStage: 'Job Won',
     scopePlaceholder: 'Kitchen sink leaking under cabinet, also need water heater checked...',
     addClient: 'Add Client', clientsPage: 'Clients',
@@ -28,19 +28,26 @@ export const plumbingConfig: PlumbingConfig = {
 
   nav: [
     {
-      title: 'JOBS',
+      title: 'TODAY',
       items: [
-        { label: 'Job Board', href: '/dashboard/jobs',     icon: '📋', description: 'Your plumbing pipeline' },
+        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Jobs',      href: '/dashboard/pipeline', icon: '🪠', description: 'Your plumbing service board' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '📅', description: 'Service appointments' },
-        { label: 'Clients',   href: '/dashboard/clients',  icon: '👤', description: 'Client records' },
-        { label: 'Invoices',  href: '/dashboard/invoices', icon: '💰', description: 'Payments and balances' },
+      ],
+    },
+    {
+      title: 'MONEY',
+      items: [
+        { label: 'Quotes',   href: '/dashboard/estimates', icon: '📝', description: 'Plumbing quotes and proposals' },
+        { label: 'Invoices', href: '/dashboard/invoices',  icon: '💰', description: 'Payments and balances' },
       ],
     },
     {
       title: 'PLUMBING TOOLS',
       items: [
-        { label: 'Fixture Records', href: '/dashboard/plumbing/fixtures', icon: '🚿', description: 'Fixture and appliance log', comingSoon: true },
-        { label: 'Permit Tracker',  href: '/dashboard/plumbing/permits',  icon: '📋', description: 'Permit status and expiry', comingSoon: true },
+        { label: 'Clients',         href: '/dashboard/clients',             icon: '👤', description: 'Client records' },
+        { label: 'Fixture Records', href: '/dashboard/plumbing/fixtures',   icon: '🚿', description: 'Fixture and appliance log', comingSoon: true },
+        { label: 'Permit Tracker',  href: '/dashboard/plumbing/permits',    icon: '📋', description: 'Permit status and expiry', comingSoon: true },
       ],
     },
     {
@@ -51,7 +58,7 @@ export const plumbingConfig: PlumbingConfig = {
     },
   ],
 
-  features: {
+    features: {
     fixtureRecords:    false,  // Phase 2
     permitTracking:    false,  // Phase 2
     emergencyDispatch: false,  // Phase 2

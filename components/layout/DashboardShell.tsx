@@ -170,7 +170,7 @@ function buildNav(nl: number, tradeSlug?: string | null, _tradeName?: string | n
 
   // Inject new-lead count badge onto the pipeline nav item
   groups.forEach(g => g.items.forEach(item => {
-    if (item.href === '/dashboard/pipeline' || item.href === '/dashboard/jobs') { if (nl > 0) (item as Record<string,unknown>).badge = nl }
+    if (item.href === '/dashboard/pipeline') { if (nl > 0) (item as Record<string,unknown>).badge = nl }
   }))
 
   groups.push({ title: 'THE GUILD', items: [

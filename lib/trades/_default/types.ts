@@ -20,7 +20,7 @@ export interface DefaultNavItem {
 }
 
 export interface DefaultNavSection {
-  title: 'JOBS' | 'REPORTS'
+  title: 'TODAY' | 'MONEY' | 'MY BUSINESS' | 'REPORTS'
   items: DefaultNavItem[]
 }
 

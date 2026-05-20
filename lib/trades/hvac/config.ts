@@ -12,7 +12,7 @@ export const hvacConfig: HVACConfig = {
 
   labels: {
     pipeline:  'Jobs',
-    estimate:  'Estimate',
+    estimate:  'Quote',
     invoice:   'Invoice',
     client:    'Client',
     clients:   'Clients',
@@ -40,17 +40,24 @@ export const hvacConfig: HVACConfig = {
 
   nav: [
     {
-      title: 'JOBS',
+      title: 'TODAY',
       items: [
-        { label: 'Job Board', href: '/dashboard/jobs',     icon: '📋', description: 'Your HVAC pipeline' },
+        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Jobs',      href: '/dashboard/pipeline', icon: '🔧', description: 'Your HVAC service board' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '🗓️', description: 'Service appointments' },
-        { label: 'Clients',   href: '/dashboard/clients',  icon: '👤', description: 'Client and equipment records' },
-        { label: 'Invoices',  href: '/dashboard/invoices', icon: '💰', description: 'Payments and balances' },
+      ],
+    },
+    {
+      title: 'MONEY',
+      items: [
+        { label: 'Quotes',   href: '/dashboard/estimates', icon: '📝', description: 'Service quotes and proposals' },
+        { label: 'Invoices', href: '/dashboard/invoices',  icon: '💰', description: 'Payments and balances' },
       ],
     },
     {
       title: 'MY EQUIPMENT',
       items: [
+        { label: 'Clients',           href: '/dashboard/clients',          icon: '👤', description: 'Client and equipment records' },
         { label: 'Equipment Records', href: '/dashboard/hvac/equipment',   icon: '❄️', description: 'AC units, furnaces, heat pumps' },
         { label: 'Refrigerant Log',   href: '/dashboard/hvac/refrigerant', icon: '🧪', description: 'EPA 608 compliance log', badge: 'pro' },
         { label: 'Maintenance Plans', href: '/dashboard/hvac/maintenance', icon: '🔔', description: 'Annual service reminders' },
@@ -71,7 +78,7 @@ export const hvacConfig: HVACConfig = {
     },
   ],
 
-  features: {
+    features: {
     equipmentRecords:      true,
     equipmentHistory:      true,
     filterTracking:        true,

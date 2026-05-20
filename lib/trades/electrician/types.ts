@@ -16,12 +16,12 @@ export interface ElectricianNavItem {
 }
 
 export interface ElectricianNavSection {
-  title: 'JOBS' | 'ELECTRICAL TOOLS' | 'REPORTS'
+  title: 'TODAY' | 'MONEY' | 'ELECTRICAL' | 'REPORTS'
   items: ElectricianNavItem[]
 }
 
 export interface ElectricianLabels {
-  pipeline: 'Jobs'; estimate: 'Estimate'; client: 'Client'
+  pipeline: 'Jobs'; estimate: 'Quote'; client: 'Client'
   newButton: 'New Call'; wonStage: 'Job Won'; scopePlaceholder?: string
   addClient: 'Add Client'; clientsPage: 'Clients'
 }
