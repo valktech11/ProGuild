@@ -336,8 +336,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             approved_amount:   (estimate as any).approved_amount,
             deductible:        (estimate as any).deductible,
             payment_milestones:(estimate as any).payment_milestones,
-            pro_name:          (estimate as any).pro_name  ?? session?.full_name,
-            pro_phone:         (estimate as any).pro_phone ?? session?.phone_cell,
+            pro_name:          (estimate as any).pro_name  ?? session?.name,
+            pro_phone:         (estimate as any).pro_phone ?? null,
           }}
           templates={(estimate as any).gbb_templates ?? []}
           onSave={async (updates) => {
