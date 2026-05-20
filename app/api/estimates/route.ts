@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 // Creates a blank draft estimate and returns it so the UI can redirect to /[id]
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email } = body
+  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address } = body
 
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
@@ -96,6 +96,8 @@ export async function POST(req: NextRequest) {
       trade_slug:      trade_slug || null,
       // Roofers default to tiered (GBB) — other trades default to standard
       estimate_type:   (trade_slug?.includes('roof') ? 'tiered' : 'standard'),
+      // property_address copied from lead at creation — shown in builder header
+      ...(property_address ? { property_address } : {}),
     })
     .select()
     .single()

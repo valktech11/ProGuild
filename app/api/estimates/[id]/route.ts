@@ -15,7 +15,8 @@ export async function GET(
     .select(`
       *,
       items:estimate_items(*),
-      pro:pros(trade_slug, full_name, phone_cell, city, state)
+      pro:pros(trade_slug, full_name, phone_cell, city, state),
+      lead:leads(property_address, contact_phone, contact_email, contact_name)
     `)
     .eq('id', id)
     .single()
@@ -28,18 +29,47 @@ export async function GET(
   // Build approval timeline from status fields
   const timeline = buildTimeline(estimate)
 
-  // Flatten pro fields so shell page can read estimate.trade_slug directly
-  const pro = (estimate as any).pro ?? {}
-  const { pro: _pro, ...estimateWithoutPro } = estimate as any
+  const pro  = (estimate as any).pro  ?? {}
+  const lead = (estimate as any).lead ?? {}
+  const { pro: _pro, lead: _lead, ...estClean } = estimate as any
+
+  // Fetch roofing measurements from roofing_job_data if roofing trade + has lead
+  let roofingData: any = null
+  const tradeSlugResolved = estClean.trade_slug ?? pro.trade_slug ?? null
+  if (estClean.lead_id && tradeSlugResolved?.includes('roof')) {
+    const { data: rd } = await sb
+      .from('roofing_job_data')
+      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
+      .eq('lead_id', estClean.lead_id)
+      .maybeSingle()
+    roofingData = rd
+  }
+
   return NextResponse.json({
     estimate: {
-      ...estimateWithoutPro,
+      ...estClean,
       timeline,
-      trade_slug: estimateWithoutPro.trade_slug ?? pro.trade_slug ?? null,
-      pro_name:   pro.full_name ?? null,
-      pro_phone:  pro.phone_cell ?? null,
-      pro_city:   pro.city ?? null,
-      pro_state:  pro.state ?? null,
+      // Trade routing — primary source: estimate.trade_slug; fallback: pro.trade_slug
+      trade_slug:        tradeSlugResolved,
+      // Pro info for estimate builder header
+      pro_name:          pro.full_name   ?? null,
+      pro_phone:         pro.phone_cell  ?? null,
+      pro_city:          pro.city        ?? null,
+      pro_state:         pro.state       ?? null,
+      // Property address — from estimate if saved, fallback to lead
+      property_address:  estClean.property_address ?? lead.property_address ?? null,
+      // Roofing measurements — pre-fill the builder
+      square_count:      roofingData?.square_count     ?? null,
+      pitch:             roofingData?.pitch             ?? null,
+      waste_pct:         roofingData?.waste_pct         ?? null,
+      // Insurance data
+      insurance_claim:   roofingData?.insurance_claim  ?? false,
+      approved_amount:   roofingData?.approved_amount  ?? null,
+      deductible:        roofingData?.deductible        ?? null,
+      supplement_amount: roofingData?.supplement_amount ?? null,
+      insurance_company: roofingData?.insurance_company ?? null,
+      claim_number:      roofingData?.claim_number      ?? null,
+      adjuster_name:     roofingData?.adjuster_name     ?? null,
     }
   })
 }

@@ -141,6 +141,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [confirmBack,  setConfirmBack]  = useState<LeadStatus|null>(null)
   const [warnSched,    setWarnSched]    = useState(false)
   const [warnDone,     setWarnDone]     = useState(false)
+  const [warnProposal, setWarnProposal] = useState(false)  // proposal_sent without an estimate
 
   // ── Edit fields ──────────────────────────────────────────────────────────
   const [eAddr,  setEAddr]  = useState('')
@@ -224,6 +225,23 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     if (!force) {
       if (s==='Scheduled'&&!est) { setWarnSched(true); return }
       if (s==='Completed'&&!inv) { setWarnDone(true); return }
+      // Gate: proposal_sent requires a real estimate with items
+      if (s==='proposal_sent') {
+        if (!est) { setWarnProposal(true); return }
+        if ((est as any).total === 0) { setWarnProposal(true); return }
+        // Estimate exists and has value — move stage then open estimate
+        const prev2 = stage; setStage(s as LeadStatus); setSaving(true)
+        const ok2 = await patch({ lead_status: s }); setSaving(false)
+        if (ok2) {
+          setLead(l => l ? { ...l, lead_status: s } : l)
+          addToast('Moved to Proposal Sent', 'success', prev2)
+          router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)
+        } else {
+          setStage(prev2)
+          addToast('Failed to update stage', 'error')
+        }
+        return
+      }
     }
     const prev=stage; setStage(s); setSaving(true)
     const ok = await patch({lead_status:s}); setSaving(false)
@@ -299,7 +317,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     if (!lead||!session||creatingEst) return
     setCreatingEst(true)
     try {
-      const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,lead_id:lead.id,lead_name:lead.contact_name,lead_source:lead.lead_source||'',trade:session.trade||'',state:session.state||'',contact_phone:lead.contact_phone||'',contact_email:lead.contact_email||''})})
+      const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        pro_id:           session.id,
+        lead_id:          lead.id,
+        lead_name:        lead.contact_name,
+        lead_source:      lead.lead_source||'',
+        trade:            session.trade||'',
+        trade_slug:       session.trade_slug||'',
+        state:            session.state||'',
+        contact_phone:    lead.contact_phone||'',
+        contact_email:    lead.contact_email||'',
+        property_address: (lead as any).property_address||'',
+      })})
       const d=await r.json(); if(d.estimate?.id) router.push(`/dashboard/estimates/${d.estimate.id}?from=pipeline&lead_id=${id}`)
     } catch { setCreatingEst(false) }
   }

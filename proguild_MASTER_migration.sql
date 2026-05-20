@@ -246,6 +246,9 @@ ALTER TABLE estimates ADD COLUMN IF NOT EXISTS payment_milestones JSONB;
 -- correct trade-specific builder. Source of truth: the estimate, not the session.
 ALTER TABLE estimates ADD COLUMN IF NOT EXISTS trade_slug TEXT;
 
+-- property_address copied from lead at estimate creation — shown in builder header
+ALTER TABLE estimates ADD COLUMN IF NOT EXISTS property_address TEXT;
+
 -- Backfill trade_slug from the pro who owns each estimate
 UPDATE estimates e
 SET    trade_slug = p.trade_slug
