@@ -239,8 +239,23 @@ ALTER TABLE estimates DROP COLUMN IF EXISTS tiers;
 -- Add scope_of_work column for roofing narrative proposal text
 ALTER TABLE estimates ADD COLUMN IF NOT EXISTS scope_of_work TEXT;
 
--- Add payment_milestones JSONB for inline milestone storage (before payment_schedules table created)
+-- Add payment_milestones JSONB for inline milestone storage
 ALTER TABLE estimates ADD COLUMN IF NOT EXISTS payment_milestones JSONB;
+
+-- Add trade_slug — the canonical routing key. Used by shell pages to pick the
+-- correct trade-specific builder. Source of truth: the estimate, not the session.
+ALTER TABLE estimates ADD COLUMN IF NOT EXISTS trade_slug TEXT;
+
+-- Backfill trade_slug from the pro who owns each estimate
+UPDATE estimates e
+SET    trade_slug = p.trade_slug
+FROM   pros p
+WHERE  p.id = e.pro_id
+AND    e.trade_slug IS NULL
+AND    p.trade_slug IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_estimates_trade_slug
+  ON estimates (trade_slug) WHERE trade_slug IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_estimates_pro_status
   ON estimates (pro_id, status);

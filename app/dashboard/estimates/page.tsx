@@ -140,6 +140,7 @@ export default function EstimatesPage() {
           lead_name:     lead?.contact_name || 'New Client',
           lead_source:   lead?.lead_source || '',
           trade:         session.trade || '',
+          trade_slug:    session.trade_slug || '',
           contact_phone: lead?.contact_phone || '',
           contact_email: lead?.contact_email || '',
         }),
@@ -181,6 +182,7 @@ export default function EstimatesPage() {
           lead_name:     pendingLead?.contact_name || 'New Client',
           lead_source:   pendingLead?.lead_source || '',
           trade:         session.trade || '',
+          trade_slug:    session.trade_slug || '',
           contact_phone: pendingLead?.contact_phone || '',
           contact_email: pendingLead?.contact_email || '',
           force_new:     true,
@@ -292,7 +294,7 @@ export default function EstimatesPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => router.push('/dashboard/estimates/tiered')}
+                onClick={() => {}}  // GBB is now a toggle inside the estimate builder — not a separate page
                 className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg whitespace-nowrap"
                 style={{ border: '1.5px solid #0F766E', color: '#0F766E', background: '#F0FDFA' }}
               >

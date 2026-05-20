@@ -311,6 +311,75 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const t     = theme(dk)
   const muted = t.textMuted   // color value for inline styles
 
+  // ── Trade routing — use estimate.trade_slug, NOT session.trade_slug ──────
+  // estimate.trade_slug comes from the DB via the pro join in GET /api/estimates/[id]
+  // This is the correct source of truth. Session can be stale or unloaded.
+  const estTradeSlug = (estimate as any)?.trade_slug ?? session?.trade_slug ?? ''
+  if (!loading && estimate && isRoofing(getTradeConfig(estTradeSlug))) {
+    return (
+      <DashboardShell session={session} newLeads={0} onAddLead={() => {}}
+        darkMode={dk} onToggleDark={toggleDark}>
+        <RoofingEstimatePage
+          estimate={{
+            ...estimate,
+            estimate_number:   estimate.estimate_number,
+            estimate_type:     (estimate as any).estimate_type ?? 'tiered',
+            tiered_data:       (estimate as any).tiered_data,
+            scope_of_work:     (estimate as any).scope_of_work,
+            square_count:      (estimate as any).square_count,
+            pitch:             (estimate as any).pitch,
+            waste_pct:         (estimate as any).waste_pct,
+            insurance_claim:   (estimate as any).insurance_claim,
+            insurance_company: (estimate as any).insurance_company,
+            claim_number:      (estimate as any).claim_number,
+            adjuster_name:     (estimate as any).adjuster_name,
+            approved_amount:   (estimate as any).approved_amount,
+            deductible:        (estimate as any).deductible,
+            payment_milestones:(estimate as any).payment_milestones,
+            pro_name:          (estimate as any).pro_name  ?? session?.full_name,
+            pro_phone:         (estimate as any).pro_phone ?? session?.phone_cell,
+          }}
+          templates={(estimate as any).gbb_templates ?? []}
+          onSave={async (updates) => {
+            setSaving(true)
+            try {
+              await fetch(`/api/estimates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...estimate, ...updates }),
+              })
+              setEstimate(prev => prev ? { ...prev, ...updates } as any : prev)
+              setSaveMsg('Saved ✓')
+              setTimeout(() => setSaveMsg(null), 2500)
+            } catch { setSaveMsg('Save failed') }
+            finally { setSaving(false) }
+          }}
+          onSend={async () => {
+            if (!estimate.contact_email) {
+              setSaveMsg('No email on file — open lead to add email')
+              setTimeout(() => setSaveMsg(null), 3000)
+              return
+            }
+            const sentAt = new Date().toISOString()
+            await fetch(`/api/estimates/${id}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }),
+            })
+            await fetch('/api/estimates/send', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ estimateId: id, pro_id: session?.id }),
+            })
+            setEstimate(prev => prev ? { ...prev, status: 'sent' } as any : prev)
+            setSaveMsg('Estimate sent ✓')
+            setTimeout(() => setSaveMsg(null), 3000)
+          }}
+          onBack={() => router.push(backNav().href)}
+          darkMode={dk}
+        />
+      </DashboardShell>
+    )
+  }
+
   return (
     <>
     {/* ── Create Invoice Modal ─────────────────────────────────────────── */}

@@ -14,7 +14,8 @@ export async function GET(
     .from('estimates')
     .select(`
       *,
-      items:estimate_items(*)
+      items:estimate_items(*),
+      pro:pros(trade_slug, full_name, phone_cell, city, state)
     `)
     .eq('id', id)
     .single()
@@ -27,7 +28,20 @@ export async function GET(
   // Build approval timeline from status fields
   const timeline = buildTimeline(estimate)
 
-  return NextResponse.json({ estimate: { ...estimate, timeline } })
+  // Flatten pro fields so shell page can read estimate.trade_slug directly
+  const pro = (estimate as any).pro ?? {}
+  const { pro: _pro, ...estimateWithoutPro } = estimate as any
+  return NextResponse.json({
+    estimate: {
+      ...estimateWithoutPro,
+      timeline,
+      trade_slug: estimateWithoutPro.trade_slug ?? pro.trade_slug ?? null,
+      pro_name:   pro.full_name ?? null,
+      pro_phone:  pro.phone_cell ?? null,
+      pro_city:   pro.city ?? null,
+      pro_state:  pro.state ?? null,
+    }
+  })
 }
 
 // ── PATCH /api/estimates/[id] ────────────────────────────────────────────────
