@@ -140,8 +140,8 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
   const activeStages  = getActiveStages(tradeSlug).filter(s => !s.terminal)
   const wonStage      = { key: getStageAnchors(tradeSlug).won, label: plugin.labels.wonStage, color: '#4A7B4A', bg: '#F0FDF4' }
   const stageOptions  = [...activeStages, ...getActiveStages(tradeSlug).filter(s => s.terminal && s.key === wonStage.key)]
-  const sourceOptions = (plugin as any).leadSources
-    ? (plugin as any).leadSources.map((s: any) => ({ key: s.value ?? s.label, label: s.label }))
+  const sourceOptions: { key: string; label: string }[] = (plugin as any).leadSources
+    ? (plugin as any).leadSources.map((s: any) => ({ key: s.value ?? s.label as string, label: s.label as string }))
     : SOURCES  // fallback for trades without leadSources
 
   // Close on Escape only — no document mousedown listener (caused close-on-pill-click bug)
@@ -240,7 +240,7 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
           <Section label="Lead Source" color={text}>
             <div className="grid grid-cols-3 gap-2">
               {sourceOptions.map(({ key, label }) => {
-                const active = filters.sources.includes(key)
+                const active = filters.sources.some(f => f === key)
                 return (
                   <button
                     key={key}
