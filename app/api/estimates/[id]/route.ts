@@ -62,13 +62,14 @@ export async function GET(
       pro_phone:     pro.phone_cell ?? null,
       pro_city:      pro.city       ?? null,
       pro_state:     pro.state      ?? null,
-      // ── Roofing estimate data (from roofing_estimate_data, fallback to estimates columns) ──
-      estimate_type:      roofing.estimate_type      ?? estClean.estimate_type      ?? 'tiered',
-      tiered_data:        roofing.tiered_data        ?? estClean.tiered_data        ?? null,
-      scope_of_work:      roofing.scope_of_work      ?? estClean.scope_of_work      ?? null,
-      payment_milestones: roofing.payment_milestones ?? estClean.payment_milestones ?? null,
-      // Property address — roofing_estimate_data → estimates column → lead
-      property_address:   roofing.property_address   ?? estClean.property_address   ?? lead.property_address ?? null,
+      // ── Roofing estimate data — source of truth: roofing_estimate_data only ──
+      // estClean fallbacks removed — columns dropped from estimates in v95
+      estimate_type:      roofing.estimate_type      ?? 'tiered',
+      tiered_data:        roofing.tiered_data        ?? null,
+      scope_of_work:      roofing.scope_of_work      ?? null,
+      payment_milestones: roofing.payment_milestones ?? null,
+      // Property address — roofing_estimate_data → lead (estimates column dropped)
+      property_address:   roofing.property_address   ?? lead.property_address ?? null,
       // Measurements — roofing_estimate_data first, then roofing_job_data (live job data)
       square_count:  roofing.square_count ?? roofingJobData?.square_count ?? null,
       pitch:         roofing.pitch        ?? roofingJobData?.pitch        ?? null,

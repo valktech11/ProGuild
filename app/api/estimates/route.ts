@@ -94,10 +94,8 @@ export async function POST(req: NextRequest) {
       contact_email:   contact_email || null,
       terms:           'This estimate is valid for 14 days. Payment is due upon job completion. A 50% deposit is required to begin work.',
       trade_slug:      trade_slug || null,
-      // Roofers default to tiered (GBB) — other trades default to standard
-      estimate_type:   (trade_slug?.includes('roof') ? 'tiered' : 'standard'),
-      // property_address copied from lead at creation — shown in builder header
-      ...(property_address ? { property_address } : {}),
+      // Note: estimate_type, tiered_data, scope_of_work, payment_milestones,
+      // property_address are NOT written here — they live in roofing_estimate_data.
     })
     .select()
     .single()
