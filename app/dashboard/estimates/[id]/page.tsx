@@ -321,7 +321,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         darkMode={dk} onToggleDark={toggleDark}>
         <RoofingEstimatePage
           estimate={{
-            ...estimate,
+            ...(estimate as any),
             estimate_number:   estimate.estimate_number,
             estimate_type:     (estimate as any).estimate_type ?? 'tiered',
             tiered_data:       (estimate as any).tiered_data,
