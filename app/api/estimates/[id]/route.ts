@@ -16,7 +16,12 @@ export async function GET(
       *,
       items:estimate_items(*),
       pro:pros(trade_slug, full_name, phone_cell, city, state),
-      lead:leads(property_address, contact_phone, contact_email, contact_name)
+      lead:leads(property_address, contact_phone, contact_email, contact_name),
+      roofing:roofing_estimate_data(
+        estimate_type, tiered_data, scope_of_work,
+        payment_milestones, property_address,
+        square_count, pitch, waste_pct
+      )
     `)
     .eq('id', id)
     .single()
@@ -29,47 +34,53 @@ export async function GET(
   // Build approval timeline from status fields
   const timeline = buildTimeline(estimate)
 
-  const pro  = (estimate as any).pro  ?? {}
-  const lead = (estimate as any).lead ?? {}
-  const { pro: _pro, lead: _lead, ...estClean } = estimate as any
+  const pro      = (estimate as any).pro     ?? {}
+  const lead     = (estimate as any).lead    ?? {}
+  const roofing  = (estimate as any).roofing ?? {}   // roofing_estimate_data row
+  const { pro: _pro, lead: _lead, roofing: _roofing, ...estClean } = estimate as any
 
-  // Fetch roofing measurements from roofing_job_data if roofing trade + has lead
-  let roofingData: any = null
   const tradeSlugResolved = estClean.trade_slug ?? pro.trade_slug ?? null
+
+  // Fetch roofing_job_data for insurance + measurements (lead-level data)
+  let roofingJobData: any = null
   if (estClean.lead_id && tradeSlugResolved?.includes('roof')) {
     const { data: rd } = await sb
       .from('roofing_job_data')
       .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
       .eq('lead_id', estClean.lead_id)
       .maybeSingle()
-    roofingData = rd
+    roofingJobData = rd
   }
 
   return NextResponse.json({
     estimate: {
       ...estClean,
       timeline,
-      // Trade routing — primary source: estimate.trade_slug; fallback: pro.trade_slug
-      trade_slug:        tradeSlugResolved,
-      // Pro info for estimate builder header
-      pro_name:          pro.full_name   ?? null,
-      pro_phone:         pro.phone_cell  ?? null,
-      pro_city:          pro.city        ?? null,
-      pro_state:         pro.state       ?? null,
-      // Property address — from estimate if saved, fallback to lead
-      property_address:  estClean.property_address ?? lead.property_address ?? null,
-      // Roofing measurements — pre-fill the builder
-      square_count:      roofingData?.square_count     ?? null,
-      pitch:             roofingData?.pitch             ?? null,
-      waste_pct:         roofingData?.waste_pct         ?? null,
-      // Insurance data
-      insurance_claim:   roofingData?.insurance_claim  ?? false,
-      approved_amount:   roofingData?.approved_amount  ?? null,
-      deductible:        roofingData?.deductible        ?? null,
-      supplement_amount: roofingData?.supplement_amount ?? null,
-      insurance_company: roofingData?.insurance_company ?? null,
-      claim_number:      roofingData?.claim_number      ?? null,
-      adjuster_name:     roofingData?.adjuster_name     ?? null,
+      trade_slug:    tradeSlugResolved,
+      // Pro info
+      pro_name:      pro.full_name  ?? null,
+      pro_phone:     pro.phone_cell ?? null,
+      pro_city:      pro.city       ?? null,
+      pro_state:     pro.state      ?? null,
+      // ── Roofing estimate data (from roofing_estimate_data, fallback to estimates columns) ──
+      estimate_type:      roofing.estimate_type      ?? estClean.estimate_type      ?? 'tiered',
+      tiered_data:        roofing.tiered_data        ?? estClean.tiered_data        ?? null,
+      scope_of_work:      roofing.scope_of_work      ?? estClean.scope_of_work      ?? null,
+      payment_milestones: roofing.payment_milestones ?? estClean.payment_milestones ?? null,
+      // Property address — roofing_estimate_data → estimates column → lead
+      property_address:   roofing.property_address   ?? estClean.property_address   ?? lead.property_address ?? null,
+      // Measurements — roofing_estimate_data first, then roofing_job_data (live job data)
+      square_count:  roofing.square_count ?? roofingJobData?.square_count ?? null,
+      pitch:         roofing.pitch        ?? roofingJobData?.pitch        ?? null,
+      waste_pct:     roofing.waste_pct    ?? roofingJobData?.waste_pct    ?? null,
+      // Insurance (always from roofing_job_data — live claim state)
+      insurance_claim:   roofingJobData?.insurance_claim   ?? false,
+      approved_amount:   roofingJobData?.approved_amount   ?? null,
+      deductible:        roofingJobData?.deductible         ?? null,
+      supplement_amount: roofingJobData?.supplement_amount ?? null,
+      insurance_company: roofingJobData?.insurance_company ?? null,
+      claim_number:      roofingJobData?.claim_number       ?? null,
+      adjuster_name:     roofingJobData?.adjuster_name      ?? null,
     }
   })
 }
@@ -88,9 +99,12 @@ export async function PATCH(
     require_deposit, deposit_percent, terms, status, notes,
     contact_phone, contact_email, sent_at,
     voided_at, void_reason, declined_at, decline_reason,
-    estimate_type, tiered_data,
+    // Roofing-specific — written to roofing_estimate_data, NOT estimates
+    estimate_type, tiered_data, scope_of_work, payment_milestones,
+    property_address, square_count, pitch, waste_pct,
   } = body
 
+  // ── Universal estimate fields → estimates table ──────────────────────────
   const updatePayload: Record<string, unknown> = {
     subtotal, discount, discount_type, tax_rate, tax_amount, total,
     require_deposit, deposit_percent, terms, status, notes,
@@ -103,11 +117,39 @@ export async function PATCH(
   if (void_reason    !== undefined) updatePayload.void_reason    = void_reason
   if (declined_at    !== undefined) updatePayload.declined_at    = declined_at
   if (decline_reason !== undefined) updatePayload.decline_reason = decline_reason
-  if (estimate_type  !== undefined) updatePayload.estimate_type  = estimate_type
-  if (tiered_data    !== undefined) updatePayload.tiered_data    = tiered_data
 
   const { error: estError } = await sb.from('estimates').update(updatePayload).eq('id', id)
   if (estError) return NextResponse.json({ error: estError.message }, { status: 500 })
+
+  // ── Roofing-specific fields → roofing_estimate_data ──────────────────────
+  // Only upsert if any roofing field is present in the payload
+  const hasRoofingFields = [
+    estimate_type, tiered_data, scope_of_work, payment_milestones,
+    property_address, square_count, pitch, waste_pct,
+  ].some(v => v !== undefined)
+
+  if (hasRoofingFields) {
+    // Need pro_id for RLS — fetch from estimate
+    const { data: estRow } = await sb.from('estimates').select('pro_id').eq('id', id).single()
+    if (estRow?.pro_id) {
+      const roofingPayload: Record<string, unknown> = {
+        estimate_id: id,
+        pro_id:      estRow.pro_id,
+        updated_at:  new Date().toISOString(),
+      }
+      if (estimate_type      !== undefined) roofingPayload.estimate_type      = estimate_type
+      if (tiered_data        !== undefined) roofingPayload.tiered_data        = tiered_data
+      if (scope_of_work      !== undefined) roofingPayload.scope_of_work      = scope_of_work
+      if (payment_milestones !== undefined) roofingPayload.payment_milestones = payment_milestones
+      if (property_address   !== undefined) roofingPayload.property_address   = property_address
+      if (square_count       !== undefined) roofingPayload.square_count       = square_count
+      if (pitch              !== undefined) roofingPayload.pitch              = pitch
+      if (waste_pct          !== undefined) roofingPayload.waste_pct          = waste_pct
+
+      await sb.from('roofing_estimate_data')
+        .upsert(roofingPayload, { onConflict: 'estimate_id' })
+    }
+  }
 
   // B10 FIX: always process items array — even empty (to delete all removed items)
   if (Array.isArray(items)) {

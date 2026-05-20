@@ -166,13 +166,17 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
       const measurements = d.measurements as Record<string, unknown> | undefined
       if (measurements) {
         try {
-          sessionStorage.setItem('pg_promeasure', JSON.stringify({
+          const reportSessionData = {
             squares: Number(measurements.totalSquaresOrder) || 0,
             pitch:   (measurements.dominantPitch   as string) ?? '4/12',
             waste:   Number(measurements.wasteFactor) || 12,
             source:  'roof_report',
             address: fullAddress,
-          }))
+          }
+          // pg_promeasure = ProMeasure/calculator shared key
+          // pg_report_data = satellite report key (what calculator checks first)
+          sessionStorage.setItem('pg_promeasure',   JSON.stringify(reportSessionData))
+          sessionStorage.setItem('pg_report_data',  JSON.stringify(reportSessionData))
         } catch {
           // sessionStorage unavailable (private browsing quota) — non-fatal
         }

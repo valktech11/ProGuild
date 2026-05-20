@@ -32,6 +32,16 @@ interface LeadUpdateFields {
   updated_at:        string
 }
 
+// Roofing-specific fields — written to roofing_job_data, never to leads
+const ROOFING_JOB_FIELDS = [
+  'insurance_claim', 'insurance_company', 'claim_number',
+  'adjuster_name', 'adjuster_phone', 'adjuster_appointment',
+  'claim_status', 'approved_amount', 'supplement_amount', 'deductible',
+  'square_count', 'pitch', 'waste_pct', 'roof_type',
+  'shingle_brand', 'shingle_model', 'warranty_term',
+  'decking_replacement', 'layers', 'permit_number', 'permit_status',
+] as const
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(
@@ -125,6 +135,25 @@ export async function PATCH(
     .single()
 
   if (error || !data) return apiError('Lead not found or access denied', 403)
+
+  // ── Roofing-specific fields → roofing_job_data ───────────────────────────
+  // InsuranceClaimFields and other roofing components send these fields.
+  // They must never land on the leads table — they go here.
+  const roofingPayload: Record<string, unknown> = {}
+  for (const field of ROOFING_JOB_FIELDS) {
+    if (field in body) roofingPayload[field] = body[field]
+  }
+
+  if (Object.keys(roofingPayload).length > 0) {
+    roofingPayload.lead_id    = id
+    roofingPayload.pro_id     = proId
+    roofingPayload.updated_at = new Date().toISOString()
+    await getSupabaseAdmin()
+      .from('roofing_job_data')
+      .upsert(roofingPayload, { onConflict: 'lead_id' })
+    // Non-fatal — don't block the leads update response
+  }
+
   return NextResponse.json({ lead: data })
 }
 

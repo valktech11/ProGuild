@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 // Creates a blank draft estimate and returns it so the UI can redirect to /[id]
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address } = body
+  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source } = body
 
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
@@ -103,5 +103,30 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ estimate, existed: false })
+
+  // ── Roofing estimates get a roofing_estimate_data row immediately ─────────
+  if (trade_slug?.includes('roof') && estimate) {
+    await sb.from('roofing_estimate_data').upsert({
+      estimate_id:      estimate.id,
+      pro_id:           pro_id,
+      estimate_type:    'tiered',
+      property_address: property_address || null,
+    }, { onConflict: 'estimate_id' })
+  }
+
+  // ── Line items from calculator — insert into estimate_items ──────────────
+  if (Array.isArray(line_items) && line_items.length > 0 && estimate) {
+    const items = line_items.map((item: any) => ({
+      estimate_id: estimate.id,
+      name:        item.description || item.name || 'Item',
+      description: item.description || '',
+      qty:         Number(item.quantity ?? item.qty) || 1,
+      unit_price:  Number(item.unit_price ?? item.unitPrice) || 0,
+      amount:      Number(item.quantity ?? item.qty) * Number(item.unit_price ?? item.unitPrice) || 0,
+    }))
+    const { error: itemsErr } = await sb.from('estimate_items').insert(items)
+    if (itemsErr) console.error('[estimates POST] line_items insert error:', itemsErr.message)
+  }
+
+  return NextResponse.json({ estimate: { ...estimate, id: estimate.id }, existed: false })
 }
