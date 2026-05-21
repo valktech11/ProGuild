@@ -96,6 +96,8 @@ interface Props {
   onSend: () => Promise<void>
   onBack: () => void
   darkMode?: boolean
+  // Called when roofer edits address/measurements — updates lead + roofing_estimate_data
+  onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number }) => Promise<void>
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -184,13 +186,20 @@ const DEFAULT_TIERS: Tier[] = [
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode }: Props) {
+export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate }: Props) {
   const dk = darkMode ?? false
 
   // Proposal type
   const [estType, setEstType] = useState<'standard' | 'tiered'>(
     estimate.estimate_type ?? 'tiered'
   )
+
+  // Measurements state — editable inline
+  const [sqCount,   setSqCount]   = useState<string>(String(estimate.square_count ?? ''))
+  const [pitchVal,  setPitchVal]  = useState<string>(estimate.pitch ?? '6/12')
+  const [wastePct,  setWastePct]  = useState<string>(String(estimate.waste_pct ?? 10))
+  const [editMeas,  setEditMeas]  = useState(false)
+  const [savingMeas,setSavingMeas]= useState(false)
 
   // GBB state — initialise from DB or defaults
   const [tiers, setTiers] = useState<Tier[]>(() => {
@@ -243,6 +252,34 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const recalcMilestones = useCallback((newTotal: number) => {
     setMilestones(ms => ms.map(m => ({ ...m, amount: Math.round(newTotal * m.pct / 100) })))
   }, [])
+
+  // Recalc all tier quantities + amounts when measurements change
+  const recalcTiersFromSq = useCallback((sq: number) => {
+    setTiers(prev => prev.map(tier => {
+      const items = tier.items.map(item => {
+        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? Math.round(sq * 10) : item.qty
+        return { ...item, qty, amount: Math.round(qty * item.unit_price) }
+      })
+      return { ...tier, items, subtotal: items.reduce((s, i) => s + i.amount, 0) }
+    }))
+  }, [])
+
+  // Save measurements — updates roofing_estimate_data + lead
+  const saveMeasurements = useCallback(async () => {
+    setSavingMeas(true)
+    const sq = parseFloat(sqCount) || 0
+    const wp = parseFloat(wastePct) || 10
+    recalcTiersFromSq(sq)
+    try {
+      await onSave({ square_count: sq, pitch: pitchVal, waste_pct: wp } as any)
+      if (onMeasurementsUpdate) {
+        await onMeasurementsUpdate({ square_count: sq, pitch: pitchVal, waste_pct: wp })
+      }
+    } finally {
+      setSavingMeas(false)
+      setEditMeas(false)
+    }
+  }, [sqCount, pitchVal, wastePct, recalcTiersFromSq, onSave, onMeasurementsUpdate])
 
   // ── Tier item editing ────────────────────────────────────────────────────────
 
@@ -384,7 +421,14 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
           {/* Property + measurements */}
-          <PropertyCard estimate={estimate} card={card} border={border} textP={textP} textS={textS} />
+          <PropertyCard
+            estimate={estimate} card={card} border={border} textP={textP} textS={textS}
+            sqCount={sqCount} setSqCount={setSqCount}
+            pitchVal={pitchVal} setPitchVal={setPitchVal}
+            wastePct={wastePct} setWastePct={setWastePct}
+            editMeas={editMeas} setEditMeas={setEditMeas}
+            savingMeas={savingMeas} onSaveMeas={saveMeasurements}
+          />
 
           {/* Proposal type toggle */}
           <ProposalTypeToggle
@@ -506,50 +550,154 @@ function ProgressTimeline({ timeline, border, textS, card }: {
 }
 
 // ── PropertyCard ───────────────────────────────────────────────────────────────
-function PropertyCard({ estimate, card, border, textP, textS }: {
+const PITCH_OPTIONS = ['3/12','4/12','5/12','6/12','7/12','8/12','9/12','10/12','12/12']
+
+function PropertyCard({ estimate, card, border, textP, textS,
+  sqCount, setSqCount, pitchVal, setPitchVal, wastePct, setWastePct,
+  editMeas, setEditMeas, savingMeas, onSaveMeas }: {
   estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
+  sqCount: string; setSqCount: (v: string) => void
+  pitchVal: string; setPitchVal: (v: string) => void
+  wastePct: string; setWastePct: (v: string) => void
+  editMeas: boolean; setEditMeas: (v: boolean) => void
+  savingMeas: boolean; onSaveMeas: () => Promise<void>
 }) {
+  const hasSq = parseFloat(sqCount) > 0
+
   return (
     <div style={{ background: card, borderRadius: 16, padding: '20px 24px', boxShadow: SHADOW_SM,
-      display: 'flex', alignItems: 'center', gap: 20, border: `1px solid ${border}` }}>
-      <div style={{ width: 80, height: 64, borderRadius: 10, overflow: 'hidden', flexShrink: 0,
-        background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5">
-          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.5">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+      border: `1px solid ${border}` }}>
+      {/* Address row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: editMeas ? 20 : 0 }}>
+        <div style={{ width: 56, height: 48, borderRadius: 10, flexShrink: 0,
+          background: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="1.5">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
           </svg>
-          <span style={{ fontSize: 16, fontWeight: 700, color: textP }}>
-            {estimate.property_address ?? 'No address on file'}
-          </span>
         </div>
-        <div style={{ fontSize: 13, color: textS }}>{estimate.lead_name} · Lead</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: textP, marginBottom: 2 }}>
+            {estimate.property_address ?? 'No address on file'}
+          </div>
+          <div style={{ fontSize: 13, color: textS }}>{estimate.lead_name} · Lead</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {/* Measurement pills — click to edit */}
+          {hasSq ? (
+            <>
+              <MeasPill label={`${sqCount} sq`} warn={false} />
+              <MeasPill label={`${pitchVal} pitch`} warn={false} />
+              <MeasPill label={`${wastePct}% waste`} warn={false} />
+            </>
+          ) : (
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.danger,
+              background: '#FEF2F2', border: '1px solid #FECACA',
+              padding: '5px 12px', borderRadius: 8 }}>
+              ⚠ No measurements — enter below
+            </span>
+          )}
+          <button onClick={() => setEditMeas(!editMeas)}
+            style={{ padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+              background: editMeas ? '#F1F5F9' : C.tealLight,
+              color: editMeas ? textS : C.teal,
+              border: `1.5px solid ${editMeas ? border : '#99F6E4'}`,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+            </svg>
+            {editMeas ? 'Cancel' : 'Edit'}
+          </button>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {[
-          estimate.square_count ? `${estimate.square_count} sq` : null,
-          estimate.pitch ? `${estimate.pitch} pitch` : null,
-          estimate.waste_pct ? `${estimate.waste_pct}% waste` : null,
-        ].filter(Boolean).map(tag => (
-          <span key={tag} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: C.tealLight, color: C.teal, border: `1px solid #99F6E4` }}>
-            {tag}
-          </span>
-        ))}
-        <button style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-          background: 'transparent', color: C.secondary, border: `1.5px solid ${border}`, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 4 }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-          </svg>
-          Edit
-        </button>
-      </div>
+
+      {/* Inline measurement editor */}
+      {editMeas && (
+        <div style={{ borderTop: `1px solid ${border}`, paddingTop: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: textS, marginBottom: 14 }}>
+            Roof Measurements
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+            {/* Squares */}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: textS,
+                display: 'block', marginBottom: 6 }}>Squares *</label>
+              <input
+                type="number" min="0" step="0.5"
+                value={sqCount}
+                onChange={e => setSqCount(e.target.value)}
+                placeholder="e.g. 28"
+                style={{ width: '100%', border: `1.5px solid ${parseFloat(sqCount) > 0 ? C.teal : border}`,
+                  borderRadius: 8, padding: '10px 12px', fontSize: 16, fontWeight: 700,
+                  outline: 'none', boxSizing: 'border-box',
+                  background: parseFloat(sqCount) > 0 ? C.tealLight : '#F8FAFC', color: textP }}
+                onFocus={e => e.target.style.borderColor = C.teal}
+                onBlur={e => e.target.style.borderColor = parseFloat(sqCount) > 0 ? C.teal : border}
+              />
+              <div style={{ fontSize: 11, color: textS, marginTop: 4 }}>
+                Drives all line item quantities
+              </div>
+            </div>
+            {/* Pitch */}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: textS,
+                display: 'block', marginBottom: 6 }}>Pitch</label>
+              <select
+                value={pitchVal}
+                onChange={e => setPitchVal(e.target.value)}
+                style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 8,
+                  padding: '10px 12px', fontSize: 15, outline: 'none',
+                  background: '#F8FAFC', color: textP, boxSizing: 'border-box',
+                  cursor: 'pointer' }}>
+                {PITCH_OPTIONS.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+            {/* Waste */}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: textS,
+                display: 'block', marginBottom: 6 }}>Waste %</label>
+              <select
+                value={wastePct}
+                onChange={e => setWastePct(e.target.value)}
+                style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 8,
+                  padding: '10px 12px', fontSize: 15, outline: 'none',
+                  background: '#F8FAFC', color: textP, boxSizing: 'border-box',
+                  cursor: 'pointer' }}>
+                {[10,12,15,18,20].map(w => (
+                  <option key={w} value={w}>{w}%{w === 10 ? ' (standard)' : w === 15 ? ' (complex)' : ''}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={onSaveMeas} disabled={savingMeas || !parseFloat(sqCount)}
+              style={{ padding: '11px 28px', borderRadius: 10, border: 'none',
+                background: parseFloat(sqCount) > 0 ? `linear-gradient(135deg, ${C.teal}, #0D9488)` : '#E2E8F0',
+                color: parseFloat(sqCount) > 0 ? '#fff' : C.muted,
+                fontWeight: 800, fontSize: 14, cursor: parseFloat(sqCount) > 0 ? 'pointer' : 'default',
+                transition: 'all 0.15s' }}>
+              {savingMeas ? 'Saving...' : 'Apply & Recalculate All Tiers'}
+            </button>
+            {!parseFloat(sqCount) && (
+              <span style={{ fontSize: 13, color: C.danger }}>Enter square count to continue</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+function MeasPill({ label, warn }: { label: string; warn: boolean }) {
+  return (
+    <span style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+      background: warn ? '#FEF2F2' : C.tealLight,
+      color: warn ? C.danger : C.teal,
+      border: `1px solid ${warn ? '#FECACA' : '#99F6E4'}` }}>
+      {label}
+    </span>
   )
 }
 

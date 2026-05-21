@@ -340,6 +340,22 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             pro_phone:         (estimate as any).pro_phone ?? null,
           }}
           templates={(estimate as any).gbb_templates ?? []}
+          onMeasurementsUpdate={async (fields) => {
+            // Write measurements to roofing_estimate_data (via estimate PATCH — already handled)
+            // Also write to roofing_job_data via leads PATCH so lead detail stays in sync
+            const leadId = (estimate as any).lead_id
+            if (leadId) {
+              await fetch(`/api/leads/${leadId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  square_count: fields.square_count,
+                  pitch:        fields.pitch,
+                  waste_pct:    fields.waste_pct,
+                }),
+              })
+            }
+          }}
           onSave={async (updates) => {
             setSaving(true)
             try {
