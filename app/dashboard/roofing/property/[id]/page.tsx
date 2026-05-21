@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { theme } from '@/lib/tokens'
@@ -58,9 +59,13 @@ function Ic({ children, size = 16, color = 'currentColor' }: { children: React.R
   )
 }
 
-export default function PropertyProfilePage({ params }: { params: Promise<{ id: string }> }) {
+function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const leadId = searchParams.get('lead_id') || null
+  const [applyingToLead, setApplyingToLead] = useState(false)
+  const [appliedToLead, setAppliedToLead] = useState(false)
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
     const s = sessionStorage.getItem('pg_pro')
@@ -434,6 +439,45 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
               </div>
             )}
 
+            {/* Apply to Lead — visible when opened from a lead detail page */}
+            {latestReport && leadId && (
+              <div style={{ marginBottom: 12 }}>
+                {appliedToLead ? (
+                  <div style={{ padding: '10px 14px', borderRadius: 10, background: '#ECFDF5',
+                    border: '1px solid #6EE7B7', fontSize: 13, fontWeight: 700, color: '#065F46',
+                    display: 'flex', alignItems: 'center', gap: 8 }}>
+                    ✓ Measurements saved to lead — {latestReport.total_squares_order.toFixed(1)} sq applied
+                  </div>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      if (!session || !leadId) return
+                      setApplyingToLead(true)
+                      try {
+                        await fetch(`/api/leads/${leadId}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            square_count: latestReport.total_squares_order,
+                            pitch:        latestReport.dominant_pitch,
+                            waste_pct:    latestReport.waste_factor,
+                          }),
+                        })
+                        setAppliedToLead(true)
+                      } catch { /* non-fatal */ }
+                      finally { setApplyingToLead(false) }
+                    }}
+                    disabled={applyingToLead}
+                    style={{ width: '100%', padding: '11px', borderRadius: 10, border: 'none',
+                      background: 'linear-gradient(135deg, #0F766E, #0D9488)',
+                      color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    {applyingToLead ? 'Saving...' : `↩ Apply ${latestReport.total_squares_order.toFixed(1)} sq to Lead`}
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Action row */}
             <style>{`
               .action-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
@@ -708,5 +752,13 @@ export default function PropertyProfilePage({ params }: { params: Promise<{ id: 
         </div>
       )}
     </>
+  )
+}
+
+export default function PropertyProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense>
+      <PropertyProfilePageInner params={params} />
+    </Suspense>
   )
 }

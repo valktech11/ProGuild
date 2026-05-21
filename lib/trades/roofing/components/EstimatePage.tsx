@@ -255,14 +255,18 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   }, [])
 
   // Recalc all tier quantities + amounts when measurements change
-  const recalcTiersFromSq = useCallback((sq: number) => {
+  const recalcTiersFromSq = useCallback((sq: number, selTier?: TierKey): number => {
+    let selSubtotal = 0
     setTiers(prev => prev.map(tier => {
       const items = tier.items.map(item => {
         const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? Math.round(sq * 10) : item.qty
         return { ...item, qty, amount: Math.round(qty * item.unit_price) }
       })
-      return { ...tier, items, subtotal: items.reduce((s, i) => s + i.amount, 0) }
+      const subtotal = items.reduce((s, i) => s + i.amount, 0)
+      if (tier.key === (selTier ?? 'upgraded')) selSubtotal = subtotal
+      return { ...tier, items, subtotal }
     }))
+    return selSubtotal
   }, [])
 
   // Save measurements + address — updates roofing_estimate_data + lead
@@ -270,7 +274,9 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     setSavingMeas(true)
     const sq = parseFloat(sqCount) || 0
     const wp = parseFloat(wastePct) || 10
-    recalcTiersFromSq(sq)
+    const newSubtotal = recalcTiersFromSq(sq, selectedTier)
+    const newTotal = newSubtotal + Math.round(newSubtotal * (estimate.tax_rate / 100))
+    recalcMilestones(newTotal)
     try {
       await onSave({ square_count: sq, pitch: pitchVal, waste_pct: wp } as any)
       if (onMeasurementsUpdate) {
@@ -285,7 +291,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
       setSavingMeas(false)
       setEditMeas(false)
     }
-  }, [addrVal, sqCount, pitchVal, wastePct, recalcTiersFromSq, onSave, onMeasurementsUpdate])
+  }, [addrVal, sqCount, pitchVal, wastePct, selectedTier, recalcTiersFromSq, recalcMilestones, onSave, onMeasurementsUpdate, estimate.tax_rate])
 
   // ── Tier item editing ────────────────────────────────────────────────────────
 
