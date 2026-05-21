@@ -212,11 +212,20 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     }).catch(()=>{})
   }, [session, lead])
 
-  // Show toast when returning from ProMeasure with measurements applied
+  // When returning from ProMeasure with measurements applied:
+  // re-fetch the lead so roofing_job_data is fresh in state before UI renders pills
   useEffect(() => {
-    if (appliedFromProMeasure && lead) {
-      addToast('Measurements applied to lead', 'success')
-    }
+    if (!appliedFromProMeasure || !session || !lead) return
+    fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.lead) {
+          setLead(d.lead)
+          setStage(d.lead.lead_status)
+        }
+        addToast('Measurements applied to lead', 'success')
+      })
+      .catch(() => addToast('Measurements applied to lead', 'success'))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedFromProMeasure, lead?.id])
 
