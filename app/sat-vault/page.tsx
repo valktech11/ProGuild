@@ -714,6 +714,7 @@ ${theme==='dark'?'.sv{background:radial-gradient(ellipse 70% 50% at 8% 15%,rgba(
   const totalCorrectAttempts=Object.values(dbStats).reduce((s,a)=>s+(a.times_correct??0),0)
   const attemptAccuracy=totalAttempts>0?Math.round(totalCorrectAttempts/totalAttempts*100):null
   const bestMockScore=mockAttempts.filter(a=>a.completed).reduce((best,a)=>Math.max(best,a.sat_score||0),0)
+  const [insightDrill, setInsightDrill] = useState<{type:'topic'|'diff'|'flag', value:string}|null>(null)
 
   // ─────────────────────────────────────────────────────────────
   // RENDER
@@ -1209,7 +1210,7 @@ ${theme==='dark'?'.sv{background:radial-gradient(ellipse 70% 50% at 8% 15%,rgba(
                 <div className="sv-section-title">By Difficulty</div>
                 <div className="sv-diff-grid">
                   {diffStats.map(({diff,total,attempted:att,correct:cor,wrong:wrg,pct})=>(
-                    <div key={diff} className={`sv-diff-card ${diff}`}>
+                    <div key={diff} className={`sv-diff-card ${diff}`} style={{cursor:'pointer'}} onClick={()=>setInsightDrill(d=>d?.value===diff&&d?.type==='diff'?null:{type:'diff',value:diff})} title={`Drill into ${diff} questions`}>
                       <div className="dc-label">{diff.charAt(0).toUpperCase()+diff.slice(1)}</div>
                       <div className="dc-pct">{pct!==null?`${pct}%`:'—'}</div>
                       <div className="dc-sub">{cor}✓ {wrg}✗ of {att} tried ({total} in bank)</div>
@@ -1222,8 +1223,8 @@ ${theme==='dark'?'.sv{background:radial-gradient(ellipse 70% 50% at 8% 15%,rgba(
                   <thead><tr><th>Topic</th><th>Accuracy</th><th>Progress</th><th>✓ / ✗</th><th>Status</th></tr></thead>
                   <tbody>
                     {topicStats.map(({topic,total,attempted:att,correct:cor,wrong:wrg,pct,level})=>(
-                      <tr key={topic}>
-                        <td style={{fontWeight:700}}>{topic}</td>
+                      <tr key={topic} style={{cursor:'pointer'}} onClick={()=>setInsightDrill(d=>d?.value===topic&&d?.type==='topic'?null:{type:'topic',value:topic})} title={`Drill into ${topic} questions`}>
+                        <td style={{fontWeight:700,color:'var(--ac)'}}>{topic} <span style={{fontSize:10,color:'var(--tx3)'}}>{insightDrill?.value===topic&&insightDrill?.type==='topic'?'▲':'▼'}</span></td>
                         <td style={{fontWeight:800,color:pct===null?'var(--tx3)':pct>=80?'var(--gr)':pct>=50?'var(--ye)':'var(--re)'}}>{pct!==null?`${pct}%`:'—'}</td>
                         <td><div className="sv-bar-wrap"><div className="sv-bar-fill" style={{width:`${pct??0}%`,background:pct===null?'var(--bd)':pct>=80?'var(--gr)':pct>=50?'var(--ye)':'var(--re)'}}/></div></td>
                         <td style={{color:'var(--tx3)',fontSize:12}}>{cor}✓ {wrg}✗ <span style={{opacity:.6}}>({att}/{total})</span></td>
@@ -1232,6 +1233,79 @@ ${theme==='dark'?'.sv{background:radial-gradient(ellipse 70% 50% at 8% 15%,rgba(
                     ))}
                   </tbody>
                 </table>
+                {/* DRILL-DOWN PANEL */}
+                {insightDrill&&(()=>{
+                  const drillQs = questions.filter(q => {
+                    if (insightDrill.type === 'topic') return q.topic === insightDrill.value
+                    if (insightDrill.type === 'diff')  return q.diff  === insightDrill.value
+                    return false
+                  }).sort((a,b) => {
+                    // Sort by accuracy ascending (worst first)
+                    const sa = dbStats[a.id]; const sb2 = dbStats[b.id]
+                    const pa = sa ? (sa.times_correct||0)/Math.max(1,(sa.times_attempted||0)) : 0.5
+                    const pb = sb2 ? (sb2.times_correct||0)/Math.max(1,(sb2.times_attempted||0)) : 0.5
+                    return pa - pb
+                  })
+                  const label = insightDrill.value
+                  return (
+                    <div style={{marginBottom:24,background:'var(--card)',border:'1.5px solid var(--ac)',borderRadius:14,overflow:'hidden',animation:'sv-up .25s ease'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 18px',background:'var(--as)',borderBottom:'1px solid var(--bd)'}}>
+                        <div>
+                          <span style={{fontWeight:800,fontSize:14,color:'var(--ac)'}}>{label}</span>
+                          <span style={{fontSize:12,color:'var(--tx3)',marginLeft:10}}>{drillQs.length} questions</span>
+                        </div>
+                        <div style={{display:'flex',gap:8}}>
+                          <button className="sv-bp" style={{padding:'6px 14px',fontSize:12}} onClick={()=>{setTopicF(insightDrill.type==='topic'?insightDrill.value:'all');setDiffF(insightDrill.type==='diff'?insightDrill.value:'all');setView('practice');setSidebarOpen(true);setInsightDrill(null)}}>
+                            Practice These →
+                          </button>
+                          <button className="sv-bo" style={{padding:'6px 12px',fontSize:12}} onClick={()=>setInsightDrill(null)}>✕</button>
+                        </div>
+                      </div>
+                      <div style={{maxHeight:400,overflowY:'auto'}}>
+                        {drillQs.slice(0,50).map((q,i)=>{
+                          const s=dbStats[q.id]
+                          const tried=s?.times_attempted??0
+                          const cor=s?.times_correct??0
+                          const wrg=s?.times_wrong??0
+                          const pct=tried>0?Math.round(cor/tried*100):null
+                          return(
+                            <div key={q.id} style={{display:'flex',alignItems:'flex-start',gap:12,padding:'12px 18px',borderBottom:'1px solid var(--bd)',cursor:'pointer',transition:'background .1s'}}
+                              onClick={()=>{setCurrentId(q.id);setSprValue('');setView('practice');setSidebarOpen(false);setInsightDrill(null)}}
+                              onMouseEnter={e=>(e.currentTarget as HTMLDivElement).style.background='var(--bg3)'}
+                              onMouseLeave={e=>(e.currentTarget as HTMLDivElement).style.background='transparent'}>
+                              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,minWidth:28,paddingTop:2,flexShrink:0}}>
+                                <span style={{fontFamily:'monospace',fontSize:10,color:'var(--tx3)'}}>{String(i+1).padStart(2,'0')}</span>
+                                <span style={{width:6,height:6,borderRadius:'50%',background:q.diff==='easy'?'var(--ec)':q.diff==='medium'?'var(--mc)':'var(--hc)',display:'block'}}/>
+                              </div>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:11,color:'var(--tx3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.7px',marginBottom:2}}>
+                                  {SHORT[q.topic]||q.topic} · {q.diff} · {q.type==='spr'?'Open':'MC'}
+                                </div>
+                                <div style={{fontSize:13,color:'var(--tx)',lineHeight:1.5,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+                                  {q.q.replace(/
+/g,' ')}
+                                </div>
+                              </div>
+                              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}}>
+                                {tried>0?(
+                                  <>
+                                    <span style={{fontSize:13,fontWeight:800,color:pct!==null?(pct>=80?'var(--gr)':pct>=50?'var(--ye)':'var(--re)'):'var(--tx3)'}}>{pct}%</span>
+                                    <span style={{fontSize:10,color:'var(--tx3)'}}>{cor}✓ {wrg}✗</span>
+                                  </>
+                                ):(
+                                  <span style={{fontSize:10,color:'var(--tx3)',padding:'2px 7px',background:'var(--bg3)',borderRadius:10}}>Not tried</span>
+                                )}
+                                {flagged.has(q.id)&&<span style={{fontSize:10}}>🚩</span>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {drillQs.length>50&&<div style={{padding:'12px 18px',fontSize:12,color:'var(--tx3)',textAlign:'center'}}>Showing 50 of {drillQs.length} questions</div>}
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {mockAttempts.filter(a=>a.completed).length>0&&(
                   <>
                     <div className="sv-section-title">Mock Exam History</div>
@@ -1239,7 +1313,7 @@ ${theme==='dark'?'.sv{background:radial-gradient(ellipse 70% 50% at 8% 15%,rgba(
                       <thead><tr><th>Exam</th><th>Attempt</th><th>SAT Score</th><th>Raw</th><th>M1</th><th>M2</th><th>Date</th></tr></thead>
                       <tbody>
                         {mockAttempts.filter(a=>a.completed).map(a=>(
-                          <tr key={a.id}>
+                          <tr key={a.id} style={{cursor:'pointer'}} onClick={()=>setView('mock')} title="View mock exam">
                             <td style={{fontSize:11,color:'var(--tx3)'}}>#{mockExams.findIndex(e=>e.id===a.exam_id)+1||'?'}</td>
                             <td style={{fontSize:11}}>Attempt {a.attempt_number}</td>
                             <td style={{fontWeight:800,color:'var(--ac)',fontSize:16}}>{a.sat_score}</td>
