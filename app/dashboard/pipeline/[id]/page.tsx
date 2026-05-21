@@ -147,6 +147,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   // ── Edit fields ──────────────────────────────────────────────────────────
   const [eAddr,  setEAddr]  = useState('')
+  const [eAddrPredictions, setEAddrPredictions] = useState<Array<{description:string;place_id:string}>>([])
+  const [eAddrShowPred,    setEAddrShowPred]    = useState(false)
+  const [eAddrLoading,     setEAddrLoading]     = useState(false)
   const [ePhone, setEPhone] = useState('')
   const [eEmail, setEEmail] = useState('')
   const [eCity,  setECity]  = useState('')
@@ -337,6 +340,50 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     setENotes(lead.notes||'')
     setTab('details'); setIsEditing(true)
   }
+  // ── Address autocomplete for edit form ──────────────────────────────────
+  useEffect(() => {
+    if (!eAddrLoading || eAddr.length < 3) { setEAddrPredictions([]); setEAddrShowPred(false); return }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(eAddr)}`)
+        const data = res.ok ? await res.json() : {}
+        setEAddrPredictions(data.predictions || [])
+        setEAddrShowPred((data.predictions || []).length > 0)
+      } catch { setEAddrPredictions([]) }
+    }, 280)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eAddr, eAddrLoading])
+
+  async function selectEAddrPrediction(pred: {description:string;place_id:string}) {
+    setEAddrShowPred(false)
+    setEAddrLoading(false)
+    try {
+      const res = await fetch(`/api/places/details?place_id=${pred.place_id}`)
+      const data = res.ok ? await res.json() : {}
+      const comps: any[] = data.result?.address_components || []
+      let streetNum='', route='', city='', state='', zip=''
+      for (const comp of comps) {
+        const types: string[] = comp.types || []
+        if (types.includes('street_number'))              streetNum = comp.long_name
+        if (types.includes('route'))                      route     = comp.long_name
+        if (types.includes('locality'))                   city      = comp.long_name
+        if (!city && types.includes('sublocality_level_1')) city    = comp.long_name
+        if (types.includes('administrative_area_level_1')) state    = comp.short_name
+        if (types.includes('postal_code'))                zip       = comp.long_name
+      }
+      const street = `${streetNum} ${route}`.trim() || pred.description.split(',')[0].trim()
+      // Full address string = "street, city, state zip"
+      const full = [street, city, state, zip].filter(Boolean).join(', ')
+      setEAddr(full)
+      setECity(city || eCity)
+      setEState(state || eState)
+      setEZip(zip || eZip)
+    } catch {
+      setEAddr(pred.description)
+    }
+  }
+
   async function saveEdit() {
     setESaving(true)
     const ok = await patch({
@@ -972,9 +1019,15 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                                   <button
                                     onClick={()=>{
-                                      const addr=(lead as any).property_address||''
-                                      const url=addr
-                                        ? `/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}`
+                                      // Build full address from all available fields
+                                      const street = ((lead as any).property_address||'').replace(/, USA$/,'').replace(/, [A-Z]{2},? \d{5}$/,'').replace(/, [A-Z]{2}$/,'').trim()
+                                      const city   = lead.contact_city||''
+                                      const state  = lead.contact_state||''
+                                      const zip    = (lead as any).contact_zip||''
+                                      const fullAddr = [street, city, state, zip].filter(Boolean).join(', ')
+                                        || (lead as any).property_address || ''
+                                      const url = fullAddr
+                                        ? `/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}`
                                         : `/dashboard/roofing/promeasure?lead_id=${lead.id}`
                                       router.push(url)
                                     }}
@@ -1029,9 +1082,30 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {isEditing&&(
                           <>
                             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-                              <div>
+                              <div style={{position:'relative'}}>
                                 <label style={labelCls}>Property Address</label>
-                                <input value={eAddr} onChange={e=>setEAddr(e.target.value)} placeholder="123 Maple St, Jacksonville, FL 32207" style={inputCls}/>
+                                <input
+                                  value={eAddr}
+                                  onChange={e=>{setEAddr(e.target.value);setEAddrLoading(true)}}
+                                  onFocus={()=>eAddrPredictions.length>0&&setEAddrShowPred(true)}
+                                  onBlur={()=>setTimeout(()=>setEAddrShowPred(false),180)}
+                                  placeholder="123 Maple St, Jacksonville, FL 32207"
+                                  style={inputCls}
+                                  autoComplete="off"
+                                />
+                                {eAddrShowPred&&eAddrPredictions.length>0&&(
+                                  <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid #E2E8F0',borderRadius:8,boxShadow:'0 4px 16px rgba(0,0,0,0.10)',zIndex:500,maxHeight:220,overflowY:'auto'}}>
+                                    {eAddrPredictions.map((pred)=>(
+                                      <div key={pred.place_id}
+                                        onMouseDown={()=>selectEAddrPrediction(pred)}
+                                        style={{padding:'10px 14px',cursor:'pointer',fontSize:13,color:'#1E293B',borderBottom:'1px solid #F1F5F9'}}
+                                        onMouseEnter={e=>(e.currentTarget.style.background='#F0FDFA')}
+                                        onMouseLeave={e=>(e.currentTarget.style.background='')}>
+                                        {pred.description}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                                 <div><label style={labelCls}>Phone</label><input value={ePhone} onChange={e=>setEPhone(e.target.value)} style={inputCls}/></div>
