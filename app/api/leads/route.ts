@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, job_id, contact_name, contact_email, contact_phone, message, lead_source, client_id, is_manual, property_address, contact_city, contact_state } = body
+  const { pro_id, job_id, contact_name, contact_email, contact_phone, message, lead_source, client_id, is_manual, property_address, contact_city, contact_state, contact_zip } = body
   // Manual leads (pro-entered) don't require email — just name + what they need
   if (!pro_id || !contact_name || !message)
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       property_address: property_address?.trim() || null,
       contact_city: contact_city?.trim() || null,
       contact_state: contact_state?.trim() || null,
+      contact_zip: contact_zip?.trim() || null,
     })
     .select().single()
 
