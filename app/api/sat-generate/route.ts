@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY
+
+  // Temporary debug — remove after confirming
   if (!apiKey) {
-    return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'ENV_MISSING: GEMINI_API_KEY is not set' }, { status: 500 })
   }
 
-  const { prompt } = await req.json()
+  // Show first 8 chars so we can confirm WHICH key is loaded (never logs full key)
+  const keyPreview = apiKey.slice(0, 8) + '...'
+
+  const { prompt } = await req.json().catch(() => ({ prompt: null }))
   if (!prompt) {
-    return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
+    return NextResponse.json({ error: 'Missing prompt', keyLoaded: keyPreview }, { status: 400 })
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
@@ -24,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   const data = await res.json()
   if (data.error) {
-    return NextResponse.json({ error: data.error.message }, { status: 500 })
+    return NextResponse.json({ error: data.error.message, keyPreview }, { status: 500 })
   }
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
