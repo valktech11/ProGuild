@@ -158,7 +158,33 @@ export default function SATVaultPage() {
     const msgs=['Writing question stems…','Crafting answer choices…','Writing solutions…','Almost ready…']
     let mi=0; setLoadMsg(msgs[0])
     const ticker=setInterval(()=>{mi=(mi+1)%msgs.length;setLoadMsg(msgs[mi])},2000)
-    const prompt=`You are an expert SAT Math question writer. Generate exactly ${batchN} original SAT-style math questions.\nTopic: ${topicStr}\nDifficulty: ${diffStr}\nMix mc and spr types. Return ONLY raw JSON array.\n[{"topic":"Algebra"|"Advanced Math"|"Problem Solving"|"Geometry"|"Trigonometry","diff":"easy"|"medium"|"hard","type":"mc"|"spr","q":"text","given":"","opts":["A","B","C","D"],"ans":0,"exp":"explanation","math":"steps"}]\nFor mc: opts 4 strings, ans 0-3. For spr: opts [], ans numeric string.`
+    const prompt = `You are an expert SAT Math question writer. Generate exactly ${batchN} original SAT-style math questions.
+
+Topic: ${topicStr}
+Difficulty: ${diffStr}
+
+Requirements:
+- Mix of type "mc" (multiple choice, 4 options) and type "spr" (student-produced response, single numeric answer)
+- Authentic SAT language, plausible distractors, realistic contexts
+- Each question must have a complete worked solution and plain-English explanation
+
+Return a JSON array of exactly ${batchN} objects. Each object must have ALL these fields:
+{
+  "topic": "Algebra",
+  "diff": "easy",
+  "type": "mc",
+  "q": "Full question text",
+  "given": "",
+  "opts": ["Option A", "Option B", "Option C", "Option D"],
+  "ans": 0,
+  "exp": "Plain English explanation in 2-3 sentences",
+  "math": "Step 1: ...\nStep 2: ...\nAnswer: ..."
+}
+
+For mc questions: opts must have exactly 4 strings, ans must be integer 0, 1, 2, or 3.
+For spr questions: opts must be an empty array [], ans must be a numeric string like "7" or "3.5".
+topic must be one of: Algebra, Advanced Math, Problem Solving, Geometry, Trigonometry
+diff must be one of: easy, medium, hard`
     try {
       const res=await fetch('/api/sat-generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})})
       const data=await res.json()
