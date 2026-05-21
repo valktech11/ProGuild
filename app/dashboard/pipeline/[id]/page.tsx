@@ -239,7 +239,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const patch = useCallback(async (fields:Record<string,unknown>) => {
     if (!session) return false
     const r = await fetch(`/api/leads/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,...fields})})
-    if (!r.ok) { const err = await r.json().catch(()=>null); console.error('[patch] PATCH failed', r.status, err) }
     return r.ok
   }, [session, id])
 
