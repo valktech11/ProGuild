@@ -315,6 +315,7 @@ function ProMeasureInner() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            pro_id:       session.id,
             square_count: squares,
             pitch:        pitch,
             waste_pct:    waste,
