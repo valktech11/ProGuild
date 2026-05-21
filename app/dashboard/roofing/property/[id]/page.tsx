@@ -458,6 +458,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                           method: 'PATCH',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
+                            pro_id:       session.id,
                             square_count: latestReport.total_squares_order,
                             pitch:        latestReport.dominant_pitch,
                             waste_pct:    latestReport.waste_factor,

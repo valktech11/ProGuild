@@ -228,8 +228,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           setStage(d.lead.lead_status)
         }
         addToast('Measurements applied to lead', 'success')
+        // Strip ?from=promeasure&applied=1 so toast never re-fires on back-nav or re-render
+        router.replace(`/dashboard/pipeline/${lead.id}`)
       })
-      .catch((err) => { console.error('[Pipeline] re-fetch error:', err); addToast('Measurements applied to lead', 'success') })
+      .catch(() => addToast('Measurements applied to lead', 'success'))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedFromProMeasure, lead?.id])
 
@@ -1036,10 +1038,44 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     ProMeasure
                                   </button>
                                   <button
-                                    onClick={()=>{
-                                      const addr=(lead as any).property_address||''
-                                      if(!addr){addToast('Add a property address first','error');return}
-                                      router.push(`/dashboard/roofing/property?lead_id=${lead.id}&address=${encodeURIComponent(addr)}`)
+                                    onClick={async ()=>{
+                                      const street = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                                      const city   = lead.contact_city||''
+                                      const state  = lead.contact_state||''
+                                      const zip    = (lead as any).contact_zip||''
+                                      const fullAddr = [street,city,state,zip].filter(Boolean).join(', ')
+                                      if(!street){addToast('Add a property address first','error');return}
+                                      if(!session) return
+                                      // Find existing property or create one, then navigate directly
+                                      try {
+                                        const searchRes = await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street)}`)
+                                        const searchData = searchRes.ok ? await searchRes.json() : null
+                                        const existing = (searchData?.properties||[]).find((p:any)=>
+                                          p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase())
+                                        )
+                                        if(existing){
+                                          router.push(`/dashboard/roofing/property/${existing.id}?lead_id=${lead.id}`)
+                                          return
+                                        }
+                                        // Not found — create property then navigate
+                                        const createRes = await fetch('/api/properties',{
+                                          method:'POST',
+                                          headers:{'Content-Type':'application/json'},
+                                          body: JSON.stringify({
+                                            pro_id: session.id,
+                                            address_line1: street,
+                                            city, state, zip_code: zip,
+                                          })
+                                        })
+                                        const createData = createRes.ok ? await createRes.json() : null
+                                        if(createData?.property?.id){
+                                          router.push(`/dashboard/roofing/property/${createData.property.id}?lead_id=${lead.id}`)
+                                        } else {
+                                          addToast('Could not open property — check address','error')
+                                        }
+                                      } catch {
+                                        addToast('Could not open property','error')
+                                      }
                                     }}
                                     style={{padding:'10px 12px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
