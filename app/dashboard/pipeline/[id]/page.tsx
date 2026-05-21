@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, use, useCallback } from 'react'
+import { useState, useEffect, use, useCallback, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Lead, Session, LeadStatus } from '@/types'
