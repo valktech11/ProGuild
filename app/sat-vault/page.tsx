@@ -45,9 +45,13 @@ export default function SATVaultPage() {
 
   /* ── persist ── */
   useEffect(() => {
+    // Load theme
     try {
       const t = localStorage.getItem('sat_theme') as 'dark'|'light'|null
       if (t) setTheme(t)
+    } catch {}
+    // Load attempt state
+    try {
       const s = localStorage.getItem('sat_state_v2')
       if (s) {
         const d = JSON.parse(s)
@@ -56,6 +60,21 @@ export default function SATVaultPage() {
         qCounter.current = d.qc || 0
       }
     } catch {}
+    // Load saved questions from DB
+    fetch('/api/sat-generate')
+      .then(r => r.json())
+      .then(data => {
+        if (data.questions?.length) {
+          const loaded = data.questions.map((q: Question) => ({
+            ...q,
+            opts: Array.isArray(q.opts) ? q.opts : [],
+            given: q.given || '',
+          }))
+          setQuestions(loaded)
+          qCounter.current = loaded.length
+        }
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
