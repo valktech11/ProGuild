@@ -38,6 +38,7 @@ const SHORT_TOPIC: Record<string,string> = {
 
 export default function SATVaultPage() {
   const [theme,      setTheme]      = useState<'dark'|'light'>('dark')
+  const [view,       setView]       = useState<'practice'|'insights'>('practice')
   const [questions,  setQuestions]  = useState<Question[]>([])
   const [dbStats,    setDbStats]    = useState<Record<string, AttemptStats>>({})
   const [attempted,  setAttempted]  = useState<Record<string, number|string>>({})
@@ -349,6 +350,60 @@ ${theme==='dark'
 .sv-ar{width:44px;height:44px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:'Nunito',sans-serif;touch-action:manipulation;}
 .sv-ar:hover{background:var(--as);border-color:var(--ac);color:var(--ac);}
 .sv-ar:active{transform:scale(.93);background:var(--as);}
+.sv-tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--bg2);}
+.sv-tab{flex:1;padding:12px 0;font-size:13px;font-weight:700;text-align:center;cursor:pointer;border:none;background:transparent;color:var(--tx3);border-bottom:3px solid transparent;transition:all .2s;font-family:'Nunito',sans-serif;}
+.sv-tab:hover{color:var(--tx);}
+.sv-tab.on{color:var(--ac);border-bottom-color:var(--ac);background:var(--bg);}
+/* INSIGHTS */
+.sv-insights{flex:1;overflow-y:auto;padding:24px 28px;background:var(--bg);}
+.sv-ins-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.sv-ins-card{background:var(--card);border:1.5px solid var(--bd);border-radius:14px;padding:18px 16px;text-align:center;}
+.sv-ins-card .ic-n{font-size:26px;font-weight:800;color:var(--ac);line-height:1.1;font-variant-numeric:tabular-nums;}
+.sv-ins-card .ic-l{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--tx3);margin-top:4px;}
+.sv-ins-card.green .ic-n{color:var(--gr);}
+.sv-ins-card.red .ic-n{color:var(--re);}
+.sv-ins-card.yellow .ic-n{color:var(--ye);}
+.sv-section-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--tx3);margin-bottom:12px;margin-top:4px;}
+.sv-topic-table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+.sv-topic-table th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--tx3);text-align:left;padding:8px 14px;border-bottom:1px solid var(--bd);font-weight:700;}
+.sv-topic-table td{padding:12px 14px;border-bottom:1px solid var(--bd);font-size:14px;font-weight:500;}
+.sv-topic-table tr:last-child td{border-bottom:none;}
+.sv-topic-table tr:hover td{background:var(--bg3);}
+.sv-bar-wrap{height:8px;background:var(--bg3);border-radius:10px;overflow:hidden;width:140px;}
+.sv-bar-fill{height:100%;border-radius:10px;transition:width .6s ease;}
+.sv-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.sv-badge.strong{background:var(--gs);color:var(--gr);}
+.sv-badge.average{background:var(--ys);color:var(--ye);}
+.sv-badge.weak{background:var(--rs);color:var(--re);}
+.sv-diff-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+.sv-diff-card{background:var(--card);border:1.5px solid var(--bd);border-radius:14px;padding:16px;position:relative;overflow:hidden;}
+.sv-diff-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;}
+.sv-diff-card.easy::before{background:var(--ec);}
+.sv-diff-card.medium::before{background:var(--mc);}
+.sv-diff-card.hard::before{background:var(--hc);}
+.sv-diff-card .dc-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;}
+.sv-diff-card.easy .dc-label{color:var(--ec);}
+.sv-diff-card.medium .dc-label{color:var(--mc);}
+.sv-diff-card.hard .dc-label{color:var(--hc);}
+.sv-diff-card .dc-pct{font-size:28px;font-weight:900;color:var(--tx);line-height:1;}
+.sv-diff-card .dc-sub{font-size:11px;color:var(--tx3);margin-top:4px;}
+.sv-diff-card .dc-bar{height:6px;background:var(--bg3);border-radius:10px;margin-top:10px;overflow:hidden;}
+.sv-diff-card .dc-bar-fill{height:100%;border-radius:10px;}
+.sv-diff-card.easy .dc-bar-fill{background:var(--ec);}
+.sv-diff-card.medium .dc-bar-fill{background:var(--mc);}
+.sv-diff-card.hard .dc-bar-fill{background:var(--hc);}
+.sv-empty-insights{text-align:center;padding:60px 20px;color:var(--tx3);}
+.sv-empty-insights .ei{font-size:48px;margin-bottom:12px;}
+.sv-recent-table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+.sv-recent-table th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--tx3);padding:8px 12px;border-bottom:1px solid var(--bd);font-weight:700;text-align:left;}
+.sv-recent-table td{padding:10px 12px;border-bottom:1px solid var(--bd);font-size:12px;}
+.sv-recent-table tr:last-child td{border-bottom:none;}
+@media(max-width:680px){
+  .sv-ins-grid{grid-template-columns:repeat(2,1fr);}
+  .sv-diff-grid{grid-template-columns:1fr;}
+  .sv-insights{padding:16px;}
+  .sv-bar-wrap{width:80px;}
+}
 .sv-stats-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;}
 .sv-stat-item{display:flex;flex-direction:column;align-items:center;min-width:60px;flex:1;}
 .sv-stat-item .sv-sval{font-size:18px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;}
@@ -461,8 +516,14 @@ ${theme==='dark'
         </div>
         <div className="sv-pb"><div className="sv-pbf" style={{width:`${accuracy??0}%`}}/></div>
 
+        {/* TABS */}
+        <div className="sv-tabs">
+          <button className={`sv-tab${view==='practice'?' on':''}`} onClick={()=>setView('practice')}>📚 Practice</button>
+          <button className={`sv-tab${view==='insights'?' on':''}`} onClick={()=>setView('insights')}>📊 Insights</button>
+        </div>
+
         {/* BODY */}
-        <div className="sv-body">
+        <div className="sv-body" style={{display:view==='practice'?'flex':'none'}}>
           {/* SIDEBAR */}
           <div className="sv-side">
             <div className="sv-ctrl">
@@ -629,6 +690,168 @@ ${theme==='dark'
           </div>
         </div>
       </div>
+
+      {/* INSIGHTS PANEL */}
+      {view === 'insights' && (() => {
+        // Compute stats from questions + dbStats
+        const attempted_qs = questions.filter(q => dbStats[q.id])
+        const total_att = attempted_qs.length
+        const total_correct = attempted_qs.filter(q => (dbStats[q.id]?.times_correct ?? 0) > 0 && (dbStats[q.id]?.times_correct ?? 0) >= (dbStats[q.id]?.times_wrong ?? 0)).length
+        const overall_pct = total_att > 0 ? Math.round(total_correct / total_att * 100) : null
+
+        // Total attempts across all questions
+        const total_attempts = Object.values(dbStats).reduce((s, a) => s + (a.times_attempted ?? 0), 0)
+        const total_correct_attempts = Object.values(dbStats).reduce((s, a) => s + (a.times_correct ?? 0), 0)
+        const attempt_accuracy = total_attempts > 0 ? Math.round(total_correct_attempts / total_attempts * 100) : null
+
+        // By topic
+        const TOPICS_LIST = ['Algebra','Advanced Math','Problem Solving','Geometry','Trigonometry']
+        const topicStats = TOPICS_LIST.map(topic => {
+          const tqs = questions.filter(q => q.topic === topic)
+          const tatt = tqs.filter(q => dbStats[q.id])
+          const tcor = tatt.reduce((s,q) => s + (dbStats[q.id]?.times_correct ?? 0), 0)
+          const twrg = tatt.reduce((s,q) => s + (dbStats[q.id]?.times_wrong ?? 0), 0)
+          const ttot = tcor + twrg
+          const pct = ttot > 0 ? Math.round(tcor / ttot * 100) : null
+          const level = pct === null ? 'untested' : pct >= 80 ? 'strong' : pct >= 50 ? 'average' : 'weak'
+          return { topic, total: tqs.length, attempted: tatt.length, correct: tcor, wrong: twrg, pct, level }
+        })
+
+        // By difficulty
+        const diffStats = (['easy','medium','hard'] as const).map(diff => {
+          const dqs = questions.filter(q => q.diff === diff)
+          const datt = dqs.filter(q => dbStats[q.id])
+          const dcor = datt.reduce((s,q) => s + (dbStats[q.id]?.times_correct ?? 0), 0)
+          const dwrg = datt.reduce((s,q) => s + (dbStats[q.id]?.times_wrong ?? 0), 0)
+          const dtot = dcor + dwrg
+          const pct = dtot > 0 ? Math.round(dcor / dtot * 100) : null
+          return { diff, total: dqs.length, attempted: datt.length, correct: dcor, wrong: dwrg, pct }
+        })
+
+        // Recent attempts (last 10 answered questions by last_attempted date)
+        const recentAttempts = questions
+          .filter(q => dbStats[q.id]?.last_attempted)
+          .sort((a,b) => new Date(dbStats[b.id].last_attempted!).getTime() - new Date(dbStats[a.id].last_attempted!).getTime())
+          .slice(0, 10)
+
+        if (total_attempts === 0) return (
+          <div className="sv-insights">
+            <div className="sv-empty-insights">
+              <div className="ei">📊</div>
+              <div style={{fontSize:18,fontWeight:800,color:'var(--tx)',marginBottom:8}}>No data yet</div>
+              <div style={{fontSize:14,color:'var(--tx3)'}}>Answer some questions in Practice mode to see your insights here.</div>
+            </div>
+          </div>
+        )
+
+        return (
+          <div className="sv-insights">
+            {/* Top stats */}
+            <div className="sv-ins-grid">
+              <div className="sv-ins-card">
+                <div className="ic-n">{questions.length}</div>
+                <div className="ic-l">Questions in Bank</div>
+              </div>
+              <div className="sv-ins-card">
+                <div className="ic-n">{total_attempts}</div>
+                <div className="ic-l">Total Attempts</div>
+              </div>
+              <div className="sv-ins-card green">
+                <div className="ic-n">{attempt_accuracy !== null ? `${attempt_accuracy}%` : '—'}</div>
+                <div className="ic-l">Overall Accuracy</div>
+              </div>
+              <div className="sv-ins-card yellow">
+                <div className="ic-n">{total_att}</div>
+                <div className="ic-l">Questions Tried</div>
+              </div>
+            </div>
+
+            {/* Difficulty breakdown */}
+            <div className="sv-section-title">Performance by Difficulty</div>
+            <div className="sv-diff-grid">
+              {diffStats.map(({diff, total, attempted, correct, wrong, pct}) => (
+                <div key={diff} className={`sv-diff-card ${diff}`}>
+                  <div className="dc-label">{diff.charAt(0).toUpperCase()+diff.slice(1)}</div>
+                  <div className="dc-pct">{pct !== null ? `${pct}%` : '—'}</div>
+                  <div className="dc-sub">{correct}✓ {wrong}✗ of {attempted} tried ({total} in bank)</div>
+                  <div className="dc-bar"><div className="dc-bar-fill" style={{width:`${pct??0}%`}}/></div>
+                </div>
+              ))}
+            </div>
+
+            {/* Topic breakdown */}
+            <div className="sv-section-title">Performance by Topic</div>
+            <table className="sv-topic-table">
+              <thead>
+                <tr>
+                  <th>Topic</th>
+                  <th>Accuracy</th>
+                  <th>Progress</th>
+                  <th>Correct / Wrong</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topicStats.map(({topic, total, attempted, correct, wrong, pct, level}) => (
+                  <tr key={topic}>
+                    <td style={{fontWeight:700}}>{topic}</td>
+                    <td style={{fontWeight:800,color:pct===null?'var(--tx3)':pct>=80?'var(--gr)':pct>=50?'var(--ye)':'var(--re)'}}>
+                      {pct !== null ? `${pct}%` : '—'}
+                    </td>
+                    <td>
+                      <div className="sv-bar-wrap">
+                        <div className="sv-bar-fill" style={{
+                          width:`${pct??0}%`,
+                          background: pct===null?'var(--bd)':pct>=80?'var(--gr)':pct>=50?'var(--ye)':'var(--re)'
+                        }}/>
+                      </div>
+                    </td>
+                    <td style={{color:'var(--tx3)',fontSize:13}}>{correct}✓ &nbsp;{wrong}✗ &nbsp;<span style={{opacity:.6}}>({attempted}/{total})</span></td>
+                    <td>
+                      {level === 'untested' ? <span style={{color:'var(--tx3)',fontSize:11}}>Not tried</span>
+                        : <span className={`sv-badge ${level}`}>{level.charAt(0).toUpperCase()+level.slice(1)}</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Recent activity */}
+            <div className="sv-section-title">Recent Activity</div>
+            <table className="sv-recent-table">
+              <thead>
+                <tr>
+                  <th>Question</th>
+                  <th>Topic</th>
+                  <th>Diff</th>
+                  <th>Last Answer</th>
+                  <th>✓/✗</th>
+                  <th>Last Attempted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentAttempts.map(q => {
+                  const s = dbStats[q.id]
+                  const isRight = (s.times_correct ?? 0) > (s.times_wrong ?? 0)
+                  return (
+                    <tr key={q.id} style={{cursor:'pointer'}} onClick={()=>{setView('practice');setCurrentId(q.id);}}>
+                      <td style={{maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--tx)'}}>{q.q.replace(/
+/g,' ').slice(0,60)}…</td>
+                      <td style={{color:'var(--ac)',fontWeight:700,fontSize:11}}>{q.topic.split(' ')[0]}</td>
+                      <td><span className={`sv-badge ${q.diff==='easy'?'strong':q.diff==='medium'?'average':'weak'}`} style={{fontSize:10}}>{q.diff}</span></td>
+                      <td style={{fontFamily:'monospace',color:'var(--tx2)'}}>{s.last_answer ?? '—'}</td>
+                      <td style={{fontWeight:800,color:isRight?'var(--gr)':'var(--re)'}}>{s.times_correct}✓ {s.times_wrong}✗</td>
+                      <td style={{color:'var(--tx3)',fontSize:11}}>
+                        {s.last_attempted ? new Date(s.last_attempted).toLocaleDateString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      })()}
 
       {/* Loading overlay */}
       {isBusy && (
