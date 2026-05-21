@@ -428,6 +428,36 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           </div>
         )}
 
+        {warnProposal&&(
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setWarnProposal(false)}>
+            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:380,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
+              <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,marginBottom:6}}>
+                {!est ? 'No proposal yet' : 'Proposal has no items'}
+              </p>
+              <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp4}}>
+                {!est
+                  ? 'Create a proposal before marking as Proposal Sent. The homeowner needs something to review.'
+                  : 'Your proposal exists but has $0 in items. Add your line items before sending.'}
+              </p>
+              <div style={{display:'flex',gap:T.sp2}}>
+                <button
+                  onClick={()=>{
+                    setWarnProposal(false)
+                    if (est) router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)
+                    else createEst()
+                  }}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:700}}>
+                  {est ? 'Open Proposal' : 'Create Proposal'}
+                </button>
+                <button onClick={()=>setWarnProposal(false)}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Loading / not found ──────────────────────────────────────────── */}
         {loading  && <div style={{textAlign:'center',padding:80,color:ts,fontSize:T.fontBody}}>Loading...</div>}
         {missing  && <div style={{textAlign:'center',padding:80,color:ts,fontSize:T.fontBody}}>Lead not found.</div>}
