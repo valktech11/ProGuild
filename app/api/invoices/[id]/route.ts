@@ -10,15 +10,33 @@ export async function GET(
   const { id } = await params
   const { data: invoice, error } = await getSupabaseAdmin()
     .from('invoices')
-    .select('*')
+    .select(`
+      *,
+      roofing:roofing_invoice_data(
+        insurance_company, claim_number, approved_amount, deductible,
+        supplement_amount, supplement_submitted, supplement_approved,
+        permit_number, permit_status,
+        lien_waiver_signed, lien_waiver_r2_key,
+        certificate_of_completion, final_payment_note
+      )
+    `)
     .eq('id', id)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })
 
-  // Track view if public (header x-public)
-  const timeline = buildTimeline(invoice)
-  return NextResponse.json({ invoice: { ...invoice, timeline } })
+  const roofing = (invoice as any).roofing ?? {}
+  const { roofing: _roofing, ...invoiceClean } = invoice as any
+
+  const timeline = buildTimeline(invoiceClean)
+  return NextResponse.json({
+    invoice: {
+      ...invoiceClean,
+      timeline,
+      // Roofing extension — null for non-roofing invoices
+      roofing_data: Object.keys(roofing).length > 0 ? roofing : null,
+    }
+  })
 }
 
 // ── PATCH /api/invoices/[id] ─────────────────────────────────────────────
@@ -60,6 +78,26 @@ export async function PATCH(
           .eq('id', data.lead_id)
       }
     }
+  }
+
+  // ── Roofing-specific invoice fields → roofing_invoice_data ─────────────
+  const ROOFING_INVOICE_FIELDS = [
+    'insurance_company','claim_number','approved_amount','deductible',
+    'supplement_amount','supplement_submitted','supplement_approved',
+    'permit_number','permit_status','lien_waiver_signed','lien_waiver_r2_key',
+    'certificate_of_completion','final_payment_note',
+  ]
+  const roofingPayload: Record<string, unknown> = {}
+  for (const field of ROOFING_INVOICE_FIELDS) {
+    if (field in body) roofingPayload[field] = body[field]
+  }
+  if (Object.keys(roofingPayload).length > 0 && data?.pro_id) {
+    roofingPayload.invoice_id = id
+    roofingPayload.pro_id     = data.pro_id
+    roofingPayload.updated_at = new Date().toISOString()
+    await getSupabaseAdmin()
+      .from('roofing_invoice_data')
+      .upsert(roofingPayload, { onConflict: 'invoice_id' })
   }
 
   return NextResponse.json({ invoice: { ...data, timeline: buildTimeline(data) } })

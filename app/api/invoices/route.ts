@@ -152,5 +152,34 @@ export async function POST(req: NextRequest) {
     }).eq('id', estimate_id)
   }
 
+  // ── Roofing invoices get a roofing_invoice_data row immediately ─────────
+  // Populated from roofing_job_data (insurance fields) if this is a roofing lead
+  if (invoice && invoiceData.lead_id) {
+    const { data: estRow } = await sb
+      .from('estimates').select('trade_slug').eq('id', estimate_id ?? '').maybeSingle()
+    const tradeSlug = estRow?.trade_slug ?? ''
+
+    if (tradeSlug.includes('roof')) {
+      // Pull insurance data from roofing_job_data to pre-fill invoice extension
+      const { data: jobData } = await sb
+        .from('roofing_job_data')
+        .select('insurance_company, claim_number, approved_amount, deductible, supplement_amount, permit_number, permit_status')
+        .eq('lead_id', invoiceData.lead_id as string)
+        .maybeSingle()
+
+      await sb.from('roofing_invoice_data').upsert({
+        invoice_id:        invoice.id,
+        pro_id:            pro_id,
+        insurance_company: jobData?.insurance_company ?? null,
+        claim_number:      jobData?.claim_number      ?? null,
+        approved_amount:   jobData?.approved_amount   ?? null,
+        deductible:        jobData?.deductible         ?? null,
+        supplement_amount: jobData?.supplement_amount  ?? null,
+        permit_number:     jobData?.permit_number      ?? null,
+        permit_status:     jobData?.permit_status      ?? null,
+      }, { onConflict: 'invoice_id' })
+    }
+  }
+
   return NextResponse.json({ invoice }, { status: 201 })
 }
