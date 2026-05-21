@@ -1,30 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
-// GET — load existing questions from bank
+// GET — load question bank + attempt stats
 export async function GET() {
-  const { data, error } = await getSupabaseAdmin()
-    .from('sat_questions')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(500)
+  const supabase = getSupabaseAdmin()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ questions: data || [] })
-}
+  const [{ data: questions, error: qErr }, { data: attempts, error: aErr }] =
+    await Promise.all([
+      supabase.from('sat_questions').select('*').order('created_at', { ascending: true }).limit(1000),
+      supabase.from('sat_attempts').select('*'),
+    ])
 
-// POST — generate new questions + save to bank
-export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 })
+  if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 })
+
+  // Merge attempts into questions as a map
+  const attemptsMap: Record<string, object> = {}
+  for (const a of attempts || []) {
+    attemptsMap[(a as { question_id: string }).question_id] = a
   }
 
+  return NextResponse.json({ questions: questions || [], attemptsMap })
+}
+
+// POST — generate questions + save to bank
+export async function POST(req: NextRequest) {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY not set' }, { status: 500 })
+
   const body = await req.json().catch(() => ({}))
-  const { prompt } = body
+  const { prompt, recordAttempt } = body
+
+  // Handle attempt recording (called when student answers)
+  if (recordAttempt) {
+    const { questionId, answer, isCorrect } = body
+    const supabase = getSupabaseAdmin()
+
+    // Upsert — increment counters
+    const { data: existing } = await supabase
+      .from('sat_attempts')
+      .select('*')
+      .eq('question_id', questionId)
+      .single()
+
+    if (existing) {
+      await supabase.from('sat_attempts').update({
+        last_answer:    String(answer),
+        last_attempted: new Date().toISOString(),
+        times_attempted: existing.times_attempted + 1,
+        times_correct:   existing.times_correct + (isCorrect ? 1 : 0),
+        times_wrong:     existing.times_wrong   + (isCorrect ? 0 : 1),
+      }).eq('question_id', questionId)
+    } else {
+      await supabase.from('sat_attempts').insert({
+        question_id:    questionId,
+        last_answer:    String(answer),
+        last_attempted: new Date().toISOString(),
+        times_attempted: 1,
+        times_correct:   isCorrect ? 1 : 0,
+        times_wrong:     isCorrect ? 0 : 1,
+      })
+    }
+    return NextResponse.json({ ok: true })
+  }
+
   if (!prompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
 
-  // Discover available model
+  // Discover model
   let chosenModel = ''
   try {
     const listRes = await fetch(
@@ -68,30 +109,17 @@ export async function POST(req: NextRequest) {
   const clean = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim()
 
   let questions
-  try {
-    questions = JSON.parse(clean)
-  } catch {
-    return NextResponse.json({ error: 'Failed to parse generated questions' }, { status: 500 })
-  }
+  try { questions = JSON.parse(clean) }
+  catch { return NextResponse.json({ error: 'Failed to parse questions' }, { status: 500 }) }
 
-  // Stamp IDs — use timestamp + index for uniqueness
   const now = Date.now()
-  const stamped = questions.map((q: object, i: number) => ({
-    ...q,
-    id: `Q-${now}-${i}`,
-  }))
+  const stamped = questions.map((q: object, i: number) => ({ ...q, id: `Q-${now}-${i}` }))
 
-  // Save to Supabase (upsert so reruns don't duplicate)
-  const supabase = getSupabaseAdmin()
-  const { error: dbError } = await supabase
+  const { error: dbError } = await getSupabaseAdmin()
     .from('sat_questions')
     .upsert(stamped, { onConflict: 'id' })
 
-  if (dbError) {
-    // Still return questions even if save fails
-    console.error('DB save error:', dbError.message)
-    return NextResponse.json({ text: raw, saved: false, dbError: dbError.message })
-  }
+  if (dbError) console.error('DB save error:', dbError.message)
 
-  return NextResponse.json({ text: raw, saved: true, count: stamped.length })
+  return NextResponse.json({ text: raw, saved: !dbError, count: stamped.length })
 }
