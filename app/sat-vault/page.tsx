@@ -115,7 +115,7 @@ For mc: opts has 4 strings, ans is integer 0-3.
 For spr: opts is [], ans is a numeric string like "7" or "3.5".`
 
     try {
-      const res = await fetch('/api/sat-generate', {
+      const res = await fetch(`${window.location.origin}/api/sat-generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
@@ -288,9 +288,15 @@ ${theme==='dark'
 .ch-ty{color:var(--tx3);border-color:var(--bd);background:var(--bg3);font-size:10px;}
 .sv-nr{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;}
 .sv-ni{font-size:13px;color:var(--tx3);font-weight:700;}
-.sv-na{display:flex;gap:5px;}
-.sv-ar{width:29px;height:29px;border-radius:7px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:'Nunito',sans-serif;}
+.sv-na{display:flex;gap:8px;}
+.sv-ar{width:44px;height:44px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:'Nunito',sans-serif;touch-action:manipulation;}
 .sv-ar:hover{background:var(--as);border-color:var(--ac);color:var(--ac);}
+.sv-ar:active{transform:scale(.93);background:var(--as);}
+@media(max-width:680px){
+.sv-ar{width:52px;height:52px;font-size:20px;border-radius:12px;}
+.sv-na{gap:10px;}
+.sv-ni{font-size:14px;}
+}
 .sv-qt{font-size:17px;line-height:1.85;font-weight:500;color:var(--tx);margin-bottom:20px;white-space:pre-wrap;}
 .sv-gv{background:var(--bg3);border:1.5px solid var(--bd);border-left:4px solid var(--ac);border-radius:0 10px 10px 0;padding:12px 16px;font-family:monospace;font-size:14px;color:var(--ye);line-height:2;white-space:pre-wrap;margin-bottom:19px;}
 /* opts */
@@ -342,6 +348,21 @@ ${theme==='dark'
   .sv-qv{padding:18px 16px;}
   .sv-stats{display:none;}
   .sv-st{grid-template-columns:1fr;}
+  .sv-ar{width:52px;height:52px;font-size:20px;border-radius:12px;}
+  .sv-na{gap:10px;}
+  .sv-ni{font-size:14px;}
+  .sv-opt{padding:15px 14px;gap:14px;}
+  .sv-ob{width:32px;height:32px;font-size:14px;flex-shrink:0;}
+  .sv-ot{font-size:16px;}
+  .sv-qt{font-size:18px;line-height:1.75;}
+  .sv-bp{padding:13px 28px;font-size:15px;}
+  .sv-bo{padding:13px 18px;font-size:15px;}
+  .sv-si{font-size:22px;padding:14px 18px;width:100%;max-width:280px;}
+  .sv-ch{gap:6px;}
+  .ch{font-size:10px;padding:3px 9px;}
+  .sv-gen{padding:15px;font-size:16px;}
+  .sv-qr{padding:13px 14px;}
+  .sv-qp{font-size:13px;}
 }
 `
 
