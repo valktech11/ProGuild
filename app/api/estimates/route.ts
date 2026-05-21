@@ -61,6 +61,19 @@ export async function POST(req: NextRequest) {
       const best = existing.sort((a, b) =>
         (priority.indexOf(a.status) - priority.indexOf(b.status))
       )[0]
+
+      // Sync roofing_estimate_data with latest lead data — address/measurements
+      // may have changed since the estimate was first created
+      if (trade_slug?.includes('roof') && (property_address || square_count || pitch || waste_pct)) {
+        const cleanAddr = (property_address || '').replace(/, USA$/i, '').trim() || null
+        const syncPayload: Record<string, unknown> = { estimate_id: best.id, pro_id }
+        if (cleanAddr)    syncPayload.property_address = cleanAddr
+        if (square_count) syncPayload.square_count     = Number(square_count)
+        if (pitch)        syncPayload.pitch            = pitch
+        if (waste_pct)    syncPayload.waste_pct        = Number(waste_pct)
+        await sb.from('roofing_estimate_data').upsert(syncPayload, { onConflict: 'estimate_id' })
+      }
+
       return NextResponse.json({ estimate: best, existed: true })
     }
   }
@@ -108,7 +121,7 @@ export async function POST(req: NextRequest) {
       estimate_id:      estimate.id,
       pro_id:           pro_id,
       estimate_type:    'tiered',
-      property_address: property_address || null,
+      property_address: (property_address || '').replace(/, USA$/i, '').trim() || null,
       // Measurements from calculator or direct entry
       square_count:     square_count     ? Number(square_count)  : null,
       pitch:            pitch            || null,

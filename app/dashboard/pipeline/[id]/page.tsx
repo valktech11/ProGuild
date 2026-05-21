@@ -442,7 +442,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         state:            session.state||'',
         contact_phone:    freshLead.contact_phone||'',
         contact_email:    freshLead.contact_email||'',
-        property_address: (freshLead as any).property_address||'',
+        property_address: ((freshLead as any).property_address||'').replace(/, USA$/i,'').trim(),
         // Include measurements from roofing_job_data if present
         square_count:     rjd?.square_count  ?? null,
         pitch:            rjd?.pitch         ?? null,
