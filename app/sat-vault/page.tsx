@@ -1,6 +1,14 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
 
+interface AttemptStats {
+  last_answer?: string
+  last_attempted?: string
+  times_attempted?: number
+  times_correct?: number
+  times_wrong?: number
+}
+
 interface Question {
   id: string
   topic: string
@@ -31,6 +39,7 @@ const SHORT_TOPIC: Record<string,string> = {
 export default function SATVaultPage() {
   const [theme,      setTheme]      = useState<'dark'|'light'>('dark')
   const [questions,  setQuestions]  = useState<Question[]>([])
+  const [dbStats,    setDbStats]    = useState<Record<string, AttemptStats>>({})
   const [attempted,  setAttempted]  = useState<Record<string, number|string>>({})
   const [correct,    setCorrect]    = useState<Record<string, boolean>>({})
   const [currentId,  setCurrentId]  = useState<string|null>(null)
@@ -60,7 +69,7 @@ export default function SATVaultPage() {
         qCounter.current = d.qc || 0
       }
     } catch {}
-    // Load saved questions from DB
+    // Load saved questions + attempt stats from DB
     fetch('/api/sat-generate')
       .then(r => r.json())
       .then(data => {
@@ -73,6 +82,7 @@ export default function SATVaultPage() {
           setQuestions(loaded)
           qCounter.current = loaded.length
         }
+        if (data.attemptsMap) setDbStats(data.attemptsMap)
       })
       .catch(() => {})
   }, [])
@@ -164,10 +174,37 @@ For spr: opts is [], ans is a numeric string like "7" or "3.5".`
   }
 
   /* ── answer ── */
+  const recordAttempt = (questionId: string, answer: string | number, isCorrect: boolean) => {
+    fetch('/api/sat-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recordAttempt: true, questionId, answer: String(answer), isCorrect })
+    }).then(r => r.json()).then(data => {
+      if (data.ok) {
+        // Update local dbStats optimistically
+        setDbStats(prev => {
+          const existing = prev[questionId] || { times_attempted: 0, times_correct: 0, times_wrong: 0 }
+          return {
+            ...prev,
+            [questionId]: {
+              last_answer: String(answer),
+              last_attempted: new Date().toISOString(),
+              times_attempted: (existing.times_attempted || 0) + 1,
+              times_correct:   (existing.times_correct   || 0) + (isCorrect ? 1 : 0),
+              times_wrong:     (existing.times_wrong     || 0) + (isCorrect ? 0 : 1),
+            }
+          }
+        })
+      }
+    }).catch(() => {})
+  }
+
   const pick = (i: number) => {
     if (!currentId || attempted[currentId] !== undefined || !currentQ) return
+    const isCorrect = i === Number(currentQ.ans)
     setAttempted(p => ({ ...p, [currentId]: i }))
-    setCorrect(p => ({ ...p, [currentId]: i === Number(currentQ.ans) }))
+    setCorrect(p => ({ ...p, [currentId]: isCorrect }))
+    recordAttempt(currentId, i, isCorrect)
   }
 
   const submitSPR = () => {
@@ -176,6 +213,7 @@ For spr: opts is [], ans is a numeric string like "7" or "3.5".`
     const ok  = val === String(currentQ.ans) || (!isNaN(parseFloat(String(currentQ.ans))) && parseFloat(val) === parseFloat(String(currentQ.ans)))
     setAttempted(p => ({ ...p, [currentId]: val }))
     setCorrect(p => ({ ...p, [currentId]: ok }))
+    recordAttempt(currentId, val, ok)
   }
 
   const goRel = (dir: number) => {
@@ -311,6 +349,15 @@ ${theme==='dark'
 .sv-ar{width:44px;height:44px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:'Nunito',sans-serif;touch-action:manipulation;}
 .sv-ar:hover{background:var(--as);border-color:var(--ac);color:var(--ac);}
 .sv-ar:active{transform:scale(.93);background:var(--as);}
+.sv-stats-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;}
+.sv-stat-item{display:flex;flex-direction:column;align-items:center;min-width:60px;flex:1;}
+.sv-stat-item .sv-sval{font-size:18px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;}
+.sv-stat-item .sv-slbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--tx3);margin-top:2px;text-align:center;}
+.sv-stat-item.att .sv-sval{color:var(--ac);}
+.sv-stat-item.cor .sv-sval{color:var(--gr);}
+.sv-stat-item.wrg .sv-sval{color:var(--re);}
+.sv-stat-item.last .sv-sval{font-size:11px;color:var(--tx2);font-family:monospace;font-weight:500;}
+.sv-divider{width:1px;background:var(--bd);align-self:stretch;margin:0 4px;}
 @media(max-width:680px){
 .sv-ar{width:52px;height:52px;font-size:20px;border-radius:12px;}
 .sv-na{gap:10px;}
