@@ -311,17 +311,23 @@ function ProMeasureInner() {
     // If opened from a lead, write measurements to roofing_job_data
     if (leadId && session) {
       try {
-        await fetch(`/api/leads/${leadId}`, {
+        const patchBody = {
+          pro_id:       session.id,
+          square_count: squares,
+          pitch:        pitch,
+          waste_pct:    waste,
+        }
+        console.log('[ProMeasure] PATCH body:', JSON.stringify(patchBody))
+        const patchRes = await fetch(`/api/leads/${leadId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pro_id:       session.id,
-            square_count: squares,
-            pitch:        pitch,
-            waste_pct:    waste,
-          }),
+          body: JSON.stringify(patchBody),
         })
-      } catch { /* non-fatal — sessionStorage still set */ }
+        const patchData = await patchRes.json().catch(() => null)
+        console.log('[ProMeasure] PATCH status:', patchRes.status, '| response:', JSON.stringify(patchData))
+      } catch (err) {
+        console.error('[ProMeasure] PATCH threw:', err)
+      }
 
       // Lead flow: skip calculator entirely — go straight to estimate
       // createEst() in pipeline/[id] re-fetches the lead (now with fresh roofing_job_data)

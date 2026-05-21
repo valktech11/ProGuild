@@ -92,6 +92,7 @@ export async function PATCH(
 
   // Ownership: pro_id accepted from body OR query param — frontend sends in body
   const proId = (body.pro_id as string) || new URL(req.url).searchParams.get('pro_id')
+  console.log('[PATCH /api/leads] body keys:', Object.keys(body), '| proId valid:', isValidUuid(proId))
   if (!isValidUuid(proId)) return apiError('pro_id required', 401)
 
   const updateFields: Partial<LeadUpdateFields> = {}
@@ -130,7 +131,9 @@ export async function PATCH(
     }
   }
 
+  console.log('[PATCH /api/leads] updateFields:', JSON.stringify(updateFields))
   if (Object.keys(updateFields).length === 0) {
+    console.log('[PATCH /api/leads] BLOCKED — updateFields empty, returning 400')
     return apiError('No valid fields provided', 400)
   }
 
@@ -154,14 +157,15 @@ export async function PATCH(
     if (field in body) roofingPayload[field] = body[field]
   }
 
+  console.log('[PATCH /api/leads] roofingPayload:', JSON.stringify(roofingPayload))
   if (Object.keys(roofingPayload).length > 0) {
     roofingPayload.lead_id    = id
     roofingPayload.pro_id     = proId
     roofingPayload.updated_at = new Date().toISOString()
-    await getSupabaseAdmin()
+    const { error: rErr } = await getSupabaseAdmin()
       .from('roofing_job_data')
       .upsert(roofingPayload, { onConflict: 'lead_id' })
-    // Non-fatal — don't block the leads update response
+    console.log('[PATCH /api/leads] roofing_job_data upsert error:', rErr ?? 'none')
   }
 
   return NextResponse.json({ lead: data })

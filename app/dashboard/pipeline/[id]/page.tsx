@@ -223,13 +223,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
+        console.log('[Pipeline] re-fetch lead response:', JSON.stringify(d?.lead?.roofing_job_data))
         if (d?.lead) {
           setLead(d.lead)
           setStage(d.lead.lead_status)
         }
         addToast('Measurements applied to lead', 'success')
       })
-      .catch(() => addToast('Measurements applied to lead', 'success'))
+      .catch((err) => { console.error('[Pipeline] re-fetch error:', err); addToast('Measurements applied to lead', 'success') })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedFromProMeasure, lead?.id])
 
