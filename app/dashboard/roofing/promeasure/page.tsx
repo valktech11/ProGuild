@@ -157,7 +157,8 @@ function ProMeasureInner() {
     const map = new window.google.maps.Map(div, {
       zoom: saved?.zoom || 19,
       center: saved?.center || {lat:30.3322,lng:-81.6557},
-      mapTypeId:'satellite', tilt:0,
+      // 'hybrid' = satellite imagery WITH road/label overlay (labels ON by default)
+      mapTypeId: 'hybrid', tilt:0,
       streetViewControl:false, mapTypeControl:true,
       mapTypeControlOptions:{ position: 9, style: 1 }, // style 1 = HORIZONTAL_BAR (Map/Satellite labels)
       fullscreenControl:true, fullscreenControlOptions:{ position: 7 },
@@ -168,6 +169,17 @@ function ProMeasureInner() {
     setMapReady(true)
 
     map.addListener('click', (e:any) => { if (e.latLng) addPin(e.latLng, map) })
+
+    // Auto-geocode: if address was passed via URL and no saved center exists, fly to it
+    if (!saved?.center && initAddress.trim()) {
+      new window.google.maps.Geocoder().geocode({ address: initAddress }, (res: any, status: any) => {
+        if (status === 'OK' && res?.[0]?.geometry?.location) {
+          map.setCenter(res[0].geometry.location)
+          map.setZoom(20)
+          saveRecentRef.current(initAddress)
+        }
+      })
+    }
 
     // Restore drawn polygon from saved state
     if (saved?.latlngs?.length >= 2) {
@@ -309,13 +321,18 @@ function ProMeasureInner() {
           }),
         })
       } catch { /* non-fatal — sessionStorage still set */ }
+
+      // Lead flow: skip calculator entirely — go straight to estimate
+      // createEst() in pipeline/[id] re-fetches the lead (now with fresh roofing_job_data)
+      // and the estimate builder's PropertyCard recalc handles the rest
+      // Check if an estimate already exists for this lead via sessionStorage signal
+      // Navigate back to pipeline detail — the roofer clicks "Create Proposal" or it auto-opens
+      router.push(`/dashboard/pipeline/${leadId}?from=promeasure&applied=1`)
+      return
     }
 
-    // Navigate to calculator with lead context if present
-    const calcUrl = leadId
-      ? `/dashboard/roofing/calculator?from=promeasure&lead_id=${leadId}`
-      : '/dashboard/roofing/calculator?from=promeasure'
-    router.push(calcUrl)
+    // Standalone use (no leadId) — go to calculator as before
+    router.push('/dashboard/roofing/calculator?from=promeasure')
   }
 
   useEffect(() => {
@@ -408,7 +425,7 @@ function ProMeasureInner() {
         {(area||regions.length>0)&&(
           <button onClick={pushToCalc}
             style={{padding:'13px',borderRadius:12,border:'none',background:'linear-gradient(135deg,#14B8A6,#0F766E)',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',boxShadow:'0 4px 16px rgba(20,184,166,0.3)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-            Push to Calculator
+            {leadId ? 'Apply to Lead →' : 'Push to Calculator'}
             <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           </button>
         )}

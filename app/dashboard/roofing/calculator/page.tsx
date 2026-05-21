@@ -61,60 +61,69 @@ const DEFAULT_PRICES: Record<string, number> = {
 function calculateMaterials(
   squares: number,
   pitchKey: string,
-  wastePct: number
+  wastePct: number,
+  ridgeLF: number,
+  eaveLF: number,
+  perimLF: number,
+  prices: Record<string, number>
 ): { items: LineItem[]; adjustedSquares: number } {
   const pitchFactor    = PITCH_FACTORS[pitchKey] ?? 1.118
   const adjustedSquares = squares * pitchFactor * (1 + wastePct / 100)
+
+  const ridgeBundles   = ridgeLF  > 0 ? Math.ceil(ridgeLF / 35)  : null
+  const starterBundles = eaveLF   > 0 ? Math.ceil(eaveLF / 105)  : null
+  const dripPieces     = perimLF  > 0 ? Math.ceil(perimLF / 10)  : null
+  const iceSquares     = eaveLF   > 0 ? Math.ceil((eaveLF * 3) / 100) : null
 
   const items: LineItem[] = [
     {
       description: `Architectural shingles (${pitchKey} pitch, ${wastePct}% waste)`,
       quantity:    Math.ceil(adjustedSquares * 3),
       unit:        'bundles',
-      unitPrice:   DEFAULT_PRICES.shingles,
-      total:       Math.ceil(adjustedSquares * 3) * DEFAULT_PRICES.shingles,
+      unitPrice:   prices.shingles,
+      total:       Math.ceil(adjustedSquares * 3) * prices.shingles,
     },
     {
       description: 'Synthetic underlayment',
       quantity:    Math.ceil(adjustedSquares * 1.1 * 10) / 10,
       unit:        'squares',
-      unitPrice:   DEFAULT_PRICES.underlayment,
-      total:       Math.ceil(adjustedSquares * 1.1) * DEFAULT_PRICES.underlayment,
+      unitPrice:   prices.underlayment,
+      total:       Math.ceil(adjustedSquares * 1.1) * prices.underlayment,
     },
     {
-      description: 'Ridge cap shingles',
-      quantity:    1,   // placeholder — requires linear footage from DSM
+      description: ridgeBundles ? 'Ridge cap shingles' : 'Ridge cap shingles (enter ridge LF below)',
+      quantity:    ridgeBundles ?? 0,
       unit:        'bundles',
-      unitPrice:   DEFAULT_PRICES.ridgeCap,
-      total:       DEFAULT_PRICES.ridgeCap,
+      unitPrice:   prices.ridgeCap,
+      total:       (ridgeBundles ?? 0) * prices.ridgeCap,
     },
     {
-      description: 'Starter strip',
-      quantity:    1,   // placeholder — requires eave LF from DSM
+      description: starterBundles ? 'Starter strip' : 'Starter strip (enter eave LF below)',
+      quantity:    starterBundles ?? 0,
       unit:        'bundles',
-      unitPrice:   DEFAULT_PRICES.starterStrip,
-      total:       DEFAULT_PRICES.starterStrip,
+      unitPrice:   prices.starterStrip,
+      total:       (starterBundles ?? 0) * prices.starterStrip,
     },
     {
       description: 'Roofing nails',
       quantity:    Math.ceil(adjustedSquares * 2.5),
       unit:        'lbs',
-      unitPrice:   DEFAULT_PRICES.nails,
-      total:       Math.ceil(adjustedSquares * 2.5) * DEFAULT_PRICES.nails,
+      unitPrice:   prices.nails,
+      total:       Math.ceil(adjustedSquares * 2.5) * prices.nails,
     },
     {
-      description: 'Drip edge',
-      quantity:    1,   // placeholder — requires perimeter LF
+      description: dripPieces ? 'Drip edge' : 'Drip edge (enter perimeter LF below)',
+      quantity:    dripPieces ?? 0,
       unit:        'pieces',
-      unitPrice:   DEFAULT_PRICES.dripEdge,
-      total:       DEFAULT_PRICES.dripEdge,
+      unitPrice:   prices.dripEdge,
+      total:       (dripPieces ?? 0) * prices.dripEdge,
     },
     {
-      description: 'Ice and water shield (FL code — 3ft from eave)',
-      quantity:    1,   // placeholder — requires eave LF
+      description: iceSquares ? 'Ice and water shield (FL code — 3ft from eave)' : 'Ice and water shield (enter eave LF below)',
+      quantity:    iceSquares ?? 0,
       unit:        'squares',
-      unitPrice:   DEFAULT_PRICES.iceWater,
-      total:       DEFAULT_PRICES.iceWater,
+      unitPrice:   prices.iceWater,
+      total:       (iceSquares ?? 0) * prices.iceWater,
     },
   ]
 
@@ -147,6 +156,14 @@ function CalculatorInner() {
   const [error,       setError]       = useState<string | null>(null)
   const [success,     setSuccess]     = useState<string | null>(null)
 
+  // ── Linear footage inputs (for ridge cap, starter strip, drip edge, ice/water) ─
+  const [ridgeLF,     setRidgeLF]     = useState<string>('')
+  const [eaveLF,      setEaveLF]      = useState<string>('')
+  const [perimLF,     setPerimLF]     = useState<string>('')
+
+  // ── Unit price overrides (editable inline, default to DEFAULT_PRICES) ──
+  const [prices, setPrices] = useState<Record<string, number>>({ ...DEFAULT_PRICES })
+
   // leadId can come from URL param (if opened from a lead detail page)
   const leadId = searchParams.get('lead_id') ?? null
 
@@ -175,10 +192,16 @@ function CalculatorInner() {
   useEffect(() => {
     const sq = parseFloat(squares)
     if (!sq || sq <= 0) { setLineItems([]); setAdjSq(0); return }
-    const { items, adjustedSquares } = calculateMaterials(sq, pitch, parseFloat(waste) || 0)
+    const { items, adjustedSquares } = calculateMaterials(
+      sq, pitch, parseFloat(waste) || 0,
+      parseFloat(ridgeLF) || 0,
+      parseFloat(eaveLF)  || 0,
+      parseFloat(perimLF) || 0,
+      prices
+    )
     setLineItems(items)
     setAdjSq(adjustedSquares)
-  }, [squares, pitch, waste])
+  }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices])
 
   // Push to estimate
   const handleApplyToEstimate = useCallback(async () => {
@@ -205,8 +228,8 @@ function CalculatorInner() {
           waste_pct:     parseFloat(waste)    || 10,
           property_address: reportData?.address ?? null,
           report_data:   reportData,
-          line_items:    lineItems.map(i => ({
-            description: i.description,
+          line_items:    lineItems.filter(i => i.quantity > 0).map(i => ({
+            description: i.description.replace(' (enter ridge LF below)', '').replace(' (enter eave LF below)', '').replace(' (enter perimeter LF below)', ''),
             quantity:    i.quantity,
             unit_price:  i.unitPrice,
           })),
@@ -371,7 +394,59 @@ function CalculatorInner() {
           )}
         </div>
 
-        {/* Line items */}
+        {/* Linear footage inputs */}
+        {parseFloat(squares) > 0 && (
+          <div style={{
+            background: t.cardBg,
+            border: `1px solid ${t.cardBorder}`,
+            borderRadius: 12,
+            padding: 20,
+            marginBottom: 20,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: t.textPri, margin: 0 }}>
+                Linear Footage
+              </h2>
+              <span style={{ fontSize: 12, color: t.textMuted }}>
+                Auto-filled when Quick Bid Report is run
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: t.textMuted, marginBottom: 16, marginTop: 4 }}>
+              Needed for ridge cap, starter strip, drip edge, and ice & water shield. Enter manually or run a satellite report.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
+                  Ridge LF
+                </label>
+                <input type="number" min="0" step="1" value={ridgeLF} onChange={e => setRidgeLF(e.target.value)}
+                  placeholder="e.g. 48"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
+                  Eave LF
+                </label>
+                <input type="number" min="0" step="1" value={eaveLF} onChange={e => setEaveLF(e.target.value)}
+                  placeholder="e.g. 120"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
+                  Perimeter LF
+                </label>
+                <input type="number" min="0" step="1" value={perimLF} onChange={e => setPerimLF(e.target.value)}
+                  placeholder="e.g. 280"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Material output table — always visible once squares entered */}
         {lineItems.length > 0 && (
           <div style={{
             background: t.cardBg,
@@ -380,9 +455,12 @@ function CalculatorInner() {
             padding: 20,
             marginBottom: 20,
           }}>
-            <h2 style={{ fontSize: 15, fontWeight: 600, color: t.textPri, marginBottom: 16 }}>
-              Material Quantities
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: t.textPri, margin: 0 }}>
+                Material Quantities
+              </h2>
+              <span style={{ fontSize: 12, color: t.textMuted }}>Unit prices editable below</span>
+            </div>
 
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
@@ -398,32 +476,52 @@ function CalculatorInner() {
                 </tr>
               </thead>
               <tbody>
-                {lineItems.map((item, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
-                    <td style={{ padding: '8px', color: t.textPri }}>{item.description}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', color: t.textPri }}>{item.quantity}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', color: t.textMuted }}>{item.unit}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', color: t.textMuted }}>${item.unitPrice}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', color: t.textPri, fontWeight: 500 }}>
-                      ${item.total.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td colSpan={4} style={{ padding: '10px 8px', fontWeight: 600, color: t.textPri }}>
+                {lineItems.map((item, i) => {
+                  const priceKey = ['shingles','underlayment','ridgeCap','starterStrip','nails','dripEdge','iceWater'][i]
+                  const isPlaceholder = item.quantity === 0
+                  return (
+                    <tr key={i} style={{ borderBottom: `1px solid ${t.cardBorder}`, opacity: isPlaceholder ? 0.45 : 1 }}>
+                      <td style={{ padding: '8px', color: t.textPri, fontSize: 12 }}>
+                        {item.description.replace(' (enter ridge LF below)', '').replace(' (enter eave LF below)', '').replace(' (enter perimeter LF below)', '')}
+                        {isPlaceholder && <span style={{ fontSize: 11, color: '#F59E0B', marginLeft: 6 }}>⚠ needs LF</span>}
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'right', color: t.textPri, fontWeight: isPlaceholder ? 400 : 600 }}>
+                        {isPlaceholder ? '—' : item.quantity}
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'right', color: t.textMuted }}>{item.unit}</td>
+                      <td style={{ padding: '8px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                          <span style={{ color: t.textMuted }}>$</span>
+                          <input
+                            type="number" min="0" step="0.01"
+                            value={prices[priceKey]}
+                            onChange={e => setPrices(p => ({ ...p, [priceKey]: parseFloat(e.target.value) || 0 }))}
+                            style={{ width: 60, padding: '3px 6px', borderRadius: 6, border: `1px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 13, textAlign: 'right' }}
+                          />
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px', textAlign: 'right', color: isPlaceholder ? t.textMuted : '#0F766E', fontWeight: 600 }}>
+                        {isPlaceholder ? '—' : `$${item.total.toLocaleString()}`}
+                      </td>
+                    </tr>
+                  )
+                })}
+                <tr style={{ background: '#F0FDFA' }}>
+                  <td colSpan={4} style={{ padding: '12px 8px', fontWeight: 700, color: t.textPri, fontSize: 14 }}>
                     Materials total
                   </td>
-                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 600, fontSize: 15, color: '#0F766E' }}>
+                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 700, fontSize: 16, color: '#0F766E' }}>
                     ${totalCost.toLocaleString()}
                   </td>
                 </tr>
               </tbody>
             </table>
 
-            <p style={{ fontSize: 12, color: t.textMuted, marginTop: 12 }}>
-              Ridge cap, starter strip, drip edge, and ice/water shield quantities require linear footage — 
-              shown as 1 unit placeholder until DSM measurement is available.
-            </p>
+            {(!parseFloat(ridgeLF) || !parseFloat(eaveLF) || !parseFloat(perimLF)) && (
+              <p style={{ fontSize: 12, color: '#F59E0B', marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                ⚠ Some items need linear footage — enter Ridge LF, Eave LF, and Perimeter LF above for a complete total.
+              </p>
+            )}
           </div>
         )}
 

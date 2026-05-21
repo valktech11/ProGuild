@@ -96,6 +96,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const sp       = useSearchParams()
   const fromParam = sp.get('from')
   const fromEst   = sp.get('est_id')
+  const appliedFromProMeasure = sp.get('applied') === '1' && fromParam === 'promeasure'
 
   function backNav() {
     // Trade label from plugin — no slug string comparisons
@@ -210,6 +211,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       const i=(d.invoices||[]).find((x:any)=>x.status!=='void'); if(i) setInv(i)
     }).catch(()=>{})
   }, [session, lead])
+
+  // Show toast when returning from ProMeasure with measurements applied
+  useEffect(() => {
+    if (appliedFromProMeasure && lead) {
+      addToast('Measurements applied to lead', 'success')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedFromProMeasure, lead?.id])
 
   // ── Patch ────────────────────────────────────────────────────────────────
   const patch = useCallback(async (fields:Record<string,unknown>) => {
@@ -355,17 +364,30 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     if (!lead||!session||creatingEst) return
     setCreatingEst(true)
     try {
+      // Re-fetch lead to get the latest contact_name + roofing_job_data
+      // (measurements may have just been applied from Quick Bid Report or ProMeasure)
+      const freshRes = await fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+      const freshData = freshRes.ok ? await freshRes.json() : null
+      const freshLead = freshData?.lead ?? lead
+      // Update local state so UI also reflects fresh data
+      setLead(freshLead)
+      const rjd = (freshLead as any)?.roofing_job_data
+
       const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         pro_id:           session.id,
-        lead_id:          lead.id,
-        lead_name:        lead.contact_name,
-        lead_source:      lead.lead_source||'',
+        lead_id:          freshLead.id,
+        lead_name:        freshLead.contact_name,
+        lead_source:      freshLead.lead_source||'',
         trade:            session.trade||'',
         trade_slug:       session.trade_slug||'',
         state:            session.state||'',
-        contact_phone:    lead.contact_phone||'',
-        contact_email:    lead.contact_email||'',
-        property_address: (lead as any).property_address||'',
+        contact_phone:    freshLead.contact_phone||'',
+        contact_email:    freshLead.contact_email||'',
+        property_address: (freshLead as any).property_address||'',
+        // Include measurements from roofing_job_data if present
+        square_count:     rjd?.square_count  ?? null,
+        pitch:            rjd?.pitch         ?? null,
+        waste_pct:        rjd?.waste_pct     ?? null,
       })})
       const d=await r.json(); if(d.estimate?.id) router.push(`/dashboard/estimates/${d.estimate.id}?from=pipeline&lead_id=${id}`)
     } catch { setCreatingEst(false) }
