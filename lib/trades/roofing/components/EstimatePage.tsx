@@ -195,6 +195,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   )
 
   // Measurements state — editable inline
+  const [addrVal,   setAddrVal]   = useState<string>(estimate.property_address ?? '')
   const [sqCount,   setSqCount]   = useState<string>(String(estimate.square_count ?? ''))
   const [pitchVal,  setPitchVal]  = useState<string>(estimate.pitch ?? '6/12')
   const [wastePct,  setWastePct]  = useState<string>(String(estimate.waste_pct ?? 10))
@@ -264,7 +265,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     }))
   }, [])
 
-  // Save measurements — updates roofing_estimate_data + lead
+  // Save measurements + address — updates roofing_estimate_data + lead
   const saveMeasurements = useCallback(async () => {
     setSavingMeas(true)
     const sq = parseFloat(sqCount) || 0
@@ -273,13 +274,18 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     try {
       await onSave({ square_count: sq, pitch: pitchVal, waste_pct: wp } as any)
       if (onMeasurementsUpdate) {
-        await onMeasurementsUpdate({ square_count: sq, pitch: pitchVal, waste_pct: wp })
+        await onMeasurementsUpdate({
+          property_address: addrVal || undefined,
+          square_count: sq,
+          pitch: pitchVal,
+          waste_pct: wp,
+        })
       }
     } finally {
       setSavingMeas(false)
       setEditMeas(false)
     }
-  }, [sqCount, pitchVal, wastePct, recalcTiersFromSq, onSave, onMeasurementsUpdate])
+  }, [addrVal, sqCount, pitchVal, wastePct, recalcTiersFromSq, onSave, onMeasurementsUpdate])
 
   // ── Tier item editing ────────────────────────────────────────────────────────
 
@@ -423,6 +429,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           {/* Property + measurements */}
           <PropertyCard
             estimate={estimate} card={card} border={border} textP={textP} textS={textS}
+            addrVal={addrVal} setAddrVal={setAddrVal}
             sqCount={sqCount} setSqCount={setSqCount}
             pitchVal={pitchVal} setPitchVal={setPitchVal}
             wastePct={wastePct} setWastePct={setWastePct}
@@ -553,9 +560,10 @@ function ProgressTimeline({ timeline, border, textS, card }: {
 const PITCH_OPTIONS = ['3/12','4/12','5/12','6/12','7/12','8/12','9/12','10/12','12/12']
 
 function PropertyCard({ estimate, card, border, textP, textS,
-  sqCount, setSqCount, pitchVal, setPitchVal, wastePct, setWastePct,
+  addrVal, setAddrVal, sqCount, setSqCount, pitchVal, setPitchVal, wastePct, setWastePct,
   editMeas, setEditMeas, savingMeas, onSaveMeas }: {
   estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
+  addrVal: string; setAddrVal: (v: string) => void
   sqCount: string; setSqCount: (v: string) => void
   pitchVal: string; setPitchVal: (v: string) => void
   wastePct: string; setWastePct: (v: string) => void
@@ -577,7 +585,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: textP, marginBottom: 2 }}>
-            {estimate.property_address ?? 'No address on file'}
+            {addrVal || estimate.property_address || 'No address on file'}
           </div>
           <div style={{ fontSize: 13, color: textS }}>{estimate.lead_name} · Lead</div>
         </div>
@@ -615,7 +623,27 @@ function PropertyCard({ estimate, card, border, textP, textS,
         <div style={{ borderTop: `1px solid ${border}`, paddingTop: 18 }}>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em',
             textTransform: 'uppercase', color: textS, marginBottom: 14 }}>
-            Roof Measurements
+            Property &amp; Measurements
+          </div>
+          {/* Address — updates both roofing_estimate_data and leads.property_address */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: textS, display: 'block', marginBottom: 6 }}>
+              Property Address
+            </label>
+            <input
+              type="text"
+              value={addrVal}
+              onChange={e => setAddrVal(e.target.value)}
+              placeholder="9933 Orchard Hills Rd, Jacksonville FL 32256"
+              style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 8,
+                padding: '10px 12px', fontSize: 14, outline: 'none',
+                background: '#F8FAFC', color: textP, boxSizing: 'border-box' }}
+              onFocus={e => (e.target.style.borderColor = C.teal)}
+              onBlur={e => (e.target.style.borderColor = border)}
+            />
+            <div style={{ fontSize: 11, color: textS, marginTop: 4 }}>
+              Saves to this proposal and the lead record
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
             {/* Squares */}

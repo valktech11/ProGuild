@@ -30,6 +30,7 @@ function ProMeasureInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initAddress = searchParams.get('address') || ''
+  const leadId      = searchParams.get('lead_id') || null
 
   // Restore saved draw state if returning via back navigation
   const savedDraw = (() => {
@@ -288,13 +289,33 @@ function ProMeasureInner() {
     })
   }
 
-  function pushToCalc() {
+  async function pushToCalc() {
     const totalSqFt = regions.reduce((s,r)=>s+r.sqFt,0)+(area||0)
-    sessionStorage.setItem('pg_promeasure',JSON.stringify({
-      squares:+(totalSqFt/100).toFixed(2),pitch,waste,
-      perimeter:perim?+perim.toFixed(1):null,address,
-    }))
-    router.push('/dashboard/roofing/calculator?from=promeasure')
+    const squares   = +(totalSqFt/100).toFixed(2)
+    const measData  = { squares, pitch, waste, perimeter:perim?+perim.toFixed(1):null, address }
+    sessionStorage.setItem('pg_promeasure', JSON.stringify(measData))
+    sessionStorage.setItem('pg_report_data', JSON.stringify(measData))
+
+    // If opened from a lead, write measurements to roofing_job_data
+    if (leadId && session) {
+      try {
+        await fetch(`/api/leads/${leadId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            square_count: squares,
+            pitch:        pitch,
+            waste_pct:    waste,
+          }),
+        })
+      } catch { /* non-fatal — sessionStorage still set */ }
+    }
+
+    // Navigate to calculator with lead context if present
+    const calcUrl = leadId
+      ? `/dashboard/roofing/calculator?from=promeasure&lead_id=${leadId}`
+      : '/dashboard/roofing/calculator?from=promeasure'
+    router.push(calcUrl)
   }
 
   useEffect(() => {

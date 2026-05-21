@@ -59,7 +59,19 @@ export async function GET(
   const { data, error } = await query.single()
 
   if (error) return apiError('Lead not found', 404)
-  return NextResponse.json({ lead: data })
+
+  // Join roofing_job_data so pipeline detail has measurements + insurance state
+  let roofingJobData: any = null
+  if ((data as any).trade_slug?.includes('roof')) {
+    const { data: rd } = await getSupabaseAdmin()
+      .from('roofing_job_data')
+      .select('*')
+      .eq('lead_id', id)
+      .maybeSingle()
+    roofingJobData = rd
+  }
+
+  return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData } })
 }
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────

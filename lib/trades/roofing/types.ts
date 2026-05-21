@@ -27,6 +27,7 @@ export interface RoofingPipelineStage {
   nextLabel?:   string       // CTA: "Schedule Inspection", "Run Inspection"
   terminal?:    boolean      // lost / unqualified — hidden from main board
   reopenable?:  boolean      // lost can reopen; unqualified cannot
+  requires?:    string       // gate key checked by moveStage before allowing advance
 }
 
 // ── Stage anchors ─────────────────────────────────────────────────────────────

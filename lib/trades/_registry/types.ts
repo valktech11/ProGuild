@@ -100,6 +100,7 @@ export interface AnyPipelineStage {
   nextLabel?:   string   // CTA label: "Schedule Inspection", "Run Inspection"
   terminal?:    boolean  // lost / unqualified — hidden from main board
   reopenable?:  boolean  // lost can reopen; unqualified cannot
+  requires?:    string   // gate key — checked by moveStage gate evaluator
 }
 
 // ── Stage anchors ─────────────────────────────────────────────────────────────

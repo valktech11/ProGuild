@@ -53,6 +53,7 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'inspection_scheduled',
       label:     'Inspection Scheduled',
+      requires:  'lead_has_address',       // must have property address to schedule
       icon:      '🔍',
       color:     '#0284C7',
       bg:        '#F0F9FF',
@@ -63,6 +64,7 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'proposal_sent',
       label:     'Proposal Sent',
+      requires:  'estimate_ready',          // estimate must exist with total > 0
       icon:      '📄',
       color:     '#D97706',
       bg:        '#FFFBEB',
@@ -73,6 +75,7 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'proposal_signed',
       label:     'Proposal Signed',
+      requires:  'estimate_sent',           // estimate must be in sent/viewed/approved state
       icon:      '✍️',
       color:     '#059669',
       bg:        '#ECFDF5',
@@ -83,6 +86,7 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'insurance_approved',
       label:     'Insurance Approved',
+      requires:  'insurance_claim_filed',   // roofing_job_data.insurance_claim must be true
       icon:      '🛡️',
       color:     '#0891B2',
       bg:        '#F0F9FF',
@@ -93,6 +97,7 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'scheduled',
       label:     'Scheduled',
+      requires:  'estimate_approved',       // estimate must be approved or proposal_signed stage reached
       icon:      '📅',
       color:     '#2563EB',
       bg:        '#EFF6FF',
@@ -103,6 +108,7 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'in_progress',
       label:     'In Progress',
+      requires:  'scheduled_date',          // lead.scheduled_date must be set
       icon:      '🔨',
       color:     '#EA580C',
       bg:        '#FFF7ED',
@@ -113,6 +119,7 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'job_won',
       label:     'Job Won',
+      requires:  'invoice_exists',          // invoice must exist
       icon:      '🏆',
       color:     '#047857',
       bg:        '#D1FAE5',

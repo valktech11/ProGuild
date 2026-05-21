@@ -219,27 +219,65 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   }, [session, id])
 
   // ── Stage move ───────────────────────────────────────────────────────────
+  // ── Gate evaluator — reads `requires` from stage config ─────────────────
+  function evalGate(targetKey: string): { pass: boolean; reason?: string; action?: string } {
+    const rjd = (lead as any)?.roofing_job_data
+    switch (targetKey) {
+      case 'inspection_scheduled':
+        if (!(lead as any).property_address) return { pass: false, reason: 'Add a property address before scheduling inspection.', action: 'Edit Lead' }
+        return { pass: true }
+      case 'proposal_sent':
+        if (!est) return { pass: false, reason: 'Create a proposal before marking as Proposal Sent.', action: 'Create Proposal' }
+        if (!(est as any).total || (est as any).total === 0) return { pass: false, reason: 'Your proposal has no items yet. Add line items before sending.', action: 'Open Proposal' }
+        return { pass: true }
+      case 'proposal_signed':
+        if (!est) return { pass: false, reason: 'No proposal exists. Create and send a proposal first.', action: 'Create Proposal' }
+        if (!['sent','viewed','approved'].includes((est as any).status)) return { pass: false, reason: 'Proposal must be sent to the homeowner before it can be signed.', action: 'Open Proposal' }
+        return { pass: true }
+      case 'insurance_approved':
+        if (!rjd?.insurance_claim) return { pass: false, reason: 'Mark this job as an insurance claim before moving to Insurance Approved.', action: 'Open Insurance Fields' }
+        return { pass: true }
+      case 'scheduled':
+        if (!est) return { pass: false, reason: 'No proposal exists. A signed proposal is required before scheduling.', action: 'Create Proposal' }
+        if (!['approved','invoiced','paid'].includes((est as any).status) && STAGE_ORDER['proposal_signed'] > STAGE_ORDER[stage]) {
+          return { pass: false, reason: 'Get the proposal signed before scheduling the job.', action: 'Open Proposal' }
+        }
+        return { pass: true }
+      case 'in_progress':
+        if (!lead.scheduled_date) return { pass: false, reason: 'Set a job date before marking as In Progress.', action: 'Edit Lead' }
+        return { pass: true }
+      case 'job_won':
+        if (!inv) return { pass: false, reason: 'Create an invoice before marking the job as won.', action: 'Create Invoice' }
+        return { pass: true }
+      default:
+        return { pass: true }
+    }
+  }
+
   async function moveStage(s:LeadStatus, force=false) {
     if (s===stage||saving) return
     if (STAGE_ORDER[s]<STAGE_ORDER[stage]) { setConfirmBack(s); return }
     if (!force) {
-      if (s==='Scheduled'&&!est) { setWarnSched(true); return }
-      if (s==='Completed'&&!inv) { setWarnDone(true); return }
-      // Gate: proposal_sent requires a real estimate with items
-      if (s==='proposal_sent') {
-        if (!est) { setWarnProposal(true); return }
-        if ((est as any).total === 0) { setWarnProposal(true); return }
-        // Estimate exists and has value — move stage then open estimate
+      // Unified gate evaluator — reads requires from stage config
+      const gate = evalGate(s)
+      if (!gate.pass) {
+        // Map gate failure to appropriate modal or action
+        if (s === 'proposal_sent' || s === 'proposal_signed') { setWarnProposal(true); return }
+        if (s === 'job_won') { setWarnDone(true); return }
+        if (s === 'scheduled') { setWarnSched(true); return }
+        // Generic gate failure — show toast with reason
+        addToast(gate.reason ?? 'Cannot move to this stage yet', 'error')
+        return
+      }
+      // proposal_sent special: move stage AND open estimate immediately
+      if (s === 'proposal_sent' && est) {
         const prev2 = stage; setStage(s as LeadStatus); setSaving(true)
         const ok2 = await patch({ lead_status: s }); setSaving(false)
         if (ok2) {
           setLead(l => l ? { ...l, lead_status: s } : l)
           addToast('Moved to Proposal Sent', 'success', prev2)
           router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)
-        } else {
-          setStage(prev2)
-          addToast('Failed to update stage', 'error')
-        }
+        } else { setStage(prev2); addToast('Failed to update stage', 'error') }
         return
       }
     }
@@ -431,29 +469,32 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         {warnProposal&&(
           <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setWarnProposal(false)}>
             <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:380,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
-              <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,marginBottom:6}}>
-                {!est ? 'No proposal yet' : 'Proposal has no items'}
-              </p>
-              <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp4}}>
-                {!est
-                  ? 'Create a proposal before marking as Proposal Sent. The homeowner needs something to review.'
-                  : 'Your proposal exists but has $0 in items. Add your line items before sending.'}
-              </p>
-              <div style={{display:'flex',gap:T.sp2}}>
-                <button
-                  onClick={()=>{
-                    setWarnProposal(false)
-                    if (est) router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)
-                    else createEst()
-                  }}
-                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:700}}>
-                  {est ? 'Open Proposal' : 'Create Proposal'}
-                </button>
-                <button onClick={()=>setWarnProposal(false)}
-                  style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>
-                  Cancel
-                </button>
-              </div>
+              {(()=>{
+                const g = evalGate(stage === 'proposal_sent' ? 'proposal_sent' : 'proposal_signed')
+                return (<>
+                  <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,marginBottom:6}}>
+                    {!est ? 'No proposal yet' : !['sent','viewed','approved'].includes((est as any).status||'') && stage !== 'proposal_sent' ? 'Proposal not sent yet' : 'Proposal has no items'}
+                  </p>
+                  <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp4}}>
+                    {g.reason ?? 'A proposal is required before moving to this stage.'}
+                  </p>
+                  <div style={{display:'flex',gap:T.sp2}}>
+                    <button
+                      onClick={()=>{
+                        setWarnProposal(false)
+                        if (est) router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)
+                        else createEst()
+                      }}
+                      style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:700}}>
+                      {est ? 'Open Proposal' : 'Create Proposal'}
+                    </button>
+                    <button onClick={()=>setWarnProposal(false)}
+                      style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>
+                      Cancel
+                    </button>
+                  </div>
+                </>)
+              })()}
             </div>
           </div>
         )}
@@ -869,6 +910,55 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {isRoofing&&(
                               <InsuranceClaimFields leadId={lead.id} proId={session!.id} initial={(lead as any).insurance_data??{}} darkMode={dk}
                                 onSaved={(data)=>setLead(l=>l?{...l,insurance_data:data} as any:l)}/>
+                            )}
+
+                            {/* Roofing measurement tools — linked to this lead */}
+                            {isRoofing&&(
+                              <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
+                                <div style={{fontSize:12,fontWeight:700,color:ts,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10}}>Measurement Tools</div>
+                                {/* Measurements from roofing_job_data */}
+                                {(()=>{
+                                  const rjd=(lead as any)?.roofing_job_data
+                                  if(rjd?.square_count){
+                                    return(
+                                      <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+                                        <span style={{padding:'5px 12px',borderRadius:8,fontSize:13,fontWeight:700,background:'#F0FDFA',color:BRAND.teal,border:'1px solid #CCFBF1'}}>{rjd.square_count} sq</span>
+                                        {rjd.pitch&&<span style={{padding:'5px 12px',borderRadius:8,fontSize:13,fontWeight:700,background:'#F0FDFA',color:BRAND.teal,border:'1px solid #CCFBF1'}}>{rjd.pitch} pitch</span>}
+                                        {rjd.waste_pct&&<span style={{padding:'5px 12px',borderRadius:8,fontSize:13,fontWeight:700,background:'#F0FDFA',color:BRAND.teal,border:'1px solid #CCFBF1'}}>{rjd.waste_pct}% waste</span>}
+                                      </div>
+                                    )
+                                  }
+                                  return(
+                                    <div style={{fontSize:13,color:ts,marginBottom:12,padding:'8px 12px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
+                                      ⚠ No measurements yet — run a report or use ProMeasure
+                                    </div>
+                                  )
+                                })()}
+                                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                                  <button
+                                    onClick={()=>{
+                                      const addr=(lead as any).property_address||''
+                                      const url=addr
+                                        ? `/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}`
+                                        : `/dashboard/roofing/promeasure?lead_id=${lead.id}`
+                                      router.push(url)
+                                    }}
+                                    style={{padding:'10px 12px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                    ProMeasure
+                                  </button>
+                                  <button
+                                    onClick={()=>{
+                                      const addr=(lead as any).property_address||''
+                                      if(!addr){addToast('Add a property address first','error');return}
+                                      router.push(`/dashboard/roofing/property?lead_id=${lead.id}&address=${encodeURIComponent(addr)}`)
+                                    }}
+                                    style={{padding:'10px 12px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                                    Quick Bid Report
+                                  </button>
+                                </div>
+                              </div>
                             )}
 
                             {/* Notes */}
