@@ -244,7 +244,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         }
         return { pass: true }
       case 'in_progress':
-        if (!lead.scheduled_date) return { pass: false, reason: 'Set a job date before marking as In Progress.', action: 'Edit Lead' }
+        if (!lead?.scheduled_date) return { pass: false, reason: 'Set a job date before marking as In Progress.', action: 'Edit Lead' }
         return { pass: true }
       case 'job_won':
         if (!inv) return { pass: false, reason: 'Create an invoice before marking the job as won.', action: 'Create Invoice' }
