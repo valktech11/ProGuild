@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 // Creates a blank draft estimate and returns it so the UI can redirect to /[id]
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source } = body
+  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source, square_count, pitch, waste_pct } = body
 
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
@@ -109,6 +109,10 @@ export async function POST(req: NextRequest) {
       pro_id:           pro_id,
       estimate_type:    'tiered',
       property_address: property_address || null,
+      // Measurements from calculator or direct entry
+      square_count:     square_count     ? Number(square_count)  : null,
+      pitch:            pitch            || null,
+      waste_pct:        waste_pct        ? Number(waste_pct)     : 10,
     }, { onConflict: 'estimate_id' })
   }
 

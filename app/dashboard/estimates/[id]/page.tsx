@@ -52,9 +52,9 @@ export type Estimate = {
   contact_phone?: string
   contact_email?: string
   declined_at?: string
+  decline_reason?: string
   voided_at?: string
   void_reason?: string
-  decline_reason?: string
   timeline: { event: string; label: string; timestamp: string | null }[]
 }
 

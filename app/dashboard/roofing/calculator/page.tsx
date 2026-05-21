@@ -192,11 +192,20 @@ function CalculatorInner() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pro_id:       session.id,
-          lead_id:      leadId,
-          source:       'roofing_calculator',
-          report_data:  reportData,
-          line_items:   lineItems.map(i => ({
+          pro_id:        session.id,
+          lead_id:       leadId,
+          lead_name:     reportData?.address ?? 'New Estimate',
+          trade:         session.trade         ?? 'Roofing',
+          trade_slug:    session.trade_slug    ?? 'roofing-contractor',
+          state:         session.state         ?? '',
+          source:        'roofing_calculator',
+          // Measurements — written to roofing_estimate_data
+          square_count:  parseFloat(squares) || null,
+          pitch:         pitch                ?? null,
+          waste_pct:     parseFloat(waste)    || 10,
+          property_address: reportData?.address ?? null,
+          report_data:   reportData,
+          line_items:    lineItems.map(i => ({
             description: i.description,
             quantity:    i.quantity,
             unit_price:  i.unitPrice,
