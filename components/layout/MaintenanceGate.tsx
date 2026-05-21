@@ -27,6 +27,7 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
   const isAdminRoute   = pathname?.startsWith('/admin')
   const isLoginRoute   = pathname === '/login' || pathname === '/admin-login'
   const isApiRoute     = pathname?.startsWith('/api')
+  const isSatVault     = pathname?.startsWith('/sat-vault')
 
   // While loading config, render children (avoids flash of maintenance page on normal operation)
   if (config === null) return <>{children}</>
@@ -36,8 +37,8 @@ export default function MaintenanceGate({ children }: { children: React.ReactNod
     return <>{children}</>
   }
 
-  // Always let login pages and API routes through — needed to authenticate and recover
-  if (isLoginRoute || isApiRoute) {
+  // Always let login pages, API routes, and SAT Vault through
+  if (isLoginRoute || isApiRoute || isSatVault) {
     return <>{children}</>
   }
 
