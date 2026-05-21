@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Card }      from '@/components/ui/Card'
 import { Input, FormField } from '@/components/ui/Input'
@@ -48,7 +49,7 @@ const PinIcon = () => (
   </svg>
 )
 
-export default function PropertyListPage() {
+function PropertyListPage() {
   const router    = useRouter()
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
@@ -76,6 +77,62 @@ export default function PropertyListPage() {
   const [addrInputVal, setAddrInputVal] = useState('')
 
   useEffect(() => { if (!session) router.push('/login') }, [session, router])
+
+  const sp         = useSearchParams()
+  const urlLeadId  = sp.get('lead_id')
+  const urlAddress = sp.get('address')
+
+  // When opened from a lead (Quick Bid Report button), auto-find or create the
+  // property for this address and navigate directly into it.
+  useEffect(() => {
+    if (!urlAddress || !session) return
+    const go = async () => {
+      // 1. Search for existing property matching this address
+      const searchRes = await fetch(
+        `/api/properties?pro_id=${session.id}&search=${encodeURIComponent(urlAddress)}`
+      )
+      const searchData = searchRes.ok ? await searchRes.json() : null
+      const existing = searchData?.properties?.find((p: any) =>
+        p.address_line1?.toLowerCase().includes(urlAddress.split(',')[0].toLowerCase())
+      )
+      if (existing) {
+        // Found — navigate straight to property detail
+        const dest = `/dashboard/roofing/property/${existing.id}${urlLeadId ? '?lead_id=' + urlLeadId : ''}`
+        router.push(dest)
+        return
+      }
+      // 2. Not found — auto-create property from the address string
+      // Parse "3932 Highgate Ct, Jacksonville, FL 32216" or "3932 Highgate Ct, 3932 Highgate Ct, FL, 32216"
+      const parts = urlAddress.split(',').map((s: string) => s.trim())
+      const addr  = parts[0] || urlAddress
+      // deduplicate if street repeated (e.g. "3932 Highgate Ct, 3932 Highgate Ct, FL, 32216")
+      const city  = parts[1] === parts[0] ? (parts[2] || '') : (parts[1] || '')
+      const stateZip = (parts[1] === parts[0] ? parts[3] : parts[2]) || ''
+      const stateMatch = stateZip.match(/([A-Z]{2})\s*(\d{5})?/)
+      const state = stateMatch?.[1] || ''
+      const zip   = stateMatch?.[2] || ''
+
+      const createRes = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pro_id: session.id,
+          address_line1: addr,
+          city: city.replace(/[A-Z]{2}\s*\d{5}/, '').trim() || '',
+          state,
+          zip_code: zip,
+          lead_id: urlLeadId,
+        }),
+      })
+      const createData = createRes.ok ? await createRes.json() : null
+      if (createData?.property?.id) {
+        router.push(`/dashboard/roofing/property/${createData.property.id}${urlLeadId ? '?lead_id=' + urlLeadId : ''}`)
+      }
+      // If creation fails, fall through to show the list (graceful degradation)
+    }
+    go()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlAddress, session?.id])
 
   const fetchProperties = useCallback(async () => {
     if (!session) return
@@ -433,4 +490,8 @@ export default function PropertyListPage() {
 
     </DashboardShell>
   )
+}
+
+export default function PropertyListPageWrapper() {
+  return <Suspense><PropertyListPage /></Suspense>
 }

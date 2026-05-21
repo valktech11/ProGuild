@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect, use, useCallback, Suspense } from 'react'
+import { useState, useEffect, use, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Lead, Session, LeadStatus } from '@/types'
 import { avatarColor, initials, capName, fmtPhone, US_STATES } from '@/lib/utils'
@@ -446,16 +447,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     <DashboardShell session={session} newLeads={0} onAddLead={()=>{}} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{background:pg,minHeight:'100vh',padding:'16px 20px 80px',boxSizing:'border-box'}}>
 
-        {/* ── Toasts ─────────────────────────────────────────────────────── */}
-        <div style={{position:'fixed',bottom:32,left:'50%',transform:'translateX(-50%)',zIndex:400,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
-          {toasts.map(toast=>(
-            <div key={toast.id} style={{pointerEvents:'all',background:toast.type==='error'?t.dangerBg:t.successBg,border:`1.5px solid ${toast.type==='error'?t.dangerBorder:t.successBorder}`,borderRadius:T.radMd,padding:'12px 18px',display:'flex',alignItems:'center',gap:12,fontSize:T.fontBody,fontWeight:500,color:toast.type==='error'?'#991B1B':'#166534',minWidth:260,maxWidth:420,boxShadow:'0 4px 20px rgba(0,0,0,0.10)'}}>
-              <span style={{flex:1}}>{toast.msg}</span>
-              {toast.prev&&toast.type==='success'&&<button onClick={()=>undoMove(toast.id,toast.prev!)} style={{fontSize:T.fontBody,color:BRAND.teal,fontWeight:700,background:'none',border:'none',cursor:'pointer',textDecoration:'underline',padding:0}}>Undo</button>}
-              <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:20,lineHeight:1,padding:0}}>×</button>
-            </div>
-          ))}
-        </div>
+        {/* ── Toasts — rendered via portal to escape any transform stacking context ── */}
+        {typeof window !== 'undefined' && toasts.length > 0 && createPortal(
+          <div style={{position:'fixed',bottom:32,left:'50%',transform:'translateX(-50%)',zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
+            {toasts.map(toast=>(
+              <div key={toast.id} style={{pointerEvents:'all',background:toast.type==='error'?t.dangerBg:t.successBg,border:`1.5px solid ${toast.type==='error'?t.dangerBorder:t.successBorder}`,borderRadius:T.radMd,padding:'12px 18px',display:'flex',alignItems:'center',gap:12,fontSize:T.fontBody,fontWeight:500,color:toast.type==='error'?'#991B1B':'#166534',minWidth:260,maxWidth:420,boxShadow:'0 4px 20px rgba(0,0,0,0.10)'}}>
+                <span style={{flex:1}}>{toast.msg}</span>
+                {toast.prev&&toast.type==='success'&&<button onClick={()=>undoMove(toast.id,toast.prev!)} style={{fontSize:T.fontBody,color:BRAND.teal,fontWeight:700,background:'none',border:'none',cursor:'pointer',textDecoration:'underline',padding:0}}>Undo</button>}
+                <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:20,lineHeight:1,padding:0}}>×</button>
+              </div>
+            ))}
+          </div>,
+          document.body
+        )}
 
         {/* ── Modals ─────────────────────────────────────────────────────── */}
         {confirmBack&&(

@@ -60,16 +60,14 @@ export async function GET(
 
   if (error) return apiError('Lead not found', 404)
 
-  // Join roofing_job_data so pipeline detail has measurements + insurance state
-  let roofingJobData: any = null
-  if ((data as any).trade_slug?.includes('roof')) {
-    const { data: rd } = await getSupabaseAdmin()
-      .from('roofing_job_data')
-      .select('*')
-      .eq('lead_id', id)
-      .maybeSingle()
-    roofingJobData = rd
-  }
+  // Join roofing_job_data — always attempt; returns null if no row exists.
+  // Previously gated on trade_slug which may be null on older leads, causing blank measurement pills.
+  const { data: rd } = await getSupabaseAdmin()
+    .from('roofing_job_data')
+    .select('*')
+    .eq('lead_id', id)
+    .maybeSingle()
+  const roofingJobData = rd ?? null
 
   return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData } })
 }
