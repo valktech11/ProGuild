@@ -317,16 +317,13 @@ function ProMeasureInner() {
           pitch:        pitch,
           waste_pct:    waste,
         }
-        console.log('[ProMeasure] PATCH body:', JSON.stringify(patchBody))
         const patchRes = await fetch(`/api/leads/${leadId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patchBody),
         })
         const patchData = await patchRes.json().catch(() => null)
-        console.log('[ProMeasure] PATCH status:', patchRes.status, '| response:', JSON.stringify(patchData))
       } catch (err) {
-        console.error('[ProMeasure] PATCH threw:', err)
       }
 
       // Lead flow: skip calculator entirely — go straight to estimate

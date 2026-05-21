@@ -92,12 +92,11 @@ export async function PATCH(
 
   // Ownership: pro_id accepted from body OR query param — frontend sends in body
   const proId = (body.pro_id as string) || new URL(req.url).searchParams.get('pro_id')
-  console.log('[PATCH /api/leads] body keys:', Object.keys(body), '| proId valid:', isValidUuid(proId))
   if (!isValidUuid(proId)) return apiError('pro_id required', 401)
 
+  // ── Build lead update fields (whitelisted) ──────────────────────────────
   const updateFields: Partial<LeadUpdateFields> = {}
 
-  // Validate and whitelist each field — never forward unknown keys to DB
   if ('lead_status' in body) {
     const s = body.lead_status as string
     if (!VALID_STATUSES.has(s as LeadStatus)) {
@@ -110,12 +109,11 @@ export async function PATCH(
     if (qa !== null) {
       const n = Number(qa)
       if (!isFinite(n) || n < 0) return apiError('quoted_amount must be a non-negative number', 400)
-      updateFields.quoted_amount = Math.round(n * 100) / 100  // cap to cents
+      updateFields.quoted_amount = Math.round(n * 100) / 100
     } else {
       updateFields.quoted_amount = null
     }
   }
-  // String/nullable fields — accept string or null only
   const STRING_FIELDS = [
     'notes', 'scheduled_date', 'scheduled_time', 'follow_up_date',
     'client_id', 'contact_phone', 'contact_email', 'contact_city',
@@ -131,33 +129,33 @@ export async function PATCH(
     }
   }
 
-  console.log('[PATCH /api/leads] updateFields:', JSON.stringify(updateFields))
-  if (Object.keys(updateFields).length === 0) {
-    console.log('[PATCH /api/leads] BLOCKED — updateFields empty, returning 400')
-    return apiError('No valid fields provided', 400)
-  }
-
-  updateFields.updated_at = new Date().toISOString()
-
-  const { data, error } = await getSupabaseAdmin()
-    .from('leads')
-    .update(updateFields)
-    .eq('id', id)
-    .eq('pro_id', proId)   // ownership enforced at DB level
-    .select()
-    .single()
-
-  if (error || !data) return apiError('Lead not found or access denied', 403)
-
-  // ── Roofing-specific fields → roofing_job_data ───────────────────────────
-  // InsuranceClaimFields and other roofing components send these fields.
-  // They must never land on the leads table — they go here.
+  // ── Build roofing payload (independent of lead fields) ───────────────────
   const roofingPayload: Record<string, unknown> = {}
   for (const field of ROOFING_JOB_FIELDS) {
     if (field in body) roofingPayload[field] = body[field]
   }
 
-  console.log('[PATCH /api/leads] roofingPayload:', JSON.stringify(roofingPayload))
+  // Guard: at least one valid field must be present across either table
+  if (Object.keys(updateFields).length === 0 && Object.keys(roofingPayload).length === 0) {
+    return apiError('No valid fields provided', 400)
+  }
+
+  // ── Update leads table (only if lead fields present) ─────────────────────
+  let leadData: Record<string, unknown> | null = null
+  if (Object.keys(updateFields).length > 0) {
+    updateFields.updated_at = new Date().toISOString()
+    const { data, error } = await getSupabaseAdmin()
+      .from('leads')
+      .update(updateFields)
+      .eq('id', id)
+      .eq('pro_id', proId)
+      .select()
+      .single()
+    if (error || !data) return apiError('Lead not found or access denied', 403)
+    leadData = data
+  }
+
+  // ── Upsert roofing_job_data (only if roofing fields present) ─────────────
   if (Object.keys(roofingPayload).length > 0) {
     roofingPayload.lead_id    = id
     roofingPayload.pro_id     = proId
@@ -165,10 +163,13 @@ export async function PATCH(
     const { error: rErr } = await getSupabaseAdmin()
       .from('roofing_job_data')
       .upsert(roofingPayload, { onConflict: 'lead_id' })
-    console.log('[PATCH /api/leads] roofing_job_data upsert error:', rErr ?? 'none')
+    if (rErr) console.error('[PATCH /api/leads] roofing_job_data upsert error:', rErr)
   }
 
-  return NextResponse.json({ lead: data })
+  // Return lead data if we have it; otherwise confirm success
+  return leadData
+    ? NextResponse.json({ lead: leadData })
+    : NextResponse.json({ success: true })
 }
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
