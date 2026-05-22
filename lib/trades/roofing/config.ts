@@ -5,6 +5,7 @@
 
 import type { RoofingConfig } from './types'
 import RoofingAddLeadModal from './components/AddLeadModal'
+import RoofingOverviewWidget from './components/OverviewWidget'
 
 export const roofingConfig: RoofingConfig = {
   slug:        'roofing',
@@ -238,6 +239,7 @@ export const roofingConfig: RoofingConfig = {
   // ── Components ────────────────────────────────────────────────────────────
   // Shell pages import via plugin.components — never import roofing components directly.
   components: {
-    AddLeadModal: RoofingAddLeadModal,
+    AddLeadModal:   RoofingAddLeadModal,
+    OverviewWidget: RoofingOverviewWidget,
   },
 }

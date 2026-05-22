@@ -1,15 +1,14 @@
 'use client'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session, Lead, Review } from '@/types'
 import { timeAgo, fmtCurrency } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
-import TradeSidebar from '@/components/dashboard/TradeSidebar'
-import TradeWidget from '@/components/dashboard/TradeWidget'
 
 import { theme, T, BRAND } from '@/lib/tokens'
+import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
 import { getTradeConfig, isHVAC, getStageAnchors } from '@/lib/trades/_registry'
 
 const TEAL   = '#0F766E'
@@ -232,12 +231,30 @@ export default function OverviewPage() {
 
   const revenue  = revenueLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
   const pipeline = activeLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
+
+  // Per-stage dollar amounts for Pipeline strip
+  const stagesWithAmounts = tc.stages
+    .filter(s => !s.terminal && s.key !== anchors.won)
+    .map(s => ({
+      key:    s.key,
+      label:  s.label,
+      count:  leads.filter(l => l.lead_status === s.key).length,
+      amount: leads.filter(l => l.lead_status === s.key).reduce((sum, l) => sum + (l.quoted_amount || 0), 0),
+    }))
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null
 
   const t        = theme(dk)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = session?.name?.split(' ')[0] || ''
+
+  // Smart sub-line: actionable morning summary
+  const atRisk = awaitingResp.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
+  const subLineParts: string[] = []
+  if (awaitingResp.length > 0) subLineParts.push(`${awaitingResp.length} homeowner${awaitingResp.length !== 1 ? 's' : ''} waiting`)
+  if (draftCount > 0) subLineParts.push(`${draftCount} estimate${draftCount !== 1 ? 's' : ''} unsent`)
+  if (atRisk > 0) subLineParts.push(`$${atRisk.toLocaleString()} at risk`)
+  const smartSubLine = subLineParts.join(' · ')
 
   const cardBg  = t.cardBg
   const cardBdr = t.cardBorder
@@ -273,7 +290,11 @@ export default function OverviewPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 style={{ fontSize: T.fontTitle, fontWeight: 800, color: textMain }}>{greeting}, {firstName}! 👋</h1>
-            <p className="hidden md:block text-[13px] mt-0.5" style={{ color: BODY }}>Here&apos;s what&apos;s happening with your business today.</p>
+            {smartSubLine ? (
+              <p className="text-[13px] mt-1 font-medium" style={{ color: '#DC2626' }}>{smartSubLine}</p>
+            ) : (
+              <p className="hidden md:block text-[13px] mt-0.5" style={{ color: BODY }}>Here&apos;s what&apos;s happening with your business today.</p>
+            )}
           </div>
 
         </div>
@@ -418,20 +439,37 @@ export default function OverviewPage() {
             <p className="text-[13px] py-4 text-center" style={{ color: MUTED_D }}>No leads yet — add your first lead to get started.</p>
           ) : (
             <div className="flex items-center overflow-x-auto md:justify-between" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', gap: 8 }}>
-              <PipeStage iconPath={ICONS.users}     iconBg="#EFF6FF" iconColor="#3B82F6" label="New"       count={newLeads.length}       sub="New leads"       dk={dk} />
+              {stagesWithAmounts.map((stage, i) => (
+                <React.Fragment key={stage.key}>
+                  {i > 0 && <PipeArrow dk={dk} />}
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:80 }}>
+                    <PipeStage iconPath={ICONS.users} iconBg="#EFF6FF" iconColor="#3B82F6"
+                      label={stage.label} count={stage.count} sub=""
+                      dk={dk} />
+                    {stage.amount > 0 && (
+                      <div style={{ fontSize:11, fontWeight:700, color: TEAL }}>
+                        ${stage.amount >= 1000 ? `${(stage.amount/1000).toFixed(1)}k` : stage.amount.toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                </React.Fragment>
+              ))}
               <PipeArrow dk={dk} />
-              <PipeStage iconPath={ICONS.phone}     iconBg="#DCFCE7" iconColor="#16A34A" label="Contacted" count={contactedLeads.length}  sub="You contacted"   dk={dk} />
-              <PipeArrow dk={dk} />
-              <PipeStage iconPath={ICONS.fileText}  iconBg="#EDE9FE" iconColor="#7C3AED" label="Quoted"    count={quotedLeads.length}     sub="Estimate sent"   dk={dk} />
-              <PipeArrow dk={dk} />
-              <PipeStage iconPath={ICONS.calendar}  iconBg="#FFF7ED" iconColor="#F97316" label="Scheduled" count={scheduledLeads.length}  sub="Job scheduled"   dk={dk} />
-              <PipeArrow dk={dk} />
-              <PipeStage iconPath={ICONS.checkCirc} iconBg="#DCFCE7" iconColor="#16A34A" label="Job Won"   count={completedLeads.length + paidLeads.length} sub="Converted" dk={dk} showDash />
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:80 }}>
+                <PipeStage iconPath={ICONS.checkCirc} iconBg="#DCFCE7" iconColor="#16A34A"
+                  label={tc.labels.wonStage} count={paidLeads.length} sub="Converted"
+                  dk={dk} showDash />
+                {revenue > 0 && (
+                  <div style={{ fontSize:11, fontWeight:700, color:'#059669' }}>
+                    ${revenue >= 1000 ? `${(revenue/1000).toFixed(1)}k` : revenue.toLocaleString()}
+                  </div>
+                )}
+              </div>
               {pipeline > 0 && (
                 <div className="text-right border-l pl-6 flex-shrink-0 min-w-[160px]" style={{ borderColor: cardBdr }}>
-                  <div className="text-[12px] font-medium mb-0.5" style={{ color: BODY }}>Total Pipeline Value</div>
+                  <div className="text-[12px] font-medium mb-0.5" style={{ color: BODY }}>Pipeline Value</div>
                   <div style={{ fontSize: T.fontStat, fontWeight: 800, color: textMain }}>${pipeline.toLocaleString()}</div>
-                  <div className="text-[13px]" style={{ color: BODY }}>Potential Revenue</div>
+                  <div className="text-[13px]" style={{ color: BODY }}>Active leads</div>
                 </div>
               )}
             </div>
@@ -689,77 +727,12 @@ export default function OverviewPage() {
           </div>
         )}
 
-        {/* ── Community Insights ───────────────────────────────────────────── */}
-        <div className="rounded-2xl p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-          <div className="flex flex-col gap-3 mb-5">
-            {/* Row 1: title + trending pill */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain }}>Community Insights</h2>
-              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                style={{ backgroundColor: '#CCFBF1', color: TEAL }}>
-                Trending in {session?.city || 'your area'}
-              </span>
-            </div>
-            {/* Row 2: buttons */}
-            <div className="flex items-center gap-2">
-              <Link href="/community" className="flex-1 sm:flex-none text-[12px] font-semibold px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"
-                style={{ border: `1px solid ${cardBdr}`, color: textMain, backgroundColor: cardBg }}>
-                View Community <SvgIcon d={ICONS.arrowRight} s={13} sw={2} color={textMain} />
-              </Link>
-              <Link href="/community" className="flex-1 sm:flex-none text-[12px] font-semibold px-3 py-1.5 rounded-lg text-white flex items-center justify-center gap-1"
-                style={{ backgroundColor: TEAL }}>
-                <SvgIcon d={ICONS.sparkle} s={13} sw={1.5} color="white" />
-                Ask a Question
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              {
-                icon: ICONS.dollar, iconBg: '#DCFCE7', iconColor: '#16A34A',
-                q: 'What\'s fair price for 2BHK painting in Miami?',
-                price: '$1,500 – $2,200', sub: 'Avg. price from 12 pros', answers: 12, label: 'answers',
-              },
-              {
-                icon: ICONS.tool, iconBg: '#E0F2FE', iconColor: '#0EA5E9',
-                q: 'Best AC brand for Florida humidity?',
-                price: null, sub: '8 pros shared their experience', answers: 8, label: 'answers',
-              },
-              {
-                icon: ICONS.mapPin, iconBg: '#FEE2E2', iconColor: '#EF4444',
-                q: 'Looking for electrician in Tampa',
-                price: null, sub: null, answers: 6, label: 'replies',
-              },
-            ].map((item, i) => (
-              <button key={i}
-                onClick={() => alert('Community feed coming soon — stay tuned!')}
-                className="rounded-xl p-4 flex gap-3 transition-all hover:shadow-md text-left group w-full"
-                style={{ border: `1px solid ${cardBdr}`, backgroundColor: cardBg }}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: item.iconBg }}>
-                  <SvgIcon d={item.icon} s={16} sw={1.8} color={item.iconColor} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold mb-1 leading-snug" style={{ color: textMain }}>{item.q}</p>
-                  {item.price && <p className="text-[13px] font-bold mb-0.5" style={{ color: TEAL }}>{item.price}</p>}
-                  {item.sub && <p className="text-[13px]" style={{ color: MUTED_D }}>{item.sub}</p>}
-                  <div className="flex items-center justify-between gap-2 mt-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex -space-x-1">
-                        {['#7C3AED','#0EA5E9','#F97316','#16A34A'].map((c, j) => (
-                          <div key={j} className="w-5 h-5 rounded-full border-2 border-white" style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                      <span className="text-[13px]" style={{ color: MUTED_D }}>{item.answers} {item.label}</span>
-                    </div>
-                    <span className="text-[12px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: TEAL }}>View →</span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* ── Trade-specific overview widget (Today's Schedule, Revenue Forecast, etc.) ── */}
+        {/* Slot renders roofing sections for roofers, null for all other trades              */}
+        {session && (() => {
+          const OverviewWidget = tradePlugin.components.OverviewWidget
+          return <OverviewWidget leads={leads} session={session} dk={dk} />
+        })()}
 
       </div>
 

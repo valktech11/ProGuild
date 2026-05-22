@@ -1,5 +1,6 @@
 import type { DefaultConfig } from './types'
 import DefaultAddLeadModal from './components/AddLeadModal'
+import DefaultOverviewWidget from './components/OverviewWidget'
 
 export const defaultConfig: DefaultConfig = {
   slug:        '_default',
@@ -62,7 +63,8 @@ export const defaultConfig: DefaultConfig = {
 
   // ── Components ────────────────────────────────────────────────────────────
   components: {
-    AddLeadModal: DefaultAddLeadModal,
+    AddLeadModal:   DefaultAddLeadModal,
+    OverviewWidget: DefaultOverviewWidget,
   },
 }
 

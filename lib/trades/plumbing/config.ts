@@ -1,5 +1,6 @@
 import type { PlumbingConfig } from './types'
 import DefaultAddLeadModal from '../_default/components/AddLeadModal'
+import DefaultOverviewWidget from '../_default/components/OverviewWidget'
 
 export const plumbingConfig: PlumbingConfig = {
   slug:        'plumber',
@@ -68,5 +69,6 @@ export const plumbingConfig: PlumbingConfig = {
   // ── Components — use default until trade gets its own ──────────────────────
   components: {
     AddLeadModal: DefaultAddLeadModal,
+    OverviewWidget: DefaultOverviewWidget,
   },
 }

@@ -50,15 +50,24 @@ export interface PipelineDetailExtrasProps {
 
 // ── Components slot on every trade plugin ────────────────────────────────────
 // Shell pages delegate rendering to these. No direct trade imports in shell.
+// ── OverviewWidget props — passed by app/dashboard/page.tsx to trade plugin ──
+export interface OverviewWidgetProps {
+  leads:    any[]
+  session:  any
+  dk:       boolean
+}
+
 export interface AnyTradeComponents {
   // Add lead modal — trade-specific source picker, fields, placeholders
-  AddLeadModal: React.ComponentType<AddLeadModalProps>
-  // Future slots — uncomment as built:
-  // PipelineBoardPage:   React.ComponentType<PipelineBoardProps>
-  // PipelineDetailPage:  React.ComponentType<PipelineDetailExtrasProps>
-  // EstimatePage:        React.ComponentType<EstimatePageProps>
-  // InvoicePage:         React.ComponentType<InvoicePageProps>
-  // OverviewWidget:      React.ComponentType<OverviewWidgetProps>
+  AddLeadModal:   React.ComponentType<AddLeadModalProps>
+  // Trade-specific overview sections (Today's Schedule, Revenue Forecast, etc.)
+  // Returns null for trades that don't need custom overview sections (_default)
+  OverviewWidget: React.ComponentType<OverviewWidgetProps>
+  // Future slots:
+  // PipelineBoardPage:  React.ComponentType<PipelineBoardProps>
+  // PipelineDetailPage: React.ComponentType<PipelineDetailExtrasProps>
+  // EstimatePage:       React.ComponentType<EstimatePageProps>
+  // InvoicePage:        React.ComponentType<InvoicePageProps>
 }
 
 export interface AnyTradeBase {

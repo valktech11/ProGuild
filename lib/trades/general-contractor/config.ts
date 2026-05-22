@@ -1,5 +1,6 @@
 import type { GCConfig } from './types'
 import DefaultAddLeadModal from '../_default/components/AddLeadModal'
+import DefaultOverviewWidget from '../_default/components/OverviewWidget'
 
 export const gcConfig: GCConfig = {
   slug: 'general-contractor', displayName: 'General Contractor',
@@ -70,5 +71,6 @@ export const gcConfig: GCConfig = {
   // ── Components — use default until trade gets its own ──────────────────────
   components: {
     AddLeadModal: DefaultAddLeadModal,
+    OverviewWidget: DefaultOverviewWidget,
   },
 }

@@ -1,5 +1,6 @@
 import type { ElectricianConfig } from './types'
 import DefaultAddLeadModal from '../_default/components/AddLeadModal'
+import DefaultOverviewWidget from '../_default/components/OverviewWidget'
 
 export const electricianConfig: ElectricianConfig = {
   slug: 'electrician', displayName: 'Electrician', emoji: '⚡',
@@ -68,5 +69,6 @@ export const electricianConfig: ElectricianConfig = {
   // ── Components — use default until trade gets its own ──────────────────────
   components: {
     AddLeadModal: DefaultAddLeadModal,
+    OverviewWidget: DefaultOverviewWidget,
   },
 }
