@@ -15,9 +15,9 @@ export async function GET(
     .select(`
       *,
       items:estimate_items(*),
-      pro:pros!left(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
-      lead:leads!left(property_address, contact_phone, contact_email, contact_name),
-      roofing:roofing_estimate_data!left(
+      pro:pros(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
+      lead:leads(property_address, contact_phone, contact_email, contact_name),
+      roofing:roofing_estimate_data(
         estimate_type, tiered_data, scope_of_work,
         payment_milestones, property_address,
         square_count, pitch, waste_pct
@@ -48,9 +48,9 @@ export async function GET(
       .select(`
         *,
         items:estimate_items(*),
-        pro:pros!left(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
-        lead:leads!left(property_address, contact_phone, contact_email, contact_name),
-        roofing:roofing_estimate_data!left(
+        pro:pros(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
+        lead:leads(property_address, contact_phone, contact_email, contact_name),
+        roofing:roofing_estimate_data(
           estimate_type, tiered_data, scope_of_work,
           payment_milestones, property_address,
           square_count, pitch, waste_pct
@@ -168,18 +168,29 @@ export async function PATCH(
   } = body
 
   // ── Universal estimate fields → estimates table ──────────────────────────
+  // CRITICAL: only include fields explicitly present in payload
+  // Undefined values would null out existing DB data (e.g. total → 0)
   const updatePayload: Record<string, unknown> = {
-    subtotal, discount, discount_type, tax_rate, tax_amount, total,
-    require_deposit, deposit_percent, terms, status, notes,
-    contact_phone: contact_phone || undefined,
-    contact_email: contact_email || undefined,
     updated_at: new Date().toISOString(),
   }
-  if (sent_at        !== undefined) updatePayload.sent_at        = sent_at
-  if (voided_at      !== undefined) updatePayload.voided_at      = voided_at
-  if (void_reason    !== undefined) updatePayload.void_reason    = void_reason
-  if (declined_at    !== undefined) updatePayload.declined_at    = declined_at
-  if (decline_reason !== undefined) updatePayload.decline_reason = decline_reason
+  if (subtotal        !== undefined) updatePayload.subtotal        = subtotal
+  if (discount        !== undefined) updatePayload.discount        = discount
+  if (discount_type   !== undefined) updatePayload.discount_type   = discount_type
+  if (tax_rate        !== undefined) updatePayload.tax_rate        = tax_rate
+  if (tax_amount      !== undefined) updatePayload.tax_amount      = tax_amount
+  if (total           !== undefined) updatePayload.total           = total
+  if (require_deposit !== undefined) updatePayload.require_deposit = require_deposit
+  if (deposit_percent !== undefined) updatePayload.deposit_percent = deposit_percent
+  if (terms           !== undefined) updatePayload.terms           = terms
+  if (status          !== undefined) updatePayload.status          = status
+  if (notes           !== undefined) updatePayload.notes           = notes
+  if (contact_phone   !== undefined) updatePayload.contact_phone   = contact_phone || null
+  if (contact_email   !== undefined) updatePayload.contact_email   = contact_email || null
+  if (sent_at         !== undefined) updatePayload.sent_at         = sent_at
+  if (voided_at       !== undefined) updatePayload.voided_at       = voided_at
+  if (void_reason     !== undefined) updatePayload.void_reason     = void_reason
+  if (declined_at     !== undefined) updatePayload.declined_at     = declined_at
+  if (decline_reason  !== undefined) updatePayload.decline_reason  = decline_reason
 
   const { error: estError } = await sb.from('estimates').update(updatePayload).eq('id', id)
   if (estError) return NextResponse.json({ error: estError.message }, { status: 500 })
