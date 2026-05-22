@@ -32,9 +32,9 @@ export async function GET(
   ])
 
   const items   = itemsRes.data   ?? []
-  const pro     = proRes.data     ?? {}
-  const lead    = (leadRes as any).data ?? {}
-  const roofing = roofingRes.data ?? {}
+  const pro:     any = proRes.data     ?? {}
+  const lead:    any = (leadRes as any).data ?? {}
+  const roofing: any = roofingRes.data ?? {}
 
   // Build approval timeline from status fields
   const timeline = buildTimeline(estimate)
