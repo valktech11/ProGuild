@@ -679,9 +679,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 <div style={{minWidth:0}}>
 
                   {/* ─── HERO CARD ─────────────────────────────────────── */}
-                  <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',overflow:'hidden'}}>
-                    {/* Teal accent bar — stage color top strip */}
-                    <div style={{height:4,background:`linear-gradient(90deg,${stgObj?.color??BRAND.teal},${stgObj?.color??BRAND.teal}88)`,borderRadius:'0'}}/>
+                  <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',position:'relative'}}>
+                    {/* Teal accent bar — stage color top strip, uses borderRadius to match card */}
+                    <div style={{height:4,background:`linear-gradient(90deg,${stgObj?.color??BRAND.teal},${stgObj?.color??BRAND.teal}66)`,borderRadius:`${T.radLg} ${T.radLg} 0 0`}}/>
 
                     {/* Identity row */}
                     <div style={{padding:'20px 24px 16px'}}>
