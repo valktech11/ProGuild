@@ -234,15 +234,6 @@ export default function OverviewPage() {
   const revenue  = revenueLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
   const pipeline = activeLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
 
-  // Per-stage dollar amounts for Pipeline strip
-  const stagesWithAmounts = tc.stages
-    .filter(s => !s.terminal && s.key !== anchors.won)
-    .map(s => ({
-      key:    s.key,
-      label:  s.label,
-      count:  leads.filter(l => l.lead_status === s.key).length,
-      amount: leads.filter(l => l.lead_status === s.key).reduce((sum, l) => sum + (l.quoted_amount || 0), 0),
-    }))
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null
 
   const t        = theme(dk)
@@ -461,58 +452,6 @@ export default function OverviewPage() {
           const OverviewWidget = tc.components.OverviewWidget
           return <OverviewWidget leads={leads} session={session} dk={dk} />
         })()}
-
-        {/* ── Pipeline — hidden on mobile (hero strip + bottom nav covers it) ── */}
-        <div className="hidden md:block rounded-2xl p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-            <div>
-              <h2 className="text-[16px] font-bold inline mr-2" style={{ color: textMain }}>{tc.labels.pipeline}</h2>
-              <span className="text-[13px]" style={{ color: BODY }}>Where your money is at every stage</span>
-            </div>
-            <Link href="/dashboard/pipeline" className="text-[13px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-              Open full {tc.labels.pipeline.toLowerCase()} <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={TEAL} />
-            </Link>
-          </div>
-          {leads.length === 0 ? (
-            <p className="text-[13px] py-4 text-center" style={{ color: MUTED_D }}>No leads yet — add your first lead to get started.</p>
-          ) : (
-            <div className="flex items-center overflow-x-auto md:justify-between" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', gap: 8 }}>
-              {stagesWithAmounts.map((stage, i) => (
-                <React.Fragment key={stage.key}>
-                  {i > 0 && <PipeArrow dk={dk} />}
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:80 }}>
-                    <PipeStage iconPath={ICONS.users} iconBg="#EFF6FF" iconColor="#3B82F6"
-                      label={stage.label} count={stage.count} sub=""
-                      dk={dk} />
-                    {stage.amount > 0 && (
-                      <div style={{ fontSize:11, fontWeight:700, color: TEAL }}>
-                        ${stage.amount >= 1000 ? `${(stage.amount/1000).toFixed(1)}k` : stage.amount.toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                </React.Fragment>
-              ))}
-              <PipeArrow dk={dk} />
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:80 }}>
-                <PipeStage iconPath={ICONS.checkCirc} iconBg="#DCFCE7" iconColor="#16A34A"
-                  label={tc.labels.wonStage} count={paidLeads.length} sub="Converted"
-                  dk={dk} showDash />
-                {revenue > 0 && (
-                  <div style={{ fontSize:11, fontWeight:700, color:'#059669' }}>
-                    ${revenue >= 1000 ? `${(revenue/1000).toFixed(1)}k` : revenue.toLocaleString()}
-                  </div>
-                )}
-              </div>
-              {pipeline > 0 && (
-                <div className="text-right border-l pl-6 flex-shrink-0 min-w-[160px]" style={{ borderColor: cardBdr }}>
-                  <div className="text-[12px] font-medium mb-0.5" style={{ color: BODY }}>Pipeline Value</div>
-                  <div style={{ fontSize: T.fontStat, fontWeight: 800, color: textMain }}>${pipeline.toLocaleString()}</div>
-                  <div className="text-[13px]" style={{ color: BODY }}>Active leads</div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         {/* ── Reviews & Growth ─────────────────────────────────────────────── */}
         <div className="rounded-2xl p-4 md:p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
