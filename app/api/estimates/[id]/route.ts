@@ -10,94 +10,37 @@ export async function GET(
   const { id } = await params
   const sb = getSupabaseAdmin()
 
+  // ── Fetch estimate + related data as separate queries (no joins = no join failures) ──
   const { data: estimate, error } = await sb
     .from('estimates')
-    .select(`
-      *,
-      items:estimate_items(*),
-      pro:pros(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
-      lead:leads(property_address, contact_phone, contact_email, contact_name),
-      roofing:roofing_estimate_data(
-        estimate_type, tiered_data, scope_of_work,
-        payment_milestones, property_address,
-        square_count, pitch, waste_pct
-      )
-    `)
+    .select('*')
     .eq('id', id)
     .single()
 
-  if (error) {
-    // Before giving up — check if the estimate exists without joins
-    // (happens when roofing_estimate_data row is missing for older estimates)
-    const { data: bareEst } = await sb.from('estimates').select('*').eq('id', id).single()
-    if (!bareEst) return NextResponse.json({ error: error.message }, { status: 404 })
-
-    // Estimate exists — auto-create missing roofing_estimate_data row
-    const tradeSlug = bareEst.trade_slug ?? ''
-    if (tradeSlug.includes('roof')) {
-      await sb.from('roofing_estimate_data').upsert({
-        estimate_id:   id,
-        pro_id:        bareEst.pro_id,
-        estimate_type: 'tiered',
-      }, { onConflict: 'estimate_id' })
-    }
-
-    // Retry the full query now that the row exists
-    const { data: retryEst, error: retryErr } = await sb
-      .from('estimates')
-      .select(`
-        *,
-        items:estimate_items(*),
-        pro:pros(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
-        lead:leads(property_address, contact_phone, contact_email, contact_name),
-        roofing:roofing_estimate_data(
-          estimate_type, tiered_data, scope_of_work,
-          payment_milestones, property_address,
-          square_count, pitch, waste_pct
-        )
-      `)
-      .eq('id', id)
-      .single()
-
-    if (retryErr || !retryEst) {
-      return NextResponse.json({ error: retryErr?.message ?? 'Estimate not found' }, { status: 404 })
-    }
-
-    // Reassign so the rest of the handler uses the retried data
-    Object.assign(estimate ?? {}, retryEst)
-    // Process retried estimate inline (same logic as main path below)
-    const retryPro     = (retryEst as any).pro     ?? {}
-    const retryLead    = (retryEst as any).lead    ?? {}
-    const retryRoofing = (retryEst as any).roofing ?? {}
-    const { pro: _rp, lead: _rl, roofing: _rr, ...retryClean } = retryEst as any
-    return NextResponse.json({ estimate: {
-      ...retryClean,
-      timeline: buildTimeline(retryEst),
-      trade_slug:         retryClean.trade_slug ?? retryPro.trade_slug ?? null,
-      pro_name:           retryPro.full_name  ?? null,
-      pro_phone:          retryPro.phone_cell ?? null,
-      pro_city:           retryPro.city       ?? null,
-      pro_signature:      retryPro.signature_r2_key ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? ''}/${retryPro.signature_r2_key}` : null,
-      pro_state:          retryPro.state      ?? null,
-      estimate_type:      retryRoofing.estimate_type      ?? 'tiered',
-      tiered_data:        retryRoofing.tiered_data        ?? null,
-      scope_of_work:      retryRoofing.scope_of_work      ?? null,
-      payment_milestones: retryRoofing.payment_milestones ?? null,
-      property_address:   retryRoofing.property_address   ?? retryLead.property_address ?? null,
-      square_count:       retryRoofing.square_count ?? null,
-      pitch:              retryRoofing.pitch        ?? null,
-      waste_pct:          retryRoofing.waste_pct    ?? null,
-      perimeter:          null,
-    }})
+  if (error || !estimate) {
+    return NextResponse.json({ error: error?.message ?? 'Estimate not found' }, { status: 404 })
   }
+
+  // Parallel fetch of all related data — each can fail independently without killing the response
+  const [itemsRes, proRes, leadRes, roofingRes] = await Promise.all([
+    sb.from('estimate_items').select('*').eq('estimate_id', id),
+    sb.from('pros').select('trade_slug, full_name, phone_cell, city, state, signature_r2_key').eq('id', estimate.pro_id).maybeSingle(),
+    estimate.lead_id
+      ? sb.from('leads').select('property_address, contact_phone, contact_email, contact_name').eq('id', estimate.lead_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    sb.from('roofing_estimate_data').select('estimate_type, tiered_data, scope_of_work, payment_milestones, property_address, square_count, pitch, waste_pct').eq('estimate_id', id).maybeSingle(),
+  ])
+
+  const items   = itemsRes.data   ?? []
+  const pro     = proRes.data     ?? {}
+  const lead    = (leadRes as any).data ?? {}
+  const roofing = roofingRes.data ?? {}
 
   // Build approval timeline from status fields
   const timeline = buildTimeline(estimate)
 
-  const pro      = (estimate as any).pro     ?? {}
-  const lead     = (estimate as any).lead    ?? {}
-  const roofing  = (estimate as any).roofing ?? {}   // roofing_estimate_data row
-  const { pro: _pro, lead: _lead, roofing: _roofing, ...estClean } = estimate as any
+  // pro, lead, roofing are now fetched separately above
+  const estClean = estimate as any
 
   const tradeSlugResolved = estClean.trade_slug ?? pro.trade_slug ?? null
 
@@ -115,6 +58,7 @@ export async function GET(
   return NextResponse.json({
     estimate: {
       ...estClean,
+      items,  // from separate estimate_items query
       timeline,
       trade_slug:    tradeSlugResolved,
       // Pro info
