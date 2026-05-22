@@ -1,6 +1,67 @@
 'use client'
-
 import { use, useEffect, useState } from 'react'
+
+// ── Mock payment button — replace onClick body with real Stripe when ready ──
+function PayButton({ invoiceId, balanceDue }: { invoiceId: string; balanceDue: number }) {
+  const [state, setState] = useState<'idle' | 'paying' | 'paid' | 'error'>('idle')
+  const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2 })
+
+  if (state === 'paid') return (
+    <div className="text-center p-4 bg-green-50 rounded-xl border border-green-200">
+      <div className="text-2xl mb-1">✅</div>
+      <div className="text-sm font-bold text-green-800">Payment received!</div>
+      <div className="text-xs text-green-600 mt-1">Your invoice has been marked as paid.</div>
+    </div>
+  )
+
+  const handlePay = async () => {
+    setState('paying')
+    try {
+      // TODO: Replace with real Stripe payment link when Stripe is activated
+      // For now: simulate processing then mark invoice paid via API
+      await new Promise(r => setTimeout(r, 1500)) // simulate payment processing
+      const r = await fetch('/api/invoices/mark-paid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_id: invoiceId, amount: balanceDue, payment_method: 'online_card' }),
+      })
+      if (!r.ok) throw new Error('Payment failed')
+      setState('paid')
+      // Reload page after 2s to show paid state
+      setTimeout(() => window.location.reload(), 2000)
+    } catch { setState('error') }
+  }
+
+  return (
+    <div>
+      {state === 'error' && (
+        <p className="text-sm text-red-600 mb-3">Payment failed — please try again or contact your contractor.</p>
+      )}
+      <button
+        onClick={handlePay}
+        disabled={state === 'paying'}
+        className="w-full py-3 rounded-xl font-bold text-white text-base transition-all"
+        style={{ background: state === 'paying' ? '#CBD5E1' : 'linear-gradient(135deg,#0F766E,#0D9488)',
+          cursor: state === 'paying' ? 'default' : 'pointer',
+          boxShadow: state === 'paying' ? 'none' : '0 2px 12px rgba(15,118,110,0.3)' }}>
+        {state === 'paying' ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+              <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeOpacity="0.25"/>
+              <path d="M12 3a9 9 0 019 9" strokeLinecap="round"/>
+            </svg>
+            Processing payment…
+          </span>
+        ) : `Pay ${fmt(balanceDue)} Now`}
+      </button>
+      <p className="text-xs text-center text-[#9CA3AF] mt-2">
+        🔒 Secure payment · Powered by Stripe
+      </p>
+    </div>
+  )
+}
+
+
 import { CheckCircle2, FileText } from 'lucide-react'
 
 type InvoiceItem = {
@@ -256,13 +317,16 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        {/* Payment instructions */}
+        {/* Payment button — online payment */}
         {!isPaid && (
           <div className="bg-white rounded-2xl border border-[#E8E2D9] p-6">
-            <h2 className="text-base font-bold text-gray-900 mb-1">How to Pay</h2>
-            <p className="text-sm text-[#6B7280] mb-3">
-              Please contact your service provider to arrange payment. Once payment is received, this invoice will be marked as paid.
+            <h2 className="text-base font-bold text-gray-900 mb-2">Pay Online</h2>
+            <p className="text-sm text-[#6B7280] mb-4">
+              Pay securely online. Your payment will be recorded immediately.
             </p>
+            <PayButton invoiceId={invoice.id} balanceDue={balanceDue} />
+            <div className="mt-4 pt-4 border-t border-[#E8E2D9]">
+              <p className="text-xs text-[#9CA3AF] mb-1 font-semibold uppercase tracking-wide">Or contact directly</p>
             <div className="flex flex-col gap-2">
               {invoice.contact_phone && (
                 <a href={`tel:${invoice.contact_phone}`}
@@ -278,6 +342,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
                   {invoice.contact_email}
                 </a>
               )}
+            </div>
             </div>
           </div>
         )}

@@ -79,8 +79,74 @@ export async function POST(
     await sb.from('estimates').update({
       status:      'void',
       voided_at:   new Date().toISOString(),
-      void_reason: `Superseded by signed estimate`,
+      void_reason: 'Superseded by signed estimate',
     }).eq('lead_id', est.lead_id).neq('id', id)
+      .in('status', ['draft', 'sent', 'viewed'])
+  }
+
+  // ── Auto-stage: move lead to proposal_signed ─────────────────────────────
+  if (est.lead_id) {
+    await sb.from('leads')
+      .update({ lead_status: 'proposal_signed', updated_at: new Date().toISOString() })
+      .eq('id', est.lead_id)
+  }
+
+  // ── Auto-create draft invoice from approved estimate ─────────────────────
+  // Fetch full estimate for invoice creation
+  if (est.lead_id) {
+    const { data: fullEst } = await sb
+      .from('estimates')
+      .select('*, items:estimate_items(*), roofing:roofing_estimate_data(payment_milestones)')
+      .eq('id', id)
+      .single()
+
+    if (fullEst) {
+      // Check if invoice already exists for this estimate
+      const { data: existingInv } = await sb
+        .from('invoices')
+        .select('id')
+        .eq('estimate_id', id)
+        .maybeSingle()
+
+      if (!existingInv) {
+        // Get next invoice number
+        const { data: numData } = await sb.rpc('next_invoice_number', { pro_id_input: fullEst.pro_id })
+        const invoiceNumber = numData || `INV-${Date.now().toString().slice(-4)}`
+
+        const milestones = (fullEst.roofing as any)?.payment_milestones ?? null
+        const depositPct = fullEst.deposit_percent ?? 30
+        const depositAmt = milestones?.[0]?.amount
+          ?? Math.round(fullEst.total * (depositPct / 100) * 100) / 100
+
+        await sb.from('invoices').insert({
+          pro_id:          fullEst.pro_id,
+          estimate_id:     id,
+          lead_id:         est.lead_id,
+          invoice_number:  invoiceNumber,
+          lead_name:       fullEst.lead_name,
+          contact_email:   fullEst.contact_email,
+          contact_phone:   fullEst.contact_phone,
+          trade:           fullEst.trade_slug ?? 'roofing',
+          status:          'draft',
+          subtotal:        fullEst.subtotal,
+          tax_rate:        fullEst.tax_rate,
+          tax_amount:      fullEst.tax_amount,
+          total:           fullEst.total,
+          balance_due:     fullEst.total,
+          amount_paid:     0,
+          deposit_paid:    0,
+          require_deposit: true,
+          deposit_percent: depositPct,
+          deposit_amount:  depositAmt,
+          payment_milestones: milestones,
+          terms:           fullEst.terms,
+          issue_date:      new Date().toISOString().split('T')[0],
+          due_date:        new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+          created_at:      new Date().toISOString(),
+          updated_at:      new Date().toISOString(),
+        })
+      }
+    }
   }
 
   return NextResponse.json({ ok: true })

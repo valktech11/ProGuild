@@ -182,6 +182,7 @@ export const roofingConfig: RoofingConfig = {
         { label: 'Calculator',    href: '/dashboard/roofing/calculator', icon: '🔢', description: 'Squares + pitch + waste calculator' },
         { label: 'Quick Bid PDF', href: '/dashboard/roofing/property',   icon: '📊', description: 'Generate instant measurement report', badge: 'pro' },
         { label: 'Warranties',    href: '/dashboard/roofing/warranties', icon: '🛡️', description: 'Shingle warranty records', comingSoon: true },
+        { label: 'Material Prices', href: '/dashboard/roofing/settings',   icon: '💲', description: 'Set your material costs for estimates' },
       ],
     },
     {

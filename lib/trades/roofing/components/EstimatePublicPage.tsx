@@ -41,6 +41,7 @@ export interface PublicRoofingEstimate {
   insurance_claim?: boolean; deductible?: number
   pro_name?: string; pro_city?: string; pro_state?: string
   pro_phone?: string; pro_email?: string; pro_license?: string
+  pro_signature?: string  // R2 key or data URL of pro's signature
 }
 
 interface Props {
@@ -402,6 +403,19 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                 )}
               </div>
             </div>
+
+            {/* Pro signature — auto-appended to proposal */}
+            {estimate.pro_signature && (
+              <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 16, marginTop: 4 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase',
+                  letterSpacing: '0.07em', marginBottom: 8 }}>Authorized by</div>
+                <img src={estimate.pro_signature} alt="Pro signature"
+                  style={{ maxHeight: 48, maxWidth: 180, objectFit: 'contain', opacity: 0.85 }} />
+                <div style={{ fontSize: 11, color: C.secondary, marginTop: 4 }}>
+                  {estimate.pro_name}
+                </div>
+              </div>
+            )}
 
             {/* ProGuild badge */}
             <div style={{ textAlign: 'center', fontSize: 12, color: C.muted, paddingTop: 4 }}>

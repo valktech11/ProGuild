@@ -98,6 +98,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   })
 
   const [estimate, setEstimate] = useState<Estimate | null>(null)
+  const [materialPrices, setMaterialPrices] = useState<Record<string, number> | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
@@ -127,6 +128,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
+    // Fetch material prices for this pro so EstimatePage uses real costs
+    if (session) {
+      fetch(`/api/roofing/settings?pro_id=${session.id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.material_prices) setMaterialPrices(d.material_prices) })
+        .catch(() => null)
+    }
     fetch(`/api/estimates/${id}`)
       .then(r => r.json())
       .then(d => {
@@ -340,6 +348,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             pro_phone:         (estimate as any).pro_phone ?? null,
           }}
           templates={(estimate as any).gbb_templates ?? []}
+          materialPrices={materialPrices}
           onMeasurementsUpdate={async (fields) => {
             const leadId = (estimate as any).lead_id
             if (leadId) {

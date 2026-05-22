@@ -15,7 +15,7 @@ export async function GET(
     .select(`
       *,
       items:estimate_items(*),
-      pro:pros(trade_slug, full_name, phone_cell, city, state),
+      pro:pros(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
       lead:leads(property_address, contact_phone, contact_email, contact_name),
       roofing:roofing_estimate_data(
         estimate_type, tiered_data, scope_of_work,
@@ -61,6 +61,7 @@ export async function GET(
       pro_name:      pro.full_name  ?? null,
       pro_phone:     pro.phone_cell ?? null,
       pro_city:      pro.city       ?? null,
+      pro_signature: pro.signature_r2_key ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? ''}/${pro.signature_r2_key}` : null,
       pro_state:     pro.state      ?? null,
       // ── Roofing estimate data — source of truth: roofing_estimate_data only ──
       // estClean fallbacks removed — columns dropped from estimates in v95

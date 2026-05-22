@@ -98,6 +98,7 @@ interface Props {
   darkMode?: boolean
   // Called when roofer edits address/measurements — updates lead + roofing_estimate_data
   onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number }) => Promise<void>
+  materialPrices?: Record<string, number> | null
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -142,51 +143,61 @@ const DEFAULT_MILESTONES = (total: number): PaymentMilestone[] => [
   { id: newId(), name: 'On Completion',        pct: 30, amount: Math.round(total * 0.3), due_when: 'Due on completion' },
 ]
 
-const DEFAULT_TIERS: Tier[] = [
-  {
-    key: 'standard', label: 'Standard',
-    shingle_brand: 'CertainTeed Landmark', warranty: '30-year warranty',
-    subtotal: 0,
-    items: [
-      { id: newId(), name: 'Shingles', qty: 0, unit: 'sq', unit_price: 285, amount: 0 },
-      { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: 22, amount: 0 },
-      { id: newId(), name: 'Ridge cap', qty: 0, unit: 'lf', unit_price: 4, amount: 0 },
-      { id: newId(), name: 'Starter strip', qty: 0, unit: 'lf', unit_price: 2, amount: 0 },
-      { id: newId(), name: 'Labor', qty: 0, unit: 'sq', unit_price: 85, amount: 0 },
-    ],
-  },
-  {
-    key: 'upgraded', label: 'Upgraded',
-    shingle_brand: 'Owens Corning Duration', warranty: '30-year warranty',
-    subtotal: 0,
-    items: [
-      { id: newId(), name: 'Shingles', qty: 0, unit: 'sq', unit_price: 340, amount: 0 },
-      { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: 22, amount: 0 },
-      { id: newId(), name: 'Ice & water shield', qty: 0, unit: 'sq', unit_price: 35, amount: 0 },
-      { id: newId(), name: 'Ridge cap', qty: 0, unit: 'lf', unit_price: 4, amount: 0 },
-      { id: newId(), name: 'Starter strip', qty: 0, unit: 'lf', unit_price: 2, amount: 0 },
-      { id: newId(), name: 'Labor', qty: 0, unit: 'sq', unit_price: 90, amount: 0 },
-    ],
-  },
-  {
-    key: 'premium', label: 'Premium',
-    shingle_brand: 'GAF Timberline HDZ', warranty: 'Lifetime warranty',
-    subtotal: 0,
-    items: [
-      { id: newId(), name: 'Shingles', qty: 0, unit: 'sq', unit_price: 420, amount: 0 },
-      { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: 22, amount: 0 },
-      { id: newId(), name: 'Ice & water shield', qty: 0, unit: 'sq', unit_price: 35, amount: 0 },
-      { id: newId(), name: 'Drip edge upgrade', qty: 0, unit: 'lf', unit_price: 3, amount: 0 },
-      { id: newId(), name: 'Ridge cap', qty: 0, unit: 'lf', unit_price: 5, amount: 0 },
-      { id: newId(), name: 'Starter strip', qty: 0, unit: 'lf', unit_price: 2, amount: 0 },
-      { id: newId(), name: 'Labor', qty: 0, unit: 'sq', unit_price: 100, amount: 0 },
-    ],
-  },
-]
+// ── Market-rate FL defaults — overridden by pro's material prices settings ──
+const MARKET_DEFAULTS = {
+  shingles_standard: 285, shingles_upgraded: 340, shingles_premium: 420,
+  underlayment: 22, ice_water: 35, ridge_cap: 4, starter_strip: 2,
+  drip_edge: 3, nails: 2.5, labor_standard: 85, labor_upgraded: 90, labor_premium: 100,
+}
+
+function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
+  const p = { ...MARKET_DEFAULTS, ...(prices ?? {}) }
+  return [
+    {
+      key: 'standard', label: 'Standard',
+      shingle_brand: 'CertainTeed Landmark', warranty: '30-year warranty',
+      subtotal: 0,
+      items: [
+        { id: newId(), name: 'Shingles',              qty: 0, unit: 'sq', unit_price: p.shingles_standard, amount: 0 },
+        { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: p.underlayment,       amount: 0 },
+        { id: newId(), name: 'Ridge cap',              qty: 0, unit: 'lf', unit_price: p.ridge_cap,         amount: 0 },
+        { id: newId(), name: 'Starter strip',          qty: 0, unit: 'lf', unit_price: p.starter_strip,     amount: 0 },
+        { id: newId(), name: 'Labor',                  qty: 0, unit: 'sq', unit_price: p.labor_standard,    amount: 0 },
+      ],
+    },
+    {
+      key: 'upgraded', label: 'Upgraded',
+      shingle_brand: 'Owens Corning Duration', warranty: '30-year warranty',
+      subtotal: 0,
+      items: [
+        { id: newId(), name: 'Shingles',              qty: 0, unit: 'sq', unit_price: p.shingles_upgraded, amount: 0 },
+        { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: p.underlayment,      amount: 0 },
+        { id: newId(), name: 'Ice & water shield',    qty: 0, unit: 'sq', unit_price: p.ice_water,         amount: 0 },
+        { id: newId(), name: 'Ridge cap',             qty: 0, unit: 'lf', unit_price: p.ridge_cap,         amount: 0 },
+        { id: newId(), name: 'Starter strip',         qty: 0, unit: 'lf', unit_price: p.starter_strip,     amount: 0 },
+        { id: newId(), name: 'Labor',                 qty: 0, unit: 'sq', unit_price: p.labor_upgraded,    amount: 0 },
+      ],
+    },
+    {
+      key: 'premium', label: 'Premium',
+      shingle_brand: 'GAF Timberline HDZ', warranty: 'Lifetime warranty',
+      subtotal: 0,
+      items: [
+        { id: newId(), name: 'Shingles',              qty: 0, unit: 'sq', unit_price: p.shingles_premium,  amount: 0 },
+        { id: newId(), name: 'Synthetic underlayment', qty: 0, unit: 'sq', unit_price: p.underlayment,      amount: 0 },
+        { id: newId(), name: 'Ice & water shield',    qty: 0, unit: 'sq', unit_price: p.ice_water,         amount: 0 },
+        { id: newId(), name: 'Drip edge upgrade',     qty: 0, unit: 'lf', unit_price: p.drip_edge,         amount: 0 },
+        { id: newId(), name: 'Ridge cap',             qty: 0, unit: 'lf', unit_price: p.ridge_cap,         amount: 0 },
+        { id: newId(), name: 'Starter strip',         qty: 0, unit: 'lf', unit_price: p.starter_strip,     amount: 0 },
+        { id: newId(), name: 'Labor',                 qty: 0, unit: 'sq', unit_price: p.labor_premium,     amount: 0 },
+      ],
+    },
+  ]
+}
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate }: Props) {
+export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate, materialPrices }: Props) {
   const dk = darkMode ?? false
 
   // Proposal type
@@ -211,7 +222,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     // Use real perimeter from ProMeasure if available, else estimate sq * 10
     const sq = estimate.square_count ?? 0
     const perim = (estimate as any).perimeter ?? Math.round(sq * 10)
-    return DEFAULT_TIERS.map(t => ({
+    return buildDefaultTiers(materialPrices).map(t => ({
       ...t,
       items: t.items.map(item => {
         const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? perim : 0
@@ -230,7 +241,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
 
   // Standard items
   const [stdItems, setStdItems] = useState<TierLineItem[]>(
-    estimate.items ?? DEFAULT_TIERS[0].items
+    estimate.items ?? buildDefaultTiers(materialPrices)[0].items
   )
 
   // Other fields

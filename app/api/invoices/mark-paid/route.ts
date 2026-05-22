@@ -29,10 +29,22 @@ export async function POST(req: NextRequest) {
   }).eq('id', invoice_id)
 
   if (newStatus === 'paid' && inv.lead_id) {
+    // Use correct stage key 'job_won' — not display label 'Paid'
     await sb.from('leads').update({
-      lead_status:   'Paid',
+      lead_status:   'job_won',
       quoted_amount: Math.round(inv.total * 100) / 100,
+      updated_at:    new Date().toISOString(),
     }).eq('id', inv.lead_id)
+
+    // Queue review request (stored in DB — fired by Twilio when 10DLC is active)
+    await sb.from('review_requests').insert({
+      pro_id:     inv.pro_id,
+      lead_id:    inv.lead_id,
+      invoice_id: invoice_id,
+      status:     'queued',
+      send_after: new Date(Date.now() + 3 * 86400000).toISOString(), // 3 days after job completion
+      created_at: new Date().toISOString(),
+    }).select().single().catch(() => null) // non-fatal — table may not exist yet
   }
 
   if (newStatus === 'paid' && inv.estimate_id) {
