@@ -184,7 +184,8 @@ export default function OverviewPage() {
 
   const [leads,       setLeads]       = useState<Lead[]>([])
   const [reviews,     setReviews]     = useState<Review[]>([])
-  const [draftCount,  setDraftCount]  = useState(0)
+  const [draftCount,    setDraftCount]    = useState(0)
+  const [allEstimates,  setAllEstimates]  = useState<any[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [showAddLead, setShowAddLead] = useState(false)
   const [maintenanceReminders, setMaintenanceReminders] = useState<any[]>([])
@@ -200,8 +201,9 @@ export default function OverviewPage() {
     ]).then(([leadsData, reviewsData, estimatesData, remindersData]) => {
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))
-      const allEstimates: { status: string }[] = estimatesData.estimates || []
-      setDraftCount(allEstimates.filter(e => e.status === 'draft').length)
+      const ests = estimatesData.estimates || []
+      setAllEstimates(ests)
+      setDraftCount(ests.filter((e: any) => e.status === 'draft').length)
       setMaintenanceReminders(remindersData.reminders || [])
       setDataLoading(false)
     }).catch(() => setDataLoading(false))
@@ -247,6 +249,31 @@ export default function OverviewPage() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = session?.name?.split(' ')[0] || ''
+
+  // ── Urgency signals — Action Center (different from pipeline stage counts) ─────
+  const now = Date.now()
+  const today = new Date().toISOString().split('T')[0]
+
+  // Uncontacted: at entry stage AND created >24h ago (money walking away)
+  const uncontactedLeads = newLeads.filter(l =>
+    (now - new Date(l.created_at).getTime()) / 86400000 >= 1
+  )
+  // Estimates expiring in ≤3 days (sent/viewed, not yet approved)
+  const expiringEstimates = allEstimates.filter((e: any) => {
+    if (!e.valid_until || !['sent','viewed'].includes(e.status)) return false
+    const daysLeft = (new Date(e.valid_until).getTime() - now) / 86400000
+    return daysLeft >= 0 && daysLeft <= 3
+  })
+  // Unsigned proposals: sent/viewed >48h ago still not approved
+  const unsignedProposals = allEstimates.filter((e: any) => {
+    if (!['sent','viewed'].includes(e.status)) return false
+    const sentAt = e.sent_at || e.created_at
+    return (now - new Date(sentAt).getTime()) / 86400000 >= 2
+  })
+  // Jobs scheduled today
+  const jobsToday = leads.filter(l => l.scheduled_date?.startsWith(today))
+  // Draft estimates (unsent)
+  const draftEstimates = allEstimates.filter((e: any) => e.status === 'draft')
 
   // Smart sub-line: actionable morning summary
   const atRisk = awaitingResp.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
@@ -373,66 +400,77 @@ export default function OverviewPage() {
           </div>
         )}
 
-        {/* ── Action Center ────────────────────────────────────────────────── */}
+        {/* ── Action Center — urgency signals only, different from pipeline counts ── */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain }}>Action Center</h2>
-              <p className="hidden md:block text-[12px]" style={{ color: BODY }}>Top items that need your attention</p>
+              <p className="hidden md:block text-[12px]" style={{ color: BODY }}>What needs your attention right now</p>
             </div>
             <Link href="/dashboard/pipeline" className="text-[13px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
               View all leads <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={TEAL} />
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {/* Uncontacted >24h — leads losing interest */}
             <ActionCard
               iconPath={ICONS.flame}
               iconBg="#FEF3C7" iconColor="#F59E0B"
-              count={newLeads.length} label="New Leads" sub="Received in last 2 hours"
+              count={uncontactedLeads.length} label="Uncontacted Leads" sub="No reply in 24+ hours"
               ctaLabel="View Leads" ctaHref="/dashboard/pipeline"
               dk={dk}
             />
+            {/* Estimates expiring in ≤3 days */}
+            <ActionCard
+              iconPath={ICONS.hourglass}
+              iconBg="#FEE2E2" iconColor="#DC2626"
+              count={expiringEstimates.length} label="Expiring Soon" sub="Proposals expire in 3 days"
+              ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
+              dk={dk}
+            />
+            {/* Sent proposals not signed after 48h */}
             <ActionCard
               iconPath={ICONS.alertTri}
               iconBg="#EDE9FE" iconColor="#7C3AED"
-              count={awaitingResp.length} label="Awaiting Your Response" sub="Customers messaged you"
-              ctaLabel="View Leads" ctaHref="/dashboard/pipeline"
+              count={unsignedProposals.length} label="Awaiting Signature" sub="Sent 48+ hrs, not signed"
+              ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
               dk={dk}
             />
-            <ActionCard
-              iconPath={ICONS.hourglass}
-              iconBg="#E0F2FE" iconColor="#0EA5E9"
-              count={waitingOnCust.length} label="Waiting on Customer" sub="You replied, waiting for them"
-              ctaLabel="View Leads" ctaHref="/dashboard/pipeline"
-              dk={dk}
-            />
+            {/* Jobs scheduled today */}
             <ActionCard
               iconPath={ICONS.calCheck}
               iconBg="#DCFCE7" iconColor="#16A34A"
-              count={scheduledLeads.length} label="Jobs Scheduled" sub="This week"
+              count={jobsToday.length} label="Jobs Today" sub="On your schedule today"
               ctaLabel="View Calendar" ctaHref="/dashboard/calendar"
               dk={dk}
             />
-            {/* Draft Estimates — wired to real data */}
+            {/* Draft estimates — unsent */}
             <ActionCard
               iconPath={ICONS.fileText}
               iconBg="#EDE9FE" iconColor="#7C3AED"
-              count={draftCount} label="Draft Estimates" sub="Need your review"
+              count={draftEstimates.length} label="Draft Proposals" sub="Not sent yet"
               ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
               dk={dk}
             />
           </div>
         </div>
 
+        {/* ── Trade-specific overview widget (Today's Schedule, Revenue Forecast, etc.) ── */}
+        {/* Slot renders roofing sections for roofers, null for all other trades              */}
+        {session && (() => {
+          const OverviewWidget = tc.components.OverviewWidget
+          return <OverviewWidget leads={leads} session={session} dk={dk} />
+        })()}
+
         {/* ── Pipeline — hidden on mobile (hero strip + bottom nav covers it) ── */}
         <div className="hidden md:block rounded-2xl p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <div>
-              <h2 className="text-[16px] font-bold inline mr-2" style={{ color: textMain }}>Pipeline</h2>
-              <span className="text-[13px]" style={{ color: BODY }}>Track your leads at every stage</span>
+              <h2 className="text-[16px] font-bold inline mr-2" style={{ color: textMain }}>{tc.labels.pipeline}</h2>
+              <span className="text-[13px]" style={{ color: BODY }}>Where your money is at every stage</span>
             </div>
             <Link href="/dashboard/pipeline" className="text-[13px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-              Open Full Pipeline <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={TEAL} />
+              Open full {tc.labels.pipeline.toLowerCase()} <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={TEAL} />
             </Link>
           </div>
           {leads.length === 0 ? (
@@ -727,12 +765,7 @@ export default function OverviewPage() {
           </div>
         )}
 
-        {/* ── Trade-specific overview widget (Today's Schedule, Revenue Forecast, etc.) ── */}
-        {/* Slot renders roofing sections for roofers, null for all other trades              */}
-        {session && (() => {
-          const OverviewWidget = tc.components.OverviewWidget
-          return <OverviewWidget leads={leads} session={session} dk={dk} />
-        })()}
+
 
       </div>
 

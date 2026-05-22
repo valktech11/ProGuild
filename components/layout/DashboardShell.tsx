@@ -344,6 +344,8 @@ function MoreDrawer({ open, onClose, session, nl, dk, onToggleDark }: { open: bo
     setTimeout(() => { setClosing(false); onClose() }, 320)
   }
 
+  // Extra guard: never render on desktop regardless of state
+  if (typeof window !== 'undefined' && window.innerWidth >= 768) return null
   if (!open && !closing) return null
 
   const tradeCity = [session?.trade, session?.city].filter(Boolean).join(' · ')
