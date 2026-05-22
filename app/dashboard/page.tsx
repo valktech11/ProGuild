@@ -730,7 +730,7 @@ export default function OverviewPage() {
         {/* ── Trade-specific overview widget (Today's Schedule, Revenue Forecast, etc.) ── */}
         {/* Slot renders roofing sections for roofers, null for all other trades              */}
         {session && (() => {
-          const OverviewWidget = tradePlugin.components.OverviewWidget
+          const OverviewWidget = tc.components.OverviewWidget
           return <OverviewWidget leads={leads} session={session} dk={dk} />
         })()}
 
