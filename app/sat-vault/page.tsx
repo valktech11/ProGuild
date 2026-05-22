@@ -1282,8 +1282,7 @@ ${theme==='dark'?'.sv{background:radial-gradient(ellipse 70% 50% at 8% 15%,rgba(
                                   {SHORT[q.topic]||q.topic} · {q.diff} · {q.type==='spr'?'Open':'MC'}
                                 </div>
                                 <div style={{fontSize:13,color:'var(--tx)',lineHeight:1.5,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
-                                  {q.q.replace(/
-/g,' ')}
+                                  {q.q.replace(/\n/g,' ')}
                                 </div>
                               </div>
                               <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}}>
