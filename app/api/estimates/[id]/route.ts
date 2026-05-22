@@ -27,7 +27,6 @@ export async function GET(
     .single()
 
   if (error) {
-    // Return 404 — page falls back to MOCK_ESTIMATE until table exists
     return NextResponse.json({ error: error.message }, { status: 404 })
   }
 

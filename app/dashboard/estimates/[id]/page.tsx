@@ -100,6 +100,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const [estimate, setEstimate] = useState<Estimate | null>(null)
   const [materialPrices, setMaterialPrices] = useState<Record<string, number> | null>(null)
   const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [confirmDeleteTpl, setConfirmDeleteTpl] = useState<{ id: string; name: string } | null>(null)
@@ -136,14 +137,21 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         .catch(() => null)
     }
     fetch(`/api/estimates/${id}`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) { setNotFound(true); setLoading(false); return null }
+        return r.json()
+      })
       .then(d => {
-        setEstimate(d.estimate ?? MOCK_ESTIMATE)
+        if (!d) return
+        if (d.estimate) {
+          setEstimate(d.estimate)
+        } else {
+          setNotFound(true)
+        }
         setLoading(false)
       })
       .catch(() => {
-        // Fallback to mock while API not yet built
-        setEstimate(MOCK_ESTIMATE)
+        setNotFound(true)
         setLoading(false)
       })
   }, [id, session, router])
@@ -241,7 +249,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const handleSave = async () => {
     if (!estimate) return
     // Don't save mock data
-    if (estimate.id === 'mock-1') {
+    if (false) { // removed mock guard
       setSaveMsg('Run v75-estimates-sql.sql on staging DB first')
       setTimeout(() => setSaveMsg(null), 5000)
       return
@@ -323,6 +331,20 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   // estimate.trade_slug comes from the DB via the pro join in GET /api/estimates/[id]
   // This is the correct source of truth. Session can be stale or unloaded.
   const estTradeSlug = (estimate as any)?.trade_slug ?? session?.trade_slug ?? ''
+  if (notFound) return (
+    <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
+      <div style={{ padding: 40, textAlign: 'center', color: '#6B7280' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', marginBottom: 8 }}>Estimate not found</div>
+        <div style={{ fontSize: 14, marginBottom: 20 }}>This estimate may have been deleted or you may not have access.</div>
+        <button onClick={() => router.push('/dashboard/estimates')}
+          style={{ padding: '10px 20px', borderRadius: 8, background: '#0F766E', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+          Back to Estimates
+        </button>
+      </div>
+    </DashboardShell>
+  )
+
   if (!loading && estimate && isRoofing(getTradeConfig(estTradeSlug))) {
     return (
       <DashboardShell session={session} newLeads={0} onAddLead={() => {}}
@@ -647,7 +669,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                                 label: 'Download PDF', icon: '↓',
                                 action: async () => {
                                   setShowMoreMenu(false)
-                                  if (!estimate || estimate.id === 'mock-1') { setSaveMsg('Save estimate to DB first'); setTimeout(() => setSaveMsg(null), 3000); return }
+                                  if (!estimate) return
                                   setSaveMsg('Generating PDF...')
                                   try {
                                     const r = await fetch(`/api/estimates/pdf?id=${id}&pro_id=${session?.id}`)
@@ -1000,7 +1022,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     {/* Download PDF */}
                     <button
                       onClick={async () => {
-                        if (!estimate || estimate.id === 'mock-1') { setSaveMsg('Save estimate to DB first'); setTimeout(() => setSaveMsg(null), 3000); return }
+                        if (!estimate) return
                         setSaveMsg('Generating PDF...')
                         try {
                           const r = await fetch(`/api/estimates/pdf?id=${id}`)
@@ -1392,36 +1414,4 @@ function EstimateSkeleton({ dk }: { dk: boolean }) {
   )
 }
 
-// ── Mock data — remove once API /api/estimates/[id] is built ──
-const MOCK_ESTIMATE: Estimate = {
-  id: 'mock-1',
-  estimate_number: 'EST-1047',
-  status: 'draft',
-  lead_name: 'Surya Yadav',
-  lead_source: 'Website',
-  trade: 'Interior Painting • 2BHK',
-  job_description: 'Full interior painting for 2BHK apartment',
-  created_at: '2024-05-14T10:30:00Z',
-  valid_until: '2024-05-28T10:30:00Z',
-  subtotal: 1900,
-  discount: 100,
-  discount_type: '$' as const,
-  tax_rate: 7,
-  tax_amount: 126,
-  total: 1926,
-  deposit_percent: 50,
-  require_deposit: true,
-  terms: 'This estimate is valid for 14 days. Payment is due upon job completion. A 50% deposit is required to begin work.',
-  items: [
-    { id: '1', name: 'Interior Wall Painting', description: 'Premium quality paint', qty: 1, unit_price: 1200, amount: 1200 },
-    { id: '2', name: 'Ceiling Painting',       description: 'Flat white finish',      qty: 1, unit_price: 300,  amount: 300  },
-    { id: '3', name: 'Surface Preparation',    description: 'Patch, sand & prime',    qty: 1, unit_price: 250,  amount: 250  },
-    { id: '4', name: 'Protection & Cleanup',   description: 'Furniture covering & cleanup', qty: 1, unit_price: 150, amount: 150 },
-  ],
-  timeline: [
-    { event: 'sent',     label: 'Sent to client',       timestamp: '2024-05-14T10:30:00Z' },
-    { event: 'viewed',   label: 'Viewed by client (2 times)', timestamp: '2024-05-15T09:15:00Z' },
-    { event: 'approved', label: 'Approved by client',   timestamp: null },
-    { event: 'paid',     label: 'Payment received',     timestamp: null },
-  ],
-}
+// MOCK_ESTIMATE removed — API is now fully built
