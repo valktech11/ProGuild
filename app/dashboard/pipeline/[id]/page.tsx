@@ -214,6 +214,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     fetch(`/api/invoices?pro_id=${session.id}&lead_id=${lead.id}`).then(r=>r.json()).then(d => {
       const i=(d.invoices||[]).find((x:any)=>x.status!=='void'); if(i) setInv(i)
     }).catch(()=>{})
+    // Eagerly fetch photo count so Photos tab label shows correct number on first render
+    if (isRoofing) {
+      fetch(`/api/leads/${lead.id}/photos?pro_id=${session.id}`).then(r=>r.json()).then(d => {
+        if (d?.photos?.length) setPhotoCount(d.photos.length)
+      }).catch(()=>{})
+    }
   }, [session, lead])
 
   // When returning from ProMeasure with measurements applied:
