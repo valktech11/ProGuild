@@ -409,23 +409,34 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           }}
           onSend={async () => {
             if (!estimate.contact_email) {
-              setSaveMsg('No email on file — open lead to add email')
-              setTimeout(() => setSaveMsg(null), 3000)
+              setSaveMsg('No email on file — use Edit Contact to add email first')
+              setTimeout(() => setSaveMsg(null), 4000)
               return
             }
-            const sentAt = new Date().toISOString()
-            // Send only status + sent_at — never spread full estimate object
-            await fetch(`/api/estimates/${id}`, {
-              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: 'sent', sent_at: sentAt }),
-            })
-            await fetch('/api/estimates/send', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ estimateId: id, pro_id: session?.id }),
-            })
-            setEstimate(prev => prev ? { ...prev, status: 'sent' } as any : prev)
-            setSaveMsg('Estimate sent ✓')
-            setTimeout(() => setSaveMsg(null), 3000)
+            try {
+              const sentAt = new Date().toISOString()
+              // 1. Mark as sent
+              const patchR = await fetch(`/api/estimates/${id}`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'sent', sent_at: sentAt }),
+              })
+              if (!patchR.ok) throw new Error('Failed to update estimate status')
+              // 2. Send email
+              const sendR = await fetch('/api/estimates/send', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estimateId: id, pro_id: session?.id }),
+              })
+              if (!sendR.ok) {
+                const e = await sendR.json().catch(() => ({}))
+                throw new Error((e as any)?.error || 'Email failed to send')
+              }
+              setEstimate(prev => prev ? { ...prev, status: 'sent' } as any : prev)
+              setSaveMsg('Sent to homeowner ✓')
+              setTimeout(() => setSaveMsg(null), 3000)
+            } catch (err: any) {
+              setSaveMsg(err?.message || 'Send failed — try again')
+              setTimeout(() => setSaveMsg(null), 4000)
+            }
           }}
           onBack={() => router.push(backNav().href)}
           darkMode={dk}

@@ -3,7 +3,7 @@
 // Roofing-specific estimate builder. Rendered by app/dashboard/estimates/[id]/page.tsx
 // when session.trade_slug is roofing. DashboardShell is NOT rendered here — shell wraps this.
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -240,6 +240,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const [showTerms, setShowTerms]         = useState(false)
   const [saving, setSaving]               = useState(false)
   const [saveMsg, setSaveMsg]             = useState<string | null>(null)
+  const autoSaveTimer                      = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [autoSaving, setAutoSaving]        = useState(false)
 
   // Payment milestones — derived from selected tier total
   const activeTierSubtotal = estType === 'tiered'
@@ -354,6 +356,33 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     finally { setSaving(false); setTimeout(() => setSaveMsg(null), 2500) }
   }
 
+  // ── Auto-save — fires 2s after any content change ───────────────────────────
+  // Saves tiers, scope, terms, milestones without requiring manual Save click
+  useEffect(() => {
+    // Don't auto-save on initial mount — only after user edits
+    if (!tiers.length) return
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(async () => {
+      setAutoSaving(true)
+      try {
+        await onSave({
+          estimate_type:      estType,
+          tiered_data:        estType === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
+          items:              estType === 'standard' ? stdItems : undefined,
+          scope_of_work:      scope,
+          terms,
+          payment_milestones: milestones,
+          subtotal:           activeTierSubtotal,
+          tax_amount:         taxAmt,
+          total,
+        })
+      } catch { /* silent — manual save still available */ }
+      finally { setAutoSaving(false) }
+    }, 2000)
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tiers, scope, terms, milestones, estType, selectedTier, stdItems])
+
   // ── Selected tier data for right panel ───────────────────────────────────────
   const selTierData = tiers.find(t => t.key === selectedTier)
   const tierLabels: Record<TierKey, string> = {
@@ -403,18 +432,26 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             color: estimate.status === 'draft' ? '#854D0E' : C.teal }}>
             {estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)}
           </span>
-          {saveMsg && (
-            <span style={{ fontSize: 13, color: saveMsg.includes('✓') ? C.green : C.danger }}>
+          {autoSaving && (
+            <span style={{ fontSize: 12, color: C.teal, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.5" strokeLinecap="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
+              </svg>
+              Auto-saving
+            </span>
+          )}
+          {saveMsg && !autoSaving && (
+            <span style={{ fontSize: 12, color: saveMsg.includes('✓') ? C.green : C.danger }}>
               {saveMsg}
             </span>
           )}
         </div>
 
-        <button onClick={handleSave} disabled={saving}
+        <button onClick={handleSave} disabled={saving || autoSaving}
           style={{ padding: '9px 20px', borderRadius: 10, border: `1.5px solid ${border}`,
-            background: 'transparent', color: textP, fontSize: 14, fontWeight: 600,
-            cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-          {saving ? 'Saving...' : 'Save'}
+            background: 'transparent', color: textP, fontSize: 13, fontWeight: 600,
+            cursor: saving || autoSaving ? 'default' : 'pointer', opacity: saving || autoSaving ? 0.45 : 1 }}>
+          {saving ? 'Saving…' : 'Save'}
         </button>
         <button onClick={onSend}
           style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
