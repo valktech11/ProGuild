@@ -380,7 +380,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               // Only send known PATCH fields — never spread the full estimate object
               // which contains nested join objects (pro, lead, roofing) that break the API
               const payload = {
-                items:              updates.items              ?? estimate.items,
+                // Only include items if explicitly provided — undefined means GBB mode (no standard items)
+                ...(updates.items !== undefined ? { items: updates.items } : {}),
                 subtotal:           updates.subtotal           ?? estimate.subtotal,
                 discount:           (estimate as any).discount,
                 discount_type:      (estimate as any).discount_type,

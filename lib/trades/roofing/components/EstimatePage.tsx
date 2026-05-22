@@ -135,7 +135,7 @@ const fmt = (n: number) =>
 const fmtDec = (n: number) =>
   '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-function newId() { return Math.random().toString(36).slice(2, 10) }
+function newId() { return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10) + '-' + Math.random().toString(36).slice(2, 6) + '-4' + Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 10) }
 
 const DEFAULT_MILESTONES = (total: number): PaymentMilestone[] => [
   { id: newId(), name: 'Deposit',              pct: 30, amount: Math.round(total * 0.3), due_when: 'Due at signing' },
@@ -458,12 +458,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           )}
         </div>
 
-        <button onClick={handleSave} disabled={saving || autoSaving}
-          style={{ padding: '9px 20px', borderRadius: 10, border: `1.5px solid ${border}`,
-            background: 'transparent', color: textP, fontSize: 13, fontWeight: 600,
-            cursor: saving || autoSaving ? 'default' : 'pointer', opacity: saving || autoSaving ? 0.45 : 1 }}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
+
         <button onClick={onSend}
           style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
             background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
