@@ -679,7 +679,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 <div style={{minWidth:0}}>
 
                   {/* ─── HERO CARD ─────────────────────────────────────── */}
-                  <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.06)'}}>
+                  <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                    {/* Teal accent bar — stage color top strip */}
+                    <div style={{height:4,background:`linear-gradient(90deg,${stgObj?.color??BRAND.teal},${stgObj?.color??BRAND.teal}88)`,borderRadius:'0'}}/>
 
                     {/* Identity row */}
                     <div style={{padding:'20px 24px 16px'}}>
@@ -689,7 +691,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {initials(lead.contact_name)}
                           </div>
                           <div style={{minWidth:0,flex:1,paddingTop:2}}>
-                            <div style={{fontSize:22,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15,marginBottom:5}}>
+                            <div style={{fontSize:24,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15,marginBottom:6}}>
                               {heroLabel}
                             </div>
                             <div style={{fontSize:13,color:tsu,lineHeight:1.5}}>
@@ -947,15 +949,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             onClick={()=>{setTab(tb2.key);if(isEditing&&tb2.key!=='details')setIsEditing(false)}}
                             style={{
                               display:'flex',alignItems:'center',gap:6,
-                              padding:'13px 14px 11px',
+                              padding:'11px 14px 10px',
                               border:'none',
-                              borderBottom:isAct?`2px solid ${BRAND.teal}`:'2px solid transparent',
-                              background:'transparent',cursor:'pointer',
+                              borderBottom:isAct?`2.5px solid ${BRAND.teal}`:'2.5px solid transparent',
+                              background:isAct?(dk?'rgba(20,184,166,0.08)':'rgba(15,118,110,0.05)'):'transparent',
+                              cursor:'pointer',
                               color:isAct?BRAND.teal:ts,
-                              fontWeight:isAct?700:500,
+                              fontWeight:isAct?800:500,
                               fontSize:13,whiteSpace:'nowrap',
                               marginBottom:-1,
-                              transition:'color 0.15s',
+                              transition:'all 0.15s',
                             }}>
                             <Svg size={13} stroke={isAct?BRAND.teal:tsu}>{tb2.icon}</Svg>
                             {tb2.label}
@@ -981,13 +984,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   ?<span style={{display:'flex',alignItems:'center',gap:5}}>{fmt(lead.follow_up_date)}{isOverdue(lead.follow_up_date)&&<span style={{fontSize:11,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:600}}>Overdue</span>}</span>
                                   :'—', copy:null},
                               ] as {label:string;color:string;icon:React.ReactNode;val:React.ReactNode;copy:string|null}[]).map((cell,ci)=>(
-                                <div key={cell.label} style={{padding:'13px 16px',background:card,display:'flex',alignItems:'flex-start',gap:12}}>
-                                  {/* Teal icon circle */}
-                                  <div style={{width:32,height:32,borderRadius:8,background:cell.color+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={cell.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{cell.icon}</svg>
+                                <div key={cell.label} style={{padding:'16px 18px',background:card,display:'flex',alignItems:'flex-start',gap:13}}>
+                                  {/* Icon circle */}
+                                  <div style={{width:36,height:36,borderRadius:9,background:cell.color+'12',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={cell.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{cell.icon}</svg>
                                   </div>
                                   <div style={{minWidth:0,flex:1}}>
-                                    <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:3}}>{cell.label}</div>
+                                    <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4}}>{cell.label}</div>
                                     <div style={{fontSize:14,fontWeight:600,color:tp,display:'flex',alignItems:'center',gap:4,wordBreak:'break-word',lineHeight:1.4}}>
                                       {cell.val}
                                       {cell.copy&&cell.val!=='—'&&<CopyBtn text={cell.copy} color={ts}/>}
@@ -1004,23 +1007,29 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             {/* Roofing measurement tools — linked to this lead */}
                             {isRoofing&&(
-                              <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
-                                <div style={{fontSize:12,fontWeight:700,color:ts,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10}}>Measurement Tools</div>
+                              <div style={{marginTop:16,padding:16,borderRadius:T.radMd,background:dk?'rgba(15,118,110,0.08)':'#F0FDFA',border:'1px solid #CCFBF1'}}>
+                                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                                  <div style={{width:28,height:28,borderRadius:7,background:'rgba(15,118,110,0.12)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                  </div>
+                                  <div style={{fontSize:13,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em'}}>Measurement Tools</div>
+                                </div>
                                 {/* Measurements from roofing_job_data */}
                                 {(()=>{
                                   const rjd=(lead as any)?.roofing_job_data
                                   if(rjd?.square_count){
                                     return(
                                       <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-                                        <span style={{padding:'5px 12px',borderRadius:8,fontSize:13,fontWeight:700,background:'#F0FDFA',color:BRAND.teal,border:'1px solid #CCFBF1'}}>{rjd.square_count} sq</span>
-                                        {rjd.pitch&&<span style={{padding:'5px 12px',borderRadius:8,fontSize:13,fontWeight:700,background:'#F0FDFA',color:BRAND.teal,border:'1px solid #CCFBF1'}}>{rjd.pitch} pitch</span>}
-                                        {rjd.waste_pct&&<span style={{padding:'5px 12px',borderRadius:8,fontSize:13,fontWeight:700,background:'#F0FDFA',color:BRAND.teal,border:'1px solid #CCFBF1'}}>{rjd.waste_pct}% waste</span>}
+                                        <span style={{padding:'7px 16px',borderRadius:20,fontSize:15,fontWeight:800,background:'#fff',color:BRAND.teal,border:'1.5px solid #0F766E',boxShadow:'0 1px 4px rgba(15,118,110,0.12)'}}>{rjd.square_count} sq</span>
+                                        {rjd.pitch&&<span style={{padding:'7px 16px',borderRadius:20,fontSize:15,fontWeight:800,background:'#fff',color:BRAND.teal,border:'1.5px solid #0F766E',boxShadow:'0 1px 4px rgba(15,118,110,0.12)'}}>{rjd.pitch} pitch</span>}
+                                        {rjd.waste_pct&&<span style={{padding:'7px 16px',borderRadius:20,fontSize:15,fontWeight:800,background:'#fff',color:BRAND.teal,border:'1.5px solid #0F766E',boxShadow:'0 1px 4px rgba(15,118,110,0.12)'}}>{rjd.waste_pct}% waste</span>}
                                       </div>
                                     )
                                   }
                                   return(
-                                    <div style={{fontSize:13,color:ts,marginBottom:12,padding:'8px 12px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
-                                      ⚠ No measurements yet — run a report or use ProMeasure
+                                    <div style={{fontSize:13,color:BRAND.teal,marginBottom:12,padding:'10px 14px',background:'rgba(15,118,110,0.06)',borderRadius:T.radSm,border:'1px dashed #0F766E66',display:'flex',alignItems:'center',gap:8}}>
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                                      <span style={{fontSize:13,color:BRAND.teal}}>No measurements yet — use ProMeasure or Quick Bid Report</span>
                                     </div>
                                   )
                                 })()}
@@ -1039,8 +1048,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         : `/dashboard/roofing/promeasure?lead_id=${lead.id}`
                                       router.push(url)
                                     }}
-                                    style={{padding:'10px 12px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                    style={{padding:'11px 12px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center',boxShadow:'0 2px 8px rgba(15,118,110,0.25)'}}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
                                     ProMeasure
                                   </button>
                                   <button
@@ -1083,8 +1092,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         addToast('Could not open property','error')
                                       }
                                     }}
-                                    style={{padding:'10px 12px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                                    style={{padding:'11px 12px',borderRadius:T.radSm,border:`1.5px solid ${BRAND.teal}`,background:'transparent',color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
                                     Quick Bid Report
                                   </button>
                                 </div>
@@ -1306,12 +1315,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             })(),icon:<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}]:[]),
                           ]
                           return items.map((ins,i)=>(
-                            <div key={i} style={{flex:1,background:ins.bg,borderRadius:T.radMd,padding:'10px 10px 10px',minWidth:0}}>
-                              <div style={{width:28,height:28,borderRadius:7,background:ins.color+'22',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:7}}>
-                                <Svg size={13} stroke={ins.color}>{ins.icon}</Svg>
+                            <div key={i} style={{flex:1,background:ins.bg,borderRadius:T.radMd,padding:'14px 12px',minWidth:0,border:`1px solid ${ins.color}22`}}>
+                              <div style={{width:30,height:30,borderRadius:8,background:ins.color+'18',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:8}}>
+                                <Svg size={14} stroke={ins.color}>{ins.icon}</Svg>
                               </div>
-                              <div style={{fontSize:10,fontWeight:700,color:ins.color,lineHeight:1.3,marginBottom:3}}>{ins.title}</div>
-                              <div style={{fontSize:12,fontWeight:700,color:ins.color}}>{ins.body}</div>
+                              <div style={{fontSize:10,fontWeight:700,color:ins.color,lineHeight:1.3,marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>{ins.title}</div>
+                              <div style={{fontSize:14,fontWeight:800,color:ins.color,lineHeight:1.2}}>{ins.body}</div>
                             </div>
                           ))
                         })()}
