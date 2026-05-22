@@ -37,14 +37,17 @@ export async function POST(req: NextRequest) {
     }).eq('id', inv.lead_id)
 
     // Queue review request (stored in DB — fired by Twilio when 10DLC is active)
-    await sb.from('review_requests').insert({
-      pro_id:     inv.pro_id,
-      lead_id:    inv.lead_id,
-      invoice_id: invoice_id,
-      status:     'queued',
-      send_after: new Date(Date.now() + 3 * 86400000).toISOString(), // 3 days after job completion
-      created_at: new Date().toISOString(),
-    }).select().single().catch(() => null) // non-fatal — table may not exist yet
+    // Queue review request — non-fatal if table doesn't exist yet
+    try {
+      await sb.from('review_requests').insert({
+        pro_id:     inv.pro_id,
+        lead_id:    inv.lead_id,
+        invoice_id: invoice_id,
+        status:     'queued',
+        send_after: new Date(Date.now() + 3 * 86400000).toISOString(),
+        created_at: new Date().toISOString(),
+      })
+    } catch { /* non-fatal */ }
   }
 
   if (newStatus === 'paid' && inv.estimate_id) {
