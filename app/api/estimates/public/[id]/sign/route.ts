@@ -149,5 +149,28 @@ export async function POST(
     }
   }
 
+  // Send invoice email to homeowner (non-blocking, best-effort)
+  // Done server-side so we don't need to expose pro_id to the public page
+  try {
+    const { data: newInv } = await sb
+      .from('invoices')
+      .select('id, contact_email')
+      .eq('estimate_id', id)
+      .eq('status', 'draft')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (newInv?.id && newInv?.contact_email) {
+      // Fire and forget — don't block the sign response
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://proguild.ai'
+      fetch(`${baseUrl}/api/invoices/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_id: newInv.id, pro_id: est.pro_id }),
+      }).catch(() => null)
+    }
+  } catch { /* non-fatal */ }
+
   return NextResponse.json({ ok: true })
 }

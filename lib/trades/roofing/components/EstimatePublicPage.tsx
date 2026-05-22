@@ -39,6 +39,7 @@ export interface PublicRoofingEstimate {
   payment_milestones?: PaymentMilestone[]
   deposit_percent?: number
   insurance_claim?: boolean; deductible?: number
+  pro_id?: string
   pro_name?: string; pro_city?: string; pro_state?: string
   pro_phone?: string; pro_email?: string; pro_license?: string
   pro_signature?: string  // R2 key or data URL of pro's signature

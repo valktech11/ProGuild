@@ -63,23 +63,7 @@ export default function PublicEstimatePage({ params }: { params: Promise<{ id: s
     })
     if (!r.ok) throw new Error('Sign failed')
 
-    // After approval: find the auto-created invoice and send it to homeowner
-    try {
-      const invRes = await fetch(`/api/invoices?pro_id=${estimate.pro_id ?? ''}&estimate_id=${id}`)
-        .catch(() => null)
-      if (invRes?.ok) {
-        const invData = await invRes.json()
-        const inv = invData?.invoices?.[0]
-        if (inv?.id && estimate.contact_email) {
-          // Send invoice email non-blocking
-          fetch('/api/invoices/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ invoice_id: inv.id, pro_id: estimate.pro_id }),
-          }).catch(() => null)
-        }
-      }
-    } catch { /* non-fatal — invoice email is best-effort */ }
+
   }
 
   // Route to roofing component (covers all roofing estimates)
