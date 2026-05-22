@@ -15,9 +15,9 @@ export async function GET(
     .select(`
       *,
       items:estimate_items(*),
-      pro:pros(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
-      lead:leads(property_address, contact_phone, contact_email, contact_name),
-      roofing:roofing_estimate_data(
+      pro:pros!left(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
+      lead:leads!left(property_address, contact_phone, contact_email, contact_name),
+      roofing:roofing_estimate_data!left(
         estimate_type, tiered_data, scope_of_work,
         payment_milestones, property_address,
         square_count, pitch, waste_pct
@@ -27,7 +27,68 @@ export async function GET(
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 404 })
+    // Before giving up — check if the estimate exists without joins
+    // (happens when roofing_estimate_data row is missing for older estimates)
+    const { data: bareEst } = await sb.from('estimates').select('*').eq('id', id).single()
+    if (!bareEst) return NextResponse.json({ error: error.message }, { status: 404 })
+
+    // Estimate exists — auto-create missing roofing_estimate_data row
+    const tradeSlug = bareEst.trade_slug ?? ''
+    if (tradeSlug.includes('roof')) {
+      await sb.from('roofing_estimate_data').upsert({
+        estimate_id:   id,
+        pro_id:        bareEst.pro_id,
+        estimate_type: 'tiered',
+      }, { onConflict: 'estimate_id' })
+    }
+
+    // Retry the full query now that the row exists
+    const { data: retryEst, error: retryErr } = await sb
+      .from('estimates')
+      .select(`
+        *,
+        items:estimate_items(*),
+        pro:pros!left(trade_slug, full_name, phone_cell, city, state, signature_r2_key),
+        lead:leads!left(property_address, contact_phone, contact_email, contact_name),
+        roofing:roofing_estimate_data!left(
+          estimate_type, tiered_data, scope_of_work,
+          payment_milestones, property_address,
+          square_count, pitch, waste_pct
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (retryErr || !retryEst) {
+      return NextResponse.json({ error: retryErr?.message ?? 'Estimate not found' }, { status: 404 })
+    }
+
+    // Reassign so the rest of the handler uses the retried data
+    Object.assign(estimate ?? {}, retryEst)
+    // Process retried estimate inline (same logic as main path below)
+    const retryPro     = (retryEst as any).pro     ?? {}
+    const retryLead    = (retryEst as any).lead    ?? {}
+    const retryRoofing = (retryEst as any).roofing ?? {}
+    const { pro: _rp, lead: _rl, roofing: _rr, ...retryClean } = retryEst as any
+    return NextResponse.json({ estimate: {
+      ...retryClean,
+      timeline: buildTimeline(retryEst),
+      trade_slug:         retryClean.trade_slug ?? retryPro.trade_slug ?? null,
+      pro_name:           retryPro.full_name  ?? null,
+      pro_phone:          retryPro.phone_cell ?? null,
+      pro_city:           retryPro.city       ?? null,
+      pro_signature:      retryPro.signature_r2_key ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? ''}/${retryPro.signature_r2_key}` : null,
+      pro_state:          retryPro.state      ?? null,
+      estimate_type:      retryRoofing.estimate_type      ?? 'tiered',
+      tiered_data:        retryRoofing.tiered_data        ?? null,
+      scope_of_work:      retryRoofing.scope_of_work      ?? null,
+      payment_milestones: retryRoofing.payment_milestones ?? null,
+      property_address:   retryRoofing.property_address   ?? retryLead.property_address ?? null,
+      square_count:       retryRoofing.square_count ?? null,
+      pitch:              retryRoofing.pitch        ?? null,
+      waste_pct:          retryRoofing.waste_pct    ?? null,
+      perimeter:          null,
+    }})
   }
 
   // Build approval timeline from status fields
