@@ -368,15 +368,43 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           onSave={async (updates) => {
             setSaving(true)
             try {
-              await fetch(`/api/estimates/${id}`, {
+              // Only send known PATCH fields — never spread the full estimate object
+              // which contains nested join objects (pro, lead, roofing) that break the API
+              const payload = {
+                items:              updates.items              ?? estimate.items,
+                subtotal:           updates.subtotal           ?? estimate.subtotal,
+                discount:           (estimate as any).discount,
+                discount_type:      (estimate as any).discount_type,
+                tax_rate:           estimate.tax_rate,
+                tax_amount:         updates.tax_amount         ?? estimate.tax_amount,
+                total:              updates.total              ?? estimate.total,
+                require_deposit:    (estimate as any).require_deposit,
+                deposit_percent:    (estimate as any).deposit_percent,
+                terms:              updates.terms              ?? estimate.terms,
+                status:             estimate.status,
+                notes:              (estimate as any).notes,
+                contact_email:      updates.contact_email      ?? estimate.contact_email,
+                contact_phone:      updates.contact_phone      ?? estimate.contact_phone,
+                // Roofing-specific
+                estimate_type:      (updates as any).estimate_type      ?? (estimate as any).estimate_type,
+                tiered_data:        (updates as any).tiered_data        ?? (estimate as any).tiered_data,
+                scope_of_work:      (updates as any).scope_of_work      ?? (estimate as any).scope_of_work,
+                payment_milestones: (updates as any).payment_milestones ?? (estimate as any).payment_milestones,
+                property_address:   (updates as any).property_address   ?? (estimate as any).property_address,
+                square_count:       (updates as any).square_count       ?? (estimate as any).square_count,
+                pitch:              (updates as any).pitch              ?? (estimate as any).pitch,
+                waste_pct:          (updates as any).waste_pct          ?? (estimate as any).waste_pct,
+              }
+              const r = await fetch(`/api/estimates/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...estimate, ...updates }),
+                body: JSON.stringify(payload),
               })
+              if (!r.ok) { const e = await r.json().catch(()=>{}); throw new Error((e as any)?.error || 'Save failed') }
               setEstimate(prev => prev ? { ...prev, ...updates } as any : prev)
               setSaveMsg('Saved ✓')
               setTimeout(() => setSaveMsg(null), 2500)
-            } catch { setSaveMsg('Save failed') }
+            } catch (err: any) { setSaveMsg(err?.message || 'Save failed'); setTimeout(() => setSaveMsg(null), 3000) }
             finally { setSaving(false) }
           }}
           onSend={async () => {
@@ -386,9 +414,10 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               return
             }
             const sentAt = new Date().toISOString()
+            // Send only status + sent_at — never spread full estimate object
             await fetch(`/api/estimates/${id}`, {
               method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }),
+              body: JSON.stringify({ status: 'sent', sent_at: sentAt }),
             })
             await fetch('/api/estimates/send', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },

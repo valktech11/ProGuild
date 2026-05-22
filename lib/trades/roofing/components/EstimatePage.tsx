@@ -199,22 +199,26 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const [sqCount,   setSqCount]   = useState<string>(String(estimate.square_count ?? ''))
   const [pitchVal,  setPitchVal]  = useState<string>(estimate.pitch ?? '6/12')
   const [wastePct,  setWastePct]  = useState<string>(String(estimate.waste_pct ?? 10))
+  const [perimLF,   setPerimLF]   = useState<number | undefined>((estimate as any).perimeter ?? undefined)
   const [editMeas,  setEditMeas]  = useState(false)
   const [savingMeas,setSavingMeas]= useState(false)
+
 
   // GBB state — initialise from DB or defaults
   const [tiers, setTiers] = useState<Tier[]>(() => {
     if (estimate.tiered_data?.tiers?.length) return estimate.tiered_data.tiers
-    // Pre-fill quantities from square_count
+    // Pre-fill quantities from square_count + perimeter
+    // Use real perimeter from ProMeasure if available, else estimate sq * 10
     const sq = estimate.square_count ?? 0
+    const perim = (estimate as any).perimeter ?? Math.round(sq * 10)
     return DEFAULT_TIERS.map(t => ({
       ...t,
       items: t.items.map(item => {
-        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? sq * 10 : 0
+        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? perim : 0
         return { ...item, qty, amount: Math.round(qty * item.unit_price) }
       }),
       subtotal: t.items.reduce((s, item) => {
-        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? sq * 10 : 0
+        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? perim : 0
         return s + Math.round(qty * item.unit_price)
       }, 0),
     }))
@@ -255,11 +259,14 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   }, [])
 
   // Recalc all tier quantities + amounts when measurements change
-  const recalcTiersFromSq = useCallback((sq: number, selTier?: TierKey): number => {
+  const recalcTiersFromSq = useCallback((sq: number, selTier?: TierKey, perimLF?: number): number => {
     let selSubtotal = 0
+    // LF fallback: use real perimeter if available, otherwise estimate as sq * 10
+    // Real perimeter comes from roofing_job_data (ProMeasure polygon perimeter)
+    const lfQty = perimLF ?? Math.round(sq * 10)
     setTiers(prev => prev.map(tier => {
       const items = tier.items.map(item => {
-        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? Math.round(sq * 10) : item.qty
+        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? lfQty : item.qty
         return { ...item, qty, amount: Math.round(qty * item.unit_price) }
       })
       const subtotal = items.reduce((s, i) => s + i.amount, 0)
@@ -274,7 +281,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     setSavingMeas(true)
     const sq = parseFloat(sqCount) || 0
     const wp = parseFloat(wastePct) || 10
-    const newSubtotal = recalcTiersFromSq(sq, selectedTier)
+    const newSubtotal = recalcTiersFromSq(sq, selectedTier, perimLF)
     const newTotal = newSubtotal + Math.round(newSubtotal * (estimate.tax_rate / 100))
     recalcMilestones(newTotal)
     try {
@@ -502,6 +509,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           }
           onAddMilestone={() => setMilestones(prev => [...prev, { id: newId(), name: 'Milestone', pct: 0, amount: 0, due_when: 'TBD' }])}
           estimate={estimate}
+          onSave={onSave}
           card={card} border={border} textP={textP} textS={textS}
           dk={dk}
         />
@@ -1146,7 +1154,7 @@ function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS
 // ── RightPanel ─────────────────────────────────────────────────────────────────
 function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selTierData,
   total, taxAmt, taxRate, pct21, validUntil, milestones, onUpdateMilestone, onAddMilestone,
-  estimate, card, border, textP, textS, dk }: {
+  estimate, onSave, card, border, textP, textS, dk }: {
   estType: 'standard' | 'tiered'
   tiers: Tier[]; tierLabels: Record<TierKey, string>; tierTotals: Record<TierKey, number>
   selectedTier: TierKey; selTierData?: Tier
@@ -1156,9 +1164,16 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
   onUpdateMilestone: (id: string, field: string, val: unknown) => void
   onAddMilestone: () => void
   estimate: RoofingEstimate
+  onSave: (updates: Partial<RoofingEstimate>) => Promise<void>
   card: string; border: string; textP: string; textS: string; dk: boolean
 }) {
   const expiring = new Date(validUntil) < new Date(Date.now() + 3 * 86400000)
+
+  // Edit contact inline state — local to RightPanel
+  const [editContact,   setEditContact]   = useState(false)
+  const [contactEmail,  setContactEmail]  = useState(estimate.contact_email ?? '')
+  const [contactPhone,  setContactPhone]  = useState(estimate.contact_phone ?? '')
+  const [savingContact, setSavingContact] = useState(false)
 
   return (
     <div style={{ position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1306,10 +1321,45 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
             )}
           </div>
         </div>
-        <button style={{ background: 'none', border: 'none', color: C.teal,
-          fontWeight: 700, fontSize: 13, cursor: 'pointer', padding: 0 }}>
-          Edit contact
-        </button>
+        {!editContact ? (
+          <button
+            onClick={() => { setContactEmail(estimate.contact_email ?? ''); setContactPhone(estimate.contact_phone ?? ''); setEditContact(true) }}
+            style={{ background: 'none', border: 'none', color: C.teal, fontWeight: 700, fontSize: 13, cursor: 'pointer', padding: 0 }}>
+            Edit contact
+          </button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 220 }}>
+            <input
+              type="email" placeholder="Email address" value={contactEmail}
+              onChange={e => setContactEmail(e.target.value)}
+              style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+            />
+            <input
+              type="tel" placeholder="Phone number" value={contactPhone}
+              onChange={e => setContactPhone(e.target.value)}
+              style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                disabled={savingContact}
+                onClick={async () => {
+                  setSavingContact(true)
+                  try {
+                    await onSave({ contact_email: contactEmail.trim() || undefined, contact_phone: contactPhone.trim() || undefined })
+                    setEditContact(false)
+                  } finally { setSavingContact(false) }
+                }}
+                style={{ flex: 1, padding: '7px 12px', borderRadius: 8, border: 'none', background: C.teal, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                {savingContact ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                onClick={() => setEditContact(false)}
+                style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', background: 'none', fontSize: 13, cursor: 'pointer', color: '#64748B' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

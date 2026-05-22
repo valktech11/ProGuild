@@ -46,7 +46,7 @@ export async function GET(
   if (estClean.lead_id && tradeSlugResolved?.includes('roof')) {
     const { data: rd } = await sb
       .from('roofing_job_data')
-      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
+      .select('square_count, pitch, waste_pct, perimeter, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
       .eq('lead_id', estClean.lead_id)
       .maybeSingle()
     roofingJobData = rd
@@ -74,6 +74,7 @@ export async function GET(
       square_count:  roofing.square_count ?? roofingJobData?.square_count ?? null,
       pitch:         roofing.pitch        ?? roofingJobData?.pitch        ?? null,
       waste_pct:     roofing.waste_pct    ?? roofingJobData?.waste_pct    ?? null,
+      perimeter:     roofingJobData?.perimeter ?? null,
       // Insurance (always from roofing_job_data — live claim state)
       insurance_claim:   roofingJobData?.insurance_claim   ?? false,
       approved_amount:   roofingJobData?.approved_amount   ?? null,
