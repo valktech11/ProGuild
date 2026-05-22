@@ -1293,7 +1293,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           const items=[
                             ...(mins<=30?[{color:'#059669',bg:'#ECFDF5',title:'High close probability',body:`Lead responded within ${mins<1?'1':mins} min`,icon:<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>}]:[]),
                             {color:'#1D4ED8',bg:'#EFF6FF',title:'Best callback window',body:hour<17?'5:00 PM – 7:00 PM':hour<20?'Right now':'10 AM – 12 PM',icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>},
-                            ...(isRoofing?[{color:'#B45309',bg:'#FFFBEB',title:'Roof size estimate',body:'28 – 34 squares',icon:<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}]:[]),
+                            ...(isRoofing?[{color:'#B45309',bg:'#FFFBEB',title:'Roof size estimate',body:(()=>{
+                              const sq=(lead as any)?.roofing_job_data?.square_count
+                              const pitch=(lead as any)?.roofing_job_data?.pitch
+                              if(sq){
+                                // Show actual measured squares with pitch if available
+                                return pitch ? `${sq} sq · ${pitch}` : `${sq} squares measured`
+                              }
+                              // Fallback: Zillow/county sq ft estimate ÷ 100 × 1.3 slope factor = rough range
+                              return '28 – 34 squares est.'
+                            })(),icon:<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}]:[]),
                           ]
                           return items.map((ins,i)=>(
                             <div key={i} style={{flex:1,background:ins.bg,borderRadius:T.radMd,padding:'10px 10px 10px',minWidth:0}}>
