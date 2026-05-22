@@ -18,7 +18,14 @@ export async function GET(
     .single()
 
   if (error || !estimate) {
-    return NextResponse.json({ error: error?.message ?? 'Estimate not found' }, { status: 404 })
+    // Log full error details for debugging
+    console.error('[estimates GET] id:', id, 'error:', JSON.stringify(error), 'hasData:', !!estimate)
+    return NextResponse.json({ 
+      error: error?.message ?? 'Estimate not found',
+      code: error?.code,
+      hint: error?.hint,
+      details: error?.details,
+    }, { status: 404 })
   }
 
   // Parallel fetch of all related data — each can fail independently without killing the response

@@ -146,6 +146,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         if (d.estimate) {
           setEstimate(d.estimate)
         } else {
+          console.error('[estimates page] API returned no estimate:', d)
           setNotFound(true)
         }
         setLoading(false)
