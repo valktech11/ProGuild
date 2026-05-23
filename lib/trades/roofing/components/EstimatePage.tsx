@@ -602,7 +602,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                   return next
                 })
               }}
-              onAdd={() => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => [...prev, { id: newId(), name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
+              onAdd={(id) => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
               onDelete={(id) => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => prev.filter(i => i.id !== id)) }}
               isDirty={isDirtyStd}
               saving={saving}
@@ -1174,7 +1174,7 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
   card, border, textP, textS }: {
   items: TierLineItem[]
   onUpdateItem: (id: string, field: keyof TierLineItem, val: string | number) => void
-  onAdd: () => void; onDelete: (id: string) => void
+  onAdd: (id: string) => void; onDelete: (id: string) => void
   isDirty: boolean
   onSaveItems: () => Promise<void>
   onDiscard: () => void
@@ -1182,6 +1182,7 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
   card: string; border: string; textP: string; textS: string
 }) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [newItemId, setNewItemId] = useState<string | null>(null)
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
       border: `1px solid ${border}` }}>
@@ -1195,8 +1196,10 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
             gap: 10, alignItems: 'center', padding: '10px 14px', borderRadius: 10,
             background: '#F8FAFC', border: `1px solid ${border}` }}>
             <input value={item.name} onChange={e => onUpdateItem(item.id, 'name', e.target.value)}
+              placeholder="Item name"
+              ref={el => { if (el && item.id === newItemId) { el.focus(); setNewItemId(null) } }}
               style={{ border: 'none', background: 'transparent', fontSize: 14, fontWeight: 600,
-                color: textP, outline: 'none' }} />
+                color: textP, outline: 'none', width: '100%' }} />
             <input value={item.qty} type="number" onChange={e => onUpdateItem(item.id, 'qty', Number(e.target.value))}
               style={{ background: '#fff', padding: '6px 8px', borderRadius: 6,
                 border: `1px solid ${border}`,
@@ -1242,7 +1245,11 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
           )
         })()}
 
-        <button onClick={onAdd}
+        <button onClick={() => {
+            const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+            onAdd(id)
+            setNewItemId(id)
+          }}
           style={{ border: `1px dashed ${border}`, borderRadius: 10, padding: '10px',
             background: 'transparent', color: textS, cursor: 'pointer', fontSize: 14,
             fontWeight: 600, textAlign: 'center' }}>
