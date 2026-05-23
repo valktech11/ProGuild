@@ -467,7 +467,18 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
         </div>
 
 
-        <button onClick={onSend}
+        <button onClick={async () => {
+            // Auto-save unsaved standard items before sending
+            if (estType === 'standard' && isDirtyStd) {
+              const sub = stdItems.reduce((s, i) => s + i.amount, 0)
+              const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
+              await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
+                .catch(() => null)
+              originalStdItems.current = null
+              setIsDirtyStd(false)
+            }
+            onSend()
+          }}
           style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
             background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
             color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
@@ -575,15 +586,23 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             <StandardSection
               items={stdItems} onUpdateItem={(id, field, val) => {
                 if (!originalStdItems.current) originalStdItems.current = stdItems
-                setIsDirtyStd(true); onDirty?.()
-                setStdItems(prev => prev.map(i => {
-                  if (i.id !== id) return i
-                  const up = { ...i, [field]: val }
-                  up.amount = Math.round(Number(up.qty) * Number(up.unit_price))
-                  return up
-                }))
+                setStdItems(prev => {
+                  const next = prev.map(i => {
+                    if (i.id !== id) return i
+                    const up = { ...i, [field]: val }
+                    up.amount = Math.round(Number(up.qty) * Number(up.unit_price))
+                    return up
+                  })
+                  // Smart dirty: compare normalized items against snapshot
+                  const normalize = (items: typeof prev) =>
+                    JSON.stringify(items.map(i => ({ id: i.id, name: i.name, qty: Math.round(i.qty * 100), unit_price: Math.round(i.unit_price * 100) })))
+                  const dirty = normalize(next) !== normalize(originalStdItems.current ?? next)
+                  setIsDirtyStd(dirty)
+                  if (dirty) onDirty?.()
+                  return next
+                })
               }}
-              onAdd={() => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => [...prev, { id: newId(), name: 'New item', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
+              onAdd={() => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => [...prev, { id: newId(), name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
               onDelete={(id) => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => prev.filter(i => i.id !== id)) }}
               card={card} border={border} textP={textP} textS={textS}
             />
@@ -601,21 +620,18 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           <TermsCard terms={terms} onChange={setTerms} show={showTerms} onToggle={() => setShowTerms(p => !p)}
             card={card} border={border} textP={textP} textS={textS} />
 
-          {/* ── Save bar — Standard mode, sticky within left column ─────────── */}
+          {/* ── Save bar — plain inline, shows only when items differ from saved state ── */}
           {estType === 'standard' && isDirtyStd && (
             <div style={{
-              position: 'sticky', bottom: 16, zIndex: 20,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               gap: 10, padding: '12px 20px',
-              background: darkMode ? '#1E293B' : '#fff',
-              border: '2px solid #F59E0B',
-              borderRadius: 12,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              background: darkMode ? '#1E293B' : '#FFFBEB',
+              border: '1.5px solid #F59E0B', borderRadius: 12,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: darkMode ? '#F1F5F9' : '#0F172A' }}>
-                  Unsaved changes &middot; <span style={{ color: '#F59E0B' }}>${stdItems.reduce((s, i) => s + i.amount, 0).toLocaleString()}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: darkMode ? '#F1F5F9' : '#92400E' }}>
+                  Unsaved changes &middot; <span style={{ color: '#D97706' }}>${stdItems.reduce((s, i) => s + i.amount, 0).toLocaleString()}</span>
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -625,8 +641,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                     originalStdItems.current = null
                     setIsDirtyStd(false)
                   }}
-                  style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${border}`,
-                    background: 'transparent', color: textS, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                  style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #FDE68A',
+                    background: 'transparent', color: '#92400E', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
                   Discard
                 </button>
                 <button
@@ -645,14 +661,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                     finally { setSaving(false) }
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 22px',
-                    borderRadius: 8, border: 'none', background: saving ? '#CBD5E1' : C.teal,
-                    color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'default' : 'pointer',
-                    boxShadow: saving ? 'none' : '0 2px 8px rgba(15,118,110,0.3)' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-                    <polyline points="17 21 17 13 7 13 7 21"/>
-                    <polyline points="7 3 7 8 15 8"/>
-                  </svg>
+                    borderRadius: 8, border: 'none', background: saving ? '#CBD5E1' : '#D97706',
+                    color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
                   {saving ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
@@ -1038,6 +1048,7 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
   border: string; textP: string; textS: string
 }) {
   const [editingItem, setEditingItem] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const cardBg = selected ? C.tealLight : '#fff'
   const cardBorder = selected ? `2px solid ${C.teal}` : `1px solid ${border}`
@@ -1098,9 +1109,9 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
                 <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 12 }}>
                   {fmt(item.amount)}
                 </span>
-                <button onClick={() => onDeleteItem(item.id)}
-                  style={{ border: 'none', background: 'none', color: C.danger,
-                    cursor: 'pointer', fontSize: 16, padding: 0 }}>×</button>
+                <button onClick={() => setPendingDeleteId(item.id)}
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4,
+                    color: C.danger, fontSize: 16, lineHeight: 1 }}>×</button>
               </div>
             ) : (
               // Read mode
@@ -1118,6 +1129,31 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
             )}
           </div>
         ))}
+        {pendingDeleteId && (() => {
+          const item = tier.items.find(i => i.id === pendingDeleteId)
+          if (!item) return null
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 12px', borderRadius: 8, background: '#FEF2F2',
+              border: '1px solid #FECACA', gap: 8, marginTop: 4 }}>
+              <span style={{ fontSize: 12, color: '#991B1B' }}>
+                Remove <strong>{item.name || 'item'}</strong>?
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setPendingDeleteId(null)}
+                  style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #FECACA',
+                    background: 'transparent', color: '#991B1B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={() => { onDeleteItem(pendingDeleteId); setPendingDeleteId(null) }}
+                  style={{ padding: '3px 10px', borderRadius: 6, border: 'none',
+                    background: '#DC2626', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          )
+        })()}
         <button onClick={onAddItem}
           style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
             padding: '6px', fontSize: 12, color: textS, cursor: 'pointer', width: '100%',
@@ -1167,6 +1203,7 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, t
   onAdd: () => void; onDelete: (id: string) => void
   card: string; border: string; textP: string; textS: string
 }) {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
       border: `1px solid ${border}` }}>
@@ -1193,12 +1230,40 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, t
             <div style={{ fontSize: 14, fontWeight: 700, color: textP, textAlign: 'right' }}>
               {fmt(item.amount)}
             </div>
-            <button onClick={() => onDelete(item.id)}
+            <button onClick={() => setPendingDeleteId(item.id)}
               style={{ border: 'none', background: 'none', color: C.danger, cursor: 'pointer', fontSize: 18 }}>
               ×
             </button>
           </div>
         ))}
+
+        {pendingDeleteId && (() => {
+          const item = items.find(i => i.id === pendingDeleteId)
+          if (!item) return null
+          const fmt2 = (n: number) => '$' + Math.round(n).toLocaleString()
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 14px', borderRadius: 10, background: '#FEF2F2',
+              border: '1.5px solid #FECACA', gap: 12 }}>
+              <span style={{ fontSize: 13, color: '#991B1B' }}>
+                Remove <strong>{item.name || 'this item'}</strong> ({fmt2(item.amount)})?
+              </span>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button onClick={() => setPendingDeleteId(null)}
+                  style={{ padding: '5px 14px', borderRadius: 7, border: '1px solid #FECACA',
+                    background: 'transparent', color: '#991B1B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={() => { onDelete(pendingDeleteId); setPendingDeleteId(null) }}
+                  style={{ padding: '5px 14px', borderRadius: 7, border: 'none',
+                    background: '#DC2626', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          )
+        })()}
+
         <button onClick={onAdd}
           style={{ border: `1px dashed ${border}`, borderRadius: 10, padding: '10px',
             background: 'transparent', color: textS, cursor: 'pointer', fontSize: 14,
