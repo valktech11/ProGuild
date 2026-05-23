@@ -580,6 +580,26 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
               onUpdateWarranty={(key, w) => setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t))}
               showTemplates={showTemplates} setShowTemplates={setShowTemplates}
               templates={templates}
+              isDirty={isDirtyStd}
+              saving={saving}
+              onDiscard={() => {
+                if (originalStdItems.current) setStdItems(originalStdItems.current)
+                originalStdItems.current = null
+                setIsDirtyStd(false)
+              }}
+              onSaveItems={async () => {
+                setSaving(true)
+                try {
+                  const sub = stdItems.reduce((s, i) => s + i.amount, 0)
+                  const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
+                  await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
+                  originalStdItems.current = null
+                  setIsDirtyStd(false)
+                  setSaveMsg('Saved ✓')
+                  setTimeout(() => setSaveMsg(null), 2500)
+                } catch { setSaveMsg('Save failed') }
+                finally { setSaving(false) }
+              }}
               card={card} border={border} textP={textP} textS={textS}
             />
           ) : (
@@ -604,6 +624,26 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
               }}
               onAdd={() => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => [...prev, { id: newId(), name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
               onDelete={(id) => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => prev.filter(i => i.id !== id)) }}
+              isDirty={isDirtyStd}
+              saving={saving}
+              onDiscard={() => {
+                if (originalStdItems.current) setStdItems(originalStdItems.current)
+                originalStdItems.current = null
+                setIsDirtyStd(false)
+              }}
+              onSaveItems={async () => {
+                setSaving(true)
+                try {
+                  const sub = stdItems.reduce((s, i) => s + i.amount, 0)
+                  const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
+                  await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
+                  originalStdItems.current = null
+                  setIsDirtyStd(false)
+                  setSaveMsg('Saved ✓')
+                  setTimeout(() => setSaveMsg(null), 2500)
+                } catch { setSaveMsg('Save failed') }
+                finally { setSaving(false) }
+              }}
               card={card} border={border} textP={textP} textS={textS}
             />
           )}
@@ -620,54 +660,6 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           <TermsCard terms={terms} onChange={setTerms} show={showTerms} onToggle={() => setShowTerms(p => !p)}
             card={card} border={border} textP={textP} textS={textS} />
 
-          {/* ── Save bar — plain inline, shows only when items differ from saved state ── */}
-          {estType === 'standard' && isDirtyStd && (
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              gap: 10, padding: '12px 20px',
-              background: darkMode ? '#1E293B' : '#FFFBEB',
-              border: '1.5px solid #F59E0B', borderRadius: 12,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontSize: 14, fontWeight: 600, color: darkMode ? '#F1F5F9' : '#92400E' }}>
-                  Unsaved changes &middot; <span style={{ color: '#D97706' }}>${stdItems.reduce((s, i) => s + i.amount, 0).toLocaleString()}</span>
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  onClick={() => {
-                    if (originalStdItems.current) setStdItems(originalStdItems.current)
-                    originalStdItems.current = null
-                    setIsDirtyStd(false)
-                  }}
-                  style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #FDE68A',
-                    background: 'transparent', color: '#92400E', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                  Discard
-                </button>
-                <button
-                  disabled={saving}
-                  onClick={async () => {
-                    setSaving(true)
-                    try {
-                      const sub = stdItems.reduce((s, i) => s + i.amount, 0)
-                      const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
-                      await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
-                      originalStdItems.current = null
-                      setIsDirtyStd(false)
-                      setSaveMsg('Saved ✓')
-                      setTimeout(() => setSaveMsg(null), 2500)
-                    } catch { setSaveMsg('Save failed') }
-                    finally { setSaving(false) }
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 22px',
-                    borderRadius: 8, border: 'none', background: saving ? '#CBD5E1' : '#D97706',
-                    color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ── RIGHT PANEL ── */}
@@ -1197,10 +1189,16 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
 
 
 // ── StandardSection ────────────────────────────────────────────────────────────
-function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, textP, textS }: {
+function StandardSection({ items, onUpdateItem, onAdd, onDelete,
+  isDirty, onSaveItems, onDiscard, saving,
+  card, border, textP, textS }: {
   items: TierLineItem[]
   onUpdateItem: (id: string, field: keyof TierLineItem, val: string | number) => void
   onAdd: () => void; onDelete: (id: string) => void
+  isDirty: boolean
+  onSaveItems: () => Promise<void>
+  onDiscard: () => void
+  saving: boolean
   card: string; border: string; textP: string; textS: string
 }) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
@@ -1277,6 +1275,35 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, t
           {fmt(items.reduce((s, i) => s + i.amount, 0))}
         </div>
       </div>
+
+      {/* ── Save bar — inside card, below subtotal ─────────────────────────── */}
+      {isDirty && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 10, padding: '12px 16px', marginTop: 12,
+          background: '#FFFBEB', border: '1.5px solid #F59E0B', borderRadius: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>
+              Unsaved changes &middot; <span style={{ color: '#D97706' }}>{fmt(items.reduce((s, i) => s + i.amount, 0))}</span>
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onDiscard}
+              style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #FDE68A',
+                background: 'transparent', color: '#92400E', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+              Discard
+            </button>
+            <button disabled={saving} onClick={onSaveItems}
+              style={{ padding: '7px 18px', borderRadius: 8, border: 'none',
+                background: saving ? '#CBD5E1' : '#D97706', color: '#fff',
+                fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
