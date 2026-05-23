@@ -921,38 +921,60 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     </div>
                   </div>
 
-                  {/* ── Dirty-state Save bar — only shown when there are unsaved changes ── */}
+                  {/* ── Dirty-state Save bar — sticky bottom, only when unsaved changes exist ── */}
                   {activeTab === 'items' && isDirty && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, padding: '11px 16px', borderRadius: 12, border: `1.5px solid #F59E0B`, background: dk ? 'rgba(245,158,11,0.08)' : '#FFFBEB' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      flexWrap: 'wrap', gap: 8, padding: '14px 32px',
+                      background: dk ? '#1E2530' : '#fff',
+                      borderTop: `2px solid #F59E0B`,
+                      boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
                         {saveMsg ? (
-                          <span style={{ fontSize: 14, fontWeight: 500, color: saveMsg.includes('✓') ? '#0F766E' : '#EF4444' }}>{saveMsg}</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: saveMsg.includes('✓') ? '#0F766E' : '#EF4444' }}>{saveMsg}</span>
                         ) : (
-                          <span style={{ fontSize: 14, color: t.textBody }}>You have unsaved changes</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: dk ? '#F1F5F9' : '#0F172A' }}>
+                            Unsaved changes · <span style={{ color: '#F59E0B' }}>${(estimate?.total ?? 0).toLocaleString()}</span>
+                          </span>
                         )}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <button onClick={async () => {
                           if (estimate.items.length === 0) { setSaveMsg('Add items before saving a template'); setTimeout(() => setSaveMsg(null), 3000); return }
                           if (isDirty) await handleSave()
                           setShowSaveTemplate(true)
                         }}
-                          style={{ fontSize: 13, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }}
-                          onMouseEnter={e => (e.currentTarget.style.textDecorationColor = 'currentColor')}
-                          onMouseLeave={e => (e.currentTarget.style.textDecorationColor = 'transparent')}>
+                          style={{ fontSize: 13, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0' }}>
                           Save as template
+                        </button>
+                        <button
+                          onClick={() => {
+                            // Discard — reload estimate from server
+                            setIsDirty(false)
+                            setSaveMsg(null)
+                            fetch(`/api/estimates/${id}`)
+                              .then(r => r.json())
+                              .then(d => { if (d.estimate) setEstimate(d.estimate) })
+                              .catch(() => null)
+                          }}
+                          style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${dk ? '#334155' : '#CBD5E1'}`, background: 'transparent', color: t.textBody, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                          Discard
                         </button>
                         <button
                           onClick={handleSave}
                           disabled={saving}
-                          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: 'none', background: '#0F766E', color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-                          <Save size={13} />
-                          {saving ? 'Saving...' : 'Save Changes'}
+                          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 22px', borderRadius: 8, fontSize: 14, fontWeight: 700, border: 'none', background: '#0F766E', color: '#fff', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1, boxShadow: '0 2px 8px rgba(15,118,110,0.3)' }}>
+                          <Save size={14} />
+                          {saving ? 'Saving…' : 'Save Changes'}
                         </button>
                       </div>
                     </div>
                   )}
+                  {/* Spacer so content isn't hidden behind sticky bar */}
+                  {activeTab === 'items' && isDirty && <div style={{ height: 68 }} />}
                   {/* Post-save confirmation — shown briefly after save */}
                   {activeTab === 'items' && !isDirty && saveMsg && saveMsg.includes('✓') && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 12, border: `1px solid #99F6E4`, background: dk ? 'rgba(15,118,110,0.1)' : '#F0FDFA' }}>

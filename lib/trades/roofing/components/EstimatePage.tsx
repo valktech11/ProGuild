@@ -375,6 +375,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     if (!tiers.length) return
     // Skip auto-save if proposal type hasn't been committed yet (pending confirmation)
     if (pendingTypeSwitch) return
+    // Standard mode uses explicit Save bar in the shell — no auto-save needed there
+    if (savedEstType.current === 'standard') return
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(async () => {
       setAutoSaving(true)
