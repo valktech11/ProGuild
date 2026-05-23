@@ -99,7 +99,7 @@ interface Props {
   // Called when roofer edits address/measurements — updates lead + roofing_estimate_data
   onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number }) => Promise<void>
   materialPrices?: Record<string, number> | null
-  onDirty?: () => void  // called when standard items change — shell shows save bar
+  onDirty?: () => void
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -256,6 +256,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const [autoSaving, setAutoSaving]        = useState(false)
   const savedEstType                       = useRef<string>(estimate.estimate_type ?? 'tiered')
   const [pendingTypeSwitch, setPendingTypeSwitch] = useState<'standard' | 'tiered' | null>(null)
+  const [isDirtyStd,    setIsDirtyStd]    = useState(false)
+  const originalStdItems                  = useRef<TierLineItem[] | null>(null)
 
   // Payment milestones — derived from selected tier total
   const activeTierSubtotal = estType === 'tiered'
@@ -572,6 +574,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           ) : (
             <StandardSection
               items={stdItems} onUpdateItem={(id, field, val) => {
+                if (!originalStdItems.current) originalStdItems.current = stdItems
+                setIsDirtyStd(true); onDirty?.()
                 setStdItems(prev => prev.map(i => {
                   if (i.id !== id) return i
                   const up = { ...i, [field]: val }
@@ -579,11 +583,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                   return up
                 }))
               }}
-              onAdd={() => setStdItems(prev => [...prev, { id: newId(), name: 'New item', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }])}
-              onDelete={(id) => {
-                  setStdItems(prev => prev.filter(i => i.id !== id))
-                  onDirty?.()
-                }}
+              onAdd={() => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => [...prev, { id: newId(), name: 'New item', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
+              onDelete={(id) => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => prev.filter(i => i.id !== id)) }}
               card={card} border={border} textP={textP} textS={textS}
             />
           )}
@@ -617,6 +618,67 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           dk={dk}
         />
       </div>
+
+      {/* ── Sticky save bar — Standard mode only, explicit save ────────────── */}
+      {estType === 'standard' && isDirtyStd && (
+        <>
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: 10, padding: '14px 32px',
+            background: darkMode ? '#1E293B' : '#fff',
+            borderTop: '2.5px solid #F59E0B',
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: darkMode ? '#F1F5F9' : '#0F172A' }}>
+                Unsaved changes &middot; <span style={{ color: '#F59E0B' }}>${stdItems.reduce((s, i) => s + i.amount, 0).toLocaleString()}</span>
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button
+                onClick={() => {
+                  if (originalStdItems.current) setStdItems(originalStdItems.current)
+                  originalStdItems.current = null
+                  setIsDirtyStd(false)
+                }}
+                style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${border}`,
+                  background: 'transparent', color: textS, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                Discard
+              </button>
+              <button
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true)
+                  try {
+                    const sub = stdItems.reduce((s, i) => s + i.amount, 0)
+                    const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
+                    await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
+                    originalStdItems.current = null
+                    setIsDirtyStd(false)
+                    setSaveMsg('Saved ✓')
+                    setTimeout(() => setSaveMsg(null), 2500)
+                  } catch { setSaveMsg('Save failed') }
+                  finally { setSaving(false) }
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 22px',
+                  borderRadius: 8, border: 'none', background: saving ? '#CBD5E1' : C.teal,
+                  color: '#fff', fontSize: 14, fontWeight: 700,
+                  cursor: saving ? 'default' : 'pointer',
+                  boxShadow: saving ? 'none' : '0 2px 8px rgba(15,118,110,0.3)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                {saving ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+          <div style={{ height: 74 }} />
+        </>
+      )}
     </div>
   )
 }
@@ -979,9 +1041,6 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
   border: string; textP: string; textS: string
 }) {
   const [editingItem, setEditingItem] = useState<string | null>(null)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const itemToDelete = tier.items.find(i => i.id === confirmDeleteId)
-  const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0 })
 
   const cardBg = selected ? C.tealLight : '#fff'
   const cardBorder = selected ? `2px solid ${C.teal}` : `1px solid ${border}`
@@ -1062,30 +1121,6 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
             )}
           </div>
         ))}
-
-        {/* Delete confirmation */}
-        {confirmDeleteId && itemToDelete && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA',
-            marginTop: 8, gap: 8 }}>
-            <div style={{ fontSize: 12, color: '#991B1B' }}>
-              Remove <strong>{itemToDelete.name || 'item'}</strong>?
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <button onClick={() => setConfirmDeleteId(null)}
-                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #FECACA',
-                  background: 'transparent', color: '#991B1B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                Cancel
-              </button>
-              <button onClick={() => { onDeleteItem(confirmDeleteId); setConfirmDeleteId(null) }}
-                style={{ padding: '4px 10px', borderRadius: 6, border: 'none',
-                  background: C.danger, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                Remove
-              </button>
-            </div>
-          </div>
-        )}
-
         <button onClick={onAddItem}
           style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
             padding: '6px', fontSize: 12, color: textS, cursor: 'pointer', width: '100%',
@@ -1135,9 +1170,6 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, t
   onAdd: () => void; onDelete: (id: string) => void
   card: string; border: string; textP: string; textS: string
 }) {
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const itemToDelete = items.find(i => i.id === confirmDeleteId)
-
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
       border: `1px solid ${border}` }}>
@@ -1164,37 +1196,12 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, t
             <div style={{ fontSize: 14, fontWeight: 700, color: textP, textAlign: 'right' }}>
               {fmt(item.amount)}
             </div>
-            <button onClick={() => setConfirmDeleteId(item.id)}
-              style={{ border: 'none', background: 'none', color: C.danger, cursor: 'pointer', fontSize: 18,
-                padding: '0 4px', borderRadius: 4, lineHeight: 1 }}
-              title="Remove item">
+            <button onClick={() => onDelete(item.id)}
+              style={{ border: 'none', background: 'none', color: C.danger, cursor: 'pointer', fontSize: 18 }}>
               ×
             </button>
           </div>
         ))}
-
-        {/* ── Delete confirmation inline ─────────────────────────────────────── */}
-        {confirmDeleteId && itemToDelete && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', gap: 12 }}>
-            <div style={{ fontSize: 13, color: '#991B1B' }}>
-              Remove <strong>{itemToDelete.name || 'this item'}</strong> ({fmt(itemToDelete.amount)})?
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <button onClick={() => setConfirmDeleteId(null)}
-                style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #FECACA',
-                  background: 'transparent', color: '#991B1B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                Cancel
-              </button>
-              <button onClick={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null) }}
-                style={{ padding: '6px 14px', borderRadius: 7, border: 'none',
-                  background: C.danger, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                Remove
-              </button>
-            </div>
-          </div>
-        )}
-
         <button onClick={onAdd}
           style={{ border: `1px dashed ${border}`, borderRadius: 10, padding: '10px',
             background: 'transparent', color: textS, cursor: 'pointer', fontSize: 14,
