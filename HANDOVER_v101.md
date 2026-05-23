@@ -24,7 +24,7 @@
    ```
    npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "TS7006\|TS2307\|TS2875\|..."
    ```
-7. **ROTATE GITHUB TOKEN** — ghp_n1w6xR6... exposed in chat. Rotate immediately.
+7. **ROTATE GITHUB TOKEN** — token was exposed in chat and in this doc. ROTATE IN GITHUB SETTINGS NOW before reading further. Settings → Developer settings → Personal access tokens.
 8. **`useSearchParams` always wrapped in `Suspense`** in Next.js App Router.
 9. **PATCH handlers — never spread full estimate object.** Only send fields explicitly needed. Spreading joins (pro, lead, roofing) causes Supabase to null-out existing columns.
 10. **Estimates GET uses parallel queries, NOT joins.** Join failures silently return null; parallel queries degrade gracefully.
@@ -254,10 +254,92 @@ Build:
 
 ## 4. DB — Pending Owner Actions
 
-| Action | SQL |
-|---|---|
-| `contact_zip` on leads | `ALTER TABLE leads ADD COLUMN IF NOT EXISTS contact_zip text;` |
-| review_requests table | `CREATE TABLE IF NOT EXISTS review_requests (id uuid DEFAULT gen_random_uuid(), pro_id uuid, lead_id uuid, invoice_id uuid, status text, send_after timestamptz, created_at timestamptz DEFAULT now());` |
+| Action | SQL | Risk if skipped |
+|---|---|---|
+| `contact_zip` on leads | `ALTER TABLE leads ADD COLUMN IF NOT EXISTS contact_zip text;` | Silent failure on lead creation — Bible §8.1 Rule 11 calls this critical |
+| `review_requests` table | `CREATE TABLE IF NOT EXISTS review_requests (id uuid DEFAULT gen_random_uuid(), pro_id uuid, lead_id uuid, invoice_id uuid, status text, send_after timestamptz, created_at timestamptz DEFAULT now());` | mark-paid/route.ts writes to this — try/catch swallows the error silently. Verify DDL run before E2E test |
+
+**⚠ Verify both DDL statements have been run on staging before the E2E flow test in §8.**
+
+---
+
+
+---
+
+## 9. Estimate Screen — What's Left (Current State as of May 23)
+
+### 9.1 What Works
+- GBB 3-tier layout with inline item editing ✅
+- Tier selection + auto-calculation from measurements ✅
+- Property card + measurement pills ✅
+- Proposal type toggle (Standard ↔ GBB) with confirmation banner ✅
+- Payment schedule milestones (editable amounts) ✅
+- Right panel sticky summary ✅
+- Progress timeline (Sent/Viewed/Approved/Invoice/Payment received) ✅
+- Send to Homeowner button + Resend email ✅
+- isDirty flag → `● Save changes` / `Saved` button states ✅
+- Sticky header (fixed via fullBleed) ✅
+- Delete confirmation on items (Standard + GBB) ✅
+- Auto-focus on + Add Item ✅
+- Scope of work — text saves on Save button click ✅
+- Terms & Conditions — collapses by default, saves on Save button click ✅
+- Material Prices from `pros.roofing_material_prices` via `buildDefaultTiers(materialPrices)` ✅
+
+### 9.2 What's Missing / Broken
+
+**A. Homeowner public proposal page (`/estimate/[id]`) — NOT TESTED E2E**
+- Canvas e-sign exists but not verified working on staging with real estimate
+- After sign: auto-stage to `proposal_signed` and auto-invoice creation need E2E verification
+- Pro signature display: `pro_signature_r2_key` returned in GET but no UI for pro to upload their signature
+  - Currently: pro must manually set `pros.signature_r2_key` via Supabase
+  - Missing: signature draw/upload UI in profile or estimate settings
+
+**B. Invoice builder (`/dashboard/invoices/[id]`) — NOT BUILT**
+- `lib/trades/roofing/components/InvoicePage.tsx` does not exist
+- The shell `app/dashboard/invoices/[id]/page.tsx` exists but renders generic non-roofing invoice UI
+- DB + API fully ready: `invoices`, `roofing_invoice_data`, `payment_schedules` tables + GET/PATCH API
+- Public invoice `/invoice/[id]` exists with mock Stripe PayButton ✅
+- Key build work: milestone-level mark-paid (not just line items — those are frozen from estimate)
+
+**C. Estimate status tracker (top bar) — timestamps missing**
+- Shows 5 stages: Sent / Viewed / Approved / Invoice / Payment received
+- Currently shows "Not yet" for all — should show actual dates once events fire
+- `sent_at`, `viewed_at`, `approved_at` exist on estimates table
+- Fix: fetch these timestamps in estimates GET and display inline in the tracker
+
+**D. Right panel sticky breaks on very long pages**
+- When scope + terms + milestones push left column very tall, right panel stops sticking
+- `position: sticky, top: 80` on RightPanel — works for medium pages, breaks for long ones
+- Fix: give right panel its own scroll container or use CSS `height: calc(100vh - 80px); overflow-y: auto`
+
+**E. Scope of work — character counter shows 0 when scope is empty**
+- Counter reads `scope.length` — correct
+- But on first load if `scope_of_work` is null in DB, shows "0 characters" even if placeholder is visible
+- Not a bug per se but looks wrong. Fix: hide counter when scope is empty OR show word count instead
+
+**F. Standard mode — items not saved to `estimate_items` table**
+- `handleSave` sends `items: stdItems` in the PATCH body
+- PATCH handler upserts to `estimate_items` with `onConflict: 'id'`
+- Item IDs are now proper UUIDs (fixed `newId()` → `crypto.randomUUID()`)
+- **Verify on staging:** after Save in Standard mode, check that `estimate_items` rows exist in Supabase
+
+**G. Pro material prices — new estimates only**
+- `buildDefaultTiers(materialPrices)` only runs when `estimate.tiered_data` is null (new estimate)
+- Existing estimates that already have `tiered_data` saved use their saved prices, not the pro's settings
+- This is correct behavior — saved estimates should not auto-update
+- But: if pro updates their prices, existing draft estimates don't reflect the new prices
+- Missing: "Recalculate from my prices" button (post-Wave 1 feature)
+
+### 9.3 Estimate Screen Remaining Build Priority
+
+| # | Item | Effort | Blocker |
+|---|---|---|---|
+| 1 | E2E test: send → sign → auto-invoice | 1h test | hello@proguild.ai in Resend |
+| 2 | Invoice builder (`InvoicePage.tsx`) | 1-2 days | None — DB/API ready |
+| 3 | Estimate tracker timestamps | 30min | None |
+| 4 | Pro signature upload UI | 2h | R2 upload working |
+| 5 | Right panel sticky fix for long pages | 30min | None |
+| 6 | Verify stdItems save to estimate_items | 15min test | None |
 
 ---
 
@@ -336,10 +418,18 @@ ff5b458  fix: roof size insight — real square_count from roofing_job_data; hid
 ## 8. Start Here Next Session
 
 **Priority 1: Test the full lead-to-payment flow end-to-end on staging:**
+**Before running the E2E test — verify these or the test will give false results:**
+- [ ] `contact_zip` column added to `leads` table on staging
+- [ ] `review_requests` table created on staging
+- [ ] `hello@proguild.ai` verified as sender in Resend dashboard (send/route.ts will return 200 even if unverified — the email just silently drops)
+- [ ] GitHub token rotated
+
+**E2E flow:**
 1. Create lead → ProMeasure → estimate → Send to Homeowner
 2. Open homeowner link → select tier → sign → approve
-3. Verify: lead moves to `proposal_signed`, invoice auto-created, invoice email sent
-4. Open `/invoice/{id}` → click "Pay Now" → verify lead moves to `job_won`
+3. Verify in Supabase: `estimates.status = 'approved'`, `leads.lead_status = 'proposal_signed'`, invoice row created
+4. Check email inbox: invoice email delivered (confirms Resend sender verified)
+5. Open `/invoice/{id}` → click "Pay Now" → verify `leads.lead_status = 'job_won'`, `review_requests` row created
 
 **Priority 2: Build Invoice UI** (`lib/trades/roofing/components/InvoicePage.tsx`)
 
