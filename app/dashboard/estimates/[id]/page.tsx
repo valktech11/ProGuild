@@ -372,6 +372,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           }}
           templates={(estimate as any).gbb_templates ?? []}
           materialPrices={materialPrices}
+          onDirty={() => setIsDirty(true)}
           onMeasurementsUpdate={async (fields) => {
             const leadId = (estimate as any).lead_id
             if (leadId) {

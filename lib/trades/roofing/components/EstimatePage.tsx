@@ -99,6 +99,7 @@ interface Props {
   // Called when roofer edits address/measurements — updates lead + roofing_estimate_data
   onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number }) => Promise<void>
   materialPrices?: Record<string, number> | null
+  onDirty?: () => void  // called when standard items change — shell shows save bar
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -197,7 +198,7 @@ function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate, materialPrices }: Props) {
+export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate, materialPrices, onDirty }: Props) {
   const dk = darkMode ?? false
 
   // Proposal type
@@ -579,7 +580,10 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                 }))
               }}
               onAdd={() => setStdItems(prev => [...prev, { id: newId(), name: 'New item', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }])}
-              onDelete={(id) => setStdItems(prev => prev.filter(i => i.id !== id))}
+              onDelete={(id) => {
+                  setStdItems(prev => prev.filter(i => i.id !== id))
+                  onDirty?.()
+                }}
               card={card} border={border} textP={textP} textS={textS}
             />
           )}
@@ -975,6 +979,9 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
   border: string; textP: string; textS: string
 }) {
   const [editingItem, setEditingItem] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const itemToDelete = tier.items.find(i => i.id === confirmDeleteId)
+  const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0 })
 
   const cardBg = selected ? C.tealLight : '#fff'
   const cardBorder = selected ? `2px solid ${C.teal}` : `1px solid ${border}`
@@ -1055,6 +1062,30 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
             )}
           </div>
         ))}
+
+        {/* Delete confirmation */}
+        {confirmDeleteId && itemToDelete && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA',
+            marginTop: 8, gap: 8 }}>
+            <div style={{ fontSize: 12, color: '#991B1B' }}>
+              Remove <strong>{itemToDelete.name || 'item'}</strong>?
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button onClick={() => setConfirmDeleteId(null)}
+                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #FECACA',
+                  background: 'transparent', color: '#991B1B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={() => { onDeleteItem(confirmDeleteId); setConfirmDeleteId(null) }}
+                style={{ padding: '4px 10px', borderRadius: 6, border: 'none',
+                  background: C.danger, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                Remove
+              </button>
+            </div>
+          </div>
+        )}
+
         <button onClick={onAddItem}
           style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
             padding: '6px', fontSize: 12, color: textS, cursor: 'pointer', width: '100%',
@@ -1104,6 +1135,9 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, t
   onAdd: () => void; onDelete: (id: string) => void
   card: string; border: string; textP: string; textS: string
 }) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const itemToDelete = items.find(i => i.id === confirmDeleteId)
+
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
       border: `1px solid ${border}` }}>
@@ -1130,12 +1164,37 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete, card, border, t
             <div style={{ fontSize: 14, fontWeight: 700, color: textP, textAlign: 'right' }}>
               {fmt(item.amount)}
             </div>
-            <button onClick={() => onDelete(item.id)}
-              style={{ border: 'none', background: 'none', color: C.danger, cursor: 'pointer', fontSize: 18 }}>
+            <button onClick={() => setConfirmDeleteId(item.id)}
+              style={{ border: 'none', background: 'none', color: C.danger, cursor: 'pointer', fontSize: 18,
+                padding: '0 4px', borderRadius: 4, lineHeight: 1 }}
+              title="Remove item">
               ×
             </button>
           </div>
         ))}
+
+        {/* ── Delete confirmation inline ─────────────────────────────────────── */}
+        {confirmDeleteId && itemToDelete && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', gap: 12 }}>
+            <div style={{ fontSize: 13, color: '#991B1B' }}>
+              Remove <strong>{itemToDelete.name || 'this item'}</strong> ({fmt(itemToDelete.amount)})?
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button onClick={() => setConfirmDeleteId(null)}
+                style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #FECACA',
+                  background: 'transparent', color: '#991B1B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null) }}
+                style={{ padding: '6px 14px', borderRadius: 7, border: 'none',
+                  background: C.danger, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Remove
+              </button>
+            </div>
+          </div>
+        )}
+
         <button onClick={onAdd}
           style={{ border: `1px dashed ${border}`, borderRadius: 10, padding: '10px',
             background: 'transparent', color: textS, cursor: 'pointer', fontSize: 14,
