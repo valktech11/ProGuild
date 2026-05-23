@@ -248,8 +248,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   // Other fields
   const [scope, setScope]       = useState(estimate.scope_of_work ?? '')
   const [terms, setTerms]       = useState(estimate.terms ?? 'This proposal is valid for 14 days. Payment is due per the schedule above. A deposit is required before work begins. Prices may adjust if insurance supplements are approved.')
-  const [showTemplates, setShowTemplates] = useState(false)
-  const [showTerms, setShowTerms]         = useState(false)
+  const [showTerms, setShowTerms]         = useState(false)  // collapsed by default
   const [saving, setSaving]               = useState(false)
   const [saveMsg, setSaveMsg]             = useState<string | null>(null)
   const autoSaveTimer                      = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -372,13 +371,23 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     finally { setSaving(false); setTimeout(() => setSaveMsg(null), 2500) }
   }
 
-  // ── Auto-save — content changes only, NOT proposal type switches ────────────
-  // estType deliberately excluded from deps — type switch requires explicit Save
+  // ── Auto-save scope + terms — always, regardless of mode ───────────────────
+  const scopeTermsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (scopeTermsTimer.current) clearTimeout(scopeTermsTimer.current)
+    scopeTermsTimer.current = setTimeout(async () => {
+      try {
+        await onSave({ scope_of_work: scope, terms })
+      } catch { /* silent */ }
+    }, 2000)
+    return () => { if (scopeTermsTimer.current) clearTimeout(scopeTermsTimer.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, terms])
+
+  // ── Auto-save GBB tiers — content changes only, NOT proposal type switches ──
   useEffect(() => {
     if (!tiers.length) return
-    // Skip auto-save if proposal type hasn't been committed yet (pending confirmation)
     if (pendingTypeSwitch) return
-    // Standard mode uses explicit Save bar in the shell — no auto-save needed there
     if (savedEstType.current === 'standard') return
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(async () => {
@@ -578,8 +587,6 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
               onUpdateLabel={(key, label) => setTiers(prev => prev.map(t => t.key === key ? { ...t, label } : t))}
               onUpdateBrand={(key, brand) => setTiers(prev => prev.map(t => t.key === key ? { ...t, shingle_brand: brand } : t))}
               onUpdateWarranty={(key, w) => setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t))}
-              showTemplates={showTemplates} setShowTemplates={setShowTemplates}
-              templates={templates}
               card={card} border={border} textP={textP} textS={textS}
             />
           ) : (
@@ -936,7 +943,6 @@ function ProposalTypeToggle({ value, onChange, card, border, textP, textS }: {
 // ── GBBSection ─────────────────────────────────────────────────────────────────
 function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, onDeleteItem,
   onUpdateLabel, onUpdateBrand, onUpdateWarranty,
-  showTemplates, setShowTemplates, templates,
   card, border, textP, textS }: {
   tiers: Tier[]
   selectedTier: TierKey
@@ -947,9 +953,6 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
   onUpdateLabel: (tier: TierKey, label: string) => void
   onUpdateBrand: (tier: TierKey, brand: string) => void
   onUpdateWarranty: (tier: TierKey, w: string) => void
-  showTemplates: boolean
-  setShowTemplates: (v: boolean) => void
-  templates: GBBTemplate[]
   card: string; border: string; textP: string; textS: string
 }) {
   return (
@@ -970,49 +973,6 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
           />
         ))}
       </div>
-
-      {/* Template drawer */}
-      <button onClick={() => setShowTemplates(!showTemplates)}
-        style={{ background: 'none', border: 'none', color: C.teal, fontWeight: 700, fontSize: 14,
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-        Load saved template {showTemplates ? '▲' : '▼'}
-      </button>
-
-      {showTemplates && (
-        <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {templates.length === 0 ? (
-            <div style={{ gridColumn: '1/-1', padding: 20, textAlign: 'center', color: textS, fontSize: 14 }}>
-              No saved templates yet. Save a template from the template manager.
-            </div>
-          ) : templates.map(tpl => (
-            <div key={tpl.id} style={{ background: '#F8FAFC', borderRadius: 12, padding: 16,
-              border: `1px solid ${border}` }}>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: C.tealLight,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                  </svg>
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: textP }}>{tpl.name}</div>
-                  <div style={{ fontSize: 12, color: textS }}>
-                    Std: ${tpl.tiers.standard_ppsq}/sq · Upg: ${tpl.tiers.upgraded_ppsq}/sq · Pre: ${tpl.tiers.premium_ppsq}/sq
-                  </div>
-                  <div style={{ fontSize: 11, color: C.muted }}>
-                    Used {tpl.use_count} times · Last {tpl.last_used ?? 'never'}
-                  </div>
-                </div>
-              </div>
-              <button style={{ width: '100%', padding: '8px', borderRadius: 8, border: `1.5px solid ${border}`,
-                background: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', color: textP }}>
-                Load
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -1322,7 +1282,7 @@ function ScopeCard({ scope, onChange, card, border, textP, textS }: {
       </div>
       <textarea value={scope} onChange={e => onChange(e.target.value)}
         rows={4}
-        placeholder="Remove and replace 28 squares of roofing. Install synthetic underlayment, replace all pipe boots and step flashings, install new drip edge on all eaves and rakes. Clean up all debris and haul away."
+        placeholder="Describe the scope of work — materials, removal, cleanup, any special conditions..."
         style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 10, padding: '12px 14px',
           fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
           background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
