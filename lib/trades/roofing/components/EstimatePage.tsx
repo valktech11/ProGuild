@@ -253,6 +253,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const [saveMsg, setSaveMsg]             = useState<string | null>(null)
   const autoSaveTimer                      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [autoSaving, setAutoSaving]        = useState(false)
+  const savedEstType                       = useRef<string>(estimate.estimate_type ?? 'tiered')
+  const [pendingTypeSwitch, setPendingTypeSwitch] = useState<'standard' | 'tiered' | null>(null)
 
   // Payment milestones — derived from selected tier total
   const activeTierSubtotal = estType === 'tiered'
@@ -367,19 +369,20 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     finally { setSaving(false); setTimeout(() => setSaveMsg(null), 2500) }
   }
 
-  // ── Auto-save — fires 2s after any content change ───────────────────────────
-  // Saves tiers, scope, terms, milestones without requiring manual Save click
+  // ── Auto-save — content changes only, NOT proposal type switches ────────────
+  // estType deliberately excluded from deps — type switch requires explicit Save
   useEffect(() => {
-    // Don't auto-save on initial mount — only after user edits
     if (!tiers.length) return
+    // Skip auto-save if proposal type hasn't been committed yet (pending confirmation)
+    if (pendingTypeSwitch) return
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(async () => {
       setAutoSaving(true)
       try {
         await onSave({
-          estimate_type:      estType,
-          tiered_data:        estType === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
-          items:              estType === 'standard' ? stdItems : undefined,
+          estimate_type:      savedEstType.current as any,
+          tiered_data:        savedEstType.current === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
+          items:              savedEstType.current === 'standard' ? stdItems : undefined,
           scope_of_work:      scope,
           terms,
           payment_milestones: milestones,
@@ -387,12 +390,12 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           tax_amount:         taxAmt,
           total,
         })
-      } catch { /* silent — manual save still available */ }
+      } catch { /* silent */ }
       finally { setAutoSaving(false) }
     }, 2000)
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tiers, scope, terms, milestones, estType, selectedTier, stdItems])
+  }, [tiers, scope, terms, milestones, selectedTier, stdItems, pendingTypeSwitch])
 
   // ── Selected tier data for right panel ───────────────────────────────────────
   const selTierData = tiers.find(t => t.key === selectedTier)
@@ -495,11 +498,62 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
 
           {/* Proposal type toggle */}
           <ProposalTypeToggle
-            value={estType} onChange={v => { setEstType(v); }}
+            value={pendingTypeSwitch ?? estType} onChange={v => {
+            if (v === estType) return
+            // Don't silently switch — show confirmation banner
+            setPendingTypeSwitch(v as 'standard' | 'tiered')
+          }}
             card={card} border={border} textP={textP} textS={textS}
           />
 
           {/* GBB tiers OR standard items */}
+          {/* ── Pending type switch confirmation ─────────────────────────────── */}
+          {pendingTypeSwitch && (
+            <div style={{
+              margin: '12px 0', padding: '14px 18px', borderRadius: 10,
+              background: '#FFFBEB', border: '1px solid #FDE68A',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 2 }}>
+                  Switch to {pendingTypeSwitch === 'tiered' ? 'Good / Better / Best' : 'Standard'}?
+                </div>
+                <div style={{ fontSize: 12, color: '#B45309' }}>
+                  {pendingTypeSwitch === 'standard'
+                    ? 'Your GBB tiers are saved. This proposal will send as a single line-item estimate.'
+                    : 'Your line items are saved. This proposal will send as a 3-tier GBB estimate.'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button
+                  onClick={() => setPendingTypeSwitch(null)}
+                  style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #FDE68A',
+                    background: 'transparent', color: '#92400E', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setEstType(pendingTypeSwitch)
+                    savedEstType.current = pendingTypeSwitch
+                    setPendingTypeSwitch(null)
+                    // Save the type switch immediately — this is a deliberate action
+                    await onSave({
+                      estimate_type: pendingTypeSwitch,
+                      tiered_data:   pendingTypeSwitch === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
+                      items:         pendingTypeSwitch === 'standard' ? stdItems : undefined,
+                      subtotal:      activeTierSubtotal,
+                      tax_amount:    taxAmt,
+                      total,
+                    })
+                  }}
+                  style={{ padding: '7px 14px', borderRadius: 8, border: 'none',
+                    background: C.teal, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Switch & Save
+                </button>
+              </div>
+            </div>
+          )}
+
           {estType === 'tiered' ? (
             <GBBSection
               tiers={tiers} selectedTier={selectedTier}
