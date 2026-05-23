@@ -580,26 +580,6 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
               onUpdateWarranty={(key, w) => setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t))}
               showTemplates={showTemplates} setShowTemplates={setShowTemplates}
               templates={templates}
-              isDirty={isDirtyStd}
-              saving={saving}
-              onDiscard={() => {
-                if (originalStdItems.current) setStdItems(originalStdItems.current)
-                originalStdItems.current = null
-                setIsDirtyStd(false)
-              }}
-              onSaveItems={async () => {
-                setSaving(true)
-                try {
-                  const sub = stdItems.reduce((s, i) => s + i.amount, 0)
-                  const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
-                  await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
-                  originalStdItems.current = null
-                  setIsDirtyStd(false)
-                  setSaveMsg('Saved ✓')
-                  setTimeout(() => setSaveMsg(null), 2500)
-                } catch { setSaveMsg('Save failed') }
-                finally { setSaving(false) }
-              }}
               card={card} border={border} textP={textP} textS={textS}
             />
           ) : (
