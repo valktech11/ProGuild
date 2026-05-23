@@ -603,7 +603,19 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                 })
               }}
               onAdd={(id) => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
-              onDelete={(id) => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => prev.filter(i => i.id !== id)) }}
+              onDelete={(id) => {
+                if (!originalStdItems.current) originalStdItems.current = stdItems
+                setStdItems(prev => {
+                  const next = prev.filter(i => i.id !== id)
+                  const normalize = (items: typeof prev) =>
+                    JSON.stringify(items.map(i => ({ id: i.id, name: i.name, qty: Math.round(i.qty * 100), unit_price: Math.round(i.unit_price * 100) })))
+                  const dirty = normalize(next) !== normalize(originalStdItems.current ?? next)
+                  setIsDirtyStd(dirty)
+                  if (dirty) onDirty?.()
+                  else { originalStdItems.current = null }
+                  return next
+                })
+              }}
               isDirty={isDirtyStd}
               saving={saving}
               onDiscard={() => {
@@ -1268,24 +1280,25 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 10, padding: '12px 16px', marginTop: 12,
-          background: '#FFFBEB', border: '1.5px solid #F59E0B', borderRadius: 10,
+          background: '#F0FDFA', border: '1.5px solid #F59E0B', borderRadius: 10,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>
-              Unsaved changes &middot; <span style={{ color: '#D97706' }}>{fmt(items.reduce((s, i) => s + i.amount, 0))}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#0F766E' }}>
+              Unsaved changes &middot; <span style={{ color: '#0F766E', fontWeight: 800 }}>{fmt(items.reduce((s, i) => s + i.amount, 0))}</span>
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onDiscard}
-              style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #FDE68A',
-                background: 'transparent', color: '#92400E', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+              style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #CBD5E1',
+                background: 'transparent', color: '#64748B', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
               Discard
             </button>
             <button disabled={saving} onClick={onSaveItems}
               style={{ padding: '7px 18px', borderRadius: 8, border: 'none',
-                background: saving ? '#CBD5E1' : '#D97706', color: '#fff',
-                fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
+                background: saving ? '#CBD5E1' : C.teal, color: '#fff',
+                fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer',
+                boxShadow: saving ? 'none' : '0 2px 6px rgba(15,118,110,0.25)' }}>
               {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
