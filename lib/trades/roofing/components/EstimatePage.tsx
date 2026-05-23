@@ -600,6 +600,64 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           {/* Terms */}
           <TermsCard terms={terms} onChange={setTerms} show={showTerms} onToggle={() => setShowTerms(p => !p)}
             card={card} border={border} textP={textP} textS={textS} />
+
+          {/* ── Save bar — Standard mode, sticky within left column ─────────── */}
+          {estType === 'standard' && isDirtyStd && (
+            <div style={{
+              position: 'sticky', bottom: 16, zIndex: 20,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 10, padding: '12px 20px',
+              background: darkMode ? '#1E293B' : '#fff',
+              border: '2px solid #F59E0B',
+              borderRadius: 12,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontSize: 14, fontWeight: 600, color: darkMode ? '#F1F5F9' : '#0F172A' }}>
+                  Unsaved changes &middot; <span style={{ color: '#F59E0B' }}>${stdItems.reduce((s, i) => s + i.amount, 0).toLocaleString()}</span>
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => {
+                    if (originalStdItems.current) setStdItems(originalStdItems.current)
+                    originalStdItems.current = null
+                    setIsDirtyStd(false)
+                  }}
+                  style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${border}`,
+                    background: 'transparent', color: textS, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                  Discard
+                </button>
+                <button
+                  disabled={saving}
+                  onClick={async () => {
+                    setSaving(true)
+                    try {
+                      const sub = stdItems.reduce((s, i) => s + i.amount, 0)
+                      const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
+                      await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
+                      originalStdItems.current = null
+                      setIsDirtyStd(false)
+                      setSaveMsg('Saved ✓')
+                      setTimeout(() => setSaveMsg(null), 2500)
+                    } catch { setSaveMsg('Save failed') }
+                    finally { setSaving(false) }
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 22px',
+                    borderRadius: 8, border: 'none', background: saving ? '#CBD5E1' : C.teal,
+                    color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'default' : 'pointer',
+                    boxShadow: saving ? 'none' : '0 2px 8px rgba(15,118,110,0.3)' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                  </svg>
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── RIGHT PANEL ── */}
@@ -618,72 +676,10 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           dk={dk}
         />
       </div>
-
-      {/* ── Sticky save bar — Standard mode only, explicit save ────────────── */}
-      {estType === 'standard' && isDirtyStd && (
-        <>
-          <div style={{
-            position: 'fixed', bottom: 0, left: 0, right: typeof window !== 'undefined' && window.innerWidth >= 960 ? 364 : 0, zIndex: 50,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexWrap: 'wrap', gap: 10, padding: '14px 32px',
-            background: darkMode ? '#1E293B' : '#fff',
-            borderTop: '2.5px solid #F59E0B',
-            boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: darkMode ? '#F1F5F9' : '#0F172A' }}>
-                Unsaved changes &middot; <span style={{ color: '#F59E0B' }}>${stdItems.reduce((s, i) => s + i.amount, 0).toLocaleString()}</span>
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <button
-                onClick={() => {
-                  if (originalStdItems.current) setStdItems(originalStdItems.current)
-                  originalStdItems.current = null
-                  setIsDirtyStd(false)
-                }}
-                style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${border}`,
-                  background: 'transparent', color: textS, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                Discard
-              </button>
-              <button
-                disabled={saving}
-                onClick={async () => {
-                  setSaving(true)
-                  try {
-                    const sub = stdItems.reduce((s, i) => s + i.amount, 0)
-                    const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
-                    await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
-                    originalStdItems.current = null
-                    setIsDirtyStd(false)
-                    setSaveMsg('Saved ✓')
-                    setTimeout(() => setSaveMsg(null), 2500)
-                  } catch { setSaveMsg('Save failed') }
-                  finally { setSaving(false) }
-                }}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 22px',
-                  borderRadius: 8, border: 'none', background: saving ? '#CBD5E1' : C.teal,
-                  color: '#fff', fontSize: 14, fontWeight: 700,
-                  cursor: saving ? 'default' : 'pointer',
-                  boxShadow: saving ? 'none' : '0 2px 8px rgba(15,118,110,0.3)' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                {saving ? 'Saving…' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-          <div style={{ height: 74 }} />
-        </>
-      )}
     </div>
   )
 }
 
-// ── ProgressTimeline ───────────────────────────────────────────────────────────
 function ProgressTimeline({ timeline, border, textS, card }: {
   timeline: { event: string; label: string; timestamp: string | null }[]
   border: string; textS: string; card: string
@@ -734,6 +730,7 @@ function ProgressTimeline({ timeline, border, textS, card }: {
     </div>
   )
 }
+
 
 // ── PropertyCard ───────────────────────────────────────────────────────────────
 const PITCH_OPTIONS = ['3/12','4/12','5/12','6/12','7/12','8/12','9/12','10/12','12/12']
