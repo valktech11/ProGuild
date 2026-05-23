@@ -266,121 +266,114 @@ Build:
 
 ---
 
-## 10. The Money Loop — Launch Blocker Analysis
+## 10. The Money Loop — Confirmed State (Code-Verified May 23)
 
-**The single most important thing before launch: close the money loop end-to-end.**
+> This section was written by actually reading the source files, not inferring from API route existence.
+> **API routes existing ≠ user journey working. Every item below is code-confirmed.**
 
-A roofer doesn't need templates, material prices, or a polished UI if the core transaction doesn't work. The core transaction is:
+---
 
+### 10.1 Public Estimate Page (`/estimate/[id]`)
+
+**CONFIRMED EXISTS and is wired correctly.**
+
+- `app/estimate/[id]/page.tsx` — no auth, public, fetches from `/api/estimates/public/{id}`
+- View tracking fires on load (deduped per session via sessionStorage)
+- `RoofingEstimatePublicPage` renders the full GBB tier layout
+- `SignatureSection` component has full canvas e-sign (mouse + touch events, `e.preventDefault()` on touch)
+- Confirm flow: homeowner selects tier → draws signature → canvas `.toDataURL('image/png')` → POST `/api/estimates/public/{id}/sign`
+- Approved state: shows "Proposal Approved!" confirmation screen
+
+**Proposal email URL construction (in `app/api/estimates/send/route.ts`):**
 ```
-Lead → Estimate → Send → Homeowner approves → Invoice created → Homeowner pays → Job Won
+${process.env.NEXT_PUBLIC_SITE_URL || 'https://proguild.ai'}/estimate/{estimateId}
 ```
+⚠️ **On staging this resolves to `https://proguild.ai/estimate/...` (production URL), not staging.**
+`NEXT_PUBLIC_SITE_URL` must be set to `https://staging.proguild.ai` in Vercel staging env vars, or the homeowner link in the email goes to production, not staging. Verify this env var before E2E testing.
 
-Every feature built so far is irrelevant if this chain has a broken link.
+---
 
-### 10.1 Homeowner Proposal Approval (`/estimate/{id}`)
+### 10.2 Invoice Email — BROKEN LINK
 
-**Status: Built but NOT verified end-to-end on staging.**
+**`/api/invoices/send` DOES NOT EXIST.**
 
-This is the most critical path. Without it, "Send to Homeowner" sends an email but the homeowner can't do anything with it.
+The `sign/route.ts` fires and forgets a fetch to `${baseUrl}/api/invoices/send` after creating the invoice. That route does not exist anywhere in the codebase. The call silently fails (`.catch(() => null)`).
 
-**What should happen:**
-1. Roofer clicks "Send to Homeowner" → Resend email sent with proposal link
-2. Homeowner opens `/estimate/{id}` — sees the GBB tiers, scope, payment schedule
-3. Homeowner selects a tier (Standard / Upgraded / Premium)
-4. Homeowner draws signature on canvas → clicks "Approve & Sign"
-5. POST `/api/estimates/public/{id}/sign` fires:
-   - `estimates.status` → `approved`
-   - `estimates.approved_at` → timestamp
-   - `leads.lead_status` → `proposal_signed`
-   - Draft invoice auto-created in `invoices` table
-   - Sibling estimates voided
-   - Invoice email sent to homeowner
+**Impact:** After homeowner signs, the invoice is auto-created in the DB correctly, but the invoice email to the homeowner is **never sent**. The homeowner gets no link to pay.
 
-**What could be broken:**
-- Resend email delivery (if `hello@proguild.ai` not verified as sender)
-- Canvas e-sign on mobile (touch events — not tested)
-- `sign/route.ts` crashing silently if `roofing_estimate_data` row missing for estimate
-- The public page URL being wrong (verify the email contains the correct `/estimate/{id}` link, not a dashboard link)
-- Homeowner sees wrong estimate (MOCK_ESTIMATE was a persistent bug — now fixed but verify)
+**Fix required before E2E test:**
+Create `app/api/invoices/send/route.ts` — mirrors `app/api/estimates/send/route.ts` but for invoices. Must:
+1. Fetch invoice + pro info from `invoices` table
+2. Build email with link to `${NEXT_PUBLIC_SITE_URL}/invoice/{id}`
+3. Send via Resend
+4. Update `invoices.status = 'sent'`
 
-**How to test:**
-1. Go to staging, open EST-1030
-2. Click "Send to Homeowner" — check inbox for email, verify the link in the email
-3. Open the link in a private/incognito window (no auth)
-4. Verify: address, measurements, 3 tiers with correct prices shown
-5. Select Upgraded, draw signature, click Approve
-6. Check Supabase: `estimates.status = 'approved'`, `leads.lead_status = 'proposal_signed'`
-7. Check Supabase: new row in `invoices` table linked to this estimate
+---
 
-### 10.2 Invoice Flow
+### 10.3 Public Invoice Page (`/invoice/[id]`)
 
-**Status: Auto-creation built, public page built, InvoicePage (pro side) NOT built.**
+**CONFIRMED EXISTS and is wired correctly — but only reachable if status ≠ 'draft'.**
 
-**What should happen after homeowner signs:**
-1. Invoice auto-created as `draft` in `invoices` table (done in `sign/route.ts`)
-2. Invoice email sent to homeowner with link to `/invoice/{id}` (done, best-effort)
-3. Homeowner opens `/invoice/{id}` — sees invoice total, payment schedule, Pay button
-4. Homeowner clicks "Pay Now" → mock Stripe → `mark-paid` API called
-5. `leads.lead_status` → `job_won`
-6. `review_requests` row created (queued for Twilio when 10DLC active)
+- `app/invoice/[id]/page.tsx` — no auth, public
+- Fetches from `/api/invoices/public/{id}` (no auth route)
+- **Critical:** `app/api/invoices/public/[id]/route.ts` blocks `draft` and `void` status: returns 404 for drafts
+- The auto-created invoice from `sign/route.ts` is created with `status: 'draft'`
+- The invoice email (when fixed) must first update status to `'sent'` — then the public page renders
 
-**What could be broken:**
-- Invoice email link pointing to wrong URL (check `NEXT_PUBLIC_SITE_URL` env var on Vercel)
-- `/invoice/{id}` public page: does it load? Does it show the right total and milestones?
-- PayButton: does the mock Stripe flow complete? Does it hit `mark-paid`?
-- `mark-paid` silently fails if `review_requests` table doesn't exist (DDL not run)
-- After payment, does the lead show as `job_won` in the pipeline?
+**Current state:** Invoice is draft in DB → public page returns 404 → homeowner can't see it even if they have the URL.
 
-**The pro-side invoice builder (`InvoicePage.tsx`) is missing** — the pro can't view/manage the invoice from their dashboard. This is P1 to build next.
+**Fix is part of building `/api/invoices/send`:** that route must set `status = 'sent'` when sending.
 
-**How to test:**
-1. After homeowner signs (10.1 above), check email for invoice
-2. Open invoice link in incognito — verify total matches estimate
-3. Click "Pay Now" — verify processing animation, then "Payment received"
-4. Check Supabase: `invoices.status = 'paid'`, `leads.lead_status = 'job_won'`
-5. Check pipeline: Steve Smith should now show as "Job Won"
+**PayButton:** Confirmed wired — calls `/api/invoices/mark-paid` with `invoice_id`, `amount`, `payment_method`. Mock Stripe simulates 1.5s delay then fires the API.
 
-### 10.3 Proposal PDF
+---
 
-**Status: Route exists at `/api/estimates/pdf` — functionality UNKNOWN.**
+### 10.4 Proposal PDF (`/api/estimates/pdf`)
 
-Roofers routinely need to print or email a PDF version of the proposal. The route exists but:
-- Was it ever tested with the new GBB tiered estimate format?
-- Does it render the 3-tier layout correctly?
-- Does it include the scope, terms, payment schedule?
-- Does it include the pro's contact info and logo?
+**Status: EXISTS in old codebase, NOT verified with current tiered data structure.**
 
-**This is not a launch blocker** — "Send to Homeowner" with the digital approval link is the primary flow. PDF is secondary. But it should work before Wave 1.
+The route was built in v76 era when estimates had a flat line-items structure. Since v95, roofing estimate data (tiers, scope) moved to `roofing_estimate_data` extension table. The PDF route almost certainly reads from the old column locations which no longer exist.
 
-**How to check:**
-```
-GET /api/estimates/pdf?id=34e16e84-284b-4eb9-9b65-ccfcda65b261
-```
-Open this URL in the browser while logged in. Does it return a PDF? Does the PDF look correct?
+**How to test:** `GET /api/estimates/pdf?id={estimate_id}` while authenticated. If it returns a blank PDF or 500, it needs updating to use the parallel queries pattern from the estimates GET.
 
-### 10.4 The Complete Launch-Blocker Test
+Not a launch blocker — digital approval flow is primary. But fix before Wave 1.
 
-**Run this sequence on staging before any other feature work:**
+---
 
-| Step | Action | Pass condition |
+### 10.5 Complete Money Loop — What's Broken
+
+| Step | Status | Notes |
 |---|---|---|
-| 1 | Open EST-1030, click "Send to Homeowner" | Email arrives in inbox with correct proposal link |
-| 2 | Open proposal link in incognito | Correct address, measurements, 3 tiers with real prices |
-| 3 | Select Upgraded tier, draw signature, approve | Redirect to confirmation screen |
-| 4 | Check Supabase `estimates` | `status = 'approved'`, `approved_at` timestamp set |
-| 5 | Check Supabase `leads` | `lead_status = 'proposal_signed'` |
-| 6 | Check Supabase `invoices` | New draft invoice row linked to estimate |
-| 7 | Check email inbox | Invoice email received with `/invoice/{id}` link |
-| 8 | Open invoice link in incognito | Correct total, payment schedule visible |
-| 9 | Click "Pay Now" | Processing animation → "Payment received" |
-| 10 | Check Supabase `leads` | `lead_status = 'job_won'` |
-| 11 | Check Supabase `review_requests` | New row queued for 3 days out |
-| 12 | Check pipeline in dashboard | Steve Smith shows as "Job Won" |
+| Send to Homeowner email | ✅ Works | URL uses `NEXT_PUBLIC_SITE_URL` — verify staging env var |
+| Public proposal page loads | ✅ Works | `/estimate/{id}` is public, no auth |
+| GBB tier display | ✅ Works | Full tier layout rendered |
+| Canvas e-sign | ✅ Works | Mouse + touch events wired |
+| Sign → auto-stage `proposal_signed` | ✅ Works | `sign/route.ts` confirmed |
+| Sign → auto-create draft invoice | ✅ Works | `sign/route.ts` confirmed |
+| Invoice email to homeowner | ❌ **BROKEN** | `/api/invoices/send` does not exist |
+| Public invoice page renders | ⚠️ Blocked | Returns 404 while status='draft'; fixed when send route built |
+| PayButton → mark-paid | ✅ Works | Wired correctly once invoice is 'sent' |
+| mark-paid → `job_won` | ✅ Works | Confirmed in mark-paid/route.ts |
+| Pipeline shows Job Won | ✅ Should work | Depends on lead_status = 'job_won' |
+| Proposal PDF | ❓ Unknown | Likely broken since v95 extension table migration |
 
-**If any step fails — fix it before building anything else.**
+**One fix unblocks the entire money loop: build `/api/invoices/send/route.ts`.**
 
-The money loop is the product. Everything else is decoration.
+---
+
+### 10.6 Fix Order (Build This Next Session)
+
+1. **Build `/api/invoices/send/route.ts`** (30 min)
+   - Fetch invoice from `invoices` table
+   - Build email HTML with `/invoice/{id}` link
+   - Send via Resend
+   - Set `invoices.status = 'sent'`
+
+2. **Verify `NEXT_PUBLIC_SITE_URL`** on Vercel staging env = `https://staging.proguild.ai`
+
+3. **Run E2E test** (§8 checklist)
+
+4. **Build `InvoicePage.tsx`** (pro-side invoice builder) — after money loop confirmed working
 
 
 ---
