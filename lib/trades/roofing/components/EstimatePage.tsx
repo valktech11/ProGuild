@@ -249,8 +249,9 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const [scope, setScope]       = useState(estimate.scope_of_work ?? '')
   const [terms, setTerms]       = useState(estimate.terms ?? 'This proposal is valid for 14 days. Payment is due per the schedule above. A deposit is required before work begins. Prices may adjust if insurance supplements are approved.')
   const [showTerms, setShowTerms]         = useState(false)  // collapsed by default
-  const [saving, setSaving]               = useState(false)
-  const [saveMsg, setSaveMsg]             = useState<string | null>(null)
+  const [saving,  setSaving]  = useState(false)
+  const [saveMsg, setSaveMsg] = useState<string | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
   const savedEstType                       = useRef<string>(estimate.estimate_type ?? 'tiered')
   const [pendingTypeSwitch, setPendingTypeSwitch] = useState<'standard' | 'tiered' | null>(null)
 
@@ -316,6 +317,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   // ── Tier item editing ────────────────────────────────────────────────────────
 
   const updateTierItem = (tierKey: TierKey, itemId: string, field: keyof TierLineItem, val: string | number) => {
+    setIsDirty(true)
     setTiers(prev => prev.map(t => {
       if (t.key !== tierKey) return t
       const items = t.items.map(item => {
@@ -330,6 +332,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   }
 
   const addTierItem = (tierKey: TierKey) => {
+    setIsDirty(true)
     setTiers(prev => prev.map(t => {
       if (t.key !== tierKey) return t
       const newItem: TierLineItem = { id: newId(), name: 'New item', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }
@@ -338,6 +341,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   }
 
   const deleteTierItem = (tierKey: TierKey, itemId: string) => {
+    setIsDirty(true)
     setTiers(prev => prev.map(t => {
       if (t.key !== tierKey) return t
       const items    = t.items.filter(i => i.id !== itemId)
@@ -362,6 +366,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
         tax_amount:         taxAmt,
         total,
       })
+      setIsDirty(false)
       setSaveMsg('Saved ✓')
     } catch { setSaveMsg('Save failed') }
     finally { setSaving(false); setTimeout(() => setSaveMsg(null), 2500) }
@@ -427,13 +432,17 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
 
 
         <button onClick={handleSave} disabled={saving}
-          style={{ padding: '9px 20px', borderRadius: 10,
-            border: `1.5px solid ${border}`,
-            background: 'transparent', color: textP,
-            fontSize: 14, fontWeight: 600,
+          style={{
+            padding: '9px 20px', borderRadius: 10, fontSize: 14, fontWeight: 700,
             cursor: saving ? 'default' : 'pointer',
-            opacity: saving ? 0.5 : 1 }}>
-          {saving ? 'Saving…' : 'Save'}
+            transition: 'all 0.2s',
+            // Dirty: teal filled — demands attention. Clean: grey outline — quiet
+            border: isDirty ? 'none' : `1.5px solid ${border}`,
+            background: saving ? '#CBD5E1' : isDirty ? C.teal : 'transparent',
+            color: isDirty ? '#fff' : textS,
+            boxShadow: isDirty && !saving ? '0 2px 8px rgba(15,118,110,0.3)' : 'none',
+          }}>
+          {saving ? 'Saving…' : isDirty ? '● Save changes' : 'Saved'}
         </button>
 
         <button onClick={onSend}
@@ -541,6 +550,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           ) : (
             <StandardSection
               items={stdItems} onUpdateItem={(id, field, val) => {
+                setIsDirty(true)
                 setStdItems(prev => prev.map(i => {
                   if (i.id !== id) return i
                   const up = { ...i, [field]: val }
@@ -548,14 +558,14 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                   return up
                 }))
               }}
-              onAdd={(id) => { setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
-              onDelete={(id) => { setStdItems(prev => prev.filter(i => i.id !== id)) }}
+              onAdd={(id) => { setIsDirty(true); setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
+              onDelete={(id) => { setIsDirty(true); setStdItems(prev => prev.filter(i => i.id !== id)) }}
               card={card} border={border} textP={textP} textS={textS}
             />
           )}
 
           {/* Scope of work */}
-          <ScopeCard scope={scope} onChange={setScope} card={card} border={border} textP={textP} textS={textS} />
+          <ScopeCard scope={scope} onChange={v => { setScope(v); setIsDirty(true) }} card={card} border={border} textP={textP} textS={textS} />
 
           {/* Insurance claim — only when relevant */}
           {estimate.insurance_claim && (
@@ -563,7 +573,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           )}
 
           {/* Terms */}
-          <TermsCard terms={terms} onChange={setTerms} show={showTerms} onToggle={() => setShowTerms(p => !p)}
+          <TermsCard terms={terms} onChange={v => { setTerms(v); setIsDirty(true) }} show={showTerms} onToggle={() => setShowTerms(p => !p)}
             card={card} border={border} textP={textP} textS={textS} />
 
         </div>
@@ -574,9 +584,10 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           selectedTier={selectedTier} selTierData={selTierData}
           total={total} taxAmt={taxAmt} taxRate={estimate.tax_rate}
           pct21={pct21} validUntil={estimate.valid_until}
-          milestones={milestones} onUpdateMilestone={(id, field, val) =>
+          milestones={milestones} onUpdateMilestone={(id, field, val) => {
+            setIsDirty(true)
             setMilestones(prev => prev.map(m => m.id === id ? { ...m, [field]: val } : m))
-          }
+          }}
           onAddMilestone={() => setMilestones(prev => [...prev, { id: newId(), name: 'Milestone', pct: 0, amount: 0, due_when: 'TBD' }])}
           estimate={estimate}
           onSave={onSave}

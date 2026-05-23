@@ -576,8 +576,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       onAddLead={() => {}}
       darkMode={dk}
       onToggleDark={toggleDark}
+      fullBleed={true}
     >
-      <div className={`min-h-screen pb-12 md:pb-12 pb-28 w-full max-w-[100vw] overflow-x-hidden ${dk ? "bg-[#0A1628]" : "bg-[#F5F4F0]"}`}>
+      <div style={{ height: '100%', overflowY: 'auto' }}>
         <div className="w-full max-w-[1200px] mx-auto px-3 py-4 lg:px-4 lg:py-6 space-y-5 min-w-0">
 
           {/* ── Top action bar ── */}
