@@ -266,6 +266,125 @@ Build:
 
 ---
 
+## 10. The Money Loop — Launch Blocker Analysis
+
+**The single most important thing before launch: close the money loop end-to-end.**
+
+A roofer doesn't need templates, material prices, or a polished UI if the core transaction doesn't work. The core transaction is:
+
+```
+Lead → Estimate → Send → Homeowner approves → Invoice created → Homeowner pays → Job Won
+```
+
+Every feature built so far is irrelevant if this chain has a broken link.
+
+### 10.1 Homeowner Proposal Approval (`/estimate/{id}`)
+
+**Status: Built but NOT verified end-to-end on staging.**
+
+This is the most critical path. Without it, "Send to Homeowner" sends an email but the homeowner can't do anything with it.
+
+**What should happen:**
+1. Roofer clicks "Send to Homeowner" → Resend email sent with proposal link
+2. Homeowner opens `/estimate/{id}` — sees the GBB tiers, scope, payment schedule
+3. Homeowner selects a tier (Standard / Upgraded / Premium)
+4. Homeowner draws signature on canvas → clicks "Approve & Sign"
+5. POST `/api/estimates/public/{id}/sign` fires:
+   - `estimates.status` → `approved`
+   - `estimates.approved_at` → timestamp
+   - `leads.lead_status` → `proposal_signed`
+   - Draft invoice auto-created in `invoices` table
+   - Sibling estimates voided
+   - Invoice email sent to homeowner
+
+**What could be broken:**
+- Resend email delivery (if `hello@proguild.ai` not verified as sender)
+- Canvas e-sign on mobile (touch events — not tested)
+- `sign/route.ts` crashing silently if `roofing_estimate_data` row missing for estimate
+- The public page URL being wrong (verify the email contains the correct `/estimate/{id}` link, not a dashboard link)
+- Homeowner sees wrong estimate (MOCK_ESTIMATE was a persistent bug — now fixed but verify)
+
+**How to test:**
+1. Go to staging, open EST-1030
+2. Click "Send to Homeowner" — check inbox for email, verify the link in the email
+3. Open the link in a private/incognito window (no auth)
+4. Verify: address, measurements, 3 tiers with correct prices shown
+5. Select Upgraded, draw signature, click Approve
+6. Check Supabase: `estimates.status = 'approved'`, `leads.lead_status = 'proposal_signed'`
+7. Check Supabase: new row in `invoices` table linked to this estimate
+
+### 10.2 Invoice Flow
+
+**Status: Auto-creation built, public page built, InvoicePage (pro side) NOT built.**
+
+**What should happen after homeowner signs:**
+1. Invoice auto-created as `draft` in `invoices` table (done in `sign/route.ts`)
+2. Invoice email sent to homeowner with link to `/invoice/{id}` (done, best-effort)
+3. Homeowner opens `/invoice/{id}` — sees invoice total, payment schedule, Pay button
+4. Homeowner clicks "Pay Now" → mock Stripe → `mark-paid` API called
+5. `leads.lead_status` → `job_won`
+6. `review_requests` row created (queued for Twilio when 10DLC active)
+
+**What could be broken:**
+- Invoice email link pointing to wrong URL (check `NEXT_PUBLIC_SITE_URL` env var on Vercel)
+- `/invoice/{id}` public page: does it load? Does it show the right total and milestones?
+- PayButton: does the mock Stripe flow complete? Does it hit `mark-paid`?
+- `mark-paid` silently fails if `review_requests` table doesn't exist (DDL not run)
+- After payment, does the lead show as `job_won` in the pipeline?
+
+**The pro-side invoice builder (`InvoicePage.tsx`) is missing** — the pro can't view/manage the invoice from their dashboard. This is P1 to build next.
+
+**How to test:**
+1. After homeowner signs (10.1 above), check email for invoice
+2. Open invoice link in incognito — verify total matches estimate
+3. Click "Pay Now" — verify processing animation, then "Payment received"
+4. Check Supabase: `invoices.status = 'paid'`, `leads.lead_status = 'job_won'`
+5. Check pipeline: Steve Smith should now show as "Job Won"
+
+### 10.3 Proposal PDF
+
+**Status: Route exists at `/api/estimates/pdf` — functionality UNKNOWN.**
+
+Roofers routinely need to print or email a PDF version of the proposal. The route exists but:
+- Was it ever tested with the new GBB tiered estimate format?
+- Does it render the 3-tier layout correctly?
+- Does it include the scope, terms, payment schedule?
+- Does it include the pro's contact info and logo?
+
+**This is not a launch blocker** — "Send to Homeowner" with the digital approval link is the primary flow. PDF is secondary. But it should work before Wave 1.
+
+**How to check:**
+```
+GET /api/estimates/pdf?id=34e16e84-284b-4eb9-9b65-ccfcda65b261
+```
+Open this URL in the browser while logged in. Does it return a PDF? Does the PDF look correct?
+
+### 10.4 The Complete Launch-Blocker Test
+
+**Run this sequence on staging before any other feature work:**
+
+| Step | Action | Pass condition |
+|---|---|---|
+| 1 | Open EST-1030, click "Send to Homeowner" | Email arrives in inbox with correct proposal link |
+| 2 | Open proposal link in incognito | Correct address, measurements, 3 tiers with real prices |
+| 3 | Select Upgraded tier, draw signature, approve | Redirect to confirmation screen |
+| 4 | Check Supabase `estimates` | `status = 'approved'`, `approved_at` timestamp set |
+| 5 | Check Supabase `leads` | `lead_status = 'proposal_signed'` |
+| 6 | Check Supabase `invoices` | New draft invoice row linked to estimate |
+| 7 | Check email inbox | Invoice email received with `/invoice/{id}` link |
+| 8 | Open invoice link in incognito | Correct total, payment schedule visible |
+| 9 | Click "Pay Now" | Processing animation → "Payment received" |
+| 10 | Check Supabase `leads` | `lead_status = 'job_won'` |
+| 11 | Check Supabase `review_requests` | New row queued for 3 days out |
+| 12 | Check pipeline in dashboard | Steve Smith shows as "Job Won" |
+
+**If any step fails — fix it before building anything else.**
+
+The money loop is the product. Everything else is decoration.
+
+
+---
+
 ## 9. Estimate Screen — What's Left (Current State as of May 23)
 
 ### 9.1 What Works
