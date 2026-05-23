@@ -623,7 +623,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
       {estType === 'standard' && isDirtyStd && (
         <>
           <div style={{
-            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+            position: 'fixed', bottom: 0, left: 0, right: typeof window !== 'undefined' && window.innerWidth >= 960 ? 364 : 0, zIndex: 50,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             flexWrap: 'wrap', gap: 10, padding: '14px 32px',
             background: darkMode ? '#1E293B' : '#fff',
