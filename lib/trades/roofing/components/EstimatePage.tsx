@@ -251,12 +251,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const [showTerms, setShowTerms]         = useState(false)  // collapsed by default
   const [saving, setSaving]               = useState(false)
   const [saveMsg, setSaveMsg]             = useState<string | null>(null)
-  const autoSaveTimer                      = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [autoSaving, setAutoSaving]        = useState(false)
   const savedEstType                       = useRef<string>(estimate.estimate_type ?? 'tiered')
   const [pendingTypeSwitch, setPendingTypeSwitch] = useState<'standard' | 'tiered' | null>(null)
-  const [isDirtyStd,    setIsDirtyStd]    = useState(false)
-  const originalStdItems                  = useRef<TierLineItem[] | null>(null)
 
   // Payment milestones — derived from selected tier total
   const activeTierSubtotal = estType === 'tiered'
@@ -371,45 +367,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     finally { setSaving(false); setTimeout(() => setSaveMsg(null), 2500) }
   }
 
-  // ── Auto-save scope + terms — always, regardless of mode ───────────────────
-  const scopeTermsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    if (scopeTermsTimer.current) clearTimeout(scopeTermsTimer.current)
-    scopeTermsTimer.current = setTimeout(async () => {
-      try {
-        await onSave({ scope_of_work: scope, terms })
-      } catch { /* silent */ }
-    }, 2000)
-    return () => { if (scopeTermsTimer.current) clearTimeout(scopeTermsTimer.current) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, terms])
-
-  // ── Auto-save GBB tiers — content changes only, NOT proposal type switches ──
-  useEffect(() => {
-    if (!tiers.length) return
-    if (pendingTypeSwitch) return
-    if (savedEstType.current === 'standard') return
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-    autoSaveTimer.current = setTimeout(async () => {
-      setAutoSaving(true)
-      try {
-        await onSave({
-          estimate_type:      savedEstType.current as any,
-          tiered_data:        savedEstType.current === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
-          items:              savedEstType.current === 'standard' ? stdItems : undefined,
-          scope_of_work:      scope,
-          terms,
-          payment_milestones: milestones,
-          subtotal:           activeTierSubtotal,
-          tax_amount:         taxAmt,
-          total,
-        })
-      } catch { /* silent */ }
-      finally { setAutoSaving(false) }
-    }, 2000)
-    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tiers, scope, terms, milestones, selectedTier, stdItems, pendingTypeSwitch])
+  // Auto-save removed — universal Save button handles all saves
 
   // ── Selected tier data for right panel ───────────────────────────────────────
   const selTierData = tiers.find(t => t.key === selectedTier)
@@ -460,34 +418,25 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             color: estimate.status === 'draft' ? '#854D0E' : C.teal }}>
             {estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)}
           </span>
-          {autoSaving && (
-            <span style={{ fontSize: 12, color: C.teal, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.5" strokeLinecap="round">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
-              </svg>
-              Auto-saving
-            </span>
-          )}
-          {saveMsg && !autoSaving && (
-            <span style={{ fontSize: 12, color: saveMsg.includes('✓') ? C.green : C.danger }}>
+          {saveMsg && (
+            <span style={{ fontSize: 13, fontWeight: 600, color: saveMsg.includes('✓') ? C.green : C.danger }}>
               {saveMsg}
             </span>
           )}
         </div>
 
 
-        <button onClick={async () => {
-            // Auto-save unsaved standard items before sending
-            if (estType === 'standard' && isDirtyStd) {
-              const sub = stdItems.reduce((s, i) => s + i.amount, 0)
-              const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
-              await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
-                .catch(() => null)
-              originalStdItems.current = null
-              setIsDirtyStd(false)
-            }
-            onSend()
-          }}
+        <button onClick={handleSave} disabled={saving}
+          style={{ padding: '9px 20px', borderRadius: 10,
+            border: `1.5px solid ${border}`,
+            background: 'transparent', color: textP,
+            fontSize: 14, fontWeight: 600,
+            cursor: saving ? 'default' : 'pointer',
+            opacity: saving ? 0.5 : 1 }}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+
+        <button onClick={onSend}
           style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
             background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
             color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
@@ -592,57 +541,15 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           ) : (
             <StandardSection
               items={stdItems} onUpdateItem={(id, field, val) => {
-                if (!originalStdItems.current) originalStdItems.current = stdItems
-                setStdItems(prev => {
-                  const next = prev.map(i => {
-                    if (i.id !== id) return i
-                    const up = { ...i, [field]: val }
-                    up.amount = Math.round(Number(up.qty) * Number(up.unit_price))
-                    return up
-                  })
-                  // Smart dirty: compare normalized items against snapshot
-                  const normalize = (items: typeof prev) =>
-                    JSON.stringify(items.map(i => ({ id: i.id, name: i.name, qty: Math.round(i.qty * 100), unit_price: Math.round(i.unit_price * 100) })))
-                  const dirty = normalize(next) !== normalize(originalStdItems.current ?? next)
-                  setIsDirtyStd(dirty)
-                  if (dirty) onDirty?.()
-                  return next
-                })
+                setStdItems(prev => prev.map(i => {
+                  if (i.id !== id) return i
+                  const up = { ...i, [field]: val }
+                  up.amount = Math.round(Number(up.qty) * Number(up.unit_price))
+                  return up
+                }))
               }}
-              onAdd={(id) => { if (!originalStdItems.current) originalStdItems.current = stdItems; setIsDirtyStd(true); onDirty?.(); setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
-              onDelete={(id) => {
-                if (!originalStdItems.current) originalStdItems.current = stdItems
-                setStdItems(prev => {
-                  const next = prev.filter(i => i.id !== id)
-                  const normalize = (items: typeof prev) =>
-                    JSON.stringify(items.map(i => ({ id: i.id, name: i.name, qty: Math.round(i.qty * 100), unit_price: Math.round(i.unit_price * 100) })))
-                  const dirty = normalize(next) !== normalize(originalStdItems.current ?? next)
-                  setIsDirtyStd(dirty)
-                  if (dirty) onDirty?.()
-                  else { originalStdItems.current = null }
-                  return next
-                })
-              }}
-              isDirty={isDirtyStd}
-              saving={saving}
-              onDiscard={() => {
-                if (originalStdItems.current) setStdItems(originalStdItems.current)
-                originalStdItems.current = null
-                setIsDirtyStd(false)
-              }}
-              onSaveItems={async () => {
-                setSaving(true)
-                try {
-                  const sub = stdItems.reduce((s, i) => s + i.amount, 0)
-                  const tax = Math.round(sub * (estimate.tax_rate ?? 0) / 100)
-                  await onSave({ items: stdItems, subtotal: sub, tax_amount: tax, total: sub + tax })
-                  originalStdItems.current = null
-                  setIsDirtyStd(false)
-                  setSaveMsg('Saved ✓')
-                  setTimeout(() => setSaveMsg(null), 2500)
-                } catch { setSaveMsg('Save failed') }
-                finally { setSaving(false) }
-              }}
+              onAdd={(id) => { setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
+              onDelete={(id) => { setStdItems(prev => prev.filter(i => i.id !== id)) }}
               card={card} border={border} textP={textP} textS={textS}
             />
           )}
@@ -1142,15 +1049,10 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
 
 // ── StandardSection ────────────────────────────────────────────────────────────
 function StandardSection({ items, onUpdateItem, onAdd, onDelete,
-  isDirty, onSaveItems, onDiscard, saving,
   card, border, textP, textS }: {
   items: TierLineItem[]
   onUpdateItem: (id: string, field: keyof TierLineItem, val: string | number) => void
   onAdd: (id: string) => void; onDelete: (id: string) => void
-  isDirty: boolean
-  onSaveItems: () => Promise<void>
-  onDiscard: () => void
-  saving: boolean
   card: string; border: string; textP: string; textS: string
 }) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
@@ -1235,35 +1137,7 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
         </div>
       </div>
 
-      {/* ── Save bar — inside card, below subtotal ─────────────────────────── */}
-      {isDirty && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 10, padding: '12px 16px', marginTop: 12,
-          background: '#F0FDFA', border: '1.5px solid #F59E0B', borderRadius: 10,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#0F766E' }}>
-              Unsaved changes &middot; <span style={{ color: '#0F766E', fontWeight: 800 }}>{fmt(items.reduce((s, i) => s + i.amount, 0))}</span>
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onDiscard}
-              style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #CBD5E1',
-                background: 'transparent', color: '#64748B', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-              Discard
-            </button>
-            <button disabled={saving} onClick={onSaveItems}
-              style={{ padding: '7px 18px', borderRadius: 8, border: 'none',
-                background: saving ? '#CBD5E1' : C.teal, color: '#fff',
-                fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer',
-                boxShadow: saving ? 'none' : '0 2px 6px rgba(15,118,110,0.25)' }}>
-              {saving ? 'Saving…' : 'Save Changes'}
-            </button>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
