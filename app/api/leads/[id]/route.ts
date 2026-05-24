@@ -31,6 +31,7 @@ interface LeadUpdateFields {
   property_address?: string | null
   quoted_amount?:    number | null
   updated_at:        string
+  lead_status_changed_at?: string
 }
 
 // Roofing-specific fields — written to roofing_job_data, never to leads
