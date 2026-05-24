@@ -34,15 +34,17 @@ export async function GET(
     .eq('estimate_id', id)
     .maybeSingle()
 
-  // Fetch lead contact_name — estimates.lead_name may be a property address (stale copy)
+  // Fetch lead contact_name + property_address — leads table is golden source for both
   let leadContactName: string | null = null
+  let leadPropertyAddress: string | null = null
   if (estimate.lead_id) {
     const { data: leadRow } = await sb
       .from('leads')
-      .select('contact_name')
+      .select('contact_name, property_address')
       .eq('id', estimate.lead_id)
       .maybeSingle()
-    leadContactName = leadRow?.contact_name ?? null
+    leadContactName     = leadRow?.contact_name    ?? null
+    leadPropertyAddress = leadRow?.property_address ?? null
   }
 
   // Fetch roofing job data if roofing trade
@@ -89,7 +91,7 @@ export async function GET(
       estimate_type:      roofingEstData?.estimate_type ?? 'standard',
       tiered_data:        roofingEstData?.tiered_data   ?? null,
       scope_of_work:      roofingEstData?.scope_of_work ?? null,
-      property_address:   roofingEstData?.property_address ?? null,
+      property_address:   leadPropertyAddress ?? roofingEstData?.property_address ?? null,  // lead is golden source
       // Roofing measurements — roofing_estimate_data first, then roofing_job_data
       square_count:      roofingEstData?.square_count ?? roofingData?.square_count ?? null,
       pitch:             roofingEstData?.pitch        ?? roofingData?.pitch        ?? null,

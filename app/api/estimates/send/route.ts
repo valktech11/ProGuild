@@ -31,17 +31,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  // Resolve contact email: prefer lead (live source of truth), fall back to estimate copy
+  // Resolve contact email, name, address: prefer lead (live source of truth), fall back to estimate copy
   let contactEmail = est.contact_email ?? null
   let homeownerNameResolved = est.lead_name ?? 'Homeowner'
+  let leadPropertyAddress: string | null = null
   if ((est as any).lead_id) {
     const { data: lead } = await sb
       .from('leads')
-      .select('contact_email, contact_name')
+      .select('contact_email, contact_name, property_address')
       .eq('id', (est as any).lead_id)
       .maybeSingle()
-    if (lead?.contact_email) contactEmail = lead.contact_email
-    if (lead?.contact_name) homeownerNameResolved = lead.contact_name
+    if (lead?.contact_email)    contactEmail          = lead.contact_email
+    if (lead?.contact_name)     homeownerNameResolved = lead.contact_name
+    if (lead?.property_address) leadPropertyAddress   = lead.property_address
   }
 
   if (!contactEmail) {
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
   const proName     = pro.full_name ?? 'Your Contractor'
   const proPhone    = pro.phone_cell ?? ''
   const proCity     = [pro.city, pro.state].filter(Boolean).join(', ')
-  const property    = roofing.property_address ?? ''
+  const property    = leadPropertyAddress ?? roofing.property_address ?? ''
   const estNumber   = est.estimate_number ?? 'EST'
 
   // For GBB estimates: show price range (lowest–highest tier), not stale estimates.total

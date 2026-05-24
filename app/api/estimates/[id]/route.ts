@@ -81,7 +81,7 @@ export async function GET(
       scope_of_work:      roofing.scope_of_work      ?? null,
       payment_milestones: roofing.payment_milestones ?? null,
       // Property address — roofing_estimate_data → lead (estimates column dropped)
-      property_address:   roofing.property_address   ?? lead.property_address ?? null,
+      property_address:   lead.property_address ?? roofing.property_address ?? null,  // lead is golden source
       // Measurements — roofing_estimate_data first, then roofing_job_data (live job data)
       square_count:  roofing.square_count ?? roofingJobData?.square_count ?? null,
       pitch:         roofing.pitch        ?? roofingJobData?.pitch        ?? null,
@@ -170,7 +170,7 @@ export async function PATCH(
       if (tiered_data        !== undefined) roofingPayload.tiered_data        = tiered_data
       if (scope_of_work      !== undefined) roofingPayload.scope_of_work      = scope_of_work
       if (payment_milestones !== undefined) roofingPayload.payment_milestones = payment_milestones
-      if (property_address   !== undefined) roofingPayload.property_address   = property_address
+      // property_address NOT written to roofing_estimate_data — leads.property_address is golden source
       if (square_count       !== undefined) roofingPayload.square_count       = square_count
       if (pitch              !== undefined) roofingPayload.pitch              = pitch
       if (waste_pct          !== undefined) roofingPayload.waste_pct          = waste_pct

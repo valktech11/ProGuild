@@ -390,14 +390,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 }),
               })
             }
-            // Also persist property_address to roofing_estimate_data via estimate PATCH
-            if (fields.property_address) {
-              await fetch(`/api/estimates/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ property_address: fields.property_address }),
-              })
-            }
+            // property_address is golden-sourced from leads — no duplicate write to roofing_estimate_data
           }}
           onSave={async (updates) => {
             setSaving(true)
@@ -444,6 +437,11 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           }}
           onSend={async () => {
             if (isSending) return
+            if (isDirty) {
+              setSaveMsg('Save changes before sending')
+              setTimeout(() => setSaveMsg(null), 3000)
+              return
+            }
             setIsSending(true)
             setSaveMsg('Sending…')
             try {
@@ -476,6 +474,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           onBack={() => router.push(backNav().href)}
           darkMode={dk}
           externalSaveMsg={saveMsg}
+          isLocked={['approved','void','declined','paid'].includes((estimate as any).status)}
         />
       </DashboardShell>
     )

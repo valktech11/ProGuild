@@ -100,6 +100,8 @@ interface Props {
   onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number }) => Promise<void>
   materialPrices?: Record<string, number> | null
   onDirty?: () => void
+  // Lock all editing when estimate is approved/void/declined/paid
+  isLocked?: boolean
   // Allows parent (page.tsx) to surface messages in the toolbar — onSend/onSave errors
   externalSaveMsg?: string | null
 }
@@ -200,7 +202,7 @@ function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg }: Props) {
+export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
   const dk = darkMode ?? false
 
   // Proposal type
@@ -433,7 +435,12 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
         </div>
 
 
-        {isDirty ? (
+        {isLocked ? (
+          <span style={{ fontSize: 13, fontWeight: 600, color: textS, padding: '9px 4px',
+            display: 'flex', alignItems: 'center', gap: 6 }}>
+            🔒 {estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)} — read only
+          </span>
+        ) : isDirty ? (
           <button onClick={handleSave} disabled={saving}
             style={{
               padding: '9px 20px', borderRadius: 10, fontSize: 14, fontWeight: 700,
@@ -565,15 +572,16 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             card={card} border={border} textP={textP} textS={textS}
           />
 
-          {/* Proposal type toggle */}
-          <ProposalTypeToggle
-            value={pendingTypeSwitch ?? estType} onChange={v => {
-            if (v === estType) return
-            // Don't silently switch — show confirmation banner
-            setPendingTypeSwitch(v as 'standard' | 'tiered')
-          }}
-            card={card} border={border} textP={textP} textS={textS}
-          />
+          {/* Proposal type toggle — hidden when locked */}
+          {!isLocked && (
+            <ProposalTypeToggle
+              value={pendingTypeSwitch ?? estType} onChange={v => {
+              if (v === estType) return
+              setPendingTypeSwitch(v as 'standard' | 'tiered')
+            }}
+              card={card} border={border} textP={textP} textS={textS}
+            />
+          )}
 
           {/* GBB tiers OR standard items */}
           {/* ── Pending type switch confirmation ─────────────────────────────── */}
@@ -626,16 +634,19 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           {estType === 'tiered' ? (
             <GBBSection
               tiers={tiers} selectedTier={selectedTier}
-              onSelect={t => { setSelectedTier(t); recalcMilestones(tierTotals[t] + Math.round(tierTotals[t] * estimate.tax_rate / 100)) }}
-              onUpdateItem={updateTierItem} onAddItem={addTierItem} onDeleteItem={deleteTierItem}
-              onUpdateLabel={(key, label) => setTiers(prev => prev.map(t => t.key === key ? { ...t, label } : t))}
-              onUpdateBrand={(key, brand) => setTiers(prev => prev.map(t => t.key === key ? { ...t, shingle_brand: brand } : t))}
-              onUpdateWarranty={(key, w) => setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t))}
+              onSelect={isLocked ? undefined : (t => { setSelectedTier(t); recalcMilestones(tierTotals[t] + Math.round(tierTotals[t] * estimate.tax_rate / 100)) })}
+              onUpdateItem={isLocked ? undefined : updateTierItem}
+              onAddItem={isLocked ? undefined : addTierItem}
+              onDeleteItem={isLocked ? undefined : deleteTierItem}
+              onUpdateLabel={isLocked ? undefined : ((key, label) => setTiers(prev => prev.map(t => t.key === key ? { ...t, label } : t)))}
+              onUpdateBrand={isLocked ? undefined : ((key, brand) => setTiers(prev => prev.map(t => t.key === key ? { ...t, shingle_brand: brand } : t)))}
+              onUpdateWarranty={isLocked ? undefined : ((key, w) => setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t)))}
               card={card} border={border} textP={textP} textS={textS}
+              isLocked={isLocked}
             />
           ) : (
             <StandardSection
-              items={stdItems} onUpdateItem={(id, field, val) => {
+              items={stdItems} onUpdateItem={isLocked ? undefined : ((id, field, val) => {
                 setIsDirty(true)
                 setStdItems(prev => prev.map(i => {
                   if (i.id !== id) return i
@@ -643,15 +654,16 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                   up.amount = Math.round(Number(up.qty) * Number(up.unit_price))
                   return up
                 }))
-              }}
-              onAdd={(id) => { setIsDirty(true); setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) }}
-              onDelete={(id) => { setIsDirty(true); setStdItems(prev => prev.filter(i => i.id !== id)) }}
+              })}
+              onAdd={isLocked ? undefined : ((id) => { setIsDirty(true); setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) })}
+              onDelete={isLocked ? undefined : ((id) => { setIsDirty(true); setStdItems(prev => prev.filter(i => i.id !== id)) })}
               card={card} border={border} textP={textP} textS={textS}
+              isLocked={isLocked}
             />
           )}
 
           {/* Scope of work */}
-          <ScopeCard scope={scope} onChange={v => { setScope(v); setIsDirty(true) }} card={card} border={border} textP={textP} textS={textS} />
+          <ScopeCard scope={scope} onChange={isLocked ? undefined : (v => { setScope(v); setIsDirty(true) })} card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} />
 
           {/* Insurance claim — only when relevant */}
           {estimate.insurance_claim && (
@@ -659,8 +671,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           )}
 
           {/* Terms */}
-          <TermsCard terms={terms} onChange={v => { setTerms(v); setIsDirty(true) }} show={showTerms} onToggle={() => setShowTerms(p => !p)}
-            card={card} border={border} textP={textP} textS={textS} />
+          <TermsCard terms={terms} onChange={isLocked ? undefined : (v => { setTerms(v); setIsDirty(true) })} show={showTerms} onToggle={() => setShowTerms(p => !p)}
+            card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} />
 
         </div>
 
@@ -1049,198 +1061,261 @@ function ProposalTypeToggle({ value, onChange, card, border, textP, textS }: {
 }
 
 // ── GBBSection ─────────────────────────────────────────────────────────────────
+// Collapsed by default — one tier expanded at a time for editing
 function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, onDeleteItem,
   onUpdateLabel, onUpdateBrand, onUpdateWarranty,
-  card, border, textP, textS }: {
+  card, border, textP, textS, isLocked = false }: {
   tiers: Tier[]
   selectedTier: TierKey
-  onSelect: (k: TierKey) => void
-  onUpdateItem: (tier: TierKey, itemId: string, field: keyof TierLineItem, val: string | number) => void
-  onAddItem: (tier: TierKey) => void
-  onDeleteItem: (tier: TierKey, itemId: string) => void
-  onUpdateLabel: (tier: TierKey, label: string) => void
-  onUpdateBrand: (tier: TierKey, brand: string) => void
-  onUpdateWarranty: (tier: TierKey, w: string) => void
+  onSelect?: (k: TierKey) => void
+  onUpdateItem?: (tier: TierKey, itemId: string, field: keyof TierLineItem, val: string | number) => void
+  onAddItem?: (tier: TierKey) => void
+  onDeleteItem?: (tier: TierKey, itemId: string) => void
+  onUpdateLabel?: (tier: TierKey, label: string) => void
+  onUpdateBrand?: (tier: TierKey, brand: string) => void
+  onUpdateWarranty?: (tier: TierKey, w: string) => void
   card: string; border: string; textP: string; textS: string
+  isLocked?: boolean
 }) {
+  const [expandedTier, setExpandedTier] = useState<TierKey | null>(null)
+
+  const toggleExpand = (key: TierKey) => {
+    if (isLocked) return
+    setExpandedTier(prev => prev === key ? null : key)
+  }
+
   return (
-    <div style={{ background: card, borderRadius: 16, padding: '24px', boxShadow: SHADOW_SM,
+    <div style={{ background: card, borderRadius: 16, padding: '20px 24px', boxShadow: SHADOW_SM,
       border: `1px solid ${border}` }}>
-      {/* 3-col tier grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
-        {tiers.map(tier => (
-          <TierCard key={tier.key} tier={tier} selected={selectedTier === tier.key}
-            onSelect={() => onSelect(tier.key)}
-            onUpdateItem={(itemId, field, val) => onUpdateItem(tier.key, itemId, field, val)}
-            onAddItem={() => onAddItem(tier.key)}
-            onDeleteItem={(itemId) => onDeleteItem(tier.key, itemId)}
-            onUpdateLabel={label => onUpdateLabel(tier.key, label)}
-            onUpdateBrand={brand => onUpdateBrand(tier.key, brand)}
-            onUpdateWarranty={w => onUpdateWarranty(tier.key, w)}
-            border={border} textP={textP} textS={textS}
-          />
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {tiers.map(tier => {
+          const isExpanded = expandedTier === tier.key
+          const isSelected = selectedTier === tier.key
+          return (
+            <TierCard key={tier.key} tier={tier} selected={isSelected} expanded={isExpanded}
+              onToggleExpand={() => toggleExpand(tier.key)}
+              onSelect={onSelect ? () => onSelect(tier.key) : undefined}
+              onUpdateItem={onUpdateItem ? (itemId, field, val) => onUpdateItem(tier.key, itemId, field, val) : undefined}
+              onAddItem={onAddItem ? () => onAddItem(tier.key) : undefined}
+              onDeleteItem={onDeleteItem ? (itemId) => onDeleteItem(tier.key, itemId) : undefined}
+              onUpdateLabel={onUpdateLabel ? label => onUpdateLabel(tier.key, label) : undefined}
+              onUpdateBrand={onUpdateBrand ? brand => onUpdateBrand(tier.key, brand) : undefined}
+              onUpdateWarranty={onUpdateWarranty ? w => onUpdateWarranty(tier.key, w) : undefined}
+              border={border} textP={textP} textS={textS} isLocked={isLocked}
+            />
+          )
+        })}
       </div>
     </div>
   )
 }
 
 // ── TierCard ───────────────────────────────────────────────────────────────────
-function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteItem,
-  onUpdateLabel, onUpdateBrand, onUpdateWarranty, border, textP, textS }: {
+// Collapsed: shows tier name, brand, warranty, item count, subtotal, Edit/Select buttons
+// Expanded: shows full item list with editing (when not locked)
+// Locked: read-only bullet list, no edit controls
+function TierCard({ tier, selected, expanded, onToggleExpand, onSelect, onUpdateItem, onAddItem, onDeleteItem,
+  onUpdateLabel, onUpdateBrand, onUpdateWarranty, border, textP, textS, isLocked = false }: {
   key?: React.Key
-  tier: Tier; selected: boolean
-  onSelect: () => void
-  onUpdateItem: (itemId: string, field: keyof TierLineItem, val: string | number) => void
-  onAddItem: () => void
-  onDeleteItem: (itemId: string) => void
-  onUpdateLabel: (label: string) => void
-  onUpdateBrand: (brand: string) => void
-  onUpdateWarranty: (w: string) => void
+  tier: Tier; selected: boolean; expanded: boolean
+  onToggleExpand: () => void
+  onSelect?: () => void
+  onUpdateItem?: (itemId: string, field: keyof TierLineItem, val: string | number) => void
+  onAddItem?: () => void
+  onDeleteItem?: (itemId: string) => void
+  onUpdateLabel?: (label: string) => void
+  onUpdateBrand?: (brand: string) => void
+  onUpdateWarranty?: (w: string) => void
   border: string; textP: string; textS: string
+  isLocked?: boolean
 }) {
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
-  const cardBg = selected ? C.tealLight : '#fff'
-  const cardBorder = selected ? `2px solid ${C.teal}` : `1px solid ${border}`
-  const cardShadow = selected ? SHADOW_SEL : SHADOW_SM
+  const cardBg     = selected ? C.tealLight : '#fff'
+  const cardBorder = selected ? `2px solid ${C.teal}` : expanded ? `2px solid ${C.teal}` : `1px solid ${border}`
+  const cardShadow = selected || expanded ? SHADOW_SEL : SHADOW_SM
 
   return (
-    <div style={{ background: cardBg, borderRadius: 16, border: cardBorder, boxShadow: cardShadow,
-      padding: 20, position: 'relative', transition: 'all 0.2s',
-      transform: selected ? 'translateY(-2px)' : 'none' }}>
+    <div style={{ background: cardBg, borderRadius: 14, border: cardBorder, boxShadow: cardShadow,
+      transition: 'all 0.2s', position: 'relative' }}>
 
       {/* Most popular badge */}
       {tier.key === 'upgraded' && (
-        <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
-          background: C.teal, color: '#fff', padding: '5px 16px', borderRadius: 999,
+        <div style={{ position: 'absolute', top: -13, left: 20,
+          background: C.teal, color: '#fff', padding: '3px 12px', borderRadius: 999,
           fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap' }}>
           👑 MOST POPULAR
         </div>
       )}
 
-      {/* Tier label */}
-      <input value={tier.label} onChange={e => onUpdateLabel(e.target.value)}
-        style={{ border: 'none', background: 'transparent', fontSize: 11, fontWeight: 800,
-          letterSpacing: '0.1em', textTransform: 'uppercase', color: selected ? C.teal : textS,
-          width: '100%', outline: 'none', cursor: 'text', marginBottom: 8 }} />
+      {/* ── Collapsed header — always visible ── */}
+      <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Selected indicator dot */}
+        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+          background: selected ? C.teal : border, transition: 'background 0.2s' }} />
 
-      {/* Brand */}
-      <input value={tier.shingle_brand} onChange={e => onUpdateBrand(e.target.value)}
-        style={{ border: 'none', background: 'transparent', fontSize: 18, fontWeight: 800,
-          color: textP, width: '100%', outline: 'none', cursor: 'text', marginBottom: 2 }} />
+        {/* Tier info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: selected ? C.teal : textS }}>
+            {tier.label}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: textP, marginTop: 1 }}>
+            {tier.shingle_brand}
+          </div>
+          <div style={{ fontSize: 12, color: textS, marginTop: 1 }}>
+            {tier.warranty} · {tier.items.length} items
+          </div>
+        </div>
 
-      {/* Warranty */}
-      <input value={tier.warranty} onChange={e => onUpdateWarranty(e.target.value)}
-        style={{ border: 'none', background: 'transparent', fontSize: 13, color: textS,
-          width: '100%', outline: 'none', cursor: 'text', marginBottom: 18 }} />
+        {/* Subtotal */}
+        <div style={{ fontSize: 22, fontWeight: 900, color: selected ? C.teal : textP,
+          flexShrink: 0, marginRight: 12 }}>
+          {fmt(tier.subtotal)}
+        </div>
 
-      {/* Line items */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-        {tier.items.map(item => (
-          <div key={item.id}>
-            {editingItem === item.id ? (
-              // Edit mode
-              <div style={{ background: '#fff', border: `1px solid ${border}`, borderRadius: 10,
-                padding: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input defaultValue={item.name}
-                  onBlur={e => onUpdateItem(item.id, 'name', e.target.value)}
-                  style={{ border: 'none', background: '#F8FAFC', padding: '6px 8px',
-                    borderRadius: 6, fontSize: 12, width: 110, outline: 'none' }} />
-                <input defaultValue={item.qty} type="number"
-                  onBlur={e => onUpdateItem(item.id, 'qty', Number(e.target.value))}
-                  style={{ border: 'none', background: '#F8FAFC', padding: '6px 6px',
-                    borderRadius: 6, fontSize: 12, width: 40, outline: 'none', textAlign: 'center' }} />
-                <span style={{ fontSize: 11, color: textS }}>{item.unit}</span>
-                <span style={{ fontSize: 11, color: textS }}>@</span>
-                <input defaultValue={item.unit_price} type="number"
-                  onBlur={e => { onUpdateItem(item.id, 'unit_price', Number(e.target.value)); setEditingItem(null) }}
-                  style={{ border: 'none', background: '#F8FAFC', padding: '6px 6px',
-                    borderRadius: 6, fontSize: 12, width: 55, outline: 'none' }} />
-                <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 12 }}>
-                  {fmt(item.amount)}
-                </span>
-                <button onClick={() => setPendingDeleteId(item.id)}
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4,
-                    color: C.danger, fontSize: 16, lineHeight: 1 }}>×</button>
-              </div>
-            ) : (
-              // Read mode
-              <button onClick={() => setEditingItem(item.id)}
-                style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left',
-                  cursor: 'pointer', padding: '3px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 16, height: 16, borderRadius: '50%', background: C.teal,
-                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, flexShrink: 0 }}>✓</div>
-                <span style={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</span>
-                {item.amount > 0 && (
-                  <span style={{ fontSize: 12, color: textS, fontWeight: 600 }}>{fmt(item.amount)}</span>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          {/* Select button */}
+          {onSelect && (
+            <button onClick={onSelect}
+              style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
+                background: selected ? C.green : tier.key === 'premium' ? C.navy : '#F1F5F9',
+                color: selected ? '#fff' : tier.key === 'premium' ? '#fff' : textP }}>
+              {selected ? '✓ Selected' : `Select ${tier.label}`}
+            </button>
+          )}
+          {/* Edit/Done button — only when not locked */}
+          {!isLocked && (
+            <button onClick={onToggleExpand}
+              style={{ padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                fontWeight: 700, border: `1.5px solid ${expanded ? C.teal : border}`,
+                background: expanded ? C.tealLight : 'transparent',
+                color: expanded ? C.teal : textS }}>
+              {expanded ? 'Done' : 'Edit'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Expanded body — item editing ── */}
+      {expanded && !isLocked && (
+        <div style={{ borderTop: `1px solid ${border}`, padding: '16px 20px 20px' }}>
+          {/* Editable meta */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: textS, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Label</div>
+              <input value={tier.label} onChange={e => onUpdateLabel?.(e.target.value)}
+                style={{ width: '100%', border: `1px solid ${border}`, borderRadius: 6,
+                  padding: '6px 8px', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: textS, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Brand</div>
+              <input value={tier.shingle_brand} onChange={e => onUpdateBrand?.(e.target.value)}
+                style={{ width: '100%', border: `1px solid ${border}`, borderRadius: 6,
+                  padding: '6px 8px', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: textS, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Warranty</div>
+              <input value={tier.warranty} onChange={e => onUpdateWarranty?.(e.target.value)}
+                style={{ width: '100%', border: `1px solid ${border}`, borderRadius: 6,
+                  padding: '6px 8px', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+            </div>
+          </div>
+
+          {/* Line items */}
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 12 }}>
+            {tier.items.map(item => (
+              <div key={item.id}>
+                {editingItem === item.id ? (
+                  <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 8,
+                    padding: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input defaultValue={item.name}
+                      onBlur={e => onUpdateItem?.(item.id, 'name', e.target.value)}
+                      style={{ border: `1px solid ${border}`, background: '#fff', padding: '5px 7px',
+                        borderRadius: 6, fontSize: 12, width: 130, outline: 'none' }} />
+                    <input defaultValue={item.qty} type="number"
+                      onBlur={e => onUpdateItem?.(item.id, 'qty', Number(e.target.value))}
+                      style={{ border: `1px solid ${border}`, background: '#fff', padding: '5px 6px',
+                        borderRadius: 6, fontSize: 12, width: 48, outline: 'none', textAlign: 'center' as const }} />
+                    <span style={{ fontSize: 11, color: textS }}>{item.unit} @</span>
+                    <input defaultValue={item.unit_price} type="number"
+                      onBlur={e => { onUpdateItem?.(item.id, 'unit_price', Number(e.target.value)); setEditingItem(null) }}
+                      style={{ border: `1px solid ${border}`, background: '#fff', padding: '5px 6px',
+                        borderRadius: 6, fontSize: 12, width: 60, outline: 'none' }} />
+                    <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 12 }}>{fmt(item.amount)}</span>
+                    <button onClick={() => setPendingDeleteId(item.id)}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4,
+                        color: C.danger, fontSize: 16, lineHeight: 1 }}>×</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingItem(item.id)}
+                    style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left' as const,
+                      cursor: 'pointer', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: C.teal,
+                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, flexShrink: 0 }}>✓</div>
+                    <span style={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</span>
+                    <span style={{ fontSize: 12, color: textS }}>{item.amount > 0 ? fmt(item.amount) : ''}</span>
+                  </button>
                 )}
+                {pendingDeleteId === item.id && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 12px', borderRadius: 8, background: '#FEF2F2',
+                    border: '1px solid #FECACA', gap: 8, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: '#991B1B' }}>Remove <strong>{item.name}</strong>?</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => setPendingDeleteId(null)}
+                        style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #FECACA',
+                          background: 'transparent', color: '#991B1B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                      <button onClick={() => { onDeleteItem?.(pendingDeleteId!); setPendingDeleteId(null) }}
+                        style={{ padding: '3px 10px', borderRadius: 6, border: 'none',
+                          background: '#DC2626', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {onAddItem && (
+              <button onClick={onAddItem}
+                style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
+                  padding: '6px', fontSize: 12, color: textS, cursor: 'pointer', width: '100%', marginTop: 4 }}>
+                + Add item
               </button>
             )}
           </div>
-        ))}
-        {pendingDeleteId && (() => {
-          const item = tier.items.find(i => i.id === pendingDeleteId)
-          if (!item) return null
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '8px 12px', borderRadius: 8, background: '#FEF2F2',
-              border: '1px solid #FECACA', gap: 8, marginTop: 4 }}>
-              <span style={{ fontSize: 12, color: '#991B1B' }}>
-                Remove <strong>{item.name || 'item'}</strong>?
-              </span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => setPendingDeleteId(null)}
-                  style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #FECACA',
-                    background: 'transparent', color: '#991B1B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                  Cancel
-                </button>
-                <button onClick={() => { onDeleteItem(pendingDeleteId); setPendingDeleteId(null) }}
-                  style={{ padding: '3px 10px', borderRadius: 6, border: 'none',
-                    background: '#DC2626', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                  Remove
-                </button>
+
+          {/* Subtotal in expanded */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${border}`,
+            paddingTop: 12 }}>
+            <span style={{ fontSize: 13, color: textS }}>Subtotal</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: selected ? C.teal : textP }}>
+              {fmt(tier.subtotal)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Locked expanded: read-only bullet list ── */}
+      {isLocked && (
+        <div style={{ borderTop: `1px solid ${border}`, padding: '12px 20px 16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+            {tier.items.map(item => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 14, height: 14, borderRadius: '50%', background: C.teal,
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 9, flexShrink: 0 }}>✓</div>
+                <span style={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</span>
+                <span style={{ fontSize: 12, color: textS }}>{item.amount > 0 ? fmt(item.amount) : ''}</span>
               </div>
-            </div>
-          )
-        })()}
-        <button onClick={onAddItem}
-          style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
-            padding: '6px', fontSize: 12, color: textS, cursor: 'pointer', width: '100%',
-            marginTop: 4 }}>
-          + Add item
-        </button>
-      </div>
-
-      {/* Subtotal */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        borderTop: `1px solid ${border}`, paddingTop: 14, marginBottom: 14 }}>
-        <span style={{ fontSize: 13, color: textS }}>Subtotal</span>
-        <span style={{ fontSize: 28, fontWeight: 900, color: selected ? C.teal : textP }}>
-          {fmt(tier.subtotal)}
-        </span>
-      </div>
-
-      {/* Select button */}
-      <button onClick={onSelect}
-        style={{ width: '100%', padding: '13px', borderRadius: 12, border: 'none',
-          cursor: 'pointer', fontSize: 14, fontWeight: 700, transition: 'all 0.15s',
-          background: selected ? C.green : tier.key === 'premium' ? C.navy : '#F8FAFC',
-          color: selected ? '#fff' : tier.key === 'premium' ? '#fff' : textP }}>
-        {selected ? '✓ Selected' : `Select ${tier.label}`}
-      </button>
-
-      {/* Recommended microcopy */}
-      {selected && tier.key === 'upgraded' && (
-        <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: C.tealLight,
-          fontSize: 12, color: C.teal, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          Recommended for most homes in your area
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1250,11 +1325,12 @@ function TierCard({ tier, selected, onSelect, onUpdateItem, onAddItem, onDeleteI
 
 // ── StandardSection ────────────────────────────────────────────────────────────
 function StandardSection({ items, onUpdateItem, onAdd, onDelete,
-  card, border, textP, textS }: {
+  card, border, textP, textS, isLocked = false }: {
   items: TierLineItem[]
-  onUpdateItem: (id: string, field: keyof TierLineItem, val: string | number) => void
-  onAdd: (id: string) => void; onDelete: (id: string) => void
+  onUpdateItem?: (id: string, field: keyof TierLineItem, val: string | number) => void
+  onAdd?: (id: string) => void; onDelete?: (id: string) => void
   card: string; border: string; textP: string; textS: string
+  isLocked?: boolean
 }) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [newItemId, setNewItemId] = useState<string | null>(null)
@@ -1344,9 +1420,10 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
 }
 
 // ── ScopeCard ──────────────────────────────────────────────────────────────────
-function ScopeCard({ scope, onChange, card, border, textP, textS }: {
-  scope: string; onChange: (v: string) => void
+function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = false }: {
+  scope: string; onChange?: (v: string) => void
   card: string; border: string; textP: string; textS: string
+  readOnly?: boolean
 }) {
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
@@ -1355,17 +1432,25 @@ function ScopeCard({ scope, onChange, card, border, textP, textS }: {
         textTransform: 'uppercase', color: textS, marginBottom: 14 }}>
         Scope of Work
       </div>
-      <textarea value={scope} onChange={e => onChange(e.target.value)}
-        rows={4}
-        placeholder="Describe the scope of work — materials, removal, cleanup, any special conditions..."
-        style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 10, padding: '12px 14px',
-          fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
-          background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
-        onFocus={e => (e.target.style.borderColor = C.teal)}
-        onBlur={e => (e.target.style.borderColor = border)} />
-      <div style={{ textAlign: 'right', fontSize: 12, color: C.muted, marginTop: 6 }}>
-        {scope.length} characters
-      </div>
+      {readOnly ? (
+        <div style={{ fontSize: 14, color: textP, lineHeight: 1.7, padding: '4px 0' }}>
+          {scope || <span style={{ color: C.muted }}>No scope of work specified.</span>}
+        </div>
+      ) : (
+        <>
+          <textarea value={scope} onChange={e => onChange?.(e.target.value)}
+            rows={4}
+            placeholder="Describe the scope of work — materials, removal, cleanup, any special conditions..."
+            style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 10, padding: '12px 14px',
+              fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
+              background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
+            onFocus={e => (e.target.style.borderColor = C.teal)}
+            onBlur={e => (e.target.style.borderColor = border)} />
+          <div style={{ textAlign: 'right', fontSize: 12, color: C.muted, marginTop: 6 }}>
+            {scope.length} characters
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -1405,10 +1490,11 @@ function InsuranceCard({ estimate, card, border, textP, textS }: {
 }
 
 // ── TermsCard ──────────────────────────────────────────────────────────────────
-function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS }: {
-  terms: string; onChange: (v: string) => void
+function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS, readOnly = false }: {
+  terms: string; onChange?: (v: string) => void
   show: boolean; onToggle: () => void
   card: string; border: string; textP: string; textS: string
+  readOnly?: boolean
 }) {
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
