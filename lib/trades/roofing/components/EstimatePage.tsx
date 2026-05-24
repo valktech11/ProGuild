@@ -4,6 +4,7 @@
 // when session.trade_slug is roofing. DashboardShell is NOT rendered here — shell wraps this.
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1269,8 +1270,8 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
         ))}
       </div>
 
-      {/* Edit modal — renders outside the grid, covers page */}
-      {editingKey && draftTier && (
+      {/* Edit modal — rendered via portal to document.body to escape any CSS transform/overflow containment */}
+      {editingKey && draftTier && typeof document !== 'undefined' && createPortal(
         <TierEditModal
           tier={draftTier}
           onUpdateField={draftUpdateField}
@@ -1280,7 +1281,8 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
           onSave={saveModal}
           onCancel={closeModal}
           border={border} textP={textP} textS={textS}
-        />
+        />,
+        document.body
       )}
     </div>
   )
