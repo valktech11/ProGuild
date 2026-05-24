@@ -3,7 +3,7 @@
 // Roofing-specific estimate builder. Rendered by app/dashboard/estimates/[id]/page.tsx
 // when session.trade_slug is roofing. DashboardShell is NOT rendered here — shell wraps this.
 
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -354,6 +354,59 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     }))
   }
 
+  // ── Recalculate tiers from current material prices ───────────────────────────
+  // Detects when saved unit_prices differ from materialPrices → shows Recalculate button
+  const pricesMismatch = useMemo(() => {
+    if (!materialPrices || Object.keys(materialPrices).length === 0) return false
+    if (!tiers.length) return false
+    const p = { ...MARKET_DEFAULTS, ...materialPrices }
+    const priceMap: Record<string, Record<string, number>> = {
+      standard: { shingles: p.shingles_standard, labor: p.labor_standard },
+      upgraded: { shingles: p.shingles_upgraded, labor: p.labor_upgraded },
+      premium:  { shingles: p.shingles_premium,  labor: p.labor_premium  },
+    }
+    return tiers.some(t => t.items.some(item => {
+      const nm = item.name.toLowerCase()
+      const tierPrices = priceMap[t.key] ?? {}
+      if (nm.includes('shingle'))     return item.unit_price !== tierPrices.shingles
+      if (nm.includes('underlayment')) return item.unit_price !== p.underlayment
+      if (nm.includes('ice'))          return item.unit_price !== p.ice_water
+      if (nm.includes('ridge'))        return item.unit_price !== p.ridge_cap
+      if (nm.includes('starter'))      return item.unit_price !== p.starter_strip
+      if (nm.includes('drip'))         return item.unit_price !== p.drip_edge
+      if (nm.includes('labor'))        return item.unit_price !== tierPrices.labor
+      return false
+    }))
+  }, [tiers, materialPrices])
+
+  const recalcFromPrices = () => {
+    if (!materialPrices) return
+    const p = { ...MARKET_DEFAULTS, ...materialPrices }
+    const priceMap: Record<string, Record<string, number>> = {
+      standard: { shingles: p.shingles_standard, labor: p.labor_standard },
+      upgraded: { shingles: p.shingles_upgraded, labor: p.labor_upgraded },
+      premium:  { shingles: p.shingles_premium,  labor: p.labor_premium  },
+    }
+    setTiers(prev => prev.map(t => {
+      const tp = priceMap[t.key] ?? {}
+      const items = t.items.map(item => {
+        const nm = item.name.toLowerCase()
+        let up = item.unit_price
+        if (nm.includes('shingle'))      up = tp.shingles    ?? up
+        if (nm.includes('underlayment')) up = p.underlayment ?? up
+        if (nm.includes('ice'))          up = p.ice_water    ?? up
+        if (nm.includes('ridge'))        up = p.ridge_cap    ?? up
+        if (nm.includes('starter'))      up = p.starter_strip ?? up
+        if (nm.includes('drip'))         up = p.drip_edge    ?? up
+        if (nm.includes('labor'))        up = tp.labor       ?? up
+        const amount = Math.round(item.qty * up)
+        return { ...item, unit_price: up, amount }
+      })
+      return { ...t, items, subtotal: items.reduce((s, i) => s + i.amount, 0) }
+    }))
+    setIsDirty(true)
+  }
+
   // ── Save ─────────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
@@ -631,6 +684,24 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             </div>
           )}
 
+          {/* Recalculate from prices banner — shows when saved prices differ from material settings */}
+          {estType === 'tiered' && pricesMismatch && !isLocked && (
+            <div style={{ marginBottom: 12, padding: '10px 16px', borderRadius: 10,
+              background: '#EFF6FF', border: '1px solid #BFDBFE',
+              display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 14 }}>🔄</span>
+              <span style={{ fontSize: 13, color: '#1E40AF', flex: 1 }}>
+                Your material prices have changed. Tier amounts may be outdated.
+              </span>
+              <button onClick={recalcFromPrices}
+                style={{ padding: '6px 14px', borderRadius: 8, border: 'none',
+                  background: '#2563EB', color: '#fff', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                Recalculate
+              </button>
+            </div>
+          )}
+
           {estType === 'tiered' ? (
             <GBBSection
               tiers={tiers} selectedTier={selectedTier}
@@ -638,11 +709,12 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
               onUpdateItem={isLocked ? undefined : updateTierItem}
               onAddItem={isLocked ? undefined : addTierItem}
               onDeleteItem={isLocked ? undefined : deleteTierItem}
-              onUpdateLabel={isLocked ? undefined : ((key, label) => setTiers(prev => prev.map(t => t.key === key ? { ...t, label } : t)))}
-              onUpdateBrand={isLocked ? undefined : ((key, brand) => setTiers(prev => prev.map(t => t.key === key ? { ...t, shingle_brand: brand } : t)))}
-              onUpdateWarranty={isLocked ? undefined : ((key, w) => setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t)))}
+              onUpdateLabel={isLocked ? undefined : ((key, label) => { setTiers(prev => prev.map(t => t.key === key ? { ...t, label } : t)); setIsDirty(true) })}
+              onUpdateBrand={isLocked ? undefined : ((key, brand) => { setTiers(prev => prev.map(t => t.key === key ? { ...t, shingle_brand: brand } : t)); setIsDirty(true) })}
+              onUpdateWarranty={isLocked ? undefined : ((key, w) => { setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t)); setIsDirty(true) })}
               card={card} border={border} textP={textP} textS={textS}
               isLocked={isLocked}
+              materialPrices={materialPrices}
             />
           ) : (
             <StandardSection
@@ -1064,7 +1136,7 @@ function ProposalTypeToggle({ value, onChange, card, border, textP, textS }: {
 // Collapsed by default — one tier expanded at a time for editing
 function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, onDeleteItem,
   onUpdateLabel, onUpdateBrand, onUpdateWarranty,
-  card, border, textP, textS, isLocked = false }: {
+  card, border, textP, textS, isLocked = false, materialPrices }: {
   tiers: Tier[]
   selectedTier: TierKey
   onSelect?: (k: TierKey) => void
@@ -1076,50 +1148,77 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
   onUpdateWarranty?: (tier: TierKey, w: string) => void
   card: string; border: string; textP: string; textS: string
   isLocked?: boolean
+  materialPrices?: Record<string, number> | null
 }) {
-  const [expandedTier, setExpandedTier] = useState<TierKey | null>(null)
+  // One tier editing at a time — null means all collapsed
+  const [editingTier, setEditingTier] = useState<TierKey | null>(null)
 
-  const toggleExpand = (key: TierKey) => {
-    if (isLocked) return
-    setExpandedTier(prev => prev === key ? null : key)
-  }
+  const openEdit = (key: TierKey) => { if (!isLocked) setEditingTier(key) }
+  const closeEdit = () => setEditingTier(null)
+
+  // Detect unconfigured prices — warn when using market defaults
+  const usingDefaults = !materialPrices || Object.keys(materialPrices).length === 0
 
   return (
-    <div style={{ background: card, borderRadius: 16, padding: '20px 24px', boxShadow: SHADOW_SM,
-      border: `1px solid ${border}` }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {tiers.map(tier => {
-          const isExpanded = expandedTier === tier.key
-          const isSelected = selectedTier === tier.key
-          return (
-            <TierCard key={tier.key} tier={tier} selected={isSelected} expanded={isExpanded}
-              onToggleExpand={() => toggleExpand(tier.key)}
-              onSelect={onSelect ? () => onSelect(tier.key) : undefined}
-              onUpdateItem={onUpdateItem ? (itemId, field, val) => onUpdateItem(tier.key, itemId, field, val) : undefined}
-              onAddItem={onAddItem ? () => onAddItem(tier.key) : undefined}
-              onDeleteItem={onDeleteItem ? (itemId) => onDeleteItem(tier.key, itemId) : undefined}
-              onUpdateLabel={onUpdateLabel ? label => onUpdateLabel(tier.key, label) : undefined}
-              onUpdateBrand={onUpdateBrand ? brand => onUpdateBrand(tier.key, brand) : undefined}
-              onUpdateWarranty={onUpdateWarranty ? w => onUpdateWarranty(tier.key, w) : undefined}
-              border={border} textP={textP} textS={textS} isLocked={isLocked}
-            />
-          )
-        })}
+    <div>
+      {/* Warning banner when using example prices */}
+      {usingDefaults && !isLocked && (
+        <div style={{ marginBottom: 16, padding: '10px 16px', borderRadius: 10,
+          background: '#FFFBEB', border: '1px solid #FDE68A',
+          display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>
+              Using example prices.{' '}
+            </span>
+            <a href="/dashboard/roofing/settings" target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 13, color: '#B45309', fontWeight: 700, textDecoration: 'underline' }}>
+              Set your material prices in Settings →
+            </a>
+            <span style={{ fontSize: 13, color: '#92400E' }}>{' '}to auto-populate your real rates.</span>
+          </div>
+        </div>
+      )}
+
+      {/* 3-column grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+        {tiers.map(tier => (
+          <TierCard
+            key={tier.key}
+            tier={tier}
+            selected={selectedTier === tier.key}
+            editing={editingTier === tier.key}
+            isLocked={isLocked}
+            onSelect={onSelect ? () => onSelect(tier.key) : undefined}
+            onOpenEdit={() => openEdit(tier.key)}
+            onCloseEdit={closeEdit}
+            onUpdateItem={onUpdateItem ? (itemId, field, val) => onUpdateItem(tier.key, itemId, field, val) : undefined}
+            onAddItem={onAddItem ? () => onAddItem(tier.key) : undefined}
+            onDeleteItem={onDeleteItem ? (itemId) => onDeleteItem(tier.key, itemId) : undefined}
+            onUpdateLabel={onUpdateLabel ? label => onUpdateLabel(tier.key, label) : undefined}
+            onUpdateBrand={onUpdateBrand ? brand => onUpdateBrand(tier.key, brand) : undefined}
+            onUpdateWarranty={onUpdateWarranty ? w => onUpdateWarranty(tier.key, w) : undefined}
+            border={border} textP={textP} textS={textS}
+          />
+        ))}
       </div>
     </div>
   )
 }
 
 // ── TierCard ───────────────────────────────────────────────────────────────────
-// Collapsed: shows tier name, brand, warranty, item count, subtotal, Edit/Select buttons
-// Expanded: shows full item list with editing (when not locked)
-// Locked: read-only bullet list, no edit controls
-function TierCard({ tier, selected, expanded, onToggleExpand, onSelect, onUpdateItem, onAddItem, onDeleteItem,
-  onUpdateLabel, onUpdateBrand, onUpdateWarranty, border, textP, textS, isLocked = false }: {
-  key?: React.Key
-  tier: Tier; selected: boolean; expanded: boolean
-  onToggleExpand: () => void
+// Read mode: tier name, brand, warranty, bullet items (name + amount), subtotal, Select/Edit buttons
+// Edit mode: label/brand/warranty editable, items show qty×price inputs, Done button
+// Locked: read-only bullet list only, no controls
+function TierCard({ tier, selected, editing, isLocked = false,
+  onSelect, onOpenEdit, onCloseEdit,
+  onUpdateItem, onAddItem, onDeleteItem,
+  onUpdateLabel, onUpdateBrand, onUpdateWarranty,
+  border, textP, textS }: {
+  tier: Tier; selected: boolean; editing: boolean; isLocked?: boolean
   onSelect?: () => void
+  onOpenEdit: () => void
+  onCloseEdit: () => void
   onUpdateItem?: (itemId: string, field: keyof TierLineItem, val: string | number) => void
   onAddItem?: () => void
   onDeleteItem?: (itemId: string) => void
@@ -1127,219 +1226,211 @@ function TierCard({ tier, selected, expanded, onToggleExpand, onSelect, onUpdate
   onUpdateBrand?: (brand: string) => void
   onUpdateWarranty?: (w: string) => void
   border: string; textP: string; textS: string
-  isLocked?: boolean
 }) {
-  const [editingItem, setEditingItem] = useState<string | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
 
+  // Close item edit on Done
+  const handleDone = () => { setEditingItemId(null); setPendingDeleteId(null); onCloseEdit() }
+
+  const isPremium  = tier.key === 'premium'
+  const isUpgraded = tier.key === 'upgraded'
   const cardBg     = selected ? C.tealLight : '#fff'
-  const cardBorder = selected ? `2px solid ${C.teal}` : expanded ? `2px solid ${C.teal}` : `1px solid ${border}`
-  const cardShadow = selected || expanded ? SHADOW_SEL : SHADOW_SM
+  const cardBorder = selected ? `2px solid ${C.teal}` : editing ? `2px solid ${C.teal}` : `1px solid ${border}`
 
   return (
-    <div style={{ background: cardBg, borderRadius: 14, border: cardBorder, boxShadow: cardShadow,
-      transition: 'all 0.2s', position: 'relative' }}>
+    <div style={{ background: cardBg, borderRadius: 16, border: cardBorder,
+      boxShadow: selected || editing ? SHADOW_SEL : SHADOW_SM,
+      display: 'flex', flexDirection: 'column' as const,
+      transition: 'border 0.2s, box-shadow 0.2s', position: 'relative', overflow: 'visible' }}>
 
-      {/* Most popular badge */}
-      {tier.key === 'upgraded' && (
-        <div style={{ position: 'absolute', top: -13, left: 20,
-          background: C.teal, color: '#fff', padding: '3px 12px', borderRadius: 999,
-          fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap' }}>
+      {/* Most popular badge — sits above card, needs top margin on card to not clip */}
+      {isUpgraded && (
+        <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
+          background: C.teal, color: '#fff', padding: '4px 14px', borderRadius: 999,
+          fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', zIndex: 2 }}>
           👑 MOST POPULAR
         </div>
       )}
 
-      {/* ── Collapsed header — always visible ── */}
-      <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* Selected indicator — filled circle when selected, ring when not */}
-        <div style={{
-          width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-          background: selected ? C.teal : 'transparent',
-          border: selected ? `2px solid ${C.teal}` : `2px solid ${border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'all 0.2s',
-        }}>
-          {selected && (
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
-          )}
-        </div>
+      <div style={{ padding: isUpgraded ? '28px 18px 18px' : '18px', flex: 1,
+        display: 'flex', flexDirection: 'column' as const, gap: 0 }}>
 
-        {/* Tier info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em',
-            textTransform: 'uppercase', color: selected ? C.teal : textS }}>
-            {tier.label}
+        {/* ── Header ── */}
+        {editing && !isLocked ? (
+          /* Edit mode header — editable label/brand/warranty */
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 14 }}>
+            <input value={tier.label} onChange={e => onUpdateLabel?.(e.target.value)}
+              style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '5px 8px',
+                fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+                color: C.teal, outline: 'none', width: '100%', boxSizing: 'border-box' as const }} />
+            <input value={tier.shingle_brand} onChange={e => onUpdateBrand?.(e.target.value)}
+              style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '5px 8px',
+                fontSize: 15, fontWeight: 700, color: textP, outline: 'none',
+                width: '100%', boxSizing: 'border-box' as const }} />
+            <input value={tier.warranty} onChange={e => onUpdateWarranty?.(e.target.value)}
+              style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '5px 8px',
+                fontSize: 12, color: textS, outline: 'none',
+                width: '100%', boxSizing: 'border-box' as const }} />
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: textP, marginTop: 1 }}>
-            {tier.shingle_brand}
-          </div>
-          <div style={{ fontSize: 12, color: textS, marginTop: 1 }}>
-            {tier.warranty} · {tier.items.length} items
-          </div>
-        </div>
-
-        {/* Subtotal */}
-        <div style={{ fontSize: 22, fontWeight: 900, color: selected ? C.teal : textP,
-          flexShrink: 0 }}>
-          {fmt(tier.subtotal)}
-        </div>
-
-        {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          {/* Select button — prominent when not selected, quiet tick when selected */}
-          {onSelect && !selected && (
-            <button onClick={onSelect}
-              style={{ padding: '7px 16px', borderRadius: 8, cursor: 'pointer',
-                fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
-                border: 'none',
-                background: tier.key === 'premium' ? C.navy : tier.key === 'upgraded' ? C.teal : '#E2E8F0',
-                color: tier.key === 'standard' ? textP : '#fff' }}>
-              Select {tier.label}
-            </button>
-          )}
-          {onSelect && selected && (
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.green,
-              display: 'flex', alignItems: 'center', gap: 4, padding: '7px 4px' }}>
-              ✓ Selected
-            </span>
-          )}
-          {/* Edit/Done button — only when not locked */}
-          {!isLocked && (
-            <button onClick={onToggleExpand}
-              style={{ padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
-                fontWeight: 700, border: `1.5px solid ${expanded ? C.teal : border}`,
-                background: expanded ? C.tealLight : 'transparent',
-                color: expanded ? C.teal : textS }}>
-              {expanded ? 'Done ✓' : 'Edit'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Expanded body — item editing ── */}
-      {expanded && !isLocked && (
-        <div style={{ borderTop: `1px solid ${border}`, padding: '16px 20px 20px' }}>
-          {/* Editable meta */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: textS, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Label</div>
-              <input value={tier.label} onChange={e => onUpdateLabel?.(e.target.value)}
-                style={{ width: '100%', border: `1px solid ${border}`, borderRadius: 6,
-                  padding: '6px 8px', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+        ) : (
+          /* Read mode header */
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em',
+              textTransform: 'uppercase' as const,
+              color: selected ? C.teal : textS, marginBottom: 4 }}>
+              {tier.label}
             </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: textS, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Brand</div>
-              <input value={tier.shingle_brand} onChange={e => onUpdateBrand?.(e.target.value)}
-                style={{ width: '100%', border: `1px solid ${border}`, borderRadius: 6,
-                  padding: '6px 8px', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
+            <div style={{ fontSize: 16, fontWeight: 800, color: textP, marginBottom: 2 }}>
+              {tier.shingle_brand}
             </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: textS, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Warranty</div>
-              <input value={tier.warranty} onChange={e => onUpdateWarranty?.(e.target.value)}
-                style={{ width: '100%', border: `1px solid ${border}`, borderRadius: 6,
-                  padding: '6px 8px', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
-            </div>
+            <div style={{ fontSize: 12, color: textS }}>{tier.warranty}</div>
           </div>
+        )}
 
-          {/* Line items */}
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 12 }}>
-            {tier.items.map(item => (
-              <div key={item.id}>
-                {editingItem === item.id ? (
-                  <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 8,
-                    padding: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input defaultValue={item.name}
-                      onBlur={e => onUpdateItem?.(item.id, 'name', e.target.value)}
-                      style={{ border: `1px solid ${border}`, background: '#fff', padding: '5px 7px',
-                        borderRadius: 6, fontSize: 12, width: 130, outline: 'none' }} />
-                    <input defaultValue={item.qty} type="number"
-                      onBlur={e => onUpdateItem?.(item.id, 'qty', Number(e.target.value))}
-                      style={{ border: `1px solid ${border}`, background: '#fff', padding: '5px 6px',
-                        borderRadius: 6, fontSize: 12, width: 48, outline: 'none', textAlign: 'center' as const }} />
-                    <span style={{ fontSize: 11, color: textS }}>{item.unit} @</span>
-                    <input defaultValue={item.unit_price} type="number"
-                      onBlur={e => { onUpdateItem?.(item.id, 'unit_price', Number(e.target.value)); setEditingItem(null) }}
-                      style={{ border: `1px solid ${border}`, background: '#fff', padding: '5px 6px',
-                        borderRadius: 6, fontSize: 12, width: 60, outline: 'none' }} />
-                    <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 12 }}>{fmt(item.amount)}</span>
+        {/* ── Items ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4, marginBottom: 14 }}>
+          {tier.items.map(item => (
+            <div key={item.id}>
+              {editing && !isLocked && editingItemId === item.id ? (
+                /* Item edit row */
+                <div style={{ background: '#F8FAFC', border: `1px solid ${border}`,
+                  borderRadius: 8, padding: '8px', display: 'flex', flexWrap: 'wrap' as const,
+                  alignItems: 'center', gap: 4 }}>
+                  <input defaultValue={item.name}
+                    onBlur={e => onUpdateItem?.(item.id, 'name', e.target.value)}
+                    style={{ border: `1px solid ${border}`, borderRadius: 5, padding: '4px 6px',
+                      fontSize: 12, outline: 'none', flex: 1, minWidth: 80 }} />
+                  <input defaultValue={item.qty} type="number"
+                    onBlur={e => onUpdateItem?.(item.id, 'qty', Number(e.target.value))}
+                    style={{ border: `1px solid ${border}`, borderRadius: 5, padding: '4px 5px',
+                      fontSize: 12, width: 44, outline: 'none', textAlign: 'center' as const }} />
+                  <span style={{ fontSize: 11, color: textS }}>{item.unit}</span>
+                  <span style={{ fontSize: 11, color: textS }}>@</span>
+                  <input defaultValue={item.unit_price} type="number"
+                    onBlur={e => onUpdateItem?.(item.id, 'unit_price', Number(e.target.value))}
+                    style={{ border: `1px solid ${border}`, borderRadius: 5, padding: '4px 5px',
+                      fontSize: 12, width: 52, outline: 'none' }} />
+                  <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                    <button onClick={() => setEditingItemId(null)}
+                      style={{ border: `1px solid ${border}`, background: '#fff', borderRadius: 5,
+                        padding: '3px 8px', fontSize: 11, color: textS, cursor: 'pointer', fontWeight: 600 }}>
+                      Cancel
+                    </button>
                     <button onClick={() => setPendingDeleteId(item.id)}
-                      style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4,
-                        color: C.danger, fontSize: 16, lineHeight: 1 }}>×</button>
+                      style={{ border: 'none', background: '#FEF2F2', borderRadius: 5,
+                        padding: '3px 8px', fontSize: 11, color: C.danger, cursor: 'pointer', fontWeight: 700 }}>
+                      ×
+                    </button>
                   </div>
-                ) : (
-                  <button onClick={() => setEditingItem(item.id)}
-                    style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left' as const,
-                      cursor: 'pointer', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: C.teal,
-                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, flexShrink: 0 }}>✓</div>
-                    <span style={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</span>
-                    <span style={{ fontSize: 12, color: textS }}>{item.amount > 0 ? fmt(item.amount) : ''}</span>
-                  </button>
-                )}
-                {pendingDeleteId === item.id && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 12px', borderRadius: 8, background: '#FEF2F2',
-                    border: '1px solid #FECACA', gap: 8, marginTop: 4 }}>
-                    <span style={{ fontSize: 12, color: '#991B1B' }}>Remove <strong>{item.name}</strong>?</span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => setPendingDeleteId(null)}
-                        style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #FECACA',
-                          background: 'transparent', color: '#991B1B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                        Cancel
-                      </button>
-                      <button onClick={() => { onDeleteItem?.(pendingDeleteId!); setPendingDeleteId(null) }}
-                        style={{ padding: '3px 10px', borderRadius: 6, border: 'none',
-                          background: '#DC2626', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                        Remove
-                      </button>
-                    </div>
+                </div>
+              ) : (
+                /* Item read row — clickable to edit when in edit mode */
+                <div onClick={() => editing && !isLocked && setEditingItemId(item.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0',
+                    cursor: editing && !isLocked ? 'pointer' : 'default',
+                    borderRadius: 6,
+                    background: editing && !isLocked ? 'transparent' : 'transparent' }}>
+                  <div style={{ width: 14, height: 14, borderRadius: '50%',
+                    background: selected ? C.teal : '#E2E8F0',
+                    color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 9, flexShrink: 0 }}>✓</div>
+                  <span style={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</span>
+                  <span style={{ fontSize: 12, color: textS, fontWeight: 600 }}>
+                    {item.amount > 0 ? fmt(item.amount) : ''}
+                  </span>
+                  {editing && !isLocked && (
+                    <span style={{ fontSize: 10, color: C.teal, marginLeft: 2 }}>✎</span>
+                  )}
+                </div>
+              )}
+              {/* Delete confirm */}
+              {pendingDeleteId === item.id && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '6px 10px', borderRadius: 8, background: '#FEF2F2',
+                  border: '1px solid #FECACA', gap: 8, marginTop: 4 }}>
+                  <span style={{ fontSize: 12, color: '#991B1B' }}>Remove <strong>{item.name}</strong>?</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => setPendingDeleteId(null)}
+                      style={{ padding: '2px 8px', borderRadius: 5, border: '1px solid #FECACA',
+                        background: 'transparent', color: '#991B1B', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                    <button onClick={() => { onDeleteItem?.(item.id); setPendingDeleteId(null); setEditingItemId(null) }}
+                      style={{ padding: '2px 8px', borderRadius: 5, border: 'none',
+                        background: '#DC2626', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                      Remove
+                    </button>
                   </div>
-                )}
-              </div>
-            ))}
-            {onAddItem && (
-              <button onClick={onAddItem}
-                style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
-                  padding: '6px', fontSize: 12, color: textS, cursor: 'pointer', width: '100%', marginTop: 4 }}>
-                + Add item
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Add item — only in edit mode */}
+          {editing && !isLocked && onAddItem && (
+            <button onClick={onAddItem}
+              style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
+                padding: '5px', fontSize: 12, color: textS, cursor: 'pointer', width: '100%', marginTop: 4 }}>
+              + Add item
+            </button>
+          )}
+        </div>
+
+        {/* ── Subtotal ── */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+          borderTop: `1px solid ${border}`, paddingTop: 12, marginBottom: 14 }}>
+          <span style={{ fontSize: 12, color: textS }}>Subtotal</span>
+          <span style={{ fontSize: 24, fontWeight: 900,
+            color: selected ? C.teal : textP, letterSpacing: '-0.5px' }}>
+            {fmt(tier.subtotal)}
+          </span>
+        </div>
+
+        {/* ── Action buttons ── */}
+        {isLocked ? (
+          /* Locked: show selected badge only */
+          selected ? (
+            <div style={{ textAlign: 'center', padding: '8px', background: C.tealLight,
+              borderRadius: 10, fontSize: 13, fontWeight: 700, color: C.teal }}>
+              ✓ Selected by homeowner
+            </div>
+          ) : null
+        ) : editing ? (
+          /* Edit mode: Done button */
+          <button onClick={handleDone}
+            style={{ width: '100%', padding: '10px', borderRadius: 10, border: `1.5px solid ${C.teal}`,
+              background: C.tealLight, color: C.teal, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            Done ✓
+          </button>
+        ) : (
+          /* Read mode: Select + Edit */
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            {onSelect && (
+              <button onClick={onSelect}
+                style={{ width: '100%', padding: '10px', borderRadius: 10, border: 'none',
+                  cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
+                  background: selected ? C.green : isPremium ? C.navy : isUpgraded ? C.teal : '#E2E8F0',
+                  color: selected ? '#fff' : isPremium ? '#fff' : isUpgraded ? '#fff' : textP }}>
+                {selected ? '✓ Selected' : `Select ${tier.label}`}
+              </button>
+            )}
+            {!isLocked && (
+              <button onClick={onOpenEdit}
+                style={{ width: '100%', padding: '8px', borderRadius: 10, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 600, border: `1px solid ${border}`,
+                  background: 'transparent', color: textS }}>
+                Edit items
               </button>
             )}
           </div>
-
-          {/* Subtotal in expanded */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${border}`,
-            paddingTop: 12 }}>
-            <span style={{ fontSize: 13, color: textS }}>Subtotal</span>
-            <span style={{ fontSize: 20, fontWeight: 900, color: selected ? C.teal : textP }}>
-              {fmt(tier.subtotal)}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ── Locked expanded: read-only bullet list ── */}
-      {isLocked && (
-        <div style={{ borderTop: `1px solid ${border}`, padding: '12px 20px 16px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
-            {tier.items.map(item => (
-              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 14, height: 14, borderRadius: '50%', background: C.teal,
-                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, flexShrink: 0 }}>✓</div>
-                <span style={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</span>
-                <span style={{ fontSize: 12, color: textS }}>{item.amount > 0 ? fmt(item.amount) : ''}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
 
 
-// ── StandardSection ────────────────────────────────────────────────────────────
 function StandardSection({ items, onUpdateItem, onAdd, onDelete,
   card, border, textP, textS, isLocked = false }: {
   items: TierLineItem[]
