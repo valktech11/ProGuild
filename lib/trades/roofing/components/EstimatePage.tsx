@@ -1346,24 +1346,24 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
           <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 90px 32px',
             gap: 10, alignItems: 'center', padding: '10px 14px', borderRadius: 10,
             background: '#F8FAFC', border: `1px solid ${border}` }}>
-            <input value={item.name} onChange={e => onUpdateItem(item.id, 'name', e.target.value)}
+            <input value={item.name} onChange={e => onUpdateItem?.(item.id, 'name', e.target.value)}
               placeholder="Item name"
               ref={el => { if (el && item.id === newItemId) { el.focus(); setNewItemId(null) } }}
               style={{ border: 'none', background: 'transparent', fontSize: 14, fontWeight: 600,
                 color: textP, outline: 'none', width: '100%' }} />
-            <input value={item.qty} type="number" onChange={e => onUpdateItem(item.id, 'qty', Number(e.target.value))}
+            <input value={item.qty} type="number" onChange={e => onUpdateItem?.(item.id, 'qty', Number(e.target.value))}
               style={{ background: '#fff', padding: '6px 8px', borderRadius: 6,
                 border: `1px solid ${border}`,
                 fontSize: 14, textAlign: 'center', outline: 'none', color: textP }} />
             <input value={item.unit_price} type="number"
-              onChange={e => onUpdateItem(item.id, 'unit_price', Number(e.target.value))}
+              onChange={e => onUpdateItem?.(item.id, 'unit_price', Number(e.target.value))}
               style={{ border: `1px solid ${border}`, background: '#fff', padding: '6px 8px',
                 borderRadius: 6, fontSize: 14, textAlign: 'right', outline: 'none', color: textP }} />
             <div style={{ fontSize: 14, fontWeight: 700, color: textP, textAlign: 'right' }}>
               {fmt(item.amount)}
             </div>
-            <button onClick={() => setPendingDeleteId(item.id)}
-              style={{ border: 'none', background: 'none', color: C.danger, cursor: 'pointer', fontSize: 18 }}>
+            <button onClick={() => onDelete && setPendingDeleteId(item.id)}
+              style={{ border: 'none', background: 'none', color: onDelete ? C.danger : C.muted, cursor: onDelete ? 'pointer' : 'default', fontSize: 18 }}>
               ×
             </button>
           </div>
@@ -1386,7 +1386,7 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
                     background: 'transparent', color: '#991B1B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Cancel
                 </button>
-                <button onClick={() => { onDelete(pendingDeleteId); setPendingDeleteId(null) }}
+                <button onClick={() => { onDelete?.(pendingDeleteId!); setPendingDeleteId(null) }}
                   style={{ padding: '5px 14px', borderRadius: 7, border: 'none',
                     background: '#DC2626', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                   Remove
@@ -1397,6 +1397,7 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
         })()}
 
         <button onClick={() => {
+            if (!onAdd) return
             const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)
             onAdd(id)
             setNewItemId(id)
