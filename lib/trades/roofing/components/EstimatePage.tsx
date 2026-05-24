@@ -490,6 +490,57 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
       {/* ── Progress timeline ── */}
       <ProgressTimeline timeline={estimate.timeline ?? []} border={border} textS={textS} card={card} estimate={estimate} />
 
+      {/* ── Bounce warning banner ── */}
+      {(estimate as any).email_status === 'bounced' && (
+        <div style={{
+          margin: '0 32px',
+          padding: '14px 20px',
+          borderRadius: 12,
+          background: '#FEF2F2',
+          border: '1.5px solid #FECACA',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 14,
+        }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: '#FEE2E2', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16,
+          }}>⚠</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#991B1B', marginBottom: 4 }}>
+              Email bounced — homeowner didn't receive the proposal
+            </div>
+            <div style={{ fontSize: 13, color: '#B91C1C', lineHeight: 1.5 }}>
+              {(estimate as any).email_bounce_reason
+                ? `Reason: ${(estimate as any).email_bounce_reason}`
+                : 'The email address may be invalid or misspelled.'
+              }
+              {' '}
+              {(estimate as any).sent_to_email && (
+                <span>Sent to: <strong>{(estimate as any).sent_to_email}</strong></span>
+              )}
+            </div>
+            <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {(estimate as any).lead_id && (
+                <a
+                  href={`/dashboard/pipeline/${(estimate as any).lead_id}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{
+                    fontSize: 13, fontWeight: 700, color: '#991B1B',
+                    background: '#fff', border: '1.5px solid #FECACA',
+                    padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
+                    cursor: 'pointer',
+                  }}>
+                  Fix email in Lead →
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Two-column layout ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, padding: '24px 32px',
         alignItems: 'start', maxWidth: 1400, margin: '0 auto' }}>
