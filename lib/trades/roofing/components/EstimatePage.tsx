@@ -705,7 +705,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           {estType === 'tiered' ? (
             <GBBSection
               tiers={tiers} selectedTier={selectedTier}
-              onSelect={isLocked ? undefined : (t => { setSelectedTier(t); recalcMilestones(tierTotals[t] + Math.round(tierTotals[t] * estimate.tax_rate / 100)) })}
+              onSelect={isLocked ? undefined : (t => { setSelectedTier(t); setIsDirty(true); recalcMilestones(tierTotals[t] + Math.round(tierTotals[t] * estimate.tax_rate / 100)) })}
               onUpdateItem={isLocked ? undefined : updateTierItem}
               onAddItem={isLocked ? undefined : addTierItem}
               onDeleteItem={isLocked ? undefined : deleteTierItem}
@@ -1150,14 +1150,90 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
   isLocked?: boolean
   materialPrices?: Record<string, number> | null
 }) {
-  const [editingTier, setEditingTier] = useState<TierKey | null>(null)
-  const usingDefaults = !materialPrices || Object.keys(materialPrices).length === 0
+  // Which tier's edit modal is open — null = none
+  const [editingKey, setEditingKey] = useState<TierKey | null>(null)
+  // Local copy of tiers for editing — committed on Save
+  const [draftTier, setDraftTier] = useState<Tier | null>(null)
 
-  // Clicking Select on any tier also closes edit mode
-  const handleSelect = (key: TierKey) => {
-    setEditingTier(null)
-    onSelect?.(key)
+  const openModal = (key: TierKey) => {
+    const tier = tiers.find(t => t.key === key)
+    if (!tier) return
+    setDraftTier(JSON.parse(JSON.stringify(tier))) // deep clone
+    setEditingKey(key)
   }
+
+  const closeModal = () => { setEditingKey(null); setDraftTier(null) }
+
+  const saveModal = () => {
+    if (!draftTier || !editingKey) return
+    // Commit all changes from draft to parent
+    const orig = tiers.find(t => t.key === editingKey)
+    if (!orig) return
+    // Label / brand / warranty
+    if (draftTier.label        !== orig.label)         onUpdateLabel?.(editingKey, draftTier.label)
+    if (draftTier.shingle_brand !== orig.shingle_brand) onUpdateBrand?.(editingKey, draftTier.shingle_brand)
+    if (draftTier.warranty     !== orig.warranty)      onUpdateWarranty?.(editingKey, draftTier.warranty)
+    // Items — sync each field
+    draftTier.items.forEach(di => {
+      const oi = orig.items.find(i => i.id === di.id)
+      if (oi) {
+        if (di.name       !== oi.name)       onUpdateItem?.(editingKey, di.id, 'name',       di.name)
+        if (di.qty        !== oi.qty)        onUpdateItem?.(editingKey, di.id, 'qty',        di.qty)
+        if (di.unit_price !== oi.unit_price) onUpdateItem?.(editingKey, di.id, 'unit_price', di.unit_price)
+      }
+    })
+    // New items (in draft but not in orig)
+    draftTier.items.filter(di => !orig.items.find(oi => oi.id === di.id)).forEach(ni => {
+      onAddItem?.(editingKey)
+      onUpdateItem?.(editingKey, ni.id, 'name',       ni.name)
+      onUpdateItem?.(editingKey, ni.id, 'qty',        ni.qty)
+      onUpdateItem?.(editingKey, ni.id, 'unit_price', ni.unit_price)
+    })
+    // Deleted items
+    orig.items.filter(oi => !draftTier.items.find(di => di.id === oi.id)).forEach(di => {
+      onDeleteItem?.(editingKey, di.id)
+    })
+    closeModal()
+  }
+
+  // Draft tier helpers
+  const draftUpdateField = (field: 'label' | 'shingle_brand' | 'warranty', val: string) => {
+    if (!draftTier) return
+    setDraftTier(prev => prev ? { ...prev, [field]: val } : prev)
+  }
+
+  const draftUpdateItem = (itemId: string, field: keyof TierLineItem, val: string | number) => {
+    if (!draftTier) return
+    setDraftTier(prev => {
+      if (!prev) return prev
+      const items = prev.items.map(item => {
+        if (item.id !== itemId) return item
+        const updated = { ...item, [field]: val }
+        if (field === 'qty' || field === 'unit_price') {
+          updated.amount = Math.round(Number(updated.qty) * Number(updated.unit_price))
+        }
+        return updated
+      })
+      return { ...prev, items, subtotal: items.reduce((s, i) => s + i.amount, 0) }
+    })
+  }
+
+  const draftAddItem = () => {
+    if (!draftTier) return
+    const newItem: TierLineItem = { id: newId(), name: '', qty: 0, unit: 'sq', unit_price: 0, amount: 0 }
+    setDraftTier(prev => prev ? { ...prev, items: [...prev.items, newItem] } : prev)
+  }
+
+  const draftDeleteItem = (itemId: string) => {
+    if (!draftTier) return
+    setDraftTier(prev => {
+      if (!prev) return prev
+      const items = prev.items.filter(i => i.id !== itemId)
+      return { ...prev, items, subtotal: items.reduce((s, i) => s + i.amount, 0) }
+    })
+  }
+
+  const usingDefaults = !materialPrices || Object.keys(materialPrices).length === 0
 
   return (
     <div>
@@ -1178,76 +1254,53 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
         </div>
       )}
 
-      {/* 3-col grid — editing column gets more space */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: tiers.map(t =>
-          editingTier === t.key ? '1.5fr' : editingTier ? '0.75fr' : '1fr'
-        ).join(' '),
-        gap: 16,
-        alignItems: 'start',
-        transition: 'grid-template-columns 0.25s ease',
-      }}>
+      {/* 3-column read-only cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
         {tiers.map(tier => (
           <TierCard
             key={tier.key}
             tier={tier}
             selected={selectedTier === tier.key}
-            editing={!isLocked && editingTier === tier.key}
             isLocked={isLocked}
-            onSelect={onSelect ? () => handleSelect(tier.key) : undefined}
-            onOpenEdit={() => { if (!isLocked) setEditingTier(editingTier === tier.key ? null : tier.key) }}
-            onCloseEdit={() => setEditingTier(null)}
-            onUpdateItem={onUpdateItem ? (itemId, field, val) => onUpdateItem(tier.key, itemId, field, val) : undefined}
-            onAddItem={onAddItem ? () => onAddItem(tier.key) : undefined}
-            onDeleteItem={onDeleteItem ? (itemId) => onDeleteItem(tier.key, itemId) : undefined}
-            onUpdateLabel={onUpdateLabel ? label => onUpdateLabel(tier.key, label) : undefined}
-            onUpdateBrand={onUpdateBrand ? brand => onUpdateBrand(tier.key, brand) : undefined}
-            onUpdateWarranty={onUpdateWarranty ? w => onUpdateWarranty(tier.key, w) : undefined}
+            onSelect={onSelect ? () => onSelect(tier.key) : undefined}
+            onEdit={isLocked ? undefined : () => openModal(tier.key)}
             border={border} textP={textP} textS={textS}
           />
         ))}
       </div>
+
+      {/* Edit modal — renders outside the grid, covers page */}
+      {editingKey && draftTier && (
+        <TierEditModal
+          tier={draftTier}
+          onUpdateField={draftUpdateField}
+          onUpdateItem={draftUpdateItem}
+          onAddItem={draftAddItem}
+          onDeleteItem={draftDeleteItem}
+          onSave={saveModal}
+          onCancel={closeModal}
+          border={border} textP={textP} textS={textS}
+        />
+      )}
     </div>
   )
 }
 
-// ── TierCard ───────────────────────────────────────────────────────────────────
-function TierCard({ tier, selected, editing, isLocked = false,
-  onSelect, onOpenEdit, onCloseEdit,
-  onUpdateItem, onAddItem, onDeleteItem,
-  onUpdateLabel, onUpdateBrand, onUpdateWarranty,
-  border, textP, textS }: {
-  tier: Tier; selected: boolean; editing: boolean; isLocked?: boolean
+// ── TierCard — pure read-only display ─────────────────────────────────────────
+function TierCard({ tier, selected, isLocked = false, onSelect, onEdit, border, textP, textS }: {
+  tier: Tier; selected: boolean; isLocked?: boolean
   onSelect?: () => void
-  onOpenEdit: () => void
-  onCloseEdit: () => void
-  onUpdateItem?: (itemId: string, field: keyof TierLineItem, val: string | number) => void
-  onAddItem?: () => void
-  onDeleteItem?: (itemId: string) => void
-  onUpdateLabel?: (label: string) => void
-  onUpdateBrand?: (brand: string) => void
-  onUpdateWarranty?: (w: string) => void
+  onEdit?: () => void
   border: string; textP: string; textS: string
 }) {
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [editingItemId,   setEditingItemId]   = useState<string | null>(null)
-
-  // Reset local state when edit mode closes
-  useEffect(() => {
-    if (!editing) { setEditingItemId(null); setPendingDeleteId(null) }
-  }, [editing])
-
   const isPremium  = tier.key === 'premium'
   const isUpgraded = tier.key === 'upgraded'
   const cardBg     = selected ? C.tealLight : '#FAFAFA'
-  const cardBorder = editing  ? `2px solid ${C.teal}`
-                   : selected ? `2px solid ${C.teal}`
-                   : `1px solid ${border}`
+  const cardBorder = selected ? `2px solid ${C.teal}` : `1px solid ${border}`
 
   return (
     <div style={{ background: cardBg, borderRadius: 16, border: cardBorder,
-      boxShadow: selected || editing ? SHADOW_SEL : SHADOW_SM,
+      boxShadow: selected ? SHADOW_SEL : SHADOW_SM,
       display: 'flex', flexDirection: 'column' as const,
       transition: 'all 0.2s', position: 'relative' }}>
 
@@ -1260,175 +1313,57 @@ function TierCard({ tier, selected, editing, isLocked = false,
         </div>
       )}
 
-      <div style={{ padding: isUpgraded ? '28px 16px 16px' : '16px', flex: 1,
-        display: 'flex', flexDirection: 'column' as const }}>
+      <div style={{ padding: isUpgraded ? '28px 18px 18px' : '18px',
+        flex: 1, display: 'flex', flexDirection: 'column' as const }}>
 
-        {/* ── Header ── */}
-        {editing ? (
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginBottom: 14 }}>
-            <input value={tier.label} onChange={e => onUpdateLabel?.(e.target.value)}
-              style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '5px 8px',
-                fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
-                textTransform: 'uppercase' as const, color: C.teal,
-                outline: 'none', width: '100%', boxSizing: 'border-box' as const, background: '#fff' }} />
-            <input value={tier.shingle_brand} onChange={e => onUpdateBrand?.(e.target.value)}
-              style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '5px 8px',
-                fontSize: 14, fontWeight: 700, color: textP, outline: 'none',
-                width: '100%', boxSizing: 'border-box' as const, background: '#fff' }} />
-            <input value={tier.warranty} onChange={e => onUpdateWarranty?.(e.target.value)}
-              style={{ border: `1px solid ${border}`, borderRadius: 6, padding: '5px 8px',
-                fontSize: 12, color: textS, outline: 'none',
-                width: '100%', boxSizing: 'border-box' as const, background: '#fff' }} />
+        {/* Header */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em',
+            textTransform: 'uppercase' as const,
+            color: selected ? C.teal : textS, marginBottom: 6 }}>
+            {tier.label}
           </div>
-        ) : (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em',
-              textTransform: 'uppercase' as const, color: selected ? C.teal : textS, marginBottom: 4 }}>
-              {tier.label}
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: textP, marginBottom: 2, lineHeight: 1.3 }}>
-              {tier.shingle_brand}
-            </div>
-            <div style={{ fontSize: 12, color: textS }}>{tier.warranty}</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: textP, marginBottom: 3, lineHeight: 1.2 }}>
+            {tier.shingle_brand}
           </div>
-        )}
-
-        {/* ── Items ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 2, marginBottom: 14 }}>
-          {tier.items.map(item => (
-            <div key={item.id}>
-              {editing && editingItemId === item.id ? (
-                /* 2-row edit layout — name on top, qty/price/actions on bottom */
-                <div style={{ background: '#fff', border: `1px solid ${C.teal}`, borderRadius: 8,
-                  padding: '8px', marginBottom: 2 }}>
-                  {/* Row 1: name */}
-                  <input defaultValue={item.name}
-                    onBlur={e => onUpdateItem?.(item.id, 'name', e.target.value)}
-                    style={{ border: `1px solid ${border}`, borderRadius: 5, padding: '4px 7px',
-                      fontSize: 13, outline: 'none', width: '100%',
-                      boxSizing: 'border-box' as const, marginBottom: 6 }} />
-                  {/* Row 2: qty / unit / @ / price / amount / actions */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' as const }}>
-                    <input defaultValue={item.qty} type="number"
-                      onBlur={e => onUpdateItem?.(item.id, 'qty', Number(e.target.value))}
-                      style={{ border: `1px solid ${border}`, borderRadius: 5, padding: '3px 5px',
-                        fontSize: 12, width: 48, outline: 'none', textAlign: 'center' as const }} />
-                    <span style={{ fontSize: 11, color: textS }}>{item.unit} @</span>
-                    <input defaultValue={item.unit_price} type="number"
-                      onBlur={e => onUpdateItem?.(item.id, 'unit_price', Number(e.target.value))}
-                      style={{ border: `1px solid ${border}`, borderRadius: 5, padding: '3px 5px',
-                        fontSize: 12, width: 56, outline: 'none' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: textP, marginLeft: 2 }}>
-                      {item.amount > 0 ? fmt(item.amount) : '—'}
-                    </span>
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                      <button onClick={() => setEditingItemId(null)}
-                        style={{ border: `1px solid ${border}`, background: '#F8FAFC', borderRadius: 5,
-                          padding: '3px 8px', fontSize: 11, color: textS, cursor: 'pointer', fontWeight: 600 }}>
-                        Cancel
-                      </button>
-                      <button onClick={() => setPendingDeleteId(item.id)}
-                        style={{ border: 'none', background: '#FEF2F2', borderRadius: 5,
-                          padding: '3px 7px', fontSize: 12, color: C.danger, cursor: 'pointer', fontWeight: 800 }}>
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Read row */
-                <div onClick={() => editing && setEditingItemId(item.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 2px',
-                    cursor: editing ? 'pointer' : 'default', borderRadius: 6,
-                    background: editing ? 'rgba(15,118,110,0.04)' : 'transparent' }}>
-                  <div style={{ width: 14, height: 14, borderRadius: '50%', background: C.teal,
-                    color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 9, flexShrink: 0, fontWeight: 900 }}>✓</div>
-                  <span style={{ fontSize: 13, color: textP, flex: 1, lineHeight: 1.4 }}>{item.name}</span>
-                  <span style={{ fontSize: 12, color: textS, fontWeight: 600, flexShrink: 0 }}>
-                    {item.amount > 0 ? fmt(item.amount) : ''}
-                  </span>
-                  {editing && (
-                    <span style={{ fontSize: 11, color: C.teal, flexShrink: 0 }}>✎</span>
-                  )}
-                </div>
-              )}
-              {/* Delete confirm */}
-              {pendingDeleteId === item.id && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '6px 10px', borderRadius: 8, background: '#FEF2F2',
-                  border: '1px solid #FECACA', gap: 8, marginTop: 2, marginBottom: 2 }}>
-                  <span style={{ fontSize: 12, color: '#991B1B' }}>
-                    Remove <strong>{item.name}</strong>?
-                  </span>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => setPendingDeleteId(null)}
-                      style={{ padding: '2px 8px', borderRadius: 5, border: '1px solid #FECACA',
-                        background: 'transparent', color: '#991B1B', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                      Cancel
-                    </button>
-                    <button onClick={() => { onDeleteItem?.(item.id); setPendingDeleteId(null); setEditingItemId(null) }}
-                      style={{ padding: '2px 8px', borderRadius: 5, border: 'none',
-                        background: '#DC2626', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* Add item — edit mode only */}
-          {editing && onAddItem && (
-            <button onClick={onAddItem}
-              style={{ background: 'none', border: `1px dashed ${border}`, borderRadius: 8,
-                padding: '5px', fontSize: 12, color: textS, cursor: 'pointer',
-                width: '100%', marginTop: 6 }}>
-              + Add item
-            </button>
-          )}
+          <div style={{ fontSize: 12, color: textS }}>{tier.warranty}</div>
         </div>
 
-        {/* ── Subtotal ── */}
+        {/* Items — name + amount only, no qty/price */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 5, marginBottom: 16 }}>
+          {tier.items.map(item => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', background: C.teal,
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, fontWeight: 900, flexShrink: 0 }}>✓</div>
+              <span style={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</span>
+              <span style={{ fontSize: 12, color: textS, fontWeight: 600 }}>
+                {item.amount > 0 ? fmt(item.amount) : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Subtotal */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-          borderTop: `1px solid ${border}`, paddingTop: 10, marginBottom: 12 }}>
+          borderTop: `1px solid ${border}`, paddingTop: 12, marginBottom: 14 }}>
           <span style={{ fontSize: 12, color: textS }}>Subtotal</span>
-          <span style={{ fontSize: 22, fontWeight: 900,
+          <span style={{ fontSize: 24, fontWeight: 900,
             color: selected ? C.teal : textP, letterSpacing: '-0.5px' }}>
             {fmt(tier.subtotal)}
           </span>
         </div>
 
-        {/* ── Action buttons ── */}
+        {/* Buttons */}
         {isLocked ? (
           selected ? (
-            <div style={{ textAlign: 'center', padding: '8px', background: C.tealLight,
+            <div style={{ textAlign: 'center' as const, padding: '9px', background: C.tealLight,
               borderRadius: 10, fontSize: 13, fontWeight: 700, color: C.teal }}>
               ✓ Selected by homeowner
             </div>
           ) : null
-        ) : editing ? (
-          /* Edit mode: Select still works + Done to close */
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
-            {onSelect && !selected && (
-              <button onClick={onSelect}
-                style={{ width: '100%', padding: '9px', borderRadius: 10, border: 'none',
-                  cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                  background: isPremium ? C.navy : isUpgraded ? C.teal : '#E2E8F0',
-                  color: isPremium || isUpgraded ? '#fff' : textP }}>
-                Select {tier.label}
-              </button>
-            )}
-            <button onClick={onCloseEdit}
-              style={{ width: '100%', padding: '8px', borderRadius: 10,
-                border: `1.5px solid ${C.teal}`, background: '#fff',
-                color: C.teal, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              Done ✓
-            </button>
-          </div>
         ) : (
-          /* Read mode: Select + Edit items */
-          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
             {onSelect && (
               <button onClick={onSelect}
                 style={{ width: '100%', padding: '10px', borderRadius: 10, border: 'none',
@@ -1438,14 +1373,206 @@ function TierCard({ tier, selected, editing, isLocked = false,
                 {selected ? '✓ Selected' : `Select ${tier.label}`}
               </button>
             )}
-            <button onClick={onOpenEdit}
-              style={{ width: '100%', padding: '7px', borderRadius: 10, cursor: 'pointer',
-                fontSize: 12, fontWeight: 600, border: `1px solid ${border}`,
-                background: 'transparent', color: textS }}>
-              Edit items
-            </button>
+            {onEdit && (
+              <button onClick={onEdit}
+                style={{ width: '100%', padding: '7px', borderRadius: 10, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 600, border: `1px solid ${border}`,
+                  background: 'transparent', color: textS }}>
+                Edit items
+              </button>
+            )}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── TierEditModal — full-page overlay for editing one tier ─────────────────────
+function TierEditModal({ tier, onUpdateField, onUpdateItem, onAddItem, onDeleteItem,
+  onSave, onCancel, border, textP, textS }: {
+  tier: Tier
+  onUpdateField: (field: 'label' | 'shingle_brand' | 'warranty', val: string) => void
+  onUpdateItem: (itemId: string, field: keyof TierLineItem, val: string | number) => void
+  onAddItem: () => void
+  onDeleteItem: (itemId: string) => void
+  onSave: () => void
+  onCancel: () => void
+  border: string; textP: string; textS: string
+}) {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 24 }}
+      onClick={e => { if (e.target === e.currentTarget) onCancel() }}>
+
+      <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 560,
+        maxHeight: '90vh', display: 'flex', flexDirection: 'column' as const,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+
+        {/* Modal header */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: textP }}>
+            Edit {tier.label} Tier
+          </div>
+          <button onClick={onCancel}
+            style={{ border: 'none', background: 'none', cursor: 'pointer',
+              fontSize: 20, color: textS, padding: '0 4px', lineHeight: 1 }}>
+            ×
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: 'auto' as const, padding: '20px 24px' }}>
+
+          {/* Label / Brand / Warranty */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
+            {(['label', 'shingle_brand', 'warranty'] as const).map(field => (
+              <div key={field}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const,
+                  letterSpacing: '0.08em', color: textS, marginBottom: 4 }}>
+                  {field === 'shingle_brand' ? 'Brand' : field === 'warranty' ? 'Warranty' : 'Label'}
+                </div>
+                <input value={tier[field]} onChange={e => onUpdateField(field, e.target.value)}
+                  style={{ width: '100%', border: `1px solid ${border}`, borderRadius: 8,
+                    padding: '7px 10px', fontSize: 13, outline: 'none',
+                    boxSizing: 'border-box' as const }}
+                  onFocus={e => (e.target.style.borderColor = C.teal)}
+                  onBlur={e => (e.target.style.borderColor = border)} />
+              </div>
+            ))}
+          </div>
+
+          {/* Items table */}
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const,
+            letterSpacing: '0.08em', color: textS, marginBottom: 8 }}>
+            Line Items
+          </div>
+
+          {/* Column headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 64px 80px 32px',
+            gap: 8, marginBottom: 6, padding: '0 4px' }}>
+            {['Item', 'Qty', 'Unit', '$/Unit', ''].map((h, i) => (
+              <div key={i} style={{ fontSize: 10, fontWeight: 700, color: textS,
+                textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+                textAlign: i > 0 ? 'center' as const : 'left' as const }}>
+                {h}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+            {tier.items.map(item => (
+              <div key={item.id}>
+                {pendingDeleteId === item.id ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 12px', borderRadius: 8, background: '#FEF2F2',
+                    border: '1px solid #FECACA' }}>
+                    <span style={{ fontSize: 13, color: '#991B1B' }}>
+                      Remove <strong>{item.name || 'this item'}</strong>?
+                    </span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => setPendingDeleteId(null)}
+                        style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #FECACA',
+                          background: 'transparent', color: '#991B1B', fontSize: 12,
+                          fontWeight: 600, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                      <button onClick={() => { onDeleteItem(item.id); setPendingDeleteId(null) }}
+                        style={{ padding: '4px 12px', borderRadius: 6, border: 'none',
+                          background: '#DC2626', color: '#fff', fontSize: 12,
+                          fontWeight: 700, cursor: 'pointer' }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 64px 80px 32px',
+                    gap: 8, alignItems: 'center' }}>
+                    <input value={item.name}
+                      onChange={e => onUpdateItem(item.id, 'name', e.target.value)}
+                      placeholder="Item name"
+                      style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '7px 10px',
+                        fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' as const }}
+                      onFocus={e => (e.target.style.borderColor = C.teal)}
+                      onBlur={e => (e.target.style.borderColor = border)} />
+                    <input value={item.qty} type="number"
+                      onChange={e => onUpdateItem(item.id, 'qty', Number(e.target.value))}
+                      style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '7px 6px',
+                        fontSize: 13, outline: 'none', textAlign: 'center' as const,
+                        width: '100%', boxSizing: 'border-box' as const }}
+                      onFocus={e => (e.target.style.borderColor = C.teal)}
+                      onBlur={e => (e.target.style.borderColor = border)} />
+                    <div style={{ fontSize: 12, color: textS, textAlign: 'center' as const }}>
+                      {item.unit}
+                    </div>
+                    <input value={item.unit_price} type="number"
+                      onChange={e => onUpdateItem(item.id, 'unit_price', Number(e.target.value))}
+                      style={{ border: `1px solid ${border}`, borderRadius: 8, padding: '7px 6px',
+                        fontSize: 13, outline: 'none', textAlign: 'center' as const,
+                        width: '100%', boxSizing: 'border-box' as const }}
+                      onFocus={e => (e.target.style.borderColor = C.teal)}
+                      onBlur={e => (e.target.style.borderColor = border)} />
+                    <button onClick={() => setPendingDeleteId(item.id)}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer',
+                        color: '#CBD5E1', fontSize: 18, padding: 0, lineHeight: 1,
+                        textAlign: 'center' as const }}
+                      onMouseEnter={e => (e.currentTarget.style.color = C.danger)}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#CBD5E1')}>
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Computed amount column — shown below the inputs */}
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6, marginTop: 2 }}>
+            {tier.items.map(item => (
+              !pendingDeleteId || pendingDeleteId !== item.id ? (
+                <div key={item.id + '_amt'} style={{ display: 'flex', justifyContent: 'flex-end',
+                  fontSize: 12, fontWeight: 600, color: textS, marginTop: -46, paddingRight: 48 }}>
+                </div>
+              ) : null
+            ))}
+          </div>
+
+          <button onClick={onAddItem}
+            style={{ marginTop: 12, width: '100%', background: 'none',
+              border: `1px dashed ${border}`, borderRadius: 8, padding: '8px',
+              fontSize: 13, color: textS, cursor: 'pointer', fontWeight: 600 }}>
+            + Add item
+          </button>
+
+          {/* Subtotal */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+            marginTop: 20, paddingTop: 16, borderTop: `2px solid ${border}` }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: textP }}>Subtotal</span>
+            <span style={{ fontSize: 28, fontWeight: 900, color: C.teal, letterSpacing: '-0.5px' }}>
+              {fmt(tier.subtotal)}
+            </span>
+          </div>
+        </div>
+
+        {/* Modal footer */}
+        <div style={{ padding: '16px 24px', borderTop: `1px solid ${border}`,
+          display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          <button onClick={onCancel}
+            style={{ padding: '10px 24px', borderRadius: 10, border: `1px solid ${border}`,
+              background: 'transparent', color: textS, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={onSave}
+            style={{ padding: '10px 28px', borderRadius: 10, border: 'none',
+              background: C.teal, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(15,118,110,0.3)' }}>
+            Save changes
+          </button>
+        </div>
       </div>
     </div>
   )
