@@ -71,11 +71,22 @@ export async function POST(
     signed_at:         new Date().toISOString(),
   })
 
-  // Update estimate status
-  await sb.from('estimates').update({
-    status:       'approved',
-    approved_at:  new Date().toISOString(),
-  }).eq('id', id)
+  // Update estimate status + sync total to selected tier (for GBB)
+  // This ensures estimates.total reflects what the homeowner actually agreed to pay
+  const estUpdate: Record<string, unknown> = {
+    status:      'approved',
+    approved_at: new Date().toISOString(),
+  }
+  if (selected_tier && tieredData?.tiers) {
+    const selTier = tieredData.tiers.find((t: any) => t.key === selected_tier)
+    if (selTier?.subtotal !== undefined) {
+      const taxRate = est.tax_rate ?? 0
+      estUpdate.subtotal   = selTier.subtotal
+      estUpdate.tax_amount = Math.round(selTier.subtotal * (taxRate / 100) * 100) / 100
+      estUpdate.total      = selTier.subtotal + (estUpdate.tax_amount as number)
+    }
+  }
+  await sb.from('estimates').update(estUpdate).eq('id', id)
 
   // Write selected_tier back to roofing_estimate_data — tiered_data lives there
   if (roofingEst && tieredData) {
