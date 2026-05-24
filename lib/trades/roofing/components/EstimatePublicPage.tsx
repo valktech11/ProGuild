@@ -324,11 +324,14 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                 approving={approving}
               />
             ) : (
-              <div style={{ textAlign: 'center', padding: '20px', color: C.muted }}>
-                <p style={{ fontSize: 14, color: C.secondary, margin: 0 }}>
+              /* GBB with no tier selected — signature hidden until tier chosen */
+              /* Right panel already shows the select prompt on desktop */
+              /* Mobile only: show a minimal nudge */
+              mobile ? (
+                <div style={{ textAlign: 'center', padding: '16px', color: C.secondary, fontSize: 14 }}>
                   ☝️ Select an option above to continue
-                </p>
-              </div>
+                </div>
+              ) : null
             )}
           </div>
 
@@ -420,9 +423,12 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                 </>
               ) : (
                 /* GBB only: no tier selected yet */
-                <div style={{ textAlign: 'center', padding: '20px 0', color: C.muted }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>☝️</div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>Select an option to see your summary</div>
+                <div style={{ textAlign: 'center', padding: '40px 16px', color: C.muted, minHeight: 160,
+                  display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ fontSize: 32, marginBottom: 12 }}>☝️</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.secondary }}>
+                    Select an option to see your summary
+                  </div>
                 </div>
               )}
             </div>
