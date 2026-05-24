@@ -159,7 +159,7 @@ export async function PATCH(
 
   if (hasRoofingFields) {
     // Need pro_id for RLS — fetch from estimate
-    const { data: estRow } = await sb.from('estimates').select('pro_id').eq('id', id).single()
+    const { data: estRow } = await sb.from('estimates').select('pro_id, tax_rate').eq('id', id).single()
     if (estRow?.pro_id) {
       const roofingPayload: Record<string, unknown> = {
         estimate_id: id,
@@ -177,6 +177,31 @@ export async function PATCH(
 
       await sb.from('roofing_estimate_data')
         .upsert(roofingPayload, { onConflict: 'estimate_id' })
+
+      // Sync estimates.total when GBB tiered_data is saved
+      // Use selected_tier subtotal if set, otherwise use the upgraded (middle) tier
+      if (tiered_data?.tiers?.length > 0 && estRow?.pro_id) {
+        const tiers = tiered_data.tiers as any[]
+        const selKey = tiered_data.selected_tier
+        const selTier = selKey
+          ? tiers.find((t: any) => t.key === selKey)
+          : tiers.find((t: any) => t.key === 'upgraded') ?? tiers[Math.floor(tiers.length / 2)]
+        if (selTier?.subtotal !== undefined) {
+          const txRate   = estRow.tax_rate ?? 0
+          const newSub   = selTier.subtotal
+          const newTax   = Math.round(newSub * (txRate / 100) * 100) / 100
+          const newTotal = newSub + newTax
+          // Only update if total !== undefined (not already in payload — avoid double-write)
+          if (total === undefined) {
+            await sb.from('estimates').update({
+              subtotal:   newSub,
+              tax_amount: newTax,
+              total:      newTotal,
+              updated_at: new Date().toISOString(),
+            }).eq('id', id)
+          }
+        }
+      }
     }
   }
 

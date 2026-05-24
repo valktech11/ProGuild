@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       id, estimate_number, total, status, contact_email, contact_phone,
       lead_name, valid_until, pro_id, lead_id,
       pro:pros(full_name, phone_cell, city, state, trade_slug),
-      roofing:roofing_estimate_data(property_address)
+      roofing:roofing_estimate_data(property_address, estimate_type, tiered_data)
     `)
     .eq('id', estimateId)
     .single()
@@ -55,7 +55,20 @@ export async function POST(req: NextRequest) {
   const proCity     = [pro.city, pro.state].filter(Boolean).join(', ')
   const property    = roofing.property_address ?? ''
   const estNumber   = est.estimate_number ?? 'EST'
-  const total       = Number(est.total ?? 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+
+  // For GBB estimates: show price range (lowest–highest tier), not stale estimates.total
+  const isGBB       = roofing.estimate_type === 'tiered' && (roofing.tiered_data?.tiers?.length ?? 0) > 0
+  const tiers: any[] = roofing.tiered_data?.tiers ?? []
+  let total: string
+  if (isGBB && tiers.length > 0) {
+    const subtotals = tiers.map((t: any) => t.subtotal ?? 0)
+    const minT = Math.min(...subtotals)
+    const maxT = Math.max(...subtotals)
+    const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+    total = `${fmt(minT)} – ${fmt(maxT)}`
+  } else {
+    total = Number(est.total ?? 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+  }
   const validUntil  = est.valid_until
     ? new Date(est.valid_until).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null

@@ -192,7 +192,7 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
             </>
           )}
 
-          {/* Line items — standard estimate only, name + amount, no unit price */}
+          {/* Line items — standard estimate only. GBB uses tier cards above. */}
           {!isGBB && (estimate.items?.length ?? 0) > 0 && (
             <ContentSection title="What's Included">
               <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 0 }}>
@@ -324,11 +324,9 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                 approving={approving}
               />
             ) : (
-              <div style={{ textAlign: 'center', padding: '32px 20px', background: '#F8FAFC',
-                borderRadius: 16, border: `2px dashed ${C.border}` }}>
-                <div style={{ fontSize: 28, marginBottom: 10 }}>☝️</div>
-                <p style={{ fontSize: 15, color: C.secondary, fontWeight: 600, margin: 0 }}>
-                  Select an option above to approve this proposal
+              <div style={{ textAlign: 'center', padding: '20px', color: C.muted }}>
+                <p style={{ fontSize: 14, color: C.secondary, margin: 0 }}>
+                  ☝️ Select an option above to continue
                 </p>
               </div>
             )}
