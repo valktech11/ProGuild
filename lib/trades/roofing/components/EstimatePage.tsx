@@ -456,7 +456,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           const terminal = ['approved', 'void', 'declined', 'paid'].includes(estimate.status)
           if (terminal) return null
           const hasEmail = !!(estimate.contact_email)
-          const isSent   = estimate.status === 'sent'
+          const isSent   = ['sent', 'viewed'].includes(estimate.status)
           if (!hasEmail) return (
             <button
               onClick={() => {
@@ -736,7 +736,7 @@ function ProgressTimeline({ timeline, border, textS, card, estimate }: {
                   </div>
                   {isSent && sentEmail && (
                     <div style={{ fontSize: 10, color: sentBounced ? '#EF4444' : C.muted,
-                      marginTop: 2, wordBreak: 'break-all', maxWidth: 90 }}>
+                      marginTop: 2, wordBreak: 'break-all', maxWidth: 120 }}>
                       {sentEmail}
                     </div>
                   )}
