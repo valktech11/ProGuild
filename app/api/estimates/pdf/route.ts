@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const { data: pro } = await sb
     .from('pros')
-    .select('full_name, trade, city, state, phone')
+    .select('full_name, trade_slug, city, state, phone')
     .eq('id', estimate.pro_id)
     .single()
 
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     ...estimate,
     items: estimate.items ?? [],
     pro_name: pro?.full_name ?? '',
-    pro_trade: pro?.trade ?? '',
+    pro_trade: pro?.trade_slug ?? '',
     pro_city: pro?.city ?? '',
     pro_state: pro?.state ?? '',
     pro_phone: pro?.phone ?? '',

@@ -741,7 +741,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         <button onClick={async () => {
                           if (estimate.items.length === 0) { setSaveMsg('Add items before sending'); setTimeout(() => setSaveMsg(null), 3000); return }
                           if (estimate.total <= 0) { setSaveMsg('Total must be greater than $0'); setTimeout(() => setSaveMsg(null), 3000); return }
-                          if (!estimate.contact_email) { setSaveMsg('Add client email to this lead to send estimate'); setTimeout(() => setSaveMsg(null), 4000); return }
+                          // Email resolved server-side from lead — no client-side gate needed
 
                           const sentAt = new Date().toISOString()
                           await handleSave()
@@ -764,7 +764,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       )}
                       {(estimate.status === 'sent' || estimate.status === 'viewed') && (
                         <button onClick={async () => {
-                          if (!estimate.contact_email) { setSaveMsg('No email on file for this client'); setTimeout(() => setSaveMsg(null), 3000); return }
+                          // Email resolved server-side from lead — no client-side gate needed
                           const r = await fetch('/api/estimates/send-reminder', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1305,7 +1305,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           {estimate.status === 'draft' && (
             <button
               onClick={async () => {
-                if (!estimate.contact_email) { setSaveMsg('No email on file — open lead to add email'); setTimeout(() => setSaveMsg(null), 3000); return }
+                // Email resolved server-side from lead — no client-side gate needed
                 if (!estimate.items?.length || estimate.total <= 0) { setSaveMsg('Add at least one item before sending'); setTimeout(() => setSaveMsg(null), 3000); return }
                 const sentAt = new Date().toISOString()
                 await handleSave()
@@ -1330,7 +1330,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           )}
           {(estimate.status === 'sent' || estimate.status === 'viewed') && (
             <button onClick={async () => {
-              if (!estimate.contact_email) { setSaveMsg('No email on file'); setTimeout(() => setSaveMsg(null), 3000); return }
+              // Email resolved server-side from lead — no client-side gate needed
               const r = await fetch('/api/estimates/send-reminder', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estimateId: id, contactEmail: estimate.contact_email, pro_id: session?.id }) })
               setSaveMsg(r.ok ? 'Reminder sent ✓' : 'Failed to send reminder')
               setTimeout(() => setSaveMsg(null), 3000)

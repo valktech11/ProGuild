@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   // Fetch invoice
   const { data: inv, error: invErr } = await sb
     .from('invoices')
-    .select('id, invoice_number, total, balance_due, due_date, lead_name, contact_email, status, pro_id')
+    .select('id, invoice_number, total, balance_due, due_date, lead_name, contact_email, status, pro_id, lead_id')
     .eq('id', invoice_id)
     .maybeSingle()
 
@@ -29,6 +29,16 @@ export async function POST(req: NextRequest) {
   // Ownership check
   if (inv.pro_id !== pro_id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
+  // Resolve email from lead if invoice has null contact_email
+  if (!inv.contact_email && (inv as any).lead_id) {
+    const { data: leadRow } = await sb
+      .from('leads')
+      .select('contact_email')
+      .eq('id', (inv as any).lead_id)
+      .maybeSingle()
+    if (leadRow?.contact_email) (inv as any).contact_email = leadRow.contact_email
   }
 
   if (!inv.contact_email) {

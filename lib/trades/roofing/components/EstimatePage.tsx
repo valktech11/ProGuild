@@ -1451,7 +1451,7 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
               </div>
             </div>
             <a
-              href={`/dashboard/leads/${(estimate as any).lead_id}`}
+              href={`/dashboard/pipeline/${(estimate as any).lead_id}`}
               target="_blank" rel="noopener noreferrer"
               style={{ fontSize: 13, color: C.teal, fontWeight: 700, textDecoration: 'none' }}>
               Edit in Lead →

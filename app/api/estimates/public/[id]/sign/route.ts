@@ -118,14 +118,29 @@ export async function POST(
         const depositAmt = milestones?.[0]?.amount
           ?? Math.round(fullEst.total * (depositPct / 100) * 100) / 100
 
+        // Resolve contact email from lead (live source of truth) — estimates.contact_email may be stale/null
+        let invoiceContactEmail = fullEst.contact_email ?? null
+        let invoiceContactPhone = fullEst.contact_phone ?? null
+        let invoiceLeadName     = fullEst.lead_name ?? null
+        if (est.lead_id) {
+          const { data: leadContact } = await sb
+            .from('leads')
+            .select('contact_email, contact_phone, contact_name')
+            .eq('id', est.lead_id)
+            .maybeSingle()
+          if (leadContact?.contact_email) invoiceContactEmail = leadContact.contact_email
+          if (leadContact?.contact_phone) invoiceContactPhone = leadContact.contact_phone
+          if (leadContact?.contact_name)  invoiceLeadName     = leadContact.contact_name
+        }
+
         await sb.from('invoices').insert({
           pro_id:          fullEst.pro_id,
           estimate_id:     id,
           lead_id:         est.lead_id,
           invoice_number:  invoiceNumber,
-          lead_name:       fullEst.lead_name,
-          contact_email:   fullEst.contact_email,
-          contact_phone:   fullEst.contact_phone,
+          lead_name:       invoiceLeadName,
+          contact_email:   invoiceContactEmail,
+          contact_phone:   invoiceContactPhone,
           trade:           fullEst.trade_slug ?? 'roofing',
           status:          'draft',
           subtotal:        fullEst.subtotal,
