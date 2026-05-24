@@ -100,7 +100,7 @@ export async function POST(
   // ── Auto-stage: move lead to proposal_signed ─────────────────────────────
   if (est.lead_id) {
     await sb.from('leads')
-      .update({ lead_status: 'proposal_signed', updated_at: new Date().toISOString() })
+      .update({ lead_status: 'proposal_signed', updated_at: new Date().toISOString(), lead_status_changed_at: new Date().toISOString() })
       .eq('id', est.lead_id)
   }
 
@@ -190,6 +190,24 @@ export async function POST(
         })
       }
     }
+  }
+
+  // Update lead quoted_amount with the correct signed total (selected tier for GBB, estimate total for standard)
+  if (est.lead_id) {
+    try {
+      const { data: invRow } = await sb
+        .from('invoices')
+        .select('total')
+        .eq('estimate_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (invRow?.total) {
+        await sb.from('leads')
+          .update({ quoted_amount: invRow.total })
+          .eq('id', est.lead_id)
+      }
+    } catch { /* non-fatal */ }
   }
 
   // Send invoice email to homeowner (non-blocking, best-effort)

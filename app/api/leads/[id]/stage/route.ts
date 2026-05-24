@@ -85,7 +85,7 @@ export async function PATCH(
     // Persist
     const { error: updateError } = await sb
       .from('leads')
-      .update({ lead_status: newStage, updated_at: new Date().toISOString() })
+      .update({ lead_status: newStage, updated_at: new Date().toISOString(), lead_status_changed_at: new Date().toISOString() })
       .eq('id', leadId)
       .eq('pro_id', pro_id)
 

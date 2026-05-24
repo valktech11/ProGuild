@@ -910,10 +910,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             </div>
                             <div>
                               <div style={{fontSize:14,fontWeight:600,color:tp}}>
-                                {new Date(lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                                {new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
                               </div>
                               <div style={{fontSize:12,color:tsu,marginTop:1}}>
-                                {daysAgo(lead.updated_at||lead.created_at)===0?'Today':`${daysAgo(lead.updated_at||lead.created_at)} days in stage`}
+                                {daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)===0?'Today':`${daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)} days in stage`}
                               </div>
                             </div>
                           </div>

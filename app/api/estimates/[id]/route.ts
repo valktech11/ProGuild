@@ -250,9 +250,11 @@ export async function PATCH(
     if (status === 'sent') {
       // Estimate sent → proposal_sent (maps to stageAnchors entry neighbour)
       leadUpdate.lead_status = anchors.entry === 'lead_in' ? 'proposal_sent' : 'Quoted'
+      leadUpdate.lead_status_changed_at = new Date().toISOString()
     } else if (status === 'approved') {
       // Homeowner approved estimate → proposal_signed (deposit trigger)
       leadUpdate.lead_status = (anchors as any).depositTrigger ?? 'proposal_signed'
+      leadUpdate.lead_status_changed_at = new Date().toISOString()
     }
     // Note: invoice paid → job_won is handled in /api/invoices/[id]/route.ts
 

@@ -107,6 +107,8 @@ export interface Lead {
   contact_state: string | null
   property_address: string | null
   updated_at?: string
+  lead_status_changed_at?: string | null
+  insurance_claim?: boolean | null
   // joined
   pro?: Pro
   job?: Job

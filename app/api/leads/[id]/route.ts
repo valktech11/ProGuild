@@ -104,6 +104,7 @@ export async function PATCH(
       return apiError(`Invalid lead_status: "${s}"`, 400)
     }
     updateFields.lead_status = s as LeadStatus
+    updateFields.lead_status_changed_at = new Date().toISOString()
   }
   if ('quoted_amount' in body) {
     const qa = body.quoted_amount

@@ -373,10 +373,9 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
   const schedDate = lead.scheduled_date
     ? new Date(lead.scheduled_date).toLocaleDateString('en-US',{month:'short',day:'numeric'})
     : null
-  // Insurance stage display: driven by whether the stage has insurance context
-  // For roofing these specific stages show insurance chip; for other trades never shown
-  const ROOFING_INSURANCE_STAGES = new Set(['insurance_approved','proposal_signed','in_progress','job_won'])
-  const isInsuranceStage = ROOFING_INSURANCE_STAGES.has(stage.key)
+  // Insurance chip — only show if lead actually has an insurance claim
+  // Reads from roofing_job_data join (insurance_claim field)
+  const isInsuranceClaim = !!(lead as any).roofing_job_data?.insurance_claim
 
   const [hovered, setHovered] = useState(false)
 
@@ -452,7 +451,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
       </div>
 
       {/* ── Row 2: chips ── */}
-      {(src || isInsuranceStage || schedDate) && (
+      {(src || isInsuranceClaim || schedDate) && (
         <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:8 }}>
           {src && src !== 'undefined' && (
             <span style={{ fontSize:10, fontWeight:500, padding:'2px 7px', borderRadius:20,
@@ -460,7 +459,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
               {src}
             </span>
           )}
-          {isInsuranceStage && (
+          {isInsuranceClaim && (
             <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:20,
               background:'#FEF3C7', color:'#92400E', border:'1px solid #FDE68A' }}>
               🌩 Insurance

@@ -74,7 +74,7 @@ export async function PATCH(
       const terminal = [anchors.won, anchors.lost ?? 'lost', 'unqualified']
       if (!terminal.includes(leadRow.lead_status)) {
         await sb.from('leads')
-          .update({ lead_status: anchors.won })
+          .update({ lead_status: anchors.won, lead_status_changed_at: new Date().toISOString() })
           .eq('id', data.lead_id)
       }
     }

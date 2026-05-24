@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const proId = searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
   const { data, error } = await getSupabaseAdmin()
-    .from('leads').select('*').eq('pro_id', proId).order('created_at', { ascending: false })
+    .from('leads').select('*, roofing_job_data(insurance_claim)').eq('pro_id', proId).order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ leads: data || [] })
 }
