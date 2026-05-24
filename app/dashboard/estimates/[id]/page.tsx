@@ -443,11 +443,6 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             finally { setSaving(false) }
           }}
           onSend={async () => {
-            if (!estimate.contact_email) {
-              setSaveMsg('No email on file — add email via Edit Contact first')
-              setTimeout(() => setSaveMsg(null), 4000)
-              return
-            }
             if (isSending) return
             setIsSending(true)
             setSaveMsg('Sending…')

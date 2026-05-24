@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     .from('estimates')
     .select(`
       id, estimate_number, total, status, contact_email, contact_phone,
-      lead_name, valid_until, pro_id,
+      lead_name, valid_until, pro_id, lead_id,
       pro:pros(full_name, phone_cell, city, state, trade),
       roofing:roofing_estimate_data(property_address)
     `)
@@ -31,9 +31,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
-  const contactEmail = est.contact_email
+  // Resolve contact email: prefer lead (live source of truth), fall back to estimate copy
+  let contactEmail = est.contact_email ?? null
+  let homeownerNameResolved = est.lead_name ?? 'Homeowner'
+  if ((est as any).lead_id) {
+    const { data: lead } = await sb
+      .from('leads')
+      .select('contact_email, contact_name')
+      .eq('id', (est as any).lead_id)
+      .maybeSingle()
+    if (lead?.contact_email) contactEmail = lead.contact_email
+    if (lead?.contact_name) homeownerNameResolved = lead.contact_name
+  }
+
   if (!contactEmail) {
-    return NextResponse.json({ error: 'No email on file for this client' }, { status: 400 })
+    return NextResponse.json({ error: 'No email on file — add email to the lead first' }, { status: 400 })
   }
 
   const pro         = (est as any).pro ?? {}
@@ -47,7 +59,7 @@ export async function POST(req: NextRequest) {
   const validUntil  = est.valid_until
     ? new Date(est.valid_until).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null
-  const homeownerName = est.lead_name ?? 'Homeowner'
+  const homeownerName = homeownerNameResolved
   const estimateUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://proguild.ai'}/estimate/${estimateId}`
 
   const html = `

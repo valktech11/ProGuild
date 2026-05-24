@@ -447,16 +447,38 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           {saving ? 'Saving…' : isDirty ? '● Save changes' : 'Saved'}
         </button>
 
-        <button onClick={onSend}
-          style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
-            background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
-            color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 8 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-          Send to Homeowner
-        </button>
+        {(() => {
+          const hasEmail = !!(estimate.contact_email)
+          const alreadySent = !['draft', 'viewed'].includes(estimate.status)
+          if (alreadySent) return null
+          if (!hasEmail) return (
+            <button
+              onClick={() => {
+                // Scroll to recipient card in right panel
+                document.getElementById('pg-recipient-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }}
+              style={{ padding: '9px 22px', borderRadius: 10, border: '2px solid #F59E0B',
+                background: '#FFFBEB', color: '#92400E', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              Add email to send
+            </button>
+          )
+          return (
+            <button onClick={onSend}
+              style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
+                background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
+                color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              Send to Homeowner
+            </button>
+          )
+        })()}
         <div style={{ fontSize: 12, color: textS }}>Client can approve &amp; pay instantly</div>
       </div>
 
@@ -1402,63 +1424,98 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
       </div>
 
       {/* Recipient */}
-      <div style={{ background: card, borderRadius: 16, padding: 20, boxShadow: SHADOW_SM,
+      <div id="pg-recipient-card" style={{ background: card, borderRadius: 16, padding: 20, boxShadow: SHADOW_SM,
         border: `1px solid ${border}` }}>
         <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
           letterSpacing: '0.1em', color: textS, marginBottom: 14 }}>Recipient</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.tealLight,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 15, fontWeight: 800, color: C.teal }}>
-            {estimate.lead_name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-          </div>
+
+        {(estimate as any).lead_id ? (
+          /* ── Lead-linked estimate: read-only, edit via lead ── */
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: textP }}>{estimate.lead_name}</div>
-            {estimate.contact_phone && (
-              <div style={{ fontSize: 13, color: textS }}>{estimate.contact_phone}</div>
-            )}
-            {estimate.contact_email && (
-              <div style={{ fontSize: 13, color: textS }}>{estimate.contact_email}</div>
-            )}
-          </div>
-        </div>
-        {!editContact ? (
-          <button
-            onClick={() => { setContactEmail(estimate.contact_email ?? ''); setContactPhone(estimate.contact_phone ?? ''); setEditContact(true) }}
-            style={{ background: 'none', border: 'none', color: C.teal, fontWeight: 700, fontSize: 13, cursor: 'pointer', padding: 0 }}>
-            Edit contact
-          </button>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 220 }}>
-            <input
-              type="email" placeholder="Email address" value={contactEmail}
-              onChange={e => setContactEmail(e.target.value)}
-              style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
-            />
-            <input
-              type="tel" placeholder="Phone number" value={contactPhone}
-              onChange={e => setContactPhone(e.target.value)}
-              style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                disabled={savingContact}
-                onClick={async () => {
-                  setSavingContact(true)
-                  try {
-                    await onSave({ contact_email: contactEmail.trim() || undefined, contact_phone: contactPhone.trim() || undefined })
-                    setEditContact(false)
-                  } finally { setSavingContact(false) }
-                }}
-                style={{ flex: 1, padding: '7px 12px', borderRadius: 8, border: 'none', background: C.teal, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                {savingContact ? 'Saving…' : 'Save'}
-              </button>
-              <button
-                onClick={() => setEditContact(false)}
-                style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', background: 'none', fontSize: 13, cursor: 'pointer', color: '#64748B' }}>
-                Cancel
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.tealLight,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 15, fontWeight: 800, color: C.teal }}>
+                {estimate.lead_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: textP }}>{estimate.lead_name || 'Client'}</div>
+                {estimate.contact_phone && (
+                  <div style={{ fontSize: 13, color: textS }}>{estimate.contact_phone}</div>
+                )}
+                {estimate.contact_email ? (
+                  <div style={{ fontSize: 13, color: textS }}>{estimate.contact_email}</div>
+                ) : (
+                  <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600 }}>⚠ No email — add in lead</div>
+                )}
+              </div>
             </div>
+            <a
+              href={`/dashboard/leads/${(estimate as any).lead_id}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 13, color: C.teal, fontWeight: 700, textDecoration: 'none' }}>
+              Edit in Lead →
+            </a>
+          </div>
+        ) : (
+          /* ── Blank estimate (no lead): editable contact fields ── */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {!editContact ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.tealLight,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 15, fontWeight: 800, color: C.teal }}>
+                    {estimate.lead_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: textP }}>{estimate.lead_name || 'New Client'}</div>
+                    {estimate.contact_phone && <div style={{ fontSize: 13, color: textS }}>{estimate.contact_phone}</div>}
+                    {estimate.contact_email
+                      ? <div style={{ fontSize: 13, color: textS }}>{estimate.contact_email}</div>
+                      : <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600 }}>⚠ No email — required to send</div>
+                    }
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setContactEmail(estimate.contact_email ?? ''); setContactPhone(estimate.contact_phone ?? ''); setEditContact(true) }}
+                  style={{ background: 'none', border: 'none', color: C.teal, fontWeight: 700, fontSize: 13, cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+                  Edit contact
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  type="email" placeholder="Email address (required to send)" value={contactEmail}
+                  onChange={e => setContactEmail(e.target.value)}
+                  style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                />
+                <input
+                  type="tel" placeholder="Phone number" value={contactPhone}
+                  onChange={e => setContactPhone(e.target.value)}
+                  style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    disabled={savingContact}
+                    onClick={async () => {
+                      setSavingContact(true)
+                      try {
+                        await onSave({ contact_email: contactEmail.trim() || undefined, contact_phone: contactPhone.trim() || undefined })
+                        setEditContact(false)
+                      } finally { setSavingContact(false) }
+                    }}
+                    style={{ flex: 1, padding: '7px 12px', borderRadius: 8, border: 'none', background: C.teal, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                    {savingContact ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditContact(false)}
+                    style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', background: 'none', fontSize: 13, cursor: 'pointer', color: '#64748B' }}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
