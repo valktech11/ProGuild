@@ -433,28 +433,33 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
         </div>
 
 
-        <button onClick={handleSave} disabled={saving}
-          style={{
-            padding: '9px 20px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-            cursor: saving ? 'default' : 'pointer',
-            transition: 'all 0.2s',
-            // Dirty: teal filled — demands attention. Clean: grey outline — quiet
-            border: isDirty ? 'none' : `1.5px solid ${border}`,
-            background: saving ? '#CBD5E1' : isDirty ? C.teal : 'transparent',
-            color: isDirty ? '#fff' : textS,
-            boxShadow: isDirty && !saving ? '0 2px 8px rgba(15,118,110,0.3)' : 'none',
-          }}>
-          {saving ? 'Saving…' : isDirty ? '● Save changes' : 'Saved'}
-        </button>
+        {isDirty ? (
+          <button onClick={handleSave} disabled={saving}
+            style={{
+              padding: '9px 20px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+              cursor: saving ? 'default' : 'pointer',
+              transition: 'all 0.2s',
+              border: 'none',
+              background: saving ? '#CBD5E1' : C.teal,
+              color: '#fff',
+              boxShadow: saving ? 'none' : '0 2px 8px rgba(15,118,110,0.3)',
+            }}>
+            {saving ? 'Saving…' : '● Save changes'}
+          </button>
+        ) : (
+          <span style={{ fontSize: 14, fontWeight: 600, color: textS, padding: '9px 4px' }}>
+            Saved
+          </span>
+        )}
 
         {(() => {
+          const terminal = ['approved', 'void', 'declined', 'paid'].includes(estimate.status)
+          if (terminal) return null
           const hasEmail = !!(estimate.contact_email)
-          const alreadySent = !['draft', 'viewed'].includes(estimate.status)
-          if (alreadySent) return null
+          const isSent   = estimate.status === 'sent'
           if (!hasEmail) return (
             <button
               onClick={() => {
-                // Scroll to recipient card in right panel
                 document.getElementById('pg-recipient-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
               }}
               style={{ padding: '9px 22px', borderRadius: 10, border: '2px solid #F59E0B',
@@ -468,14 +473,14 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           )
           return (
             <button onClick={onSend}
-              style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
-                background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
-                color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              style={{ padding: '9px 22px', borderRadius: 10, border: isSent ? `1.5px solid ${C.teal}` : 'none',
+                background: isSent ? 'transparent' : `linear-gradient(135deg, ${C.teal}, #0D9488)`,
+                color: isSent ? C.teal : '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
-              Send to Homeowner
+              {isSent ? 'Resend' : 'Send to Homeowner'}
             </button>
           )
         })()}
@@ -501,6 +506,12 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             wastePct={wastePct} setWastePct={setWastePct}
             editMeas={editMeas} setEditMeas={setEditMeas}
             savingMeas={savingMeas} onSaveMeas={saveMeasurements}
+          />
+
+          {/* Client contact — only for blank estimates (no lead) */}
+          <ClientContactCard
+            estimate={estimate} onSave={onSave}
+            card={card} border={border} textP={textP} textS={textS}
           />
 
           {/* Proposal type toggle */}
@@ -670,6 +681,87 @@ function ProgressTimeline({ timeline, border, textS, card }: {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+
+// ── ClientContactCard ──────────────────────────────────────────────────────────
+// Shows below PropertyCard in the left panel.
+// Lead-linked: read-only contact info (email resolved from lead server-side). No edit UI.
+// Blank estimate (no lead_id): editable name/email/phone, saves to estimates.contact_email/phone.
+function ClientContactCard({ estimate, onSave, card, border, textP, textS }: {
+  estimate: RoofingEstimate
+  onSave: (updates: Partial<RoofingEstimate>) => Promise<void>
+  card: string; border: string; textP: string; textS: string
+}) {
+  const hasLead = !!(estimate as any).lead_id
+  const [editing, setEditing]     = useState(false)
+  const [email,   setEmail]       = useState(estimate.contact_email ?? '')
+  const [phone,   setPhone]       = useState(estimate.contact_phone ?? '')
+  const [saving,  setSaving]      = useState(false)
+
+  // Lead-linked: no card at all — contact info lives on the lead
+  if (hasLead) return null
+
+  // Blank estimate: editable contact fields
+  const hasEmail = !!(estimate.contact_email)
+
+  return (
+    <div id="pg-recipient-card" style={{ background: card, borderRadius: 16, padding: '18px 24px',
+      boxShadow: SHADOW_SM, border: `1px solid ${!hasEmail ? '#FCA5A5' : border}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const,
+          letterSpacing: '0.1em', color: textS }}>Client Contact</div>
+        {!editing && (
+          <button onClick={() => { setEmail(estimate.contact_email ?? ''); setPhone(estimate.contact_phone ?? ''); setEditing(true) }}
+            style={{ background: 'none', border: 'none', color: C.teal, fontWeight: 700,
+              fontSize: 13, cursor: 'pointer', padding: 0 }}>
+            {hasEmail ? 'Edit' : '+ Add contact'}
+          </button>
+        )}
+      </div>
+
+      {!editing ? (
+        <div>
+          {hasEmail ? (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+              <div style={{ fontSize: 14, color: textP }}>{estimate.contact_email}</div>
+              {estimate.contact_phone && <div style={{ fontSize: 13, color: textS }}>{estimate.contact_phone}</div>}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: '#EF4444', fontWeight: 600 }}>
+              ⚠ No email — required to send proposal
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+          <input type="email" placeholder="Email address (required to send)"
+            value={email} onChange={e => setEmail(e.target.value)}
+            style={{ padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${C.teal}`,
+              fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' as const }} />
+          <input type="tel" placeholder="Phone number"
+            value={phone} onChange={e => setPhone(e.target.value)}
+            style={{ padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${border}`,
+              fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' as const }} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button disabled={saving} onClick={async () => {
+              setSaving(true)
+              try { await onSave({ contact_email: email.trim() || undefined, contact_phone: phone.trim() || undefined }); setEditing(false) }
+              finally { setSaving(false) }
+            }} style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
+              background: C.teal, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button onClick={() => setEditing(false)}
+              style={{ padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${border}`,
+                background: 'none', fontSize: 13, cursor: 'pointer', color: textS }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1292,12 +1384,6 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
 }) {
   const expiring = new Date(validUntil) < new Date(Date.now() + 3 * 86400000)
 
-  // Edit contact inline state — local to RightPanel
-  const [editContact,   setEditContact]   = useState(false)
-  const [contactEmail,  setContactEmail]  = useState(estimate.contact_email ?? '')
-  const [contactPhone,  setContactPhone]  = useState(estimate.contact_phone ?? '')
-  const [savingContact, setSavingContact] = useState(false)
-
   return (
     <div style={{ position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
@@ -1423,102 +1509,6 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
         </button>
       </div>
 
-      {/* Recipient */}
-      <div id="pg-recipient-card" style={{ background: card, borderRadius: 16, padding: 20, boxShadow: SHADOW_SM,
-        border: `1px solid ${border}` }}>
-        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
-          letterSpacing: '0.1em', color: textS, marginBottom: 14 }}>Recipient</div>
-
-        {(estimate as any).lead_id ? (
-          /* ── Lead-linked estimate: read-only, edit via lead ── */
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.tealLight,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 15, fontWeight: 800, color: C.teal }}>
-                {estimate.lead_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
-              </div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: textP }}>{estimate.lead_name || 'Client'}</div>
-                {estimate.contact_phone && (
-                  <div style={{ fontSize: 13, color: textS }}>{estimate.contact_phone}</div>
-                )}
-                {estimate.contact_email ? (
-                  <div style={{ fontSize: 13, color: textS }}>{estimate.contact_email}</div>
-                ) : (
-                  <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600 }}>⚠ No email — add in lead</div>
-                )}
-              </div>
-            </div>
-            <a
-              href={`/dashboard/pipeline/${(estimate as any).lead_id}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 13, color: C.teal, fontWeight: 700, textDecoration: 'none' }}>
-              Edit in Lead →
-            </a>
-          </div>
-        ) : (
-          /* ── Blank estimate (no lead): editable contact fields ── */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {!editContact ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.tealLight,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 15, fontWeight: 800, color: C.teal }}>
-                    {estimate.lead_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || '?'}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: textP }}>{estimate.lead_name || 'New Client'}</div>
-                    {estimate.contact_phone && <div style={{ fontSize: 13, color: textS }}>{estimate.contact_phone}</div>}
-                    {estimate.contact_email
-                      ? <div style={{ fontSize: 13, color: textS }}>{estimate.contact_email}</div>
-                      : <div style={{ fontSize: 12, color: '#EF4444', fontWeight: 600 }}>⚠ No email — required to send</div>
-                    }
-                  </div>
-                </div>
-                <button
-                  onClick={() => { setContactEmail(estimate.contact_email ?? ''); setContactPhone(estimate.contact_phone ?? ''); setEditContact(true) }}
-                  style={{ background: 'none', border: 'none', color: C.teal, fontWeight: 700, fontSize: 13, cursor: 'pointer', padding: 0, textAlign: 'left' }}>
-                  Edit contact
-                </button>
-              </>
-            ) : (
-              <>
-                <input
-                  type="email" placeholder="Email address (required to send)" value={contactEmail}
-                  onChange={e => setContactEmail(e.target.value)}
-                  style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
-                />
-                <input
-                  type="tel" placeholder="Phone number" value={contactPhone}
-                  onChange={e => setContactPhone(e.target.value)}
-                  style={{ padding: '7px 10px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
-                />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    disabled={savingContact}
-                    onClick={async () => {
-                      setSavingContact(true)
-                      try {
-                        await onSave({ contact_email: contactEmail.trim() || undefined, contact_phone: contactPhone.trim() || undefined })
-                        setEditContact(false)
-                      } finally { setSavingContact(false) }
-                    }}
-                    style={{ flex: 1, padding: '7px 12px', borderRadius: 8, border: 'none', background: C.teal, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                    {savingContact ? 'Saving…' : 'Save'}
-                  </button>
-                  <button
-                    onClick={() => setEditContact(false)}
-                    style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', background: 'none', fontSize: 13, cursor: 'pointer', color: '#64748B' }}>
-                    Cancel
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   )
 }
