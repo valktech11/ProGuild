@@ -100,6 +100,8 @@ interface Props {
   onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number }) => Promise<void>
   materialPrices?: Record<string, number> | null
   onDirty?: () => void
+  // Allows parent (page.tsx) to surface messages in the toolbar — onSend/onSave errors
+  externalSaveMsg?: string | null
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -198,7 +200,7 @@ function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate, materialPrices, onDirty }: Props) {
+export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg }: Props) {
   const dk = darkMode ?? false
 
   // Proposal type
@@ -423,9 +425,9 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             color: estimate.status === 'draft' ? '#854D0E' : C.teal }}>
             {estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)}
           </span>
-          {saveMsg && (
-            <span style={{ fontSize: 13, fontWeight: 600, color: saveMsg.includes('✓') ? C.green : C.danger }}>
-              {saveMsg}
+          {(saveMsg || externalSaveMsg) && (
+            <span style={{ fontSize: 13, fontWeight: 600, color: (saveMsg || externalSaveMsg)!.includes('✓') ? C.green : C.danger }}>
+              {saveMsg || externalSaveMsg}
             </span>
           )}
         </div>

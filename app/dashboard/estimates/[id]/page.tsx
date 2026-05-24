@@ -102,6 +102,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [isSending, setIsSending] = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [confirmDeleteTpl, setConfirmDeleteTpl] = useState<{ id: string; name: string } | null>(null)
   const [isDirty, setIsDirty] = useState(false)
@@ -443,10 +444,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           }}
           onSend={async () => {
             if (!estimate.contact_email) {
-              setSaveMsg('No email on file — use Edit Contact to add email first')
+              setSaveMsg('No email on file — add email via Edit Contact first')
               setTimeout(() => setSaveMsg(null), 4000)
               return
             }
+            if (isSending) return
+            setIsSending(true)
+            setSaveMsg('Sending…')
             try {
               const sentAt = new Date().toISOString()
               // 1. Mark as sent
@@ -470,10 +474,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             } catch (err: any) {
               setSaveMsg(err?.message || 'Send failed — try again')
               setTimeout(() => setSaveMsg(null), 4000)
+            } finally {
+              setIsSending(false)
             }
           }}
           onBack={() => router.push(backNav().href)}
           darkMode={dk}
+          externalSaveMsg={saveMsg}
         />
       </DashboardShell>
     )
