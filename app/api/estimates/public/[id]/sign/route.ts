@@ -24,7 +24,7 @@ export async function POST(
   // Validate estimate exists and is signable
   const { data: est } = await sb
     .from('estimates')
-    .select('id, status, valid_until, pro_id, lead_id, tiered_data')
+    .select('id, status, valid_until, pro_id, lead_id, tax_rate')
     .eq('id', id).single()
 
   if (!est) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -32,6 +32,15 @@ export async function POST(
     return NextResponse.json({ error: 'Cannot sign in current state' }, { status: 400 })
   if (new Date(est.valid_until) < new Date())
     return NextResponse.json({ error: 'Estimate expired' }, { status: 400 })
+
+  // Fetch roofing_estimate_data — tiered_data lives here, NOT on estimates table
+  const { data: roofingEst } = await sb
+    .from('roofing_estimate_data')
+    .select('tiered_data, estimate_type, payment_milestones')
+    .eq('estimate_id', id)
+    .maybeSingle()
+
+  const tieredData = roofingEst?.tiered_data as any
 
   // Convert base64 data URL → Buffer
   const base64 = sig_data_url.replace(/^data:image\/png;base64,/, '')
@@ -62,17 +71,21 @@ export async function POST(
     signed_at:         new Date().toISOString(),
   })
 
-  // Update estimate: approved + selected tier
-  const tieredData = est.tiered_data as any
-  const updatedTieredData = tieredData && selected_tier
-    ? { ...tieredData, selected_tier }
-    : tieredData
-
+  // Update estimate status
   await sb.from('estimates').update({
     status:       'approved',
     approved_at:  new Date().toISOString(),
-    tiered_data:  updatedTieredData ?? est.tiered_data,
   }).eq('id', id)
+
+  // Write selected_tier back to roofing_estimate_data — tiered_data lives there
+  if (roofingEst && tieredData) {
+    const updatedTieredData = selected_tier
+      ? { ...tieredData, selected_tier }
+      : tieredData
+    await sb.from('roofing_estimate_data')
+      .update({ tiered_data: updatedTieredData, updated_at: new Date().toISOString() })
+      .eq('estimate_id', id)
+  }
 
   // Auto-void sibling estimates for same lead
   if (est.lead_id) {
@@ -113,10 +126,25 @@ export async function POST(
         const { data: numData } = await sb.rpc('next_invoice_number', { pro_id_input: fullEst.pro_id })
         const invoiceNumber = numData || `INV-${Date.now().toString().slice(-4)}`
 
-        const milestones = (fullEst.roofing as any)?.payment_milestones ?? null
+        const milestones = roofingEst?.payment_milestones ?? (fullEst.roofing as any)?.payment_milestones ?? null
         const depositPct = fullEst.deposit_percent ?? 30
+
+        // For GBB: use the selected tier's subtotal + recalculate tax
+        // For standard: use estimates.subtotal/total directly
+        let invoiceSubtotal = fullEst.subtotal
+        let invoiceTaxAmount = fullEst.tax_amount
+        let invoiceTotal = fullEst.total
+        if (selected_tier && tieredData?.tiers) {
+          const selTier = tieredData.tiers.find((t: any) => t.key === selected_tier)
+          if (selTier) {
+            invoiceSubtotal  = selTier.subtotal
+            invoiceTaxAmount = Math.round(selTier.subtotal * ((fullEst.tax_rate ?? 0) / 100) * 100) / 100
+            invoiceTotal     = invoiceSubtotal + invoiceTaxAmount
+          }
+        }
+
         const depositAmt = milestones?.[0]?.amount
-          ?? Math.round(fullEst.total * (depositPct / 100) * 100) / 100
+          ?? Math.round(invoiceTotal * (depositPct / 100) * 100) / 100
 
         // Resolve contact email from lead (live source of truth) — estimates.contact_email may be stale/null
         let invoiceContactEmail = fullEst.contact_email ?? null
@@ -143,11 +171,11 @@ export async function POST(
           contact_phone:   invoiceContactPhone,
           trade:           fullEst.trade_slug ?? 'roofing',
           status:          'draft',
-          subtotal:        fullEst.subtotal,
+          subtotal:        invoiceSubtotal,
           tax_rate:        fullEst.tax_rate,
-          tax_amount:      fullEst.tax_amount,
-          total:           fullEst.total,
-          balance_due:     fullEst.total,
+          tax_amount:      invoiceTaxAmount,
+          total:           invoiceTotal,
+          balance_due:     invoiceTotal,
           amount_paid:     0,
           deposit_paid:    0,
           require_deposit: true,

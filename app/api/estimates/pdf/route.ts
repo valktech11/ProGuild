@@ -25,14 +25,31 @@ export async function GET(req: NextRequest) {
     .eq('id', estimate.pro_id)
     .single()
 
+  // Fetch roofing_estimate_data — estimate_type, tiered_data, scope_of_work etc live here
+  const { data: roofingEst } = await sb
+    .from('roofing_estimate_data')
+    .select('estimate_type, tiered_data, scope_of_work, payment_milestones, property_address, square_count, pitch, waste_pct')
+    .eq('estimate_id', id)
+    .maybeSingle()
+
   const pdfData = {
     ...estimate,
-    items: estimate.items ?? [],
-    pro_name: pro?.full_name ?? '',
+    items:              estimate.items ?? [],
+    // Roofing-specific fields from roofing_estimate_data
+    estimate_type:      roofingEst?.estimate_type      ?? 'standard',
+    tiered_data:        roofingEst?.tiered_data        ?? null,
+    scope_of_work:      roofingEst?.scope_of_work      ?? null,
+    payment_milestones: roofingEst?.payment_milestones ?? null,
+    property_address:   roofingEst?.property_address   ?? null,
+    square_count:       roofingEst?.square_count       ?? null,
+    pitch:              roofingEst?.pitch              ?? null,
+    waste_pct:          roofingEst?.waste_pct          ?? null,
+    // Pro info
+    pro_name:  pro?.full_name  ?? '',
     pro_trade: pro?.trade_slug ?? '',
-    pro_city: pro?.city ?? '',
-    pro_state: pro?.state ?? '',
-    pro_phone: pro?.phone ?? '',
+    pro_city:  pro?.city       ?? '',
+    pro_state: pro?.state      ?? '',
+    pro_phone: pro?.phone      ?? '',
   }
 
   try {
