@@ -52,6 +52,11 @@ export async function GET(
   // Build safe public response — no internal fields
   const { contact_email, contact_phone, pro_id, pro: _pro, ...safe } = estimate
 
+  // Strip unit_price and qty from items — homeowner sees name + amount only
+  if (Array.isArray(safe.items)) {
+    safe.items = safe.items.map(({ id, name, amount, description }: any) => ({ id, name, amount, description }))
+  }
+
   return NextResponse.json({
     estimate: {
       ...safe,

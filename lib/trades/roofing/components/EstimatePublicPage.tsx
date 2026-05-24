@@ -172,19 +172,73 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
               </div>
             </>
           ) : (
-            <div style={{ background: C.card, borderRadius: 20, padding: 28, marginBottom: 24,
-              boxShadow: SHAD }}>
-              <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase',
-                letterSpacing: '0.1em', color: C.secondary, marginBottom: 16 }}>
-                Estimate Total
+            {/* When items exist, total is shown inside the items section — no separate card needed */}
+            {(estimate.items?.length ?? 0) === 0 && (
+              <div style={{ background: C.card, borderRadius: 20, padding: 28, marginBottom: 24,
+                boxShadow: SHAD }}>
+                <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase',
+                  letterSpacing: '0.1em', color: C.secondary, marginBottom: 16 }}>
+                  Estimate Total
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 16, color: C.secondary }}>Total</span>
+                  <span style={{ fontSize: 48, fontWeight: 900, color: C.teal, letterSpacing: '-2px' }}>
+                    {fmt(estimate.total)}
+                  </span>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 16, color: C.secondary }}>Total</span>
-                <span style={{ fontSize: 48, fontWeight: 900, color: C.teal, letterSpacing: '-2px' }}>
-                  {fmt(estimate.total)}
-                </span>
+            )}
+          )}
+
+          {/* Line items — standard estimate only, name + amount, no unit price */}
+          {!isGBB && (estimate.items?.length ?? 0) > 0 && (
+            <ContentSection title="What's Included">
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 0 }}>
+                {estimate.items!.map((item, i) => (
+                  <div key={item.id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                    padding: '11px 0',
+                    borderBottom: i < estimate.items!.length - 1 ? `1px solid ${C.border}` : 'none',
+                    gap: 16,
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{item.name}</div>
+                      {(item as any).description && (
+                        <div style={{ fontSize: 12, color: C.secondary, marginTop: 2 }}>
+                          {(item as any).description}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, flexShrink: 0 }}>
+                      {fmt(item.amount)}
+                    </div>
+                  </div>
+                ))}
+                {/* Subtotal + tax + total */}
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: `2px solid ${C.border}` }}>
+                  {estimate.tax_amount > 0 && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13,
+                        color: C.secondary, marginBottom: 6 }}>
+                        <span>Subtotal</span>
+                        <span>{fmt(estimate.subtotal)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13,
+                        color: C.secondary, marginBottom: 10 }}>
+                        <span>Tax ({estimate.tax_rate}%)</span>
+                        <span>{fmt(estimate.tax_amount)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>Total</span>
+                    <span style={{ fontSize: 26, fontWeight: 900, color: C.teal, letterSpacing: '-0.5px' }}>
+                      {fmt(estimate.total)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            </ContentSection>
           )}
 
           {/* Scope */}
