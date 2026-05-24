@@ -27,6 +27,13 @@ export async function GET(
     return NextResponse.json({ error: 'Estimate not available' }, { status: 404 })
   }
 
+  // Fetch roofing_estimate_data — estimate_type and tiered_data live here, not on estimates table
+  const { data: roofingEstData } = await sb
+    .from('roofing_estimate_data')
+    .select('estimate_type, tiered_data, scope_of_work, payment_milestones, property_address, square_count, pitch, waste_pct')
+    .eq('estimate_id', id)
+    .maybeSingle()
+
   // Fetch roofing job data if roofing trade
   let roofingData: any = null
   if (estimate.lead_id && (estimate.pro as any)?.trade_slug?.includes('roof')) {
@@ -65,10 +72,16 @@ export async function GET(
       pro_city:  pro?.city ?? null,
       pro_state: pro?.state ?? null,
       pro_phone: pro?.phone_cell ?? null,
-      // Roofing measurements
-      square_count:      roofingData?.square_count ?? null,
-      pitch:             roofingData?.pitch ?? null,
-      waste_pct:         roofingData?.waste_pct ?? null,
+      // Roofing estimate type + tiers — from roofing_estimate_data
+      estimate_type:      roofingEstData?.estimate_type ?? 'standard',
+      tiered_data:        roofingEstData?.tiered_data   ?? null,
+      scope_of_work:      roofingEstData?.scope_of_work ?? safe.scope_of_work ?? null,
+      payment_milestones: roofingEstData?.payment_milestones ?? null,
+      property_address:   roofingEstData?.property_address ?? null,
+      // Roofing measurements — roofing_estimate_data first, then roofing_job_data
+      square_count:      roofingEstData?.square_count ?? roofingData?.square_count ?? null,
+      pitch:             roofingEstData?.pitch        ?? roofingData?.pitch        ?? null,
+      waste_pct:         roofingEstData?.waste_pct    ?? roofingData?.waste_pct    ?? null,
       // Insurance (public facing — only show if claim)
       insurance_claim:   roofingData?.insurance_claim ?? false,
       deductible:        roofingData?.deductible ?? null,
