@@ -87,6 +87,10 @@ export async function GET(
       pitch:         roofing.pitch        ?? roofingJobData?.pitch        ?? null,
       waste_pct:     roofing.waste_pct    ?? roofingJobData?.waste_pct    ?? null,
       perimeter:     roofingJobData?.perimeter ?? null,
+      // Contact info — prefer lead (live source of truth), fall back to estimate copy
+      contact_email: lead.contact_email ?? estClean.contact_email ?? null,
+      contact_phone: lead.contact_phone ?? estClean.contact_phone ?? null,
+      lead_name:     lead.contact_name  ?? estClean.lead_name     ?? null,
       // Insurance (always from roofing_job_data — live claim state)
       insurance_claim:   roofingJobData?.insurance_claim   ?? false,
       approved_amount:   roofingJobData?.approved_amount   ?? null,
