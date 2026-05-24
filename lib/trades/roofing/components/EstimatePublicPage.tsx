@@ -172,22 +172,24 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
               </div>
             </>
           ) : (
-            {/* When items exist, total is shown inside the items section — no separate card needed */}
-            {(estimate.items?.length ?? 0) === 0 && (
-              <div style={{ background: C.card, borderRadius: 20, padding: 28, marginBottom: 24,
-                boxShadow: SHAD }}>
-                <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase',
-                  letterSpacing: '0.1em', color: C.secondary, marginBottom: 16 }}>
-                  Estimate Total
+            <>
+              {/* When items exist, total is shown inside the items section — no separate card needed */}
+              {(estimate.items?.length ?? 0) === 0 && (
+                <div style={{ background: C.card, borderRadius: 20, padding: 28, marginBottom: 24,
+                  boxShadow: SHAD }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase',
+                    letterSpacing: '0.1em', color: C.secondary, marginBottom: 16 }}>
+                    Estimate Total
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: 16, color: C.secondary }}>Total</span>
+                    <span style={{ fontSize: 48, fontWeight: 900, color: C.teal, letterSpacing: '-2px' }}>
+                      {fmt(estimate.total)}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: 16, color: C.secondary }}>Total</span>
-                  <span style={{ fontSize: 48, fontWeight: 900, color: C.teal, letterSpacing: '-2px' }}>
-                    {fmt(estimate.total)}
-                  </span>
-                </div>
-              </div>
-            )}
+              )}
+            </>
           )}
 
           {/* Line items — standard estimate only, name + amount, no unit price */}
