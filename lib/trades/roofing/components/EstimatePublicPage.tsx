@@ -422,14 +422,50 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                   </div>
                 </>
               ) : (
-                /* GBB only: no tier selected yet */
-                <div style={{ textAlign: 'center', padding: '40px 16px', color: C.muted, minHeight: 160,
-                  display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ fontSize: 32, marginBottom: 12 }}>☝️</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.secondary }}>
-                    Select an option to see your summary
-                  </div>
-                </div>
+                /* GBB only: no tier selected — show price range teaser */
+                (() => {
+                  const subtotals = tiers.map((t: any) => t.subtotal ?? 0).filter(Boolean)
+                  const minPrice  = Math.min(...subtotals)
+                  const maxPrice  = Math.max(...subtotals)
+                  const fmtP = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0 })
+                  return (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const,
+                        letterSpacing: '0.1em', color: C.teal, marginBottom: 12 }}>
+                        Your Investment Range
+                      </div>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: C.text,
+                        letterSpacing: '-1px', marginBottom: 4 }}>
+                        {fmtP(minPrice)} – {fmtP(maxPrice)}
+                      </div>
+                      <div style={{ fontSize: 13, color: C.secondary, marginBottom: 20 }}>
+                        Select an option above to see your exact quote
+                      </div>
+                      {/* Tier price pills */}
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+                        {tiers.map((t: any) => (
+                          <div key={t.key} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '8px 12px', borderRadius: 10,
+                            background: t.key === 'upgraded' ? C.tealLight : '#F8FAFC',
+                            border: `1px solid ${t.key === 'upgraded' ? '#99F6E4' : C.border}`,
+                          }}>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: t.key === 'upgraded' ? C.teal : C.text }}>
+                                {t.label}
+                              </div>
+                              <div style={{ fontSize: 11, color: C.secondary }}>{t.shingle_brand}</div>
+                            </div>
+                            <div style={{ fontSize: 14, fontWeight: 800,
+                              color: t.key === 'upgraded' ? C.teal : C.text }}>
+                              {fmtP(t.subtotal)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()
               )}
             </div>
 
@@ -596,14 +632,7 @@ function PublicTierCard({ tier, selected, onSelect, insuranceDed }: {
         </div>
       )}
 
-      {/* Selected checkmark */}
-      {selected && (
-        <div style={{ position: 'absolute', top: 22, right: 22,
-          width: 36, height: 36, borderRadius: '50%',
-          background: isPremium ? 'rgba(255,255,255,0.2)' : C.teal,
-          color: '#fff', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', fontSize: 18, fontWeight: 900 }}>✓</div>
-      )}
+      {/* Selected indicator is shown on the button below — no overlay needed */}
 
       <div style={{ display: 'flex', justifyContent: 'space-between',
         alignItems: 'flex-start', gap: 16 }}>
