@@ -205,7 +205,7 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                   }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{item.name}</div>
-                      {(item as any).description && (
+                      {(item as any).description && (item as any).description !== item.name && (
                         <div style={{ fontSize: 12, color: C.secondary, marginTop: 2 }}>
                           {(item as any).description}
                         </div>
