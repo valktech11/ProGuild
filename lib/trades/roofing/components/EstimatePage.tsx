@@ -1515,7 +1515,7 @@ function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS
         </div>
       )}
       {show && (
-        <textarea value={terms} onChange={e => onChange(e.target.value)}
+        <textarea value={terms} onChange={e => onChange?.(e.target.value)}
           rows={5}
           style={{ width: '100%', marginTop: 14, border: `1.5px solid ${border}`, borderRadius: 10,
             padding: '12px 14px', fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
