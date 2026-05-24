@@ -117,7 +117,7 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
           Proposal Approved!
         </h2>
         <p style={{ fontSize: 15, color: C.secondary, lineHeight: 1.8, marginBottom: 24 }}>
-          Thank you, {estimate.lead_name.split(' ')[0]}. Your signature has been recorded.{' '}
+          Thank you{estimate.lead_name && !estimate.lead_name.match(/^\d/) ? `, ${estimate.lead_name.split(' ')[0]}` : ''}. Your signature has been recorded.{' '}
           {estimate.pro_name} will be in touch shortly to confirm your installation date.
         </p>
         <div style={{ background: C.tealLight, borderRadius: 14, padding: 20, textAlign: 'left' }}>
@@ -574,13 +574,18 @@ function Hero({ estimate }: { estimate: PublicRoofingEstimate }) {
           textTransform: 'uppercase', opacity: 0.5, marginBottom: 10 }}>
           Roofing Proposal
         </div>
+        {/* Title: property address (source of truth from roofing_estimate_data) */}
         <h1 style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-1px', marginBottom: 6 }}>
-          For {estimate.lead_name}
+          For {estimate.property_address || estimate.lead_name}
         </h1>
-        {estimate.property_address && (
+        {/* Subtitle: client name — only if it looks like a person's name (not another address) */}
+        {estimate.lead_name && estimate.property_address && estimate.lead_name !== estimate.property_address && (
           <div style={{ fontSize: 15, opacity: 0.75, marginBottom: 24 }}>
-            {estimate.property_address}
+            Prepared for {estimate.lead_name}
           </div>
+        )}
+        {!estimate.lead_name && !estimate.property_address && (
+          <div style={{ marginBottom: 24 }} />
         )}
 
         {/* Measurement pills */}
@@ -782,7 +787,7 @@ function SignatureSection({ lead_name, selectedTierLabel, onConfirm, approving }
       </h3>
       {selectedTierLabel && (
         <p style={{ fontSize: 14, color: C.secondary, lineHeight: 1.7, marginBottom: 20 }}>
-          By signing, {lead_name.split(' ')[0]}, you approve the{' '}
+          By signing, {lead_name && !lead_name.match(/^\d/) ? lead_name.split(' ')[0] : 'below'}, you approve the{' '}
           <strong style={{ color: C.teal }}>{selectedTierLabel}</strong> option
           and agree to the payment schedule and terms above.
         </p>
