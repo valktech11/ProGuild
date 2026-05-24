@@ -124,16 +124,28 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`
 
+  let resendMessageId: string | null = null
   try {
-    await resend.emails.send({
+    const { data: resendData, error: resendErr } = await resend.emails.send({
       from:    'ProGuild <hello@proguild.ai>',
       to:      contactEmail,
       subject: `Your roofing proposal is ready — ${total}${property ? ` for ${property}` : ''}`,
       html,
     })
-    return NextResponse.json({ ok: true })
+    if (resendErr) throw new Error(resendErr.message)
+    resendMessageId = resendData?.id ?? null
   } catch (err: any) {
     console.error('[estimates/send] Resend error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
+
+  // Store Resend message ID + sent_to_email for traceability and bounce matching
+  await sb.from('estimates').update({
+    resend_message_id: resendMessageId,
+    sent_to_email:     contactEmail,
+    email_status:      'sent',
+    updated_at:        new Date().toISOString(),
+  }).eq('id', estimateId)
+
+  return NextResponse.json({ ok: true, resend_message_id: resendMessageId })
 }

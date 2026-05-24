@@ -470,12 +470,27 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // ── Activity ──────────────────────────────────────────────────────────────
   function activity() {
     if (!lead) return []
-    const items:{date:string;title:string;sub:string;type:string}[] = []
+    const items:{date:string;title:string;sub:string;type:string;warn?:boolean}[] = []
     items.push({date:lead.created_at,title:'Lead created',sub:`From ${(lead.lead_source||'unknown').replace(/_/g,' ')}${lead.message?` · "${lead.message.slice(0,60)}${lead.message.length>60?'…':''}"`:``}`,type:'created'})
     if (lead.quoted_amount!=null) items.push({date:lead.updated_at||lead.created_at,title:'Quote set',sub:`$${Number(lead.quoted_amount).toLocaleString()}`,type:'quote'})
     if (lead.scheduled_date) items.push({date:lead.updated_at||lead.created_at,title:'Job scheduled',sub:fmt(lead.scheduled_date),type:'scheduled'})
     if (lead.notes) lead.notes.split(/\n\n+/).filter(Boolean).forEach(n=>items.push({date:lead.updated_at||lead.created_at,title:'Note added',sub:n.slice(0,100)+(n.length>100?'…':''),type:'note'}))
-    return items.reverse()
+    // Estimate events — pull from linked estimate timestamps
+    if (est) {
+      if ((est as any).created_at) items.push({date:(est as any).created_at,title:`Estimate created`,sub:`#${est.estimate_number} · $${Number(est.total||0).toLocaleString()}`,type:'estimate'})
+      if ((est as any).sent_at) {
+        const bounced = (est as any).email_status === 'bounced'
+        const toEmail = (est as any).sent_to_email ? ` → ${(est as any).sent_to_email}` : ''
+        const bounceNote = bounced ? ` · Bounced: ${((est as any).email_bounce_reason||'recipient not found').slice(0,50)}` : ''
+        items.push({date:(est as any).sent_at,title:`Proposal sent`,sub:`#${est.estimate_number}${toEmail}${bounceNote}`,type:'estimate_sent',warn:bounced})
+      }
+      if ((est as any).viewed_at) {
+        const count = (est as any).viewed_count > 1 ? ` · ${(est as any).viewed_count}× views` : ''
+        items.push({date:(est as any).viewed_at,title:`Proposal viewed`,sub:`#${est.estimate_number}${count}`,type:'estimate_viewed'})
+      }
+      if ((est as any).approved_at) items.push({date:(est as any).approved_at,title:`Proposal approved`,sub:`#${est.estimate_number}`,type:'estimate_approved'})
+    }
+    return items.sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime())
   }
 
   // ── Theme ─────────────────────────────────────────────────────────────────
@@ -1259,22 +1274,27 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {/* Vertical rail */}
                             <div style={{position:'absolute',left:15,top:16,bottom:16,width:1,background:bdr,zIndex:0}}/>
                             {acts.map((item,i)=>{
-                              const ic=item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':BRAND.teal
-                              const ib=item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
+                              const warn=(item as any).warn===true
+                              const ic=warn?'#EF4444':item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':['estimate','estimate_sent','estimate_viewed','estimate_approved'].includes(item.type)?'#0F766E':BRAND.teal
+                              const ib=warn?'#FEF2F2':item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
                               return (
                                 <div key={i} style={{display:'flex',alignItems:'flex-start',gap:14,paddingBottom:i<acts.length-1?18:0,position:'relative',zIndex:1}}>
                                   {/* Timeline dot */}
                                   <div style={{width:30,height:30,borderRadius:'50%',background:ib,border:`2px solid ${ic}25`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                                     <Svg size={13} stroke={ic}>
-                                      {item.type==='note'     &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
-                                      {item.type==='quote'    &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
-                                      {item.type==='created'  &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
-                                      {item.type==='scheduled'&&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                                      {item.type==='note'             &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+                                      {item.type==='quote'            &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                                      {item.type==='created'          &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                                      {item.type==='scheduled'        &&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                                      {item.type==='estimate'         &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>}
+                                      {item.type==='estimate_sent'    &&<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>}
+                                      {item.type==='estimate_viewed'  &&<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
+                                      {item.type==='estimate_approved'&&<><polyline points="20 6 9 17 4 12"/></>}
                                     </Svg>
                                   </div>
                                   <div style={{flex:1,paddingTop:3}}>
-                                    <div style={{fontSize:14,fontWeight:600,color:tp,lineHeight:1.3}}>{item.title}</div>
-                                    <div style={{fontSize:12,color:ts,marginTop:2,lineHeight:1.4}}>{item.sub}</div>
+                                    <div style={{fontSize:14,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.3}}>{item.title}</div>
+                                    <div style={{fontSize:12,color:warn?'#EF4444':ts,marginTop:2,lineHeight:1.4}}>{item.sub}</div>
                                   </div>
                                   <div style={{fontSize:11,color:tsu,flexShrink:0,paddingTop:4,textAlign:'right',lineHeight:1.4}}>
                                     <div>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>

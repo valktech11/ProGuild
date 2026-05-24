@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await getSupabaseAdmin()
     .from('estimates')
-    .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until')
+    .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count')
     .eq('pro_id', proId)
     .order('created_at', { ascending: false })
 

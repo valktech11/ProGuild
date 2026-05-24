@@ -134,29 +134,37 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`
 
+  let resendMessageId: string | null = null
   try {
-    await resend.emails.send({
+    const { data: resendData, error: resendErr } = await resend.emails.send({
       from:    'ProGuild <hello@proguild.ai>',
       to:      inv.contact_email,
       subject: `Invoice ${invNumber} from ${proName} — ${amountDue} due`,
       html,
     })
+    if (resendErr) throw new Error(resendErr.message)
+    resendMessageId = resendData?.id ?? null
   } catch (err: any) {
     console.error('[invoices/send] Resend error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 
-  // Set status to 'sent' — this also unblocks the public /invoice/[id] page (which 404s on draft)
+  // Set status to 'sent' + store Resend message ID for traceability and bounce matching
   const { error: patchErr } = await sb
     .from('invoices')
-    .update({ status: 'sent', sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({
+      status:            'sent',
+      sent_at:           new Date().toISOString(),
+      resend_message_id: resendMessageId,
+      sent_to_email:     inv.contact_email,
+      email_status:      'sent',
+      updated_at:        new Date().toISOString(),
+    })
     .eq('id', invoice_id)
 
   if (patchErr) {
-    // Email delivered but status update failed — log, don't 500.
-    // Homeowner has the link. Status drift is recoverable.
     console.error('[invoices/send] status patch failed after email sent:', patchErr)
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, resend_message_id: resendMessageId })
 }

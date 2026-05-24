@@ -488,7 +488,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
       </div>
 
       {/* ── Progress timeline ── */}
-      <ProgressTimeline timeline={estimate.timeline ?? []} border={border} textS={textS} card={card} />
+      <ProgressTimeline timeline={estimate.timeline ?? []} border={border} textS={textS} card={card} estimate={estimate} />
 
       {/* ── Two-column layout ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, padding: '24px 32px',
@@ -634,13 +634,19 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   )
 }
 
-function ProgressTimeline({ timeline, border, textS, card }: {
+function ProgressTimeline({ timeline, border, textS, card, estimate }: {
   timeline: { event: string; label: string; timestamp: string | null }[]
   border: string; textS: string; card: string
+  estimate?: any
 }) {
+  const bounced   = estimate?.email_status === 'bounced'
+  const delivered = estimate?.email_status === 'delivered'
+  const sentEmail = estimate?.sent_to_email ?? null
+  const viewedCount = estimate?.viewed_count ?? 0
+
   const steps = [
-    { key: 'sent',     icon: '✉', label: 'Sent' },
-    { key: 'viewed',   icon: '👁', label: 'Viewed' },
+    { key: 'sent',     icon: bounced ? '⚠' : '✉', label: bounced ? 'Bounced' : 'Sent' },
+    { key: 'viewed',   icon: '👁', label: viewedCount > 1 ? `Viewed (${viewedCount}×)` : 'Viewed' },
     { key: 'approved', icon: '✓',  label: 'Approved' },
     { key: 'invoiced', icon: '📄', label: 'Invoice' },
     { key: 'paid',     icon: '$',  label: 'Payment received' },
@@ -651,26 +657,43 @@ function ProgressTimeline({ timeline, border, textS, card }: {
     <div style={{ background: card, borderBottom: `1px solid ${border}`, padding: '16px 32px' }}>
       <div style={{ display: 'flex', alignItems: 'center', maxWidth: 700, gap: 0 }}>
         {steps.map((step, i) => {
-          const done = doneKeys.includes(step.key)
-          const tl = timeline.find(t => t.event === step.key)
+          const done   = doneKeys.includes(step.key)
+          const tl     = timeline.find(t => t.event === step.key)
+          const isSent = step.key === 'sent'
+          const sentBounced = isSent && bounced
+          const bgColor = sentBounced ? '#FEF2F2' : done ? C.teal : '#F1F5F9'
+          const fgColor = sentBounced ? '#EF4444' : done ? '#fff' : C.muted
+          const borderColor = sentBounced ? '#FECACA' : done ? 'none' : `1.5px solid ${C.border}`
           return (
             <React.Fragment key={step.key}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: '50%', display: 'flex',
                   alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700,
-                  background: done ? C.teal : '#F1F5F9',
-                  color: done ? '#fff' : C.muted,
-                  border: done ? 'none' : `1.5px solid ${C.border}`,
+                  background: bgColor, color: fgColor,
+                  border: sentBounced ? `1.5px solid #FECACA` : done ? 'none' : `1.5px solid ${C.border}`,
                   transition: 'all 0.2s',
                 }}>
                   {step.icon}
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: done ? C.teal : textS }}>{step.label}</div>
+                <div style={{ textAlign: 'center', maxWidth: 90 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: sentBounced ? '#EF4444' : done ? C.teal : textS }}>
+                    {step.label}
+                  </div>
                   <div style={{ fontSize: 11, color: C.muted }}>
                     {tl?.timestamp ? new Date(tl.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Not yet'}
                   </div>
+                  {isSent && sentEmail && (
+                    <div style={{ fontSize: 10, color: sentBounced ? '#EF4444' : C.muted,
+                      marginTop: 2, wordBreak: 'break-all', maxWidth: 90 }}>
+                      {sentEmail}
+                    </div>
+                  )}
+                  {isSent && sentBounced && estimate?.email_bounce_reason && (
+                    <div style={{ fontSize: 10, color: '#EF4444', marginTop: 1 }}>
+                      {estimate.email_bounce_reason.slice(0, 40)}
+                    </div>
+                  )}
                 </div>
               </div>
               {i < steps.length - 1 && (
