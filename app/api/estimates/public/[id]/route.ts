@@ -75,8 +75,7 @@ export async function GET(
       // Roofing estimate type + tiers — from roofing_estimate_data
       estimate_type:      roofingEstData?.estimate_type ?? 'standard',
       tiered_data:        roofingEstData?.tiered_data   ?? null,
-      scope_of_work:      roofingEstData?.scope_of_work ?? safe.scope_of_work ?? null,
-      payment_milestones: roofingEstData?.payment_milestones ?? null,
+      scope_of_work:      roofingEstData?.scope_of_work ?? null,
       property_address:   roofingEstData?.property_address ?? null,
       // Roofing measurements — roofing_estimate_data first, then roofing_job_data
       square_count:      roofingEstData?.square_count ?? roofingData?.square_count ?? null,
@@ -85,11 +84,12 @@ export async function GET(
       // Insurance (public facing — only show if claim)
       insurance_claim:   roofingData?.insurance_claim ?? false,
       deductible:        roofingData?.deductible ?? null,
-      // Payment milestones
-      payment_milestones: milestones.length > 0 ? milestones.map((m: any) => ({
-        id: m.id, name: m.milestone_name, pct: m.percentage ?? 0,
-        amount: m.amount, due_when: m.due_at ?? '',
-      })) : null,
+      // Payment milestones — roofing_estimate_data is source of truth; fall back to payment_schedules
+      payment_milestones: roofingEstData?.payment_milestones
+        ?? (milestones.length > 0 ? milestones.map((m: any) => ({
+            id: m.id, name: m.milestone_name, pct: m.percentage ?? 0,
+            amount: m.amount, due_when: m.due_at ?? '',
+          })) : null),
     }
   })
 }
