@@ -1151,9 +1151,18 @@ function TierCard({ tier, selected, expanded, onToggleExpand, onSelect, onUpdate
 
       {/* ── Collapsed header — always visible ── */}
       <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* Selected indicator dot */}
-        <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-          background: selected ? C.teal : border, transition: 'background 0.2s' }} />
+        {/* Selected indicator — filled circle when selected, ring when not */}
+        <div style={{
+          width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+          background: selected ? C.teal : 'transparent',
+          border: selected ? `2px solid ${C.teal}` : `2px solid ${border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}>
+          {selected && (
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />
+          )}
+        </div>
 
         {/* Tier info */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1171,21 +1180,28 @@ function TierCard({ tier, selected, expanded, onToggleExpand, onSelect, onUpdate
 
         {/* Subtotal */}
         <div style={{ fontSize: 22, fontWeight: 900, color: selected ? C.teal : textP,
-          flexShrink: 0, marginRight: 12 }}>
+          flexShrink: 0 }}>
           {fmt(tier.subtotal)}
         </div>
 
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          {/* Select button */}
-          {onSelect && (
+          {/* Select button — prominent when not selected, quiet tick when selected */}
+          {onSelect && !selected && (
             <button onClick={onSelect}
-              style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              style={{ padding: '7px 16px', borderRadius: 8, cursor: 'pointer',
                 fontSize: 13, fontWeight: 700, transition: 'all 0.15s',
-                background: selected ? C.green : tier.key === 'premium' ? C.navy : '#F1F5F9',
-                color: selected ? '#fff' : tier.key === 'premium' ? '#fff' : textP }}>
-              {selected ? '✓ Selected' : `Select ${tier.label}`}
+                border: 'none',
+                background: tier.key === 'premium' ? C.navy : tier.key === 'upgraded' ? C.teal : '#E2E8F0',
+                color: tier.key === 'standard' ? textP : '#fff' }}>
+              Select {tier.label}
             </button>
+          )}
+          {onSelect && selected && (
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.green,
+              display: 'flex', alignItems: 'center', gap: 4, padding: '7px 4px' }}>
+              ✓ Selected
+            </span>
           )}
           {/* Edit/Done button — only when not locked */}
           {!isLocked && (
@@ -1194,7 +1210,7 @@ function TierCard({ tier, selected, expanded, onToggleExpand, onSelect, onUpdate
                 fontWeight: 700, border: `1.5px solid ${expanded ? C.teal : border}`,
                 background: expanded ? C.tealLight : 'transparent',
                 color: expanded ? C.teal : textS }}>
-              {expanded ? 'Done' : 'Edit'}
+              {expanded ? 'Done ✓' : 'Edit'}
             </button>
           )}
         </div>
