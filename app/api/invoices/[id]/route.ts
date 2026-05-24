@@ -12,6 +12,7 @@ export async function GET(
     .from('invoices')
     .select(`
       *,
+      pro:pros(full_name, business_name, city, state, phone_cell, license_number, logo_url, plan_tier),
       roofing:roofing_invoice_data(
         insurance_company, claim_number, approved_amount, deductible,
         supplement_amount, supplement_submitted, supplement_approved,
@@ -26,13 +27,15 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })
 
   const roofing = (invoice as any).roofing ?? {}
-  const { roofing: _roofing, ...invoiceClean } = invoice as any
+  const pro     = (invoice as any).pro ?? null
+  const { roofing: _roofing, pro: _pro, ...invoiceClean } = invoice as any
 
   const timeline = buildTimeline(invoiceClean)
   return NextResponse.json({
     invoice: {
       ...invoiceClean,
       timeline,
+      pro,
       // Roofing extension — null for non-roofing invoices
       roofing_data: Object.keys(roofing).length > 0 ? roofing : null,
     }
@@ -53,6 +56,8 @@ export async function PATCH(
     'sent_at', 'viewed_at', 'paid_at', 'amount_paid', 'balance_due',
     'contact_name', 'contact_email', 'contact_phone',
     'deposit_paid', 'items', 'subtotal', 'discount', 'tax_rate', 'tax_amount', 'total',
+    'payment_history', 'payment_milestones', 'require_deposit', 'deposit_percent', 'deposit_amount',
+    'resend_message_id', 'sent_to_email', 'email_status', 'email_bounce_reason',
   ]
   const payload: Record<string, unknown> = {}
   for (const key of allowed) {
