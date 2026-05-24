@@ -718,9 +718,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 {stgObj?.label??stage}
                               </span>
                               <span style={{fontSize:12,color:tsu}}>
-                                {'• '}{new Date(lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                                {'• '}{new Date((lead as any).lead_status_changed_at||(est as any)?.approved_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
                                 {' at '}
-                                {new Date(lead.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+                                {new Date((lead as any).lead_status_changed_at||(est as any)?.approved_at||lead.updated_at||lead.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
                               </span>
                               {lead.quoted_amount!=null&&(
                                 <span style={{fontSize:14,fontWeight:700,color:BRAND.teal,marginLeft:'auto'}}>
