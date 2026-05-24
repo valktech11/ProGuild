@@ -34,6 +34,17 @@ export async function GET(
     .eq('estimate_id', id)
     .maybeSingle()
 
+  // Fetch lead contact_name — estimates.lead_name may be a property address (stale copy)
+  let leadContactName: string | null = null
+  if (estimate.lead_id) {
+    const { data: leadRow } = await sb
+      .from('leads')
+      .select('contact_name')
+      .eq('id', estimate.lead_id)
+      .maybeSingle()
+    leadContactName = leadRow?.contact_name ?? null
+  }
+
   // Fetch roofing job data if roofing trade
   let roofingData: any = null
   if (estimate.lead_id && (estimate.pro as any)?.trade_slug?.includes('roof')) {
@@ -67,6 +78,8 @@ export async function GET(
   return NextResponse.json({
     estimate: {
       ...safe,
+      // Override lead_name with live contact_name from leads — estimates.lead_name may be stale/address
+      lead_name: leadContactName ?? safe.lead_name ?? null,
       // Pro info safe to expose
       pro_name:  pro?.full_name ?? null,
       pro_city:  pro?.city ?? null,
