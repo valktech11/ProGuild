@@ -290,45 +290,56 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
             <div style={{ background: C.card, borderRadius: 20, padding: 24,
               boxShadow: SHAD2, border: `1px solid ${C.border}` }}>
 
-              {selTierData ? (
+              {(selTierData || !isGBB) ? (
                 <>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: '0.1em',
-                    textTransform: 'uppercase', marginBottom: 12, display: 'flex',
-                    alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 18, height: 18, borderRadius: '50%', background: C.green,
-                      color: '#fff', display: 'inline-flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: 11 }}>✓</span>
-                    Selected Package
-                  </div>
-
-                  <div style={{ fontSize: 28, fontWeight: 900, color: C.teal,
-                    letterSpacing: '-1px', marginBottom: 2 }}>
-                    {selTierData.label.toUpperCase()}
-                  </div>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 2 }}>
-                    {selTierData.shingle_brand}
-                  </div>
-                  <div style={{ fontSize: 13, color: C.secondary, marginBottom: 16 }}>
-                    {selTierData.warranty}
-                  </div>
-
-                  {/* Great choice */}
-                  {selTierData.key === 'upgraded' && (
-                    <div style={{ background: C.greenBg, border: `1px solid ${C.greenLight}`,
-                      borderRadius: 12, padding: 12, marginBottom: 16 }}>
-                      <div style={{ fontSize: 13, color: C.green, fontWeight: 700, marginBottom: 4 }}>
-                        Great choice!
-                      </div>
-                      <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>
-                        Most homeowners choose this for the best long-term value.
-                      </div>
+                  {/* GBB: show selected package header. Standard: show Estimate Summary header */}
+                  {selTierData ? (
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: '0.1em',
+                      textTransform: 'uppercase', marginBottom: 12, display: 'flex',
+                      alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 18, height: 18, borderRadius: '50%', background: C.green,
+                        color: '#fff', display: 'inline-flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 11 }}>✓</span>
+                      Selected Package
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: '0.1em',
+                      textTransform: 'uppercase', marginBottom: 12 }}>
+                      Estimate Summary
                     </div>
                   )}
 
-                  {/* Financials */}
+                  {/* GBB only: tier label + brand + warranty */}
+                  {selTierData && (
+                    <>
+                      <div style={{ fontSize: 28, fontWeight: 900, color: C.teal,
+                        letterSpacing: '-1px', marginBottom: 2 }}>
+                        {selTierData.label.toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 2 }}>
+                        {selTierData.shingle_brand}
+                      </div>
+                      <div style={{ fontSize: 13, color: C.secondary, marginBottom: 16 }}>
+                        {selTierData.warranty}
+                      </div>
+                      {selTierData.key === 'upgraded' && (
+                        <div style={{ background: C.greenBg, border: `1px solid ${C.greenLight}`,
+                          borderRadius: 12, padding: 12, marginBottom: 16 }}>
+                          <div style={{ fontSize: 13, color: C.green, fontWeight: 700, marginBottom: 4 }}>
+                            Great choice!
+                          </div>
+                          <div style={{ fontSize: 12, color: C.secondary, lineHeight: 1.6 }}>
+                            Most homeowners choose this for the best long-term value.
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Financials — same for both standard and GBB */}
                   <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: 14 }}>
                     {[
-                      ['Roof Replacement', fmt(selTierData.subtotal)],
+                      [selTierData ? 'Roof Replacement' : 'Subtotal', fmt(selSubtotal)],
                       [`Tax (${estimate.tax_rate}%)`, fmt(taxAmt)],
                       ['Deposit Due Today', fmt(depositAmt)],
                     ].map(([k, v]) => (
@@ -354,6 +365,7 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                   </div>
                 </>
               ) : (
+                /* GBB only: no tier selected yet */
                 <div style={{ textAlign: 'center', padding: '20px 0', color: C.muted }}>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>☝️</div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>Select an option to see your summary</div>
