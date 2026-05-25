@@ -31,7 +31,7 @@ import { loginAsTestPro, BASE_URL } from './helpers'
 const ROOFER_EMAIL = process.env.TEST_ROOFER_EMAIL || 'samaltman@sam.com'
 const TEST_CLIENT = {
   name:    'E2E Test Client',
-  email:   process.env.TEST_CLIENT_EMAIL || 'e2e-test@proguild.ai',
+  email:   process.env.TEST_CLIENT_EMAIL || 'delivered@resend.dev',
   phone:   '(555) 000-1234',
   address: '100 Test Street, Jacksonville, FL 32216',
 }
