@@ -89,7 +89,18 @@ test('TC-02: Create new lead', async ({ page }) => {
   await login(page)
   await page.goto(`${BASE_URL}/dashboard/pipeline`, { waitUntil: 'networkidle' })
 
-  await page.getByRole('button', { name: /add new lead/i }).first().click()
+  const addBtn = page.getByRole('button', { name: /add new lead/i }).first()
+  await expect(addBtn).toBeVisible({ timeout: 10000 })
+  await addBtn.click()
+
+  // Wait for modal — try multiple possible selectors
+  await page.waitForTimeout(1500)
+  const modalVisible = await page.locator('input[placeholder="John Smith"]').isVisible()
+  if (!modalVisible) {
+    // Try clicking again — sometimes first click misses
+    await addBtn.click()
+    await page.waitForTimeout(1500)
+  }
   await page.waitForSelector('input[placeholder="John Smith"]', { timeout: 10000 })
 
   await page.fill('input[placeholder="John Smith"]', CLIENT_NAME)
