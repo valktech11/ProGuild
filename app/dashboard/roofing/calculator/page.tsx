@@ -55,6 +55,8 @@ const DEFAULT_PRICES: Record<string, number> = {
   nails:          8,   // per lb
   dripEdge:      12,   // per 10ft piece
   iceWater:      75,   // per square
+  pipeBoot:      35,   // per boot (standard residential mix)
+  disposal:     375,   // dumpster flat rate (single layer tearoff)
 }
 
 // ── Calculator logic — pure function, no side effects ─────────────────────
@@ -65,7 +67,9 @@ function calculateMaterials(
   ridgeLF: number,
   eaveLF: number,
   perimLF: number,
-  prices: Record<string, number>
+  prices: Record<string, number>,
+  pipeBoots: number,
+  tearoffLayers: number,
 ): { items: LineItem[]; adjustedSquares: number } {
   const pitchFactor    = PITCH_FACTORS[pitchKey] ?? 1.118
   const adjustedSquares = squares * pitchFactor * (1 + wastePct / 100)
@@ -127,6 +131,31 @@ function calculateMaterials(
     },
   ]
 
+  // Pipe boots — fixed count, user-entered
+  if (pipeBoots > 0) {
+    items.push({
+      description: `Pipe boots / vent flashing (${pipeBoots})`,
+      quantity:    pipeBoots,
+      unit:        'each',
+      unitPrice:   prices.pipeBoot,
+      total:       pipeBoots * prices.pipeBoot,
+    })
+  }
+
+  // Disposal — dumpster flat rate, scales with layers and squares
+  const disposalCost = tearoffLayers === 0 ? 0
+    : tearoffLayers === 1 ? prices.disposal
+    : Math.round(prices.disposal * 1.5)  // double layer = ~50% more
+  if (tearoffLayers > 0) {
+    items.push({
+      description: `Tear-off disposal — ${tearoffLayers === 1 ? 'single' : 'double'} layer (${Math.round(squares)} sq)`,
+      quantity:    1,
+      unit:        'dumpster',
+      unitPrice:   disposalCost,
+      total:       disposalCost,
+    })
+  }
+
   return { items, adjustedSquares: Math.round(adjustedSquares * 10) / 10 }
 }
 
@@ -160,6 +189,8 @@ function CalculatorInner() {
   const [ridgeLF,     setRidgeLF]     = useState<string>('')
   const [eaveLF,      setEaveLF]      = useState<string>('')
   const [perimLF,     setPerimLF]     = useState<string>('')
+  const [pipeBoots,   setPipeBoots]   = useState<string>('3')
+  const [tearoffLayers, setTearoffLayers] = useState<string>('1')
 
   // ── Unit price overrides (editable inline, default to DEFAULT_PRICES) ──
   const [prices, setPrices] = useState<Record<string, number>>({ ...DEFAULT_PRICES })
@@ -197,11 +228,13 @@ function CalculatorInner() {
       parseFloat(ridgeLF) || 0,
       parseFloat(eaveLF)  || 0,
       parseFloat(perimLF) || 0,
-      prices
+      prices,
+      parseInt(pipeBoots) || 0,
+      parseInt(tearoffLayers) || 0,
     )
     setLineItems(items)
     setAdjSq(adjustedSquares)
-  }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices])
+  }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices, pipeBoots, tearoffLayers])
 
   // Push to estimate
   const handleApplyToEstimate = useCallback(async () => {
@@ -444,6 +477,32 @@ function CalculatorInner() {
               </div>
             </div>
           </div>
+
+          {/* Pipe boots + tearoff layers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
+                Pipe boots / vents
+              </label>
+              <input type="number" min="0" step="1" value={pipeBoots} onChange={e => setPipeBoots(e.target.value)}
+                placeholder="e.g. 3"
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' as const }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
+                Tear-off layers
+              </label>
+              <select value={tearoffLayers} onChange={e => setTearoffLayers(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14 }}
+              >
+                <option value="0">No tear-off (new construction)</option>
+                <option value="1">1 layer</option>
+                <option value="2">2 layers</option>
+              </select>
+            </div>
+          </div>
+        </div>
         )}
 
         {/* Material output table — always visible once squares entered */}
@@ -477,7 +536,7 @@ function CalculatorInner() {
               </thead>
               <tbody>
                 {lineItems.map((item, i) => {
-                  const priceKey = ['shingles','underlayment','ridgeCap','starterStrip','nails','dripEdge','iceWater'][i]
+                  const priceKey = ['shingles','underlayment','ridgeCap','starterStrip','nails','dripEdge','iceWater','pipeBoot','disposal'][i]
                   const isPlaceholder = item.quantity === 0
                   return (
                     <tr key={i} style={{ borderBottom: `1px solid ${t.cardBorder}`, opacity: isPlaceholder ? 0.45 : 1 }}>
