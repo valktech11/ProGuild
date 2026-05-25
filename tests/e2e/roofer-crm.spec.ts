@@ -54,12 +54,19 @@ let gbbPublicUrl:  string
 
 // ── Auth helper for roofer account ────────────────────────────────────────────
 async function loginAsRoofer(page: Page) {
+  const stagingPassword = process.env.STAGING_PASSWORD || 'proguild2026'
+
+  // Set staging auth cookie first — bypasses the password gate
+  await page.goto(`${BASE_URL}/?staging_key=${stagingPassword}`, { waitUntil: 'load' })
+  await page.waitForLoadState('domcontentloaded')
+
   const res = await page.request.post(`${BASE_URL}/api/auth`, {
     data: { email: ROOFER_EMAIL },
     headers: { 'Content-Type': 'application/json' },
   })
   if (!res.ok()) throw new Error(`Roofer auth failed: ${res.status()}`)
   const { session } = await res.json()
+
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'load' })
   await page.waitForLoadState('domcontentloaded')
   await page.evaluate((s) => sessionStorage.setItem('pg_pro', JSON.stringify(s)), session)
