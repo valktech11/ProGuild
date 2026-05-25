@@ -92,16 +92,18 @@ test('TC-02: Create new lead', async ({ page }) => {
 test('TC-03: Open lead detail', async ({ page }) => {
   await login(page)
 
-  // Find lead via API — avoids pipeline board visibility issues (collapsed columns, filters)
-  const res = await page.request.get(`${BASE_URL}/api/leads?search=${encodeURIComponent(CLIENT_NAME)}`)
+  // Find lead via API — requires pro_id, filter by name client-side
+  const PRO_ID = '2fbc58c2-c9d3-4040-acf9-810c3b215a05'
+  const res = await page.request.get(`${BASE_URL}/api/leads?pro_id=${PRO_ID}`)
   let leadId: string | undefined
 
   if (res.ok()) {
     const data = await res.json()
-    const leads = data.leads ?? data ?? []
-    const lead = Array.isArray(leads) ? leads.find((l: any) =>
-      (l.contact_name ?? l.lead_name ?? '').includes('E2E Roofer')
-    ) : null
+    const leads: any[] = data.leads ?? []
+    const lead = leads.find(l =>
+      (l.contact_name ?? '').includes('E2E Roofer') ||
+      (l.lead_name ?? '').includes('E2E Roofer')
+    )
     if (lead) leadId = lead.id
   }
 
