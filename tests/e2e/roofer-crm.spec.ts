@@ -106,8 +106,8 @@ test('TC-02: Create new lead', async ({ page }) => {
 
   await page.fill('input[placeholder="Jane Rodriguez"]', CLIENT_NAME)
   // Clear phone field first then type formatted number
-  await page.locator('input[placeholder="813-555-0192"]').click({ clickCount: 3 })
-  await page.locator('input[placeholder="813-555-0192"]').type('9045550123')
+  await page.locator('input[placeholder="813-555-0192"]').first().click({ clickCount: 3 })
+  await page.locator('input[placeholder="813-555-0192"]').first().type('9045550123')
   await page.fill('input[type="email"]', CLIENT_EMAIL)
 
   // Click Save lead and wait for modal to close
