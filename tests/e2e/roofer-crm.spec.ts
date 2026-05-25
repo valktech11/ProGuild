@@ -78,9 +78,9 @@ test('TC-01: Roofer logs in and dashboard loads', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 })
   await expect(page.getByRole('link', { name: /overview/i }).first()).toBeVisible({ timeout: 10000 })
-  await expect(page.getByRole('link', { name: /📋 jobs/i })).toBeVisible()
-  await expect(page.getByRole('link', { name: /proposals/i })).toBeVisible()
-  await expect(page.getByRole('link', { name: /invoices/i })).toBeVisible()
+  await expect(page.getByRole('link', { name: '📋 Jobs' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '📝 Proposals' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '💰 Invoices' })).toBeVisible()
   await expect(page.getByRole('link', { name: /promeasure/i })).toBeVisible()
 })
 
