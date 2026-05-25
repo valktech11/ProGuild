@@ -23,8 +23,15 @@ export default async function globalTeardown() {
     auth: { persistSession: false },
   })
 
-  await admin.from('leads').delete().eq('pro_id', proId)
-  await admin.from('clients').delete().eq('pro_id', proId)
+  // Only delete leads created by E2E tests (name starts with 'E2E')
+  // Never wipe ALL leads — protects real test data
+  const { data: e2eLeads } = await admin.from('leads')
+    .select('id').eq('pro_id', proId)
+    .or('contact_name.ilike.E2E%')
+  if (e2eLeads?.length) {
+    await admin.from('leads').delete().in('id', e2eLeads.map((l: any) => l.id))
+    console.log(`✓ global-teardown: deleted ${e2eLeads.length} E2E test leads`)
+  }
 
   console.log(`✓ global-teardown: cleaned up test leads/clients for pro ${proId}`)
 }
