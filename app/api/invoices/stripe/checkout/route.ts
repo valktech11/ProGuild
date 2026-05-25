@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const stripeKey = process.env.STRIPE_SECRET_KEY
   if (!stripeKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 })
 
-  const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' })
+  const stripe = new Stripe(stripeKey, { apiVersion: '2026-04-22.dahlia' })
   const sb     = getSupabaseAdmin()
 
   // Fetch invoice for display info
