@@ -30,10 +30,21 @@ export async function GET(
   const pro     = (invoice as any).pro ?? null
   const { roofing: _roofing, pro: _pro, ...invoiceClean } = invoice as any
 
+  // If invoice has no line items, pull from the linked estimate's items
+  let resolvedItems = invoiceClean.items
+  if ((!resolvedItems || resolvedItems.length === 0) && invoiceClean.estimate_id) {
+    const { data: estItems } = await getSupabaseAdmin()
+      .from('estimate_items')
+      .select('id, name, description, qty, unit_price, amount')
+      .eq('estimate_id', invoiceClean.estimate_id)
+    if (estItems?.length) resolvedItems = estItems
+  }
+
   const timeline = buildTimeline(invoiceClean)
   return NextResponse.json({
     invoice: {
       ...invoiceClean,
+      items: resolvedItems ?? [],
       timeline,
       pro,
       // Roofing extension — null for non-roofing invoices

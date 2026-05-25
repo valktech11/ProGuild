@@ -392,7 +392,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`,
                 borderRadius: 16, overflow: 'hidden' }}>
                 {/* Dark header band */}
-                <div style={{ background: C.navy, padding: '24px 28px',
+                <div style={{ background: C.teal, padding: '24px 28px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   {/* Pro info */}
                   <div>
@@ -682,27 +682,17 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               )}
 
-              {/* Quick links */}
-              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 18 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {invoice.lead_id && (
-                    <button onClick={() => router.push(`/dashboard/pipeline/${invoice.lead_id}`)}
-                      style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${t.cardBorder}`,
-                        background: 'transparent', color: t.textBody, fontSize: 13, fontWeight: 600,
-                        cursor: 'pointer', textAlign: 'left' }}>
-                      → Open Lead
-                    </button>
-                  )}
-                  {invoice.estimate_id && (
-                    <button onClick={() => router.push(`/dashboard/estimates/${invoice.estimate_id}`)}
-                      style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${t.cardBorder}`,
-                        background: 'transparent', color: t.textBody, fontSize: 13, fontWeight: 600,
-                        cursor: 'pointer', textAlign: 'left' }}>
-                      → View Estimate
-                    </button>
-                  )}
+              {/* Quick links — lead only; estimate link already in invoice header Reference section */}
+              {invoice.lead_id && (
+                <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 18 }}>
+                  <button onClick={() => router.push(`/dashboard/pipeline/${invoice.lead_id}`)}
+                    style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${t.cardBorder}`,
+                      background: 'transparent', color: t.textBody, fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', textAlign: 'left' }}>
+                    → Open Lead
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
