@@ -50,9 +50,14 @@ export default async function globalSetup(_config: FullConfig) {
   const { join } = await import('path')
   writeFileSync(join(process.cwd(), 'tests/e2e/.e2e-pro-id'), E2E_PRO_ID)
 
-  // Clean up leftover leads/clients from any previous crashed run
-  await admin.from('leads').delete().eq('pro_id', E2E_PRO_ID)
-  await admin.from('clients').delete().eq('pro_id', E2E_PRO_ID)
+  // Only clean up E2E test leads from previous crashed runs — never delete real leads
+  const { data: staleLeads } = await admin.from('leads')
+    .select('id').eq('pro_id', E2E_PRO_ID)
+    .ilike('contact_name', 'E2E%')
+  if (staleLeads?.length) {
+    await admin.from('leads').delete().in('id', staleLeads.map((l: any) => l.id))
+    console.log(`✓ global-setup: cleaned ${staleLeads.length} stale E2E leads`)
+  }
 
   console.log(`✓ global-setup: using existing pro "${E2E_PRO_EMAIL}" (id: ${E2E_PRO_ID})`)
 }

@@ -105,26 +105,19 @@ test('TC-03: Open lead detail', async ({ page }) => {
     if (lead) leadId = lead.id
   }
 
-  // Fallback: search via pipeline page
+  // Fallback: use List view which shows ALL leads including newly created ones
   if (!leadId) {
     await page.goto(`${BASE_URL}/dashboard/pipeline`, { waitUntil: 'networkidle' })
+    // Switch to List view
+    const listBtn = page.getByRole('button', { name: 'List' }).or(page.getByText('List', { exact: true }))
+    if (await listBtn.isVisible({ timeout: 3000 }).catch(() => false)) await listBtn.click()
+    await page.waitForTimeout(1000)
     const card = page.getByText(CLIENT_NAME).first()
-    if (await card.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (await card.isVisible({ timeout: 8000 }).catch(() => false)) {
       await card.click()
       await page.waitForURL(/\/dashboard\/pipeline\/[a-f0-9-]{36}/, { timeout: 15000 })
       leadId = page.url().split('/pipeline/')[1]?.split('?')[0]
     }
-  }
-
-  if (!leadId) {
-    // Last resort: navigate directly via search
-    await page.goto(`${BASE_URL}/dashboard/pipeline?search=${encodeURIComponent(CLIENT_NAME)}`, { waitUntil: 'networkidle' })
-    await page.waitForTimeout(2000)
-    const card = page.getByText(CLIENT_NAME).first()
-    await expect(card).toBeVisible({ timeout: 10000 })
-    await card.click()
-    await page.waitForURL(/\/dashboard\/pipeline\/[a-f0-9-]{36}/, { timeout: 15000 })
-    leadId = page.url().split('/pipeline/')[1]?.split('?')[0]
   }
 
   expect(leadId).toMatch(/^[a-f0-9-]{36}$/)
