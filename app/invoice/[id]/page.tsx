@@ -1,62 +1,219 @@
 'use client'
 import { use, useEffect, useState } from 'react'
 
-// ── Mock payment button — replace onClick body with real Stripe when ready ──
-function PayButton({ invoiceId, balanceDue }: { invoiceId: string; balanceDue: number }) {
-  const [state, setState] = useState<'idle' | 'paying' | 'paid' | 'error'>('idle')
-  const fmt = (n: number | null | undefined) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
+// ── Milestone Payment Flow ─────────────────────────────────────────────────────
+// Homeowner selects which milestone to pay, enters payment method + confirmation.
+// When Stripe is activated: replace the confirmation step with a Stripe Checkout redirect.
+type Milestone = { id: string; name: string; pct: number; amount: number; due_when: string }
 
-  if (state === 'paid') return (
-    <div className="text-center p-4 bg-green-50 rounded-xl border border-green-200">
-      <div className="text-2xl mb-1">✅</div>
-      <div className="text-sm font-bold text-green-800">Payment received!</div>
-      <div className="text-xs text-green-600 mt-1">Your invoice has been marked as paid.</div>
+function MilestonePaySection({
+  invoiceId, milestones, paidMilestones, balanceDue, total, onPaid
+}: {
+  invoiceId: string
+  milestones: Milestone[]
+  paidMilestones: string[]
+  balanceDue: number
+  total: number
+  onPaid: (milestoneName: string, amount: number) => void
+}) {
+  const fmtLocal = (n: number | null | undefined) =>
+    '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
+
+  const unpaid = milestones.filter(m => !paidMilestones.includes(m.name))
+  const nextDue = unpaid[0] ?? null
+
+  const [step, setStep]         = useState<'select' | 'confirm' | 'success'>('select')
+  const [selMilestone, setSel]  = useState<Milestone | null>(nextDue)
+  const [method, setMethod]     = useState<string>('zelle')
+  const [reference, setRef]     = useState('')
+  const [submitting, setSub]    = useState(false)
+  const [error, setError]       = useState<string | null>(null)
+
+  if (!nextDue && milestones.length > 0) return (
+    <div className="text-center py-6">
+      <div className="text-4xl mb-3">🎉</div>
+      <p className="text-base font-bold text-green-700">All payments received!</p>
+      <p className="text-sm text-gray-500 mt-1">This invoice has been paid in full.</p>
     </div>
   )
 
-  const handlePay = async () => {
-    setState('paying')
+  if (step === 'success') return (
+    <div className="text-center py-6">
+      <div className="text-4xl mb-3">✅</div>
+      <p className="text-base font-bold text-green-700">Payment recorded!</p>
+      <p className="text-sm text-gray-500 mt-1">
+        {fmtLocal(selMilestone?.amount)} · {selMilestone?.name}
+      </p>
+      <p className="text-xs text-gray-400 mt-3">Your contractor has been notified.</p>
+    </div>
+  )
+
+  const handleConfirm = async () => {
+    if (!selMilestone) return
+    setSub(true); setError(null)
     try {
-      // TODO: Replace with real Stripe payment link when Stripe is activated
-      // For now: simulate processing then mark invoice paid via API
-      await new Promise(r => setTimeout(r, 1500)) // simulate payment processing
-      const r = await fetch('/api/invoices/mark-paid', {
+      const r = await fetch(`/api/invoices/public/${invoiceId}/pay-milestone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoice_id: invoiceId, amount: balanceDue, payment_method: 'online_card' }),
+        body: JSON.stringify({
+          milestone_name: selMilestone.name,
+          amount: selMilestone.amount,
+          method,
+          reference,
+          date: new Date().toISOString().split('T')[0],
+        }),
       })
-      if (!r.ok) throw new Error('Payment failed')
-      setState('paid')
-      // Reload page after 2s to show paid state
-      setTimeout(() => window.location.reload(), 2000)
-    } catch { setState('error') }
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? 'Failed') }
+      onPaid(selMilestone.name, selMilestone.amount)
+      setStep('success')
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setSub(false)
+    }
   }
 
   return (
     <div>
-      {state === 'error' && (
-        <p className="text-sm text-red-600 mb-3">Payment failed — please try again or contact your contractor.</p>
+      {step === 'select' && (
+        <div>
+          {/* Milestone selector */}
+          <p className="text-sm text-gray-600 mb-4">
+            Select the payment you'd like to make:
+          </p>
+          <div className="space-y-3 mb-5">
+            {milestones.map(m => {
+              const paid   = paidMilestones.includes(m.name)
+              const isSel  = selMilestone?.id === m.id
+              return (
+                <label key={m.id}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    paid    ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50' :
+                    isSel   ? 'border-[#0F766E] bg-[#F0FDFA]' :
+                              'border-gray-200 bg-white hover:border-[#0F766E]'
+                  }`}
+                  onClick={() => !paid && setSel(m)}>
+                  {paid ? (
+                    <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                  ) : (
+                    <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 ${
+                      isSel ? 'border-[#0F766E] bg-[#0F766E]' : 'border-gray-300'
+                    }`}>
+                      {isSel && <div className="w-full h-full rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      </div>}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <div className={`text-sm font-bold ${paid ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                      {m.name}
+                    </div>
+                    <div className="text-xs text-gray-500">{m.pct}% · {m.due_when}</div>
+                  </div>
+                  <div className={`text-base font-bold ${
+                    paid ? 'text-gray-400 line-through' : isSel ? 'text-[#0F766E]' : 'text-gray-700'
+                  }`}>
+                    {fmtLocal(m.amount)}
+                  </div>
+                  {paid && (
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">Paid</span>
+                  )}
+                </label>
+              )
+            })}
+          </div>
+          <button
+            disabled={!selMilestone || paidMilestones.includes(selMilestone?.name ?? '')}
+            onClick={() => selMilestone && setStep('confirm')}
+            className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all"
+            style={{
+              background: selMilestone ? 'linear-gradient(135deg,#0F766E,#0D9488)' : '#CBD5E1',
+              cursor: selMilestone ? 'pointer' : 'default',
+              boxShadow: selMilestone ? '0 2px 12px rgba(15,118,110,0.3)' : 'none',
+            }}>
+            {selMilestone
+              ? `Continue to Pay ${fmtLocal(selMilestone.amount)}`
+              : 'Select a payment above'}
+          </button>
+        </div>
       )}
-      <button
-        onClick={handlePay}
-        disabled={state === 'paying'}
-        className="w-full py-3 rounded-xl font-bold text-white text-base transition-all"
-        style={{ background: state === 'paying' ? '#CBD5E1' : 'linear-gradient(135deg,#0F766E,#0D9488)',
-          cursor: state === 'paying' ? 'default' : 'pointer',
-          boxShadow: state === 'paying' ? 'none' : '0 2px 12px rgba(15,118,110,0.3)' }}>
-        {state === 'paying' ? (
-          <span className="flex items-center justify-center gap-2">
-            <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeOpacity="0.25"/>
-              <path d="M12 3a9 9 0 019 9" strokeLinecap="round"/>
-            </svg>
-            Processing payment…
-          </span>
-        ) : `Pay ${fmt(balanceDue)} Now`}
-      </button>
-      <p className="text-xs text-center text-[#9CA3AF] mt-2">
-        🔒 Secure payment · Powered by Stripe
-      </p>
+
+      {step === 'confirm' && selMilestone && (
+        <div>
+          {/* Payment summary */}
+          <div className="bg-[#F0FDFA] border border-[#99F6E4] rounded-xl p-4 mb-5">
+            <div className="text-xs font-bold text-[#0F766E] uppercase tracking-wide mb-1">Paying</div>
+            <div className="text-2xl font-black text-[#0F766E]">{fmtLocal(selMilestone.amount)}</div>
+            <div className="text-sm text-gray-600 mt-1">{selMilestone.name} · {selMilestone.pct}%</div>
+          </div>
+
+          {/* Payment method */}
+          <div className="mb-4">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+              How are you paying?
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { key: 'zelle',  label: 'Zelle',  icon: '💜' },
+                { key: 'venmo',  label: 'Venmo',  icon: '💙' },
+                { key: 'check',  label: 'Check',  icon: '📝' },
+                { key: 'cash',   label: 'Cash',   icon: '💵' },
+                { key: 'card',   label: 'Card',   icon: '💳' },
+                { key: 'other',  label: 'Other',  icon: '🏦' },
+              ].map(m => (
+                <button key={m.key} onClick={() => setMethod(m.key)}
+                  className={`py-2.5 px-3 rounded-lg border-2 text-sm font-semibold transition-all text-center ${
+                    method === m.key
+                      ? 'border-[#0F766E] bg-[#F0FDFA] text-[#0F766E]'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}>
+                  <div>{m.icon}</div>
+                  <div className="text-xs mt-0.5">{m.label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Reference */}
+          <div className="mb-5">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+              Reference / Confirmation # (optional)
+            </label>
+            <input
+              type="text"
+              value={reference}
+              onChange={e => setRef(e.target.value)}
+              placeholder="e.g. Zelle conf #8821, Check #1234..."
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-[#0F766E] transition-colors"
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm text-red-600 mb-3">{error}</p>
+          )}
+
+          <div className="flex gap-3">
+            <button onClick={() => setStep('select')}
+              className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600">
+              ← Back
+            </button>
+            <button onClick={handleConfirm} disabled={submitting}
+              className="flex-2 py-3 px-6 rounded-xl font-bold text-white text-sm transition-all"
+              style={{
+                flex: 2,
+                background: submitting ? '#CBD5E1' : 'linear-gradient(135deg,#0F766E,#0D9488)',
+                cursor: submitting ? 'default' : 'pointer',
+              }}>
+              {submitting ? 'Recording…' : `Confirm ${fmtLocal(selMilestone.amount)} Payment`}
+            </button>
+          </div>
+          <p className="text-xs text-center text-gray-400 mt-3">
+            🔒 Your contractor will be notified immediately
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -95,6 +252,8 @@ type PublicInvoice = {
   notes: string | null
   terms: string | null
   items: InvoiceItem[]
+  payment_milestones: Array<{ id: string; name: string; pct: number; amount: number; due_when: string }> | null
+  payment_history: Array<{ id: string; milestone_name: string; amount: number; method: string; reference?: string; date: string }> | null
 }
 
 const fmt = (n: number | null | undefined) =>
@@ -110,9 +269,17 @@ const TERMS_LABEL: Record<string, string> = {
 
 export default function PublicInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const [invoice, setInvoice] = useState<PublicInvoice | null>(null)
-  const [loading, setLoading]   = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const [invoice, setInvoice]       = useState<PublicInvoice | null>(null)
+  const [loading, setLoading]       = useState(true)
+  const [notFound, setNotFound]     = useState(false)
+  const [paidMilestones, setPaidMs] = useState<string[]>([])
+
+  // Derive paid milestones from payment_history on load
+  useEffect(() => {
+    if (invoice?.payment_history) {
+      setPaidMs(invoice.payment_history.map(p => p.milestone_name))
+    }
+  }, [invoice?.payment_history])
 
   useEffect(() => {
     fetch(`/api/invoices/public/${id}`)
@@ -318,14 +485,29 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        {/* Payment button — online payment */}
-        {!isPaid && (
+        {/* Milestone payment section */}
+        {!isPaid && invoice.payment_milestones && invoice.payment_milestones.length > 0 && (
           <div className="bg-white rounded-2xl border border-[#E8E2D9] p-6">
-            <h2 className="text-base font-bold text-gray-900 mb-2">Pay Online</h2>
+            <h2 className="text-base font-bold text-gray-900 mb-2">Make a Payment</h2>
             <p className="text-sm text-[#6B7280] mb-4">
-              Pay securely online. Your payment will be recorded immediately.
+              Select the milestone you're paying for and confirm below.
             </p>
-            <PayButton invoiceId={invoice.id} balanceDue={balanceDue} />
+            <MilestonePaySection
+              invoiceId={invoice.id}
+              milestones={invoice.payment_milestones}
+              paidMilestones={paidMilestones}
+              balanceDue={balanceDue}
+              total={invoice.total}
+              onPaid={(name, amount) => {
+                setPaidMs(prev => [...prev, name])
+                setInvoice(prev => prev ? {
+                  ...prev,
+                  amount_paid: (prev.amount_paid ?? 0) + amount,
+                  balance_due: Math.max(0, (prev.balance_due ?? 0) - amount),
+                  status: Math.max(0, (prev.balance_due ?? 0) - amount) <= 0 ? 'paid' : 'partial_payment',
+                } : prev)
+              }}
+            />
             <div className="mt-4 pt-4 border-t border-[#E8E2D9]">
               <p className="text-xs text-[#9CA3AF] mb-1 font-semibold uppercase tracking-wide">Or contact directly</p>
             <div className="flex flex-col gap-2">
