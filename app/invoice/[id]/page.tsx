@@ -52,20 +52,38 @@ function MilestonePaySection({
     if (!selMilestone) return
     setSub(true); setError(null)
     try {
-      const r = await fetch(`/api/invoices/public/${invoiceId}/pay-milestone`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          milestone_name: selMilestone.name,
-          amount: selMilestone.amount,
-          method,
-          reference,
-          date: new Date().toISOString().split('T')[0],
-        }),
-      })
-      if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? 'Failed') }
-      onPaid(selMilestone.name, selMilestone.amount)
-      setStep('success')
+      if (method === 'card') {
+        // Card payments go through Stripe Checkout
+        const r = await fetch('/api/invoices/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            invoice_id:     invoiceId,
+            milestone_name: selMilestone.name,
+            amount:         selMilestone.amount,
+          }),
+        })
+        const d = await r.json()
+        if (!r.ok) throw new Error(d.error ?? 'Stripe checkout failed')
+        if (d.url) { window.location.href = d.url; return }
+        throw new Error('No checkout URL returned')
+      } else {
+        // Non-card payments (Zelle, Venmo, Check, Cash) — record directly
+        const r = await fetch(`/api/invoices/public/${invoiceId}/pay-milestone`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            milestone_name: selMilestone.name,
+            amount:         selMilestone.amount,
+            method,
+            reference,
+            date: new Date().toISOString().split('T')[0],
+          }),
+        })
+        if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? 'Failed') }
+        onPaid(selMilestone.name, selMilestone.amount)
+        setStep('success')
+      }
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -269,6 +287,12 @@ const TERMS_LABEL: Record<string, string> = {
 
 export default function PublicInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  // Handle Stripe return — ?paid=milestone_name or ?cancelled=1
+  const searchParams = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search) : null
+  const stripeReturnedPaid      = searchParams?.get('paid') ?? null
+  const stripeReturnedCancelled = searchParams?.get('cancelled') === '1'
+
   const [invoice, setInvoice]       = useState<PublicInvoice | null>(null)
   const [loading, setLoading]       = useState(true)
   const [notFound, setNotFound]     = useState(false)
@@ -339,6 +363,31 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
+
+        {/* Stripe return banner — payment confirmed */}
+        {stripeReturnedPaid && !isPaid && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-4 flex items-center gap-3">
+            <span className="text-2xl">✅</span>
+            <div>
+              <p className="text-sm font-semibold text-green-800">
+                {stripeReturnedPaid} payment confirmed!
+              </p>
+              <p className="text-xs text-green-700 mt-0.5">
+                Your payment has been received and recorded.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Stripe cancelled banner */}
+        {stripeReturnedCancelled && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-center gap-3">
+            <span className="text-xl">↩</span>
+            <p className="text-sm font-semibold text-amber-800">
+              Payment cancelled — no charge was made.
+            </p>
+          </div>
+        )}
 
         {/* Paid banner */}
         {isPaid && (
