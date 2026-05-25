@@ -28,5 +28,15 @@ export async function GET(
     invoice.status = 'viewed'
   }
 
-  return NextResponse.json({ invoice })
+  // If invoice has no line items, pull from the linked estimate's items
+  let resolvedItems = invoice.items
+  if ((!resolvedItems || resolvedItems.length === 0) && invoice.estimate_id) {
+    const { data: estItems } = await sb
+      .from('estimate_items')
+      .select('id, name, description, qty, unit_price, amount')
+      .eq('estimate_id', invoice.estimate_id)
+    if (estItems?.length) resolvedItems = estItems
+  }
+
+  return NextResponse.json({ invoice: { ...invoice, items: resolvedItems ?? [] } })
 }
