@@ -4,7 +4,7 @@ import { use, useEffect, useState } from 'react'
 // ── Mock payment button — replace onClick body with real Stripe when ready ──
 function PayButton({ invoiceId, balanceDue }: { invoiceId: string; balanceDue: number }) {
   const [state, setState] = useState<'idle' | 'paying' | 'paid' | 'error'>('idle')
-  const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2 })
+  const fmt = (n: number | null | undefined) => '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
 
   if (state === 'paid') return (
     <div className="text-center p-4 bg-green-50 rounded-xl border border-green-200">
@@ -97,8 +97,8 @@ type PublicInvoice = {
   items: InvoiceItem[]
 }
 
-const fmt = (n: number) =>
-  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (n: number | null | undefined) =>
+  '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 const TERMS_LABEL: Record<string, string> = {
   due_on_receipt: 'Due on Receipt',
@@ -270,8 +270,8 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
                 {item.description && <p className="text-[12px] text-[#6B7280] mt-0.5 leading-snug">{item.description}</p>}
               </div>
               <p className="text-[13px] text-[#6B7280] text-center self-center">{item.qty}</p>
-              <p className="text-[13px] text-[#6B7280] text-right self-center">{fmt(item.unit_price)}</p>
-              <p className="text-[13px] font-semibold text-gray-900 text-right self-center">{fmt(item.qty * item.unit_price)}</p>
+              <p className="text-[13px] text-[#6B7280] text-right self-center">—</p>
+              <p className="text-[13px] font-semibold text-gray-900 text-right self-center">{fmt(item.amount)}</p>
             </div>
           ))}
 
