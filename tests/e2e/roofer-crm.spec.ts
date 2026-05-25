@@ -101,10 +101,11 @@ test('TC-02: Create new lead', async ({ page }) => {
     await addBtn.click()
     await page.waitForTimeout(1500)
   }
-  await page.waitForSelector('input[placeholder="John Smith"]', { timeout: 10000 })
+  // Modal uses placeholder "Jane Rodriguez" for roofer trade (not "John Smith")
+  await page.waitForSelector('input[placeholder="Jane Rodriguez"]', { timeout: 10000 })
 
-  await page.fill('input[placeholder="John Smith"]', CLIENT_NAME)
-  await page.fill('input[type="tel"]', '5550001234')
+  await page.fill('input[placeholder="Jane Rodriguez"]', CLIENT_NAME)
+  await page.fill('input[placeholder="813-555-0192"]', '5550001234')
   await page.fill('input[type="email"]', CLIENT_EMAIL)
   await page.getByRole('button', { name: /save lead/i }).click()
 
@@ -357,9 +358,9 @@ test('TC-16: Create GBB estimate', async ({ page }) => {
 
   // Create GBB lead
   await page.getByRole('button', { name: /add new lead/i }).first().click()
-  await page.waitForSelector('input[placeholder="John Smith"]', { timeout: 10000 })
-  await page.fill('input[placeholder="John Smith"]', 'E2E GBB Client')
-  await page.fill('input[type="tel"]', '5550009999')
+  await page.waitForSelector('input[placeholder="Jane Rodriguez"]', { timeout: 10000 })
+  await page.fill('input[placeholder="Jane Rodriguez"]', 'E2E GBB Client')
+  await page.fill('input[placeholder="813-555-0192"]', '5550009999')
   await page.fill('input[type="email"]', 'gbb@delivered.resend.dev')
   await page.getByRole('button', { name: /save lead/i }).click()
   await page.waitForTimeout(2000)
