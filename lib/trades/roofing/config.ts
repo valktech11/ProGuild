@@ -177,7 +177,7 @@ export const roofingConfig: RoofingConfig = {
     {
       title: 'ROOFING TOOLS',
       items: [
-        { label: 'Properties',    href: '/dashboard/clients',            icon: '🏠', description: 'Property records and job history' },
+        { label: 'Properties',    href: '/dashboard/roofing/property',   icon: '🏠', description: 'Property records and job history' },
         { label: 'ProMeasure',    href: '/dashboard/roofing/promeasure', icon: '📐', description: 'Satellite polygon measurement' },
         { label: 'Calculator',    href: '/dashboard/roofing/calculator', icon: '🔢', description: 'Squares + pitch + waste calculator' },
         { label: 'Quick Bid PDF', href: '/dashboard/roofing/property',   icon: '📊', description: 'Generate instant measurement report', badge: 'pro' },
