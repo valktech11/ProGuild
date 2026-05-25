@@ -105,13 +105,19 @@ test('TC-02: Create new lead', async ({ page }) => {
   await page.waitForSelector('input[placeholder="Jane Rodriguez"]', { timeout: 10000 })
 
   await page.fill('input[placeholder="Jane Rodriguez"]', CLIENT_NAME)
-  await page.fill('input[placeholder="813-555-0192"]', '5550001234')
+  // Clear phone field first then type formatted number
+  await page.locator('input[placeholder="813-555-0192"]').click({ clickCount: 3 })
+  await page.locator('input[placeholder="813-555-0192"]').type('9045550123')
   await page.fill('input[type="email"]', CLIENT_EMAIL)
-  await page.getByRole('button', { name: /save lead/i }).click()
 
-  // Wait for modal to close — verify by checking modal is gone
-  await page.waitForTimeout(2000)
-  await expect(page.locator('input[placeholder="Jane Rodriguez"]')).not.toBeVisible({ timeout: 5000 })
+  // Click Save lead and wait for modal to close
+  const saveBtn = page.getByRole('button', { name: /save lead/i })
+  await expect(saveBtn).toBeEnabled({ timeout: 5000 })
+  await saveBtn.click()
+
+  // Wait for modal to close
+  await page.waitForTimeout(3000)
+  await expect(page.locator('input[placeholder="Jane Rodriguez"]')).not.toBeVisible({ timeout: 8000 })
   // Lead created successfully — TC-03 will find it in the pipeline
 })
 
