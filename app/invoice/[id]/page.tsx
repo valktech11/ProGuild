@@ -203,7 +203,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
               <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-1">Invoice</p>
               <h1 className="text-2xl font-bold text-gray-900">#{invoice.invoice_number}</h1>
               <p className="text-sm text-[#6B7280] mt-1">
-                Prepared for <span className="font-semibold text-gray-900">{invoice.contact_name}</span>
+                Prepared for <span className="font-semibold text-gray-900">{invoice.contact_name || invoice.lead_name}</span>
               </p>
             </div>
             <div className="text-right">
