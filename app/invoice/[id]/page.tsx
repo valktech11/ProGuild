@@ -78,6 +78,7 @@ type PublicInvoice = {
   invoice_number: string
   status: 'sent' | 'viewed' | 'partial_payment' | 'paid' | 'void'
   contact_name: string
+  lead_name: string
   contact_email: string | null
   contact_phone: string | null
   issue_date: string
