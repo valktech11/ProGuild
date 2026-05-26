@@ -108,7 +108,7 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
         pro_id: proId, contact_name: name.trim(),
         contact_phone: phone.trim() || null,
         contact_email: email.trim() || null,
-        property_address: [street.trim(), city.trim(), addrState.trim(), zip.trim()].filter(Boolean).join(', ') || null,
+        property_address: street.trim() || null,  // street only — city/state/zip sent separately below
         contact_city: city.trim() || null,
         contact_state: addrState.trim() || null,
         contact_zip: zip.trim() || null,
