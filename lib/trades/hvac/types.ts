@@ -30,6 +30,7 @@ export interface HVACNavItem {
   description:  string
   badge?:       'new' | 'pro' | 'elite'
   comingSoon?:  boolean
+  exact?:       boolean
 }
 
 export interface HVACNavSection {

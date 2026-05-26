@@ -13,6 +13,7 @@ export interface ElectricianPipelineStage {
 export interface ElectricianNavItem {
   label: string; href: string; icon: string; description: string
   badge?: 'new' | 'pro' | 'elite'; comingSoon?: boolean
+  exact?:       boolean
 }
 
 export interface ElectricianNavSection {

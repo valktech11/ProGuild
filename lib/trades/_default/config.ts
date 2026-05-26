@@ -38,7 +38,7 @@ export const defaultConfig: DefaultConfig = {
     {
       title: 'TODAY',
       items: [
-        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Overview', exact: true,  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
         { label: 'Jobs',      href: '/dashboard/pipeline', icon: '📋', description: 'Your job pipeline' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '📅', description: 'Appointments and schedule' },
       ],

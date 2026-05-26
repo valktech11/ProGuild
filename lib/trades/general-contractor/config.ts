@@ -36,7 +36,7 @@ export const gcConfig: GCConfig = {
     {
       title: 'TODAY',
       items: [
-        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Overview', exact: true,  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
         { label: 'Projects',  href: '/dashboard/pipeline', icon: '🏗️', description: 'Your project pipeline' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '📅', description: 'Milestones and site visits' },
       ],
