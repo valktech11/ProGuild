@@ -22,14 +22,20 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, address_line1, ...rest } = body
-  if (!pro_id || !address_line1) {
+  const { pro_id, address_line1: rawAddr, city, state, zip_code, ...rest } = body
+  if (!pro_id || !rawAddr) {
     return NextResponse.json({ error: 'pro_id and address_line1 required' }, { status: 400 })
   }
 
+  // If city/state/zip are provided separately, strip them from address_line1
+  // Prevents full address string being stored in street field
+  const address_line1 = (city || state || zip_code)
+    ? rawAddr.split(',')[0].trim()
+    : rawAddr.trim()
+
   const { data, error } = await getSupabaseAdmin()
     .from('properties')
-    .insert({ pro_id, address_line1, ...rest })
+    .insert({ pro_id, address_line1, city: city || null, state: state || null, zip_code: zip_code || null, ...rest })
     .select()
     .single()
 
