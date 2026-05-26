@@ -6,6 +6,8 @@ interface EmptyStateProps {
   description?: string
   ctaLabel?: string
   onCta?: () => void
+  secondaryCtaLabel?: string
+  onSecondaryCta?: () => void
   ctaHref?: string
   dk: boolean
 }
@@ -14,7 +16,7 @@ interface EmptyStateProps {
  * Canonical empty state.
  * <EmptyState icon="📋" title="No leads yet" description="Add your first lead." ctaLabel="Add Lead" onCta={...} dk={dk} />
  */
-export function EmptyState({ icon, title, description, ctaLabel, onCta, ctaHref, dk }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, ctaLabel, onCta, ctaHref, secondaryCtaLabel, onSecondaryCta, dk }: EmptyStateProps) {
   const t = theme(dk)
   return (
     <div style={{
@@ -66,6 +68,15 @@ export function EmptyState({ icon, title, description, ctaLabel, onCta, ctaHref,
             {ctaLabel}
           </button>
         )
+      )}
+      {secondaryCtaLabel && onSecondaryCta && (
+        <button onClick={onSecondaryCta} style={{
+          marginTop: 8, padding: '8px 20px', borderRadius: 10,
+          background: 'transparent', border: '1.5px solid #0F766E',
+          color: '#0F766E', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+        }}>
+          {secondaryCtaLabel}
+        </button>
       )}
     </div>
   )

@@ -33,6 +33,13 @@ export interface ElectricianFeatures {
   loadCalculator: boolean
 }
 
+
+export interface ElectricianStageAnchors {
+  entry: ElectricianStage
+  won:   ElectricianStage
+  lost:  ElectricianStage
+}
+
 export interface ElectricianConfig {
   readonly slug: 'electrician'
   readonly displayName: 'Electrician'

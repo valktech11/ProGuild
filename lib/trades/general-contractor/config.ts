@@ -13,6 +13,12 @@ export const gcConfig: GCConfig = {
     addClient: 'Add Client', clientsPage: 'Clients',
   },
 
+  stageAnchors: {
+    entry: 'lead_in',
+    won:   'job_won',
+    lost:  'lost',
+  },
+
   stages: [
     { key: 'lead_in',          label: 'Lead In',           icon: '📥', color: '#F59E0B', bg: '#FEF3C7', dot: '#F59E0B' },
     { key: 'bidding',          label: 'Bidding',           icon: '📊', color: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },

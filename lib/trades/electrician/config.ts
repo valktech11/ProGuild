@@ -13,6 +13,12 @@ export const electricianConfig: ElectricianConfig = {
     addClient: 'Add Client', clientsPage: 'Clients',
   },
 
+  stageAnchors: {
+    entry: 'new_call',
+    won:   'job_won',
+    lost:  'lost',
+  },
+
   stages: [
     { key: 'new_call',         label: 'New Call',         icon: '📞', color: '#F59E0B', bg: '#FEF3C7', dot: '#F59E0B' },
     { key: 'site_visit',       label: 'Site Visit',       icon: '🔍', color: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },

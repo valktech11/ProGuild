@@ -213,9 +213,11 @@ export default function PropertyListPage() {
               dk={dk}
               icon="🏠"
               title={search ? 'No properties match' : 'No properties yet'}
-              description={search ? 'Try a different address or city.' : 'Add a property to track roof details, measurements, and job history.'}
-              ctaLabel={search ? undefined : '+ Add First Property'}
-              onCta={search ? undefined : () => setShowAdd(true)}
+              description={search ? 'Try a different address or city.' : 'Properties are created automatically when you add a lead with an address.'}
+              ctaLabel={search ? undefined : '+ Add New Lead'}
+              onCta={search ? undefined : () => { window.location.href = '/dashboard/pipeline' }}
+              secondaryCtaLabel={search ? undefined : 'Add Property Manually'}
+              onSecondaryCta={search ? undefined : () => setShowAdd(true)}
             />
           </Card>
         ) : (

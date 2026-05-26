@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       // Phone-only or no contact info — flag for manual follow-up
       queuedForManual = true
       await sb.from('leads').update({
-        lead_status: 'Queued_Manual',
+        lead_status: 'lead_in',  // was Queued_Manual — not in DB constraint
       }).eq('id', lead.id)
     }
 

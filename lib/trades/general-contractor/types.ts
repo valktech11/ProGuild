@@ -36,6 +36,13 @@ export interface GCFeatures {
   changeOrders:        boolean
 }
 
+
+export interface GCStageAnchors {
+  entry: GCStage
+  won:   GCStage
+  lost:  GCStage
+}
+
 export interface GCConfig {
   readonly slug: 'general-contractor'
   readonly displayName: 'General Contractor'

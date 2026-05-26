@@ -54,6 +54,13 @@ export interface PlumbingFeatures {
   waterHeaterLog:   boolean
 }
 
+
+export interface PlumbingStageAnchors {
+  entry: PlumbingStage
+  won:   PlumbingStage
+  lost:  PlumbingStage
+}
+
 export interface PlumbingConfig {
   readonly slug:         'plumber'
   readonly displayName:  'Plumbing Contractor'

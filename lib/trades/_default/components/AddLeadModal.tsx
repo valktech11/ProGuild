@@ -86,13 +86,17 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
   const t = theme(dk)
   const tradePlugin = getTradeConfig(tradeSlug)
   const scopePlaceholder = getScopePlaceholder(tradeSlug)
-  const [name,   setName]   = useState('')
-  const [phone,  setPhone]  = useState('')
-  const [email,  setEmail]  = useState('')
-  const [need,   setNeed]   = useState('')
-  const [source, setSource] = useState('Phone_Call')
-  const [saving, setSaving] = useState(false)
-  const [err,    setErr]    = useState('')
+  const [name,       setName]       = useState('')
+  const [phone,      setPhone]      = useState('')
+  const [email,      setEmail]      = useState('')
+  const [need,       setNeed]       = useState('')
+  const [street,     setStreet]     = useState('')
+  const [city,       setCity]       = useState('')
+  const [addrState,  setAddrState]  = useState('')
+  const [zip,        setZip]        = useState('')
+  const [source,     setSource]     = useState('Phone_Call')
+  const [saving,     setSaving]     = useState(false)
+  const [err,        setErr]        = useState('')
 
   async function save() {
     if (!name.trim())  { setErr('Name is required'); return }
@@ -103,13 +107,17 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        pro_id:        proId,
-        contact_name:  name.trim(),
-        contact_phone: phone.trim() || null,
-        contact_email: email.trim() || null,
-        message:       need.trim(),
-        lead_source:   source,
-        is_manual:     true,
+        pro_id:           proId,
+        contact_name:     name.trim(),
+        contact_phone:    phone.trim()  || null,
+        contact_email:    email.trim()  || null,
+        message:          need.trim(),
+        lead_source:      source,
+        is_manual:        true,
+        property_address: street.trim() || null,
+        contact_city:     city.trim()   || null,
+        contact_state:    addrState.trim() || null,
+        contact_zip:      zip.trim()    || null,
       }),
     })
     const d = await r.json()
@@ -264,6 +272,39 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
                   onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
                 <span className="absolute bottom-2.5 right-3 text-[11px] text-gray-400">{need.length} / 250</span>
               </div>
+            </div>
+          </div>
+
+          {/* Address fields — optional but important for all trades */}
+          <div>
+            <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
+              Job address <span className="text-gray-400 font-normal normal-case">(optional)</span>
+            </label>
+            <input value={street} onChange={e => setStreet(e.target.value)}
+              placeholder="Street address"
+              className="w-full px-4 py-3 text-[14px] rounded-xl outline-none text-gray-900 placeholder-gray-400 transition-all bg-white mb-2"
+              style={{ border: '2px solid #CBD5E1' }}
+              onFocus={e => (e.target.style.borderColor = '#0F766E')}
+              onBlur={e  => (e.target.style.borderColor = '#CBD5E1')} />
+            <div className="grid grid-cols-3 gap-2">
+              <input value={city} onChange={e => setCity(e.target.value)}
+                placeholder="City"
+                className="px-3 py-2.5 text-[13px] rounded-xl outline-none text-gray-900 placeholder-gray-400 bg-white"
+                style={{ border: '2px solid #CBD5E1' }}
+                onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                onBlur={e  => (e.target.style.borderColor = '#CBD5E1')} />
+              <input value={addrState} onChange={e => setAddrState(e.target.value)}
+                placeholder="State" maxLength={2}
+                className="px-3 py-2.5 text-[13px] rounded-xl outline-none text-gray-900 placeholder-gray-400 bg-white"
+                style={{ border: '2px solid #CBD5E1' }}
+                onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                onBlur={e  => (e.target.style.borderColor = '#CBD5E1')} />
+              <input value={zip} onChange={e => setZip(e.target.value)}
+                placeholder="ZIP" maxLength={5}
+                className="px-3 py-2.5 text-[13px] rounded-xl outline-none text-gray-900 placeholder-gray-400 bg-white"
+                style={{ border: '2px solid #CBD5E1' }}
+                onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                onBlur={e  => (e.target.style.borderColor = '#CBD5E1')} />
             </div>
           </div>
 
