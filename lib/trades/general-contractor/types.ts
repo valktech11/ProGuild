@@ -50,6 +50,7 @@ export interface GCConfig {
   readonly brandColor: string
   readonly dbprCodes: string[]
   labels: GCLabels
+  stageAnchors: GCStageAnchors
   stages: GCPipelineStage[]
   nav: GCNavSection[]
   components:   AnyTradeComponents

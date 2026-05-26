@@ -68,6 +68,7 @@ export interface PlumbingConfig {
   readonly brandColor:   string
   readonly dbprCodes:    string[]
   labels:   PlumbingLabels
+  stageAnchors: PlumbingStageAnchors
   stages:   PlumbingPipelineStage[]
   nav:      PlumbingNavSection[]
   components:   AnyTradeComponents

@@ -47,6 +47,7 @@ export interface ElectricianConfig {
   readonly brandColor: string
   readonly dbprCodes: string[]
   labels: ElectricianLabels
+  stageAnchors: ElectricianStageAnchors
   stages: ElectricianPipelineStage[]
   nav: ElectricianNavSection[]
   components:   AnyTradeComponents
