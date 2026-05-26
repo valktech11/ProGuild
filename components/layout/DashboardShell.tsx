@@ -736,7 +736,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id])
 
-  const isA = (h: string, ex?: boolean) => ex ? p === h : p === h
+  const isA = (h: string, ex?: boolean) => ex ? p === h : p === h || p.startsWith(h + '/')
   const dk = darkMode ?? false
   const t  = theme(dk)
 
