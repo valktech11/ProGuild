@@ -606,7 +606,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
       style={{ backgroundColor: bg, borderBottom: `1px solid ${bdr}` }}>
 
       {/* Current availability status — compact pill, click opens user menu */}
-      <button onClick={() => { setUserOpen(o => !o); setStatusOpen(false) }}
+      <button onClick={() => setUserOpen(o => !o)}
         className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-semibold transition-all hover:opacity-80"
         style={{ border: `1px solid ${bdr}`, color: txt, backgroundColor: bg }}>
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: current.dot }} />
