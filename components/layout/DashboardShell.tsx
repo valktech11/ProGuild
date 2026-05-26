@@ -6,6 +6,7 @@ import { Session, isPaidPlan } from '@/types'
 import { initials, avatarColor, planLabel } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
+import AddLeadModal from '@/components/ui/AddLeadModal'
 
 type NavItem  = { label: string; href: string; icon: (a: boolean) => React.ReactNode; badge?: number | null; soon?: boolean; exact?: boolean }
 type NavGroup = { title: string; items: NavItem[] }
@@ -711,7 +712,14 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   const p   = usePathname()
   const nav = buildNav(newLeads, session?.trade_slug, session?.trade)
   const [moreOpen,  setMoreOpen]  = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheetOpen,    setSheetOpen]    = useState(false)
+  const [showAddLead,  setShowAddLead]  = useState(false)
+
+  // Internal handler — if parent passes onAddLead use it, otherwise use internal modal
+  const handleAddLead = () => {
+    if (onAddLead) onAddLead()
+    else setShowAddLead(true)
+  }
 
   // Silently refresh session if trade_slug missing (stale sessionStorage from before trade was set)
   React.useEffect(() => {
@@ -754,7 +762,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
 
             {/* Quick Add */}
             <div className="px-4 mb-6 flex-shrink-0">
-              <button onClick={onAddLead}
+              <button onClick={handleAddLead}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:brightness-110 active:scale-[.98]"
                 style={{ background: 'linear-gradient(135deg,#14B8A6 0%,#0A6460 100%)', color: '#fff', boxShadow: '0 4px 14px rgba(20,184,166,.3)' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round">
@@ -838,7 +846,15 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
           </main>
           <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} pipelineLabel={getTradeConfig(session?.trade_slug).labels.pipeline} />
           <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} session={session} nl={newLeads} dk={dk} onToggleDark={onToggleDark} />
-          <QuickSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onAddLead={() => { if (onAddLead) onAddLead() }} />
+          <QuickSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onAddLead={handleAddLead} />
+      {showAddLead && session && (
+        <AddLeadModal
+          proId={session.id}
+          tradeSlug={session.trade ?? 'roofing'}
+          onClose={() => setShowAddLead(false)}
+          onAdded={() => setShowAddLead(false)}
+        />
+      )}
         </div>
       </div>
     </>

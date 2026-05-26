@@ -117,7 +117,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
+    <DashboardShell session={session} newLeads={0} onAddLead={() => setShowAdd(true)} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{ background: t.pageBg, minHeight: '100vh', padding: '16px 16px 28px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
