@@ -17,6 +17,8 @@ export interface DefaultPipelineStage {
 export interface DefaultNavItem {
   label: string; href: string; icon: string; description: string
   badge?: 'new' | 'pro' | 'elite'
+  exact?: boolean
+  comingSoon?: boolean
 }
 
 export interface DefaultNavSection {
