@@ -588,9 +588,8 @@ const STATUS_OPTIONS = [
 function TopHeader({ session, dk, onAddLead, onToggleDark }: {
   session: Session | null; dk: boolean; onAddLead?: () => void; onToggleDark?: () => void
 }) {
-  const [status,     setStatus]     = React.useState('available')
-  const [statusOpen, setStatusOpen] = React.useState(false)
-  const [userOpen,   setUserOpen]   = React.useState(false)
+  const [status,   setStatus]   = React.useState('available')
+  const [userOpen, setUserOpen] = React.useState(false)
   const t   = theme(dk)
   const current = STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0]
   const bg  = t.cardBg
@@ -606,71 +605,19 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
     <div className="flex items-center justify-end gap-2 md:gap-3 px-3 md:px-6 py-2.5 md:py-3 flex-shrink-0"
       style={{ backgroundColor: bg, borderBottom: `1px solid ${bdr}` }}>
 
-      {/* Add New Lead button */}
-      {onAddLead && (
-        <button onClick={onAddLead}
-          className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-xl text-[12px] md:text-[13px] font-semibold transition-all hover:opacity-90 active:scale-95"
-          style={{ backgroundColor: '#0F766E', color: 'white' }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          <span className="hidden sm:inline">Add New Lead</span>
-          <span className="sm:hidden">Add Lead</span>
-        </button>
-      )}
+      {/* Current availability status — compact pill, click opens user menu */}
+      <button onClick={() => { setUserOpen(o => !o); setStatusOpen(false) }}
+        className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[12px] font-semibold transition-all hover:opacity-80"
+        style={{ border: `1px solid ${bdr}`, color: txt, backgroundColor: bg }}>
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: current.dot }} />
+        <span>{current.label}</span>
+      </button>
 
-      {/* Available for jobs dropdown */}
-      <div className="relative">
-        <button onClick={() => { setStatusOpen(o => !o); setUserOpen(false) }}
-          className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all hover:opacity-80"
-          style={{ border: `1px solid ${bdr}`, color: txt, backgroundColor: bg }}>
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: current.dot }} />
-          <span className="hidden md:inline">{current.label}</span>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="hidden md:block">
-            <path d={statusOpen ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
-          </svg>
-        </button>
-        {statusOpen && (
-          <div className="absolute right-0 top-full mt-1 w-64 rounded-2xl shadow-xl z-50 py-1 overflow-hidden"
-            style={{ backgroundColor: bg, border: `1px solid ${bdr}` }}>
-            {STATUS_OPTIONS.map(opt => (
-              <button key={opt.value}
-                onClick={() => { setStatus(opt.value); setStatusOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:opacity-70 transition-opacity">
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: opt.dot }} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-semibold" style={{ color: txt }}>{opt.label}</div>
-                  <div className="text-[14px]" style={{ color: '#9CA3AF' }}>{opt.sub}</div>
-                </div>
-                {opt.value === status && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Location — hidden on mobile */}
-      {session?.city && (
-        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium"
-          style={{ border: `1px solid ${bdr}`, color: txt }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 10a1 1 0 100-2 1 1 0 000 2" />
-          </svg>
-          {session.city}{session.state ? `, ${session.state}` : ''}
-        </div>
-      )}
-
-      {/* Bell */}
-      <div className="relative cursor-pointer flex-shrink-0">
+      {/* Bell — no badge until notifications are built */}
+      <div className="relative cursor-pointer flex-shrink-0 opacity-50" title="Notifications coming soon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="1.8" strokeLinecap="round">
           <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
         </svg>
-        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-          style={{ backgroundColor: '#EF4444' }}>3</span>
       </div>
 
       {/* Avatar + name — click for user menu */}
@@ -711,6 +658,25 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
                     style={{ left: dk ? '18px' : '2px' }} />
                 </div>
               </button>
+
+              {/* Available for jobs — status toggle */}
+              <div className="border-t" style={{ borderColor: bdr }}>
+                {STATUS_OPTIONS.map(opt => (
+                  <button key={opt.value}
+                    onClick={() => setStatus(opt.value)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 hover:opacity-70 transition-opacity">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: opt.dot }} />
+                      <span className="text-[13px] font-medium" style={{ color: txt }}>{opt.label}</span>
+                    </div>
+                    {opt.value === status && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
 
               {/* Profile link */}
               <a href="/edit-profile"
