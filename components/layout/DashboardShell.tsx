@@ -623,7 +623,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
       {/* Avatar + name — click for user menu */}
       {session && (
         <div className="relative">
-          <button onClick={() => { setUserOpen(o => !o); setStatusOpen(false) }}
+          <button onClick={() => { setUserOpen(o => !o) }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <Av s={session} px={28} />
             <span className="text-[14px] font-semibold" style={{ color: txt }}>{session.name?.split(' ')[0]}</span>
