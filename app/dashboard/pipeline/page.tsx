@@ -220,19 +220,7 @@ export default function PipelinePage() {
                 </span>
               )}
             </button>
-            {/* Add lead — premium CTA */}
-            <button onClick={() => setShowAddLead(true)} style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', border: 'none', color: 'white',
-              background: 'linear-gradient(135deg, #0F766E 0%, #0C5F57 100%)',
-              boxShadow: '0 2px 8px rgba(15,118,110,0.25)',
-            }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Add Lead
-            </button>
+
           </div>
         </div>
 

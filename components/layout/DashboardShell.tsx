@@ -715,10 +715,13 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   const [sheetOpen,    setSheetOpen]    = useState(false)
   const [showAddLead,  setShowAddLead]  = useState(false)
 
-  // Internal handler — if parent passes onAddLead use it, otherwise use internal modal
+  // Always use internal modal — pages that pass onAddLead={() => {}} are legacy, ignore them
   const handleAddLead = () => {
-    if (onAddLead) onAddLead()
-    else setShowAddLead(true)
+    if (onAddLead && onAddLead.toString() !== '() => {}' && onAddLead.toString() !== '()=>{}') {
+      onAddLead()
+    } else {
+      setShowAddLead(true)
+    }
   }
 
   // Silently refresh session if trade_slug missing (stale sessionStorage from before trade was set)
@@ -736,7 +739,13 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id])
 
-  const isA = (h: string, ex?: boolean) => ex ? p === h : p === h || p.startsWith(h + '/')
+  // /dashboard is always exact — every other page starts with /dashboard so it would always match
+  // Other routes use startsWith so /dashboard/pipeline/[id] highlights Jobs
+  const isA = (h: string, ex?: boolean) => {
+    if (h === '/dashboard') return p === '/dashboard'
+    if (ex) return p === h
+    return p === h || p.startsWith(h + '/')
+  }
   const dk = darkMode ?? false
   const t  = theme(dk)
 

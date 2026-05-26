@@ -160,7 +160,7 @@ export const roofingConfig: RoofingConfig = {
     {
       title: 'JOBS',
       items: [
-        { label: 'Overview', exact: true,    href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Overview',    href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
         { label: 'Jobs',        href: '/dashboard/pipeline', icon: '📋', description: 'Your full roofing pipeline' },
         { label: 'Calendar',    href: '/dashboard/calendar', icon: '📅', description: 'Inspections and installs' },
         { label: 'Messages',    href: '/messages',           icon: '💬', description: 'Leads and homeowner messages' },

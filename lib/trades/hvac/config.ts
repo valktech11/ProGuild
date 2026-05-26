@@ -43,7 +43,7 @@ export const hvacConfig: HVACConfig = {
     {
       title: 'TODAY',
       items: [
-        { label: 'Overview', exact: true,  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
         { label: 'Jobs',      href: '/dashboard/pipeline', icon: '🔧', description: 'Your HVAC service board' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '🗓️', description: 'Service appointments' },
       ],

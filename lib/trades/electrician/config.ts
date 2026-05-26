@@ -36,7 +36,7 @@ export const electricianConfig: ElectricianConfig = {
     {
       title: 'TODAY',
       items: [
-        { label: 'Overview', exact: true,  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
         { label: 'Jobs',      href: '/dashboard/pipeline', icon: '⚡', description: 'Your electrical service board' },
         { label: 'Calendar',  href: '/dashboard/calendar', icon: '📅', description: 'Service appointments' },
       ],
