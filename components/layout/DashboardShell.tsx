@@ -850,6 +850,10 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
           <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} pipelineLabel={getTradeConfig(session?.trade_slug).labels.pipeline} />
           <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} session={session} nl={newLeads} dk={dk} onToggleDark={onToggleDark} />
           <QuickSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onAddLead={handleAddLead} />
+        </div>
+      </div>
+
+      {/* Add Lead Modal — rendered outside desktop/mobile divs so it works everywhere */}
       {showAddLead && session && (
         <AddLeadModal
           proId={session.id}
@@ -858,8 +862,6 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
           onAdded={() => setShowAddLead(false)}
         />
       )}
-        </div>
-      </div>
     </>
   )
 }

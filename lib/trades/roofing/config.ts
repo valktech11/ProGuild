@@ -180,7 +180,6 @@ export const roofingConfig: RoofingConfig = {
         { label: 'Properties',    href: '/dashboard/roofing/property',   icon: '🏠', description: 'Property records and job history' },
         { label: 'ProMeasure',    href: '/dashboard/roofing/promeasure', icon: '📐', description: 'Satellite polygon measurement' },
         { label: 'Calculator',    href: '/dashboard/roofing/calculator', icon: '🔢', description: 'Squares + pitch + waste calculator' },
-        { label: 'Quick Bid PDF', href: '/dashboard/roofing/promeasure', icon: '📊', description: 'Generate instant measurement report', badge: 'pro' },
         { label: 'Warranties',    href: '/dashboard/roofing/warranties', icon: '🛡️', description: 'Shingle warranty records', comingSoon: true },
         { label: 'Material Prices', href: '/dashboard/roofing/settings',   icon: '💲', description: 'Set your material costs for estimates' },
       ],
