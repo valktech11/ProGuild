@@ -715,14 +715,8 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   const [sheetOpen,    setSheetOpen]    = useState(false)
   const [showAddLead,  setShowAddLead]  = useState(false)
 
-  // Always use internal modal — pages that pass onAddLead={() => {}} are legacy, ignore them
-  const handleAddLead = () => {
-    if (onAddLead && onAddLead.toString() !== '() => {}' && onAddLead.toString() !== '()=>{}') {
-      onAddLead()
-    } else {
-      setShowAddLead(true)
-    }
-  }
+  // Always open the built-in modal — it's wired into DashboardShell for all pages
+  const handleAddLead = () => setShowAddLead(true)
 
   // Silently refresh session if trade_slug missing (stale sessionStorage from before trade was set)
   React.useEffect(() => {
