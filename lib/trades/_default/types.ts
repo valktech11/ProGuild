@@ -5,7 +5,7 @@ import type { AnyTradeComponents } from '../_registry/types'
 // Clean generic pipeline. No trade-specific tools. Works immediately.
 
 export type DefaultStage =
-  | 'new' | 'quoted' | 'scheduled' | 'in_progress' | 'job_won'
+  | 'lead_in' | 'new' | 'quoted' | 'scheduled' | 'in_progress' | 'job_won'
   | 'lost' | 'unqualified'
 
 export interface DefaultPipelineStage {
