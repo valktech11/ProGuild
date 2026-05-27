@@ -24,7 +24,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .eq('pro_id', proId)
     .order('created_at', { ascending: false })
 
-  return NextResponse.json({ property, leads: leads || [] })
+  // Fetch linked client (homeowner contact) via property.client_id
+  let client = null
+  if (property.client_id) {
+    const { data: c } = await getSupabaseAdmin()
+      .from('clients')
+      .select('id, full_name, phone, email, tags')
+      .eq('id', property.client_id)
+      .single()
+    client = c || null
+  }
+
+  return NextResponse.json({ property, leads: leads || [], client })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -77,7 +77,8 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
   const t = theme(dk)
 
   const [property, setProperty] = useState<Property | null>(null)
-  const [leads, setLeads] = useState<LinkedLead[]>([])
+  const [leads,  setLeads]  = useState<LinkedLead[]>([])
+  const [client, setClient] = useState<{ id: string; full_name: string; phone: string | null; email: string | null; tags: string[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -105,6 +106,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
       .then(d => {
         if (d.property) { setProperty(d.property); setForm(d.property) }
         setLeads(d.leads || [])
+        setClient(d.client || null)
       })
       .catch(() => { setLoading(false) })
       .finally(() => setLoading(false))
@@ -632,6 +634,43 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                 </div>
               )}
             </div>
+
+            {/* ── Homeowner contact card ─────────────────────────────── */}
+            {client && (
+              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: '14px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {/* Avatar */}
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#F0FDFA', border: '2px solid #0F766E22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round">
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: t.textPri, letterSpacing: '-0.01em' }}>{capName(client.full_name)}</div>
+                    <div style={{ display: 'flex', gap: 12, marginTop: 3, flexWrap: 'wrap' as const }}>
+                      {client.phone && (
+                        <a href={`tel:${client.phone}`} style={{ fontSize: 12, color: '#0F766E', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11 19.79 19.79 0 01.01 2.38a2 2 0 012-2.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                          {client.phone}
+                        </a>
+                      )}
+                      {client.email && (
+                        <a href={`mailto:${client.email}`} style={{ fontSize: 12, color: t.textMuted, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                          {client.email}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* View Client link */}
+                <a href={`/dashboard/clients/${client.id}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>
+                  View Client
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </a>
+              </div>
+            )}
 
             {/* Property details — always visible, editable when Edit tapped */}
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', marginBottom: 12 }}>

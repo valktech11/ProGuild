@@ -155,15 +155,15 @@ export const roofingConfig: RoofingConfig = {
   // ── Navigation — roofing sidebar ────────────────────────────────────────────
   // DashboardShell renders this directly. No buildNav() logic needed.
   // ── Navigation — roofing sidebar ─────────────────────────────────────────────
-  // Exact section order: JOBS → MONEY → ROOFING TOOLS → REPORTS
+  // Nav order: JOBS → MONEY → MY RECORDS → ROOFING TOOLS → REPORTS
   nav: [
     {
       title: 'JOBS',
       items: [
-        { label: 'Overview',    href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
-        { label: 'Jobs',        href: '/dashboard/pipeline', icon: '📋', description: 'Your full roofing pipeline' },
-        { label: 'Calendar',    href: '/dashboard/calendar', icon: '📅', description: 'Inspections and installs' },
-        { label: 'Messages',    href: '/messages',           icon: '💬', description: 'Leads and homeowner messages' },
+        { label: 'Overview',  href: '/dashboard',          icon: '⚡', description: "Today's snapshot" },
+        { label: 'Jobs',      href: '/dashboard/pipeline', icon: '📋', description: 'Your full roofing pipeline' },
+        { label: 'Calendar',  href: '/dashboard/calendar', icon: '📅', description: 'Inspections and installs' },
+        { label: 'Messages',  href: '/messages',           icon: '💬', description: 'Leads and homeowner messages' },
       ],
     },
     {
@@ -175,20 +175,27 @@ export const roofingConfig: RoofingConfig = {
       ],
     },
     {
+      title: 'MY RECORDS',
+      items: [
+        { label: 'Clients',    href: '/dashboard/clients',              icon: '👤', description: 'Homeowner contacts and job history' },
+        { label: 'Properties', href: '/dashboard/roofing/property',     icon: '🏠', description: 'Property records, roof data, satellite reports' },
+        { label: 'Warranties', href: '/dashboard/roofing/warranties',   icon: '🛡️', description: 'Shingle warranty records', comingSoon: true },
+      ],
+    },
+    {
       title: 'ROOFING TOOLS',
       items: [
-        { label: 'Properties',    href: '/dashboard/roofing/property',   icon: '🏠', description: 'Property records and job history' },
-        { label: 'ProMeasure',    href: '/dashboard/roofing/promeasure', icon: '📐', description: 'Satellite polygon measurement' },
-        { label: 'Calculator',    href: '/dashboard/roofing/calculator', icon: '🔢', description: 'Squares + pitch + waste calculator' },
-        { label: 'Warranties',    href: '/dashboard/roofing/warranties', icon: '🛡️', description: 'Shingle warranty records', comingSoon: true },
-        { label: 'Material Prices', href: '/dashboard/roofing/settings',   icon: '💲', description: 'Set your material costs for estimates' },
+        { label: 'Quick Bid PDF', href: '/dashboard/roofing/promeasure?mode=quickbid', icon: '⚡', description: 'One-tap satellite measurement PDF' },
+        { label: 'ProMeasure',    href: '/dashboard/roofing/promeasure',               icon: '📐', description: 'Satellite polygon measurement' },
+        { label: 'Calculator',    href: '/dashboard/roofing/calculator',               icon: '🔢', description: 'Squares + pitch + waste calculator' },
+        { label: 'Material Prices', href: '/dashboard/roofing/settings',               icon: '💲', description: 'Set your material costs for estimates' },
       ],
     },
     {
       title: 'REPORTS',
       items: [
-        { label: 'Performance',  href: '/dashboard/performance',      icon: '📈', description: 'Win rate, revenue, pipeline value', badge: 'pro' },
-        { label: 'Storm Alerts', href: '/dashboard/roofing/storm',    icon: '⛈️', description: 'Hail events near you', badge: 'elite', comingSoon: true },
+        { label: 'Performance',  href: '/dashboard/performance',   icon: '📈', description: 'Win rate, revenue, pipeline value', badge: 'pro' },
+        { label: 'Storm Alerts', href: '/dashboard/roofing/storm', icon: '⛈️', description: 'Hail events near you', badge: 'elite', comingSoon: true },
       ],
     },
   ],
