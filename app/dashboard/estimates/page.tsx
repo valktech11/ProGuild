@@ -289,7 +289,7 @@ function NewEstimateModal({ open, dk, session, noun, onClose, onLeadSelected, on
               ) : (
                 filtered.map((lead, i) => {
                   const [bg, fg] = avatarColor(lead.contact_name || '')
-                  const ss = stageStyle(lead.lead_status, dk, session.trade_slug)
+                  const ss = stageStyle(lead.lead_status, dk, session.trade_slug ?? undefined)
                   return (
                     <button
                       key={lead.id}
