@@ -134,7 +134,7 @@ export async function POST(
 
       if (!existingInv) {
         // Get next invoice number
-        const { data: numData } = await sb.rpc('next_invoice_number', { pro_id_input: fullEst.pro_id })
+        const { data: numData } = await sb.rpc('next_invoice_number', { p_pro_id: fullEst.pro_id })
         const invoiceNumber = numData || `INV-${Date.now().toString().slice(-4)}`
 
         const milestones = roofingEst?.payment_milestones ?? (fullEst.roofing as any)?.payment_milestones ?? null

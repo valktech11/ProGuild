@@ -19,7 +19,7 @@ export const defaultConfig: DefaultConfig = {
     scopePlaceholder: 'Describe what needs to be done, size of job, any urgency...',
   },
   stageAnchors: {
-    entry: 'lead_in',
+    entry: 'new',
     won:   'job_won',
     lost:  'lost',
   },

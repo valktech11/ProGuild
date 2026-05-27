@@ -186,10 +186,10 @@ export async function POST(req: NextRequest) {
     await supabase.from('pipeline_events').insert({
       lead_id:    lead.id,
       pro_id,
-      from_stage: null,
-      to_stage:   initialStage,
       trade_slug: tradeSlug,
       event_type: 'lead_created',
+      event_data: { to: initialStage },
+      actor_type: 'system',
       created_at: new Date().toISOString(),
     })
   } catch (e) { console.error('pipeline_events insert failed:', e) }

@@ -567,9 +567,12 @@ function CalendarInner() {
   async function markComplete(ev: CalEvent) {
     if (!session||completing) return
     setCompleting(ev.id)
+    // Use trade-aware won stage (job_won for all current trades) instead of legacy 'Completed'
+    const anchors = getStageAnchors(session.trade_slug)
+    const wonStage = anchors.won ?? 'job_won'
     try {
-      await fetch(`/api/leads/${ev.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ pro_id:session.id, lead_status:'Completed' }) })
-      setEvents(prev => prev.map(e => e.id===ev.id ? {...e, lead_status:'Completed'} : e))
+      await fetch(`/api/leads/${ev.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ pro_id:session.id, lead_status: wonStage }) })
+      setEvents(prev => prev.map(e => e.id===ev.id ? {...e, lead_status: wonStage} : e))
       setSelectedEvent(null)
     } finally { setCompleting(null) }
   }

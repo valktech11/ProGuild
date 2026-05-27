@@ -89,10 +89,10 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       await sb.from('pipeline_events').insert({
         lead_id:    leadId,
         pro_id,
-        from_stage: currentStage,
-        to_stage:   newStage,
         trade_slug: tradeSlug || null,
         event_type: 'stage_changed',
+        event_data: { from: currentStage, to: newStage },
+        actor_type: 'pro',
         created_at: new Date().toISOString(),
       })
     } catch (e) {
