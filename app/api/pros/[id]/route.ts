@@ -40,6 +40,18 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   for (const key of allowed) { if (key in body) updates[key] = body[key] }
   if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'No valid fields' }, { status: 400 })
 
+  // When trade_category_id changes, resolve and sync trade_slug so pipeline works correctly
+  if ('trade_category_id' in updates && updates.trade_category_id) {
+    const { data: cat } = await getSupabaseAdmin()
+      .from('trade_categories')
+      .select('slug')
+      .eq('id', updates.trade_category_id)
+      .single()
+    updates.trade_slug = cat?.slug || null
+  } else if ('trade_category_id' in updates && !updates.trade_category_id) {
+    updates.trade_slug = null
+  }
+
   const { data, error } = await getSupabaseAdmin().from('pros').update(updates).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ pro: data })

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       email:      pro.email,
       plan:       pro.plan_tier,
       trade:      pro.trade_category?.category_name || null,
-      trade_slug: pro.trade_category?.slug || null,
+      trade_slug: (pro as any).trade_slug || pro.trade_category?.slug || null,
       city:       pro.city,
       state:      pro.state,
       slug,                          // ← vanity slug for sharing
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
       email:      pro.email,
       plan:       pro.plan_tier,
       trade:      (pro.trade_category as any)?.category_name || null,
-      trade_slug: (pro.trade_category as any)?.slug || null,
+      trade_slug: (pro as any).trade_slug || (pro.trade_category as any)?.slug || null,
       city:       pro.city,
       state:      pro.state,
       slug:       pro.slug || null,
