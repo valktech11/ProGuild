@@ -311,7 +311,9 @@ export default function OverviewPage() {
             {smartSubLine ? (
               <p className="text-[13px] mt-1 font-medium" style={{ color: '#DC2626' }}>{smartSubLine}</p>
             ) : (
-              <p className="hidden md:block text-[13px] mt-0.5" style={{ color: BODY }}>Here&apos;s what&apos;s happening with your business today.</p>
+              <p className="hidden md:block text-[13px] mt-0.5" style={{ color: BODY }}>
+                {leads.length === 0 ? "Let\'s get your first job." : "Here\'s what\'s happening with your business today."}
+              </p>
             )}
           </div>
 
@@ -515,17 +517,34 @@ export default function OverviewPage() {
 
               {/* ── Steps ── */}
               <div style={{ background: dk ? '#111827' : '#fff', padding: '24px 28px 28px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: BODY, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 16px' }}>
-                  How it works
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+                {/* Section header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: BODY, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                    How it works
+                  </p>
+                  <div style={{ flex: 1, height: 1, background: BORDER }} />
+                  <p style={{ fontSize: 11, color: BODY, margin: 0 }}>3 steps to your first paid job</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, marginBottom: 20, position: 'relative' }}>
+                  {/* Connecting line between cards */}
+                  <div className="hidden md:block" style={{ position: 'absolute', top: 28, left: '16.5%', right: '16.5%', height: 2, background: `linear-gradient(90deg, ${TEAL}40, ${TEAL}40)`, zIndex: 0, pointerEvents: 'none' }} />
                   {tradeWelcome.steps.map((s: any, i: number) => (
-                    <div key={i} style={{ padding: '16px', borderRadius: 12, background: dk ? t.cardBgAlt : '#F7F6F3', border: `1px solid ${BORDER}`, position: 'relative', overflow: 'hidden' }}>
-                      {/* Step number watermark */}
-                      <div style={{ position: 'absolute', top: 8, right: 10, fontSize: 32, fontWeight: 900, color: TEAL, opacity: 0.07, lineHeight: 1 }}>{i + 1}</div>
-                      <div style={{ fontSize: 22, marginBottom: 8 }}>{s.icon}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: textMain, marginBottom: 4, letterSpacing: '-0.01em' }}>{s.title}</div>
-                      <div style={{ fontSize: 12, color: BODY, lineHeight: 1.55 }}>{s.body}</div>
+                    <div key={i} style={{ padding: '20px 16px 18px', borderRadius: 12, background: dk ? t.cardBgAlt : '#FAFAF9', border: `1.5px solid ${i === 0 ? TEAL + '40' : BORDER}`, position: 'relative', zIndex: 1, margin: '0 6px', transition: 'border-color 0.2s' }}>
+                      {/* Step badge — bold and visible */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                          background: i === 0 ? TEAL : dk ? t.cardBgEdit : '#EEF2F5',
+                          color: i === 0 ? '#fff' : TEAL,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 14, fontWeight: 800,
+                          boxShadow: i === 0 ? `0 2px 8px rgba(15,118,110,0.4)` : 'none',
+                          border: i !== 0 ? `2px solid ${TEAL}33` : 'none',
+                        }}>{i + 1}</div>
+                        <div style={{ fontSize: 24, lineHeight: 1 }}>{s.icon}</div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: textMain, marginBottom: 5, letterSpacing: '-0.01em' }}>{s.title}</div>
+                      <div style={{ fontSize: 12, color: BODY, lineHeight: 1.6 }}>{s.body}</div>
                     </div>
                   ))}
                 </div>

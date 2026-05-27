@@ -293,6 +293,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     if (!r.ok) { setError(d.error || 'Could not create account.'); return }
 
     const selectedCat = cats.find(c => c.id === trade)
+    sessionStorage.setItem('pg_just_signed_up', '1')
     sessionStorage.setItem('pg_pro', JSON.stringify({
       id:d.pro.id, name:d.pro.full_name, email:d.pro.email, plan:d.pro.plan_tier,
       trade:selectedCat?.category_name||null,

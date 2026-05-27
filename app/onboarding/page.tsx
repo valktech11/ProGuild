@@ -67,7 +67,15 @@ export default function OnboardingPage() {
     const raw = sessionStorage.getItem('pg_pro')
     if (!raw) { router.replace('/login'); return }
     const s: Session = JSON.parse(raw)
-    if (sessionStorage.getItem('pg_onboarded')) { router.replace('/dashboard'); return }
+    // Only skip onboarding if previously onboarded AND this is NOT a fresh signup
+    const justSignedUp = sessionStorage.getItem('pg_just_signed_up')
+    if (justSignedUp) {
+      // Fresh signup — always show onboarding, clear the flag
+      sessionStorage.removeItem('pg_just_signed_up')
+      sessionStorage.removeItem('pg_onboarded') // reset so they see it
+    } else if (sessionStorage.getItem('pg_onboarded')) {
+      router.replace('/dashboard'); return
+    }
     setSession(s)
   }, [])
 
