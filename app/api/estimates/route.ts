@@ -41,6 +41,13 @@ export async function POST(req: NextRequest) {
 
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
+  // Option C guard: estimates must be linked to a lead.
+  // lead_id is required unless this is a force_new re-issue of an existing lead's estimate
+  // (force_new=true always has pendingLead.id passed as lead_id from the UI).
+  if (!lead_id) {
+    return NextResponse.json({ error: 'lead_id required — estimates must be linked to a lead' }, { status: 400 })
+  }
+
   const sb = getSupabaseAdmin()
 
   // C2 FIX: check for any non-void, non-declined estimate (not just draft)

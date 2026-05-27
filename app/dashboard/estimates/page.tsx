@@ -1,12 +1,12 @@
 'use client'
-import { capName } from '@/lib/utils'
+import { capName, avatarColor } from '@/lib/utils'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, FileText, Search, Trash2, X, User } from 'lucide-react'
+import { Plus, FileText, Search, Trash2, X, Phone, MapPin, User, ArrowRight, ChevronLeft } from 'lucide-react'
 import { Session } from '@/types'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { estimateStatusStyle } from '@/lib/design'
+import { estimateStatusStyle, stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig } from '@/lib/trades/_registry'
 
@@ -35,17 +35,465 @@ type EstimateSummary = {
   valid_until: string
 }
 
-const STATUS_STYLES: Record<EstimateSummary['status'], { bg: string; text: string; label: string }> = {
-  draft:    { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Draft' },
-  sent:     { bg: 'bg-blue-50',    text: 'text-blue-600',   label: 'Sent' },
-  viewed:   { bg: 'bg-purple-50',  text: 'text-purple-600', label: 'Viewed' },
-  approved: { bg: 'bg-teal-50',    text: 'text-teal-700',   label: 'Approved' },
-  declined: { bg: 'bg-red-50',     text: 'text-red-600',    label: 'Declined' },
-  invoiced: { bg: 'bg-orange-50',  text: 'text-orange-700', label: 'Invoiced' },
-  paid:     { bg: 'bg-green-50',   text: 'text-green-700',  label: 'Paid' },
-  void:     { bg: 'bg-gray-100',   text: 'text-gray-400',   label: 'Void' },
+// ── New Estimate Modal (Option C) ─────────────────────────────────────────────
+// Step 1: Search existing leads or click "Add new lead"
+// Step 2: Inline 3-field form to create a lead, then open estimate builder
+type NewEstimateModalProps = {
+  open: boolean
+  dk: boolean
+  session: Session
+  noun: string
+  onClose: () => void
+  onLeadSelected: (lead: any) => void   // existing lead chosen
+  onNewLeadCreated: (lead: any) => void // new lead created inline
 }
 
+function NewEstimateModal({ open, dk, session, noun, onClose, onLeadSelected, onNewLeadCreated }: NewEstimateModalProps) {
+  const [step, setStep]               = useState<'search' | 'new-lead'>('search')
+  const [query, setQuery]             = useState('')
+  const [leads, setLeads]             = useState<any[]>([])
+  const [loadingLeads, setLoadingLeads] = useState(false)
+  const [newName, setNewName]         = useState('')
+  const [newAddress, setNewAddress]   = useState('')
+  const [newPhone, setNewPhone]       = useState('')
+  const [errors, setErrors]           = useState<Record<string, string>>({})
+  const [creating, setCreating]       = useState(false)
+  const [success, setSuccess]         = useState(false)
+  const [successName, setSuccessName] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  const t = theme(dk)
+
+  // Reset on open/close
+  useEffect(() => {
+    if (open) {
+      setStep('search')
+      setQuery('')
+      setErrors({})
+      setCreating(false)
+      setSuccess(false)
+      setNewName(''); setNewAddress(''); setNewPhone('')
+      // Fetch leads for search
+      setLoadingLeads(true)
+      fetch(`/api/leads?pro_id=${session.id}`)
+        .then(r => r.json())
+        .then(d => setLeads(d.leads || []))
+        .catch(() => setLeads([]))
+        .finally(() => setLoadingLeads(false))
+    }
+  }, [open, session.id])
+
+  // Auto-focus search input
+  useEffect(() => {
+    if (open && step === 'search') {
+      setTimeout(() => searchRef.current?.focus(), 80)
+    }
+  }, [open, step])
+
+  if (!open) return null
+
+  const filtered = leads.filter(l => {
+    if (!query.trim()) return true
+    const q = query.toLowerCase()
+    return (
+      (l.contact_name || '').toLowerCase().includes(q) ||
+      (l.property_address || '').toLowerCase().includes(q) ||
+      (l.contact_city || '').toLowerCase().includes(q)
+    )
+  }).slice(0, 20)
+
+  function handleSelectLead(lead: any) {
+    setSuccessName(lead.contact_name)
+    setSuccess(true)
+    setTimeout(() => { onLeadSelected(lead); setSuccess(false) }, 800)
+  }
+
+  async function handleCreateAndContinue() {
+    const errs: Record<string, string> = {}
+    if (!newName.trim()) errs.name = 'Name is required'
+    if (!newAddress.trim()) errs.address = 'Address is required'
+    if (Object.keys(errs).length) { setErrors(errs); return }
+
+    setCreating(true)
+    try {
+      const r = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pro_id:           session.id,
+          contact_name:     newName.trim(),
+          property_address: newAddress.trim(),
+          contact_phone:    newPhone.trim() || null,
+          message:          'Lead created from estimate builder',
+          is_manual:        true,
+          lead_source:      'Manual_Entry',
+        }),
+      })
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}))
+        setErrors({ submit: e.error || 'Failed to create lead' })
+        setCreating(false)
+        return
+      }
+      const d = await r.json()
+      const lead = d.lead
+      setSuccessName(newName.trim())
+      setSuccess(true)
+      setTimeout(() => { onNewLeadCreated(lead); setSuccess(false) }, 900)
+    } catch (err: any) {
+      setErrors({ submit: err.message || 'Network error' })
+      setCreating(false)
+    }
+  }
+
+  const overlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, zIndex: 1000,
+    background: 'rgba(10,22,40,0.5)', backdropFilter: 'blur(3px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+  }
+  const modal: React.CSSProperties = {
+    background: t.cardBg,
+    border: `1px solid ${t.cardBorder}`,
+    borderRadius: 16,
+    width: '100%', maxWidth: 520,
+    boxShadow: '0 24px 64px rgba(10,22,40,0.24), 0 2px 8px rgba(10,22,40,0.08)',
+    overflow: 'hidden',
+    position: 'relative',
+  }
+
+  return (
+    <div style={overlay} onClick={e => { if (e.target === e.currentTarget && !creating) onClose() }}>
+      <div style={modal}>
+
+        {/* ── Success overlay ── */}
+        {success && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 10, background: t.cardBg,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 16,
+          }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: '50%',
+              background: '#F0FDF4', border: '2px solid #86EFAC',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M4 12L9 17L20 6" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: t.textPri, marginBottom: 4 }}>Opening estimate builder</p>
+            <p style={{ fontSize: 13, color: t.textMuted }}>For {capName(successName)}</p>
+          </div>
+        )}
+
+        {/* ── Creating overlay ── */}
+        {creating && !success && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 10,
+            background: dk ? 'rgba(17,24,39,0.85)' : 'rgba(255,255,255,0.85)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 16,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              border: `3px solid ${dk ? '#334155' : '#E8E2D9'}`,
+              borderTopColor: '#0F766E',
+              animation: 'pg-spin 0.7s linear infinite',
+            }} />
+            <p style={{ fontSize: 13, color: t.textMuted, marginTop: 12 }}>
+              Creating lead &amp; opening estimate…
+            </p>
+          </div>
+        )}
+
+        {/* ── Header ── */}
+        <div style={{
+          padding: '20px 24px 0',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        }}>
+          <div>
+            {step === 'new-lead' && (
+              <button
+                onClick={() => { setStep('search'); setErrors({}) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  fontSize: 12, color: t.textMuted, background: 'none', border: 'none',
+                  cursor: 'pointer', padding: '0 0 8px', fontWeight: 500,
+                }}
+              >
+                <ChevronLeft size={13} /> Back to search
+              </button>
+            )}
+            <p style={{ fontSize: 16, fontWeight: 600, color: t.textPri, margin: 0 }}>
+              {step === 'search' ? `New ${noun}` : 'Add new lead'}
+            </p>
+            <p style={{ fontSize: 13, color: t.textMuted, marginTop: 3, marginBottom: 0 }}>
+              {step === 'search'
+                ? 'Choose a lead or add a new one to get started'
+                : `Create a lead and jump straight to the ${noun.toLowerCase()}`}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32, height: 32, borderRadius: 8, border: 'none',
+              background: 'transparent', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: t.textMuted,
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* ── Step 1: Search leads ── */}
+        {step === 'search' && (
+          <div style={{ padding: '16px 24px 24px' }}>
+            {/* Search input */}
+            <div style={{ position: 'relative', marginBottom: 10 }}>
+              <Search size={15} style={{
+                position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                color: t.textMuted,
+              }} />
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search by name, address, or city…"
+                style={{
+                  width: '100%', padding: '10px 12px 10px 36px',
+                  border: `1px solid ${t.inputBorder}`,
+                  borderRadius: 8, background: t.inputBg,
+                  color: t.textPri, fontSize: 14,
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(15,118,110,0.12)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = t.inputBorder; e.currentTarget.style.boxShadow = 'none' }}
+              />
+            </div>
+
+            {/* Lead results */}
+            <div style={{
+              maxHeight: 288, overflowY: 'auto',
+              border: `1px solid ${t.cardBorder}`,
+              borderRadius: 8, marginBottom: 12,
+            }}>
+              {loadingLeads ? (
+                <div style={{ padding: '28px 16px', textAlign: 'center', color: t.textMuted, fontSize: 13 }}>
+                  Loading leads…
+                </div>
+              ) : filtered.length === 0 ? (
+                <div style={{ padding: '28px 16px', textAlign: 'center', color: t.textMuted, fontSize: 13 }}>
+                  {query ? `No leads match "${query}"` : 'No leads yet'}
+                </div>
+              ) : (
+                filtered.map((lead, i) => {
+                  const [bg, fg] = avatarColor(lead.contact_name || '')
+                  const ss = stageStyle(lead.lead_status, dk, session.trade_slug)
+                  return (
+                    <button
+                      key={lead.id}
+                      onClick={() => handleSelectLead(lead)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '11px 14px', border: 'none',
+                        borderBottom: i < filtered.length - 1 ? `1px solid ${t.cardBorder}` : 'none',
+                        background: 'transparent', cursor: 'pointer', textAlign: 'left',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = t.cardBgHover)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {/* Avatar */}
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        background: bg, color: fg,
+                        fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {(lead.contact_name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: t.textPri, margin: 0 }}>
+                          {capName(lead.contact_name)}
+                        </p>
+                        {(lead.property_address || lead.contact_city) && (
+                          <p style={{ fontSize: 12, color: t.textMuted, margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <MapPin size={11} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {[lead.property_address, lead.contact_city].filter(Boolean).join(', ')}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                      {/* Stage badge */}
+                      <span style={{
+                        fontSize: 11, fontWeight: 600,
+                        padding: '3px 8px', borderRadius: 100,
+                        background: ss.bg, color: ss.color,
+                        whiteSpace: 'nowrap', flexShrink: 0,
+                      }}>
+                        {ss.label}
+                      </span>
+                      <ArrowRight size={13} style={{ color: t.textMuted, flexShrink: 0 }} />
+                    </button>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ flex: 1, height: 1, background: t.cardBorder }} />
+              <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 500 }}>OR</span>
+              <div style={{ flex: 1, height: 1, background: t.cardBorder }} />
+            </div>
+
+            {/* Add new lead CTA */}
+            <button
+              onClick={() => setStep('new-lead')}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '10px 16px',
+                border: `1.5px dashed ${t.inputBorder}`,
+                borderRadius: 8, background: 'transparent',
+                color: t.textMuted, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#0F766E'
+                e.currentTarget.style.color = '#0F766E'
+                e.currentTarget.style.background = '#F0FDFA'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = t.inputBorder
+                e.currentTarget.style.color = t.textMuted
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <Plus size={14} /> Add new lead &amp; create estimate
+            </button>
+          </div>
+        )}
+
+        {/* ── Step 2: New lead form ── */}
+        {step === 'new-lead' && (
+          <div style={{ padding: '16px 24px 24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+              {/* Name */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                  <User size={12} /> Homeowner name <span style={{ color: '#DC2626' }}>*</span>
+                </label>
+                <input
+                  autoFocus
+                  value={newName}
+                  onChange={e => { setNewName(e.target.value); setErrors(er => ({ ...er, name: '' })) }}
+                  placeholder="e.g. James Holloway"
+                  style={{
+                    width: '100%', padding: '10px 12px',
+                    border: `1px solid ${errors.name ? '#DC2626' : t.inputBorder}`,
+                    borderRadius: 8, background: t.inputBg,
+                    color: t.textPri, fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = errors.name ? '#DC2626' : '#0F766E'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(15,118,110,0.12)' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = errors.name ? '#DC2626' : t.inputBorder; e.currentTarget.style.boxShadow = 'none' }}
+                />
+                {errors.name && <p style={{ fontSize: 11, color: '#DC2626', marginTop: 3, marginBottom: 0 }}>{errors.name}</p>}
+              </div>
+
+              {/* Address */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                  <MapPin size={12} /> Property address <span style={{ color: '#DC2626' }}>*</span>
+                </label>
+                <input
+                  value={newAddress}
+                  onChange={e => { setNewAddress(e.target.value); setErrors(er => ({ ...er, address: '' })) }}
+                  placeholder="Street address (e.g. 4821 Cypress Creek Rd)"
+                  style={{
+                    width: '100%', padding: '10px 12px',
+                    border: `1px solid ${errors.address ? '#DC2626' : t.inputBorder}`,
+                    borderRadius: 8, background: t.inputBg,
+                    color: t.textPri, fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = errors.address ? '#DC2626' : '#0F766E'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(15,118,110,0.12)' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = errors.address ? '#DC2626' : t.inputBorder; e.currentTarget.style.boxShadow = 'none' }}
+                />
+                {errors.address && <p style={{ fontSize: 11, color: '#DC2626', marginTop: 3, marginBottom: 0 }}>{errors.address}</p>}
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                  <Phone size={12} /> Phone <span style={{ fontSize: 11, fontWeight: 400 }}>(optional)</span>
+                </label>
+                <input
+                  value={newPhone}
+                  onChange={e => setNewPhone(e.target.value)}
+                  placeholder="(813) 555-0100"
+                  style={{
+                    width: '100%', padding: '10px 12px',
+                    border: `1px solid ${t.inputBorder}`,
+                    borderRadius: 8, background: t.inputBg,
+                    color: t.textPri, fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(15,118,110,0.12)' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = t.inputBorder; e.currentTarget.style.boxShadow = 'none' }}
+                />
+              </div>
+
+              {/* Info note */}
+              <div style={{
+                background: '#F0FDFA', border: '1px solid #CCFBF1',
+                borderRadius: 8, padding: '10px 12px',
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+              }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ marginTop: 1, flexShrink: 0 }}>
+                  <circle cx="7" cy="7" r="6" stroke="#0F766E" strokeWidth="1.25"/>
+                  <path d="M7 6.5V10M7 4.5V5" stroke="#0F766E" strokeWidth="1.25" strokeLinecap="round"/>
+                </svg>
+                <span style={{ fontSize: 12, color: '#0F766E', lineHeight: 1.5 }}>
+                  A lead will be created at <strong>Lead In</strong> stage. Property auto-linked. Add more details from the lead page later.
+                </span>
+              </div>
+
+              {/* Submit error */}
+              {errors.submit && (
+                <p style={{ fontSize: 12, color: '#DC2626', margin: 0, padding: '8px 12px', background: '#FEF2F2', borderRadius: 8 }}>
+                  {errors.submit}
+                </p>
+              )}
+
+              {/* CTA */}
+              <button
+                onClick={handleCreateAndContinue}
+                disabled={creating}
+                style={{
+                  width: '100%', padding: '11px 16px',
+                  background: 'linear-gradient(to right, #0F766E, #0D9488)',
+                  color: '#fff', border: 'none', borderRadius: 8,
+                  fontSize: 14, fontWeight: 600, cursor: creating ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  opacity: creating ? 0.7 : 1,
+                }}
+              >
+                Create lead &amp; open estimate builder
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes pg-spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function EstimatesPage() {
   const router = useRouter()
 
@@ -66,11 +514,10 @@ export default function EstimatesPage() {
   const [loading,      setLoading]      = useState(true)
   const [creating,     setCreating]     = useState(false)
   const [search,       setSearch]       = useState('')
-  const [showPicker,   setShowPicker]   = useState(false)
-  const [createError,  setCreateError]  = useState<string | null>(null)
-  const [leads,        setLeads]        = useState<any[]>([])
-  const [leadSearch,   setLeadSearch]   = useState('')
-  const [loadingLeads, setLoadingLeads] = useState(false)
+
+  // Option C modal state
+  const [showNewEstimateModal, setShowNewEstimateModal] = useState(false)
+
   // E1: column header sort
   const [sortCol, setSortCol] = useState<'date' | 'total' | 'name' | 'status'>('date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -87,10 +534,15 @@ export default function EstimatesPage() {
   const [voidedToast, setVoidedToast] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
+  // Existing estimate conflict modal
+  const [existingEst, setExistingEst] = useState<{ id: string; estimate_number: string; total: number; lead_name: string } | null>(null)
+  const [pendingLead,  setPendingLead]  = useState<any>(null)
+  const [createError,  setCreateError]  = useState<string | null>(null)
+
   useEffect(() => {
     if (voidedToast) {
-      const t = setTimeout(() => setVoidedToast(null), 4000)
-      return () => clearTimeout(t)
+      const timer = setTimeout(() => setVoidedToast(null), 4000)
+      return () => clearTimeout(timer)
     }
   }, [voidedToast])
 
@@ -109,26 +561,54 @@ export default function EstimatesPage() {
     setDk(next)
   }
 
-  const handleCreate = async () => {
+  // Called when user selects an existing lead from Option C modal
+  const handleLeadSelected = async (lead: any) => {
     if (!session || creating) return
-    setShowPicker(true)
-    setLoadingLeads(true)
-    setLeadSearch('')
+    setShowNewEstimateModal(false)
+    setCreating(true)
     try {
-      const r = await fetch(`/api/leads?pro_id=${session.id}`)
+      const r = await fetch('/api/estimates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pro_id:        session.id,
+          state:         session.state || '',
+          lead_id:       lead.id,
+          lead_name:     lead.contact_name || 'New Client',
+          lead_source:   lead.lead_source || '',
+          trade:         session.trade || '',
+          trade_slug:    session.trade_slug || '',
+          contact_phone: lead.contact_phone || '',
+          contact_email: lead.contact_email || '',
+        }),
+      })
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}))
+        setCreateError(err.error || 'Failed to create estimate')
+        setCreating(false)
+        return
+      }
       const d = await r.json()
-      setLeads(d.leads || [])
-    } catch { setLeads([]) }
-    finally { setLoadingLeads(false) }
+      if (d.existed) {
+        setExistingEst({ ...d.estimate, lead_name: lead.contact_name || 'this lead' })
+        setPendingLead(lead)
+        setCreating(false)
+      } else if (d.estimate?.id) {
+        router.push(`/dashboard/estimates/${d.estimate.id}`)
+      } else {
+        setCreating(false)
+      }
+    } catch (err: any) {
+      setCreateError(err.message || 'Network error')
+      setCreating(false)
+    }
   }
 
-  const [existingEst, setExistingEst] = useState<{ id: string; estimate_number: string; total: number; lead_name: string } | null>(null)
-  const [pendingLead,  setPendingLead]  = useState<any>(null)
-
-  const createFromLead = async (lead?: any) => {
-    if (!session || creating) return
+  // Called when user created a new lead inline in Option C modal
+  const handleNewLeadCreated = async (lead: any) => {
+    if (!session) return
+    setShowNewEstimateModal(false)
     setCreating(true)
-    setShowPicker(false)
     try {
       const r = await fetch('/api/estimates', {
         method: 'POST',
@@ -138,7 +618,7 @@ export default function EstimatesPage() {
           state:         session.state || '',
           lead_id:       lead?.id || null,
           lead_name:     lead?.contact_name || 'New Client',
-          lead_source:   lead?.lead_source || '',
+          lead_source:   lead?.lead_source || 'Manual_Entry',
           trade:         session.trade || '',
           trade_slug:    session.trade_slug || '',
           contact_phone: lead?.contact_phone || '',
@@ -147,16 +627,12 @@ export default function EstimatesPage() {
       })
       if (!r.ok) {
         const err = await r.json().catch(() => ({}))
-        setCreateError(err.error || 'Failed to create estimate — check DB tables')
+        setCreateError(err.error || 'Failed to create estimate')
         setCreating(false)
         return
       }
       const d = await r.json()
-      if (d.existed) {
-        setExistingEst({ ...d.estimate, lead_name: lead?.contact_name || 'this lead' })
-        setPendingLead(lead)
-        setCreating(false)
-      } else if (d.estimate?.id) {
+      if (d.estimate?.id) {
         router.push(`/dashboard/estimates/${d.estimate.id}`)
       } else {
         setCreating(false)
@@ -209,18 +685,15 @@ export default function EstimatesPage() {
 
   if (!session) return null
 
-  const t       = theme(dk)
-  const muted   = dk ? 'text-slate-400' : 'text-[#6B7280]'
+  const t     = theme(dk)
+  const muted = dk ? 'text-slate-400' : 'text-[#6B7280]'
 
-  // E1+E2+E3: filter, sort, archive
+  // Filter + sort
   const archivedStatuses = ['void', 'declined']
   const filtered = estimates
     .filter(e => {
-      // E3: hide archived by default
       if (!showArchived && archivedStatuses.includes(e.status)) return false
-      // E2: status filter
       if (statusFilter !== 'all' && e.status !== statusFilter) return false
-      // search
       return e.lead_name.toLowerCase().includes(search.toLowerCase()) ||
              e.estimate_number.toLowerCase().includes(search.toLowerCase())
     })
@@ -239,15 +712,13 @@ export default function EstimatesPage() {
   const archivedCount = estimates.filter(e => archivedStatuses.includes(e.status)).length
 
   // Stats
-  // Best-per-lead: one lead can never contribute more than once to Active Estimates Value
-  // Priority: invoiced > approved > viewed > sent (highest commitment wins)
   const STATUS_PRIORITY: Record<string, number> = { invoiced: 1, approved: 2, viewed: 3, sent: 4 }
   const activeStatuses = ['sent', 'viewed', 'approved', 'invoiced']
   const bestPerLead = Object.values(
     estimates
       .filter(e => activeStatuses.includes(e.status))
       .reduce((acc, e) => {
-        const key = e.lead_id || e.id // fallback to id if no lead_id (standalone estimates)
+        const key = e.lead_id || e.id
         const existing = acc[key]
         if (!existing || (STATUS_PRIORITY[e.status] || 99) < (STATUS_PRIORITY[existing.status] || 99)) {
           acc[key] = e
@@ -255,8 +726,7 @@ export default function EstimatesPage() {
         return acc
       }, {} as Record<string, typeof estimates[0]>)
   )
-  const totalValue = (bestPerLead as typeof estimates).reduce((s, e) => s + e.total, 0)
-  const approvedCount = estimates.filter(e => e.status === 'approved' || e.status === 'paid').length
+  const totalValue    = (bestPerLead as typeof estimates).reduce((s, e) => s + e.total, 0)
   const sentCount     = estimates.filter(e => e.status === 'sent' || e.status === 'viewed').length
 
   const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
@@ -269,15 +739,14 @@ export default function EstimatesPage() {
       darkMode={dk}
       onToggleDark={toggleDark}
     >
-      <div className={`min-h-screen pb-12 `}>
+      <div className="min-h-screen pb-12">
         <div className="max-w-[1200px] mx-auto px-4 py-6 space-y-6">
 
-          {/* Reads ?voided= param — must be in Suspense per Next.js App Router rules */}
           <Suspense fallback={null}>
             <VoidedToast onToast={msg => setVoidedToast(msg)} />
           </Suspense>
 
-          {/* Voided confirmation toast */}
+          {/* Voided toast */}
           {voidedToast && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 12, background: dk ? 'rgba(100,116,139,0.15)' : '#F1F5F9', border: '1px solid #CBD5E1' }}>
               <span style={{ fontSize: 14 }}>🗂</span>
@@ -289,24 +758,24 @@ export default function EstimatesPage() {
           {/* ── Header ── */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className={`text-2xl font-bold tracking-tight `}>{noun}</h1>
-              <p className={`text-sm mt-0.5 hidden md:block `}>Create and send professional {noun.toLowerCase()} to your leads</p>
+              <h1 className="text-2xl font-bold tracking-tight">{noun}</h1>
+              <p className={`text-sm mt-0.5 hidden md:block ${muted}`}>Create and send professional {noun.toLowerCase()} to your leads</p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {}}  // GBB is now a toggle inside the estimate builder — not a separate page
+                onClick={() => {}}
                 className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg whitespace-nowrap"
                 style={{ border: '1.5px solid #0F766E', color: '#0F766E', background: '#F0FDFA' }}
               >
                 Good/Better/Best
               </button>
               <button
-                onClick={handleCreate}
+                onClick={() => setShowNewEstimateModal(true)}
                 disabled={creating}
                 className="flex items-center gap-2 bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 whitespace-nowrap"
               >
                 <Plus size={16} />
-                {creating ? 'Creating...' : 'New Estimate'}
+                {creating ? 'Creating...' : `New ${noun}`}
               </button>
             </div>
           </div>
@@ -318,9 +787,9 @@ export default function EstimatesPage() {
               { label: 'Sent / In Review', value: sentCount.toString() },
               { label: 'Active Estimates Value', value: fmt(totalValue) },
             ].map(stat => (
-              <div key={stat.label} className={`rounded-xl border p-3 md:p-4 `}>
-                <p className={`text-[12px] font-bold uppercase tracking-wide `}>{stat.label}</p>
-                <p className={`text-xl md:text-2xl font-bold mt-1 `}>{stat.value}</p>
+              <div key={stat.label} className="rounded-xl border p-3 md:p-4" style={{ borderColor: t.cardBorder, background: t.cardBg }}>
+                <p className={`text-[12px] font-bold uppercase tracking-wide ${muted}`}>{stat.label}</p>
+                <p className="text-xl md:text-2xl font-bold mt-1" style={{ color: t.textPri }}>{stat.value}</p>
               </div>
             ))}
           </div>
@@ -333,24 +802,25 @@ export default function EstimatesPage() {
             </div>
           )}
 
-          {/* ── Search + Sort ── */}
+          {/* ── Search ── */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 flex-1 `}>
+            <div className="flex items-center gap-3 rounded-xl border px-4 py-2.5 flex-1" style={{ borderColor: t.cardBorder, background: t.cardBg }}>
               <Search size={16} className={muted} />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search by client name or estimate number..."
-                className={`flex-1 bg-transparent text-sm focus:outline-none  placeholder:text-[#9CA3AF]`}
+                className={`flex-1 bg-transparent text-sm focus:outline-none placeholder:text-[#9CA3AF]`}
+                style={{ color: t.textPri }}
               />
               {search && (
-                <button onClick={() => setSearch('')} className={`text-xs  hover:text-red-400`}>✕</button>
+                <button onClick={() => setSearch('')} className={`text-xs hover:text-red-400 ${muted}`}>✕</button>
               )}
             </div>
-            </div>
+          </div>
 
           {/* E2: Status filter pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: "none" }}>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {(['all','draft','sent','viewed','approved','invoiced','paid'] as const).map(s => (
               <button key={s}
                 onClick={() => setStatusFilter(s)}
@@ -365,23 +835,19 @@ export default function EstimatesPage() {
           </div>
 
           {/* ── Estimates table ── */}
-          <div className={`rounded-xl border overflow-hidden `}>
+          <div className="rounded-xl border overflow-hidden" style={{ borderColor: t.cardBorder, background: t.cardBg }}>
             {/* Table header */}
-            <div className={`hidden md:grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide  ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
-              {/* Client — sortable by name */}
+            <div className={`hidden md:grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide ${muted} ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
               <button onClick={() => toggleSort('name')} className={`flex items-center gap-1 text-left hover:text-[#0F766E] transition-colors ${sortCol === 'name' ? 'text-[#0F766E]' : ''}`}>
                 Client / Estimate {sortCol === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
               </button>
               <span>Trade</span>
-              {/* Status — sortable */}
               <button onClick={() => toggleSort('status')} className={`flex items-center gap-1 hover:text-[#0F766E] transition-colors ${sortCol === 'status' ? 'text-[#0F766E]' : ''}`}>
                 Status {sortCol === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
               </button>
-              {/* Total — sortable */}
               <button onClick={() => toggleSort('total')} className={`flex items-center gap-1 justify-end w-full hover:text-[#0F766E] transition-colors ${sortCol === 'total' ? 'text-[#0F766E]' : ''}`}>
                 {sortCol === 'total' ? (sortDir === 'asc' ? '↑' : '↓') : ''} Total
               </button>
-              {/* Date — sortable */}
               <button onClick={() => toggleSort('date')} className={`flex items-center gap-1 justify-end w-full hover:text-[#0F766E] transition-colors ${sortCol === 'date' ? 'text-[#0F766E]' : ''}`}>
                 {sortCol === 'date' ? (sortDir === 'asc' ? '↑' : '↓') : ''} Date
               </button>
@@ -396,7 +862,7 @@ export default function EstimatesPage() {
               </div>
             ) : filtered.length === 0 ? (
               estimates.length === 0
-                ? <EmptyState dk={dk} onCreate={handleCreate} creating={creating} />
+                ? <EmptyState dk={dk} onCreate={() => setShowNewEstimateModal(true)} creating={creating} noun={noun} />
                 : (
                   <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
                     <p className={`font-semibold text-sm ${dk ? 'text-white' : 'text-gray-700'}`}>
@@ -414,56 +880,42 @@ export default function EstimatesPage() {
                   <button
                     key={est.id}
                     onClick={() => router.push(`/dashboard/estimates/${est.id}`)}
-                    className={`w-full text-left transition-colors border-b last:border-b-0 ${
-                      dk ? 'border-[#334155]' : 'border-[#E8E2D9]'
-                    }`}
-                    style={{ background: i % 2 === 1 ? (t.tableRowOdd) : 'transparent' }}
+                    className={`w-full text-left transition-colors border-b last:border-b-0 ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}
+                    style={{ background: i % 2 === 1 ? t.tableRowOdd : 'transparent' }}
                     onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = t.cardBgHover)}
-                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = i % 2 === 1 ? (t.tableRowOdd) : 'transparent')}
+                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = i % 2 === 1 ? t.tableRowOdd : 'transparent')}
                   >
-                    {/* Mobile layout */}
+                    {/* Mobile */}
                     <div className="flex items-center gap-3 px-4 py-3.5 md:hidden">
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold truncate `}>{est.lead_name}</p>
-                        <p className={`text-xs mt-0.5 `}>#{est.estimate_number}</p>
+                        <p className="text-sm font-semibold truncate" style={{ color: t.textPri }}>{est.lead_name}</p>
+                        <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>#{est.estimate_number}</p>
                       </div>
                       <span style={{ background: estimateStatusStyle(est.status, dk).bg, color: estimateStatusStyle(est.status, dk).text, padding: '2px 10px', borderRadius: 20, fontSize: T.fontBadge, fontWeight: 600, display: 'inline-flex', flexShrink: 0 }}>
                         {estimateStatusStyle(est.status, dk).label}
                       </span>
-                      <div className={`text-sm font-bold shrink-0 `}>
-                        {fmt(est.total)}
-                      </div>
-                      <button
-                        onClick={e => deleteEstimate(e, est.id)}
-                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                        title="Delete estimate"
-                      >
+                      <div className="text-sm font-bold shrink-0" style={{ color: t.textPri }}>{fmt(est.total)}</div>
+                      <button onClick={e => deleteEstimate(e, est.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
                         <Trash2 size={14} />
                       </button>
                     </div>
-                    {/* Desktop layout */}
+                    {/* Desktop */}
                     <div className="hidden md:grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-4">
                       <div>
-                        <p className={`text-sm font-semibold `}>{est.lead_name}</p>
-                        <p className={`text-xs mt-0.5 `}>#{est.estimate_number}</p>
+                        <p className="text-sm font-semibold" style={{ color: t.textPri }}>{est.lead_name}</p>
+                        <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>#{est.estimate_number}</p>
                       </div>
-                      <div className={`text-sm self-center truncate `}>{est.trade}</div>
+                      <div className="text-sm self-center truncate" style={{ color: t.textMuted }}>{est.trade}</div>
                       <div className="self-center">
                         <span style={{ background: estimateStatusStyle(est.status, dk).bg, color: estimateStatusStyle(est.status, dk).text, padding: '2px 10px', borderRadius: 20, fontSize: T.fontBadge, fontWeight: 600, display: 'inline-flex' }}>
                           {estimateStatusStyle(est.status, dk).label}
                         </span>
                       </div>
-                      <div className={`text-sm font-semibold self-center text-right `}>
-                        {fmt(est.total)}
-                      </div>
-                      <div className={`text-xs self-center text-right `}>
+                      <div className="text-sm font-semibold self-center text-right" style={{ color: t.textPri }}>{fmt(est.total)}</div>
+                      <div className="text-xs self-center text-right" style={{ color: t.textMuted }}>
                         {new Date(est.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </div>
-                      <button
-                        onClick={e => deleteEstimate(e, est.id)}
-                        className="self-center p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="Delete estimate"
-                      >
+                      <button onClick={e => deleteEstimate(e, est.id)} className="self-center p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -477,7 +929,7 @@ export default function EstimatesPage() {
           {archivedCount > 0 && (
             <div className="text-center py-2">
               <button onClick={() => setShowArchived(v => !v)}
-                className={`text-xs font-medium transition-colors  hover:text-[#0F766E]`}>
+                className={`text-xs font-medium transition-colors hover:text-[#0F766E] ${muted}`}>
                 {showArchived ? `Hide archived (${archivedCount})` : `Show archived — void & declined (${archivedCount})`}
               </button>
             </div>
@@ -485,6 +937,20 @@ export default function EstimatesPage() {
 
         </div>
       </div>
+
+      {/* ── Option C: New Estimate Modal ── */}
+      {session && (
+        <NewEstimateModal
+          open={showNewEstimateModal}
+          dk={dk}
+          session={session}
+          noun={noun}
+          onClose={() => setShowNewEstimateModal(false)}
+          onLeadSelected={handleLeadSelected}
+          onNewLeadCreated={handleNewLeadCreated}
+        />
+      )}
+
       {/* ── Existing estimate modal ── */}
       {existingEst && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
@@ -522,82 +988,6 @@ export default function EstimatesPage() {
         </div>
       )}
 
-      {/* ── Lead picker modal ── */}
-      {showPicker && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setShowPicker(false)}>
-          <div className={`w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden ${dk ? 'bg-[#1E293B]' : 'bg-white'}`}
-            onClick={e => e.stopPropagation()}>
-
-            {/* Modal header */}
-            <div className={`flex items-center justify-between px-5 py-4 border-b ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
-              <div>
-                <h3 className={`font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>New Estimate</h3>
-                <p className={`text-xs mt-0.5 ${dk ? 'text-slate-400' : 'text-[#6B7280]'}`}>Select a lead or create a blank estimate</p>
-              </div>
-              <button onClick={() => setShowPicker(false)} className={dk ? 'text-slate-400 hover:text-white' : 'text-gray-400 hover:text-gray-900'}>
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className={`flex items-center gap-2 px-4 py-3 border-b ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
-              <Search size={15} className={dk ? 'text-slate-400' : 'text-[#9CA3AF]'} />
-              <input
-                autoFocus
-                value={leadSearch}
-                onChange={e => setLeadSearch(e.target.value)}
-                placeholder="Search leads by name..."
-                className={`flex-1 bg-transparent text-sm focus:outline-none ${dk ? 'text-white placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400'}`}
-              />
-            </div>
-
-            {/* Lead list */}
-            <div className="max-h-80 overflow-y-auto">
-              {loadingLeads ? (
-                <div className={`p-8 text-center text-sm ${dk ? 'text-slate-400' : 'text-[#6B7280]'}`}>Loading leads...</div>
-              ) : (
-                <>
-                  {leads
-                    .filter(l => l.contact_name?.toLowerCase().includes(leadSearch.toLowerCase()))
-                    .slice(0, 15)
-                    .map(lead => (
-                      <button key={lead.id} onClick={() => createFromLead(lead)}
-                        className={`w-full flex items-center gap-3 px-5 py-3.5 text-left border-b transition-colors ${
-                          dk ? 'border-[#334155] hover:bg-[#0F172A]' : 'border-[#E8E2D9] hover:bg-[#F9FAFB]'}`}>
-                        <div className="w-9 h-9 rounded-full bg-teal-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                          {lead.contact_name?.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold ${dk ? 'text-white' : 'text-gray-900'}`}>{capName(lead.contact_name)}</p>
-                          <p className={`text-xs mt-0.5 ${dk ? 'text-slate-400' : 'text-[#6B7280]'}`}>
-                            {(lead.lead_source || '').replace(/_/g, ' ')}
-                            {lead.contact_phone ? ` · ${lead.contact_phone}` : ''}
-                          </p>
-                        </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                          lead.lead_status === 'Contacted' ? 'bg-blue-50 text-blue-600' :
-                          lead.lead_status === 'Quoted'    ? 'bg-purple-50 text-purple-600' :
-                          'bg-amber-50 text-amber-600'}`}>
-                          {lead.lead_status}
-                        </span>
-                      </button>
-                    ))}
-                </>
-              )}
-            </div>
-
-            {/* Skip — blank estimate */}
-            <div className={`px-5 py-3 border-t ${dk ? 'border-[#334155]' : 'border-[#E8E2D9]'}`}>
-              <button onClick={() => createFromLead(undefined)}
-                className={`w-full flex items-center gap-2 py-2 text-sm transition-colors ${dk ? 'text-slate-400 hover:text-white' : 'text-[#6B7280] hover:text-[#0F766E]'}`}>
-                <User size={14} />
-                Skip — create blank estimate without a lead
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* ── Delete confirmation modal ── */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center p-4"
@@ -606,8 +996,7 @@ export default function EstimatesPage() {
           <div className={`w-full max-w-sm rounded-2xl shadow-2xl p-6 ${dk ? 'bg-[#1E293B]' : 'bg-white'}`}
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: '#FEE2E2' }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#FEE2E2' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round">
                   <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
                 </svg>
@@ -635,7 +1024,7 @@ export default function EstimatesPage() {
   )
 }
 
-function EmptyState({ dk, onCreate, creating }: { dk: boolean; onCreate: () => void; creating: boolean }) {
+function EmptyState({ dk, onCreate, creating, noun }: { dk: boolean; onCreate: () => void; creating: boolean; noun: string }) {
   const muted = dk ? 'text-slate-400' : 'text-[#6B7280]'
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -643,14 +1032,14 @@ function EmptyState({ dk, onCreate, creating }: { dk: boolean; onCreate: () => v
         <FileText size={24} className="text-[#0F766E]" />
       </div>
       <p className={`font-semibold text-base ${dk ? 'text-white' : 'text-gray-900'}`}>No estimates yet</p>
-      <p className={`text-sm mt-1 mb-5 `}>Create your first estimate and send it to a client in minutes.</p>
+      <p className={`text-sm mt-1 mb-5 ${muted}`}>Create your first estimate and send it to a client in minutes.</p>
       <button
         onClick={onCreate}
         disabled={creating}
         className="flex items-center gap-2 bg-gradient-to-r from-[#0F766E] to-[#0D9488] text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
       >
         <Plus size={15} />
-        {creating ? 'Creating...' : 'Create First Estimate'}
+        {creating ? 'Creating...' : `Create First ${noun}`}
       </button>
     </div>
   )
