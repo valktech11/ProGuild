@@ -1,8 +1,9 @@
 'use client'
 import { theme, T } from '@/lib/tokens'
 import { capName } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { getTradeConfig, getTradeLabels } from '@/lib/trades/_registry'
+import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
 
 const SOURCES = [
   { value: 'Phone_Call', label: 'Phone call' },
@@ -81,9 +82,25 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
   const [phone,  setPhone]  = useState('')
   const [email,  setEmail]  = useState('')
   const [need,   setNeed]   = useState('')
-  const [source, setSource] = useState('Phone_Call')
-  const [saving, setSaving] = useState(false)
-  const [err,    setErr]    = useState('')
+  const [source,    setSource]    = useState('Phone_Call')
+  const [street,    setStreet]    = useState('')
+  const [city,      setCity]      = useState('')
+  const [addrState, setAddrState] = useState('')
+  const [zip,       setZip]       = useState('')
+  const [saving,    setSaving]    = useState(false)
+  const [err,       setErr]       = useState('')
+
+  // Google Places autocomplete on the street field
+  const streetRef = useRef<HTMLInputElement>(null)
+  usePlacesAutocomplete(streetRef, (formatted: string) => {
+    const zipMatch   = formatted.match(/\b(\d{5})\b/)
+    const stateMatch = formatted.match(/,\s*([A-Z]{2})\s+\d{5}/)
+    const parts      = formatted.replace(', USA', '').split(', ')
+    if (zipMatch)   setZip(zipMatch[1])
+    if (stateMatch) setAddrState(stateMatch[1])
+    if (parts.length >= 3) setCity(parts[parts.length - 3] || '')
+    if (parts.length >= 1) setStreet(parts[0] || '')
+  })
 
   async function save() {
     if (!name.trim())  { setErr('Name is required'); return }
@@ -94,13 +111,17 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        pro_id:        proId,
-        contact_name:  name.trim(),
-        contact_phone: phone.trim() || null,
-        contact_email: email.trim() || null,
-        message:       need.trim(),
-        lead_source:   source,
-        is_manual:     true,
+        pro_id:           proId,
+        contact_name:     name.trim(),
+        contact_phone:    phone.trim() || null,
+        contact_email:    email.trim() || null,
+        property_address: street.trim() || null,
+        contact_city:     city.trim() || null,
+        contact_state:    addrState.trim() || null,
+        contact_zip:      zip.trim() || null,
+        message:          need.trim(),
+        lead_source:      source,
+        is_manual:        true,
       }),
     })
     const d = await r.json()
@@ -233,6 +254,54 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
                   className={inputCls} style={inputStyle}
                   onFocus={e => (e.target.style.borderColor = '#0F766E')}
                   onBlur={e => { setEmail(e.target.value.trim().toLowerCase()); e.target.style.borderColor = '#CBD5E1' }} />
+              </div>
+            </div>
+
+            {/* Address — with Google autocomplete */}
+            <div className="mb-3">
+              <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
+                Property address <span className="text-gray-400 font-normal normal-case">(optional)</span>
+              </label>
+              <div className="relative mb-2">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+                </svg>
+                <input
+                  ref={streetRef}
+                  value={street}
+                  onChange={e => setStreet(e.target.value)}
+                  placeholder="Start typing address — autocomplete enabled"
+                  autoComplete="off"
+                  className={inputCls} style={inputStyle}
+                  onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                  onBlur={e => (e.target.style.borderColor = '#CBD5E1')}
+                />
+              </div>
+              <div className="grid grid-cols-[1fr_72px_90px] gap-2">
+                <div className="relative">
+                  <input value={city} onChange={e => setCity(e.target.value)}
+                    placeholder="City" className={inputCls} style={inputStyle}
+                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
+                </div>
+                <div>
+                  <select value={addrState} onChange={e => setAddrState(e.target.value)}
+                    className={inputCls.replace('pl-10', 'pl-3')} style={{ ...inputStyle, paddingRight: 4 }}
+                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')}>
+                    <option value="">ST</option>
+                    {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="relative">
+                  <input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))}
+                    placeholder="ZIP" maxLength={5} inputMode="numeric"
+                    className={inputCls.replace('pl-10', 'pl-3')} style={inputStyle}
+                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
+                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
+                </div>
               </div>
             </div>
 
