@@ -9,7 +9,7 @@ import AddLeadModal from '@/components/ui/AddLeadModal'
 
 import { theme, T, BRAND } from '@/lib/tokens'
 import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
-import { getTradeConfig, isHVAC, getStageAnchors } from '@/lib/trades/_registry'
+import { getTradeConfig, isHVAC, isRoofing, isPlumbing, isElectrician, isGC, getStageAnchors } from '@/lib/trades/_registry'
 
 const TEAL   = '#0F766E'
 const NAVY   = '#0A1628'
@@ -332,64 +332,232 @@ export default function OverviewPage() {
           </div>
         )}
 
-        {/* ── Welcome card — shown at TOP for fresh accounts with no leads ── */}
-        {leads.length === 0 && reviews.length === 0 && (
-          <div className="rounded-2xl mb-5 overflow-hidden" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}`, boxShadow: '0 2px 12px rgba(15,118,110,0.08)' }}>
-            {/* Teal gradient header band */}
-            <div style={{ background: 'linear-gradient(135deg, #0F766E 0%, #0D9488 100%)', padding: '28px 24px 24px', textAlign: 'center' }}>
-              <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
-                <svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  {/* Drop shadow */}
-                  <ellipse cx="36" cy="61" rx="22" ry="3" fill="rgba(0,0,0,0.15)"/>
-                  {/* Main roof — clean geometric shape */}
-                  <path d="M4 30L36 4L68 30" fill="white" fillOpacity="0.22" stroke="white" strokeWidth="2.5" strokeLinejoin="round"/>
-                  {/* Roof overhang line */}
-                  <path d="M1 30H71" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.5"/>
-                  {/* House body */}
-                  <rect x="12" y="30" width="48" height="28" rx="2" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="2" strokeLinejoin="round"/>
-                  {/* Door */}
-                  <rect x="29" y="42" width="14" height="16" rx="2" fill="white" fillOpacity="0.3" stroke="white" strokeWidth="1.5"/>
-                  {/* Door knob */}
-                  <circle cx="40" cy="51" r="1.5" fill="white" fillOpacity="0.8"/>
-                  {/* Left window */}
-                  <rect x="16" y="35" width="10" height="9" rx="1.5" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.5"/>
-                  {/* Right window */}
-                  <rect x="46" y="35" width="10" height="9" rx="1.5" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.5"/>
-                  {/* Chimney */}
-                  <rect x="52" y="12" width="7" height="16" rx="1.5" fill="white" fillOpacity="0.3" stroke="white" strokeWidth="1.5"/>
-                  {/* Chimney top detail */}
-                  <rect x="50" y="10" width="11" height="4" rx="1" fill="white" fillOpacity="0.5"/>
-                  {/* Roof ridge cap accent */}
-                  <path d="M24 30L36 18L48 30" fill="white" fillOpacity="0.12"/>
-                  {/* Subtle shingle lines */}
-                  <path d="M14 22L36 4" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.2"/>
-                  <path d="M58 22L36 4" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.2"/>
+        {/* ── Welcome card — trade-aware, shown for fresh accounts with no leads ── */}
+        {leads.length === 0 && reviews.length === 0 && (() => {
+          // ── Trade-specific config ─────────────────────────────────────────────
+          const tradeWelcome = (() => {
+            if (isHVAC(tc)) return {
+              gradient: 'linear-gradient(135deg, #0B2A3E 0%, #0D4A6E 50%, #0B7FBF 100%)',
+              accentColor: '#38BDF8',
+              accentBg: 'rgba(56,189,248,0.12)',
+              accentBorder: 'rgba(56,189,248,0.25)',
+              badge: 'HVAC Technician',
+              headline: 'Your HVAC business, all in one place.',
+              sub: 'Log service calls, track equipment, send estimates — everything from the field or office.',
+              stats: [
+                { n: '3×', l: 'more jobs won with CRM' },
+                { n: '$0', l: 'per-lead fee. Ever.' },
+                { n: '$49', l: 'per month, all features' },
+              ],
+              steps: [
+                { icon: '📞', title: 'Log a service call', body: 'Add a new lead when a customer calls. Track the job from first contact to payment.' },
+                { icon: '🔧', title: 'Diagnose & estimate', body: 'Record equipment details, create a professional estimate and send it for approval.' },
+                { icon: '💵', title: 'Invoice & collect', body: 'Generate an invoice from your approved estimate and get paid — cash, card or bank transfer.' },
+              ],
+              svgIcon: (
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                  {/* AC unit outer body */}
+                  <rect x="8" y="22" width="64" height="40" rx="6" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="2" strokeLinejoin="round"/>
+                  {/* AC unit inner panel */}
+                  <rect x="14" y="28" width="36" height="28" rx="3" fill="white" fillOpacity="0.08" stroke="white" strokeWidth="1.5"/>
+                  {/* Fan blades */}
+                  <circle cx="32" cy="42" r="9" fill="white" fillOpacity="0.06" stroke="white" strokeWidth="1.5"/>
+                  <path d="M32 33 Q38 38 32 42 Q26 38 32 33Z" fill="white" fillOpacity="0.3"/>
+                  <path d="M41 42 Q36 48 32 42 Q36 36 41 42Z" fill="white" fillOpacity="0.3"/>
+                  <path d="M32 51 Q26 46 32 42 Q38 46 32 51Z" fill="white" fillOpacity="0.3"/>
+                  <path d="M23 42 Q28 36 32 42 Q28 48 23 42Z" fill="white" fillOpacity="0.3"/>
+                  <circle cx="32" cy="42" r="3" fill="white" fillOpacity="0.6"/>
+                  {/* Vent lines */}
+                  <path d="M56 30 L56 56" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+                  <path d="M60 30 L60 56" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+                  <path d="M64 30 L64 56" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+                  {/* Top LED indicators */}
+                  <circle cx="56" cy="26" r="2" fill="#38BDF8" fillOpacity="0.9"/>
+                  <circle cx="62" cy="26" r="2" fill="white" fillOpacity="0.4"/>
+                  {/* Pipes */}
+                  <path d="M8 35 Q2 35 2 42 Q2 49 8 49" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.5"/>
+                  <path d="M72 35 Q78 35 78 42 Q78 49 72 49" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.5"/>
                 </svg>
-              </div>
-              <h3 style={{ fontSize: 22, fontWeight: 800, color: 'white', margin: 0, marginBottom: 6 }}>Welcome to ProGuild, {firstName}!</h3>
-              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)', margin: 0 }}>You&apos;re all set up. Here&apos;s how to get your first job.</p>
-            </div>
-            {/* Steps */}
-            <div style={{ padding: '20px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { num: '1', text: 'Add your first lead from a customer enquiry', icon: '📥' },
-                { num: '2', text: 'Create an estimate and send it for approval', icon: '📄' },
-                { num: '3', text: 'Schedule the job and generate an invoice', icon: '✅' },
-              ].map(s => (
-                <div key={s.num} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', borderRadius: 12, background: t.cardBgAlt, border: `1px solid ${BORDER}` }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#0F766E', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, flexShrink: 0 }}>{s.num}</div>
-                  <span style={{ fontSize: 14, color: t.textBody, fontWeight: 500 }}>{s.text}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 20 }}>{s.icon}</span>
+              ),
+            }
+            if (isHVAC(tc) === false && tc.slug === 'electrician') return {
+              gradient: 'linear-gradient(135deg, #1A1028 0%, #2D1B6E 50%, #4C1D95 100%)',
+              accentColor: '#A78BFA',
+              accentBg: 'rgba(167,139,250,0.12)',
+              accentBorder: 'rgba(167,139,250,0.25)',
+              badge: 'Electrician',
+              headline: 'Wire up your business. Get paid faster.',
+              sub: 'Manage permits, panel upgrades, and service calls from one dashboard.',
+              stats: [{ n:'3×', l:'more jobs won' }, { n:'$0', l:'per-lead fee' }, { n:'$49', l:'per month' }],
+              steps: [
+                { icon: '📞', title: 'Log a service call', body: 'Add a new lead when a customer calls.' },
+                { icon: '⚡', title: 'Estimate & permit', body: 'Create a professional estimate and track permits.' },
+                { icon: '💵', title: 'Invoice & collect', body: 'Generate an invoice and get paid.' },
+              ],
+              svgIcon: (
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                  <rect x="20" y="10" width="40" height="60" rx="4" fill="white" fillOpacity="0.1" stroke="white" strokeWidth="2"/>
+                  <rect x="26" y="18" width="28" height="4" rx="2" fill="white" fillOpacity="0.4"/>
+                  <rect x="26" y="26" width="28" height="4" rx="2" fill="white" fillOpacity="0.3"/>
+                  <rect x="26" y="34" width="28" height="4" rx="2" fill="white" fillOpacity="0.25"/>
+                  <path d="M44 48 L36 60 L42 60 L36 72" stroke="#FBBF24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                </svg>
+              ),
+            }
+            if (isHVAC(tc) === false && tc.slug === 'plumber') return {
+              gradient: 'linear-gradient(135deg, #0A2238 0%, #0B4870 50%, #0369A1 100%)',
+              accentColor: '#7DD3FC',
+              accentBg: 'rgba(125,211,252,0.12)',
+              accentBorder: 'rgba(125,211,252,0.25)',
+              badge: 'Plumber',
+              headline: 'Your plumbing business, flowing smoothly.',
+              sub: 'Track service calls, permits, and invoices from any device.',
+              stats: [{ n:'3×', l:'more jobs won' }, { n:'$0', l:'per-lead fee' }, { n:'$49', l:'per month' }],
+              steps: [
+                { icon: '📞', title: 'Log a service call', body: 'Add a new lead when a customer calls.' },
+                { icon: '🔧', title: 'Diagnose & estimate', body: 'Create a professional estimate and send it.' },
+                { icon: '💵', title: 'Invoice & collect', body: 'Generate an invoice and get paid.' },
+              ],
+              svgIcon: (
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                  <rect x="34" y="8" width="12" height="48" rx="6" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="2"/>
+                  <rect x="22" y="42" width="36" height="12" rx="6" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="2"/>
+                  <circle cx="40" cy="64" r="8" fill="white" fillOpacity="0.1" stroke="white" strokeWidth="2"/>
+                  <circle cx="40" cy="64" r="3" fill="white" fillOpacity="0.4"/>
+                  <rect x="36" y="4" width="8" height="8" rx="2" fill="white" fillOpacity="0.5"/>
+                </svg>
+              ),
+            }
+            // Default: Roofing
+            return {
+              gradient: 'linear-gradient(135deg, #0A1628 0%, #0F3D38 50%, #0F766E 100%)',
+              accentColor: '#5EEAD4',
+              accentBg: 'rgba(94,234,212,0.12)',
+              accentBorder: 'rgba(94,234,212,0.25)',
+              badge: tc.displayName || 'Contractor',
+              headline: 'Your roofing business, all in one place.',
+              sub: 'Land more jobs, send estimates faster, and get paid — all from ProGuild.',
+              stats: [
+                { n: '3×', l: 'more jobs won with CRM' },
+                { n: '$0', l: 'per-lead fee. Ever.' },
+                { n: '$49', l: 'per month, all features' },
+              ],
+              steps: [
+                { icon: '📋', title: 'Add your first lead', body: 'Log a homeowner enquiry, referral or door knock. Your pipeline starts here.' },
+                { icon: '📄', title: 'Send a proposal', body: 'Create a Good / Better / Best estimate and send it for digital approval in minutes.' },
+                { icon: '💵', title: 'Invoice & get paid', body: 'Auto-generate an invoice on approval. Collect by card, Zelle, or cash — all tracked.' },
+              ],
+              svgIcon: (
+                <svg width="88" height="72" viewBox="0 0 88 72" fill="none">
+                  <ellipse cx="44" cy="69" rx="26" ry="3" fill="rgba(0,0,0,0.2)"/>
+                  <path d="M6 34L44 6L82 34" fill="white" fillOpacity="0.18" stroke="white" strokeWidth="2.5" strokeLinejoin="round"/>
+                  <path d="M3 34H85" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+                  <rect x="14" y="34" width="60" height="32" rx="2" fill="white" fillOpacity="0.1" stroke="white" strokeWidth="2" strokeLinejoin="round"/>
+                  <rect x="35" y="48" width="18" height="18" rx="2" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="50" cy="58" r="1.5" fill="white" fillOpacity="0.8"/>
+                  <rect x="18" y="39" width="13" height="11" rx="1.5" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="1.5"/>
+                  <rect x="57" y="39" width="13" height="11" rx="1.5" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="1.5"/>
+                  <rect x="62" y="16" width="9" height="17" rx="1.5" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.5"/>
+                  <rect x="60" y="13" width="13" height="5" rx="1" fill="white" fillOpacity="0.45"/>
+                  {/* Shingle texture lines */}
+                  <path d="M18 26L44 6" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.15"/>
+                  <path d="M70 26L44 6" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.15"/>
+                  <path d="M12 30L44 12L76 30" stroke="white" strokeWidth="0.75" strokeLinecap="round" opacity="0.1"/>
+                </svg>
+              ),
+            }
+          })()
+
+          return (
+            <div className="rounded-2xl mb-5 overflow-hidden" style={{ border: `1px solid rgba(255,255,255,0.08)`, boxShadow: '0 8px 40px rgba(10,22,40,0.18), 0 2px 8px rgba(10,22,40,0.08)', position: 'relative' }}>
+
+              {/* ── Hero band ── */}
+              <div style={{ background: tradeWelcome.gradient, padding: '36px 32px 32px', position: 'relative', overflow: 'hidden' }}>
+
+                {/* Geometric grid texture */}
+                <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(255,255,255,.6) 31px,rgba(255,255,255,.6) 32px),repeating-linear-gradient(90deg,transparent,transparent 31px,rgba(255,255,255,.6) 31px,rgba(255,255,255,.6) 32px)', pointerEvents: 'none' }} />
+
+                {/* Glow orb top-right */}
+                <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${tradeWelcome.accentColor}22 0%, transparent 70%)`, top: -80, right: -60, pointerEvents: 'none' }} />
+
+                {/* Trade badge */}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: tradeWelcome.accentBg, border: `1px solid ${tradeWelcome.accentBorder}`, borderRadius: 100, padding: '4px 12px', marginBottom: 20 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: tradeWelcome.accentColor, boxShadow: `0 0 8px ${tradeWelcome.accentColor}` }} />
+                  <span style={{ color: tradeWelcome.accentColor, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{tradeWelcome.badge}</span>
                 </div>
-              ))}
-              <button onClick={() => setShowAddLead(true)}
-                className="w-full mt-2 py-4 rounded-xl text-sm font-bold"
-                style={{ backgroundColor: TEAL, color: 'white', border: 'none', cursor: 'pointer', fontSize: 15, letterSpacing: '0.01em' }}>
-                + Add Your First Lead
-              </button>
+
+                {/* Two-col layout: text left, illustration right */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h2 style={{ fontSize: 26, fontWeight: 800, color: '#fff', margin: '0 0 10px', lineHeight: 1.2, letterSpacing: '-0.03em'}}>
+                      {tradeWelcome.headline.replace('\n', `
+`)}
+                    </h2>
+                    <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)', margin: '0 0 24px', lineHeight: 1.65, maxWidth: 340 }}>
+                      {tradeWelcome.sub}
+                    </p>
+                    {/* Stats row */}
+                    <div style={{ display: 'flex', gap: 20 }}>
+                      {tradeWelcome.stats.map((s: any) => (
+                        <div key={s.n}>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>{s.n}</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 3, lineHeight: 1.4}}>{s.l}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* SVG illustration */}
+                  <div className="hidden md:flex" style={{ flexShrink: 0, opacity: 0.9 }}>
+                    {tradeWelcome.svgIcon}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Steps ── */}
+              <div style={{ background: dk ? '#111827' : '#fff', padding: '24px 28px 28px' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: BODY, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 16px' }}>
+                  How it works
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+                  {tradeWelcome.steps.map((s: any, i: number) => (
+                    <div key={i} style={{ padding: '16px', borderRadius: 12, background: dk ? t.cardBgAlt : '#F7F6F3', border: `1px solid ${BORDER}`, position: 'relative', overflow: 'hidden' }}>
+                      {/* Step number watermark */}
+                      <div style={{ position: 'absolute', top: 8, right: 10, fontSize: 32, fontWeight: 900, color: TEAL, opacity: 0.07, lineHeight: 1 }}>{i + 1}</div>
+                      <div style={{ fontSize: 22, marginBottom: 8 }}>{s.icon}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: textMain, marginBottom: 4, letterSpacing: '-0.01em' }}>{s.title}</div>
+                      <div style={{ fontSize: 12, color: BODY, lineHeight: 1.55 }}>{s.body}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA */}
+                <button
+                  onClick={() => setShowAddLead(true)}
+                  style={{
+                    width: '100%', padding: '14px 20px',
+                    background: `linear-gradient(135deg, #0F766E, #0D9488)`,
+                    color: 'white', border: 'none', borderRadius: 12,
+                    fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(15,118,110,0.35)',
+                    letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add Your First {'Lead'}
+                </button>
+
+                {/* Trust line */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 16 }}>
+                  {['No per-lead fees', 'Cancel any time', '124k FL pros verified'].map((txt, i) => (
+                    <React.Fragment key={txt}>
+                      {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: BORDER, display: 'inline-block' }} />}
+                      <span style={{ fontSize: 11, color: BODY }}>{txt}</span>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* ── Action Center — urgency signals only, different from pipeline counts ── */}
         <div className="mb-5">
