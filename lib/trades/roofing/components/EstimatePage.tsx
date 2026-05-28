@@ -639,7 +639,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           {/* Proposal type toggle — hidden when locked or insurance job */}
           {/* DEBUG REMOVE */}
           <div style={{fontSize:11,background:"#fef3c7",padding:"4px 8px",borderRadius:4,marginBottom:4,fontFamily:"monospace"}}>
-            insurance_claim={String(estimate.insurance_claim)} | approved_amount={String(estimate.approved_amount)} | claim_number={String(estimate.claim_number)}
+            insurance_claim={String(estimate.insurance_claim)} | approved_amount={String(estimate.approved_amount)} | claim_number={String(estimate.claim_number)} | lead_id={(estimate as any)._debug_lead_id} | rjd={(estimate as any)._debug_rjd_raw}
           </div>
           {/* END DEBUG */}
           {!isLocked && !estimate.insurance_claim && !estimate.approved_amount && !estimate.claim_number && (

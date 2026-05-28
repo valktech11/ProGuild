@@ -61,6 +61,7 @@ export async function GET(
 
   // Fetch roofing_job_data — always fetch when lead_id present (trade_slug on estimates can be null)
   let roofingJobData: any = null
+  console.log("[estimates GET] lead_id:", estClean.lead_id, "estimate id:", estClean.id)
   if (estClean.lead_id) {
     const { data: rd, error: rdErr } = await sb
       .from('roofing_job_data')
@@ -102,6 +103,8 @@ export async function GET(
       lead_name:     lead.contact_name  ?? estClean.lead_name     ?? null,
       // Insurance (always from roofing_job_data — live claim state)
       insurance_claim:   roofingJobData?.insurance_claim || !!(roofingJobData?.claim_number || roofingJobData?.approved_amount) || false,
+      _debug_lead_id:    estClean.lead_id ?? 'NULL',
+      _debug_rjd_raw:    roofingJobData ? 'GOT_ROW' : 'NO_ROW',
       approved_amount:   roofingJobData?.approved_amount   ?? null,
       deductible:        roofingJobData?.deductible         ?? null,
       supplement_amount: roofingJobData?.supplement_amount ?? null,
