@@ -232,11 +232,12 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
 
   async function confirmDeleteReport() {
     if (!session || !deleteConfirmId) return
-    setDeletingReportId(deleteConfirmId)
+    const idToDelete = deleteConfirmId  // capture before nulling
+    setDeletingReportId(idToDelete)
     setDeleteConfirmId(null)
     try {
-      await fetch(`/api/roofing/reports?id=${deleteConfirmId}&pro_id=${session.id}`, { method: 'DELETE' })
-      setReports(prev => prev.filter(r => r.id !== deleteConfirmId))
+      await fetch(`/api/roofing/reports?id=${idToDelete}&pro_id=${session.id}`, { method: 'DELETE' })
+      setReports(prev => prev.filter(r => r.id !== idToDelete))
     } catch { /* silently ignore -- row already gone */ }
     finally { setDeletingReportId(null) }
   }
@@ -852,34 +853,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
       </div>
     </DashboardShell>
 
-      {/* Delete Report Confirmation Modal */}
-      {deleteConfirmId && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={() => setDeleteConfirmId(null)}>
-          <div style={{ background: 'white', borderRadius: 16, padding: 24, width: '100%', maxWidth: 360, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
-            onClick={e => e.stopPropagation()}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#FEF2F2', border: '1.5px solid #FECACA', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-            </div>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0A1628', textAlign: 'center', margin: '0 0 8px' }}>Delete Report?</h3>
-            <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', margin: '0 0 24px', lineHeight: 1.5 }}>
-              This will permanently delete the report and all associated measurements. This cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setDeleteConfirmId(null)}
-                style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: 'white', color: '#374151', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                Cancel
-              </button>
-              <button
-                onClick={() => { const id = deleteConfirmId; setDeleteConfirmId(null); deleteReport(id) }}
-                disabled={!!deletingReportId}
-                style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: '#DC2626', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(220,38,38,0.3)' }}>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   )
 }
