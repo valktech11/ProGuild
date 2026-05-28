@@ -1,50 +1,94 @@
-// components/roofing/InsuranceClaimFields.tsx
-// 9 insurance claim fields behind a toggle.
-// Rendered on lead detail page for roofing trade only.
-// Guard: isRoofing(tradeConfig) must be true before rendering.
 'use client'
-
 import { useState, useCallback } from 'react'
 
-// ── Types ──────────────────────────────────────────────────────────────────
 export interface InsuranceClaimData {
   insurance_claim:        boolean
   insurance_company:      string
   claim_number:           string
   adjuster_name:          string
   adjuster_phone:         string
-  adjuster_appointment:   string   // ISO datetime string
+  adjuster_appointment:   string
   claim_status:           string
-  approved_amount:        string   // stored as string for input, parse on save
+  approved_amount:        string
   supplement_amount:      string
   deductible:             string
 }
 
 interface Props {
-  leadId:    string
-  proId:     string
-  initial:   Partial<InsuranceClaimData>
-  darkMode:  boolean
-  onSaved:   (data: InsuranceClaimData) => void
+  leadId:   string
+  proId:    string
+  initial:  Partial<InsuranceClaimData>
+  darkMode: boolean
+  onSaved:  (data: InsuranceClaimData) => void
 }
 
 const CLAIM_STATUSES = [
-  'Filed',
-  'Adjuster Scheduled',
-  'Adjuster Visited',
-  'Approved',
-  'Supplement Filed',
-  'Supplement Approved',
-  'Denied',
-  'Closed',
+  { value: 'Filed',               color: '#64748B', bg: '#F8FAFC' },
+  { value: 'Adjuster Scheduled',  color: '#0284C7', bg: '#E0F2FE' },
+  { value: 'Adjuster Visited',    color: '#7C3AED', bg: '#F5F3FF' },
+  { value: 'Approved',            color: '#059669', bg: '#ECFDF5' },
+  { value: 'Supplement Filed',    color: '#D97706', bg: '#FFFBEB' },
+  { value: 'Supplement Approved', color: '#0891B2', bg: '#ECFEFF' },
+  { value: 'Denied',              color: '#DC2626', bg: '#FEF2F2' },
+  { value: 'Closed',              color: '#374151', bg: '#F3F4F6' },
 ] as const
 
-// ── Component ─────────────────────────────────────────────────────────────
-export default function InsuranceClaimFields({ leadId, proId, initial, darkMode, onSaved }: Props) {
-  const [open, setOpen]       = useState(initial.insurance_claim ?? false)
-  const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState<string | null>(null)
-  const [saved, setSaved]     = useState(false)
+const TEAL   = '#0F766E'
+const TEAL_L = '#14B8A6'
+const NAVY   = '#0A1628'
+
+function formatPhone(raw: string) {
+  const d = raw.replace(/\D/g, '').slice(0, 10)
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0,3)}-${d.slice(3)}`
+  return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`
+}
+
+function parseCurrency(v: string) {
+  const n = parseFloat(v.replace(/[$,]/g, ''))
+  return isNaN(n) ? 0 : n
+}
+
+// ── Field wrapper ─────────────────────────────────────────────────────────────
+function Field({ label, children, span }: { label: string; children: React.ReactNode; span?: boolean }) {
+  return (
+    <div style={span ? { gridColumn: '1 / -1' } : {}}>
+      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase' as const, letterSpacing:'0.08em', marginBottom:6 }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }) {
+  const [f, setF] = useState(false)
+  return (
+    <div style={{ position:'relative' }}>
+      {icon && <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color: f ? TEAL : '#94A3B8', transition:'color 0.15s' }}>{icon}</div>}
+      <input {...p}
+        onFocus={e => { setF(true); (p as any).onFocus?.(e) }}
+        onBlur={e => { setF(false); (p as any).onBlur?.(e) }}
+        style={{
+          width:'100%', boxSizing:'border-box' as const,
+          padding: icon ? '9px 12px 9px 34px' : '9px 12px',
+          border:`1.5px solid ${f ? TEAL : '#E2E8F0'}`,
+          borderRadius:9, fontSize:13, outline:'none',
+          background: f ? '#fff' : '#F7F6F3', color: NAVY,
+          boxShadow: f ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
+          transition:'all 0.15s',
+          ...(p.style||{}),
+        }}
+      />
+    </div>
+  )
+}
+
+export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, onSaved }: Props) {
+  const [open,   setOpen]   = useState(initial.insurance_claim ?? false)
+  const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState<string | null>(null)
+  const [saved,  setSaved]  = useState(false)
 
   const [fields, setFields] = useState<InsuranceClaimData>({
     insurance_claim:      initial.insurance_claim      ?? false,
@@ -59,327 +103,257 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode,
     deductible:           initial.deductible           ?? '',
   })
 
-  const set = (key: keyof InsuranceClaimData) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  function set(key: keyof InsuranceClaimData) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       setSaved(false)
-      setFields(f => ({ ...f, [key]: e.target.value }))
+      const val = key === 'adjuster_phone'
+        ? formatPhone(e.target.value)
+        : e.target.value
+      setFields(f => ({ ...f, [key]: val }))
     }
+  }
 
   const handleToggle = useCallback(async () => {
-    const newOpen = !open
-    setOpen(newOpen)
-    setFields(f => ({ ...f, insurance_claim: newOpen }))
-
-    // Persist toggle state immediately — no full form save needed
+    const next = !open
+    setOpen(next)
+    setFields(f => ({ ...f, insurance_claim: next }))
     await fetch(`/api/leads/${leadId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: proId, insurance_claim: newOpen }),
-    }).catch(() => {/* non-fatal */})
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ pro_id: proId, insurance_claim: next }),
+    }).catch(() => {})
   }, [open, leadId, proId])
 
   const handleSave = useCallback(async () => {
-    setSaving(true)
-    setError(null)
-    setSaved(false)
-
-    // Validate phone format loosely
-    const phone = fields.adjuster_phone.replace(/\D/g, '')
+    setSaving(true); setError(null); setSaved(false)
+    const phone = fields.adjuster_phone.replace(/\D/g,'')
     if (phone.length > 0 && phone.length < 10) {
-      setError('Adjuster phone must be 10+ digits')
-      setSaving(false)
-      return
+      setError('Adjuster phone must be 10 digits'); setSaving(false); return
     }
-
-    // Parse currency fields — remove $ and commas
-    const parseCurrency = (v: string) => {
-      const n = parseFloat(v.replace(/[$,]/g, ''))
-      return isNaN(n) ? null : n
-    }
-
     try {
       const res = await fetch(`/api/leads/${leadId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method:'PATCH', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          pro_id:                 proId,
-          insurance_claim:        fields.insurance_claim,
-          insurance_company:      fields.insurance_company    || null,
-          claim_number:           fields.claim_number         || null,
-          adjuster_name:          fields.adjuster_name        || null,
-          adjuster_phone:         fields.adjuster_phone       || null,
-          adjuster_appointment:   fields.adjuster_appointment || null,
-          claim_status:           fields.claim_status         || null,
-          approved_amount:        parseCurrency(fields.approved_amount),
-          supplement_amount:      parseCurrency(fields.supplement_amount),
-          deductible:             parseCurrency(fields.deductible),
+          pro_id:               proId,
+          insurance_claim:      fields.insurance_claim,
+          insurance_company:    fields.insurance_company    || null,
+          claim_number:         fields.claim_number         || null,
+          adjuster_name:        fields.adjuster_name        || null,
+          adjuster_phone:       fields.adjuster_phone       || null,
+          adjuster_appointment: fields.adjuster_appointment || null,
+          claim_status:         fields.claim_status         || null,
+          approved_amount:      parseCurrency(fields.approved_amount) || null,
+          supplement_amount:    parseCurrency(fields.supplement_amount) || null,
+          deductible:           parseCurrency(fields.deductible) || null,
         }),
       })
-
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
         throw new Error((d as {error?: string}).error ?? `HTTP ${res.status}`)
       }
-
-      setSaved(true)
-      onSaved(fields)
+      setSaved(true); onSaved(fields)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }, [fields, leadId, proId, onSaved])
 
-  // ── Styles ─────────────────────────────────────────────────────────────
-  const cardBg     = darkMode ? '#1E293B' : '#FFFFFF'
-  const cardBorder = darkMode ? '#334155' : '#E8E2D9'
-  const textPrimary= darkMode ? '#F1F5F9' : '#0A1628'
-  const textMuted  = darkMode ? '#94A3B8' : '#6B7280'
-  const inputBg    = darkMode ? '#0F172A' : '#F8FAFC'
-  const inputBorder= darkMode ? '#334155' : '#CBD5E1'
-  const teal       = '#0F766E'
+  // Computed net
+  const approved   = parseCurrency(fields.approved_amount)
+  const supplement = parseCurrency(fields.supplement_amount)
+  const deductible = parseCurrency(fields.deductible)
+  const net        = approved + supplement - deductible
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: `1.5px solid ${inputBorder}`,
-    background: inputBg,
-    color: textPrimary,
-    fontSize: 14,
-    outline: 'none',
-  }
+  const activeStatus = CLAIM_STATUSES.find(s => s.value === fields.claim_status) ?? CLAIM_STATUSES[0]
 
-  const labelStyle: React.CSSProperties = {
-    display: 'block',
-    fontSize: 12,
-    fontWeight: 500,
-    color: textMuted,
-    marginBottom: 5,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  }
+  const cardBg  = dk ? '#1E293B' : '#fff'
+  const cardBdr = dk ? '#334155' : '#E2E8F0'
 
   return (
     <div style={{
-      background: cardBg,
-      border: `1px solid ${cardBorder}`,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 16,
+      background: cardBg, borderRadius: 14, marginBottom: 16,
+      border: `1px solid ${open ? 'rgba(15,118,110,0.25)' : cardBdr}`,
+      boxShadow: open ? '0 4px 20px rgba(15,118,110,0.08)' : '0 1px 4px rgba(10,22,40,0.05)',
+      overflow: 'hidden', transition: 'all 0.2s',
     }}>
-      {/* Toggle row */}
-      <div
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-        onClick={handleToggle}
-      >
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>
-            🛡️ Insurance claim
+
+      {/* ── Header row ── */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', cursor:'pointer', background: open ? (dk ? 'rgba(15,118,110,0.1)' : 'rgba(15,118,110,0.04)') : 'transparent' }}
+        onClick={handleToggle}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          {/* Icon box */}
+          <div style={{ width:36, height:36, borderRadius:10, background: open ? `linear-gradient(135deg,${TEAL},${TEAL_L})` : (dk ? '#1E293B' : '#F0FDFA'), border: open ? 'none' : `1px solid ${dk ? '#334155' : 'rgba(15,118,110,0.2)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow: open ? '0 4px 12px rgba(15,118,110,0.35)' : 'none', transition:'all 0.2s' }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={open ? '#fff' : TEAL} strokeWidth="2" strokeLinecap="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
           </div>
-          {!open && (
-            <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>
-              {fields.insurance_company
+          <div>
+            <div style={{ fontSize:14, fontWeight:700, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.01em' }}>Insurance Claim</div>
+            <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>
+              {open && fields.insurance_company
                 ? `${fields.insurance_company}${fields.claim_number ? ` · #${fields.claim_number}` : ''}`
-                : 'Tap to expand insurance fields'}
+                : open ? 'Fill in claim details below'
+                : 'Toggle to log insurance claim details'}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Toggle switch */}
-        <div style={{
-          width: 44,
-          height: 24,
-          borderRadius: 12,
-          background: open ? teal : (darkMode ? '#334155' : '#CBD5E1'),
-          position: 'relative',
-          transition: 'background 0.2s',
-          flexShrink: 0,
-        }}>
-          <div style={{
-            position: 'absolute',
-            width: 18,
-            height: 18,
-            borderRadius: '50%',
-            background: '#fff',
-            top: 3,
-            left: open ? 23 : 3,
-            transition: 'left 0.2s',
-          }} />
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {/* Status badge when collapsed */}
+          {!open && fields.insurance_company && (
+            <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:100, background:activeStatus.bg, color:activeStatus.color, border:`1px solid ${activeStatus.color}25` }}>
+              {fields.claim_status}
+            </span>
+          )}
+          {/* Toggle */}
+          <div style={{ width:44, height:24, borderRadius:12, background: open ? TEAL : (dk ? '#334155' : '#CBD5E1'), position:'relative', transition:'background 0.2s', flexShrink:0 }}>
+            <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: open ? 23 : 3, transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+          </div>
         </div>
       </div>
 
-      {/* Fields (shown when open) */}
+      {/* ── Fields ── */}
       {open && (
-        <div style={{ marginTop: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ padding:'0 20px 20px' }}>
+          <div style={{ height:1, background: dk ? '#334155' : 'rgba(15,118,110,0.1)', marginBottom:20 }}/>
 
-            {/* Insurance company */}
-            <div>
-              <label style={labelStyle}>Insurance company</label>
-              <input
-                style={inputStyle}
-                value={fields.insurance_company}
-                onChange={set('insurance_company')}
-                placeholder="State Farm, Citizens…"
-              />
-            </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
 
-            {/* Claim number */}
-            <div>
-              <label style={labelStyle}>Claim number</label>
-              <input
-                style={inputStyle}
-                value={fields.claim_number}
-                onChange={set('claim_number')}
-                placeholder="Assigned by insurer"
+            {/* Row 1: Insurer + Claim # */}
+            <Field label="Insurance company">
+              <FInput value={fields.insurance_company} onChange={set('insurance_company')} placeholder="State Farm, Citizens…"
+                icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
               />
-            </div>
+            </Field>
+            <Field label="Claim number">
+              <FInput value={fields.claim_number} onChange={set('claim_number')} placeholder="SF-2026-001"
+                icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>}
+              />
+            </Field>
 
-            {/* Adjuster name */}
-            <div>
-              <label style={labelStyle}>Adjuster name</label>
-              <input
-                style={inputStyle}
-                value={fields.adjuster_name}
-                onChange={set('adjuster_name')}
-                placeholder="Full name"
+            {/* Row 2: Adjuster name + phone */}
+            <Field label="Adjuster name">
+              <FInput value={fields.adjuster_name} onChange={set('adjuster_name')} placeholder="John Doe"
+                icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
               />
-            </div>
+            </Field>
+            <Field label="Adjuster phone">
+              <FInput value={fields.adjuster_phone} onChange={set('adjuster_phone')}
+                type="tel" placeholder="813-555-0142" inputMode="numeric" maxLength={12}
+                icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11 19.79 19.79 0 01.01 2.38a2 2 0 012-2.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>}
+              />
+            </Field>
 
-            {/* Adjuster phone */}
-            <div>
-              <label style={labelStyle}>Adjuster phone</label>
-              <input
-                style={inputStyle}
-                type="tel"
-                value={fields.adjuster_phone}
-                onChange={set('adjuster_phone')}
-                placeholder="(305) 555-0142"
-              />
-            </div>
-
-            {/* Adjuster appointment */}
-            <div>
-              <label style={labelStyle}>Adjuster appointment</label>
-              <input
-                style={inputStyle}
-                type="datetime-local"
-                value={fields.adjuster_appointment}
-                onChange={set('adjuster_appointment')}
-              />
-              <div style={{ fontSize: 11, color: textMuted, marginTop: 3 }}>
+            {/* Row 3: Appointment + Status */}
+            <Field label="Adjuster appointment">
+              <div style={{ position:'relative' }}>
+                <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <input type="datetime-local" value={fields.adjuster_appointment} onChange={set('adjuster_appointment')}
+                  style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
+                  onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
+                  onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
+                />
+              </div>
+              <div style={{ fontSize:11, color:'#94A3B8', marginTop:4, display:'flex', alignItems:'center', gap:4 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 You must be present at the property
               </div>
+            </Field>
+            <Field label="Claim status">
+              <div style={{ position:'relative' }}>
+                <select value={fields.claim_status} onChange={set('claim_status')}
+                  style={{ width:'100%', padding:'9px 32px 9px 12px', border:`1.5px solid ${activeStatus.color}40`, borderRadius:9, fontSize:13, outline:'none', background: activeStatus.bg, color: activeStatus.color, fontWeight:700, cursor:'pointer', appearance:'none' as const, transition:'all 0.15s' }}>
+                  {CLAIM_STATUSES.map(s => (
+                    <option key={s.value} value={s.value}>{s.value}</option>
+                  ))}
+                </select>
+                <div style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+            </Field>
+
+            {/* Row 4: Financial — 3-col */}
+            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+              <Field label="Approved amount">
+                <FInput value={fields.approved_amount} onChange={set('approved_amount')} placeholder="$0.00"
+                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                />
+              </Field>
+              <Field label="Supplement amount">
+                <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} placeholder="$0.00"
+                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                />
+              </Field>
+              <Field label="Deductible (homeowner)">
+                <FInput value={fields.deductible} onChange={set('deductible')} placeholder="$0.00"
+                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                />
+              </Field>
             </div>
 
-            {/* Claim status */}
-            <div>
-              <label style={labelStyle}>Claim status</label>
-              <select style={inputStyle} value={fields.claim_status} onChange={set('claim_status')}>
-                {CLAIM_STATUSES.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Approved amount */}
-            <div>
-              <label style={labelStyle}>Approved amount</label>
-              <input
-                style={inputStyle}
-                value={fields.approved_amount}
-                onChange={set('approved_amount')}
-                placeholder="$0.00"
-              />
-            </div>
-
-            {/* Supplement amount */}
-            <div>
-              <label style={labelStyle}>Supplement amount</label>
-              <input
-                style={inputStyle}
-                value={fields.supplement_amount}
-                onChange={set('supplement_amount')}
-                placeholder="$0.00"
-              />
-            </div>
-
-            {/* Deductible */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Deductible (homeowner pays)</label>
-              <input
-                style={{ ...inputStyle, width: '50%' }}
-                value={fields.deductible}
-                onChange={set('deductible')}
-                placeholder="$0.00"
-              />
+            {/* Net calculation — always visible */}
+            <div style={{ gridColumn:'1 / -1' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderRadius:10, background: net > 0 ? (dk ? 'rgba(5,150,105,0.12)' : '#F0FDF4') : (dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC'), border:`1px solid ${net > 0 ? 'rgba(5,150,105,0.2)' : '#E2E8F0'}`, transition:'all 0.2s' }}>
+                <div style={{ display:'flex', gap:20 }}>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Approved</div>
+                    <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${approved.toLocaleString()}</div>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', color:'#94A3B8', fontSize:16, fontWeight:300 }}>+</div>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Supplement</div>
+                    <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${supplement.toLocaleString()}</div>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', color:'#94A3B8', fontSize:16, fontWeight:300 }}>−</div>
+                  <div>
+                    <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Deductible</div>
+                    <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${deductible.toLocaleString()}</div>
+                  </div>
+                </div>
+                <div style={{ textAlign:'right' as const }}>
+                  <div style={{ fontSize:10, fontWeight:700, color: net > 0 ? '#059669' : '#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Net to Roofer</div>
+                  <div style={{ fontSize:20, fontWeight:900, color: net > 0 ? '#059669' : (dk ? '#475569' : '#94A3B8'), letterSpacing:'-0.03em' }}>${net.toLocaleString()}</div>
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Total net calculation */}
-          {fields.approved_amount && (
-            <div style={{
-              marginTop: 14,
-              padding: '10px 14px',
-              background: darkMode ? '#0F2D1A' : '#F0FDF4',
-              borderRadius: 8,
-              fontSize: 13,
-              color: '#15803D',
-            }}>
-              {(() => {
-                const approved   = parseFloat(fields.approved_amount.replace(/[$,]/g, '')) || 0
-                const supplement = parseFloat(fields.supplement_amount.replace(/[$,]/g, '')) || 0
-                const deductible = parseFloat(fields.deductible.replace(/[$,]/g, '')) || 0
-                const net        = approved + supplement - deductible
-                return (
-                  <>
-                    Approved ${approved.toLocaleString()}
-                    {supplement > 0 && ` + supplement $${supplement.toLocaleString()}`}
-                    {deductible > 0 && ` − deductible $${deductible.toLocaleString()}`}
-                    {' '}= <strong>net ${net.toLocaleString()}</strong>
-                  </>
-                )
-              })()}
-            </div>
-          )}
 
           {/* Error */}
           {error && (
-            <div style={{
-              marginTop: 12,
-              padding: '8px 12px',
-              borderRadius: 8,
-              background: '#FEF2F2',
-              color: '#DC2626',
-              fontSize: 13,
-            }}>{error}</div>
+            <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8, background:'#FEF2F2', border:'1px solid #FECACA', color:'#DC2626', fontSize:13, fontWeight:500 }}>{error}</div>
           )}
 
-          {/* Save button */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 16, alignItems: 'center' }}>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: '9px 20px',
-                borderRadius: 8,
-                background: saving ? '#9CA3AF' : teal,
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 14,
-                border: 'none',
-                cursor: saving ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {saving ? 'Saving…' : 'Save insurance fields'}
-            </button>
-            {saved && (
-              <span style={{ fontSize: 13, color: '#15803D' }}>✓ Saved</span>
-            )}
+          {/* Footer: save button */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:18 }}>
+            <div style={{ fontSize:11, color:'#94A3B8', display:'flex', alignItems:'center', gap:4 }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              Saved to roofing job record
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              {saved && (
+                <span style={{ fontSize:12, color:'#059669', fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Saved
+                </span>
+              )}
+              <button onClick={handleSave} disabled={saving} style={{
+                padding:'9px 22px', borderRadius:9, border:'none', cursor: saving ? 'wait' : 'pointer',
+                background: saving ? '#94A3B8' : `linear-gradient(135deg,${TEAL},${TEAL_L})`,
+                color:'#fff', fontSize:13, fontWeight:700,
+                boxShadow: saving ? 'none' : '0 4px 12px rgba(15,118,110,0.35)',
+                display:'flex', alignItems:'center', gap:7, transition:'all 0.15s',
+              }}>
+                {saving
+                  ? <><div style={{ width:12, height:12, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.35)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> Saving…</>
+                  : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Save Insurance Fields</>
+                }
+              </button>
+            </div>
           </div>
         </div>
       )}
+      <style>{`@keyframes pg-spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }
