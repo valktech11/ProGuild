@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 export interface InsuranceClaimData {
   insurance_claim:        boolean
@@ -164,6 +164,35 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally { setSaving(false) }
   }, [fields, leadId, proId, onSaved])
+
+  // Re-sync fields when initial prop changes (e.g. lead data arrives after mount)
+  const initialised = useRef(false)
+  useEffect(() => {
+    // Only sync if we have real data and haven't been edited by user yet
+    if (!initial.claim_number && !initial.insurance_company && !initial.approved_amount) return
+    if (initialised.current) return  // user has started editing — don't overwrite
+    initialised.current = true
+    setOpen(initial.insurance_claim ?? false)
+    setFields({
+      insurance_claim:      initial.insurance_claim      ?? false,
+      insurance_company:    initial.insurance_company    ?? '',
+      claim_number:         initial.claim_number         ?? '',
+      adjuster_name:        initial.adjuster_name        ?? '',
+      adjuster_phone:       initial.adjuster_phone != null ? String(initial.adjuster_phone) : '',
+      adjuster_appointment: (() => {
+        const raw = initial.adjuster_appointment
+        if (!raw) return ''
+        const d = new Date(raw)
+        if (isNaN(d.getTime())) return ''
+        const pad = (n: number) => String(n).padStart(2, '0')
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+      })(),
+      claim_status:         initial.claim_status         ?? 'Filed',
+      approved_amount:      initial.approved_amount != null ? String(initial.approved_amount) : '',
+      supplement_amount:    initial.supplement_amount != null ? String(initial.supplement_amount) : '',
+      deductible:           initial.deductible != null ? String(initial.deductible) : '',
+    })
+  }, [initial])
 
   // Computed net
   const approved   = parseCurrency(fields.approved_amount)
