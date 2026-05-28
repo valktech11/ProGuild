@@ -80,24 +80,42 @@ export async function POST(req: NextRequest) {
         await sb.from('roofing_estimate_data').upsert(syncPayload, { onConflict: 'estimate_id' })
       }
 
-      // If coming from calculator with line items, replace items on existing estimate
+      // Calculator output → force Standard mode, replace all items, recalc totals
       if (source === 'roofing_calculator' && Array.isArray(line_items) && line_items.length > 0) {
+        // 1. Delete existing items
         await sb.from('estimate_items').delete().eq('estimate_id', best.id)
-        const items = line_items.map((item: any) => ({
-          estimate_id:  best.id,
-          description:  item.description ?? item.name ?? '',
-          quantity:     item.quantity ?? 1,
-          unit_price:   item.unit_price ?? item.unitPrice ?? 0,
-          total:        item.total ?? (item.quantity * (item.unit_price ?? item.unitPrice ?? 0)),
-          sort_order:   item.sort_order ?? 0,
-        }))
+        // 2. Insert calculator line items
+        const items = line_items.map((item: any, idx: number) => {
+          const qty       = Number(item.quantity  ?? 1)
+          const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0)
+          const itemTotal = Number(item.total ?? Math.round(qty * unitPrice))
+          return {
+            estimate_id:  best.id,
+            description:  String(item.description ?? item.name ?? ''),
+            quantity:     qty,
+            unit_price:   unitPrice,
+            total:        itemTotal,
+            sort_order:   idx,
+          }
+        })
         await sb.from('estimate_items').insert(items)
+        // 3. Recalculate totals
         const newSubtotal = items.reduce((s: number, i: any) => s + (i.total ?? 0), 0)
-        const newTax      = Math.round(newSubtotal * (((best as any).tax_rate ?? 6) / 100))
+        const taxRate     = (((best as any).tax_rate ?? 6))
+        const newTax      = Math.round(newSubtotal * taxRate / 100)
+        const newTotal    = newSubtotal + newTax
+        // 4. Force Standard mode — clear tiered_data, set estimate_type = standard
         await sb.from('estimates').update({
-          subtotal: newSubtotal, tax_amount: newTax, total: newSubtotal + newTax,
-          square_count, pitch, waste_pct,
+          estimate_type: 'standard',
+          tiered_data:   null,
+          subtotal:      newSubtotal,
+          tax_amount:    newTax,
+          total:         newTotal,
+          square_count,
+          pitch,
+          waste_pct,
         }).eq('id', best.id)
+        // 5. Return fresh estimate row
         const { data: updated } = await sb.from('estimates').select('*').eq('id', best.id).single()
         return NextResponse.json({ estimate: updated ?? best, existed: true, items_replaced: true })
       }

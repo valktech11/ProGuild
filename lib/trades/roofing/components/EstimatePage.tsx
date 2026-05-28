@@ -228,14 +228,24 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     // Use real perimeter from ProMeasure if available, else estimate sq * 10
     const sq = estimate.square_count ?? 0
     const perim = (estimate as any).perimeter ?? Math.round(sq * 10)
+    // Apply pitch + waste to get adjusted squares for initial render
+    const PITCH_FACTORS_INIT: Record<string, number> = {
+      '2/12':1.014,'3/12':1.031,'4/12':1.054,'5/12':1.083,
+      '6/12':1.118,'7/12':1.158,'8/12':1.202,'9/12':1.250,
+      '10/12':1.302,'11/12':1.357,'12/12':1.414,
+    }
+    const initPitch    = estimate.pitch ?? '6/12'
+    const initWaste    = Number(estimate.waste_pct ?? 10)
+    const pitchFactor  = PITCH_FACTORS_INIT[initPitch] ?? 1.118
+    const adjSqInit    = Math.round(sq * pitchFactor * (1 + initWaste / 100) * 10) / 10
     return buildDefaultTiers(materialPrices).map(t => ({
       ...t,
       items: t.items.map(item => {
-        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? perim : 0
+        const qty = item.unit === 'sq' ? adjSqInit : item.unit === 'lf' ? perim : 0
         return { ...item, qty, amount: Math.round(qty * item.unit_price) }
       }),
       subtotal: t.items.reduce((s, item) => {
-        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? perim : 0
+        const qty = item.unit === 'sq' ? adjSqInit : item.unit === 'lf' ? perim : 0
         return s + Math.round(qty * item.unit_price)
       }, 0),
     }))
@@ -278,14 +288,22 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   }, [])
 
   // Recalc all tier quantities + amounts when measurements change
-  const recalcTiersFromSq = useCallback((sq: number, selTier?: TierKey, perimLF?: number): number => {
-    let selSubtotal = 0
-    // LF fallback: use real perimeter if available, otherwise estimate as sq * 10
-    // Real perimeter comes from roofing_job_data (ProMeasure polygon perimeter)
-    const lfQty = perimLF ?? Math.round(sq * 10)
+  const recalcTiersFromSq = useCallback((sq: number, selTier?: TierKey, perimLF?: number, pitch?: string, waste?: number): number => {
+    // Apply pitch factor + waste to get adjusted squares (same formula as Calculator)
+    const PITCH_FACTORS: Record<string, number> = {
+      '2/12':1.014,'3/12':1.031,'4/12':1.054,'5/12':1.083,
+      '6/12':1.118,'7/12':1.158,'8/12':1.202,'9/12':1.250,
+      '10/12':1.302,'11/12':1.357,'12/12':1.414,
+    }
+    const pitchFactor = PITCH_FACTORS[pitch ?? pitchVal] ?? 1.118
+    const wasteMult   = 1 + ((waste ?? parseFloat(wastePct) ?? 10) / 100)
+    const adjSq       = Math.round(sq * pitchFactor * wasteMult * 10) / 10
+    const lfQty       = perimLF ?? Math.round(sq * 10)
+    let selSubtotal   = 0
     setTiers(prev => prev.map(tier => {
       const items = tier.items.map(item => {
-        const qty = item.unit === 'sq' ? sq : item.unit === 'lf' ? lfQty : item.qty
+        // sq-unit items use adjusted squares; lf-unit items use real perimeter
+        const qty = item.unit === 'sq' ? adjSq : item.unit === 'lf' ? lfQty : item.qty
         return { ...item, qty, amount: Math.round(qty * item.unit_price) }
       })
       const subtotal = items.reduce((s, i) => s + i.amount, 0)
@@ -293,7 +311,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
       return { ...tier, items, subtotal }
     }))
     return selSubtotal
-  }, [])
+  }, [pitchVal, wastePct])
 
   // Save measurements + address — updates roofing_estimate_data + lead
   const saveMeasurements = useCallback(async () => {
@@ -626,8 +644,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             card={card} border={border} textP={textP} textS={textS}
           />
 
-          {/* Proposal type toggle — hidden when locked */}
-          {!isLocked && (
+          {/* Proposal type toggle — hidden when locked or insurance job */}
+          {!isLocked && !estimate.insurance_claim && (
             <ProposalTypeToggle
               value={pendingTypeSwitch ?? estType} onChange={v => {
               if (v === estType) return
