@@ -166,6 +166,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [noteText,    setNoteText]    = useState('')
   const [savingNote,  setSavingNote]  = useState(false)
   const [qbGenerating,   setQbGenerating]   = useState(false)
+  const [pipelineEvents, setPipelineEvents] = useState<any[]>([])
   const [qbDone,         setQbDone]         = useState(false)
   const [qbError,        setQbError]        = useState('')
   const [showRemeasure,  setShowRemeasure]  = useState(false)
@@ -205,6 +206,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       .then(r => { if(r.status===404){setMissing(true);setLoading(false);return null}; return r.json() })
       .then(d => { if(!d) return; const l=d.lead as LeadExt; setLead(l); setStage(l.lead_status as LeadStatus); setLoading(false) })
       .catch(()=>setLoading(false))
+    // Fetch stage transition history
+    fetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : { events: [] })
+      .then(d => setPipelineEvents(d.events || []))
+      .catch(() => {})
   }, [session, id, router])
 
   useEffect(() => {
@@ -499,6 +505,25 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         items.push({date:(est as any).viewed_at,title:`Proposal viewed`,sub:`#${est.estimate_number}${count}`,type:'estimate_viewed'})
       }
       if ((est as any).approved_at) items.push({date:(est as any).approved_at,title:`Proposal approved`,sub:`#${est.estimate_number}`,type:'estimate_approved'})
+    }
+    // Merge pipeline_events (stage transitions from DB)
+    const stageLabels: Record<string,string> = {
+      lead_in:'Lead In', inspection_scheduled:'Inspection Scheduled',
+      insurance_approved:'Insurance Approved', proposal_sent:'Proposal Sent',
+      proposal_signed:'Proposal Signed', scheduled:'Scheduled',
+      in_progress:'In Progress', job_won:'Job Won', lost:'Lost',
+    }
+    for (const ev of pipelineEvents) {
+      if (ev.event_type === 'stage_changed' && ev.event_data) {
+        const from = stageLabels[ev.event_data.from] || ev.event_data.from
+        const to   = stageLabels[ev.event_data.to]   || ev.event_data.to
+        items.push({
+          date:  ev.created_at,
+          title: `Stage moved to ${to}`,
+          sub:   `From ${from}`,
+          type:  'stage',
+        })
+      }
     }
     return items.sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime())
   }
@@ -1443,13 +1468,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             <div style={{position:'absolute',left:15,top:16,bottom:16,width:1,background:bdr,zIndex:0}}/>
                             {acts.map((item,i)=>{
                               const warn=(item as any).warn===true
-                              const ic=warn?'#EF4444':item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':['estimate','estimate_sent','estimate_viewed','estimate_approved'].includes(item.type)?'#0F766E':BRAND.teal
-                              const ib=warn?'#FEF2F2':item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
+                              const ic=warn?'#EF4444':item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':['estimate','estimate_sent','estimate_viewed','estimate_approved'].includes(item.type)?'#0F766E':BRAND.teal
+                              const ib=warn?'#FEF2F2':item.type==='stage'?'#F5F3FF':item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
                               return (
                                 <div key={i} style={{display:'flex',alignItems:'flex-start',gap:14,paddingBottom:i<acts.length-1?18:0,position:'relative',zIndex:1}}>
                                   {/* Timeline dot */}
                                   <div style={{width:30,height:30,borderRadius:'50%',background:ib,border:`2px solid ${ic}25`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                                     <Svg size={13} stroke={ic}>
+                                      {item.type==='stage'            &&<><polyline points="9 18 15 12 9 6"/></>}
                                       {item.type==='note'             &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
                                       {item.type==='quote'            &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
                                       {item.type==='created'          &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
@@ -1532,12 +1558,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {/* Timeline rail */}
                             <div style={{position:'absolute',left:11,top:12,bottom:12,width:1,background:bdr,zIndex:0}}/>
                             {acts.slice(0,5).map((item,i)=>{
-                              const ic=item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':BRAND.teal
-                              const ib=item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
+                              const ic=item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':BRAND.teal
+                              const ib=item.type==='stage'?'#F5F3FF':item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
                               return (
                                 <div key={i} style={{display:'flex',gap:10,paddingBottom:i<Math.min(acts.length,5)-1?14:0,position:'relative',zIndex:1}}>
                                   <div style={{width:22,height:22,borderRadius:'50%',background:ib,border:`1.5px solid ${ic}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
                                     <Svg size={10} stroke={ic}>
+                                      {item.type==='stage'    &&<><polyline points="9 18 15 12 9 6"/></>}
                                       {item.type==='created'  &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
                                       {item.type==='note'     &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
                                       {item.type==='quote'    &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
