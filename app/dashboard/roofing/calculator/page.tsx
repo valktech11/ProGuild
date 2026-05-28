@@ -9,653 +9,630 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
-import { theme } from '@/lib/theme'
+import { theme, T } from '@/lib/tokens'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Tokens ────────────────────────────────────────────────────────────────────
+const TEAL   = '#0F766E'
+const TEAL_L = '#14B8A6'
+const NAVY   = '#0A1628'
+const CREAM  = '#F7F6F3'
+const BORDER = '#E2E8F0'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface ReportData {
-  squares:      number
-  pitch:        string   // e.g. "6/12"
-  waste:        number   // percentage, e.g. 10
-  address:      string
-  reportId:     string
+  squares: number; pitch: string; waste: number; address: string; reportId?: string
 }
-
 interface LineItem {
+  key:         string    // stable key for price lookup
   description: string
+  note?:       string    // "needs LF" hint
   quantity:    number
   unit:        string
   unitPrice:   number
   total:       number
+  isPlaceholder: boolean
 }
 
-// Pitch factor lookup — matches lib/roofing/reportPdf.ts degreesToPitch()
+// ── Pitch factors ─────────────────────────────────────────────────────────────
 const PITCH_FACTORS: Record<string, number> = {
-  '2/12': 1.014,
-  '3/12': 1.031,
-  '4/12': 1.054,
-  '5/12': 1.083,
-  '6/12': 1.118,
-  '7/12': 1.158,
-  '8/12': 1.202,
-  '9/12': 1.250,
-  '10/12': 1.302,
-  '11/12': 1.357,
-  '12/12': 1.414,
+  '2/12':1.014,'3/12':1.031,'4/12':1.054,'5/12':1.083,
+  '6/12':1.118,'7/12':1.158,'8/12':1.202,'9/12':1.250,
+  '10/12':1.302,'11/12':1.357,'12/12':1.414,
 }
-
 const PITCH_OPTIONS = Object.keys(PITCH_FACTORS)
 
-// Default material prices — pro overrides in Settings (future)
-// These are reasonable FL market defaults
+// ── Default FL market prices ───────────────────────────────────────────────────
 const DEFAULT_PRICES: Record<string, number> = {
-  shingles:      95,   // per bundle (3 bundles = 1 square)
-  underlayment:  45,   // per square
-  ridgeCap:      55,   // per bundle (35 LF/bundle)
-  starterStrip:  50,   // per bundle (105 LF/bundle)
-  nails:          8,   // per lb
-  dripEdge:      12,   // per 10ft piece
-  iceWater:      75,   // per square
-  pipeBoot:      35,   // per boot (standard residential mix)
-  disposal:     375,   // dumpster flat rate (single layer tearoff)
+  shingles:     95,   // per bundle (3 bundles = 1 square)
+  underlayment: 45,   // per square
+  ridgeCap:     55,   // per bundle (35 LF/bundle)
+  starterStrip: 50,   // per bundle (105 LF/bundle)
+  nails:         8,   // per lb
+  dripEdge:     12,   // per 10 ft piece
+  iceWater:     75,   // per square (3 ft eave strip, FL code)
+  pipeBoot:     35,   // per boot
+  disposal:    375,   // dumpster flat — single layer
+  labour:        0,   // roofer fills in separately
 }
 
-// ── Calculator logic — pure function, no side effects ─────────────────────
+// ── Calculator logic ──────────────────────────────────────────────────────────
 function calculateMaterials(
-  squares: number,
-  pitchKey: string,
-  wastePct: number,
-  ridgeLF: number,
-  eaveLF: number,
-  perimLF: number,
-  prices: Record<string, number>,
-  pipeBoots: number,
-  tearoffLayers: number,
+  squares: number, pitchKey: string, wastePct: number,
+  ridgeLF: number, eaveLF: number, perimLF: number,
+  prices: Record<string, number>, pipeBoots: number, tearoffLayers: number,
 ): { items: LineItem[]; adjustedSquares: number } {
-  const pitchFactor    = PITCH_FACTORS[pitchKey] ?? 1.118
-  const adjustedSquares = squares * pitchFactor * (1 + wastePct / 100)
+  const pitchFactor     = PITCH_FACTORS[pitchKey] ?? 1.118
+  const adjSq           = squares * pitchFactor * (1 + wastePct / 100)
+  const adjSqRounded    = Math.round(adjSq * 10) / 10
 
-  const ridgeBundles   = ridgeLF  > 0 ? Math.ceil(ridgeLF / 35)  : null
-  const starterBundles = eaveLF   > 0 ? Math.ceil(eaveLF / 105)  : null
-  const dripPieces     = perimLF  > 0 ? Math.ceil(perimLF / 10)  : null
-  const iceSquares     = eaveLF   > 0 ? Math.ceil((eaveLF * 3) / 100) : null
+  const ridgeBundles    = ridgeLF  > 0 ? Math.ceil(ridgeLF / 35)   : null
+  const starterBundles  = eaveLF   > 0 ? Math.ceil(eaveLF / 105)   : null
+  const dripPieces      = perimLF  > 0 ? Math.ceil(perimLF / 10)   : null
+  const iceSquares      = eaveLF   > 0 ? Math.ceil((eaveLF * 3) / 100) : null
+
+  // Underlayment: same quantity for display and pricing
+  const underlaymentQty = Math.round(adjSqRounded * 1.1 * 10) / 10
+  const nailsQty        = Math.ceil(adjSqRounded * 2.5)
+  const shinglesQty     = Math.ceil(adjSqRounded * 3)
 
   const items: LineItem[] = [
     {
-      description: `Architectural shingles (${pitchKey} pitch, ${wastePct}% waste)`,
-      quantity:    Math.ceil(adjustedSquares * 3),
-      unit:        'bundles',
-      unitPrice:   prices.shingles,
-      total:       Math.ceil(adjustedSquares * 3) * prices.shingles,
+      key: 'shingles',
+      description: `Architectural shingles`,
+      note: `${pitchKey} pitch · ${wastePct}% waste · ${shinglesQty} bundles`,
+      quantity: shinglesQty, unit: 'bundles',
+      unitPrice: prices.shingles, total: shinglesQty * prices.shingles,
+      isPlaceholder: false,
     },
     {
+      key: 'underlayment',
       description: 'Synthetic underlayment',
-      quantity:    Math.ceil(adjustedSquares * 1.1 * 10) / 10,
-      unit:        'squares',
-      unitPrice:   prices.underlayment,
-      total:       Math.ceil(adjustedSquares * 1.1) * prices.underlayment,
+      note: `${underlaymentQty} sq (10% overlap)`,
+      quantity: underlaymentQty, unit: 'squares',
+      unitPrice: prices.underlayment, total: Math.round(underlaymentQty) * prices.underlayment,
+      isPlaceholder: false,
     },
     {
-      description: ridgeBundles ? 'Ridge cap shingles' : 'Ridge cap shingles (enter ridge LF below)',
-      quantity:    ridgeBundles ?? 0,
-      unit:        'bundles',
-      unitPrice:   prices.ridgeCap,
-      total:       (ridgeBundles ?? 0) * prices.ridgeCap,
+      key: 'ridgeCap',
+      description: 'Ridge cap shingles',
+      note: ridgeBundles ? `${ridgeLF} LF ÷ 35 = ${ridgeBundles} bundles` : 'Enter Ridge LF above',
+      quantity: ridgeBundles ?? 0, unit: 'bundles',
+      unitPrice: prices.ridgeCap, total: (ridgeBundles ?? 0) * prices.ridgeCap,
+      isPlaceholder: !ridgeBundles,
     },
     {
-      description: starterBundles ? 'Starter strip' : 'Starter strip (enter eave LF below)',
-      quantity:    starterBundles ?? 0,
-      unit:        'bundles',
-      unitPrice:   prices.starterStrip,
-      total:       (starterBundles ?? 0) * prices.starterStrip,
+      key: 'starterStrip',
+      description: 'Starter strip',
+      note: starterBundles ? `${eaveLF} LF ÷ 105 = ${starterBundles} bundles` : 'Enter Eave LF above',
+      quantity: starterBundles ?? 0, unit: 'bundles',
+      unitPrice: prices.starterStrip, total: (starterBundles ?? 0) * prices.starterStrip,
+      isPlaceholder: !starterBundles,
     },
     {
+      key: 'nails',
       description: 'Roofing nails',
-      quantity:    Math.ceil(adjustedSquares * 2.5),
-      unit:        'lbs',
-      unitPrice:   prices.nails,
-      total:       Math.ceil(adjustedSquares * 2.5) * prices.nails,
+      note: `~2.5 lbs/sq × ${adjSqRounded} sq`,
+      quantity: nailsQty, unit: 'lbs',
+      unitPrice: prices.nails, total: nailsQty * prices.nails,
+      isPlaceholder: false,
     },
     {
-      description: dripPieces ? 'Drip edge' : 'Drip edge (enter perimeter LF below)',
-      quantity:    dripPieces ?? 0,
-      unit:        'pieces',
-      unitPrice:   prices.dripEdge,
-      total:       (dripPieces ?? 0) * prices.dripEdge,
+      key: 'dripEdge',
+      description: 'Drip edge',
+      note: dripPieces ? `${perimLF} LF ÷ 10 = ${dripPieces} pcs` : 'Enter Perimeter LF above',
+      quantity: dripPieces ?? 0, unit: 'pieces',
+      unitPrice: prices.dripEdge, total: (dripPieces ?? 0) * prices.dripEdge,
+      isPlaceholder: !dripPieces,
     },
     {
-      description: iceSquares ? 'Ice and water shield (FL code — 3ft from eave)' : 'Ice and water shield (enter eave LF below)',
-      quantity:    iceSquares ?? 0,
-      unit:        'squares',
-      unitPrice:   prices.iceWater,
-      total:       (iceSquares ?? 0) * prices.iceWater,
+      key: 'iceWater',
+      description: 'Ice & water shield',
+      note: iceSquares ? `3 ft eave strip (FL code) · ${iceSquares} sq` : 'Enter Eave LF above',
+      quantity: iceSquares ?? 0, unit: 'squares',
+      unitPrice: prices.iceWater, total: (iceSquares ?? 0) * prices.iceWater,
+      isPlaceholder: !iceSquares,
     },
   ]
 
-  // Pipe boots — fixed count, user-entered
   if (pipeBoots > 0) {
     items.push({
-      description: `Pipe boots / vent flashing (${pipeBoots})`,
-      quantity:    pipeBoots,
-      unit:        'each',
-      unitPrice:   prices.pipeBoot,
-      total:       pipeBoots * prices.pipeBoot,
+      key: 'pipeBoot',
+      description: 'Pipe boots / vent flashing',
+      note: `${pipeBoots} units`, quantity: pipeBoots, unit: 'each',
+      unitPrice: prices.pipeBoot, total: pipeBoots * prices.pipeBoot,
+      isPlaceholder: false,
     })
   }
 
-  // Disposal — dumpster flat rate, scales with layers and squares
-  const disposalCost = tearoffLayers === 0 ? 0
-    : tearoffLayers === 1 ? prices.disposal
-    : Math.round(prices.disposal * 1.5)  // double layer = ~50% more
   if (tearoffLayers > 0) {
+    const disposalCost = tearoffLayers === 1 ? prices.disposal : Math.round(prices.disposal * 1.5)
     items.push({
-      description: `Tear-off disposal — ${tearoffLayers === 1 ? 'single' : 'double'} layer (${Math.round(squares)} sq)`,
-      quantity:    1,
-      unit:        'dumpster',
-      unitPrice:   disposalCost,
-      total:       disposalCost,
+      key: 'disposal',
+      description: 'Tear-off & disposal',
+      note: `${tearoffLayers === 1 ? '1 layer' : '2 layers'} · ${Math.round(squares)} sq`,
+      quantity: 1, unit: 'dumpster',
+      unitPrice: disposalCost, total: disposalCost,
+      isPlaceholder: false,
     })
   }
 
-  return { items, adjustedSquares: Math.round(adjustedSquares * 10) / 10 }
+  return { items, adjustedSquares: adjSqRounded }
 }
 
-// ── Inner component (needs useSearchParams — must be inside Suspense) ──────
+function normalizePitch(raw: string | number): string {
+  if (typeof raw === 'number') return '6/12'
+  const s = String(raw).trim()
+  if (PITCH_FACTORS[s]) return s
+  const n = s.replace(':', '/').replace(/\.0\//,'/')
+  return PITCH_FACTORS[n] ? n : '6/12'
+}
+
+// Clean address — remove duplicate city segments from Solar API geocode results
+function cleanAddress(raw: string): string {
+  if (!raw) return raw
+  // "3919 Highgate Court, Jacksonville, Jacksonville, FL 32216, USA"
+  // Split, dedupe consecutive identical parts (case-insensitive), rejoin
+  const parts = raw.replace(', USA', '').split(', ')
+  const deduped: string[] = []
+  for (const p of parts) {
+    if (deduped.length === 0 || p.toLowerCase() !== deduped[deduped.length - 1].toLowerCase()) {
+      deduped.push(p)
+    }
+  }
+  return deduped.join(', ')
+}
+
+// ── Focused input helper ──────────────────────────────────────────────────────
+function FInput({ label, hint, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }) {
+  const [f, setF] = useState(false)
+  return (
+    <div>
+      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase' as const, letterSpacing:'0.07em', marginBottom:6 }}>
+        {label}{hint && <span style={{ color:'#94A3B8', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:5 }}>{hint}</span>}
+      </label>
+      <input {...p}
+        onFocus={e => { setF(true); (p as any).onFocus?.(e) }}
+        onBlur={e => { setF(false); (p as any).onBlur?.(e) }}
+        style={{
+          width:'100%', boxSizing:'border-box' as const,
+          padding:'9px 12px',
+          border:`1.5px solid ${f ? TEAL : BORDER}`,
+          borderRadius:9, fontSize:13, outline:'none',
+          background: f ? '#fff' : CREAM, color: NAVY,
+          boxShadow: f ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
+          transition:'all 0.15s',
+          ...(p.style||{}),
+        }}
+      />
+    </div>
+  )
+}
+function FSelect({ label, hint, children, ...p }: React.SelectHTMLAttributes<HTMLSelectElement> & { label: string; hint?: string }) {
+  const [f, setF] = useState(false)
+  return (
+    <div>
+      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase' as const, letterSpacing:'0.07em', marginBottom:6 }}>
+        {label}{hint && <span style={{ color:'#94A3B8', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:5 }}>{hint}</span>}
+      </label>
+      <select {...p}
+        onFocus={e => { setF(true); (p as any).onFocus?.(e) }}
+        onBlur={e => { setF(false); (p as any).onBlur?.(e) }}
+        style={{
+          width:'100%', boxSizing:'border-box' as const,
+          padding:'9px 12px',
+          border:`1.5px solid ${f ? TEAL : BORDER}`,
+          borderRadius:9, fontSize:13, outline:'none',
+          background: f ? '#fff' : CREAM, color: NAVY,
+          boxShadow: f ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
+          transition:'all 0.15s', cursor:'pointer',
+          ...(p.style||{}),
+        }}>
+        {children}
+      </select>
+    </div>
+  )
+}
+
+// ── Section heading ───────────────────────────────────────────────────────────
+function Section({ n, label, sub, children, right }: { n: string; label: string; sub: string; children: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <div style={{ background:'#fff', borderRadius:14, border:`1px solid ${BORDER}`, overflow:'hidden', boxShadow:'0 2px 10px rgba(10,22,40,0.05)', marginBottom:14 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px 0', marginBottom:16 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:28, height:28, borderRadius:8, background:`linear-gradient(135deg,${TEAL},${TEAL_L})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:'#fff', flexShrink:0 }}>{n}</div>
+          <div>
+            <div style={{ fontSize:14, fontWeight:800, color:NAVY, letterSpacing:'-0.01em' }}>{label}</div>
+            <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>{sub}</div>
+          </div>
+        </div>
+        {right}
+      </div>
+      <div style={{ padding:'0 20px 20px' }}>{children}</div>
+    </div>
+  )
+}
+
+// ── Inner page ────────────────────────────────────────────────────────────────
 function CalculatorInner() {
-  const router        = useRouter()
-  const searchParams  = useSearchParams()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
 
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
+    const s = sessionStorage.getItem('pg_pro'); return s ? JSON.parse(s) : null
   })
-  const [dk, setDk] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem('pg_darkmode') === '1'
-  })
+  const [dk, setDk] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('pg_darkmode') === '1'
+  )
+  const t = theme(dk)
 
-  // ── Pre-fill state from sessionStorage report data ─────────────────────
-  const [reportData,  setReportData]  = useState<ReportData | null>(null)
-  const [squares,     setSquares]     = useState<string>('')
-  const [pitch,       setPitch]       = useState<string>('6/12')
-  const [waste,       setWaste]       = useState<string>('10')
-  const [lineItems,   setLineItems]   = useState<LineItem[]>([])
-  const [adjSq,       setAdjSq]       = useState<number>(0)
-  const [saving,      setSaving]      = useState(false)
-  const [error,       setError]       = useState<string | null>(null)
-  const [success,     setSuccess]     = useState<string | null>(null)
+  const [reportData, setReportData] = useState<ReportData | null>(null)
+  const [squares,    setSquares]    = useState('')
+  const [pitch,      setPitch]      = useState('6/12')
+  const [waste,      setWaste]      = useState('10')
+  const [ridgeLF,    setRidgeLF]    = useState('')
+  const [eaveLF,     setEaveLF]     = useState('')
+  const [perimLF,    setPerimLF]    = useState('')
+  const [pipeBoots,  setPipeBoots]  = useState('3')
+  const [tearoff,    setTearoff]    = useState('1')
+  const [labour,     setLabour]     = useState('')
+  const [prices,     setPrices]     = useState<Record<string,number>>({ ...DEFAULT_PRICES })
+  const [lineItems,  setLineItems]  = useState<LineItem[]>([])
+  const [adjSq,      setAdjSq]      = useState(0)
+  const [saving,     setSaving]     = useState(false)
+  const [error,      setError]      = useState<string | null>(null)
+  const [success,    setSuccess]    = useState<string | null>(null)
+  const [editPrices, setEditPrices] = useState(false)
 
-  // ── Linear footage inputs (for ridge cap, starter strip, drip edge, ice/water) ─
-  const [ridgeLF,     setRidgeLF]     = useState<string>('')
-  const [eaveLF,      setEaveLF]      = useState<string>('')
-  const [perimLF,     setPerimLF]     = useState<string>('')
-  const [pipeBoots,   setPipeBoots]   = useState<string>('3')
-  const [tearoffLayers, setTearoffLayers] = useState<string>('1')
-
-  // ── Unit price overrides (editable inline, default to DEFAULT_PRICES) ──
-  const [prices, setPrices] = useState<Record<string, number>>({ ...DEFAULT_PRICES })
-
-  // leadId can come from URL param (if opened from a lead detail page)
   const leadId = searchParams.get('lead_id') ?? null
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
-
-    // Read report data from sessionStorage — set by satellite report pipeline
     const raw = sessionStorage.getItem('pg_report_data')
     if (raw) {
       try {
-        const data = JSON.parse(raw) as ReportData
-        setReportData(data)
-        setSquares(String(Math.round(data.squares * 10) / 10))
-        // Normalize pitch — report stores e.g. "6/12" or numeric
-        const pitchKey = normalizePitch(data.pitch)
-        setPitch(pitchKey)
-        setWaste(String(Math.round(data.waste)))
-      } catch {
-        // sessionStorage had bad data — start fresh
-        sessionStorage.removeItem('pg_report_data')
-      }
+        const d = JSON.parse(raw) as ReportData
+        setReportData({ ...d, address: cleanAddress(d.address) })
+        setSquares(String(Math.round(d.squares * 10) / 10))
+        setPitch(normalizePitch(d.pitch))
+        setWaste(String(Math.round(d.waste)))
+      } catch { sessionStorage.removeItem('pg_report_data') }
     }
   }, [session, router])
 
-  // Recalculate whenever inputs change
   useEffect(() => {
     const sq = parseFloat(squares)
     if (!sq || sq <= 0) { setLineItems([]); setAdjSq(0); return }
     const { items, adjustedSquares } = calculateMaterials(
-      sq, pitch, parseFloat(waste) || 0,
-      parseFloat(ridgeLF) || 0,
-      parseFloat(eaveLF)  || 0,
-      parseFloat(perimLF) || 0,
-      prices,
-      parseInt(pipeBoots) || 0,
-      parseInt(tearoffLayers) || 0,
+      sq, pitch, parseFloat(waste)||0,
+      parseFloat(ridgeLF)||0, parseFloat(eaveLF)||0, parseFloat(perimLF)||0,
+      prices, parseInt(pipeBoots)||0, parseInt(tearoff)||0,
     )
     setLineItems(items)
     setAdjSq(adjustedSquares)
-  }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices, pipeBoots, tearoffLayers])
+  }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices, pipeBoots, tearoff])
 
-  // Push to estimate
-  const handleApplyToEstimate = useCallback(async () => {
+  const materialTotal = lineItems.reduce((s, i) => s + i.total, 0)
+  const labourAmount  = parseFloat(labour) || 0
+  const grandTotal    = materialTotal + labourAmount
+  const needsLF       = !parseFloat(ridgeLF) || !parseFloat(eaveLF) || !parseFloat(perimLF)
+
+  const handleApply = useCallback(async () => {
     if (!session || lineItems.length === 0) return
-    setSaving(true)
-    setError(null)
-    setSuccess(null)
-
+    setSaving(true); setError(null); setSuccess(null)
     try {
+      const allItems = [
+        ...lineItems.filter(i => !i.isPlaceholder).map(i => ({
+          description: i.description,
+          quantity:    i.quantity,
+          unit_price:  i.unitPrice,
+        })),
+        ...(labourAmount > 0 ? [{ description: 'Labour & installation', quantity: 1, unit_price: labourAmount }] : []),
+      ]
       const res = await fetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pro_id:        session.id,
-          lead_id:       leadId,
-          lead_name:     reportData?.address ?? 'New Estimate',
-          trade:         session.trade         ?? 'Roofing',
-          trade_slug:    session.trade_slug    ?? 'roofing-contractor',
-          state:         session.state         ?? '',
-          source:        'roofing_calculator',
-          // Measurements — written to roofing_estimate_data
-          square_count:  parseFloat(squares) || null,
-          pitch:         pitch                ?? null,
-          waste_pct:     parseFloat(waste)    || 10,
+          pro_id:           session.id,
+          lead_id:          leadId,
+          lead_name:        reportData?.address ?? 'New Estimate',
+          trade:            session.trade      ?? 'Roofing',
+          trade_slug:       session.trade_slug ?? 'roofer',
+          state:            session.state      ?? '',
+          source:           'roofing_calculator',
+          square_count:     parseFloat(squares) || null,
+          pitch:            pitch,
+          waste_pct:        parseFloat(waste) || 10,
           property_address: reportData?.address ?? null,
-          report_data:   reportData,
-          line_items:    lineItems.filter(i => i.quantity > 0).map(i => ({
-            description: i.description.replace(' (enter ridge LF below)', '').replace(' (enter eave LF below)', '').replace(' (enter perimeter LF below)', ''),
-            quantity:    i.quantity,
-            unit_price:  i.unitPrice,
-          })),
+          report_data:      reportData,
+          line_items:       allItems,
         }),
       })
-
       if (!res.ok) {
-        const d = await res.json().catch(() => ({}))
-        throw new Error((d as {error?:string}).error ?? `HTTP ${res.status}`)
+        const d = await res.json().catch(()=>({}))
+        throw new Error((d as any).error ?? `HTTP ${res.status}`)
       }
-
       const { id: estimateId } = await res.json() as { id: string }
-
-      // Clear sessionStorage — report data consumed
       sessionStorage.removeItem('pg_report_data')
-
-      setSuccess('Estimate created with calculator line items.')
-
-      // Navigate to the new estimate after a brief moment
-      setTimeout(() => {
-        router.push(`/dashboard/estimates/${estimateId}`)
-      }, 1200)
+      setSuccess('Estimate created — taking you there now…')
+      setTimeout(() => router.push(`/dashboard/estimates/${estimateId}`), 1200)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create estimate'
-      setError(msg)
-    } finally {
-      setSaving(false)
-    }
-  }, [session, lineItems, leadId, reportData, router])
+      setError(err instanceof Error ? err.message : 'Failed to create estimate')
+    } finally { setSaving(false) }
+  }, [session, lineItems, leadId, reportData, router, labour, labourAmount, squares, pitch, waste])
 
   if (!session) return null
-  const t = theme(dk)
 
-  const totalCost = lineItems.reduce((s, i) => s + i.total, 0)
+  const pitchFactor = PITCH_FACTORS[pitch] ?? 1.118
 
   return (
-    <DashboardShell
-      session={session}
-      newLeads={0}
-      onAddLead={() => {}}
-      darkMode={dk}
-      onToggleDark={() => {
-        const n = !dk
-        localStorage.setItem('pg_darkmode', n ? '1' : '0')
-        setDk(n)
-      }}
-    >
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
+    <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk}
+      onToggleDark={() => { const n=!dk; localStorage.setItem('pg_darkmode',n?'1':'0'); setDk(n) }}>
 
-        {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: t.textPri, margin: 0 }}>
-            Roofing Calculator
-          </h1>
-          {reportData && (
-            <p style={{ fontSize: 13, color: t.textMuted, marginTop: 4 }}>
-              Pre-filled from report: {reportData.address}
+      <div style={{ maxWidth:740, margin:'0 auto', padding:'0 4px 48px', fontFamily:'system-ui,-apple-system,sans-serif' }}>
+
+        {/* ── Page header ── */}
+        <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:24, paddingTop:4 }}>
+          <div style={{ width:46, height:46, borderRadius:13, background:`linear-gradient(135deg,${TEAL},${TEAL_L})`, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 6px 18px rgba(15,118,110,0.35)`, flexShrink:0 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+              <rect x="4" y="2" width="16" height="20" rx="2"/>
+              <line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/>
+              <line x1="8" y1="14" x2="12" y2="14"/>
+            </svg>
+          </div>
+          <div>
+            <h1 style={{ fontSize:22, fontWeight:800, color:t.textPri, margin:0, letterSpacing:'-0.02em' }}>Roofing Calculator</h1>
+            <p style={{ fontSize:12, color: reportData ? TEAL : t.textMuted, margin:0, marginTop:2, fontWeight: reportData ? 600 : 400 }}>
+              {reportData
+                ? `📍 Pre-filled from report: ${reportData.address}`
+                : 'Enter measurements to calculate materials and push to estimate'}
             </p>
-          )}
+          </div>
         </div>
 
-        {/* Inputs */}
-        <div style={{
-          background: t.cardBg,
-          border: `1px solid ${t.cardBorder}`,
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 20,
-        }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: t.textPri, marginBottom: 16 }}>
-            Measurements
-          </h2>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            {/* Squares */}
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
-                Squares (flat area)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.1"
-                value={squares}
-                onChange={e => setSquares(e.target.value)}
-                placeholder="e.g. 28.5"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  border: `1.5px solid ${t.inputBorder}`,
-                  background: t.cardBg,
-                  color: t.textPri,
-                  fontSize: 14,
-                }}
-              />
-            </div>
-
-            {/* Pitch */}
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
-                Pitch
-              </label>
-              <select
-                value={pitch}
-                onChange={e => setPitch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  border: `1.5px solid ${t.inputBorder}`,
-                  background: t.cardBg,
-                  color: t.textPri,
-                  fontSize: 14,
-                }}
-              >
-                {PITCH_OPTIONS.map(p => (
-                  <option key={p} value={p}>
-                    {p} (×{PITCH_FACTORS[p].toFixed(3)})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Waste */}
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
-                Waste %
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="30"
-                step="1"
-                value={waste}
-                onChange={e => setWaste(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  border: `1.5px solid ${t.inputBorder}`,
-                  background: t.cardBg,
-                  color: t.textPri,
-                  fontSize: 14,
-                }}
-              />
-            </div>
+        {/* ── Section 1: Measurements ── */}
+        <Section n="1" label="Roof Measurements" sub="Flat area from satellite or manual measurement">
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
+            <FInput label="Squares (flat area)" hint="from report or manual"
+              type="number" min="0" step="0.1" value={squares} placeholder="e.g. 22.5"
+              onChange={e => setSquares(e.target.value)} />
+            <FSelect label="Pitch" hint="affects adjusted sq"
+              value={pitch} onChange={e => setPitch(e.target.value)}>
+              {PITCH_OPTIONS.map(p => (
+                <option key={p} value={p}>{p} (×{PITCH_FACTORS[p].toFixed(3)})</option>
+              ))}
+            </FSelect>
+            <FInput label="Waste %" hint="10% typical, 15% complex"
+              type="number" min="0" max="30" step="1" value={waste}
+              onChange={e => setWaste(e.target.value)} />
           </div>
 
+          {/* Adjusted squares summary */}
           {adjSq > 0 && (
-            <div style={{
-              marginTop: 16,
-              padding: '10px 14px',
-              background: '#F0FDFA',
-              borderRadius: 8,
-              fontSize: 13,
-              color: '#0F766E',
-            }}>
-              Adjusted squares: <strong>{adjSq}</strong> &nbsp;·&nbsp;
-              Pitch factor: <strong>{PITCH_FACTORS[pitch]?.toFixed(3)}</strong>
+            <div style={{ display:'flex', gap:10, marginTop:14, flexWrap:'wrap' as const }}>
+              {[
+                { label:'Flat sq', value: squares },
+                { label:'Pitch factor', value: `×${pitchFactor.toFixed(3)}` },
+                { label:'Waste', value: `+${waste}%` },
+                { label:'Adjusted sq', value: String(adjSq), highlight: true },
+              ].map(s => (
+                <div key={s.label} style={{
+                  padding:'8px 14px', borderRadius:9,
+                  background: s.highlight ? `linear-gradient(135deg,${TEAL},${TEAL_L})` : CREAM,
+                  border: s.highlight ? 'none' : `1px solid ${BORDER}`,
+                }}>
+                  <div style={{ fontSize:10, fontWeight:700, color: s.highlight ? 'rgba(255,255,255,0.75)' : '#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>{s.label}</div>
+                  <div style={{ fontSize:16, fontWeight:800, color: s.highlight ? '#fff' : NAVY, letterSpacing:'-0.02em', marginTop:2 }}>{s.value}</div>
+                </div>
+              ))}
             </div>
           )}
-        </div>
+        </Section>
 
-        {/* Linear footage inputs */}
+        {/* ── Section 2: Linear footage ── */}
         {parseFloat(squares) > 0 && (
-          <div style={{
-            background: t.cardBg,
-            border: `1px solid ${t.cardBorder}`,
-            borderRadius: 12,
-            padding: 20,
-            marginBottom: 20,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: t.textPri, margin: 0 }}>
-                Linear Footage
-              </h2>
-              <span style={{ fontSize: 12, color: t.textMuted }}>
-                Auto-filled when Quick Bid Report is run
-              </span>
+          <Section n="2" label="Linear Footage" sub="Auto-filled from Quick Bid report — or enter manually"
+            right={
+              needsLF ? (
+                <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.3)' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>3 items need LF</span>
+                </div>
+              ) : (
+                <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#F0FDF4', border:'1px solid rgba(5,150,105,0.2)' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#059669' }}>Complete</span>
+                </div>
+              )
+            }>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:14 }}>
+              <FInput label="Ridge LF" hint="for ridge cap bundles"
+                type="number" min="0" step="1" value={ridgeLF} placeholder="e.g. 48"
+                onChange={e => setRidgeLF(e.target.value)} />
+              <FInput label="Eave LF" hint="for starter strip + ice/water"
+                type="number" min="0" step="1" value={eaveLF} placeholder="e.g. 120"
+                onChange={e => setEaveLF(e.target.value)} />
+              <FInput label="Perimeter LF" hint="for drip edge"
+                type="number" min="0" step="1" value={perimLF} placeholder="e.g. 280"
+                onChange={e => setPerimLF(e.target.value)} />
             </div>
-            <p style={{ fontSize: 12, color: t.textMuted, marginBottom: 16, marginTop: 4 }}>
-              Needed for ridge cap, starter strip, drip edge, and ice & water shield. Enter manually or run a satellite report.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
-                  Ridge LF
-                </label>
-                <input type="number" min="0" step="1" value={ridgeLF} onChange={e => setRidgeLF(e.target.value)}
-                  placeholder="e.g. 48"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
-                  Eave LF
-                </label>
-                <input type="number" min="0" step="1" value={eaveLF} onChange={e => setEaveLF(e.target.value)}
-                  placeholder="e.g. 120"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
-                  Perimeter LF
-                </label>
-                <input type="number" min="0" step="1" value={perimLF} onChange={e => setPerimLF(e.target.value)}
-                  placeholder="e.g. 280"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' }}
-                />
-              </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+              <FInput label="Pipe boots / vents" hint="count of penetrations"
+                type="number" min="0" step="1" value={pipeBoots} placeholder="e.g. 3"
+                onChange={e => setPipeBoots(e.target.value)} />
+              <FSelect label="Tear-off layers" hint="affects disposal cost"
+                value={tearoff} onChange={e => setTearoff(e.target.value)}>
+                <option value="0">None — new construction</option>
+                <option value="1">1 layer (standard)</option>
+                <option value="2">2 layers (+50% disposal)</option>
+              </FSelect>
             </div>
-
-          {/* Pipe boots + tearoff layers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
-                Pipe boots / vents
-              </label>
-              <input type="number" min="0" step="1" value={pipeBoots} onChange={e => setPipeBoots(e.target.value)}
-                placeholder="e.g. 3"
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14, boxSizing: 'border-box' as const }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>
-                Tear-off layers
-              </label>
-              <select value={tearoffLayers} onChange={e => setTearoffLayers(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 14 }}
-              >
-                <option value="0">No tear-off (new construction)</option>
-                <option value="1">1 layer</option>
-                <option value="2">2 layers</option>
-              </select>
-            </div>
-          </div>
-        </div>
+          </Section>
         )}
 
-        {/* Material output table — always visible once squares entered */}
+        {/* ── Section 3: Materials ── */}
         {lineItems.length > 0 && (
-          <div style={{
-            background: t.cardBg,
-            border: `1px solid ${t.cardBorder}`,
-            borderRadius: 12,
-            padding: 20,
-            marginBottom: 20,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: t.textPri, margin: 0 }}>
-                Material Quantities
-              </h2>
-              <span style={{ fontSize: 12, color: t.textMuted }}>Unit prices editable below</span>
-            </div>
+          <Section n="3" label="Material Quantities" sub="Quantities auto-calculated — edit unit prices if needed"
+            right={
+              <button onClick={() => setEditPrices(e => !e)}
+                style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background: editPrices ? `rgba(15,118,110,0.1)` : CREAM, border:`1.5px solid ${editPrices ? TEAL+'40' : BORDER}`, color: editPrices ? TEAL : '#64748B', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                {editPrices ? 'Done editing' : 'Edit prices'}
+              </button>
+            }>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width:'100%', borderCollapse:'collapse' as const }}>
               <thead>
-                <tr style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
-                  {['Material', 'Qty', 'Unit', 'Unit price', 'Total'].map(h => (
-                    <th key={h} style={{
-                      padding: '6px 8px',
-                      textAlign: h === 'Material' ? 'left' : 'right',
-                      color: t.textMuted,
-                      fontWeight: 500,
-                    }}>{h}</th>
+                <tr style={{
+                  background:'linear-gradient(90deg,rgba(15,118,110,0.05) 0%,rgba(20,184,166,0.03) 100%)',
+                  borderBottom:`1.5px solid rgba(15,118,110,0.12)`,
+                }}>
+                  {(['Material','Note','Qty','Unit', editPrices ? 'Unit Price' : null,'Total'] as (string|null)[]).filter(Boolean).map(h => (
+                    <th key={h} style={{ padding:'9px 10px', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase' as const, letterSpacing:'0.08em', textAlign: h==='Material'||h==='Note' ? 'left' as const : 'right' as const }}>
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {lineItems.map((item, i) => {
-                  const priceKey = ['shingles','underlayment','ridgeCap','starterStrip','nails','dripEdge','iceWater','pipeBoot','disposal'][i]
-                  const isPlaceholder = item.quantity === 0
-                  return (
-                    <tr key={i} style={{ borderBottom: `1px solid ${t.cardBorder}`, opacity: isPlaceholder ? 0.45 : 1 }}>
-                      <td style={{ padding: '8px', color: t.textPri, fontSize: 12 }}>
-                        {item.description.replace(' (enter ridge LF below)', '').replace(' (enter eave LF below)', '').replace(' (enter perimeter LF below)', '')}
-                        {isPlaceholder && <span style={{ fontSize: 11, color: '#F59E0B', marginLeft: 6 }}>⚠ needs LF</span>}
-                      </td>
-                      <td style={{ padding: '8px', textAlign: 'right', color: t.textPri, fontWeight: isPlaceholder ? 400 : 600 }}>
-                        {isPlaceholder ? '—' : item.quantity}
-                      </td>
-                      <td style={{ padding: '8px', textAlign: 'right', color: t.textMuted }}>{item.unit}</td>
-                      <td style={{ padding: '8px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                          <span style={{ color: t.textMuted }}>$</span>
-                          <input
-                            type="number" min="0" step="0.01"
-                            value={prices[priceKey]}
-                            onChange={e => setPrices(p => ({ ...p, [priceKey]: parseFloat(e.target.value) || 0 }))}
-                            style={{ width: 60, padding: '3px 6px', borderRadius: 6, border: `1px solid ${t.inputBorder}`, background: t.cardBg, color: t.textPri, fontSize: 13, textAlign: 'right' }}
+                {lineItems.map((item, i) => (
+                  <tr key={item.key}
+                    style={{
+                      borderBottom:`1px solid rgba(15,118,110,0.06)`,
+                      background: item.isPlaceholder
+                        ? (i%2===0 ? 'transparent' : 'rgba(15,118,110,0.012)')
+                        : (i%2===0 ? 'transparent' : 'rgba(15,118,110,0.016)'),
+                      opacity: item.isPlaceholder ? 0.5 : 1,
+                    }}>
+                    <td style={{ padding:'10px', fontSize:13, fontWeight:600, color:NAVY, minWidth:160 }}>
+                      {item.description}
+                      {item.isPlaceholder && (
+                        <span style={{ marginLeft:6, display:'inline-flex', alignItems:'center', gap:3, fontSize:10, fontWeight:700, color:'#B45309', background:'#FFFBEB', border:'1px solid rgba(180,83,9,0.2)', borderRadius:100, padding:'1px 6px' }}>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          needs LF
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding:'10px', fontSize:11, color:'#94A3B8', maxWidth:200 }}>
+                      {item.note}
+                    </td>
+                    <td style={{ padding:'10px', textAlign:'right' as const, fontSize:13, fontWeight:item.isPlaceholder?400:700, color:item.isPlaceholder?'#94A3B8':NAVY }}>
+                      {item.isPlaceholder ? '—' : item.quantity}
+                    </td>
+                    <td style={{ padding:'10px', textAlign:'right' as const, fontSize:11, color:'#94A3B8' }}>
+                      {item.unit}
+                    </td>
+                    {editPrices && (
+                      <td style={{ padding:'10px', textAlign:'right' as const }}>
+                        <div style={{ display:'inline-flex', alignItems:'center', gap:3, background:'#fff', border:`1.5px solid ${BORDER}`, borderRadius:7, padding:'4px 8px' }}>
+                          <span style={{ fontSize:11, color:'#94A3B8' }}>$</span>
+                          <input type="number" min="0" step="0.01"
+                            value={prices[item.key]}
+                            onChange={e => setPrices(p => ({ ...p, [item.key]: parseFloat(e.target.value)||0 }))}
+                            style={{ width:56, border:'none', outline:'none', fontSize:13, fontWeight:600, color:NAVY, background:'transparent', textAlign:'right' as const }}
                           />
                         </div>
                       </td>
-                      <td style={{ padding: '8px', textAlign: 'right', color: isPlaceholder ? t.textMuted : '#0F766E', fontWeight: 600 }}>
-                        {isPlaceholder ? '—' : `$${item.total.toLocaleString()}`}
-                      </td>
-                    </tr>
-                  )
-                })}
-                <tr style={{ background: '#F0FDFA' }}>
-                  <td colSpan={4} style={{ padding: '12px 8px', fontWeight: 700, color: t.textPri, fontSize: 14 }}>
-                    Materials total
+                    )}
+                    <td style={{ padding:'10px', textAlign:'right' as const, fontSize:13, fontWeight:700, color: item.isPlaceholder ? '#94A3B8' : TEAL }}>
+                      {item.isPlaceholder ? '—' : `$${item.total.toLocaleString()}`}
+                    </td>
+                  </tr>
+                ))}
+
+                {/* Materials subtotal */}
+                <tr style={{ borderTop:`2px solid rgba(15,118,110,0.12)`, background:'rgba(15,118,110,0.03)' }}>
+                  <td colSpan={editPrices ? 5 : 4} style={{ padding:'12px 10px', fontSize:13, fontWeight:700, color:NAVY }}>
+                    Materials subtotal
                   </td>
-                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 700, fontSize: 16, color: '#0F766E' }}>
-                    ${totalCost.toLocaleString()}
+                  <td style={{ padding:'12px 10px', textAlign:'right' as const, fontSize:15, fontWeight:800, color:TEAL, letterSpacing:'-0.02em' }}>
+                    ${materialTotal.toLocaleString()}
                   </td>
                 </tr>
               </tbody>
             </table>
 
-            {(!parseFloat(ridgeLF) || !parseFloat(eaveLF) || !parseFloat(perimLF)) && (
-              <p style={{ fontSize: 12, color: '#F59E0B', marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                ⚠ Some items need linear footage — enter Ridge LF, Eave LF, and Perimeter LF above for a complete total.
-              </p>
+            {needsLF && (
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:12, padding:'10px 14px', borderRadius:9, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.25)' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span style={{ fontSize:12, color:'#B45309', fontWeight:500 }}>Ridge cap, starter strip, drip edge and ice/water shield need linear footage. Enter Ridge LF, Eave LF and Perimeter LF in Section 2 for a complete total.</span>
+              </div>
             )}
-          </div>
+          </Section>
+        )}
+
+        {/* ── Section 4: Labour ── */}
+        {lineItems.length > 0 && (
+          <Section n="4" label="Labour & Installation" sub="Not included in materials — add your labour rate">
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:14, alignItems:'end' }}>
+              <FInput label="Labour amount ($)" hint="total install cost"
+                type="number" min="0" step="100" value={labour} placeholder="e.g. 4500"
+                onChange={e => setLabour(e.target.value)} />
+              <div style={{ padding:'12px 16px', borderRadius:10, background: labourAmount > 0 ? 'rgba(15,118,110,0.05)' : CREAM, border:`1px solid ${labourAmount > 0 ? 'rgba(15,118,110,0.2)' : BORDER}` }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Materials</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:NAVY }}>${materialTotal.toLocaleString()}</span>
+                </div>
+                {labourAmount > 0 && (
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:4 }}>
+                    <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Labour</span>
+                    <span style={{ fontSize:14, fontWeight:700, color:NAVY }}>+${labourAmount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div style={{ height:1, background: labourAmount > 0 ? 'rgba(15,118,110,0.2)' : BORDER, margin:'8px 0' }}/>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontSize:12, fontWeight:800, color:NAVY }}>Total estimate</span>
+                  <span style={{ fontSize:20, fontWeight:900, color:TEAL, letterSpacing:'-0.03em' }}>${grandTotal.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </Section>
         )}
 
         {/* Error / success */}
         {error && (
-          <div style={{
-            padding: '10px 14px', borderRadius: 8,
-            background: '#FEF2F2', color: '#DC2626',
-            fontSize: 13, marginBottom: 16,
-          }}>{error}</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', borderRadius:10, background:'#FEF2F2', border:'1px solid #FECACA', marginBottom:14 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span style={{ fontSize:13, color:'#DC2626', fontWeight:600 }}>{error}</span>
+          </div>
         )}
         {success && (
-          <div style={{
-            padding: '10px 14px', borderRadius: 8,
-            background: '#F0FDF4', color: '#15803D',
-            fontSize: 13, marginBottom: 16,
-          }}>{success}</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', borderRadius:10, background:'#F0FDF4', border:'1px solid #BBF7D0', marginBottom:14 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span style={{ fontSize:13, color:'#059669', fontWeight:600 }}>{success}</span>
+          </div>
         )}
 
-        {/* Actions */}
+        {/* ── CTA ── */}
         {lineItems.length > 0 && (
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button
-              onClick={handleApplyToEstimate}
-              disabled={saving}
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={handleApply} disabled={saving}
               style={{
-                flex: 1,
-                padding: '12px 24px',
-                borderRadius: 8,
-                background: saving ? '#9CA3AF' : '#0F766E',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 15,
-                border: 'none',
-                cursor: saving ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {saving ? 'Creating estimate…' : 'Apply to estimate →'}
+                flex:1, padding:'14px 24px', borderRadius:11, border:'none',
+                background: saving ? '#94A3B8' : `linear-gradient(135deg,${TEAL},${TEAL_L})`,
+                color:'#fff', fontSize:15, fontWeight:800, cursor: saving ? 'wait' : 'pointer',
+                boxShadow: saving ? 'none' : `0 6px 20px rgba(15,118,110,0.38)`,
+                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                letterSpacing:'-0.01em', transition:'all 0.15s',
+              }}>
+              {saving
+                ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> Creating estimate…</>
+                : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Apply to Estimate</>
+              }
             </button>
-
-            <button
-              onClick={() => router.back()}
-              style={{
-                padding: '12px 20px',
-                borderRadius: 8,
-                background: 'transparent',
-                color: t.textMuted,
-                fontWeight: 500,
-                fontSize: 14,
-                border: `1px solid ${t.cardBorder}`,
-                cursor: 'pointer',
-              }}
-            >
+            <button onClick={() => router.back()}
+              style={{ padding:'14px 22px', borderRadius:11, background:'#fff', border:`1.5px solid ${BORDER}`, color:'#64748B', fontSize:14, fontWeight:600, cursor:'pointer' }}>
               Back
             </button>
           </div>
         )}
       </div>
+
+      <style>{`@keyframes pg-spin{to{transform:rotate(360deg)}}`}</style>
     </DashboardShell>
   )
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function normalizePitch(raw: string | number): string {
-  if (typeof raw === 'number') {
-    // Convert degrees to pitch if needed (satellite report stores dominant pitch as string)
-    return '6/12'
-  }
-  const s = String(raw).trim()
-  if (PITCH_FACTORS[s]) return s
-  // Handle "6:12" or "6.0/12" formats
-  const normalized = s.replace(':', '/').replace(/\.0\//,'/')
-  return PITCH_FACTORS[normalized] ? normalized : '6/12'
-}
-
-// ── Page export — Suspense required for useSearchParams ───────────────────
 export default function CalculatorPage() {
   return (
     <Suspense fallback={null}>
