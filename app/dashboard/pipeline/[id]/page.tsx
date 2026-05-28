@@ -165,9 +165,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // ── Note ────────────────────────────────────────────────────────────────
   const [noteText,    setNoteText]    = useState('')
   const [savingNote,  setSavingNote]  = useState(false)
-  const [qbGenerating, setQbGenerating] = useState(false)
-  const [qbDone,       setQbDone]       = useState(false)
-  const [qbError,      setQbError]      = useState('')
+  const [qbGenerating,   setQbGenerating]   = useState(false)
+  const [qbDone,         setQbDone]         = useState(false)
+  const [qbError,        setQbError]        = useState('')
+  const [showRemeasure,  setShowRemeasure]  = useState(false)
 
   // ── Estimate / invoice ───────────────────────────────────────────────────
   const [est, setEst] = useState<{id:string;estimate_number:string;total:number;status:string}|null>(null)
@@ -1031,7 +1032,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             {/* Roofing measurement tools — linked to this lead */}
                             {isRoofing&&(
-                              <div style={{marginTop:16,borderRadius:12,background:'#fff',border:'3px solid #0F766E',overflow:'hidden'}}>
+                              <div style={{marginTop:16,borderRadius:12,background:'#fff',border:'1px solid #E2E8F0',borderLeft:'4px solid #0F766E',overflow:'hidden'}}>
                                 {(()=>{
                                   const rjd = (lead as any)?.roofing_job_data
                                   const sq    = rjd?.square_count
@@ -1049,25 +1050,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             <div style={{width:24,height:24,borderRadius:6,background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                                             </div>
-                                            <span style={{fontSize:12,fontWeight:700,color:BRAND.teal,textTransform:'uppercase' as const,letterSpacing:'0.08em'}}>Measurements · Satellite</span>
+                                            <span style={{fontSize:13,fontWeight:700,color:BRAND.teal,letterSpacing:'0.01em'}}>Measurements · Satellite</span>
                                           </div>
                                           <button
-                                            onClick={()=>{
-                                              const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
-                                              const city=lead.contact_city||''; const st2=lead.contact_state||''; const zip=(lead as any).contact_zip||''
-                                              const fullAddr=[street,city,st2,zip].filter(Boolean).join(', ')||street
-                                              if(street) {
-                                                setQbDone(false); setQbError('')
-                                                // scroll to QB button
-                                              }
-                                            }}
-                                            style={{fontSize:11,color:'#94A3B8',background:'none',border:'1px solid #E2E8F0',borderRadius:6,cursor:'pointer',fontWeight:600,padding:'3px 8px',letterSpacing:'0.02em'}}>
-                                            Re-measure ↻
+                                            onClick={()=>{ setShowRemeasure(s=>!s); setQbError('') }}
+                                            style={{fontSize:11,color:showRemeasure?BRAND.teal:'#94A3B8',background:showRemeasure?'rgba(15,118,110,0.07)':'none',border:`1px solid ${showRemeasure?BRAND.teal:'#E2E8F0'}`,borderRadius:6,cursor:'pointer',fontWeight:600,padding:'3px 8px',letterSpacing:'0.02em',transition:'all 0.15s'}}>
+                                            {showRemeasure ? 'Cancel ✕' : 'Re-measure ↻'}
                                           </button>
                                         </div>
 
                                         {/* Hero measurements — big, readable at 1920×1080 */}
-                                        <div style={{display:'flex',alignItems:'baseline',gap:6,flexWrap:'wrap' as const,marginBottom:12}}>
+                                        <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap' as const,marginBottom:14}}>
                                           {/* Squares — hero number */}
                                           <div style={{display:'flex',alignItems:'baseline',gap:4,padding:'10px 20px',borderRadius:10,background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,boxShadow:'0 3px 10px rgba(15,118,110,0.3)'}}>
                                             <span style={{fontSize:26,fontWeight:900,color:'#fff',letterSpacing:'-0.03em',lineHeight:1}}>{sq}</span>
@@ -1147,7 +1140,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   )
                                 })()}
                                 {/* Measure buttons — shown in unmeasured state or when re-measuring */}
-                                {!(lead as any)?.roofing_job_data?.square_count && (
+                                {(!(lead as any)?.roofing_job_data?.square_count || showRemeasure) && (
                                 <div style={{padding:'0 16px 16px'}}>
                                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                                   <button
@@ -1255,6 +1248,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             .catch(() => {})
                                         }
                                         setQbDone(true)
+                                        setShowRemeasure(false)
                                         addToast('Report ready — open Calculator to price this job')
                                       } catch(err:unknown){
                                         const isAbort = err instanceof Error && err.name==='AbortError'
