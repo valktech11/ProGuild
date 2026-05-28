@@ -163,8 +163,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [eSaving,setESaving]= useState(false)
 
   // ── Note ────────────────────────────────────────────────────────────────
-  const [noteText,  setNoteText]  = useState('')
-  const [savingNote,setSavingNote]= useState(false)
+  const [noteText,    setNoteText]    = useState('')
+  const [savingNote,  setSavingNote]  = useState(false)
+  const [qbGenerating, setQbGenerating] = useState(false)
+  const [qbDone,       setQbDone]       = useState(false)
+  const [qbError,      setQbError]      = useState('')
 
   // ── Estimate / invoice ───────────────────────────────────────────────────
   const [est, setEst] = useState<{id:string;estimate_number:string;total:number;status:string}|null>(null)
@@ -1074,50 +1077,79 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     ProMeasure
                                   </button>
                                   <button
+                                    disabled={qbGenerating}
                                     onClick={async ()=>{
                                       const street = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
                                       const city   = lead.contact_city||''
-                                      const state  = lead.contact_state||''
+                                      const st     = lead.contact_state||''
                                       const zip    = (lead as any).contact_zip||''
-                                      const fullAddr = [street,city,state,zip].filter(Boolean).join(', ')
-                                      if(!street){addToast('Add a property address first','error');return}
+                                      const fullAddr = [street,city,st,zip].filter(Boolean).join(', ')
+                                      if(!street){addToast('Add a property address to this lead first','error');return}
                                       if(!session) return
-                                      // Find existing property or create one, then navigate directly
+                                      setQbGenerating(true); setQbDone(false); setQbError('')
                                       try {
-                                        const searchRes = await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street)}`)
-                                        const searchData = searchRes.ok ? await searchRes.json() : null
-                                        const existing = (searchData?.properties||[]).find((p:any)=>
-                                          p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase())
-                                        )
-                                        if(existing){
-                                          router.push(`/dashboard/roofing/property/${existing.id}?lead_id=${lead.id}`)
-                                          return
-                                        }
-                                        // Not found — create property then navigate
-                                        const createRes = await fetch('/api/properties',{
-                                          method:'POST',
-                                          headers:{'Content-Type':'application/json'},
-                                          body: JSON.stringify({
-                                            pro_id: session.id,
-                                            address_line1: street,
-                                            city, state, zip_code: zip,
+                                        const ctrl = new AbortController()
+                                        const timer = setTimeout(()=>ctrl.abort(), 90000)
+                                        let res: Response
+                                        try {
+                                          res = await fetch('/api/roofing/report',{
+                                            method:'POST',
+                                            headers:{'Content-Type':'application/json'},
+                                            body: JSON.stringify({ address: fullAddr, pro_id: session.id }),
+                                            signal: ctrl.signal,
                                           })
-                                        })
-                                        const createData = createRes.ok ? await createRes.json() : null
-                                        if(createData?.property?.id){
-                                          router.push(`/dashboard/roofing/property/${createData.property.id}?lead_id=${lead.id}`)
-                                        } else {
-                                          addToast('Could not open property — check address','error')
+                                        } finally { clearTimeout(timer) }
+                                        const d = await res.json().catch(()=>({}))
+                                        if(!res.ok){ setQbError((d as any).error||'Report failed'); return }
+                                        // Write to sessionStorage for Calculator
+                                        const meas = (d as any).measurements
+                                        const geocodedAddr = (d as any)?.debug?.formattedAddress
+                                          ? String((d as any).debug.formattedAddress).replace(', USA','')
+                                          : fullAddr
+                                        if(meas){
+                                          const payload = {
+                                            squares: Number(meas.totalSquaresOrder)||0,
+                                            pitch:   meas.dominantPitch??'4/12',
+                                            waste:   Number(meas.wasteFactor)||12,
+                                            source:  'roof_report',
+                                            address: geocodedAddr,
+                                            storedAt: Date.now(),
+                                          }
+                                          try {
+                                            sessionStorage.setItem('pg_report_data', JSON.stringify(payload))
+                                            sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))
+                                          } catch {}
                                         }
-                                      } catch {
-                                        addToast('Could not open property','error')
-                                      }
+                                        setQbDone(true)
+                                        addToast('Report ready — open Calculator to price this job')
+                                      } catch(err:unknown){
+                                        const isAbort = err instanceof Error && err.name==='AbortError'
+                                        setQbError(isAbort?'Timed out — try again':'Network error')
+                                      } finally { setQbGenerating(false) }
                                     }}
-                                    style={{padding:'11px 12px',borderRadius:T.radSm,border:`1.5px solid ${BRAND.teal}`,background:'transparent',color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-                                    Quick Bid Report
+                                    style={{padding:'11px 12px',borderRadius:T.radSm,border:`1.5px solid ${BRAND.teal}`,background: qbDone ? BRAND.teal : 'transparent',color: qbDone ? '#fff' : BRAND.teal,fontSize:13,fontWeight:700,cursor:qbGenerating?'wait':'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center',opacity:qbGenerating?0.7:1,transition:'all 0.2s'}}>
+                                    {qbGenerating
+                                      ? <><div style={{width:12,height:12,borderRadius:'50%',border:`2px solid ${BRAND.teal}40`,borderTopColor:BRAND.teal,animation:'pg-spin 0.7s linear infinite'}}/> Generating…</>
+                                      : qbDone
+                                        ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Report Ready</>
+                                        : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Quick Bid Report</>
+                                    }
                                   </button>
                                 </div>
+                                {/* Calculator button — appears after report generated */}
+                                {qbDone && (
+                                  <button
+                                    onClick={()=> router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}&property_id=`)}
+                                    style={{marginTop:10,width:'100%',padding:'11px 12px',borderRadius:T.radSm,border:'none',background:`linear-gradient(135deg,#0F766E,#14B8A6)`,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,boxShadow:'0 4px 12px rgba(15,118,110,0.35)'}}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+                                    Open Calculator — pre-filled from report →
+                                  </button>
+                                )}
+                                {qbError && (
+                                  <div style={{marginTop:8,padding:'8px 12px',borderRadius:T.radSm,background:'#FEF2F2',border:'1px solid #FECACA',fontSize:12,color:'#DC2626'}}>
+                                    {qbError} — check address or try again
+                                  </div>
+                                )}
                               </div>
                             )}
 
