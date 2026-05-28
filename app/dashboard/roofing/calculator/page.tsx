@@ -397,7 +397,7 @@ function CalculatorInner() {
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk}
       onToggleDark={() => { const n=!dk; localStorage.setItem('pg_darkmode',n?'1':'0'); setDk(n) }}>
 
-      <div style={{ maxWidth:740, margin:'0 auto', padding:'0 4px 48px', fontFamily:'system-ui,-apple-system,sans-serif' }}>
+      <div style={{ maxWidth:740, margin:'0 auto', padding:'0 4px 48px', fontFamily:"'DM Sans',system-ui,-apple-system,sans-serif" }}>
 
         {/* ── Page header ── */}
         <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:24, paddingTop:4 }}>
@@ -409,11 +409,11 @@ function CalculatorInner() {
             </svg>
           </div>
           <div>
-            <h1 style={{ fontSize:22, fontWeight:800, color:t.textPri, margin:0, letterSpacing:'-0.02em' }}>Roofing Calculator</h1>
-            <p style={{ fontSize:12, color: reportData ? TEAL : t.textMuted, margin:0, marginTop:2, fontWeight: reportData ? 600 : 400 }}>
-              {reportData
-                ? `📍 Pre-filled from report: ${reportData.address}`
-                : 'Enter measurements to calculate materials and push to estimate'}
+            <h1 style={{ fontSize:24, fontWeight:800, color:t.textPri, margin:0, letterSpacing:'-0.03em', fontFamily:"'DM Sans',system-ui,sans-serif" }}>Roofing Calculator</h1>
+            <p style={{ fontSize:13, color: reportData ? TEAL : t.textSubtle, margin:0, marginTop:3, fontWeight: reportData ? 600 : 400, display:'flex', alignItems:'center', gap:5 }}>
+              {reportData ? (
+                <><span style={{ width:6, height:6, borderRadius:'50%', background:TEAL, display:'inline-block', boxShadow:`0 0 6px ${TEAL}80` }}/> Pre-filled from report: {reportData.address}</>
+              ) : 'Enter roof measurements to calculate materials and build an estimate'}
             </p>
           </div>
         </div>

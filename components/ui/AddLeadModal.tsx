@@ -148,7 +148,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk=fa
         display:'flex', flexDirection:'row',
         borderRadius:20, overflow:'hidden',
         boxShadow:'0 32px 80px rgba(10,22,40,0.35), 0 4px 16px rgba(10,22,40,0.15)',
-        fontFamily:'system-ui,-apple-system,sans-serif',
+        fontFamily:"'DM Sans',system-ui,-apple-system,sans-serif",
       }}>
 
         {/* ════ LEFT PANEL — dark navy, source selector ════════════════════════ */}
