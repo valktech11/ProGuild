@@ -167,6 +167,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [savingNote,  setSavingNote]  = useState(false)
   const [qbGenerating,   setQbGenerating]   = useState(false)
   const [dsmRunning,     setDsmRunning]     = useState(false)
+  const [reportRowId,    setReportRowId]    = useState<string|null>(null)
   const [pipelineEvents, setPipelineEvents] = useState<any[]>([])
   const [qbDone,         setQbDone]         = useState(false)
   const [qbError,        setQbError]        = useState('')
@@ -1112,7 +1113,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         {step1Done && (
                                           <button onClick={()=>{setShowRemeasure(s=>!s);setQbError('')}}
                                             style={{fontSize:11,color:showRemeasure?'#0F766E':'#94A3B8',background:showRemeasure?'rgba(15,118,110,0.07)':'none',border:`1px solid ${showRemeasure?'#0F766E':'#E2E8F0'}`,borderRadius:6,cursor:'pointer',fontWeight:600,padding:'3px 8px',transition:'all 0.15s'}}>
-                                            {showRemeasure?'Cancel ✕':'Re-measure ↻'}
+                                            {showRemeasure?'Cancel ✕':'New Measurement ↻'}
                                           </button>
                                         )}
                                       </div>
@@ -1155,6 +1156,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                     const payload:Record<string,unknown>={squares:Number(meas.totalSquaresOrder)||0,pitch:meas.dominantPitch??'4/12',waste:Number(meas.wasteFactor)||12,source:'roof_report',address:geocodedAddr,storedAt:Date.now(),leadId:lead.id,ridgeLF:0,eaveLF:0,perimLF:0}
                                                     try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
                                                     const rowId=(d as any).reportRowId
+                                                    if(rowId)setReportRowId(rowId)
                                                     if(rowId&&session){
                                                       fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:rowId,pro_id:session.id})})
                                                         .then(r=>r.ok?r.json():null)
@@ -1198,25 +1200,33 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             <div style={{fontSize:13,fontWeight:700,color:'#0F172A'}}>Linear Footage</div>
                                             <div style={{fontSize:11,color:'#64748B',marginTop:1}}>
                                               {step2Done ? `Ridge ${Math.round(lf.ridge_ft)}ft · Hip ${Math.round(lf.hip_ft||0)}ft · Valley ${Math.round(lf.valley_ft||0)}ft · Rake ${Math.round(lf.rake_ft||0)}ft · Eave ${Math.round(lf.eave_ft||0)}ft`
-                                                : step2Running ? 'Calculating ridge, hip, valley, rake, eave lengths… (~30s)'
-                                                : step1Done ? 'Tap Calculate to get ridge, hip, valley, rake & eave lengths'
+                                                : step2Running ? 'Getting ridge, hip, valley, rake & eave lengths… (~30s)'
+                                                : step1Done ? 'Ridge, hip, valley, rake & eave — needed to order materials'
                                                 : 'Complete Step 1 first'}
                                             </div>
                                           </div>
                                         </div>
-                                        {/* Calculate Footage button — step1 done, LF missing, DSM not running */}
+                                        {/* Get Material Lines button — step1 done, LF missing, DSM not running */}
                                         {step1Done && !step2Done && !step2Running && (
                                           <button
                                             onClick={async ()=>{
                                               if(!session)return
                                               setDsmRunning(true)
                                               try{
-                                                const propId=(lead as any).property_id
-                                                const rRes=await fetch(`/api/roofing/reports?pro_id=${session.id}${propId?`&property_id=${propId}`:''}`)
-                                                const rData=rRes.ok?await rRes.json():null
-                                                const latestReport=rData?.reports?.[0]
-                                                if(!latestReport?.id){addToast('Run Measure Roof first','error');setDsmRunning(false);return}
-                                                const dsmRes=await fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:latestReport.id,pro_id:session.id})})
+                                                // Use stored reportRowId from QB, else fetch latest report for this pro+address
+                                                let reportId = reportRowId
+                                                if (!reportId) {
+                                                  const rRes=await fetch(`/api/roofing/reports?pro_id=${session.id}${(lead as any).property_id?`&property_id=${(lead as any).property_id}`:''}`)
+                                                  const rData=rRes.ok?await rRes.json():null
+                                                    // Match by square_count to find the right report
+                                                  const sq = (lead as any)?.roofing_job_data?.square_count
+                                                  const match = sq
+                                                    ? (rData?.reports||[]).find((r:any) => Math.abs((r.total_squares_order||0) - sq) < 1)
+                                                    : (rData?.reports||[])[0]
+                                                  reportId = match?.id ?? null
+                                                }
+                                                if(!reportId){addToast('Measure the roof first to get a report','error');setDsmRunning(false);return}
+                                                const dsmRes=await fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:reportId,pro_id:session.id})})
                                                 const dsmData=dsmRes.ok?await dsmRes.json():null
                                                 if(dsmData?.linear_footage){
                                                   const lf=dsmData.linear_footage
@@ -1231,7 +1241,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             }}
                                             style={{marginTop:8,width:'100%',padding:'9px',borderRadius:8,border:'none',background:'#0F766E',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                                            Calculate Footage
+                                            Get Material Lines
                                           </button>
                                         )}
 
@@ -1274,7 +1284,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           <div>
                                             <div style={{fontSize:13,fontWeight:700,color:step2Done?'#fff':'#0F172A'}}>Open Calculator</div>
                                             <div style={{fontSize:11,color:step2Done?'rgba(255,255,255,0.8)':'#64748B',marginTop:1}}>
-                                              {step2Done?'All measurements pre-filled — ready to price':'Complete Steps 1 & 2 first'}
+                                              {step2Done?'Squares + all material lines loaded — ready to price':'Complete Steps 1 & 2 first'}
                                             </div>
                                           </div>
                                           {step2Done && (
@@ -1331,7 +1341,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             }}
                                             style={{padding:'9px',borderRadius:8,border:`1.5px solid #0F766E`,background:qbGenerating?'#0F766E':'transparent',color:qbGenerating?'#fff':'#0F766E',fontSize:12,fontWeight:700,cursor:qbGenerating?'wait':'pointer',display:'flex',alignItems:'center',gap:5,justifyContent:'center',opacity:qbGenerating?0.8:1}}>
                                             {qbGenerating
-                                              ?<><div style={{width:10,height:10,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',animation:'pg-spin 0.7s linear infinite'}}/>Re-measuring…</>
+                                              ?<><div style={{width:10,height:10,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',animation:'pg-spin 0.7s linear infinite'}}/>Measuring…</>
                                               :<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>New Report</>
                                             }
                                           </button>
