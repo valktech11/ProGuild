@@ -104,17 +104,25 @@ export async function POST(req: NextRequest) {
         const taxRate     = (((best as any).tax_rate ?? 6))
         const newTax      = Math.round(newSubtotal * taxRate / 100)
         const newTotal    = newSubtotal + newTax
-        // 4. Force Standard mode — clear tiered_data, set estimate_type = standard
+        // 4. Force Standard mode — update estimates table totals
         await sb.from('estimates').update({
-          estimate_type: 'standard',
-          tiered_data:   null,
-          subtotal:      newSubtotal,
-          tax_amount:    newTax,
-          total:         newTotal,
+          subtotal:   newSubtotal,
+          tax_amount: newTax,
+          total:      newTotal,
           square_count,
           pitch,
           waste_pct,
         }).eq('id', best.id)
+        // 4b. Force Standard mode in roofing_estimate_data (where estimate_type lives)
+        await sb.from('roofing_estimate_data').upsert({
+          estimate_id:   best.id,
+          pro_id:        pro_id,
+          estimate_type: 'standard',
+          tiered_data:   null,
+          square_count:  Number(square_count) || null,
+          pitch:         pitch ?? null,
+          waste_pct:     Number(waste_pct) || null,
+        }, { onConflict: 'estimate_id' })
         // 5. Return fresh estimate row
         const { data: updated } = await sb.from('estimates').select('*').eq('id', best.id).single()
         return NextResponse.json({ estimate: updated ?? best, existed: true, items_replaced: true })
