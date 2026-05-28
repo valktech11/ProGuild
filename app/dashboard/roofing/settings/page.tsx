@@ -26,11 +26,11 @@ type Prices = typeof DEFAULTS
 const MATERIAL_GROUPS = [
   {
     title: 'Shingles ($/square)',
-    subtitle: 'Price per square (100 sq ft) installed',
+    subtitle: 'Price per square (100 sq ft) · 3 bundles = 1 square — calculator shows $/bundle',
     fields: [
-      { key: 'shingles_standard',  label: 'Standard shingles',  hint: 'CertainTeed Landmark or equivalent' },
-      { key: 'shingles_upgraded',  label: 'Upgraded shingles',  hint: 'Owens Corning Duration or equivalent' },
-      { key: 'shingles_premium',   label: 'Premium shingles',   hint: 'GAF Timberline HDZ or equivalent' },
+      { key: 'shingles_standard',  label: 'Standard shingles',  hint: 'CertainTeed Landmark · e.g. $285/sq = $95/bundle' },
+      { key: 'shingles_upgraded',  label: 'Upgraded shingles',  hint: 'Owens Corning Duration · e.g. $340/sq = $113/bundle' },
+      { key: 'shingles_premium',   label: 'Premium shingles',   hint: 'GAF Timberline HDZ · e.g. $420/sq = $140/bundle' },
     ],
   },
   {
@@ -43,11 +43,11 @@ const MATERIAL_GROUPS = [
   },
   {
     title: 'Linear Footage Items ($/LF)',
-    subtitle: 'Price per linear foot',
+    subtitle: 'Enter your cost per linear foot — calculator converts to bundles/pieces automatically',
     fields: [
-      { key: 'ridge_cap',     label: 'Ridge cap',      hint: 'Per linear foot' },
-      { key: 'starter_strip', label: 'Starter strip',  hint: 'Per linear foot' },
-      { key: 'drip_edge',     label: 'Drip edge',      hint: 'Per linear foot' },
+      { key: 'ridge_cap',     label: 'Ridge cap',      hint: 'Per LF · 35 LF/bundle → e.g. $4/LF = $140/bundle' },
+      { key: 'starter_strip', label: 'Starter strip',  hint: 'Per LF · 105 LF/bundle → e.g. $2/LF = $210/bundle' },
+      { key: 'drip_edge',     label: 'Drip edge',      hint: 'Per LF · 10 ft/piece → e.g. $2/LF = $20/piece' },
     ],
   },
   {
@@ -186,6 +186,37 @@ export default function MaterialPricesPage() {
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: t.textPri }}>{field.label}</div>
                         <div style={{ fontSize: 11, color: t.textMuted }}>{field.hint}</div>
+                        {/* Live per-piece/per-bundle equivalent for linear footage items */}
+                        {field.key === 'ridge_cap' && prices.ridge_cap > 0 && (
+                          <div style={{ fontSize: 11, color: BRAND.teal, marginTop: 2, fontWeight: 600 }}>
+                            = ${Math.round(prices.ridge_cap * 35)}/bundle (35 LF)
+                          </div>
+                        )}
+                        {field.key === 'starter_strip' && prices.starter_strip > 0 && (
+                          <div style={{ fontSize: 11, color: BRAND.teal, marginTop: 2, fontWeight: 600 }}>
+                            = ${Math.round(prices.starter_strip * 105)}/bundle (105 LF)
+                          </div>
+                        )}
+                        {field.key === 'drip_edge' && prices.drip_edge > 0 && (
+                          <div style={{ fontSize: 11, color: BRAND.teal, marginTop: 2, fontWeight: 600 }}>
+                            = ${(prices.drip_edge * 10).toFixed(0)}/piece (10 ft) · typical: $1.50–2.50/LF
+                          </div>
+                        )}
+                        {field.key === 'shingles_standard' && prices.shingles_standard > 0 && (
+                          <div style={{ fontSize: 11, color: BRAND.teal, marginTop: 2, fontWeight: 600 }}>
+                            = ${Math.round(prices.shingles_standard / 3)}/bundle
+                          </div>
+                        )}
+                        {field.key === 'shingles_upgraded' && prices.shingles_upgraded > 0 && (
+                          <div style={{ fontSize: 11, color: BRAND.teal, marginTop: 2, fontWeight: 600 }}>
+                            = ${Math.round(prices.shingles_upgraded / 3)}/bundle
+                          </div>
+                        )}
+                        {field.key === 'shingles_premium' && prices.shingles_premium > 0 && (
+                          <div style={{ fontSize: 11, color: BRAND.teal, marginTop: 2, fontWeight: 600 }}>
+                            = ${Math.round(prices.shingles_premium / 3)}/bundle
+                          </div>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontSize: 14, color: t.textMuted }}>$</span>
