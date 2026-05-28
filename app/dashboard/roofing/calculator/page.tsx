@@ -337,7 +337,18 @@ function CalculatorInner() {
       // No report data but property has sq footage — use it
       setSquares(fromSq)
     }
-  }, [session, router, fromSq])
+
+    // Restore saved labour amount from roofing_job_data for this lead
+    if (leadId && session) {
+      fetch(`/api/leads/${leadId}?pro_id=${session.id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          const savedLabour = d?.lead?.roofing_job_data?.labour_amount
+          if (savedLabour && savedLabour > 0) setLabour(String(savedLabour))
+        })
+        .catch(() => {})
+    }
+  }, [session, router, fromSq, leadId])
 
   useEffect(() => {
     const sq = parseFloat(squares)
@@ -393,6 +404,14 @@ function CalculatorInner() {
       }
       const respData = await res.json() as { id?: string; estimate?: { id: string }; existed?: boolean }
       const estimateId = respData.id ?? respData.estimate?.id
+      // Persist labour amount to roofing_job_data so it restores next time
+      if (leadId && session && labour) {
+        fetch(`/api/leads/${leadId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pro_id: session.id, labour_amount: parseFloat(labour) || 0 }),
+        }).catch(() => {})
+      }
       sessionStorage.removeItem('pg_report_data')
       setSuccess('Estimate created — taking you there now…')
       setTimeout(() => router.push(`/dashboard/estimates/${estimateId}`), 1200)

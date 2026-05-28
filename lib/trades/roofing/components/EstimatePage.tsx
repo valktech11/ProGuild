@@ -641,33 +641,49 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           {/* ── Pending type switch confirmation ─────────────────────────────── */}
           {pendingTypeSwitch && (
             <div style={{
-              margin: '12px 0', padding: '14px 18px', borderRadius: 10,
-              background: '#FFFBEB', border: '1px solid #FDE68A',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              margin: '12px 0', padding: '16px 20px', borderRadius: 12,
+              background: 'linear-gradient(135deg, #0A1628, #0F2A40)',
+              border: '1px solid rgba(20,184,166,0.3)',
+              boxShadow: '0 4px 20px rgba(10,22,40,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
             }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 2 }}>
-                  Switch to {pendingTypeSwitch === 'tiered' ? 'Good / Better / Best' : 'Standard'}?
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(15,118,110,0.25)',
+                  border: '1px solid rgba(20,184,166,0.4)', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14B8A6" strokeWidth="2.2" strokeLinecap="round">
+                    <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+                  </svg>
                 </div>
-                <div style={{ fontSize: 12, color: '#B45309' }}>
-                  {pendingTypeSwitch === 'standard'
-                    ? 'Your GBB tiers are saved. This proposal will send as a single line-item estimate.'
-                    : 'Your line items are saved. This proposal will send as a 3-tier GBB estimate.'}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 2, letterSpacing: '-0.01em' }}>
+                    Switch to {pendingTypeSwitch === 'tiered' ? 'Good / Better / Best' : 'Standard'}?
+                  </div>
+                  <div style={{ fontSize: 12, color: 'rgba(180,210,220,0.7)' }}>
+                    {pendingTypeSwitch === 'standard'
+                      ? 'GBB tiers are preserved — proposal sends as a single line-item estimate.'
+                      : 'Line items are preserved — proposal sends as a 3-tier GBB estimate.'}
+                  </div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button
                   onClick={() => setPendingTypeSwitch(null)}
-                  style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #FDE68A',
-                    background: 'transparent', color: '#92400E', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ padding: '8px 16px', borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.8)',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Cancel
                 </button>
                 <button
                   onClick={async () => {
+                    const newTotal = pendingTypeSwitch === 'standard'
+                      ? stdItems.reduce((s,i) => s + i.amount, 0) * (1 + estimate.tax_rate/100)
+                      : total
                     setEstType(pendingTypeSwitch)
                     savedEstType.current = pendingTypeSwitch
                     setPendingTypeSwitch(null)
-                    // Save the type switch immediately — this is a deliberate action
+                    recalcMilestones(Math.round(newTotal))
                     await onSave({
                       estimate_type: pendingTypeSwitch,
                       tiered_data:   pendingTypeSwitch === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
@@ -677,8 +693,10 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                       total,
                     })
                   }}
-                  style={{ padding: '7px 14px', borderRadius: 8, border: 'none',
-                    background: C.teal, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  style={{ padding: '8px 18px', borderRadius: 8, border: 'none',
+                    background: 'linear-gradient(135deg, #0F766E, #14B8A6)',
+                    color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    boxShadow: '0 3px 10px rgba(15,118,110,0.4)' }}>
                   Switch & Save
                 </button>
               </div>

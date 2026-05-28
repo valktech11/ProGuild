@@ -42,6 +42,7 @@ const ROOFING_JOB_FIELDS = [
   'square_count', 'pitch', 'waste_pct', 'roof_type',
   'shingle_brand', 'shingle_model', 'warranty_term',
   'decking_replacement', 'layers', 'permit_number', 'permit_status',
+  'labour_amount',
 ] as const
 
 // ── GET ───────────────────────────────────────────────────────────────────────

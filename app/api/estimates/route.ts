@@ -80,6 +80,27 @@ export async function POST(req: NextRequest) {
         await sb.from('roofing_estimate_data').upsert(syncPayload, { onConflict: 'estimate_id' })
       }
 
+      // If coming from calculator with line items, replace items on existing estimate
+      if (source === 'roofing_calculator' && Array.isArray(line_items) && line_items.length > 0) {
+        await sb.from('estimate_items').delete().eq('estimate_id', best.id)
+        const items = line_items.map((item: any) => ({
+          estimate_id:  best.id,
+          description:  item.description ?? item.name ?? '',
+          quantity:     item.quantity ?? 1,
+          unit_price:   item.unit_price ?? item.unitPrice ?? 0,
+          total:        item.total ?? (item.quantity * (item.unit_price ?? item.unitPrice ?? 0)),
+          sort_order:   item.sort_order ?? 0,
+        }))
+        await sb.from('estimate_items').insert(items)
+        const newSubtotal = items.reduce((s: number, i: any) => s + (i.total ?? 0), 0)
+        const newTax      = Math.round(newSubtotal * (((best as any).tax_rate ?? 6) / 100))
+        await sb.from('estimates').update({
+          subtotal: newSubtotal, tax_amount: newTax, total: newSubtotal + newTax,
+          square_count, pitch, waste_pct,
+        }).eq('id', best.id)
+        const { data: updated } = await sb.from('estimates').select('*').eq('id', best.id).single()
+        return NextResponse.json({ estimate: updated ?? best, existed: true, items_replaced: true })
+      }
       return NextResponse.json({ estimate: best, existed: true })
     }
   }
