@@ -360,13 +360,25 @@ function CalculatorInner() {
       setSquares(fromSq)
     }
 
-    // Restore saved labour amount from roofing_job_data for this lead
+    // Restore saved labour + LF from roofing_job_data for this lead
+    // LF fallback: if sessionStorage didn't have LF (DSM still running), read from DB
     if (leadId && session) {
       fetch(`/api/leads/${leadId}?pro_id=${session.id}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => {
-          const savedLabour = d?.lead?.roofing_job_data?.labour_amount
-          if (savedLabour && savedLabour > 0) setLabour(String(savedLabour))
+          const rjd = d?.lead?.roofing_job_data
+          if (!rjd) return
+          // Labour
+          if (rjd.labour_amount && rjd.labour_amount > 0) setLabour(String(rjd.labour_amount))
+          // LF — only fill if still empty (sessionStorage may have already filled them)
+          // linear_footage shape: { ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft }
+          const lf = rjd.linear_footage as any
+          if (lf) {
+            const perim = Math.round((lf.eave_ft||0) + (lf.rake_ft||0))
+            if (!parseFloat(ridgeLF) && lf.ridge_ft > 0) setRidgeLF(String(Math.round(lf.ridge_ft)))
+            if (!parseFloat(eaveLF)  && lf.eave_ft  > 0) setEaveLF(String(Math.round(lf.eave_ft)))
+            if (!parseFloat(perimLF) && perim        > 0) setPerimLF(String(perim))
+          }
         })
         .catch(() => {})
     }
@@ -517,7 +529,7 @@ function CalculatorInner() {
               needsLF ? (
                 <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.3)' }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <span style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>3 items need LF</span>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>Enter LF manually or re-open from lead after report completes</span>
                 </div>
               ) : (
                 <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#F0FDF4', border:'1px solid rgba(5,150,105,0.2)' }}>
