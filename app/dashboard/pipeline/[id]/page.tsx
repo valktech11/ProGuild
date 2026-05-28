@@ -1052,7 +1052,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             {isRoofing&&(
                               <InsuranceClaimFields leadId={lead.id} proId={session!.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk}
-                                onSaved={(data)=>setLead(l=>l?{...l,insurance_data:data} as any:l)}/>
+                                onSaved={(data)=>setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)}/>
                             )}
 
                             {/* Roofing measurement tools — linked to this lead */}

@@ -181,6 +181,17 @@ export async function POST(req: NextRequest) {
     } catch (e) { console.error('Property auto-link failed:', e) }
   }
 
+  // ── Create roofing_job_data row for roofing pros ─────────────────────────
+  // Ensures the row always exists so insurance/measurement PATCHes upsert cleanly
+  if (tradeSlug && tradeSlug.includes('roof')) {
+    try {
+      await supabase.from('roofing_job_data').insert({
+        lead_id:  lead.id,
+        pro_id,
+      })
+    } catch (e) { /* non-fatal — row may already exist */ }
+  }
+
   // ── Write initial pipeline_event ──────────────────────────────────────────
   try {
     await supabase.from('pipeline_events').insert({
