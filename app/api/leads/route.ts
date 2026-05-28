@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       const { data: byNameAddr } = await supabase.from('clients').select('id')
         .eq('pro_id', pro_id)
         .ilike('full_name', contact_name.trim())
-        .ilike('address_line1', streetOnly)
+        .eq('address_line1', streetOnly)
         .maybeSingle()
       if (byNameAddr) clientId = byNameAddr.id
     }
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
         .from('properties')
         .select('id')
         .eq('pro_id', pro_id)
-        .ilike('address_line1', streetOnly)
+        .eq('address_line1', streetOnly)
         .maybeSingle()
 
       let propertyId: string | null = existingProp?.id ?? null
