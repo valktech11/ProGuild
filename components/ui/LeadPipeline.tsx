@@ -169,7 +169,13 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipeli
 
           <div className="flex items-start justify-between px-6 py-5" style={{ borderBottom: `1px solid ${theme(dk).cardBorder}` }}>
             <div className="flex-1 min-w-0 pr-4">
-              <h2 className="text-xl font-bold text-gray-900">{(lead as any).property_address ? (lead as any).property_address.replace(/, USA$/, '') : capName(lead.contact_name)}</h2>
+              <h2 className="text-xl font-bold text-gray-900">{
+                (lead as any).property_address
+                  ? (lead as any).property_address.replace(/, USA$/, '')
+                  : ((lead as any).contact_city && (lead as any).contact_state)
+                    ? `${(lead as any).contact_city}, ${(lead as any).contact_state}`
+                    : capName(lead.contact_name)
+              }</h2>
               <p className="text-sm text-gray-500 mt-0.5">{timeAgo(lead.created_at)} · {lead.lead_source?.replace(/_/g, ' ')}</p>
               <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold"
                 style={{ background: currentStageSS.bg, color: currentStageSS.color }}>
@@ -691,8 +697,17 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
                 const [avBg, avFg] = avatarColor(lead.contact_name)
                 const urg       = urgencyStyle(days)
                 const ss        = stageStyle(stage.key, dk)
-                const hasAddr   = !!(lead as any).property_address
-                const primLabel = hasAddr ? (lead as any).property_address.replace(/, USA$/, '') : capName(lead.contact_name)
+                const addr = (lead as any).property_address
+                const city = (lead as any).contact_city
+                const st   = (lead as any).contact_state
+                // Build best available address string
+                const addrStr = addr
+                  ? addr.replace(/, USA$/, '')
+                  : (city && st) ? `${city}, ${st}`
+                  : city ? city
+                  : null
+                const hasAddr   = !!addrStr
+                const primLabel = hasAddr ? addrStr! : capName(lead.contact_name)
                 const subLabel  = hasAddr ? capName(lead.contact_name) : (lead.contact_phone || '')
 
                 return (

@@ -93,13 +93,15 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
   // Google Places autocomplete on the street field
   const streetRef = useRef<HTMLInputElement>(null)
   usePlacesAutocomplete(streetRef, (formatted: string) => {
+    // formatted e.g. "3919 Ranch to Market Rd 2147, Marble Falls, TX 78657, USA"
     const zipMatch   = formatted.match(/\b(\d{5})\b/)
     const stateMatch = formatted.match(/,\s*([A-Z]{2})\s+\d{5}/)
     const parts      = formatted.replace(', USA', '').split(', ')
-    if (zipMatch)   setZip(zipMatch[1])
-    if (stateMatch) setAddrState(stateMatch[1])
-    if (parts.length >= 3) setCity(parts[parts.length - 3] || '')
+    // parts = ["3919 Ranch to Market Rd 2147", "Marble Falls", "TX 78657"]
     if (parts.length >= 1) setStreet(parts[0] || '')
+    if (parts.length >= 2) setCity(parts[1] || '')        // index 1, not length-3
+    if (stateMatch)        setAddrState(stateMatch[1])
+    if (zipMatch)          setZip(zipMatch[1])
   })
 
   async function save() {
