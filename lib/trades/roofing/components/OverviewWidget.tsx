@@ -99,33 +99,47 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
   return (
     <>
       {/* ── Today's Schedule ───────────────────────────────────────────────── */}
-      <div className="rounded-2xl mb-5" style={{ backgroundColor: card, border: `1px solid ${bdr}` }}>
+      <div className="rounded-2xl mb-5" style={{
+        backgroundColor: card, border: `1px solid ${bdr}`,
+        boxShadow: '0 2px 12px rgba(10,22,40,0.05)',
+      }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${bdr}` }}>
-          <div className="flex items-center gap-2">
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(15,118,110,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>📅</div>
+          <div className="flex items-center gap-3">
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#0F766E22,#14B8A622)', border: '1px solid rgba(15,118,110,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.2" strokeLinecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                <polyline points="9 16 11 18 15 14"/>
+              </svg>
+            </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri }}>Today&apos;s Schedule</div>
-              <div style={{ fontSize: 12, color: t.textSubtle }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: t.textPri, letterSpacing: '-0.01em' }}>Today&apos;s Schedule</div>
+              <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 1 }}>
                 {todayLeads.length === 0
                   ? 'Nothing scheduled today'
-                  : `${todayLeads.length} job${todayLeads.length !== 1 ? 's' : ''} today`}
+                  : `${todayLeads.length} job${todayLeads.length !== 1 ? 's' : ''} on your calendar`}
               </div>
             </div>
           </div>
           <button
             onClick={() => router.push('/dashboard/calendar')}
-            style={{ fontSize: 12, fontWeight: 700, color: TEAL, background: 'none', border: 'none', cursor: 'pointer' }}>
-            View Calendar →
+            style={{ fontSize: 12, fontWeight: 700, color: TEAL, background: '#F0FDFA', border: '1px solid #CCFBF1', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+            View Calendar
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
         </div>
 
         {todayLeads.length === 0 ? (
-          <div style={{ padding: '24px 20px', textAlign: 'center' }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>📭</div>
-            <div style={{ fontSize: 13, color: t.textMuted }}>No jobs scheduled today.</div>
+          <div style={{ padding: '32px 20px', textAlign: 'center' as const }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#F0FDFA,#CCFBF1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, marginBottom: 4 }}>Free day ahead</div>
+            <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14 }}>No jobs scheduled today — a good time to follow up on leads.</div>
             <button
               onClick={() => router.push('/dashboard/pipeline')}
-              style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: TEAL, background: 'none', border: 'none', cursor: 'pointer' }}>
+              style={{ fontSize: 12, fontWeight: 700, color: TEAL, background: '#F0FDFA', border: '1px solid #CCFBF1', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
               View pipeline →
             </button>
           </div>

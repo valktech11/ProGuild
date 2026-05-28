@@ -80,42 +80,79 @@ function ActionCard({ iconPath, count, label, sub, iconBg, iconColor, ctaLabel, 
   iconPath: string; count: number | string; label: string; sub: string
   iconBg: string; iconColor: string; ctaLabel: string; ctaHref: string; dk: boolean
 }) {
-  const t = theme(dk)
-  const bg  = t.cardBg
-  const bdr = t.cardBorder
-  const txt = t.textPri
-  const sub_color = t.textMuted
+  const t   = theme(dk)
+  const hot = Number(count) > 0
   return (
     <Link href={ctaHref} className="block rounded-2xl transition-all active:scale-[.98]"
-      style={{ backgroundColor: bg, boxShadow: '0 1px 4px rgba(0,0,0,0.07)', border: `1px solid ${bdr}` }}>
-      {/* Mobile: compact tile */}
-      <div className="flex md:hidden items-center gap-3 p-3.5">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: iconBg }}>
-          <SvgIcon d={iconPath} s={18} sw={1.9} color={iconColor} />
+      style={{
+        backgroundColor: t.cardBg,
+        border: `1px solid ${hot ? iconColor + '33' : t.cardBorder}`,
+        boxShadow: hot
+          ? `0 2px 12px ${iconColor}18, 0 1px 3px rgba(10,22,40,0.06)`
+          : '0 1px 4px rgba(0,0,0,0.05)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+
+      {/* Subtle glow bg when count > 0 */}
+      {hot && (
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: `radial-gradient(ellipse 120% 80% at 0% 0%, ${iconColor}0A 0%, transparent 65%)`,
+        }} />
+      )}
+
+      {/* Mobile layout */}
+      <div className="flex md:hidden items-center gap-3 p-3.5" style={{ position: 'relative' }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: iconBg, boxShadow: `0 2px 8px ${iconColor}22` }}>
+          <SvgIcon d={iconPath} s={18} sw={2} color={iconColor} />
         </div>
         <div className="min-w-0 flex-1">
-          <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: txt }}>{count}</div>
-          <div className="text-[12px] font-semibold leading-tight mt-0.5" style={{ color: sub_color }}>{label}</div>
+          <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: hot ? t.textPri : t.textSubtle, letterSpacing: '-0.03em' }}>{count}</div>
+          <div className="text-[12px] font-semibold leading-tight mt-0.5" style={{ color: t.textMuted }}>{label}</div>
         </div>
-        <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={sub_color} />
+        <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={t.textSubtle} />
       </div>
-      {/* Desktop: full card with CTA */}
-      <div className="hidden md:flex flex-col gap-3 p-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: iconBg }}>
-            <SvgIcon d={iconPath} s={21} sw={1.9} color={iconColor} />
+
+      {/* Desktop layout */}
+      <div className="hidden md:block p-4" style={{ position: 'relative' }}>
+        {/* Top row: icon + count */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: iconBg, boxShadow: `0 2px 8px ${iconColor}25` }}>
+            <SvgIcon d={iconPath} s={20} sw={2} color={iconColor} />
           </div>
-          <div className="min-w-0 flex-1">
-            <div style={{ fontSize: T.fontStat, fontWeight: 800, lineHeight: 1, marginBottom: 2, color: txt }}>{count}</div>
-            <div className="text-[14px] font-semibold leading-tight" style={{ color: txt }}>{label}</div>
-            <div className="text-[13px] mt-0.5" style={{ color: sub_color }}>{sub}</div>
+          {/* Count badge — big when non-zero */}
+          <div style={{
+            fontSize: hot ? 36 : 28,
+            fontWeight: 900,
+            lineHeight: 1,
+            letterSpacing: '-0.04em',
+            color: hot ? iconColor : t.textSubtle,
+            transition: 'all 0.2s',
+          }}>
+            {count}
           </div>
         </div>
-        <div className="w-full flex items-center justify-center py-2 rounded-xl text-[12px] font-semibold"
-          style={{ border: `1.5px solid ${TEAL}`, color: TEAL, backgroundColor: dk ? 'rgba(15,118,110,0.12)' : '#F0FDFA' }}>
+
+        {/* Label + sub */}
+        <div className="mb-3">
+          <div className="text-[14px] font-700 leading-tight mb-0.5"
+            style={{ fontWeight: 700, color: t.textPri }}>{label}</div>
+          <div className="text-[12px]" style={{ color: t.textMuted }}>{sub}</div>
+        </div>
+
+        {/* CTA */}
+        <div className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-semibold transition-all"
+          style={{
+            border: `1.5px solid ${hot ? iconColor + '55' : TEAL + '40'}`,
+            color: hot ? iconColor : TEAL,
+            backgroundColor: hot
+              ? iconColor + '10'
+              : (dk ? 'rgba(15,118,110,0.08)' : '#F0FDFA'),
+          }}>
           {ctaLabel}
+          <SvgIcon d={ICONS.arrowRight} s={11} sw={2.5} color={hot ? iconColor : TEAL} />
         </div>
       </div>
     </Link>
@@ -307,9 +344,12 @@ export default function OverviewPage() {
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 style={{ fontSize: T.fontTitle, fontWeight: 800, color: textMain }}>{greeting}, {firstName}! 👋</h1>
+            <h1 style={{ fontSize: T.fontTitle, fontWeight: 800, color: textMain, letterSpacing: '-0.02em' }}>{greeting}, {firstName}! 👋</h1>
             {smartSubLine ? (
-              <p className="text-[13px] mt-1 font-medium" style={{ color: '#DC2626' }}>{smartSubLine}</p>
+              <p className="text-[12px] mt-1.5 font-semibold flex items-center gap-1.5" style={{ color: '#DC2626' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#DC2626', display: 'inline-block', boxShadow: '0 0 6px rgba(220,38,38,0.5)', flexShrink: 0 }} />
+                {smartSubLine}
+              </p>
             ) : (
               <p className="hidden md:block text-[13px] mt-0.5" style={{ color: BODY }}>
                 {leads.length === 0 ? "Let\'s get your first job." : "Here\'s what\'s happening with your business today."}
@@ -578,15 +618,21 @@ export default function OverviewPage() {
           )
         })()}
 
-        {/* ── Action Center — urgency signals only, different from pipeline counts ── */}
-        <div className="mb-5">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain }}>Action Center</h2>
-              <p className="hidden md:block text-[12px]" style={{ color: BODY }}>What needs your attention right now</p>
+        {/* ── Action Center ── */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#0F766E,#0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(15,118,110,0.3)' }}>
+                <SvgIcon d={ICONS.bell} s={16} sw={2} color="white" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain, margin: 0 }}>Action Center</h2>
+                <p className="hidden md:block text-[11px] mt-0" style={{ color: BODY, margin: 0 }}>What needs your attention right now</p>
+              </div>
             </div>
-            <Link href="/dashboard/pipeline" className="text-[13px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-              View all leads <SvgIcon d={ICONS.chevRight} s={14} sw={2.5} color={TEAL} />
+            <Link href="/dashboard/pipeline" className="hidden md:flex text-[12px] font-semibold items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all"
+              style={{ color: TEAL, background: '#F0FDFA', border: '1px solid #CCFBF1' }}>
+              View all leads <SvgIcon d={ICONS.arrowRight} s={12} sw={2.5} color={TEAL} />
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -641,10 +687,13 @@ export default function OverviewPage() {
         })()}
 
         {/* ── Reviews & Growth ─────────────────────────────────────────────── */}
-        <div className="rounded-2xl p-4 md:p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}` }}>
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-lg">⭐</span>
-            <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain }}>Reviews &amp; Growth</h2>
+        <div className="rounded-2xl p-4 md:p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}`, boxShadow: '0 2px 12px rgba(10,22,40,0.05)' }}>
+          <div className="flex items-center gap-3 mb-6">
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#FEF9C322,#FDE68A44)', border: '1px solid rgba(251,191,36,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⭐</div>
+            <div>
+              <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain, margin: 0, letterSpacing: '-0.02em' }}>Reviews &amp; Growth</h2>
+              <p style={{ fontSize: 11, color: BODY, margin: 0, marginTop: 1 }}>Your reputation drives new leads</p>
+            </div>
           </div>
 
           {reviews.length === 0 ? (
