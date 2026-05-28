@@ -59,17 +59,27 @@ export async function GET(
 
   const tradeSlugResolved = estClean.trade_slug ?? pro.trade_slug ?? null
 
-  // Fetch roofing_job_data — always fetch when lead_id present (trade_slug on estimates can be null)
+  // Fetch roofing_job_data — always fetch when lead_id present
+  // Also fetch leads.lead_status as insurance fallback (stage=insurance_approved implies insurance job)
   let roofingJobData: any = null
-  console.log("[estimates GET] lead_id:", estClean.lead_id, "estimate id:", estClean.id)
   if (estClean.lead_id) {
-    const { data: rd, error: rdErr } = await sb
+    const { data: rd } = await sb
       .from('roofing_job_data')
       .select('square_count, pitch, waste_pct, perimeter, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
       .eq('lead_id', estClean.lead_id)
       .maybeSingle()
-    console.log('[estimates GET] roofingJobData lead_id:', estClean.lead_id, 'insurance_claim:', rd?.insurance_claim, 'claim_number:', rd?.claim_number, 'err:', rdErr?.message)
-    roofingJobData = rd
+    // Fallback: if no roofing_job_data row, check lead_status — insurance_approved stage means it IS an insurance job
+    if (!rd) {
+      const { data: leadRow } = await sb
+        .from('leads')
+        .select('lead_status')
+        .eq('id', estClean.lead_id)
+        .maybeSingle()
+      const isInsuranceStage = leadRow?.lead_status === 'insurance_approved'
+      roofingJobData = isInsuranceStage ? { insurance_claim: true } : null
+    } else {
+      roofingJobData = rd
+    }
   }
 
   return NextResponse.json({
@@ -103,8 +113,6 @@ export async function GET(
       lead_name:     lead.contact_name  ?? estClean.lead_name     ?? null,
       // Insurance (always from roofing_job_data — live claim state)
       insurance_claim:   roofingJobData?.insurance_claim || !!(roofingJobData?.claim_number || roofingJobData?.approved_amount) || false,
-      _debug_lead_id:    estClean.lead_id ?? 'NULL',
-      _debug_rjd_raw:    roofingJobData ? 'GOT_ROW' : 'NO_ROW',
       approved_amount:   roofingJobData?.approved_amount   ?? null,
       deductible:        roofingJobData?.deductible         ?? null,
       supplement_amount: roofingJobData?.supplement_amount ?? null,
