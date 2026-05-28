@@ -1318,37 +1318,102 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         { label: 'Avg Lead Age', value: ageNum < 1 ? '< 1 d' : `${avgAge} d`,
           sub: 'active pipeline', trend: ageNum > 7 ? '⚠ Above target' : 'On track', color: ageNum > 7 ? '#92400E' : '#64748B', icon: '⏱' },
       ]
+      // KPI card accent configs — SVG icons, gradient tints
+      const kpiAccents: Record<string, { gradient: string; iconBg: string; iconColor: string; svg: React.ReactNode }> = {
+        'Pipeline Value': {
+          gradient: dk ? 'none' : 'linear-gradient(135deg, rgba(15,118,110,0.04) 0%, transparent 60%)',
+          iconBg: '#F0FDFA', iconColor: '#0F766E',
+          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
+        },
+        'Won This Month': {
+          gradient: dk ? 'none' : 'linear-gradient(135deg, rgba(4,120,87,0.04) 0%, transparent 60%)',
+          iconBg: '#ECFDF5', iconColor: '#047857',
+          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
+        },
+        'New This Month': {
+          gradient: dk ? 'none' : 'linear-gradient(135deg, rgba(30,64,175,0.04) 0%, transparent 60%)',
+          iconBg: '#EFF6FF', iconColor: '#1E40AF',
+          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>,
+        },
+        'Avg Lead Age': {
+          gradient: dk ? 'none' : `linear-gradient(135deg, rgba(${ageNum > 7 ? '146,64,14' : '100,116,139'},0.04) 0%, transparent 60%)`,
+          iconBg: ageNum > 7 ? '#FEF3C7' : '#F1F5F9',
+          iconColor: ageNum > 7 ? '#B45309' : '#64748B',
+          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+        },
+      }
+
       return (
-        <div className="hidden md:grid mb-4 gap-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-          {kpis.map(k => (
-            <div key={k.label} style={{
-              background: t.cardBg, border: `1px solid ${t.cardBorder}`,
-              borderTop: `3px solid ${k.color}`,
-              borderRadius: 14, padding: '16px 18px',
-              boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.05)',
-              display:'flex', alignItems:'flex-start', justifyContent:'space-between',
-            }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle,
-                  textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{k.label}</div>
-                <div style={{ fontSize: k.value === '—' ? 22 : 30,
+        <div className="hidden md:grid mb-5 gap-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {kpis.map(k => {
+            const acc = kpiAccents[k.label] || kpiAccents['Pipeline Value']
+            const isEmpty = k.value === '—'
+            const isOnTrack = k.label === 'Avg Lead Age' && ageNum <= 7
+            const isAlert   = k.label === 'Avg Lead Age' && ageNum > 7
+            return (
+              <div key={k.label} style={{
+                background: t.cardBg,
+                backgroundImage: acc.gradient,
+                border: `1px solid ${t.cardBorder}`,
+                borderRadius: 16,
+                padding: '18px 20px 16px',
+                boxShadow: dk ? 'none' : '0 2px 12px rgba(10,22,40,0.06), 0 1px 3px rgba(10,22,40,0.04)',
+                display: 'flex', flexDirection: 'column' as const, gap: 0,
+                position: 'relative' as const, overflow: 'hidden' as const,
+                transition: 'box-shadow 0.15s',
+              }}>
+                {/* Top accent line */}
+                <div style={{ position: 'absolute' as const, top: 0, left: 0, right: 0, height: 3, background: k.color, borderRadius: '16px 16px 0 0' }} />
+
+                {/* Header row: label + icon */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase' as const, letterSpacing: '0.09em', lineHeight: 1.2 }}>
+                    {k.label}
+                  </span>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                    background: acc.iconBg, color: acc.iconColor,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: `0 1px 4px ${acc.iconColor}20`,
+                  }}>
+                    {acc.svg}
+                  </div>
+                </div>
+
+                {/* Value */}
+                <div style={{
+                  fontSize: isEmpty ? 28 : 34,
                   fontWeight: 800,
-                  color: k.value === '—' ? t.textSubtle : t.textPri,
-                  letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>{k.value}</div>
-                <div style={{ fontSize: 12, fontWeight: 500,
-                  color: k.value === '—' ? t.textSubtle :
-                    k.trend?.startsWith('+') ? '#16A34A' :
-                    k.trend?.startsWith('-') ? '#DC2626' : t.textMuted }}>
-                  {k.value === '—' ? k.sub : (k.trend || k.sub)}
+                  color: isEmpty ? t.textSubtle : t.textPri,
+                  letterSpacing: '-0.04em',
+                  lineHeight: 1,
+                  marginBottom: 8,
+                }}>
+                  {k.value}
+                </div>
+
+                {/* Sub / trend */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {isOnTrack && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: '#059669', background: '#ECFDF5', borderRadius: 100, padding: '2px 7px' }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      On track
+                    </span>
+                  )}
+                  {isAlert && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: '#B45309', background: '#FEF3C7', borderRadius: 100, padding: '2px 7px' }}>
+                      ⚠ Above target
+                    </span>
+                  )}
+                  {!isOnTrack && !isAlert && (
+                    <span style={{ fontSize: 12, color: isEmpty ? t.textSubtle : t.textMuted, fontWeight: 500 }}>
+                      {k.sub}
+                    </span>
+                  )}
                 </div>
               </div>
-              <div style={{ width:44, height:44, borderRadius:12, flexShrink:0,
-                background: dk ? '#1E293B' : '#F8FAFC',
-                display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>
-                {k.icon}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )
     })()}
