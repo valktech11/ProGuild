@@ -127,6 +127,15 @@ export async function POST(req: NextRequest) {
         .eq('pro_id', pro_id).eq('email', contact_email.toLowerCase().trim()).maybeSingle()
       if (byEmail) clientId = byEmail.id
     }
+    // Third fallback: match by name + address (catches leads created without phone/email)
+    if (!clientId && contact_name && streetOnly) {
+      const { data: byNameAddr } = await supabase.from('clients').select('id')
+        .eq('pro_id', pro_id)
+        .ilike('full_name', contact_name.trim())
+        .ilike('address_line1', streetOnly)
+        .maybeSingle()
+      if (byNameAddr) clientId = byNameAddr.id
+    }
     if (!clientId) {
       const { data: newClient } = await supabase.from('clients').insert({
         pro_id,

@@ -1270,6 +1270,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                     const raw = sessionStorage.getItem('pg_report_data')
                                                     if (raw) { const ex = JSON.parse(raw); sessionStorage.setItem('pg_report_data', JSON.stringify({ ...ex, ridgeLF: Math.round(lf.ridge_ft||0), eaveLF: Math.round(lf.eave_ft||0), perimLF: Math.round((lf.eave_ft||0)+(lf.rake_ft||0)), hipLF: Math.round(lf.hip_ft||0), valleyLF: Math.round(lf.valley_ft||0), rakeLF: Math.round(lf.rake_ft||0) })) }
                                                   } catch {}
+                                                  // Also persist LF to roofing_job_data so Calculator can read it from DB
+                                                  if (session) {
+                                                    fetch(`/api/leads/${lead.id}`, {
+                                                      method: 'PATCH',
+                                                      headers: { 'Content-Type': 'application/json' },
+                                                      body: JSON.stringify({ pro_id: session.id, linear_footage: lf }),
+                                                    }).catch(() => {})
+                                                  }
                                                 }
                                               }).catch(() => {})
                                           }
