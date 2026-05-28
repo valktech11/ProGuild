@@ -604,17 +604,17 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
     <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.8 }}>{asc ? '▲' : '▼'}</span>
   ) : null
 
+  const TEAL = '#0F766E'
+
   const thBase: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const,
-    letterSpacing: '0.07em', cursor: 'pointer', padding: '0 16px 12px',
+    fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const,
+    letterSpacing: '0.09em', cursor: 'pointer', padding: '10px 16px',
     whiteSpace: 'nowrap' as const, userSelect: 'none' as const,
     textAlign: 'left' as const,
   }
 
-  // Age label: "<1 d" not "<1d"
   const ageLabel = (days: number) => days < 1 ? '< 1 d' : `${days} d`
 
-  // Urgency colours
   const urgencyStyle = (days: number) => {
     if (days > 7)  return { color: '#DC2626', bg: '#FEF2F2', dot: '#DC2626' }
     if (days > 3)  return { color: '#B45309', bg: '#FFFBEB', dot: '#F59E0B' }
@@ -623,24 +623,27 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
   }
 
   return (
-    <div style={{ background: t.cardBg, borderRadius: 16, border: `1px solid ${t.cardBorder}`, overflow: 'hidden', boxShadow: dk ? 'none' : '0 2px 12px rgba(10,22,40,0.06)' }}>
+    <div style={{
+      background: t.cardBg, borderRadius: 16,
+      border: `1px solid ${t.cardBorder}`, overflow: 'hidden',
+      boxShadow: dk ? 'none' : '0 4px 24px rgba(10,22,40,0.07), 0 1px 4px rgba(10,22,40,0.04)',
+    }}>
 
-      {/* ── Search bar ── */}
-      <div style={{ padding: '14px 16px', borderBottom: `1px solid ${t.cardBorder}`, background: dk ? t.cardBg : '#FAFAF8' }}>
+      {/* ── Search ── */}
+      <div style={{ padding: '14px 18px', borderBottom: `1px solid ${t.cardBorder}`, background: dk ? t.cardBg : '#FAFAF8' }}>
         <div style={{ position: 'relative' as const }}>
           <svg style={{ position: 'absolute' as const, left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' as const }}
-            width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchFocused ? '#0F766E' : '#9CA3AF'} strokeWidth="2.2" strokeLinecap="round">
+            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={searchFocused ? TEAL : '#9CA3AF'} strokeWidth="2.2" strokeLinecap="round">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
+          <input value={search} onChange={e => setSearch(e.target.value)}
             onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)}
-            placeholder="Search by name or phone…"
+            placeholder="Search by name, address or phone…"
             style={{
-              width: '100%', padding: '9px 12px 9px 36px', borderRadius: 10,
-              border: `1.5px solid ${searchFocused ? '#0F766E' : t.cardBorder}`,
+              width: '100%', padding: '8px 12px 8px 34px', borderRadius: 9,
+              border: `1.5px solid ${searchFocused ? TEAL : t.cardBorder}`,
               background: searchFocused ? '#fff' : t.cardBgAlt,
-              color: t.textPri, fontSize: 14, boxSizing: 'border-box' as const,
+              color: t.textPri, fontSize: 13, boxSizing: 'border-box' as const,
               outline: 'none',
               boxShadow: searchFocused ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
               transition: 'all 0.15s',
@@ -658,91 +661,114 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
         <div style={{ padding: '48px 24px', textAlign: 'center' as const }}>
           <div style={{ fontSize: 28, marginBottom: 10 }}>🔍</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: t.textPri, marginBottom: 4 }}>No leads match</div>
-          <div style={{ fontSize: 12, color: t.textSubtle }}>Try a different name or phone number</div>
+          <div style={{ fontSize: 12, color: t.textSubtle }}>Try a different name, address or phone</div>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' as const }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
 
-            {/* ── Column headers ── */}
+            {/* ── Header row — teal tinted, premium feel ── */}
             <thead>
-              <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
-                <th style={{ ...thBase, paddingLeft: 20, color: isActive('name') ? '#0F766E' : t.textSubtle }}
+              <tr style={{
+                background: dk
+                  ? 'rgba(15,118,110,0.08)'
+                  : 'linear-gradient(90deg, rgba(15,118,110,0.05) 0%, rgba(20,184,166,0.03) 100%)',
+                borderBottom: `1.5px solid ${dk ? 'rgba(15,118,110,0.2)' : 'rgba(15,118,110,0.13)'}`,
+              }}>
+                <th style={{ ...thBase, paddingLeft: 20, color: isActive('name') ? TEAL : t.textSubtle }}
                   onClick={() => toggleSort('name')}>
-                  Name <SortArrow col="name" />
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                    {isActive('name') && <span style={{ width:2, height:11, borderRadius:2, background:TEAL, display:'inline-block' }}/>}
+                    Property / Client <SortArrow col="name" />
+                  </span>
                 </th>
-                <th style={{ ...thBase, color: isActive('stage') ? '#0F766E' : t.textSubtle }}
+                <th style={{ ...thBase, color: isActive('stage') ? TEAL : t.textSubtle }}
                   onClick={() => toggleSort('stage')}>
-                  Stage <SortArrow col="stage" />
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                    {isActive('stage') && <span style={{ width:2, height:11, borderRadius:2, background:TEAL, display:'inline-block' }}/>}
+                    Pipeline Stage <SortArrow col="stage" />
+                  </span>
                 </th>
-                <th style={{ ...thBase, color: isActive('age') ? '#0F766E' : t.textSubtle }}
+                <th style={{ ...thBase, color: isActive('age') ? TEAL : t.textSubtle }}
                   onClick={() => toggleSort('age')}>
-                  Age <SortArrow col="age" />
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                    {isActive('age') && <span style={{ width:2, height:11, borderRadius:2, background:TEAL, display:'inline-block' }}/>}
+                    Lead Age <SortArrow col="age" />
+                  </span>
                 </th>
-                <th style={{ ...thBase, color: isActive('value') ? '#0F766E' : t.textSubtle }}
+                <th style={{ ...thBase, color: isActive('value') ? TEAL : t.textSubtle }}
                   onClick={() => toggleSort('value')}>
-                  Value <SortArrow col="value" />
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                    {isActive('value') && <span style={{ width:2, height:11, borderRadius:2, background:TEAL, display:'inline-block' }}/>}
+                    Job Value <SortArrow col="value" />
+                  </span>
                 </th>
-                <th style={{ ...thBase, cursor: 'default' as const, color: t.textSubtle, textAlign: 'right' as const, paddingRight: 20 }}>
+                <th style={{ ...thBase, cursor:'default' as const, color:t.textSubtle, textAlign:'right' as const, paddingRight:20 }}>
                   Actions
                 </th>
               </tr>
             </thead>
 
-            {/* ── Rows ── */}
+            {/* ── Data rows ── */}
             <tbody>
               {filtered.map((lead, i) => {
-                const stage     = stages.find(s => s.key === lead.lead_status) || stages[0]
-                const days      = daysSince(lead.created_at)
+                const stage        = stages.find(s => s.key === lead.lead_status) || stages[0]
+                const days         = daysSince(lead.created_at)
                 const [avBg, avFg] = avatarColor(lead.contact_name)
-                const urg       = urgencyStyle(days)
-                const ss        = stageStyle(stage.key, dk)
-                const addr = (lead as any).property_address
-                const city = (lead as any).contact_city
-                const st   = (lead as any).contact_state
-                // Build best available address string
+                const urg          = urgencyStyle(days)
+                const ss           = stageStyle(stage.key, dk)
+                const addr  = (lead as any).property_address
+                const city  = (lead as any).contact_city
+                const st    = (lead as any).contact_state
                 const addrStr = addr
                   ? addr.replace(/, USA$/, '')
-                  : (city && st) ? `${city}, ${st}`
-                  : city ? city
-                  : null
+                  : (city && st) ? `${city}, ${st}` : city ? city : null
                 const hasAddr   = !!addrStr
                 const primLabel = hasAddr ? addrStr! : capName(lead.contact_name)
                 const subLabel  = hasAddr ? capName(lead.contact_name) : (lead.contact_phone || '')
+                // Very subtle alternating tint — teal-tinted not grey
+                const evenBg = dk ? 'transparent' : 'transparent'
+                const oddBg  = dk ? 'rgba(255,255,255,0.018)' : 'rgba(15,118,110,0.016)'
+                const rowBg  = i % 2 === 0 ? evenBg : oddBg
 
                 return (
                   <tr key={lead.id}
                     style={{
-                      borderBottom: `1px solid ${dk ? 'rgba(255,255,255,0.05)' : '#F3F2EF'}`,
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      transition: 'background 0.12s',
+                      borderBottom: `1px solid ${dk ? 'rgba(255,255,255,0.04)' : 'rgba(15,118,110,0.06)'}`,
+                      background: rowBg,
+                      cursor: 'pointer', transition: 'background 0.1s',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = dk ? 'rgba(255,255,255,0.03)' : '#F7FDF9')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    onMouseEnter={e => (e.currentTarget.style.background = dk ? 'rgba(15,118,110,0.07)' : 'rgba(15,118,110,0.05)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
                     onClick={() => onOpen(lead)}>
 
-                    {/* ── Name + avatar ── */}
-                    <td style={{ padding: '13px 16px 13px 20px', minWidth: 200 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        {/* Avatar with left accent border on first row */}
-                        <div style={{ position: 'relative' as const, flexShrink: 0 }}>
-                          <div style={{
-                            width: 36, height: 36, borderRadius: '50%',
-                            background: avBg, color: avFg,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 12, fontWeight: 800,
-                            boxShadow: `0 0 0 2px ${avBg}40`,
-                          }}>
-                            {initials(lead.contact_name)}
-                          </div>
+                    {/* Property / Client column */}
+                    <td style={{ padding: '13px 16px 13px 20px', minWidth: 220 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                          background: hasAddr
+                            ? 'linear-gradient(135deg, rgba(15,118,110,0.1), rgba(20,184,166,0.07))'
+                            : avBg,
+                          color: hasAddr ? TEAL : avFg,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, fontWeight: 800,
+                          border: hasAddr ? '1px solid rgba(15,118,110,0.15)' : 'none',
+                        }}>
+                          {hasAddr ? (
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                              <polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                          ) : initials(lead.contact_name)}
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, letterSpacing: '-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' as const }}>
                             {primLabel}
                           </div>
                           {subLabel && (
-                            <div style={{ fontSize: 12, color: t.textSubtle, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                            <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 2, display:'flex', alignItems:'center', gap:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' as const }}>
+                              {hasAddr && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0, opacity:0.45 }}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
                               {subLabel}
                             </div>
                           )}
@@ -750,75 +776,43 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
                       </div>
                     </td>
 
-                    {/* ── Stage pill ── */}
+                    {/* Stage */}
                     <td style={{ padding: '13px 16px' }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        fontSize: 12, fontWeight: 700,
-                        padding: '4px 10px', borderRadius: 100,
-                        background: ss.bg, color: ss.color,
-                        whiteSpace: 'nowrap' as const,
-                        border: `1px solid ${ss.color}22`,
-                      }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: ss.color, flexShrink: 0 }} />
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:100, background:ss.bg, color:ss.color, whiteSpace:'nowrap' as const, border:`1px solid ${ss.color}25`, letterSpacing:'0.01em' }}>
+                        <span style={{ width:5, height:5, borderRadius:'50%', background:ss.color, flexShrink:0 }}/>
                         {stage.label}
                       </span>
                     </td>
 
-                    {/* ── Age badge ── */}
+                    {/* Age */}
                     <td style={{ padding: '13px 16px' }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 12, fontWeight: 700,
-                        padding: '4px 9px', borderRadius: 8,
-                        background: urg.bg, color: urg.color,
-                        border: `1px solid ${urg.color}20`,
-                        whiteSpace: 'nowrap' as const,
-                      }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: urg.dot, flexShrink: 0 }} />
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, padding:'4px 9px', borderRadius:7, background:urg.bg, color:urg.color, border:`1px solid ${urg.color}22`, whiteSpace:'nowrap' as const }}>
+                        <span style={{ width:4, height:4, borderRadius:'50%', background:urg.dot, flexShrink:0 }}/>
                         {ageLabel(days)}
                       </span>
                     </td>
 
-                    {/* ── Value ── */}
+                    {/* Value */}
                     <td style={{ padding: '13px 16px' }}>
-                      {lead.quoted_amount ? (
-                        <span style={{ fontSize: 14, fontWeight: 800, color: '#0F766E', letterSpacing: '-0.02em' }}>
-                          {fmtCurrency(lead.quoted_amount)}
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: 13, color: t.textSubtle, fontWeight: 500 }}>—</span>
-                      )}
+                      {lead.quoted_amount
+                        ? <span style={{ fontSize:14, fontWeight:800, color:TEAL, letterSpacing:'-0.02em' }}>{fmtCurrency(lead.quoted_amount)}</span>
+                        : <span style={{ fontSize:11, color:t.textSubtle, fontStyle:'italic' as const }}>Not quoted</span>}
                     </td>
 
-                    {/* ── Actions ── */}
-                    <td style={{ padding: '13px 20px 13px 16px', textAlign: 'right' as const }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
+                    {/* Actions */}
+                    <td style={{ padding:'13px 20px 13px 16px', textAlign:'right' as const }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display:'flex', gap:6, alignItems:'center', justifyContent:'flex-end' }}>
                         {lead.contact_phone && (
                           <a href={`tel:${lead.contact_phone}`}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              padding: '6px 12px', borderRadius: 8,
-                              background: '#F0FDFA', color: '#0F766E',
-                              border: '1.5px solid #99F6E4',
-                              fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' as const,
-                              transition: 'background 0.12s',
-                            }}>
-                            <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={11} c="#0F766E" />
+                            style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'5px 11px', borderRadius:7, background:'#F0FDFA', color:TEAL, border:'1px solid rgba(15,118,110,0.2)', fontSize:11, fontWeight:700, textDecoration:'none', whiteSpace:'nowrap' as const }}>
+                            <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6" s={10} c={TEAL} />
                             Call
                           </a>
                         )}
                         <button onClick={() => onOpen(lead)}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                            padding: '6px 12px', borderRadius: 8,
-                            background: 'linear-gradient(135deg, #0F766E, #0D9488)',
-                            color: 'white', border: 'none',
-                            fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const,
-                            boxShadow: '0 2px 6px rgba(15,118,110,0.25)',
-                          }}>
+                          style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 14px', borderRadius:7, background:`linear-gradient(135deg,${TEAL},#0D9488)`, color:'white', border:'none', fontSize:11, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' as const, boxShadow:'0 2px 8px rgba(15,118,110,0.28)', letterSpacing:'0.01em' }}>
                           Open
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
                       </div>
                     </td>
@@ -828,19 +822,30 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
             </tbody>
           </table>
 
-          {/* ── Footer count ── */}
-          <div style={{ padding: '10px 20px', borderTop: `1px solid ${t.cardBorder}`, background: dk ? t.cardBg : '#FAFAF8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: t.textSubtle }}>
-              {filtered.length} {filtered.length === 1 ? 'lead' : 'leads'}{search ? ` matching "${search}"` : ''}
+          {/* ── Footer ── */}
+          <div style={{
+            padding: '10px 20px',
+            borderTop: `1px solid ${dk ? 'rgba(15,118,110,0.12)' : 'rgba(15,118,110,0.07)'}`,
+            background: dk ? t.cardBg : 'linear-gradient(90deg, rgba(15,118,110,0.02), transparent)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ fontSize:12, color:t.textSubtle, fontWeight:500 }}>
+              {filtered.length} {filtered.length === 1 ? 'lead' : 'leads'}
+              {search ? <> · <span style={{ color:TEAL }}>matching &ldquo;{search}&rdquo;</span></> : ''}
             </span>
-            <span style={{ fontSize: 11, color: t.textSubtle, opacity: 0.7 }}>Click any row to open</span>
+            {/* Prominent pill hint */}
+            <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 11px', borderRadius:100, background:'rgba(15,118,110,0.07)', border:'1px solid rgba(15,118,110,0.13)' }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.5" strokeLinecap="round" style={{ opacity:0.7 }}>
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+              </svg>
+              <span style={{ fontSize:11, fontWeight:600, color:TEAL, opacity:0.8 }}>Click any row to open</span>
+            </div>
           </div>
         </div>
       )}
     </div>
   )
 }
-
 // ── Main component ─────────────────────────────────────────────────────────────
 function LeadQuickView({ leadId, onClose, onFullDetail, stages = getPipelineStages(null), dk = false }: {
   leadId: string
