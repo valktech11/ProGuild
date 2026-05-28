@@ -105,3 +105,19 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ ok: true })
 }
+
+// ── PATCH /api/roofing/reports — backfill property_id on orphaned reports ──
+export async function PATCH(req: NextRequest) {
+  const { id, pro_id, property_id } = await req.json().catch(() => ({}))
+  if (!id || !pro_id || !property_id) {
+    return NextResponse.json({ error: 'id, pro_id, property_id required' }, { status: 400 })
+  }
+  const sb = getSupabaseAdmin()
+  const { error } = await sb
+    .from('roof_reports')
+    .update({ property_id })
+    .eq('id', id)
+    .eq('pro_id', pro_id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}

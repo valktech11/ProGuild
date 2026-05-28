@@ -117,7 +117,28 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
     setReportsLoading(true)
     fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
       .then(r => r.json())
-      .then(d => setReports(d.reports || []))
+      .then(async d => {
+        const linked = d.reports || []
+        if (linked.length > 0) { setReports(linked); return }
+        // No linked reports — fallback: show all pro reports (orphans from lead detail)
+        // and backfill property_id so they appear here on next load
+        try {
+          const allRes = await fetch(`/api/roofing/reports?pro_id=${session.id}`)
+          const allD   = allRes.ok ? await allRes.json() : { reports: [] }
+          const all    = allD.reports || []
+          if (all.length > 0) {
+            setReports(all)
+            // Silently backfill any unlinked reports to this property
+            for (const r of all.filter((r: any) => !r.property_id)) {
+              fetch('/api/roofing/reports', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: r.id, pro_id: session.id, property_id: id }),
+              }).catch(() => {})
+            }
+          }
+        } catch {}
+      })
       .catch(() => setReportErr('Failed to load reports — please refresh'))
       .finally(() => setReportsLoading(false))
   }, [id, session])

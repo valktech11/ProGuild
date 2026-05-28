@@ -1095,7 +1095,22 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           res = await fetch('/api/roofing/report',{
                                             method:'POST',
                                             headers:{'Content-Type':'application/json'},
-                                            body: JSON.stringify({ address: fullAddr, pro_id: session.id }),
+                                            body: JSON.stringify({
+                                              address:     fullAddr,
+                                              pro_id:      session.id,
+                                              // Look up property_id from lead's address so report
+                                              // shows up on the property page
+                                              property_id: await (async () => {
+                                                try {
+                                                  const sr = await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(st)}`)
+                                                  const sd = sr.ok ? await sr.json() : null
+                                                  const match = (sd?.properties||[]).find((p:any) =>
+                                                    p.address_line1?.toLowerCase().includes(st.split(',')[0].toLowerCase())
+                                                  )
+                                                  return match?.id ?? null
+                                                } catch { return null }
+                                              })(),
+                                            }),
                                             signal: ctrl.signal,
                                           })
                                         } finally { clearTimeout(timer) }
