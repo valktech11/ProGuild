@@ -637,7 +637,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           />
 
           {/* Proposal type toggle — hidden when locked or insurance job */}
-          {!isLocked && !estimate.insurance_claim && (
+          {!isLocked && !estimate.insurance_claim && !estimate.approved_amount && !estimate.claim_number && (
             <ProposalTypeToggle
               value={pendingTypeSwitch ?? estType} onChange={v => {
               if (v === estType) return
@@ -767,7 +767,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           <ScopeCard scope={scope} onChange={isLocked ? undefined : (v => { setScope(v); setIsDirty(true) })} card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} />
 
           {/* Insurance claim — only when relevant */}
-          {estimate.insurance_claim && (
+          {(estimate.insurance_claim || !!(estimate.approved_amount || estimate.claim_number)) && (
             <InsuranceCard estimate={estimate} card={card} border={border} textP={textP} textS={textS} />
           )}
 
