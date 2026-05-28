@@ -1143,7 +1143,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                   try{
                                                     res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},
                                                       body:JSON.stringify({address:fullAddr,pro_id:session.id,
-                                                        property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(st)}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()
+                                                        property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()
                                                       }),signal:ctrl.signal})
                                                   }finally{clearTimeout(timer)}
                                                   const d=await res.json().catch(()=>({}))
@@ -1272,7 +1272,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                               try{
                                                 const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),90000)
                                                 let res:Response
-                                                try{res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(st)}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})}finally{clearTimeout(timer)}
+                                                try{res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})}finally{clearTimeout(timer)}
                                                 const d=await res.json().catch(()=>({}))
                                                 if(!res.ok){setQbError((d as any).error||'Report failed');return}
                                                 const meas=(d as any).measurements
