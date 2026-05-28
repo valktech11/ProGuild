@@ -1315,7 +1315,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           sub: `${wonThisMonth.length} job${wonThisMonth.length!==1?'s':''}`, trend: `${wonThisMonth.length} job${wonThisMonth.length!==1?'s':''}`, color: '#047857', icon: '🏆' },
         { label: 'New This Month', value: String(totalThisMonth),
           sub: 'leads received', trend: 'leads received', color: '#1E40AF', icon: '📥' },
-        { label: 'Avg Lead Age', value: ageNum < 1 ? '< 1d' : `${avgAge}d`,
+        { label: 'Avg Lead Age', value: ageNum < 1 ? '< 1 d' : `${avgAge} d`,
           sub: 'active pipeline', trend: ageNum > 7 ? '⚠ Above target' : 'On track', color: ageNum > 7 ? '#92400E' : '#64748B', icon: '⏱' },
       ]
       return (
