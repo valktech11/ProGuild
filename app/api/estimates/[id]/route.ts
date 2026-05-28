@@ -59,9 +59,9 @@ export async function GET(
 
   const tradeSlugResolved = estClean.trade_slug ?? pro.trade_slug ?? null
 
-  // Fetch roofing_job_data for insurance + measurements (lead-level data)
+  // Fetch roofing_job_data — always fetch when lead_id present (trade_slug on estimates can be null)
   let roofingJobData: any = null
-  if (estClean.lead_id && tradeSlugResolved?.includes('roof')) {
+  if (estClean.lead_id) {
     const { data: rd } = await sb
       .from('roofing_job_data')
       .select('square_count, pitch, waste_pct, perimeter, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
