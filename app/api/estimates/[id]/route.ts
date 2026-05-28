@@ -38,7 +38,15 @@ export async function GET(
     sb.from('roofing_estimate_data').select('estimate_type, tiered_data, scope_of_work, payment_milestones, property_address, square_count, pitch, waste_pct').eq('estimate_id', id).maybeSingle(),
   ])
 
-  const items   = itemsRes.data   ?? []
+  const items   = (itemsRes.data ?? []).map((item: any) => ({
+    id:          item.id,
+    name:        item.name        ?? item.description ?? '',
+    description: item.description ?? item.name        ?? '',
+    qty:         item.qty         ?? item.quantity     ?? 1,
+    unit_price:  item.unit_price  ?? 0,
+    amount:      item.amount      ?? item.total        ?? 0,
+    sort_order:  item.sort_order  ?? 0,
+  }))
   const pro:     any = proRes.data     ?? {}
   const lead:    any = (leadRes as any).data ?? {}
   const roofing: any = roofingRes.data ?? {}

@@ -86,21 +86,22 @@ export async function POST(req: NextRequest) {
         await sb.from('estimate_items').delete().eq('estimate_id', best.id)
         // 2. Insert calculator line items
         const items = line_items.map((item: any, idx: number) => {
-          const qty       = Number(item.quantity  ?? 1)
+          const qty       = Number(item.quantity  ?? item.qty ?? 1)
           const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0)
-          const itemTotal = Number(item.total ?? Math.round(qty * unitPrice))
+          const itemTotal = Number(item.total ?? item.amount ?? Math.round(qty * unitPrice))
           return {
             estimate_id:  best.id,
+            name:         String(item.description ?? item.name ?? ''),
             description:  String(item.description ?? item.name ?? ''),
-            quantity:     qty,
+            qty:          qty,
             unit_price:   unitPrice,
-            total:        itemTotal,
+            amount:       itemTotal,
             sort_order:   idx,
           }
         })
         await sb.from('estimate_items').insert(items)
         // 3. Recalculate totals
-        const newSubtotal = items.reduce((s: number, i: any) => s + (i.total ?? 0), 0)
+        const newSubtotal = items.reduce((s: number, i: any) => s + (i.amount ?? 0), 0)
         const taxRate     = (((best as any).tax_rate ?? 6))
         const newTax      = Math.round(newSubtotal * taxRate / 100)
         const newTotal    = newSubtotal + newTax
