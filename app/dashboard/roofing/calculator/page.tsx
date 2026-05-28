@@ -391,7 +391,8 @@ function CalculatorInner() {
         const d = await res.json().catch(()=>({}))
         throw new Error((d as any).error ?? `HTTP ${res.status}`)
       }
-      const { id: estimateId } = await res.json() as { id: string }
+      const respData = await res.json() as { id?: string; estimate?: { id: string }; existed?: boolean }
+      const estimateId = respData.id ?? respData.estimate?.id
       sessionStorage.removeItem('pg_report_data')
       setSuccess('Estimate created — taking you there now…')
       setTimeout(() => router.push(`/dashboard/estimates/${estimateId}`), 1200)
