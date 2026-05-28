@@ -361,7 +361,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             square_count:      (estimate as any).square_count,
             pitch:             (estimate as any).pitch,
             waste_pct:         (estimate as any).waste_pct,
-            insurance_claim:   (estimate as any).insurance_claim,
+            insurance_claim:   !!(  (estimate as any).insurance_claim || (estimate as any).approved_amount || (estimate as any).claim_number  ),
             insurance_company: (estimate as any).insurance_company,
             claim_number:      (estimate as any).claim_number,
             adjuster_name:     (estimate as any).adjuster_name,
