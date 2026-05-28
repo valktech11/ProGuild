@@ -1031,98 +1031,124 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             {/* Roofing measurement tools — linked to this lead */}
                             {isRoofing&&(
-                              <div style={{marginTop:16,padding:16,borderRadius:T.radMd,background:dk?'rgba(15,118,110,0.08)':'#F0FDFA',border:'1px solid #CCFBF1'}}>
+                              <div style={{marginTop:16,borderRadius:12,background:'#fff',border:'3px solid #0F766E',overflow:'hidden'}}>
                                 {(()=>{
-                                  const rjd=(lead as any)?.roofing_job_data
-                                  const hasMeasurements = !!(rjd?.square_count)
-                                  const showRerun = qbDone // after fresh run, show calculator CTA not buttons
+                                  const rjd = (lead as any)?.roofing_job_data
+                                  const sq    = rjd?.square_count
+                                  const pitch = rjd?.pitch
+                                  const waste = rjd?.waste_pct
+                                  const lf    = rjd?.linear_footage as any
 
-                                  if(hasMeasurements || qbDone){
-                                    // ── MEASURED STATE — show data + actions ──
-                                    const sq    = qbDone && (lead as any)?.roofing_job_data?.square_count
-                                                  ? (lead as any).roofing_job_data.square_count
-                                                  : rjd?.square_count
-                                    const pitch = rjd?.pitch
-                                    const waste = rjd?.waste_pct
+                                  if(sq){
+                                    // ── MEASURED STATE ──
                                     return(
-                                      <>
-                                        {/* Header */}
-                                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+                                      <div style={{padding:16}}>
+                                        {/* Header row */}
+                                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
                                           <div style={{display:'flex',alignItems:'center',gap:8}}>
-                                            <div style={{width:28,height:28,borderRadius:7,background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            <div style={{width:24,height:24,borderRadius:6,background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                                             </div>
-                                            <span style={{fontSize:12,fontWeight:700,color:BRAND.teal,textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Measurements</span>
+                                            <span style={{fontSize:12,fontWeight:700,color:BRAND.teal,textTransform:'uppercase' as const,letterSpacing:'0.08em'}}>Measurements · Satellite</span>
                                           </div>
-                                          {/* Re-run option — secondary, not primary */}
-                                          <button onClick={()=>{setQbDone(false)}} style={{fontSize:10,color:'#94A3B8',background:'none',border:'none',cursor:'pointer',fontWeight:600,padding:'2px 6px',borderRadius:5}}>
-                                            Re-run ↻
+                                          <button
+                                            onClick={()=>{
+                                              const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                                              const city=lead.contact_city||''; const st2=lead.contact_state||''; const zip=(lead as any).contact_zip||''
+                                              const fullAddr=[street,city,st2,zip].filter(Boolean).join(', ')||street
+                                              if(street) {
+                                                setQbDone(false); setQbError('')
+                                                // scroll to QB button
+                                              }
+                                            }}
+                                            style={{fontSize:11,color:'#94A3B8',background:'none',border:'1px solid #E2E8F0',borderRadius:6,cursor:'pointer',fontWeight:600,padding:'3px 8px',letterSpacing:'0.02em'}}>
+                                            Re-measure ↻
                                           </button>
                                         </div>
-                                        {/* Measurement pills */}
-                                        <div style={{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap' as const}}>
-                                          {sq&&<span style={{padding:'8px 16px',borderRadius:20,fontSize:16,fontWeight:800,background:'#fff',color:BRAND.teal,border:'1.5px solid #0F766E',boxShadow:'0 1px 6px rgba(15,118,110,0.15)'}}>{sq} sq</span>}
-                                          {pitch&&<span style={{padding:'8px 16px',borderRadius:20,fontSize:16,fontWeight:800,background:'#fff',color:BRAND.teal,border:'1.5px solid #0F766E',boxShadow:'0 1px 6px rgba(15,118,110,0.15)'}}>{pitch}</span>}
-                                          {waste&&<span style={{padding:'8px 14px',borderRadius:20,fontSize:13,fontWeight:700,background:'rgba(15,118,110,0.07)',color:BRAND.teal,border:'1px solid rgba(15,118,110,0.2)'}}>{waste}% waste</span>}
+
+                                        {/* Hero measurements — big, readable at 1920×1080 */}
+                                        <div style={{display:'flex',alignItems:'baseline',gap:6,flexWrap:'wrap' as const,marginBottom:12}}>
+                                          {/* Squares — hero number */}
+                                          <div style={{display:'flex',alignItems:'baseline',gap:4,padding:'10px 20px',borderRadius:10,background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,boxShadow:'0 3px 10px rgba(15,118,110,0.3)'}}>
+                                            <span style={{fontSize:26,fontWeight:900,color:'#fff',letterSpacing:'-0.03em',lineHeight:1}}>{sq}</span>
+                                            <span style={{fontSize:13,fontWeight:700,color:'rgba(255,255,255,0.8)',letterSpacing:'0.02em'}}>SQ</span>
+                                          </div>
+                                          {/* Pitch */}
+                                          {pitch&&<div style={{display:'flex',flexDirection:'column' as const,alignItems:'center',padding:'8px 18px',borderRadius:10,background:'#F0FDFA',border:'1.5px solid #CCFBF1'}}>
+                                            <span style={{fontSize:20,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.02em',lineHeight:1}}>{pitch}</span>
+                                            <span style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.08em',marginTop:2}}>Pitch</span>
+                                          </div>}
+                                          {/* Waste */}
+                                          {waste&&<div style={{display:'flex',flexDirection:'column' as const,alignItems:'center',padding:'8px 16px',borderRadius:10,background:'#FFFBEB',border:'1.5px solid #FDE68A'}}>
+                                            <span style={{fontSize:20,fontWeight:800,color:'#B45309',letterSpacing:'-0.02em',lineHeight:1}}>{waste}%</span>
+                                            <span style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.08em',marginTop:2}}>Waste</span>
+                                          </div>}
                                         </div>
-                                        {/* Linear footage — shown when DSM has run */}
-                                        {(()=>{
-                                          const lf = rjd?.linear_footage as any
-                                          if (!lf?.ridge_ft) return null
-                                          return (
-                                            <div style={{display:'flex',flexWrap:'wrap' as const,gap:'3px 10px',marginBottom:10,padding:'8px 12px',borderRadius:8,background:'rgba(15,118,110,0.05)',border:'1px solid rgba(15,118,110,0.12)'}}>
-                                              {[
-                                                {l:'Ridge', v:lf.ridge_ft, c:'#7C3AED'},
-                                                {l:'Hip',   v:lf.hip_ft,   c:'#0891B2'},
-                                                {l:'Valley',v:lf.valley_ft,c:'#EA580C'},
-                                                {l:'Rake',  v:lf.rake_ft,  c:'#D97706'},
-                                                {l:'Eave',  v:lf.eave_ft,  c:'#059669'},
-                                              ].map(m=>(
-                                                <span key={m.l} style={{fontSize:10,fontWeight:700,color:m.c}}>{m.l} {Math.round(m.v)}ft</span>
-                                              ))}
-                                              <span style={{fontSize:10,fontWeight:600,color:'#94A3B8'}}>· {Math.round(lf.total_linear_ft||0)}ft total</span>
-                                            </div>
-                                          )
-                                        })()}
-                                        {/* Primary CTA: open calculator */}
-                                        <button
-                                          onClick={()=> router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)}
-                                          style={{width:'100%',padding:'11px',borderRadius:T.radSm,border:'none',background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,boxShadow:'0 4px 12px rgba(15,118,110,0.3)',marginBottom:8}}>
-                                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
-                                          Open Calculator
-                                        </button>
-                                        {/* Secondary: ProMeasure for manual refinement */}
+
+                                        {/* Linear footage grid — readable size, labelled properly */}
+                                        {lf?.ridge_ft&&(
+                                          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6,marginBottom:14}}>
+                                            {[
+                                              {label:'Ridge',  val:lf.ridge_ft,  color:'#7C3AED', bg:'#F5F3FF', border:'#DDD6FE'},
+                                              {label:'Hip',    val:lf.hip_ft,    color:'#0891B2', bg:'#E0F2FE', border:'#BAE6FD'},
+                                              {label:'Valley', val:lf.valley_ft, color:'#EA580C', bg:'#FFF7ED', border:'#FED7AA'},
+                                              {label:'Rake',   val:lf.rake_ft,   color:'#B45309', bg:'#FFFBEB', border:'#FDE68A'},
+                                              {label:'Eave',   val:lf.eave_ft,   color:'#059669', bg:'#F0FDF4', border:'#BBF7D0'},
+                                            ].map(m=>(
+                                              <div key={m.label} style={{padding:'8px 6px',borderRadius:8,background:m.bg,border:`1.5px solid ${m.border}`,textAlign:'center' as const}}>
+                                                <div style={{fontSize:16,fontWeight:800,color:m.color,letterSpacing:'-0.02em',lineHeight:1}}>{Math.round(m.val)}<span style={{fontSize:11,fontWeight:600}}> ft</span></div>
+                                                <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginTop:3}}>{m.label}</div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        {/* Single primary CTA */}
                                         <button
                                           onClick={()=>{
-                                            const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
-                                            const city=lead.contact_city||''; const state=lead.contact_state||''; const zip=(lead as any).contact_zip||''
-                                            const fullAddr=[street,city,state,zip].filter(Boolean).join(', ')||street
-                                            router.push(`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}`)
+                                            // Re-write sessionStorage from current rjd so Calculator gets fresh data
+                                            try {
+                                              const payload = {
+                                                squares: Number(sq)||0, pitch: pitch??'6/12', waste: Number(waste)||12,
+                                                source: 'roof_report', address: (lead as any).property_address||'',
+                                                storedAt: Date.now(), leadId: lead.id,
+                                                ...(lf?.ridge_ft ? {
+                                                  ridgeLF: Math.round(lf.ridge_ft||0),
+                                                  eaveLF:  Math.round(lf.eave_ft||0),
+                                                  perimLF: Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),
+                                                  hipLF:   Math.round(lf.hip_ft||0),
+                                                  valleyLF:Math.round(lf.valley_ft||0),
+                                                  rakeLF:  Math.round(lf.rake_ft||0),
+                                                } : {})
+                                              }
+                                              sessionStorage.setItem('pg_report_data', JSON.stringify(payload))
+                                              sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))
+                                            } catch {}
+                                            router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                                           }}
-                                          style={{width:'100%',padding:'9px',borderRadius:T.radSm,border:`1px solid rgba(15,118,110,0.25)`,background:'transparent',color:BRAND.teal,fontSize:12,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-                                          Refine with ProMeasure
+                                          style={{width:'100%',padding:'13px',borderRadius:10,border:'none',background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,color:'#fff',fontSize:14,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 4px 14px rgba(15,118,110,0.35)',letterSpacing:'-0.01em'}}>
+                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+                                          Open Calculator
                                         </button>
-                                      </>
+                                      </div>
                                     )
                                   }
 
-                                  // ── UNMEASURED STATE — prompt to measure ──
+                                  // ── UNMEASURED STATE ──
                                   return(
-                                    <>
+                                    <div style={{padding:16}}>
                                       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-                                        <div style={{width:28,height:28,borderRadius:7,background:'rgba(15,118,110,0.12)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                                        </div>
-                                        <div style={{fontSize:13,fontWeight:700,color:BRAND.teal,textTransform:'uppercase' as const,letterSpacing:'0.06em'}}>Measurements</div>
+                                        <span style={{fontSize:12,fontWeight:700,color:BRAND.teal,textTransform:'uppercase' as const,letterSpacing:'0.08em'}}>Measurements</span>
                                       </div>
-                                      <div style={{fontSize:13,color:BRAND.teal,marginBottom:12,padding:'10px 14px',background:'rgba(15,118,110,0.06)',borderRadius:T.radSm,border:'1px dashed #0F766E66',display:'flex',alignItems:'center',gap:8}}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-                                        <span style={{fontSize:13,color:BRAND.teal}}>No measurements yet — run Quick Bid Report (satellite) or ProMeasure (manual)</span>
+                                      <div style={{fontSize:13,color:'#64748B',marginBottom:14,padding:'10px 14px',background:'#F8FAFC',borderRadius:8,border:'1px dashed #CBD5E1',lineHeight:1.5}}>
+                                        No measurements yet. Run a satellite report in 30 seconds, or draw polygons manually with ProMeasure.
                                       </div>
-                                    </>
+                                    </div>
                                   )
                                 })()}
+                                {/* Measure buttons — shown in unmeasured state or when re-measuring */}
+                                {!(lead as any)?.roofing_job_data?.square_count && (
+                                <div style={{padding:'0 16px 16px'}}>
                                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                                   <button
                                     onClick={()=>{
@@ -1257,6 +1283,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   <div style={{marginTop:8,padding:'8px 12px',borderRadius:T.radSm,background:'#FEF2F2',border:'1px solid #FECACA',fontSize:12,color:'#DC2626'}}>
                                     {qbError} — check address or try again
                                   </div>
+                                )}
+                                </div>
                                 )}
                               </div>
                             )}
