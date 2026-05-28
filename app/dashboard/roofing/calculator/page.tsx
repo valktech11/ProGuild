@@ -20,7 +20,13 @@ const BORDER = '#E2E8F0'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ReportData {
-  squares: number; pitch: string; waste: number; address: string; reportId?: string
+  squares:     number
+  pitch:       string
+  waste:       number
+  address:     string
+  reportId?:   string
+  storedAt?:   number   // ms timestamp when written to sessionStorage — used for staleness check
+  propertyId?: string | null
 }
 interface LineItem {
   key:         string    // stable key for price lookup
@@ -284,21 +290,40 @@ function CalculatorInner() {
   const [success,    setSuccess]    = useState<string | null>(null)
   const [editPrices, setEditPrices] = useState(false)
 
-  const leadId = searchParams.get('lead_id') ?? null
+  const leadId     = searchParams.get('lead_id')     ?? null
+  const propertyId = searchParams.get('property_id') ?? null
+  const fromSq     = searchParams.get('sq')           ?? null  // sq footage from property (fallback)
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
+
     const raw = sessionStorage.getItem('pg_report_data')
     if (raw) {
       try {
         const d = JSON.parse(raw) as ReportData
-        setReportData({ ...d, address: cleanAddress(d.address) })
-        setSquares(String(Math.round(d.squares * 10) / 10))
-        setPitch(normalizePitch(d.pitch))
-        setWaste(String(Math.round(d.waste)))
+        // Validate: if a property_id is in the URL, check the report was generated
+        // for this property's address by checking the timestamp (reports expire after 2h in sessionStorage)
+        // Simpler: if property_id is in URL, only use sessionStorage if it was set
+        // in the last 10 minutes (fresh from Generate or Quick Bid)
+        const storedAt = d.storedAt as number | undefined
+        const isStale = storedAt ? (Date.now() - storedAt > 10 * 60 * 1000) : true // 10 min TTL
+        if (isStale) {
+          // Don't use stale data — it could be from a different property
+          sessionStorage.removeItem('pg_report_data')
+          // If property has sq footage from URL param, use that
+          if (fromSq) setSquares(fromSq)
+        } else {
+          setReportData({ ...d, address: cleanAddress(d.address) })
+          setSquares(String(Math.round(d.squares * 10) / 10))
+          setPitch(normalizePitch(d.pitch))
+          setWaste(String(Math.round(d.waste)))
+        }
       } catch { sessionStorage.removeItem('pg_report_data') }
+    } else if (fromSq) {
+      // No report data but property has sq footage — use it
+      setSquares(fromSq)
     }
-  }, [session, router])
+  }, [session, router, fromSq])
 
   useEffect(() => {
     const sq = parseFloat(squares)

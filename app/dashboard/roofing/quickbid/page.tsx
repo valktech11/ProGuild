@@ -235,11 +235,13 @@ function QuickBidInner() {
       const meas = (d as any).measurements as Record<string, unknown> | undefined
       if (meas) {
         const payload = {
-          squares: Number(meas.totalSquaresOrder) || 0,
-          pitch:   (meas.dominantPitch as string) ?? '4/12',
-          waste:   Number(meas.wasteFactor) || 12,
-          source:  'roof_report',
-          address: geocodedAddr,
+          squares:   Number(meas.totalSquaresOrder) || 0,
+          pitch:     (meas.dominantPitch as string) ?? '4/12',
+          waste:     Number(meas.wasteFactor) || 12,
+          source:    'roof_report',
+          address:   geocodedAddr,
+          storedAt:  Date.now(),
+          propertyId: matchedPropertyId || null,
         }
         try {
           sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))

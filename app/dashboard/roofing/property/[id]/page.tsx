@@ -179,11 +179,13 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
             ? String((d.debug as any).formattedAddress).replace(', USA', '')
             : fullAddress
           const reportSessionData = {
-            squares: Number(measurements.totalSquaresOrder) || 0,
-            pitch:   (measurements.dominantPitch   as string) ?? '4/12',
-            waste:   Number(measurements.wasteFactor) || 12,
-            source:  'roof_report',
-            address: geocodedAddress,
+            squares:   Number(measurements.totalSquaresOrder) || 0,
+            pitch:     (measurements.dominantPitch as string) ?? '4/12',
+            waste:     Number(measurements.wasteFactor) || 12,
+            source:    'roof_report',
+            address:   geocodedAddress,
+            storedAt:  Date.now(),   // used by Calculator to detect stale cross-property data
+            propertyId: id,
           }
           // pg_promeasure = ProMeasure/calculator shared key
           // pg_report_data = satellite report key (what calculator checks first)
@@ -510,8 +512,8 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
               <button className="action-btn"
                 onClick={() => {
                   const calcPath = latestReport
-                    ? '/dashboard/roofing/calculator?from=promeasure'
-                    : '/dashboard/roofing/calculator' + (property.sq_footage ? '?sq=' + Math.round(property.sq_footage / 100) : '')
+                    ? `/dashboard/roofing/calculator?from=promeasure&property_id=${id}`
+                    : `/dashboard/roofing/calculator?property_id=${id}` + (property.sq_footage ? '&sq=' + Math.round(property.sq_footage / 100) : '')
                   router.push(calcPath)
                 }}
                 style={{ borderColor: '#BFDBFE', color: '#2563EB', background: dk ? '#0F1829' : '#EFF6FF' }}>
