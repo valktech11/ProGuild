@@ -569,9 +569,10 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
 function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[] }) {
   const router = useRouter()
   const t = theme(dk)
-  const [sort, setSort] = useState<'age' | 'name' | 'stage' | 'value'>('age')
-  const [asc,  setAsc]  = useState(true)  // oldest first = most urgent at top
+  const [sort, setSort]     = useState<'age' | 'name' | 'stage' | 'value'>('age')
+  const [asc,  setAsc]      = useState(true)
   const [search, setSearch] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
 
   const filtered = leads
     .filter(l => !search || l.contact_name.toLowerCase().includes(search.toLowerCase()) || (l.contact_phone||'').includes(search))
@@ -592,96 +593,217 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
     else { setSort(col); setAsc(false) }
   }
 
-  const thStyle = (col: typeof sort): React.CSSProperties => ({
-    fontSize: 12, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em',
-    color: sort === col ? '#0F766E' : (t.textSubtle),
-    cursor: 'pointer', padding: '10px 14px', whiteSpace: 'nowrap' as const,
-    userSelect: 'none' as const,
-  })
+  const isActive = (col: typeof sort) => sort === col
+  const SortArrow = ({ col }: { col: typeof sort }) => isActive(col) ? (
+    <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.8 }}>{asc ? '▲' : '▼'}</span>
+  ) : null
 
-  const arrow = (col: typeof sort) => sort === col ? (asc ? ' ↑' : ' ↓') : ''
+  const thBase: React.CSSProperties = {
+    fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const,
+    letterSpacing: '0.07em', cursor: 'pointer', padding: '0 16px 12px',
+    whiteSpace: 'nowrap' as const, userSelect: 'none' as const,
+    textAlign: 'left' as const,
+  }
+
+  // Age label: "<1 d" not "<1d"
+  const ageLabel = (days: number) => days < 1 ? '< 1 d' : `${days} d`
+
+  // Urgency colours
+  const urgencyStyle = (days: number) => {
+    if (days > 7)  return { color: '#DC2626', bg: '#FEF2F2', dot: '#DC2626' }
+    if (days > 3)  return { color: '#B45309', bg: '#FFFBEB', dot: '#F59E0B' }
+    if (days >= 1) return { color: '#0369A1', bg: '#EFF6FF', dot: '#3B82F6' }
+    return           { color: '#065F46', bg: '#F0FDF4', dot: '#10B981' }
+  }
 
   return (
-    <div style={{ background: t.cardBg, borderRadius: 14, border: `1px solid ${t.cardBorder}`, overflow: 'hidden' }}>
-      {/* Search bar */}
-      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${t.cardBorder}` }}>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name or phone…"
-          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${t.cardBorder}`, background: t.cardBgAlt, color: t.textPri, fontSize: 14, boxSizing: 'border-box' as const }} />
+    <div style={{ background: t.cardBg, borderRadius: 16, border: `1px solid ${t.cardBorder}`, overflow: 'hidden', boxShadow: dk ? 'none' : '0 2px 12px rgba(10,22,40,0.06)' }}>
+
+      {/* ── Search bar ── */}
+      <div style={{ padding: '14px 16px', borderBottom: `1px solid ${t.cardBorder}`, background: dk ? t.cardBg : '#FAFAF8' }}>
+        <div style={{ position: 'relative' as const }}>
+          <svg style={{ position: 'absolute' as const, left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' as const }}
+            width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={searchFocused ? '#0F766E' : '#9CA3AF'} strokeWidth="2.2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)}
+            placeholder="Search by name or phone…"
+            style={{
+              width: '100%', padding: '9px 12px 9px 36px', borderRadius: 10,
+              border: `1.5px solid ${searchFocused ? '#0F766E' : t.cardBorder}`,
+              background: searchFocused ? '#fff' : t.cardBgAlt,
+              color: t.textPri, fontSize: 14, boxSizing: 'border-box' as const,
+              outline: 'none',
+              boxShadow: searchFocused ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
+              transition: 'all 0.15s',
+            }} />
+          {search && (
+            <button onClick={() => setSearch('')}
+              style={{ position: 'absolute' as const, right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, lineHeight: 1, padding: '2px 4px' }}>
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ padding: '40px', textAlign: 'center', color: t.textSubtle, fontSize: 14 }}>No leads match</div>
+        <div style={{ padding: '48px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>🔍</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: t.textPri, marginBottom: 4 }}>No leads match</div>
+          <div style={{ fontSize: 12, color: t.textSubtle }}>Try a different name or phone number</div>
+        </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto' as const }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
+
+            {/* ── Column headers ── */}
             <thead>
-              <tr style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
-                <th style={thStyle('name')}    onClick={() => toggleSort('name')}>Name{arrow('name')}</th>
-                <th style={thStyle('stage')}   onClick={() => toggleSort('stage')}>Stage{arrow('stage')}</th>
-                <th style={thStyle('age')}     onClick={() => toggleSort('age')}>Age{arrow('age')}</th>
-                <th style={thStyle('value')}   onClick={() => toggleSort('value')}>Value{arrow('value')}</th>
-                <th style={{ ...thStyle('age'), cursor: 'default' }}>Actions</th>
+              <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
+                <th style={{ ...thBase, paddingLeft: 20, color: isActive('name') ? '#0F766E' : t.textSubtle }}
+                  onClick={() => toggleSort('name')}>
+                  Name <SortArrow col="name" />
+                </th>
+                <th style={{ ...thBase, color: isActive('stage') ? '#0F766E' : t.textSubtle }}
+                  onClick={() => toggleSort('stage')}>
+                  Stage <SortArrow col="stage" />
+                </th>
+                <th style={{ ...thBase, color: isActive('age') ? '#0F766E' : t.textSubtle }}
+                  onClick={() => toggleSort('age')}>
+                  Age <SortArrow col="age" />
+                </th>
+                <th style={{ ...thBase, color: isActive('value') ? '#0F766E' : t.textSubtle }}
+                  onClick={() => toggleSort('value')}>
+                  Value <SortArrow col="value" />
+                </th>
+                <th style={{ ...thBase, cursor: 'default' as const, color: t.textSubtle, textAlign: 'right' as const, paddingRight: 20 }}>
+                  Actions
+                </th>
               </tr>
             </thead>
+
+            {/* ── Rows ── */}
             <tbody>
               {filtered.map((lead, i) => {
-                const stage = stages.find(s => s.key === lead.lead_status) || stages[0]
-                const days  = daysSince(lead.created_at)
+                const stage     = stages.find(s => s.key === lead.lead_status) || stages[0]
+                const days      = daysSince(lead.created_at)
                 const [avBg, avFg] = avatarColor(lead.contact_name)
-                const urgency = days > 3 ? '#DC2626' : days >= 2 ? '#B45309' : '#059669'
-                const urgBg   = days > 3 ? '#FEE2E2' : days >= 2 ? '#FEF3C7' : '#D1FAE5'
+                const urg       = urgencyStyle(days)
+                const ss        = stageStyle(stage.key, dk)
+                const hasAddr   = !!(lead as any).property_address
+                const primLabel = hasAddr ? (lead as any).property_address.replace(/, USA$/, '') : capName(lead.contact_name)
+                const subLabel  = hasAddr ? capName(lead.contact_name) : (lead.contact_phone || '')
 
                 return (
                   <tr key={lead.id}
-                    style={{ borderBottom: `1px solid ${dk ? '#1E293B' : '#F9F8F6'}`, background: i % 2 === 1 ? (dk ? '#0F172A' : '#FAFAF8') : 'transparent', cursor: 'pointer', transition: 'background 0.1s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = t.cardBgHover)}
-                    onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 1 ? (dk ? '#0F172A' : '#FAFAF8') : 'transparent')}
+                    style={{
+                      borderBottom: `1px solid ${dk ? 'rgba(255,255,255,0.05)' : '#F3F2EF'}`,
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      transition: 'background 0.12s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = dk ? 'rgba(255,255,255,0.03)' : '#F7FDF9')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     onClick={() => onOpen(lead)}>
 
-                    {/* Name */}
-                    <td style={{ padding: '11px 14px', minWidth: 160 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: avBg, color: avFg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                          {initials(lead.contact_name)}
+                    {/* ── Name + avatar ── */}
+                    <td style={{ padding: '13px 16px 13px 20px', minWidth: 200 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {/* Avatar with left accent border on first row */}
+                        <div style={{ position: 'relative' as const, flexShrink: 0 }}>
+                          <div style={{
+                            width: 36, height: 36, borderRadius: '50%',
+                            background: avBg, color: avFg,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 12, fontWeight: 800,
+                            boxShadow: `0 0 0 2px ${avBg}40`,
+                          }}>
+                            {initials(lead.contact_name)}
+                          </div>
                         </div>
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri }}>{(lead as any).property_address ? (lead as any).property_address.replace(/, USA$/, '') : capName(lead.contact_name)}</div>
-                          <div style={{ fontSize: 12, color: t.textSubtle }}>{(lead as any).property_address ? capName(lead.contact_name) : (lead.contact_phone || '')}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                            {primLabel}
+                          </div>
+                          {subLabel && (
+                            <div style={{ fontSize: 12, color: t.textSubtle, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                              {subLabel}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
 
-                    {/* Stage */}
-                    <td style={{ padding: '11px 14px' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: stageStyle(stage.key, dk).bg, color: stageStyle(stage.key, dk).color, whiteSpace: 'nowrap' }}>
+                    {/* ── Stage pill ── */}
+                    <td style={{ padding: '13px 16px' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        fontSize: 12, fontWeight: 700,
+                        padding: '4px 10px', borderRadius: 100,
+                        background: ss.bg, color: ss.color,
+                        whiteSpace: 'nowrap' as const,
+                        border: `1px solid ${ss.color}22`,
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: ss.color, flexShrink: 0 }} />
                         {stage.label}
                       </span>
                     </td>
 
-                    {/* Age */}
-                    <td style={{ padding: '11px 14px' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 7px', borderRadius: 6, background: urgBg, color: urgency }}>{days}d</span>
+                    {/* ── Age badge ── */}
+                    <td style={{ padding: '13px 16px' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 12, fontWeight: 700,
+                        padding: '4px 9px', borderRadius: 8,
+                        background: urg.bg, color: urg.color,
+                        border: `1px solid ${urg.color}20`,
+                        whiteSpace: 'nowrap' as const,
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: urg.dot, flexShrink: 0 }} />
+                        {ageLabel(days)}
+                      </span>
                     </td>
 
-                    {/* Value */}
-                    <td style={{ padding: '11px 14px', fontSize: 14, fontWeight: 700, color: lead.quoted_amount ? '#0F766E' : (t.inputBorder) }}>
-                      {lead.quoted_amount ? `${fmtCurrency(lead.quoted_amount)}` : '—'}
+                    {/* ── Value ── */}
+                    <td style={{ padding: '13px 16px' }}>
+                      {lead.quoted_amount ? (
+                        <span style={{ fontSize: 14, fontWeight: 800, color: '#0F766E', letterSpacing: '-0.02em' }}>
+                          {fmtCurrency(lead.quoted_amount)}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 13, color: t.textSubtle, fontWeight: 500 }}>—</span>
+                      )}
                     </td>
 
-                    {/* Actions */}
-                    <td style={{ padding: '11px 14px' }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {/* ── Actions ── */}
+                    <td style={{ padding: '13px 20px 13px 16px', textAlign: 'right' as const }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end' }}>
                         {lead.contact_phone && (
                           <a href={`tel:${lead.contact_phone}`}
-                            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: T.radSm, background: '#F0FDFA', color: '#0F766E', border: '1px solid #CCFBF1', fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '6px 12px', borderRadius: 8,
+                              background: '#F0FDFA', color: '#0F766E',
+                              border: '1.5px solid #99F6E4',
+                              fontSize: 12, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' as const,
+                              transition: 'background 0.12s',
+                            }}>
                             <Ic d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.45-.45a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z" s={11} c="#0F766E" />
                             Call
                           </a>
                         )}
                         <button onClick={() => onOpen(lead)}
-                          style={{ padding: '5px 10px', borderRadius: T.radSm, background: t.cardBorder, color: t.textBody, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          Open →
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '6px 12px', borderRadius: 8,
+                            background: 'linear-gradient(135deg, #0F766E, #0D9488)',
+                            color: 'white', border: 'none',
+                            fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const,
+                            boxShadow: '0 2px 6px rgba(15,118,110,0.25)',
+                          }}>
+                          Open
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
                       </div>
                     </td>
@@ -690,6 +812,14 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
               })}
             </tbody>
           </table>
+
+          {/* ── Footer count ── */}
+          <div style={{ padding: '10px 20px', borderTop: `1px solid ${t.cardBorder}`, background: dk ? t.cardBg : '#FAFAF8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: t.textSubtle }}>
+              {filtered.length} {filtered.length === 1 ? 'lead' : 'leads'}{search ? ` matching "${search}"` : ''}
+            </span>
+            <span style={{ fontSize: 11, color: t.textSubtle, opacity: 0.7 }}>Click any row to open</span>
+          </div>
         </div>
       )}
     </div>
