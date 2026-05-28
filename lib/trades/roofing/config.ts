@@ -185,7 +185,7 @@ export const roofingConfig: RoofingConfig = {
     {
       title: 'ROOFING TOOLS',
       items: [
-        { label: 'Quick Bid PDF', href: '/dashboard/roofing/promeasure?mode=quickbid', icon: '⚡', description: 'One-tap satellite measurement PDF' },
+        { label: 'Quick Bid PDF', href: '/dashboard/roofing/quickbid', icon: '⚡', description: 'Address → satellite PDF in 30 seconds' },
         { label: 'ProMeasure',    href: '/dashboard/roofing/promeasure',               icon: '📐', description: 'Satellite polygon measurement' },
         { label: 'Calculator',    href: '/dashboard/roofing/calculator',               icon: '🔢', description: 'Squares + pitch + waste calculator' },
         { label: 'Material Prices', href: '/dashboard/roofing/settings',               icon: '💲', description: 'Set your material costs for estimates' },
