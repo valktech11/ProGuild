@@ -166,6 +166,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [noteText,    setNoteText]    = useState('')
   const [savingNote,  setSavingNote]  = useState(false)
   const [qbGenerating,   setQbGenerating]   = useState(false)
+  const [dsmRunning,     setDsmRunning]     = useState(false)
   const [pipelineEvents, setPipelineEvents] = useState<any[]>([])
   const [qbDone,         setQbDone]         = useState(false)
   const [qbError,        setQbError]        = useState('')
@@ -1087,7 +1088,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   // ── Step states ──
                                   const step1Done = !!sq
                                   const step2Done = step1Done && hasLF
-                                  const step2Running = step1Done && !hasLF && (qbDone || qbGenerating)
+                                  const step2Running = step1Done && !hasLF && (qbDone || qbGenerating || dsmRunning)
 
                                   const stepIcon = (done:boolean, running:boolean, n:number) => {
                                     if (done) return (
@@ -1198,11 +1199,42 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             <div style={{fontSize:11,color:'#64748B',marginTop:1}}>
                                               {step2Done ? `Ridge ${Math.round(lf.ridge_ft)}ft · Hip ${Math.round(lf.hip_ft||0)}ft · Valley ${Math.round(lf.valley_ft||0)}ft · Rake ${Math.round(lf.rake_ft||0)}ft · Eave ${Math.round(lf.eave_ft||0)}ft`
                                                 : step2Running ? 'Calculating ridge, hip, valley, rake, eave lengths… (~30s)'
-                                                : step1Done ? 'Calculated automatically after Step 1'
+                                                : step1Done ? 'Tap Calculate to get ridge, hip, valley, rake & eave lengths'
                                                 : 'Complete Step 1 first'}
                                             </div>
                                           </div>
                                         </div>
+                                        {/* Calculate Footage button — step1 done, LF missing, DSM not running */}
+                                        {step1Done && !step2Done && !step2Running && (
+                                          <button
+                                            onClick={async ()=>{
+                                              if(!session)return
+                                              setDsmRunning(true)
+                                              try{
+                                                const propId=(lead as any).property_id
+                                                const rRes=await fetch(`/api/roofing/reports?pro_id=${session.id}${propId?`&property_id=${propId}`:''}`)
+                                                const rData=rRes.ok?await rRes.json():null
+                                                const latestReport=rData?.reports?.[0]
+                                                if(!latestReport?.id){addToast('Run Measure Roof first','error');setDsmRunning(false);return}
+                                                const dsmRes=await fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:latestReport.id,pro_id:session.id})})
+                                                const dsmData=dsmRes.ok?await dsmRes.json():null
+                                                if(dsmData?.linear_footage){
+                                                  const lf=dsmData.linear_footage
+                                                  await fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,linear_footage:lf})})
+                                                  const lRes=await fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+                                                  const lData=lRes.ok?await lRes.json():null
+                                                  if(lData?.lead)setLead(lData.lead)
+                                                  addToast('Linear footage calculated','success')
+                                                }else{addToast('Could not calculate — try re-measuring','error')}
+                                              }catch{addToast('Calculation failed — try again','error')}
+                                              finally{setDsmRunning(false)}
+                                            }}
+                                            style={{marginTop:8,width:'100%',padding:'9px',borderRadius:8,border:'none',background:'#0F766E',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                            Calculate Footage
+                                          </button>
+                                        )}
+
                                         {step2Done && (
                                           <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}}>
                                             {[
