@@ -1073,264 +1073,247 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 onSaved={(data)=>setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)}/>
                             )}
 
-                            {/* Roofing measurement tools — linked to this lead */}
+                            {/* Roofing measurement tools — 3-step flow */}
                             {isRoofing&&(
                               <div style={{marginTop:16,borderRadius:12,background:'#fff',border:'1px solid #E2E8F0',borderLeft:'4px solid #0F766E',overflow:'hidden'}}>
                                 {(()=>{
-                                  const rjd = (lead as any)?.roofing_job_data
-                                  const sq    = rjd?.square_count
-                                  const pitch = rjd?.pitch
-                                  const waste = rjd?.waste_pct
-                                  const lf    = rjd?.linear_footage as any
+                                  const rjd  = (lead as any)?.roofing_job_data
+                                  const sq   = rjd?.square_count
+                                  const pitch= rjd?.pitch
+                                  const waste= rjd?.waste_pct
+                                  const lf   = rjd?.linear_footage as any
+                                  const hasLF= !!(lf?.ridge_ft)
 
-                                  if(sq){
-                                    // ── MEASURED STATE ──
-                                    return(
-                                      <div style={{padding:16}}>
-                                        {/* Header row */}
-                                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-                                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                                            <div style={{width:24,height:24,borderRadius:6,background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                            </div>
-                                            <span style={{fontSize:13,fontWeight:700,color:BRAND.teal,letterSpacing:'0.01em'}}>Measurements · Satellite</span>
-                                          </div>
-                                          <button
-                                            onClick={()=>{ setShowRemeasure(s=>!s); setQbError('') }}
-                                            style={{fontSize:11,color:showRemeasure?BRAND.teal:'#94A3B8',background:showRemeasure?'rgba(15,118,110,0.07)':'none',border:`1px solid ${showRemeasure?BRAND.teal:'#E2E8F0'}`,borderRadius:6,cursor:'pointer',fontWeight:600,padding:'3px 8px',letterSpacing:'0.02em',transition:'all 0.15s'}}>
-                                            {showRemeasure ? 'Cancel ✕' : 'Re-measure ↻'}
+                                  // ── Step states ──
+                                  const step1Done = !!sq
+                                  const step2Done = step1Done && hasLF
+                                  const step2Running = step1Done && !hasLF && (qbDone || qbGenerating)
+
+                                  const stepIcon = (done:boolean, running:boolean, n:number) => {
+                                    if (done) return (
+                                      <div style={{width:22,height:22,borderRadius:'50%',background:'#059669',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                      </div>
+                                    )
+                                    if (running) return (
+                                      <div style={{width:22,height:22,borderRadius:'50%',border:'2px solid #0F766E',borderTopColor:'transparent',animation:'pg-spin 0.8s linear infinite',flexShrink:0}}/>
+                                    )
+                                    return (
+                                      <div style={{width:22,height:22,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:11,fontWeight:700,color:'#94A3B8'}}>{n}</div>
+                                    )
+                                  }
+
+                                  return (
+                                    <div style={{padding:16}}>
+                                      {/* Header */}
+                                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+                                        <span style={{fontSize:12,fontWeight:800,color:'#0F172A',textTransform:'uppercase' as const,letterSpacing:'0.08em'}}>Roof Measurements</span>
+                                        {step1Done && (
+                                          <button onClick={()=>{setShowRemeasure(s=>!s);setQbError('')}}
+                                            style={{fontSize:11,color:showRemeasure?'#0F766E':'#94A3B8',background:showRemeasure?'rgba(15,118,110,0.07)':'none',border:`1px solid ${showRemeasure?'#0F766E':'#E2E8F0'}`,borderRadius:6,cursor:'pointer',fontWeight:600,padding:'3px 8px',transition:'all 0.15s'}}>
+                                            {showRemeasure?'Cancel ✕':'Re-measure ↻'}
                                           </button>
-                                        </div>
+                                        )}
+                                      </div>
 
-                                        {/* Hero measurements — big, readable at 1920×1080 */}
-                                        <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap' as const,marginBottom:14}}>
-                                          {/* Squares — hero number */}
-                                          <div style={{display:'flex',alignItems:'baseline',gap:4,padding:'10px 20px',borderRadius:10,background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,boxShadow:'0 3px 10px rgba(15,118,110,0.3)'}}>
-                                            <span style={{fontSize:26,fontWeight:900,color:'#fff',letterSpacing:'-0.03em',lineHeight:1}}>{sq}</span>
-                                            <span style={{fontSize:13,fontWeight:700,color:'rgba(255,255,255,0.8)',letterSpacing:'0.02em'}}>SQ</span>
+                                      {/* Step 1 — Roof Size */}
+                                      <div style={{marginBottom:10,padding:'12px 14px',borderRadius:10,background:step1Done?'#F0FDF4':'#F8FAFC',border:`1.5px solid ${step1Done?'#BBF7D0':'#E2E8F0'}`}}>
+                                        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:step1Done?10:0}}>
+                                          {stepIcon(step1Done, qbGenerating&&!step1Done, 1)}
+                                          <div style={{flex:1}}>
+                                            <div style={{fontSize:13,fontWeight:700,color:'#0F172A'}}>Roof Size</div>
+                                            <div style={{fontSize:11,color:'#64748B',marginTop:1}}>
+                                              {step1Done ? `${sq} sq · ${pitch} pitch · ${waste}% waste`
+                                                : qbGenerating ? 'Measuring roof from satellite… (~30s)'
+                                                : 'Satellite measures your roof in ~30 seconds'}
+                                            </div>
                                           </div>
-                                          {/* Pitch */}
-                                          {pitch&&<div style={{display:'flex',flexDirection:'column' as const,alignItems:'center',padding:'8px 18px',borderRadius:10,background:'#F0FDFA',border:'1.5px solid #CCFBF1'}}>
-                                            <span style={{fontSize:20,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.02em',lineHeight:1}}>{pitch}</span>
-                                            <span style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.08em',marginTop:2}}>Pitch</span>
-                                          </div>}
-                                          {/* Waste */}
-                                          {waste&&<div style={{display:'flex',flexDirection:'column' as const,alignItems:'center',padding:'8px 16px',borderRadius:10,background:'#FFFBEB',border:'1.5px solid #FDE68A'}}>
-                                            <span style={{fontSize:20,fontWeight:800,color:'#B45309',letterSpacing:'-0.02em',lineHeight:1}}>{waste}%</span>
-                                            <span style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.08em',marginTop:2}}>Waste</span>
-                                          </div>}
+                                          {!step1Done && !qbGenerating && !showRemeasure && (
+                                            <button
+                                              onClick={async ()=>{
+                                                const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                                                const city=lead.contact_city||''; const st=lead.contact_state||''; const zip=(lead as any).contact_zip||''
+                                                const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')
+                                                if(!street){addToast('Add a property address first','error');return}
+                                                if(!session)return
+                                                setQbGenerating(true);setQbDone(false);setQbError('')
+                                                try{
+                                                  const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),90000)
+                                                  let res:Response
+                                                  try{
+                                                    res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},
+                                                      body:JSON.stringify({address:fullAddr,pro_id:session.id,
+                                                        property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(st)}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()
+                                                      }),signal:ctrl.signal})
+                                                  }finally{clearTimeout(timer)}
+                                                  const d=await res.json().catch(()=>({}))
+                                                  if(!res.ok){setQbError((d as any).error||'Report failed');return}
+                                                  const meas=(d as any).measurements
+                                                  const geocodedAddr=(d as any)?.debug?.formattedAddress?String((d as any).debug.formattedAddress).replace(', USA',''):fullAddr
+                                                  if(meas){
+                                                    const payload:Record<string,unknown>={squares:Number(meas.totalSquaresOrder)||0,pitch:meas.dominantPitch??'4/12',waste:Number(meas.wasteFactor)||12,source:'roof_report',address:geocodedAddr,storedAt:Date.now(),leadId:lead.id,ridgeLF:0,eaveLF:0,perimLF:0}
+                                                    try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
+                                                    const rowId=(d as any).reportRowId
+                                                    if(rowId&&session){
+                                                      fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:rowId,pro_id:session.id})})
+                                                        .then(r=>r.ok?r.json():null)
+                                                        .then(dsmData=>{
+                                                          if(dsmData?.linear_footage){
+                                                            const lf=dsmData.linear_footage
+                                                            try{const raw=sessionStorage.getItem('pg_report_data');if(raw){const ex=JSON.parse(raw);sessionStorage.setItem('pg_report_data',JSON.stringify({...ex,ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}))}}catch{}
+                                                            if(session){fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,linear_footage:lf})}).catch(()=>{})}
+                                                          }
+                                                        }).catch(()=>{})
+                                                    }
+                                                    fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
+                                                      .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
+                                                  }
+                                                  setQbDone(true);setShowRemeasure(false)
+                                                }catch(err:unknown){
+                                                  const isAbort=err instanceof Error&&err.name==='AbortError'
+                                                  setQbError(isAbort?'Timed out — try again':'Network error')
+                                                }finally{setQbGenerating(false)}
+                                              }}
+                                              style={{padding:'7px 14px',borderRadius:8,border:'none',background:'#0F766E',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const,flexShrink:0}}>
+                                              Measure Roof
+                                            </button>
+                                          )}
                                         </div>
+                                        {/* ProMeasure alternative — shown when unmeasured */}
+                                        {!step1Done && !qbGenerating && (
+                                          <div style={{marginTop:8,fontSize:11,color:'#94A3B8'}}>
+                                            Prefer to draw manually?{' '}
+                                            <span onClick={()=>{const street=((lead as any).property_address||'').replace(/, USA$/,'').trim();const city=lead.contact_city||'';const st=lead.contact_state||'';const zip=(lead as any).contact_zip||'';const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')||((lead as any).property_address||'');router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}`:`/dashboard/roofing/promeasure?lead_id=${lead.id}`)}}
+                                              style={{color:'#0F766E',fontWeight:700,cursor:'pointer',textDecoration:'underline'}}>Use ProMeasure</span>
+                                          </div>
+                                        )}
+                                      </div>
 
-                                        {/* Linear footage grid — readable size, labelled properly */}
-                                        {lf?.ridge_ft&&(
-                                          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6,marginBottom:14}}>
+                                      {/* Step 2 — Linear Footage */}
+                                      <div style={{marginBottom:10,padding:'12px 14px',borderRadius:10,background:step2Done?'#F0FDF4':step2Running?'#FFFBEB':'#F8FAFC',border:`1.5px solid ${step2Done?'#BBF7D0':step2Running?'#FDE68A':'#E2E8F0'}`,opacity:step1Done?1:0.5}}>
+                                        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:step2Done?10:0}}>
+                                          {stepIcon(step2Done, step2Running, 2)}
+                                          <div style={{flex:1}}>
+                                            <div style={{fontSize:13,fontWeight:700,color:'#0F172A'}}>Linear Footage</div>
+                                            <div style={{fontSize:11,color:'#64748B',marginTop:1}}>
+                                              {step2Done ? `Ridge ${Math.round(lf.ridge_ft)}ft · Hip ${Math.round(lf.hip_ft||0)}ft · Valley ${Math.round(lf.valley_ft||0)}ft · Rake ${Math.round(lf.rake_ft||0)}ft · Eave ${Math.round(lf.eave_ft||0)}ft`
+                                                : step2Running ? 'Calculating ridge, hip, valley, rake, eave lengths… (~30s)'
+                                                : step1Done ? 'Calculated automatically after Step 1'
+                                                : 'Complete Step 1 first'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        {step2Done && (
+                                          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}}>
                                             {[
-                                              {label:'Ridge',  val:lf.ridge_ft,  color:'#7C3AED', bg:'#F5F3FF', border:'#DDD6FE'},
-                                              {label:'Hip',    val:lf.hip_ft,    color:'#0891B2', bg:'#E0F2FE', border:'#BAE6FD'},
-                                              {label:'Valley', val:lf.valley_ft, color:'#EA580C', bg:'#FFF7ED', border:'#FED7AA'},
-                                              {label:'Rake',   val:lf.rake_ft,   color:'#B45309', bg:'#FFFBEB', border:'#FDE68A'},
-                                              {label:'Eave',   val:lf.eave_ft,   color:'#059669', bg:'#F0FDF4', border:'#BBF7D0'},
+                                              {label:'Ridge',  val:lf.ridge_ft,  color:'#7C3AED',bg:'#F5F3FF',border:'#DDD6FE'},
+                                              {label:'Hip',    val:lf.hip_ft,    color:'#0891B2',bg:'#E0F2FE',border:'#BAE6FD'},
+                                              {label:'Valley', val:lf.valley_ft, color:'#EA580C',bg:'#FFF7ED',border:'#FED7AA'},
+                                              {label:'Rake',   val:lf.rake_ft,   color:'#B45309',bg:'#FFFBEB',border:'#FDE68A'},
+                                              {label:'Eave',   val:lf.eave_ft,   color:'#059669',bg:'#F0FDF4',border:'#BBF7D0'},
                                             ].map(m=>(
                                               <div key={m.label} style={{padding:'8px 6px',borderRadius:8,background:m.bg,border:`1.5px solid ${m.border}`,textAlign:'center' as const}}>
-                                                <div style={{fontSize:16,fontWeight:800,color:m.color,letterSpacing:'-0.02em',lineHeight:1}}>{Math.round(m.val)}<span style={{fontSize:11,fontWeight:600}}> ft</span></div>
+                                                <div style={{fontSize:15,fontWeight:800,color:m.color,letterSpacing:'-0.02em',lineHeight:1}}>{Math.round(m.val||0)}<span style={{fontSize:10,fontWeight:600}}> ft</span></div>
                                                 <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginTop:3}}>{m.label}</div>
                                               </div>
                                             ))}
                                           </div>
                                         )}
+                                      </div>
 
-                                        {/* Single primary CTA */}
-                                        <button
-                                          onClick={()=>{
-                                            // Re-write sessionStorage from current rjd so Calculator gets fresh data
-                                            try {
-                                              const payload = {
-                                                squares: Number(sq)||0, pitch: pitch??'6/12', waste: Number(waste)||12,
-                                                source: 'roof_report', address: (lead as any).property_address||'',
-                                                storedAt: Date.now(), leadId: lead.id,
-                                                ...(lf?.ridge_ft ? {
-                                                  ridgeLF: Math.round(lf.ridge_ft||0),
-                                                  eaveLF:  Math.round(lf.eave_ft||0),
-                                                  perimLF: Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),
-                                                  hipLF:   Math.round(lf.hip_ft||0),
-                                                  valleyLF:Math.round(lf.valley_ft||0),
-                                                  rakeLF:  Math.round(lf.rake_ft||0),
-                                                } : {})
-                                              }
-                                              sessionStorage.setItem('pg_report_data', JSON.stringify(payload))
-                                              sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))
-                                            } catch {}
-                                            router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
-                                          }}
-                                          style={{width:'100%',padding:'13px',borderRadius:10,border:'none',background:`linear-gradient(135deg,${BRAND.teal},#14B8A6)`,color:'#fff',fontSize:14,fontWeight:800,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 4px 14px rgba(15,118,110,0.35)',letterSpacing:'-0.01em'}}>
-                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
-                                          Open Calculator
-                                        </button>
+                                      {/* Step 3 — Open Calculator */}
+                                      <div style={{padding:'12px 14px',borderRadius:10,background:step2Done?`linear-gradient(135deg,#0F766E,#14B8A6)`:'#F8FAFC',border:`1.5px solid ${step2Done?'transparent':'#E2E8F0'}`,opacity:step2Done?1:0.5,cursor:step2Done?'pointer':'default'}}
+                                        onClick={()=>{
+                                          if(!step2Done)return
+                                          try{
+                                            const payload={squares:Number(sq)||0,pitch:pitch??'6/12',waste:Number(waste)||12,source:'roof_report',address:(lead as any).property_address||'',storedAt:Date.now(),leadId:lead.id,
+                                              ...(lf?.ridge_ft?{ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}:{})}
+                                            sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))
+                                          }catch{}
+                                          router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
+                                        }}>
+                                        <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                          {step2Done
+                                            ? <div style={{width:22,height:22,borderRadius:'50%',background:'rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+                                              </div>
+                                            : <div style={{width:22,height:22,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:11,fontWeight:700,color:'#94A3B8'}}>3</div>
+                                          }
+                                          <div>
+                                            <div style={{fontSize:13,fontWeight:700,color:step2Done?'#fff':'#0F172A'}}>Open Calculator</div>
+                                            <div style={{fontSize:11,color:step2Done?'rgba(255,255,255,0.8)':'#64748B',marginTop:1}}>
+                                              {step2Done?'All measurements pre-filled — ready to price':'Complete Steps 1 & 2 first'}
+                                            </div>
+                                          </div>
+                                          {step2Done && (
+                                            <svg style={{marginLeft:'auto'}} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                          )}
+                                        </div>
                                       </div>
-                                    )
-                                  }
 
-                                  // ── UNMEASURED STATE ──
-                                  return(
-                                    <div style={{padding:16}}>
-                                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-                                        <span style={{fontSize:12,fontWeight:700,color:BRAND.teal,textTransform:'uppercase' as const,letterSpacing:'0.08em'}}>Measurements</span>
-                                      </div>
-                                      <div style={{fontSize:13,color:'#64748B',marginBottom:14,padding:'10px 14px',background:'#F8FAFC',borderRadius:8,border:'1px dashed #CBD5E1',lineHeight:1.5}}>
-                                        No measurements yet. Run a satellite report in 30 seconds, or draw polygons manually with ProMeasure.
-                                      </div>
+                                      {/* Re-measure option — shown when measured */}
+                                      {(showRemeasure) && (
+                                        <div style={{marginTop:10,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                                          <button
+                                            onClick={()=>{const street=((lead as any).property_address||'').replace(/, USA$/,'').trim();const city=lead.contact_city||'';const st=lead.contact_state||'';const zip=(lead as any).contact_zip||'';const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')||((lead as any).property_address||'');router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}`:`/dashboard/roofing/promeasure?lead_id=${lead.id}`)}}
+                                            style={{padding:'9px',borderRadius:8,border:`1.5px solid #0F766E`,background:'transparent',color:'#0F766E',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:5,justifyContent:'center'}}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                            ProMeasure
+                                          </button>
+                                          <button
+                                            disabled={qbGenerating}
+                                            onClick={async ()=>{
+                                              const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                                              const city=lead.contact_city||'';const st=lead.contact_state||'';const zip=(lead as any).contact_zip||''
+                                              const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')
+                                              if(!street){addToast('Add a property address first','error');return}
+                                              if(!session)return
+                                              setQbGenerating(true);setQbDone(false);setQbError('')
+                                              try{
+                                                const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),90000)
+                                                let res:Response
+                                                try{res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(st)}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})}finally{clearTimeout(timer)}
+                                                const d=await res.json().catch(()=>({}))
+                                                if(!res.ok){setQbError((d as any).error||'Report failed');return}
+                                                const meas=(d as any).measurements
+                                                if(meas){
+                                                  const payload:Record<string,unknown>={squares:Number(meas.totalSquaresOrder)||0,pitch:meas.dominantPitch??'4/12',waste:Number(meas.wasteFactor)||12,source:'roof_report',address:fullAddr,storedAt:Date.now(),leadId:lead.id,ridgeLF:0,eaveLF:0,perimLF:0}
+                                                  try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
+                                                  const rowId=(d as any).reportRowId
+                                                  if(rowId&&session){
+                                                    fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:rowId,pro_id:session.id})})
+                                                      .then(r=>r.ok?r.json():null)
+                                                      .then(dsmData=>{
+                                                        if(dsmData?.linear_footage){const lf=dsmData.linear_footage;try{const raw=sessionStorage.getItem('pg_report_data');if(raw){const ex=JSON.parse(raw);sessionStorage.setItem('pg_report_data',JSON.stringify({...ex,ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}))}}catch{}
+                                                        if(session){fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,linear_footage:lf})}).catch(()=>{})}}
+                                                      }).catch(()=>{})
+                                                  }
+                                                  fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
+                                                    .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
+                                                }
+                                                setQbDone(true);setShowRemeasure(false)
+                                              }catch(err:unknown){
+                                                const isAbort=err instanceof Error&&err.name==='AbortError'
+                                                setQbError(isAbort?'Timed out — try again':'Network error')
+                                              }finally{setQbGenerating(false)}
+                                            }}
+                                            style={{padding:'9px',borderRadius:8,border:`1.5px solid #0F766E`,background:qbGenerating?'#0F766E':'transparent',color:qbGenerating?'#fff':'#0F766E',fontSize:12,fontWeight:700,cursor:qbGenerating?'wait':'pointer',display:'flex',alignItems:'center',gap:5,justifyContent:'center',opacity:qbGenerating?0.8:1}}>
+                                            {qbGenerating
+                                              ?<><div style={{width:10,height:10,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',animation:'pg-spin 0.7s linear infinite'}}/>Re-measuring…</>
+                                              :<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>New Report</>
+                                            }
+                                          </button>
+                                        </div>
+                                      )}
+
+                                      {qbError && (
+                                        <div style={{marginTop:8,padding:'8px 12px',borderRadius:8,background:'#FEF2F2',border:'1px solid #FECACA',fontSize:12,color:'#DC2626'}}>
+                                          {qbError} — check address or try again
+                                        </div>
+                                      )}
                                     </div>
                                   )
                                 })()}
-                                {/* Measure buttons — shown in unmeasured state or when re-measuring */}
-                                {(!(lead as any)?.roofing_job_data?.square_count || showRemeasure) && (
-                                <div style={{padding:'0 16px 16px'}}>
-                                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                                  <button
-                                    onClick={()=>{
-                                      const street = ((lead as any).property_address||'').replace(/, USA$/,'').replace(/, [A-Z]{2},? \d{5}$/,'').replace(/, [A-Z]{2}$/,'').trim()
-                                      const city   = lead.contact_city||''
-                                      const state  = lead.contact_state||''
-                                      const zip    = (lead as any).contact_zip||''
-                                      const fullAddr = [street, city, state, zip].filter(Boolean).join(', ') || (lead as any).property_address || ''
-                                      router.push(fullAddr ? `/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}` : `/dashboard/roofing/promeasure?lead_id=${lead.id}`)
-                                    }}
-                                    style={{padding:'11px 12px',borderRadius:T.radSm,border:`1.5px solid ${BRAND.teal}`,background:'transparent',color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center'}}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-                                    ProMeasure
-                                  </button>
-                                  <button
-                                    disabled={qbGenerating}
-                                    onClick={async ()=>{
-                                      const street = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
-                                      const city   = lead.contact_city||''
-                                      const st     = lead.contact_state||''
-                                      const zip    = (lead as any).contact_zip||''
-                                      const fullAddr = [street,city,st,zip].filter(Boolean).join(', ')
-                                      if(!street){addToast('Add a property address to this lead first','error');return}
-                                      if(!session) return
-                                      setQbGenerating(true); setQbDone(false); setQbError('')
-                                      try {
-                                        const ctrl = new AbortController()
-                                        const timer = setTimeout(()=>ctrl.abort(), 90000)
-                                        let res: Response
-                                        try {
-                                          res = await fetch('/api/roofing/report',{
-                                            method:'POST',
-                                            headers:{'Content-Type':'application/json'},
-                                            body: JSON.stringify({
-                                              address:     fullAddr,
-                                              pro_id:      session.id,
-                                              // Look up property_id from lead's address so report
-                                              // shows up on the property page
-                                              property_id: await (async () => {
-                                                try {
-                                                  const sr = await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(st)}`)
-                                                  const sd = sr.ok ? await sr.json() : null
-                                                  const match = (sd?.properties||[]).find((p:any) =>
-                                                    p.address_line1?.toLowerCase().includes(st.split(',')[0].toLowerCase())
-                                                  )
-                                                  return match?.id ?? null
-                                                } catch { return null }
-                                              })(),
-                                            }),
-                                            signal: ctrl.signal,
-                                          })
-                                        } finally { clearTimeout(timer) }
-                                        const d = await res.json().catch(()=>({}))
-                                        if(!res.ok){ setQbError((d as any).error||'Report failed'); return }
-                                        // Write to sessionStorage for Calculator
-                                        const meas = (d as any).measurements
-                                        const geocodedAddr = (d as any)?.debug?.formattedAddress
-                                          ? String((d as any).debug.formattedAddress).replace(', USA','')
-                                          : fullAddr
-                                        if(meas){
-                                          const payload: Record<string,unknown> = {
-                                            squares: Number(meas.totalSquaresOrder)||0,
-                                            pitch:   meas.dominantPitch??'4/12',
-                                            waste:   Number(meas.wasteFactor)||12,
-                                            source:  'roof_report',
-                                            address: geocodedAddr,
-                                            storedAt: Date.now(),
-                                            ridgeLF: 0, eaveLF: 0, perimLF: 0,
-                                          }
-                                          try {
-                                            sessionStorage.setItem('pg_report_data', JSON.stringify(payload))
-                                            sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))
-                                          } catch {}
-                                          // Background DSM for linear footage — updates sessionStorage when done
-                                          const rowId = (d as any).reportRowId
-                                          if (rowId && session) {
-                                            fetch('/api/roofing/dsm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ report_id: rowId, pro_id: session.id }) })
-                                              .then(r => r.ok ? r.json() : null)
-                                              .then(dsmData => {
-                                                if (dsmData?.linear_footage) {
-                                                  const lf = dsmData.linear_footage
-                                                  try {
-                                                    const raw = sessionStorage.getItem('pg_report_data')
-                                                    if (raw) { const ex = JSON.parse(raw); sessionStorage.setItem('pg_report_data', JSON.stringify({ ...ex, ridgeLF: Math.round(lf.ridge_ft||0), eaveLF: Math.round(lf.eave_ft||0), perimLF: Math.round((lf.eave_ft||0)+(lf.rake_ft||0)), hipLF: Math.round(lf.hip_ft||0), valleyLF: Math.round(lf.valley_ft||0), rakeLF: Math.round(lf.rake_ft||0) })) }
-                                                  } catch {}
-                                                  // Also persist LF to roofing_job_data so Calculator can read it from DB
-                                                  if (session) {
-                                                    fetch(`/api/leads/${lead.id}`, {
-                                                      method: 'PATCH',
-                                                      headers: { 'Content-Type': 'application/json' },
-                                                      body: JSON.stringify({ pro_id: session.id, linear_footage: lf }),
-                                                    }).catch(() => {})
-                                                  }
-                                                }
-                                              }).catch(() => {})
-                                          }
-                                        }
-                                        // Write measurements back to roofing_job_data so lead detail
-                                        // shows the measurement pills and doesn't prompt to re-run
-                                        if (meas && session) {
-                                          fetch(`/api/leads/${lead.id}`, {
-                                            method: 'PATCH',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                              pro_id:       session.id,
-                                              square_count: Number(meas.totalSquaresOrder) || null,
-                                              pitch:        meas.dominantPitch ?? null,
-                                              waste_pct:    Number(meas.wasteFactor) || null,
-                                            }),
-                                          }).then(r => r.ok ? r.json() : null)
-                                            .then(d => { if (d?.lead) setLead(d.lead) })
-                                            .catch(() => {})
-                                        }
-                                        setQbDone(true)
-                                        setShowRemeasure(false)
-                                        addToast('Report ready — open Calculator to price this job')
-                                      } catch(err:unknown){
-                                        const isAbort = err instanceof Error && err.name==='AbortError'
-                                        setQbError(isAbort?'Timed out — try again':'Network error')
-                                      } finally { setQbGenerating(false) }
-                                    }}
-                                    style={{padding:'11px 12px',borderRadius:T.radSm,border:`1.5px solid ${BRAND.teal}`,background: qbDone ? BRAND.teal : 'transparent',color: qbDone ? '#fff' : BRAND.teal,fontSize:13,fontWeight:700,cursor:qbGenerating?'wait':'pointer',display:'flex',alignItems:'center',gap:6,justifyContent:'center',opacity:qbGenerating?0.7:1,transition:'all 0.2s'}}>
-                                    {qbGenerating
-                                      ? <><div style={{width:12,height:12,borderRadius:'50%',border:`2px solid ${BRAND.teal}40`,borderTopColor:BRAND.teal,animation:'pg-spin 0.7s linear infinite'}}/> Generating…</>
-                                      : qbDone
-                                        ? <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Report Ready</>
-                                        : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Quick Bid Report</>
-                                    }
-                                  </button>
-                                </div>
-                                {/* Calculator button — appears after report generated */}
-                                {qbDone && (
-                                  <button
-                                    onClick={()=> router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}&property_id=`)}
-                                    style={{marginTop:10,width:'100%',padding:'11px 12px',borderRadius:T.radSm,border:'none',background:`linear-gradient(135deg,#0F766E,#14B8A6)`,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,boxShadow:'0 4px 12px rgba(15,118,110,0.35)'}}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
-                                    Open Calculator — pre-filled from report →
-                                  </button>
-                                )}
-                                {qbError && (
-                                  <div style={{marginTop:8,padding:'8px 12px',borderRadius:T.radSm,background:'#FEF2F2',border:'1px solid #FECACA',fontSize:12,color:'#DC2626'}}>
-                                    {qbError} — check address or try again
-                                  </div>
-                                )}
-                                </div>
-                                )}
                               </div>
                             )}
 
