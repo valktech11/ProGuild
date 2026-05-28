@@ -254,6 +254,24 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // ── Patch ────────────────────────────────────────────────────────────────
   const patch = useCallback(async (fields:Record<string,unknown>) => {
     if (!session) return false
+    // Route lead_status changes through /stage endpoint so pipeline_events are written
+    if ('lead_status' in fields) {
+      const r = await fetch(`/api/leads/${id}/stage`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ pro_id: session.id, stage: fields.lead_status }),
+      })
+      // If stage route succeeds, also patch any other fields in the payload
+      const otherFields = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'lead_status'))
+      if (Object.keys(otherFields).length > 0 && r.ok) {
+        await fetch(`/api/leads/${id}`, {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ pro_id: session.id, ...otherFields }),
+        })
+      }
+      return r.ok
+    }
     const r = await fetch(`/api/leads/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,...fields})})
     return r.ok
   }, [session, id])

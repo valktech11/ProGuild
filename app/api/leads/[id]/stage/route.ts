@@ -68,6 +68,21 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     if (currentStage === newStage)
       return NextResponse.json({ success: true, leadId, from: currentStage, to: newStage, noop: true })
 
+    // ── Server-side gate: insurance_approved requires insurance_claim=true ──
+    if (newStage === 'insurance_approved') {
+      const { data: rjd } = await sb
+        .from('roofing_job_data')
+        .select('insurance_claim, claim_status')
+        .eq('lead_id', leadId)
+        .maybeSingle()
+      if (!rjd?.insurance_claim) {
+        return NextResponse.json(
+          { error: 'Mark this job as an insurance claim before moving to Insurance Approved.' },
+          { status: 422 }
+        )
+      }
+    }
+
     // ── Persist stage change ──────────────────────────────────────────────
     const { error: updateError } = await sb
       .from('leads')

@@ -203,6 +203,34 @@ export async function POST(
     }
   }
 
+  // ── Create roofing_invoice_data from roofing_job_data ──────────────────
+  // Sign route creates invoice directly — must also create extension row
+  if (est.lead_id) {
+    try {
+      const { data: newInvRow } = await sb
+        .from('invoices').select('id, trade').eq('estimate_id', id)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      const invTrade = newInvRow?.trade ?? ''
+      if (newInvRow?.id && invTrade.includes('roof')) {
+        const { data: jobData } = await sb
+          .from('roofing_job_data')
+          .select('insurance_company, claim_number, approved_amount, deductible, supplement_amount, permit_number, permit_status')
+          .eq('lead_id', est.lead_id).maybeSingle()
+        await sb.from('roofing_invoice_data').upsert({
+          invoice_id:        newInvRow.id,
+          pro_id:            est.pro_id,
+          insurance_company: jobData?.insurance_company ?? null,
+          claim_number:      jobData?.claim_number      ?? null,
+          approved_amount:   jobData?.approved_amount   ?? null,
+          deductible:        jobData?.deductible         ?? null,
+          supplement_amount: jobData?.supplement_amount  ?? null,
+          permit_number:     jobData?.permit_number      ?? null,
+          permit_status:     jobData?.permit_status      ?? null,
+        }, { onConflict: 'invoice_id' })
+      }
+    } catch { /* non-fatal */ }
+  }
+
   // Update lead quoted_amount with the correct signed total (selected tier for GBB, estimate total for standard)
   if (est.lead_id) {
     try {

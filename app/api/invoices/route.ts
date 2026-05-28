@@ -156,8 +156,13 @@ export async function POST(req: NextRequest) {
   // Populated from roofing_job_data (insurance fields) if this is a roofing lead
   if (invoice && invoiceData.lead_id) {
     const { data: estRow } = await sb
-      .from('estimates').select('trade_slug').eq('id', estimate_id ?? '').maybeSingle()
-    const tradeSlug = estRow?.trade_slug ?? ''
+      .from('estimates').select('trade_slug, pro_id').eq('id', estimate_id ?? '').maybeSingle()
+    // Fallback to pros.trade_slug if estimates.trade_slug is null (older records)
+    let tradeSlug = estRow?.trade_slug ?? ''
+    if (!tradeSlug && estRow?.pro_id) {
+      const { data: proRow } = await sb.from('pros').select('trade_slug').eq('id', estRow.pro_id).maybeSingle()
+      tradeSlug = proRow?.trade_slug ?? ''
+    }
 
     if (tradeSlug.includes('roof')) {
       // Pull insurance data from roofing_job_data to pre-fill invoice extension

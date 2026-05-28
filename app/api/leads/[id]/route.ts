@@ -181,6 +181,21 @@ export async function PATCH(
     leadData = data
   }
 
+  // ── Write pipeline_event if lead_status changed ──────────────────────────
+  if (updateFields.lead_status && leadData) {
+    const prevStatus = body._prev_status as string | undefined
+    try {
+      await getSupabaseAdmin().from('pipeline_events').insert({
+        lead_id:    id,
+        pro_id:     proId,
+        event_type: 'stage_changed',
+        event_data: { from: prevStatus ?? null, to: updateFields.lead_status },
+        actor_type: 'pro',
+        created_at: new Date().toISOString(),
+      })
+    } catch { /* non-fatal */ }
+  }
+
   // ── Upsert roofing_job_data (only if roofing fields present) ─────────────
   if (Object.keys(roofingPayload).length > 0) {
     roofingPayload.lead_id    = id
