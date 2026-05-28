@@ -156,6 +156,8 @@ const MARKET_DEFAULTS = {
   drip_edge: 3, nails: 2.5, labor_standard: 85, labor_upgraded: 90, labor_premium: 100,
 }
 
+import { PITCH_FACTORS as SHARED_PITCH_FACTORS, getPitchFactor } from '@/lib/roofing/pitchFactors'
+
 function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
   const p = { ...MARKET_DEFAULTS, ...(prices ?? {}) }
   return [
@@ -229,14 +231,9 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     const sq = estimate.square_count ?? 0
     const perim = (estimate as any).perimeter ?? Math.round(sq * 10)
     // Apply pitch + waste to get adjusted squares for initial render
-    const PITCH_FACTORS_INIT: Record<string, number> = {
-      '2/12':1.014,'3/12':1.031,'4/12':1.054,'5/12':1.083,
-      '6/12':1.118,'7/12':1.158,'8/12':1.202,'9/12':1.250,
-      '10/12':1.302,'11/12':1.357,'12/12':1.414,
-    }
     const initPitch    = estimate.pitch ?? '6/12'
     const initWaste    = Number(estimate.waste_pct ?? 10)
-    const pitchFactor  = PITCH_FACTORS_INIT[initPitch] ?? 1.118
+    const pitchFactor  = getPitchFactor(initPitch)
     const adjSqInit    = Math.round(sq * pitchFactor * (1 + initWaste / 100) * 10) / 10
     return buildDefaultTiers(materialPrices).map(t => ({
       ...t,
@@ -290,12 +287,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   // Recalc all tier quantities + amounts when measurements change
   const recalcTiersFromSq = useCallback((sq: number, selTier?: TierKey, perimLF?: number, pitch?: string, waste?: number): number => {
     // Apply pitch factor + waste to get adjusted squares (same formula as Calculator)
-    const PITCH_FACTORS: Record<string, number> = {
-      '2/12':1.014,'3/12':1.031,'4/12':1.054,'5/12':1.083,
-      '6/12':1.118,'7/12':1.158,'8/12':1.202,'9/12':1.250,
-      '10/12':1.302,'11/12':1.357,'12/12':1.414,
-    }
-    const pitchFactor = PITCH_FACTORS[pitch ?? pitchVal] ?? 1.118
+    const pitchFactor = getPitchFactor(pitch ?? pitchVal)
     const wasteMult   = 1 + ((waste ?? parseFloat(wastePct) ?? 10) / 100)
     const adjSq       = Math.round(sq * pitchFactor * wasteMult * 10) / 10
     const lfQty       = perimLF ?? Math.round(sq * 10)

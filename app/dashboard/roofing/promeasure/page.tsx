@@ -3,11 +3,7 @@ import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Session } from '@/types'
 
-const PITCH_FACTORS: Record<string, number> = {
-  '2/12':1.014,'3/12':1.031,'4/12':1.054,'5/12':1.083,
-  '6/12':1.118,'7/12':1.158,'8/12':1.202,'9/12':1.250,
-  '10/12':1.302,'11/12':1.357,'12/12':1.414,
-}
+import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
 
 const DEFAULT_SETTINGS = {
   markerColor:'#14B8A6', fillColor:'#14B8A6', borderColor:'#0F766E',
@@ -355,9 +351,9 @@ function ProMeasureInner() {
   },[session,buildMap,router])
 
   const rawSq = (area||0)/100
-  const adjSq = rawSq*(PITCH_FACTORS[pitch]||1.054)*(1+waste/100)
+  const adjSq = rawSq*(getPitchFactor(pitch, 1.054))*(1+waste/100)
   const totalSqFt = regions.reduce((s,r)=>s+r.sqFt,0)+(area||0)
-  const grandAdj  = (totalSqFt/100)*(PITCH_FACTORS[pitch]||1.054)*(1+waste/100)
+  const grandAdj  = (totalSqFt/100)*(getPitchFactor(pitch, 1.054))*(1+waste/100)
   const fmt  = (n:number) => n.toLocaleString(undefined,{maximumFractionDigits:0})
   const fmtSq= (n:number) => n.toFixed(2)
 

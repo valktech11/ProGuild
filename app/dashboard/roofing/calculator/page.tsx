@@ -47,12 +47,7 @@ interface LineItem {
 }
 
 // ── Pitch factors ─────────────────────────────────────────────────────────────
-const PITCH_FACTORS: Record<string, number> = {
-  '2/12':1.014,'3/12':1.031,'4/12':1.054,'5/12':1.083,
-  '6/12':1.118,'7/12':1.158,'8/12':1.202,'9/12':1.250,
-  '10/12':1.302,'11/12':1.357,'12/12':1.414,
-}
-const PITCH_OPTIONS = Object.keys(PITCH_FACTORS)
+import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
 
 // ── Default FL market prices ───────────────────────────────────────────────────
 const DEFAULT_PRICES: Record<string, number> = {
@@ -74,7 +69,7 @@ function calculateMaterials(
   ridgeLF: number, eaveLF: number, perimLF: number,
   prices: Record<string, number>, pipeBoots: number, tearoffLayers: number,
 ): { items: LineItem[]; adjustedSquares: number } {
-  const pitchFactor     = PITCH_FACTORS[pitchKey] ?? 1.118
+  const pitchFactor     = getPitchFactor(pitchKey)
   const adjSq           = squares * pitchFactor * (1 + wastePct / 100)
   const adjSqRounded    = Math.round(adjSq * 10) / 10
 
@@ -303,6 +298,33 @@ function CalculatorInner() {
 
   useEffect(() => {
     if (!session) { router.push('/login'); return }
+
+    // ── Load pro's saved material prices, convert units to match calculator ──
+    // Settings stores: $/sq for shingles, underlayment, ice_water
+    //                  $/LF for ridge_cap, starter_strip, drip_edge
+    // Calculator uses: $/bundle for shingles (3/sq), ridgeCap (35 LF), starterStrip (105 LF)
+    //                  $/10ft piece for dripEdge, $/sq for underlayment/iceWater
+    fetch(`/api/roofing/settings?pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const sp = d?.material_prices  // saved prices from settings
+        if (!sp) return               // nothing saved yet — keep DEFAULT_PRICES
+        setPrices(prev => ({
+          ...prev,
+          // Shingles: settings is $/sq, calculator is $/bundle (3 bundles/sq)
+          ...(sp.shingles_upgraded != null && { shingles:     Math.round(sp.shingles_upgraded / 3) }),
+          // Sheet materials: both $/sq — direct map
+          ...(sp.underlayment      != null && { underlayment: sp.underlayment }),
+          ...(sp.ice_water         != null && { iceWater:     sp.ice_water }),
+          // Linear items: settings $/LF → calculator $/bundle or $/piece
+          ...(sp.ridge_cap         != null && { ridgeCap:     Math.round(sp.ridge_cap     * 35) }),  // 35 LF/bundle
+          ...(sp.starter_strip     != null && { starterStrip: Math.round(sp.starter_strip * 105) }), // 105 LF/bundle
+          ...(sp.drip_edge         != null && { dripEdge:     Math.round(sp.drip_edge     * 10) }),  // 10 ft/piece
+          // Labor: settings $/sq (upgraded tier) → calculator uses flat amount entered by roofer
+          // Not mapped — calculator labour is entered as flat dollar, not $/sq
+        }))
+      })
+      .catch(() => {}) // silently keep defaults if fetch fails
 
     const raw = sessionStorage.getItem('pg_report_data')
     if (raw) {
@@ -533,11 +555,37 @@ function CalculatorInner() {
         {lineItems.length > 0 && (
           <Section n="3" label="Material Quantities" sub="Quantities auto-calculated — edit unit prices if needed"
             right={
-              <button onClick={() => setEditPrices(e => !e)}
-                style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background: editPrices ? `rgba(15,118,110,0.1)` : CREAM, border:`1.5px solid ${editPrices ? TEAL+'40' : BORDER}`, color: editPrices ? TEAL : '#64748B', fontSize:11, fontWeight:700, cursor:'pointer' }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                {editPrices ? 'Done editing' : 'Edit prices'}
-              </button>
+              <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                {editPrices && session && (
+                  <button
+                    onClick={async () => {
+                      // Convert calculator units back to settings units for saving
+                      const toSave = {
+                        shingles_upgraded: Math.round(prices.shingles * 3),
+                        underlayment:      prices.underlayment,
+                        ice_water:         prices.iceWater,
+                        ridge_cap:         +(prices.ridgeCap     / 35).toFixed(2),
+                        starter_strip:     +(prices.starterStrip / 105).toFixed(2),
+                        drip_edge:         +(prices.dripEdge     / 10).toFixed(2),
+                      }
+                      await fetch('/api/roofing/settings', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pro_id: session.id, material_prices: toSave }),
+                      })
+                      setEditPrices(false)
+                    }}
+                    style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'5px 12px', borderRadius:8, background:`linear-gradient(135deg,${TEAL},#14B8A6)`, border:'none', color:'#fff', fontSize:11, fontWeight:700, cursor:'pointer', boxShadow:'0 2px 6px rgba(15,118,110,0.3)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Save as defaults
+                  </button>
+                )}
+                <button onClick={() => setEditPrices(e => !e)}
+                  style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background: editPrices ? `rgba(15,118,110,0.1)` : CREAM, border:`1.5px solid ${editPrices ? TEAL+'40' : BORDER}`, color: editPrices ? TEAL : '#64748B', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  {editPrices ? 'Cancel' : 'Edit prices'}
+                </button>
+              </div>
             }>
 
             <table style={{ width:'100%', borderCollapse:'collapse' as const }}>

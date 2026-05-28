@@ -145,12 +145,11 @@ export async function POST(req: NextRequest) {
       tax_rate:        STATE_TAX_RATES[state?.toUpperCase() ?? ''] ?? 0,
       tax_amount:      0,
       total:           0,
-      deposit_percent: 50,
       require_deposit: true,
       valid_until:     validUntil.toISOString(),
       contact_phone:   contact_phone || null,
       contact_email:   contact_email || null,
-      terms:           'This estimate is valid for 14 days. Payment is due upon job completion. A 50% deposit is required to begin work.',
+      terms:           'This estimate is valid for 14 days. Payment is due upon job completion.',
       trade_slug:      trade_slug || null,
       // Note: estimate_type, tiered_data, scope_of_work, payment_milestones,
       // property_address are NOT written here — they live in roofing_estimate_data.
