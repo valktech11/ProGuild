@@ -55,6 +55,10 @@ export default function PipelinePage() {
   useEffect(() => {
     if (!session) { router.push('/login'); return }
     fetchLeads().finally(() => setDataLoading(false))
+    // Refresh when a lead is added from the sidebar "+ Add New Lead" button
+    const handler = () => fetchLeads()
+    window.addEventListener('pg:lead-added', handler)
+    return () => window.removeEventListener('pg:lead-added', handler)
   }, [session, router, fetchLeads])
 
   const anchors  = getStageAnchors(session?.trade_slug)

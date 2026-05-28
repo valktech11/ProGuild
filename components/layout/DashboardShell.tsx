@@ -857,9 +857,12 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
       {showAddLead && session && (
         <AddLeadModal
           proId={session.id}
-          tradeSlug={session.trade ?? 'roofing'}
+          tradeSlug={session.trade_slug ?? session.trade ?? 'roofing'}
           onClose={() => setShowAddLead(false)}
-          onAdded={() => setShowAddLead(false)}
+          onAdded={(lead: any) => {
+            setShowAddLead(false)
+            window.dispatchEvent(new CustomEvent('pg:lead-added', { detail: lead }))
+          }}
         />
       )}
     </>

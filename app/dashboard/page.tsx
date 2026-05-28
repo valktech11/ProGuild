@@ -228,13 +228,14 @@ export default function OverviewPage() {
   const [maintenanceReminders, setMaintenanceReminders] = useState<any[]>([])
   const isHVACTrade = isHVAC(getTradeConfig(session?.trade_slug))
 
-  useEffect(() => {
-    if (!session) { router.push('/login'); return }
+  // Extracted fetch so it can be called on demand (modal close, event listener)
+  function fetchData(s: typeof session) {
+    if (!s) return
     Promise.all([
-      fetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
-      fetch(`/api/reviews?pro_id=${session.id}`).then(r => r.json()),
-      fetch(`/api/estimates?pro_id=${session.id}`).then(r => r.json()),
-      isHVACTrade ? fetch(`/api/hvac/maintenance-reminders?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
+      fetch(`/api/leads?pro_id=${s.id}`).then(r => r.json()),
+      fetch(`/api/reviews?pro_id=${s.id}`).then(r => r.json()),
+      fetch(`/api/estimates?pro_id=${s.id}`).then(r => r.json()),
+      isHVACTrade ? fetch(`/api/hvac/maintenance-reminders?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
     ]).then(([leadsData, reviewsData, estimatesData, remindersData]) => {
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))
@@ -244,6 +245,15 @@ export default function OverviewPage() {
       setMaintenanceReminders(remindersData.reminders || [])
       setDataLoading(false)
     }).catch(() => setDataLoading(false))
+  }
+
+  useEffect(() => {
+    if (!session) { router.push('/login'); return }
+    fetchData(session)
+    // Listen for leads added from the sidebar "+ Add New Lead" button
+    const handler = () => fetchData(session)
+    window.addEventListener('pg:lead-added', handler)
+    return () => window.removeEventListener('pg:lead-added', handler)
   }, [session, router])
 
   // Stage filters derived from trade plugin — no hardcoded stage key strings
@@ -953,7 +963,7 @@ export default function OverviewPage() {
             proId={session.id}
             tradeSlug={session.trade_slug}
             onClose={() => setShowAddLead(false)}
-            onAdded={() => { setShowAddLead(false); window.location.reload() }}
+            onAdded={() => { setShowAddLead(false); fetchData(session) }}
             dk={dk}
           />
         )
