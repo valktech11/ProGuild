@@ -97,7 +97,15 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     claim_number:         initial.claim_number         ?? '',
     adjuster_name:        initial.adjuster_name        ?? '',
     adjuster_phone:       initial.adjuster_phone != null ? String(initial.adjuster_phone) : '',
-    adjuster_appointment: initial.adjuster_appointment ?? '',
+    adjuster_appointment: (() => {
+      const raw = initial.adjuster_appointment
+      if (!raw) return ''
+      // datetime-local requires "YYYY-MM-DDTHH:MM" — strip timezone offset and seconds
+      // "2026-05-28T14:00:00+00:00" → "2026-05-28T14:00"
+      // "2026-05-28T14:00:00.000Z" → "2026-05-28T14:00"
+      const s = String(raw).replace('Z','').replace(/\+\d{2}:\d{2}$/,'').replace(/-\d{2}:\d{2}$/,'')
+      return s.length >= 16 ? s.slice(0, 16) : s
+    })(),
     claim_status:         initial.claim_status         ?? 'Filed',
     approved_amount:      initial.approved_amount != null ? String(initial.approved_amount) : '',
     supplement_amount:    initial.supplement_amount != null ? String(initial.supplement_amount) : '',

@@ -264,9 +264,15 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         if (!est) return { pass: false, reason: 'No proposal exists. Create and send a proposal first.', action: 'Create Proposal' }
         if (!['sent','viewed','approved'].includes((est as any).status)) return { pass: false, reason: 'Proposal must be sent to the homeowner before it can be signed.', action: 'Open Proposal' }
         return { pass: true }
-      case 'insurance_approved':
+      case 'insurance_approved': {
         if (!rjd?.insurance_claim) return { pass: false, reason: 'Mark this job as an insurance claim before moving to Insurance Approved.', action: 'Open Insurance Fields' }
+        const claimStatus = rjd?.claim_status as string | undefined
+        const approvedStatuses = ['Approved', 'Supplement Approved']
+        if (claimStatus && !approvedStatuses.includes(claimStatus)) {
+          return { pass: false, reason: `Insurance claim status is "${claimStatus}". Set Claim Status to "Approved" or "Supplement Approved" in the insurance fields before moving to this stage.`, action: 'Open Insurance Fields' }
+        }
         return { pass: true }
+      }
       case 'scheduled':
         if (!est) return { pass: false, reason: 'No proposal exists. A signed proposal is required before scheduling.', action: 'Create Proposal' }
         if (!['approved','invoiced','paid'].includes((est as any).status) && STAGE_ORDER['proposal_signed'] > STAGE_ORDER[stage]) {
