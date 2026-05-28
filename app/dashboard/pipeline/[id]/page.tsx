@@ -1107,18 +1107,34 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           ? String((d as any).debug.formattedAddress).replace(', USA','')
                                           : fullAddr
                                         if(meas){
-                                          const payload = {
+                                          const payload: Record<string,unknown> = {
                                             squares: Number(meas.totalSquaresOrder)||0,
                                             pitch:   meas.dominantPitch??'4/12',
                                             waste:   Number(meas.wasteFactor)||12,
                                             source:  'roof_report',
                                             address: geocodedAddr,
                                             storedAt: Date.now(),
+                                            ridgeLF: 0, eaveLF: 0, perimLF: 0,
                                           }
                                           try {
                                             sessionStorage.setItem('pg_report_data', JSON.stringify(payload))
                                             sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))
                                           } catch {}
+                                          // Background DSM for linear footage — updates sessionStorage when done
+                                          const rowId = (d as any).reportRowId
+                                          if (rowId && session) {
+                                            fetch('/api/roofing/dsm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ report_id: rowId, pro_id: session.id }) })
+                                              .then(r => r.ok ? r.json() : null)
+                                              .then(dsmData => {
+                                                if (dsmData?.linear_footage) {
+                                                  const lf = dsmData.linear_footage
+                                                  try {
+                                                    const raw = sessionStorage.getItem('pg_report_data')
+                                                    if (raw) { const ex = JSON.parse(raw); sessionStorage.setItem('pg_report_data', JSON.stringify({ ...ex, ridgeLF: Math.round(lf.ridge_ft||0), eaveLF: Math.round(lf.eave_ft||0), perimLF: Math.round((lf.eave_ft||0)+(lf.rake_ft||0)), hipLF: Math.round(lf.hip_ft||0), valleyLF: Math.round(lf.valley_ft||0), rakeLF: Math.round(lf.rake_ft||0) })) }
+                                                  } catch {}
+                                                }
+                                              }).catch(() => {})
+                                          }
                                         }
                                         setQbDone(true)
                                         addToast('Report ready — open Calculator to price this job')

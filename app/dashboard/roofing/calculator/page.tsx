@@ -25,8 +25,15 @@ interface ReportData {
   waste:       number
   address:     string
   reportId?:   string
-  storedAt?:   number   // ms timestamp when written to sessionStorage — used for staleness check
+  storedAt?:   number
   propertyId?: string | null
+  // Linear footage from DSM — auto-fills Section 2
+  ridgeLF?:    number
+  eaveLF?:     number
+  perimLF?:    number
+  hipLF?:      number
+  valleyLF?:   number
+  rakeLF?:     number
 }
 interface LineItem {
   key:         string    // stable key for price lookup
@@ -320,6 +327,10 @@ function CalculatorInner() {
           setSquares(String(Math.round(d.squares * 10) / 10))
           setPitch(normalizePitch(d.pitch))
           setWaste(String(Math.round(d.waste)))
+          // Auto-fill linear footage from DSM if available
+          if (d.ridgeLF && d.ridgeLF > 0) setRidgeLF(String(Math.round(d.ridgeLF)))
+          if (d.eaveLF  && d.eaveLF  > 0) setEaveLF(String(Math.round(d.eaveLF)))
+          if (d.perimLF && d.perimLF > 0) setPerimLF(String(Math.round(d.perimLF)))
         }
       } catch { sessionStorage.removeItem('pg_report_data') }
     } else if (fromSq) {

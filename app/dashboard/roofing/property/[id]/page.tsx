@@ -184,11 +184,11 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
             waste:     Number(measurements.wasteFactor) || 12,
             source:    'roof_report',
             address:   geocodedAddress,
-            storedAt:  Date.now(),   // used by Calculator to detect stale cross-property data
+            storedAt:  Date.now(),
             propertyId: id,
+            // Linear footage — populated by DSM (async). Will be updated once DSM completes.
+            ridgeLF:  0, eaveLF: 0, perimLF: 0, hipLF: 0, valleyLF: 0, rakeLF: 0,
           }
-          // pg_promeasure = ProMeasure/calculator shared key
-          // pg_report_data = satellite report key (what calculator checks first)
           sessionStorage.setItem('pg_promeasure',   JSON.stringify(reportSessionData))
           sessionStorage.setItem('pg_report_data',  JSON.stringify(reportSessionData))
         } catch {
@@ -265,6 +265,24 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
       setReports(prev => prev.map(r =>
         r.id === report.id ? { ...r, linear_footage: freshLf } : r
       ))
+      // Update sessionStorage with linear footage so Calculator Section 2 auto-fills
+      try {
+        const existingRaw = sessionStorage.getItem('pg_report_data')
+        if (existingRaw) {
+          const existing = JSON.parse(existingRaw)
+          const updated = {
+            ...existing,
+            ridgeLF:   freshLf.ridge_ft   || 0,
+            eaveLF:    freshLf.eave_ft    || 0,
+            perimLF:   (freshLf.eave_ft || 0) + (freshLf.rake_ft || 0), // drip edge = eave + rake
+            hipLF:     freshLf.hip_ft     || 0,
+            valleyLF:  freshLf.valley_ft  || 0,
+            rakeLF:    freshLf.rake_ft    || 0,
+          }
+          sessionStorage.setItem('pg_report_data', JSON.stringify(updated))
+          sessionStorage.setItem('pg_promeasure',  JSON.stringify(updated))
+        }
+      } catch { /* non-fatal */ }
 
       // Step 2: Generate Premium PDF
       setPremiumLoadingId(report.id)
@@ -601,11 +619,54 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                           </div>
                         </div>
                         <div className="rpt-acts">
+                          {/* Use in Calculator — loads this report's measurements into Calculator */}
+                          <button onClick={() => {
+                              const lf = report.linear_footage
+                              const payload = {
+                                squares:    report.total_squares_order || 0,
+                                pitch:      report.dominant_pitch || '6/12',
+                                waste:      report.waste_factor || 12,
+                                source:     'roof_report',
+                                address:    property.address_line1 + (property.city ? ', ' + property.city : ''),
+                                storedAt:   Date.now(),
+                                propertyId: id,
+                                ridgeLF:    lf ? Math.round(lf.ridge_ft) : 0,
+                                eaveLF:     lf ? Math.round(lf.eave_ft)  : 0,
+                                perimLF:    lf ? Math.round((lf.eave_ft || 0) + (lf.rake_ft || 0)) : 0,
+                                hipLF:      lf ? Math.round(lf.hip_ft)   : 0,
+                                valleyLF:   lf ? Math.round(lf.valley_ft): 0,
+                                rakeLF:     lf ? Math.round(lf.rake_ft)  : 0,
+                              }
+                              try {
+                                sessionStorage.setItem('pg_report_data', JSON.stringify(payload))
+                                sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))
+                              } catch {}
+                              router.push(`/dashboard/roofing/calculator?property_id=${id}`)
+                            }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 11px', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+                            Calculator
+                          </button>
                           <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 11px', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' as const }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             Quick Bid
                           </a>
+                          {/* Share with Homeowner */}
+                          <button onClick={() => {
+                              const url = report.r2_url
+                              if (navigator.share) {
+                                navigator.share({ title: 'Roof Measurement Report', text: `Your roof measurement report for ${property.address_line1}`, url }).catch(() => {})
+                              } else {
+                                navigator.clipboard?.writeText(url).then(() => { /* copied */ }).catch(() => {
+                                  window.open(url, '_blank')
+                                })
+                              }
+                            }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 11px', borderRadius: 8, border: '1.5px solid #0284C7', background: '#E0F2FE', color: '#0284C7', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                            Share
+                          </button>
                           {canAccessPremium && (
                             dsmLoadingId === report.id || premiumLoadingId === report.id ? (
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 8, border: '1.5px solid #E9D5FF', background: '#FAF5FF', color: '#7C3AED', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' as const }}>
