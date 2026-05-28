@@ -44,8 +44,9 @@ function formatPhone(raw: string) {
   return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`
 }
 
-function parseCurrency(v: string) {
-  const n = parseFloat(v.replace(/[$,]/g, ''))
+function parseCurrency(v: string | number) {
+  if (typeof v === 'number') return isNaN(v) ? 0 : v
+  const n = parseFloat(String(v).replace(/[$,]/g, ''))
   return isNaN(n) ? 0 : n
 }
 
@@ -95,12 +96,12 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     insurance_company:    initial.insurance_company    ?? '',
     claim_number:         initial.claim_number         ?? '',
     adjuster_name:        initial.adjuster_name        ?? '',
-    adjuster_phone:       initial.adjuster_phone       ?? '',
+    adjuster_phone:       initial.adjuster_phone != null ? String(initial.adjuster_phone) : '',
     adjuster_appointment: initial.adjuster_appointment ?? '',
     claim_status:         initial.claim_status         ?? 'Filed',
-    approved_amount:      initial.approved_amount      ?? '',
-    supplement_amount:    initial.supplement_amount    ?? '',
-    deductible:           initial.deductible           ?? '',
+    approved_amount:      initial.approved_amount != null ? String(initial.approved_amount) : '',
+    supplement_amount:    initial.supplement_amount != null ? String(initial.supplement_amount) : '',
+    deductible:           initial.deductible != null ? String(initial.deductible) : '',
   })
 
   function set(key: keyof InsuranceClaimData) {
