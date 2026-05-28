@@ -173,12 +173,17 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
       const measurements = d.measurements as Record<string, unknown> | undefined
       if (measurements) {
         try {
+          // Use Google's normalised formattedAddress if available (avoids duplicate city segments)
+          // Fall back to fullAddress (what we typed) if not in response
+          const geocodedAddress = (d.debug as any)?.formattedAddress
+            ? String((d.debug as any).formattedAddress).replace(', USA', '')
+            : fullAddress
           const reportSessionData = {
             squares: Number(measurements.totalSquaresOrder) || 0,
             pitch:   (measurements.dominantPitch   as string) ?? '4/12',
             waste:   Number(measurements.wasteFactor) || 12,
             source:  'roof_report',
-            address: fullAddress,
+            address: geocodedAddress,
           }
           // pg_promeasure = ProMeasure/calculator shared key
           // pg_report_data = satellite report key (what calculator checks first)

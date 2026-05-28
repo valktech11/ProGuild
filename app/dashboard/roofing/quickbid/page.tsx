@@ -228,6 +228,10 @@ function QuickBidInner() {
       }
 
       // Push to sessionStorage for Calculator
+      // Use Google's geocoded address (clean, no duplicate city) if available
+      const geocodedAddr = (d as any)?.debug?.formattedAddress
+        ? String((d as any).debug.formattedAddress).replace(', USA', '')
+        : fullAddress
       const meas = (d as any).measurements as Record<string, unknown> | undefined
       if (meas) {
         const payload = {
@@ -235,7 +239,7 @@ function QuickBidInner() {
           pitch:   (meas.dominantPitch as string) ?? '4/12',
           waste:   Number(meas.wasteFactor) || 12,
           source:  'roof_report',
-          address: fullAddress,
+          address: geocodedAddr,
         }
         try {
           sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))
