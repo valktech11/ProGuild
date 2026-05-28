@@ -100,7 +100,7 @@ export async function GET(
       contact_phone: lead.contact_phone ?? estClean.contact_phone ?? null,
       lead_name:     lead.contact_name  ?? estClean.lead_name     ?? null,
       // Insurance (always from roofing_job_data — live claim state)
-      insurance_claim:   roofingJobData?.insurance_claim   ?? false,
+      insurance_claim:   roofingJobData?.insurance_claim || !!(roofingJobData?.claim_number || roofingJobData?.approved_amount) || false,
       approved_amount:   roofingJobData?.approved_amount   ?? null,
       deductible:        roofingJobData?.deductible         ?? null,
       supplement_amount: roofingJobData?.supplement_amount ?? null,
