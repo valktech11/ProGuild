@@ -185,11 +185,12 @@ export async function POST(req: NextRequest) {
   // Ensures the row always exists so insurance/measurement PATCHes upsert cleanly
   if (tradeSlug && tradeSlug.includes('roof')) {
     try {
-      await supabase.from('roofing_job_data').insert({
+      const { error: rjdErr } = await supabase.from('roofing_job_data').insert({
         lead_id:  lead.id,
         pro_id,
       })
-    } catch (e) { /* non-fatal — row may already exist */ }
+      console.log('[POST /api/leads] roofing_job_data insert — lead_id:', lead.id, 'error:', rjdErr?.message ?? 'OK')
+    } catch (e) { console.error('[POST /api/leads] roofing_job_data insert threw:', e) }
   }
 
   // ── Write initial pipeline_event ──────────────────────────────────────────

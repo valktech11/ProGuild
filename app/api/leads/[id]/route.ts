@@ -188,6 +188,7 @@ export async function PATCH(
     const { error: rErr } = await getSupabaseAdmin()
       .from('roofing_job_data')
       .upsert(roofingPayload, { onConflict: 'lead_id' })
+    console.log('[PATCH /api/leads] roofing_job_data upsert — lead_id:', id, 'fields:', Object.keys(roofingPayload).filter(k=>!['lead_id','pro_id','updated_at'].includes(k)), 'error:', rErr?.message ?? 'OK')
     if (rErr) console.error('[PATCH /api/leads] roofing_job_data upsert error:', rErr)
   }
 
