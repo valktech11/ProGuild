@@ -1197,7 +1197,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:step2Done?10:0}}>
                                           {stepIcon(step2Done, step2Running, 2)}
                                           <div style={{flex:1}}>
-                                            <div style={{fontSize:13,fontWeight:700,color:'#0F172A'}}>Linear Footage</div>
+                                            <div style={{fontSize:13,fontWeight:700,color:'#0F172A'}}>Material Lines</div>
                                             <div style={{fontSize:11,color:'#64748B',marginTop:1}}>
                                               {step2Done ? `Ridge ${Math.round(lf.ridge_ft)}ft · Hip ${Math.round(lf.hip_ft||0)}ft · Valley ${Math.round(lf.valley_ft||0)}ft · Rake ${Math.round(lf.rake_ft||0)}ft · Eave ${Math.round(lf.eave_ft||0)}ft`
                                                 : step2Running ? 'Getting ridge, hip, valley, rake & eave lengths… (~30s)'
@@ -1213,30 +1213,40 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                               if(!session)return
                                               setDsmRunning(true)
                                               try{
-                                                // Use stored reportRowId from QB, else fetch latest report for this pro+address
-                                                let reportId = reportRowId
-                                                if (!reportId) {
-                                                  const rRes=await fetch(`/api/roofing/reports?pro_id=${session.id}${(lead as any).property_id?`&property_id=${(lead as any).property_id}`:''}`)
-                                                  const rData=rRes.ok?await rRes.json():null
-                                                    // Match by square_count to find the right report
-                                                  const sq = (lead as any)?.roofing_job_data?.square_count
-                                                  const match = sq
-                                                    ? (rData?.reports||[]).find((r:any) => Math.abs((r.total_squares_order||0) - sq) < 1)
-                                                    : (rData?.reports||[])[0]
-                                                  reportId = match?.id ?? null
-                                                }
-                                                if(!reportId){addToast('Measure the roof first to get a report','error');setDsmRunning(false);return}
-                                                const dsmRes=await fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:reportId,pro_id:session.id})})
-                                                const dsmData=dsmRes.ok?await dsmRes.json():null
-                                                if(dsmData?.linear_footage){
-                                                  const lf=dsmData.linear_footage
+                                                // LF already exists in roof_reports — read it directly, no need to re-run DSM
+                                                const sq = (lead as any)?.roofing_job_data?.square_count
+                                                const propId = (lead as any).property_id
+                                                const rRes=await fetch(`/api/roofing/reports?pro_id=${session.id}${propId?`&property_id=${propId}`:''}`)
+                                                const rData=rRes.ok?await rRes.json():null
+                                                // Find report with matching sq AND linear_footage already populated
+                                                const reports = rData?.reports||[]
+                                                const match = reports.find((r:any)=>r.linear_footage?.ridge_ft && Math.abs((r.total_squares_order||0)-(sq||0))<1)
+                                                  ?? reports.find((r:any)=>r.linear_footage?.ridge_ft)
+                                                  ?? (reportRowId ? reports.find((r:any)=>r.id===reportRowId) : null)
+                                                  ?? reports[0]
+                                                if(!match){addToast('Measure the roof first','error');setDsmRunning(false);return}
+                                                if(match.linear_footage?.ridge_ft){
+                                                  // LF already in report — write directly to roofing_job_data
+                                                  const lf=match.linear_footage
                                                   await fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,linear_footage:lf})})
                                                   const lRes=await fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
                                                   const lData=lRes.ok?await lRes.json():null
                                                   if(lData?.lead)setLead(lData.lead)
-                                                  addToast('Linear footage calculated','success')
-                                                }else{addToast('Could not calculate — try re-measuring','error')}
-                                              }catch{addToast('Calculation failed — try again','error')}
+                                                  addToast('Material lines loaded','success')
+                                                } else {
+                                                  // LF not in report yet — trigger DSM
+                                                  const dsmRes=await fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:match.id,pro_id:session.id})})
+                                                  const dsmData=dsmRes.ok?await dsmRes.json():null
+                                                  if(dsmData?.linear_footage){
+                                                    const lf=dsmData.linear_footage
+                                                    await fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,linear_footage:lf})})
+                                                    const lRes=await fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+                                                    const lData=lRes.ok?await lRes.json():null
+                                                    if(lData?.lead)setLead(lData.lead)
+                                                    addToast('Material lines calculated','success')
+                                                  }else{addToast('Could not get material lines — try New Measurement','error')}
+                                                }
+                                              }catch{addToast('Failed — try again','error')}
                                               finally{setDsmRunning(false)}
                                             }}
                                             style={{marginTop:8,width:'100%',padding:'9px',borderRadius:8,border:'none',background:'#0F766E',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
@@ -1282,7 +1292,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             : <div style={{width:22,height:22,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:11,fontWeight:700,color:'#94A3B8'}}>3</div>
                                           }
                                           <div>
-                                            <div style={{fontSize:13,fontWeight:700,color:step2Done?'#fff':'#0F172A'}}>Open Calculator</div>
+                                            <div style={{fontSize:13,fontWeight:700,color:step2Done?'#fff':'#0F172A'}}>Price This Job</div>
                                             <div style={{fontSize:11,color:step2Done?'rgba(255,255,255,0.8)':'#64748B',marginTop:1}}>
                                               {step2Done?'Squares + all material lines loaded — ready to price':'Complete Steps 1 & 2 first'}
                                             </div>
