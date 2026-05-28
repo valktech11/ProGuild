@@ -5,19 +5,26 @@ import { useState, useRef } from 'react'
 import { getTradeConfig, getTradeLabels } from '@/lib/trades/_registry'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+const TEAL   = '#0F766E'
+const TEAL_L = '#14B8A6'
+const NAVY   = '#0A1628'
+const BORDER = '#E2E8F0'
+
 const SOURCES = [
-  { value: 'Phone_Call', label: 'Phone call' },
-  { value: 'Facebook',   label: 'Facebook' },
-  { value: 'Instagram',  label: 'Instagram' },
-  { value: 'Referral',   label: 'Referral' },
-  { value: 'Website',    label: 'My website' },
-  { value: 'Yard_Sign',  label: 'Yard sign' },
-  { value: 'Walk_In',    label: 'Walk-in' },
-  { value: 'Other',      label: 'Other' },
+  { value: 'Phone_Call', label: 'Phone Call',  color: '#0F766E', bg: '#F0FDFA' },
+  { value: 'Facebook',   label: 'Facebook',    color: '#1877F2', bg: '#EFF6FF' },
+  { value: 'Instagram',  label: 'Instagram',   color: '#E1306C', bg: '#FFF1F2' },
+  { value: 'Referral',   label: 'Referral',    color: '#7C3AED', bg: '#F5F3FF' },
+  { value: 'Website',    label: 'My Website',  color: '#2563EB', bg: '#EFF6FF' },
+  { value: 'Yard_Sign',  label: 'Yard Sign',   color: '#B45309', bg: '#FFFBEB' },
+  { value: 'Walk_In',    label: 'Walk-in',     color: '#059669', bg: '#ECFDF5' },
+  { value: 'Other',      label: 'Other',       color: '#6B7280', bg: '#F9FAFB' },
 ]
 
-function SourceIcon({ value }: { value: string }) {
-  const s = 22
+// ── Source icon SVGs ──────────────────────────────────────────────────────────
+function SourceIcon({ value, size = 18 }: { value: string; size?: number }) {
+  const s = size
   if (value === 'Facebook') return (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
   )
@@ -44,17 +51,97 @@ function SourceIcon({ value }: { value: string }) {
   )
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function formatPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 10)
-  if (digits.length <= 3) return digits
-  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`
-  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+  const d = raw.replace(/\D/g, '').slice(0, 10)
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0,3)}-${d.slice(3)}`
+  return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`
+}
+function sanitize(v: string) { return v.replace(/[\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g,'').trimStart() }
+function getScopePlaceholder(tradeSlug?: string) {
+  const labels = getTradeLabels(tradeSlug)
+  if ((labels as any).scopePlaceholder) return (labels as any).scopePlaceholder
+  return 'Describe what needs to be done, size of job, any urgency...'
 }
 
-function sanitize(val: string): string {
-  return val.replace(/[\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g, '').trimStart()
+// ── Field wrapper ─────────────────────────────────────────────────────────────
+function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>
+        {label}
+        {required && <span style={{ color: '#EF4444', marginLeft: 3 }}>*</span>}
+        {hint && <span style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'none' as const, letterSpacing: 0, marginLeft: 5 }}>{hint}</span>}
+      </label>
+      {children}
+    </div>
+  )
 }
 
+function Input({ icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <div style={{ position: 'relative' as const }}>
+      {icon && <div style={{ position: 'absolute' as const, left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' as const, color: focused ? TEAL : '#94A3B8', transition: 'color 0.15s' }}>{icon}</div>}
+      <input
+        {...props}
+        onFocus={e => { setFocused(true); props.onFocus?.(e) }}
+        onBlur={e => { setFocused(false); props.onBlur?.(e) }}
+        style={{
+          width: '100%', boxSizing: 'border-box' as const,
+          padding: icon ? '10px 14px 10px 38px' : '10px 14px',
+          border: `1.5px solid ${focused ? TEAL : BORDER}`,
+          borderRadius: 10, fontSize: 14, outline: 'none',
+          background: focused ? '#fff' : '#FAFBFC',
+          color: NAVY,
+          boxShadow: focused ? `0 0 0 3px rgba(15,118,110,0.1)` : 'none',
+          transition: 'all 0.15s',
+          ...props.style,
+        }}
+      />
+    </div>
+  )
+}
+
+function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <textarea
+      {...props}
+      onFocus={e => { setFocused(true); props.onFocus?.(e) }}
+      onBlur={e => { setFocused(false); props.onBlur?.(e) }}
+      style={{
+        width: '100%', boxSizing: 'border-box' as const,
+        padding: '10px 14px',
+        border: `1.5px solid ${focused ? TEAL : BORDER}`,
+        borderRadius: 10, fontSize: 14, outline: 'none', resize: 'none' as const,
+        background: focused ? '#fff' : '#FAFBFC',
+        color: NAVY,
+        boxShadow: focused ? `0 0 0 3px rgba(15,118,110,0.1)` : 'none',
+        transition: 'all 0.15s',
+        ...props.style,
+      }}
+    />
+  )
+}
+
+// ── Section heading ───────────────────────────────────────────────────────────
+function SectionHead({ n, label, sub }: { n: string; label: string; sub: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg, ${TEAL}, ${TEAL_L})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+        {n}
+      </div>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 800, color: NAVY, letterSpacing: '-0.01em' }}>{label}</div>
+        <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{sub}</div>
+      </div>
+    </div>
+  )
+}
+
+// ── Props ─────────────────────────────────────────────────────────────────────
 interface AddLeadModalProps {
   proId: string
   tradeSlug?: string
@@ -63,25 +150,15 @@ interface AddLeadModalProps {
   dk?: boolean
 }
 
-// Trade-specific scope placeholder — reads from trade config if available
-// Each trade config can define labels.scopePlaceholder; falls back to generic
-function getScopePlaceholder(tradeSlug?: string): string {
-  const labels = getTradeLabels(tradeSlug)
-  if ((labels as any).scopePlaceholder) return (labels as any).scopePlaceholder
-  return 'Describe what needs to be done, size of job, any urgency...'
-}
-
-const TEAL = '#0F766E'
-const NAVY = '#0A1628'
-
+// ── Main component ────────────────────────────────────────────────────────────
 export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = false }: AddLeadModalProps) {
   const t = theme(dk)
-  const tradePlugin = getTradeConfig(tradeSlug)
   const scopePlaceholder = getScopePlaceholder(tradeSlug)
-  const [name,   setName]   = useState('')
-  const [phone,  setPhone]  = useState('')
-  const [email,  setEmail]  = useState('')
-  const [need,   setNeed]   = useState('')
+
+  const [name,      setName]      = useState('')
+  const [phone,     setPhone]     = useState('')
+  const [email,     setEmail]     = useState('')
+  const [need,      setNeed]      = useState('')
   const [source,    setSource]    = useState('Phone_Call')
   const [street,    setStreet]    = useState('')
   const [city,      setCity]      = useState('')
@@ -90,24 +167,21 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
   const [saving,    setSaving]    = useState(false)
   const [err,       setErr]       = useState('')
 
-  // Google Places autocomplete on the street field
   const streetRef = useRef<HTMLInputElement>(null)
   usePlacesAutocomplete(streetRef, (formatted: string) => {
-    // formatted e.g. "3919 Ranch to Market Rd 2147, Marble Falls, TX 78657, USA"
     const zipMatch   = formatted.match(/\b(\d{5})\b/)
     const stateMatch = formatted.match(/,\s*([A-Z]{2})\s+\d{5}/)
     const parts      = formatted.replace(', USA', '').split(', ')
-    // parts = ["3919 Ranch to Market Rd 2147", "Marble Falls", "TX 78657"]
     if (parts.length >= 1) setStreet(parts[0] || '')
-    if (parts.length >= 2) setCity(parts[1] || '')        // index 1, not length-3
+    if (parts.length >= 2) setCity(parts[1] || '')
     if (stateMatch)        setAddrState(stateMatch[1])
     if (zipMatch)          setZip(zipMatch[1])
   })
 
   async function save() {
-    if (!name.trim())  { setErr('Name is required'); return }
-    if (!phone.trim() && !email.trim()) { setErr('Phone or email is required'); return }
-    if (!need.trim())  { setErr('Describe what they need'); return }
+    if (!name.trim())                       { setErr('Contact name is required'); return }
+    if (!phone.trim() && !email.trim())     { setErr('Phone or email is required'); return }
+    if (!need.trim())                       { setErr('Describe what they need'); return }
     setSaving(true); setErr('')
     const r = await fetch('/api/leads', {
       method: 'POST',
@@ -132,242 +206,225 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
     else setErr(d.error || 'Failed to save lead')
   }
 
-  const cardBg  = t.cardBg
-  const cardBdr = t.cardBorder
-  const textPri = t.textPri
-  const textMut = t.textMuted
-  const inputBg = dk ? '#0F172A' : 'white'
-  const inputCls = `w-full pl-10 pr-4 py-3 text-[14px] rounded-xl outline-none transition-all focus:ring-2 focus:ring-teal-50 bg-white text-gray-900 placeholder-gray-400`
-  const inputStyle = { border: '2px solid #CBD5E1' }
+  const activeSource = SOURCES.find(s => s.value === source)!
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+    // ── Backdrop ──────────────────────────────────────────────────────────────
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'rgba(10,22,40,0.6)', backdropFilter: 'blur(3px)' }}
       onClick={onClose}>
-      <div className="w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl"
-        onClick={e => e.stopPropagation()} style={{ maxHeight: '95vh', display: 'flex', flexDirection: 'column', background: cardBg, color: textPri }}>
 
-        {/* ── Header ── */}
-        <div className="flex items-center gap-4 px-6 py-5">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: '#F0FDFA' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round">
-              <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <line x1="19" y1="8" x2="19" y2="14"/>
-              <line x1="16" y1="11" x2="22" y2="11"/>
-            </svg>
+      {/* ── Modal shell — wide, fixed height ── */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 780,
+          maxHeight: 'calc(100vh - 32px)',
+          display: 'flex', flexDirection: 'column',
+          background: '#fff', borderRadius: 20,
+          boxShadow: '0 24px 80px rgba(10,22,40,0.25), 0 4px 16px rgba(10,22,40,0.1)',
+          overflow: 'hidden',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}>
+
+        {/* ── Fixed header ──────────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 28px 18px', borderBottom: '1px solid #F1F5F9', flexShrink: 0, background: '#fff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {/* Gradient icon */}
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${TEAL}, ${TEAL_L})`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 14px rgba(15,118,110,0.35)` }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
+              </svg>
+            </div>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: NAVY, margin: 0, letterSpacing: '-0.02em' }}>Log New Lead</h2>
+              <p style={{ fontSize: 12, color: '#94A3B8', margin: 0, marginTop: 2 }}>Capture every opportunity — takes 30 seconds</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h2 className="text-[18px] font-bold" style={{ color: NAVY }}>Add a lead</h2>
-            <p className="text-[13px] text-gray-400 mt-0.5">Log a lead from any source</p>
-          </div>
-          <button onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 text-xl transition-colors">
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: '#F8FAFC', border: '1px solid #E2E8F0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', fontSize: 18, lineHeight: 1 }}>
             ×
           </button>
         </div>
 
-        <div className="border-t border-gray-100" />
+        {/* ── Scrollable body ───────────────────────────────────────────────── */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '24px 28px' }}>
 
-        {/* ── Scrollable body ── */}
-        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+          {/* ── SECTION 1: Lead source ── */}
+          <SectionHead n="1" label="Lead Source" sub="Where did this customer come from?" />
 
-          {/* Source selector */}
-          <div>
-            <p className="text-[14px] font-bold mb-3" style={{ color: NAVY }}>Where did this lead come from?</p>
-            <div className="grid grid-cols-3 gap-2">
-              {SOURCES.map(s => (
-                <button key={s.value} onClick={() => setSource(s.value)}
-                  className="relative flex items-center gap-2 px-3 py-3.5 rounded-xl border transition-all text-left"
-                  style={source === s.value
-                    ? { background: '#F0FDFA', borderColor: TEAL, borderWidth: 2 }
-                    : { background: 'white', borderColor: '#E5E7EB', borderWidth: 1.5 }}>
-                  <SourceIcon value={s.value} />
-                  <span className="text-[12px] font-semibold leading-tight"
-                    style={{ color: source === s.value ? TEAL : '#374151' }}>
-                    {s.label}
-                  </span>
-                  {source === s.value && (
-                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: TEAL }}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
-                        <path d="M20 6L9 17l-5-5"/>
-                      </svg>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 28 }}>
+            {SOURCES.map(s => {
+              const active = source === s.value
+              return (
+                <button key={s.value} onClick={() => setSource(s.value)} style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                  padding: '14px 10px', borderRadius: 12, cursor: 'pointer',
+                  border: `2px solid ${active ? s.color : BORDER}`,
+                  background: active ? s.bg : '#FAFBFC',
+                  transition: 'all 0.15s', position: 'relative',
+                  boxShadow: active ? `0 2px 8px ${s.color}25` : 'none',
+                }}>
+                  {active && (
+                    <div style={{ position: 'absolute', top: 7, right: 7, width: 16, height: 16, borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                     </div>
                   )}
+                  <SourceIcon value={s.value} size={20} />
+                  <span style={{ fontSize: 11, fontWeight: active ? 700 : 600, color: active ? s.color : '#64748B', lineHeight: 1.2, textAlign: 'center' }}>{s.label}</span>
                 </button>
-              ))}
-            </div>
+              )
+            })}
           </div>
 
-          <div className="border-t border-gray-100" />
+          {/* ── SECTION 2: Contact details ── */}
+          <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 24, marginBottom: 24 }}>
+            <SectionHead n="2" label="Contact Details" sub="Who is the homeowner?" />
 
-          {/* Lead details */}
-          <div className="rounded-2xl p-4" style={{ background: dk ? '#0F172A' : '#F8FAFC', border: '1.5px solid #E2E8F0' }}>
-            <p className="text-[13px] font-bold mb-4 flex items-center gap-2" style={{ color: NAVY }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Lead details
-            </p>
-
-            {/* Name + Phone row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
-                  Contact name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <input value={name} onChange={e => setName(sanitize(e.target.value))}
-                    placeholder="John Smith"
-                    className={inputCls} style={inputStyle}
-                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
-                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
-                </div>
-              </div>
-              <div>
-                <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
-                  Phone number <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
-                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11 19.79 19.79 0 01.01 2.38a2 2 0 012-2.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
-                  </svg>
-                  <input value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
-                    placeholder="(555) 555-5555" type="tel" inputMode="numeric" maxLength={12}
-                    className={inputCls} style={inputStyle}
-                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
-                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
-                </div>
-              </div>
+            {/* Two-col: name + phone */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <Field label="Full name" required>
+                <Input
+                  value={name} onChange={e => setName(sanitize(e.target.value))}
+                  placeholder="Jane Smith"
+                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
+                />
+              </Field>
+              <Field label="Phone number" required>
+                <Input
+                  value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
+                  placeholder="813-555-0100" type="tel" inputMode="numeric" maxLength={12}
+                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11 19.79 19.79 0 01.01 2.38a2 2 0 012-2.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>}
+                />
+              </Field>
             </div>
 
             {/* Email */}
-            <div className="mb-3">
-              <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">Email (optional)</label>
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-                </svg>
-                <input value={email} onChange={e => setEmail(sanitize(e.target.value))}
-                  placeholder="john@example.com" type="email"
-                  className={inputCls} style={inputStyle}
-                  onFocus={e => (e.target.style.borderColor = '#0F766E')}
-                  onBlur={e => { setEmail(e.target.value.trim().toLowerCase()); e.target.style.borderColor = '#CBD5E1' }} />
-              </div>
-            </div>
+            <Field label="Email" hint="(optional)">
+              <Input
+                value={email} onChange={e => setEmail(sanitize(e.target.value))}
+                onBlur={e => setEmail(e.target.value.trim().toLowerCase())}
+                placeholder="jane@example.com" type="email"
+                icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>}
+              />
+            </Field>
+          </div>
 
-            {/* Address — with Google autocomplete */}
-            <div className="mb-3">
-              <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
-                Property address <span className="text-gray-400 font-normal normal-case">(optional)</span>
-              </label>
-              <div className="relative mb-2">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-                </svg>
-                <input
-                  ref={streetRef}
-                  value={street}
-                  onChange={e => setStreet(e.target.value)}
-                  placeholder="Start typing address — autocomplete enabled"
-                  autoComplete="off"
-                  className={inputCls} style={inputStyle}
-                  onFocus={e => (e.target.style.borderColor = '#0F766E')}
-                  onBlur={e => (e.target.style.borderColor = '#CBD5E1')}
-                />
-              </div>
-              <div className="grid grid-cols-[1fr_72px_90px] gap-2">
-                <div className="relative">
-                  <input value={city} onChange={e => setCity(e.target.value)}
-                    placeholder="City" className={inputCls} style={inputStyle}
-                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
-                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
-                </div>
-                <div>
-                  <select value={addrState} onChange={e => setAddrState(e.target.value)}
-                    className={inputCls.replace('pl-10', 'pl-3')} style={{ ...inputStyle, paddingRight: 4 }}
-                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
-                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')}>
-                    <option value="">ST</option>
-                    {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="relative">
-                  <input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))}
-                    placeholder="ZIP" maxLength={5} inputMode="numeric"
-                    className={inputCls.replace('pl-10', 'pl-3')} style={inputStyle}
-                    onFocus={e => (e.target.style.borderColor = '#0F766E')}
-                    onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
-                </div>
-              </div>
-            </div>
+          {/* ── SECTION 3: Property + Job ── */}
+          <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 24 }}>
+            <SectionHead n="3" label="Property & Job Details" sub="Where is the job and what do they need?" />
 
-            {/* What they need */}
-            <div>
-              <label className="text-[12px] font-bold text-gray-500 mb-1.5 block uppercase tracking-wide">
-                What do they need? <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <svg className="absolute left-3 top-3.5 flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
-                  <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-                  <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                </svg>
-                <textarea value={need} onChange={e => setNeed(sanitize(e.target.value))}
-                  placeholder={scopePlaceholder}
-                  rows={3} maxLength={250}
-                  className="w-full pl-10 pr-4 py-3 text-[14px] rounded-xl outline-none text-gray-900 placeholder-gray-400 transition-all bg-white resize-none"
-                  style={{ border: '2px solid #CBD5E1' }}
-                  onFocus={e => (e.target.style.borderColor = '#0F766E')}
-                  onBlur={e => (e.target.style.borderColor = '#CBD5E1')} />
-                <span className="absolute bottom-2.5 right-3 text-[11px] text-gray-400">{need.length} / 250</span>
+            {/* Two-col: address + scope */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+
+              {/* Left col: address */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Field label="Street address" hint="(optional — autocomplete enabled)">
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#94A3B8' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                    <input
+                      ref={streetRef}
+                      value={street} onChange={e => setStreet(e.target.value)}
+                      placeholder="3919 Highgate Court"
+                      autoComplete="off"
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px 10px 38px', border: `1.5px solid ${BORDER}`, borderRadius: 10, fontSize: 14, outline: 'none', background: '#FAFBFC', color: NAVY, transition: 'all 0.15s' }}
+                      onFocus={e => { e.target.style.borderColor = TEAL; e.target.style.background = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(15,118,110,0.1)' }}
+                      onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.background = '#FAFBFC'; e.target.style.boxShadow = 'none' }}
+                    />
+                  </div>
+                </Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 68px 84px', gap: 8 }}>
+                  <Field label="City">
+                    <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Jacksonville" />
+                  </Field>
+                  <Field label="State">
+                    <select value={addrState} onChange={e => setAddrState(e.target.value)}
+                      style={{ width: '100%', padding: '10px 8px', border: `1.5px solid ${BORDER}`, borderRadius: 10, fontSize: 13, outline: 'none', background: '#FAFBFC', color: NAVY, cursor: 'pointer' }}
+                      onFocus={e => { e.target.style.borderColor = TEAL; e.target.style.boxShadow = '0 0 0 3px rgba(15,118,110,0.1)' }}
+                      onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none' }}>
+                      <option value="">ST</option>
+                      {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="ZIP">
+                    <Input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="32216" maxLength={5} inputMode="numeric" />
+                  </Field>
+                </div>
               </div>
+
+              {/* Right col: scope */}
+              <Field label="What do they need?" required>
+                <div style={{ position: 'relative', height: '100%' }}>
+                  <Textarea
+                    value={need} onChange={e => setNeed(sanitize(e.target.value))}
+                    placeholder={scopePlaceholder}
+                    rows={5} maxLength={250}
+                    style={{ height: '100%', minHeight: 120 }}
+                  />
+                  <span style={{ position: 'absolute', bottom: 10, right: 12, fontSize: 11, color: need.length > 220 ? '#EF4444' : '#94A3B8' }}>{need.length}/250</span>
+                </div>
+              </Field>
             </div>
           </div>
 
+          {/* Error */}
           {err && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <span className="text-[13px] text-red-600 font-medium">{err}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', marginTop: 20 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span style={{ fontSize: 13, color: '#DC2626', fontWeight: 600 }}>{err}</span>
             </div>
           )}
+        </div>
 
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button onClick={onClose}
-              className="flex-1 py-3.5 rounded-2xl text-[14px] font-bold border-2 border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+        {/* ── Fixed footer ──────────────────────────────────────────────────── */}
+        <div style={{ borderTop: '1px solid #F1F5F9', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FAFBFC', flexShrink: 0 }}>
+          {/* Left: selected source pill */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 100, background: activeSource.bg, border: `1px solid ${activeSource.color}30` }}>
+              <SourceIcon value={source} size={13} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: activeSource.color }}>{activeSource.label}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <span style={{ fontSize: 11, color: '#94A3B8' }}>Encrypted & secure</span>
+            </div>
+          </div>
+
+          {/* Right: actions */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} style={{ padding: '10px 22px', borderRadius: 10, background: '#fff', border: `1.5px solid ${BORDER}`, color: '#64748B', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               Cancel
             </button>
-            <button onClick={save} disabled={saving}
-              className="flex-1 py-3.5 rounded-2xl text-[14px] font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:opacity-90"
-              style={{ background: `linear-gradient(135deg, ${TEAL}, #0C5F57)` }}>
-              {saving ? 'Saving...' : (
+            <button onClick={save} disabled={saving} style={{
+              padding: '10px 28px', borderRadius: 10,
+              background: saving ? '#94A3B8' : `linear-gradient(135deg, ${TEAL}, ${TEAL_L})`,
+              color: '#fff', border: 'none', fontSize: 14, fontWeight: 700,
+              cursor: saving ? 'wait' : 'pointer',
+              boxShadow: saving ? 'none' : `0 4px 14px rgba(15,118,110,0.4)`,
+              display: 'flex', alignItems: 'center', gap: 8,
+              transition: 'all 0.15s',
+            }}>
+              {saving ? (
                 <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  Save lead
+                  <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', animation: 'pg-spin 0.7s linear infinite' }} />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Save Lead
                 </>
               )}
             </button>
           </div>
-
-          {/* Security note */}
-          <div className="flex items-center justify-center gap-1.5 pb-1">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-            </svg>
-            <span className="text-[12px] text-gray-400">Your lead information is secure and private.</span>
-          </div>
-
         </div>
       </div>
+
+      <style>{`@keyframes pg-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }
