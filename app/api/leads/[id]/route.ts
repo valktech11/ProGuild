@@ -70,14 +70,15 @@ export async function GET(
     .eq('lead_id', id)
     .maybeSingle()
 
-  // If roofing_job_data has no square_count, pull latest roof_report for this pro
-  // and backfill so the measurement pills render without re-running the report.
+  // If roofing_job_data has no square_count, pull latest roof_report for THIS property only
+  // Must match property_id — never backfill from a different property's report
   let roofingJobData = rd ?? null
-  if (!roofingJobData?.square_count) {
+  if (!roofingJobData?.square_count && data.property_id) {
     const { data: latestReport } = await getSupabaseAdmin()
       .from('roof_reports')
       .select('total_squares_order, dominant_pitch, waste_factor, linear_footage')
       .eq('pro_id', data.pro_id)
+      .eq('property_id', data.property_id)
       .not('total_squares_order', 'is', null)
       .order('created_at', { ascending: false })
       .limit(1)
