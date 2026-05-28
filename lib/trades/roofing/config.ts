@@ -54,13 +54,24 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'inspection_scheduled',
       label:     'Inspection Scheduled',
-      requires:  'lead_has_address',       // must have property address to schedule
+      requires:  'lead_has_address',
       icon:      '🔍',
       color:     '#0284C7',
       bg:        '#F0F9FF',
       dot:       '#0284C7',
       subLabel:  'Inspection booked',
       nextLabel: 'Run Inspection',
+    },
+    {
+      key:       'insurance_approved',
+      label:     'Insurance Approved',
+      requires:  'insurance_claim_filed',   // roofing_job_data.insurance_claim must be true
+      icon:      '🛡️',
+      color:     '#0891B2',
+      bg:        '#ECFEFF',
+      dot:       '#0891B2',
+      subLabel:  'Carrier approved — write estimate',
+      nextLabel: 'Create Proposal',
     },
     {
       key:       'proposal_sent',
@@ -76,23 +87,12 @@ export const roofingConfig: RoofingConfig = {
     {
       key:       'proposal_signed',
       label:     'Proposal Signed',
-      requires:  'estimate_sent',           // estimate must be in sent/viewed/approved state
+      requires:  'estimate_sent',
       icon:      '✍️',
       color:     '#059669',
       bg:        '#ECFDF5',
       dot:       '#059669',
-      subLabel:  'Ready for insurance',
-      nextLabel: 'Submit to Insurance',
-    },
-    {
-      key:       'insurance_approved',
-      label:     'Insurance Approved',
-      requires:  'insurance_claim_filed',   // roofing_job_data.insurance_claim must be true
-      icon:      '🛡️',
-      color:     '#0891B2',
-      bg:        '#F0F9FF',
-      dot:       '#0891B2',
-      subLabel:  'Carrier approved',
+      subLabel:  'Contract signed — schedule install',
       nextLabel: 'Schedule Install',
     },
     {

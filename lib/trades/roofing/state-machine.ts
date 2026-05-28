@@ -6,20 +6,20 @@
 import type { RoofingStage, RoofingAutoAction } from './types'
 
 export const ROOFING_STAGES: readonly RoofingStage[] = [
-  'lead_in', 'inspection_scheduled', 'proposal_sent', 'proposal_signed',
-  'insurance_approved', 'scheduled', 'in_progress', 'job_won', 'lost', 'unqualified',
+  'lead_in', 'inspection_scheduled', 'insurance_approved', 'proposal_sent',
+  'proposal_signed', 'scheduled', 'in_progress', 'job_won', 'lost', 'unqualified',
 ] as const
 
 export const ROOFING_ACTIVE_STAGES: readonly RoofingStage[] = [
-  'lead_in', 'inspection_scheduled', 'proposal_sent', 'proposal_signed',
-  'insurance_approved', 'scheduled', 'in_progress', 'job_won',
+  'lead_in', 'inspection_scheduled', 'insurance_approved', 'proposal_sent',
+  'proposal_signed', 'scheduled', 'in_progress', 'job_won',
 ]
 
 export const ROOFING_TERMINAL_STAGES: readonly RoofingStage[] = ['lost', 'unqualified']
 
 export const ROOFING_STAGE_ORDER: Record<RoofingStage, number> = {
-  lead_in: 0, inspection_scheduled: 1, proposal_sent: 2, proposal_signed: 3,
-  insurance_approved: 4, scheduled: 5, in_progress: 6, job_won: 7,
+  lead_in: 0, inspection_scheduled: 1, insurance_approved: 2, proposal_sent: 3,
+  proposal_signed: 4, scheduled: 5, in_progress: 6, job_won: 7,
   lost: 8, unqualified: 9,
 }
 
@@ -34,7 +34,8 @@ export const ROOFING_VALID_TRANSITIONS: Record<RoofingStage, RoofingStage[]> = {
     'unqualified',
   ],
   inspection_scheduled: [
-    'proposal_sent',
+    'insurance_approved',   // insurance/storm job — adjuster next
+    'proposal_sent',        // cash job — skip insurance, go straight to proposal
     'lead_in',              // no show — reschedule
     'lost',
     'unqualified',
@@ -48,15 +49,15 @@ export const ROOFING_VALID_TRANSITIONS: Record<RoofingStage, RoofingStage[]> = {
     'unqualified',
   ],
   proposal_signed: [
-    'insurance_approved',   // insurance job — submit to insurer
-    'scheduled',            // cash job — skip insurance
-    'proposal_sent',        // homeowner wants changes
+    'scheduled',            // contract signed — schedule the install
+    'proposal_sent',        // homeowner wants changes — revise
+    'insurance_approved',   // scope dispute — back to insurance
     'lost',
   ],
   insurance_approved: [
-    'scheduled',
-    'proposal_sent',        // insurer disputes scope — re-negotiate
-    'proposal_signed',      // adjuster reduced scope — re-sign
+    'proposal_sent',        // write estimate matching approved scope
+    'scheduled',            // cash/pre-approved — skip estimate
+    'inspection_scheduled', // adjuster wants re-inspection
     'lost',
   ],
   scheduled: [
