@@ -1060,11 +1060,30 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           </button>
                                         </div>
                                         {/* Measurement pills */}
-                                        <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap' as const}}>
+                                        <div style={{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap' as const}}>
                                           {sq&&<span style={{padding:'8px 16px',borderRadius:20,fontSize:16,fontWeight:800,background:'#fff',color:BRAND.teal,border:'1.5px solid #0F766E',boxShadow:'0 1px 6px rgba(15,118,110,0.15)'}}>{sq} sq</span>}
                                           {pitch&&<span style={{padding:'8px 16px',borderRadius:20,fontSize:16,fontWeight:800,background:'#fff',color:BRAND.teal,border:'1.5px solid #0F766E',boxShadow:'0 1px 6px rgba(15,118,110,0.15)'}}>{pitch}</span>}
                                           {waste&&<span style={{padding:'8px 14px',borderRadius:20,fontSize:13,fontWeight:700,background:'rgba(15,118,110,0.07)',color:BRAND.teal,border:'1px solid rgba(15,118,110,0.2)'}}>{waste}% waste</span>}
                                         </div>
+                                        {/* Linear footage — shown when DSM has run */}
+                                        {(()=>{
+                                          const lf = rjd?.linear_footage as any
+                                          if (!lf?.ridge_ft) return null
+                                          return (
+                                            <div style={{display:'flex',flexWrap:'wrap' as const,gap:'3px 10px',marginBottom:10,padding:'8px 12px',borderRadius:8,background:'rgba(15,118,110,0.05)',border:'1px solid rgba(15,118,110,0.12)'}}>
+                                              {[
+                                                {l:'Ridge', v:lf.ridge_ft, c:'#7C3AED'},
+                                                {l:'Hip',   v:lf.hip_ft,   c:'#0891B2'},
+                                                {l:'Valley',v:lf.valley_ft,c:'#EA580C'},
+                                                {l:'Rake',  v:lf.rake_ft,  c:'#D97706'},
+                                                {l:'Eave',  v:lf.eave_ft,  c:'#059669'},
+                                              ].map(m=>(
+                                                <span key={m.l} style={{fontSize:10,fontWeight:700,color:m.c}}>{m.l} {Math.round(m.v)}ft</span>
+                                              ))}
+                                              <span style={{fontSize:10,fontWeight:600,color:'#94A3B8'}}>· {Math.round(lf.total_linear_ft||0)}ft total</span>
+                                            </div>
+                                          )
+                                        })()}
                                         {/* Primary CTA: open calculator */}
                                         <button
                                           onClick={()=> router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)}

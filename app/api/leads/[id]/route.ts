@@ -63,13 +63,34 @@ export async function GET(
   if (error) return apiError('Lead not found', 404)
 
   // Join roofing_job_data — always attempt; returns null if no row exists.
-  // Previously gated on trade_slug which may be null on older leads, causing blank measurement pills.
   const { data: rd } = await getSupabaseAdmin()
     .from('roofing_job_data')
     .select('*')
     .eq('lead_id', id)
     .maybeSingle()
-  const roofingJobData = rd ?? null
+
+  // If roofing_job_data has no square_count, pull latest roof_report for this pro
+  // and backfill so the measurement pills render without re-running the report.
+  let roofingJobData = rd ?? null
+  if (!roofingJobData?.square_count) {
+    const { data: latestReport } = await getSupabaseAdmin()
+      .from('roof_reports')
+      .select('total_squares_order, dominant_pitch, waste_factor, linear_footage')
+      .eq('pro_id', data.pro_id)
+      .not('total_squares_order', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (latestReport?.total_squares_order) {
+      roofingJobData = {
+        ...(roofingJobData ?? {}),
+        square_count: latestReport.total_squares_order,
+        pitch:        latestReport.dominant_pitch ?? roofingJobData?.pitch ?? null,
+        waste_pct:    latestReport.waste_factor   ?? roofingJobData?.waste_pct ?? null,
+        linear_footage: latestReport.linear_footage ?? null,
+      }
+    }
+  }
 
   return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData } })
 }
