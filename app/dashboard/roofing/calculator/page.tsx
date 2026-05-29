@@ -87,7 +87,7 @@ function calculateMaterials(
     {
       key: 'shingles',
       description: `Architectural shingles`,
-      note: `${pitchKey} pitch · ${wastePct}% waste · ${shinglesQty} bundles`,
+      note: `${shinglesQty} bundles (${adjSqRounded} adj sq × 3 per sq · ${wastePct}% waste)`,
       quantity: shinglesQty, unit: 'bundles',
       unitPrice: prices.shingles, total: shinglesQty * prices.shingles,
       isPlaceholder: false,
@@ -134,7 +134,7 @@ function calculateMaterials(
     },
     {
       key: 'iceWater',
-      description: 'Ice & water shield',
+      description: 'Ice & water shield (eave protection)',
       note: iceSquares ? `3 ft eave strip (FL code) · ${iceSquares} sq` : 'Enter Eave LF above',
       quantity: iceSquares ?? 0, unit: 'squares',
       unitPrice: prices.iceWater, total: (iceSquares ?? 0) * prices.iceWater,
@@ -145,7 +145,7 @@ function calculateMaterials(
   if (pipeBoots > 0) {
     items.push({
       key: 'pipeBoot',
-      description: 'Pipe boots / vent flashing',
+      description: 'Pipe boots & vent covers',
       note: `${pipeBoots} units`, quantity: pipeBoots, unit: 'each',
       unitPrice: prices.pipeBoot, total: pipeBoots * prices.pipeBoot,
       isPlaceholder: false,
@@ -485,18 +485,18 @@ function CalculatorInner() {
         </div>
 
         {/* ── Section 1: Measurements ── */}
-        <Section n="1" label="Roof Measurements" sub="Flat area from satellite or manual measurement">
+        <Section n="1" label="Roof Measurements" sub="How big is the roof — satellite or manual entry">
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
             <FInput label="Squares (flat area)" hint="from report or manual"
               type="number" min="0" step="0.1" value={squares} placeholder="e.g. 22.5"
               onChange={e => setSquares(e.target.value)} />
-            <FSelect label="Pitch" hint="affects adjusted sq"
+            <FSelect label="Pitch" hint="steeper roof = more material"
               value={pitch} onChange={e => setPitch(e.target.value)}>
               {PITCH_OPTIONS.map(p => (
                 <option key={p} value={p}>{p} (×{PITCH_FACTORS[p].toFixed(3)})</option>
               ))}
             </FSelect>
-            <FInput label="Waste %" hint="10% typical, 15% complex"
+            <FInput label="Waste %" hint="10% simple roof, 15% hips/valleys"
               type="number" min="0" max="30" step="1" value={waste}
               onChange={e => setWaste(e.target.value)} />
           </div>
@@ -506,9 +506,8 @@ function CalculatorInner() {
             <div style={{ display:'flex', gap:10, marginTop:14, flexWrap:'wrap' as const }}>
               {[
                 { label:'Flat sq', value: squares },
-                { label:'Pitch factor', value: `×${pitchFactor.toFixed(3)}` },
                 { label:'Waste', value: `+${waste}%` },
-                { label:'Adjusted sq', value: String(adjSq), highlight: true },
+                { label:'Sq to order ▶', value: String(adjSq), highlight: true },
               ].map(s => (
                 <div key={s.label} style={{
                   padding:'8px 14px', borderRadius:9,
@@ -525,7 +524,7 @@ function CalculatorInner() {
 
         {/* ── Section 2: Linear footage ── */}
         {parseFloat(squares) > 0 && (
-          <Section n="2" label="Linear Footage" sub="Auto-filled from Quick Bid report — or enter manually"
+          <Section n="2" label="Edge & Ridge Lengths" sub="Auto-filled from satellite report — needed for trim, starter strip and drip edge"
             right={
               needsLF ? (
                 <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.3)' }}>
@@ -551,7 +550,7 @@ function CalculatorInner() {
                 onChange={e => setPerimLF(e.target.value)} />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-              <FInput label="Pipe boots / vents" hint="count of penetrations"
+              <FInput label="Pipe boots / vents" hint="pipes, vents, skylights"
                 type="number" min="0" step="1" value={pipeBoots} placeholder="e.g. 3"
                 onChange={e => setPipeBoots(e.target.value)} />
               <FSelect label="Tear-off layers" hint="affects disposal cost"
@@ -566,7 +565,7 @@ function CalculatorInner() {
 
         {/* ── Section 3: Materials ── */}
         {lineItems.length > 0 && (
-          <Section n="3" label="Material Quantities" sub="Quantities auto-calculated — edit unit prices if needed"
+          <Section n="3" label="Material Quantities" sub="Quantities calculated from your measurements — tap Edit prices to adjust"
             right={
               <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                 {editPrices && session && (
@@ -607,8 +606,8 @@ function CalculatorInner() {
                   background:'linear-gradient(90deg,rgba(15,118,110,0.05) 0%,rgba(20,184,166,0.03) 100%)',
                   borderBottom:`1.5px solid rgba(15,118,110,0.12)`,
                 }}>
-                  {(['Material','Note','Qty','Unit', editPrices ? 'Unit Price' : null,'Total'] as (string|null)[]).filter(Boolean).map(h => (
-                    <th key={h} style={{ padding:'9px 10px', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase' as const, letterSpacing:'0.08em', textAlign: h==='Material'||h==='Note' ? 'left' as const : 'right' as const }}>
+                  {(['Material','Breakdown','Qty','Unit', editPrices ? 'Unit Price' : null,'Total'] as (string|null)[]).filter(Boolean).map(h => (
+                    <th key={h} style={{ padding:'9px 10px', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase' as const, letterSpacing:'0.08em', textAlign: h==='Material'||h==='Breakdown' ? 'left' as const : 'right' as const }}>
                       {h}
                     </th>
                   ))}
@@ -683,7 +682,7 @@ function CalculatorInner() {
 
         {/* ── Section 4: Labour ── */}
         {lineItems.length > 0 && (
-          <Section n="4" label="Labour & Installation" sub="Not included in materials — add your labour rate">
+          <Section n="4" label="Labour & Installation" sub="Your install cost — not included in materials above">
             <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:14, alignItems:'end' }}>
               <FInput label="Labour Amount ($)" hint="total install cost"
                 type="number" min="0" step="100" value={labour} placeholder="e.g. 4500"
@@ -701,7 +700,7 @@ function CalculatorInner() {
                 )}
                 <div style={{ height:1, background: labourAmount > 0 ? 'rgba(15,118,110,0.2)' : BORDER, margin:'8px 0' }}/>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:12, fontWeight:800, color:NAVY }}>Total estimate</span>
+                  <span style={{ fontSize:12, fontWeight:800, color:NAVY }}>Total Job Estimate</span>
                   <span style={{ fontSize:20, fontWeight:900, color:TEAL, letterSpacing:'-0.03em' }}>${grandTotal.toLocaleString()}</span>
                 </div>
               </div>
