@@ -1093,27 +1093,35 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                                   const stepIcon = (done:boolean, running:boolean, n:number) => {
                                     if (done) return (
-                                      <div style={{width:22,height:22,borderRadius:'50%',background:'#059669',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                      <div style={{width:24,height:24,borderRadius:'50%',background:'#059669',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                                       </div>
                                     )
                                     if (running) return (
-                                      <div style={{width:22,height:22,borderRadius:'50%',border:'2px solid #0F766E',borderTopColor:'transparent',animation:'pg-spin 0.8s linear infinite',flexShrink:0}}/>
+                                      <div style={{width:24,height:24,borderRadius:'50%',border:'2.5px solid #0F766E',borderTopColor:'transparent',animation:'pg-spin 0.8s linear infinite',flexShrink:0}}/>
                                     )
                                     return (
-                                      <div style={{width:22,height:22,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:11,fontWeight:700,color:'#94A3B8'}}>{n}</div>
+                                      <div style={{width:24,height:24,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:12,fontWeight:700,color:'#94A3B8'}}>{n}</div>
                                     )
                                   }
 
                                   return (
-                                    <div style={{padding:16}}>
+                                    <div>
+                                      {/* Processing banner */}
+                                      {qbGenerating && (
+                                        <div style={{padding:'10px 16px',background:'#F0FDF4',borderBottom:'1px solid #BBF7D0',display:'flex',alignItems:'center',gap:8}}>
+                                          <div style={{width:14,height:14,borderRadius:'50%',border:'2.5px solid #059669',borderTopColor:'transparent',animation:'pg-spin 0.7s linear infinite',flexShrink:0}}/>
+                                          <span style={{fontSize:13,fontWeight:600,color:'#065F46'}}>Measuring {((lead as any).property_address||'').replace(/, USA$/,'').trim()||'roof'} from satellite… this takes ~30 seconds</span>
+                                        </div>
+                                      )}
+                                      <div style={{padding:16,opacity:qbGenerating?0.5:1,pointerEvents:qbGenerating?'none' as const:'auto'}}>
                                       {/* Header */}
                                       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
                                         <span style={{fontSize:12,fontWeight:800,color:'#0F172A',textTransform:'uppercase' as const,letterSpacing:'0.08em'}}>Roof Measurements</span>
-                                        {step1Done && (
+                                        {step1Done && !qbGenerating && (
                                           <button onClick={()=>{setShowRemeasure(s=>!s);setQbError('')}}
-                                            style={{fontSize:11,color:showRemeasure?'#0F766E':'#94A3B8',background:showRemeasure?'rgba(15,118,110,0.07)':'none',border:`1px solid ${showRemeasure?'#0F766E':'#E2E8F0'}`,borderRadius:6,cursor:'pointer',fontWeight:600,padding:'3px 8px',transition:'all 0.15s'}}>
-                                            {showRemeasure?'Cancel ✕':'New Measurement ↻'}
+                                            style={{fontSize:12,color:'#0F766E',background:'rgba(15,118,110,0.07)',border:'1.5px solid rgba(15,118,110,0.25)',borderRadius:6,cursor:'pointer',fontWeight:700,padding:'4px 10px',transition:'all 0.15s'}}>
+                                            {showRemeasure?'Cancel ↩':'Re-measure ↻'}
                                           </button>
                                         )}
                                       </div>
@@ -1123,8 +1131,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:step1Done?10:0}}>
                                           {stepIcon(step1Done, qbGenerating&&!step1Done, 1)}
                                           <div style={{flex:1}}>
-                                            <div style={{fontSize:13,fontWeight:700,color:'#0F172A'}}>Roof Size</div>
-                                            <div style={{fontSize:11,color:'#64748B',marginTop:1}}>
+                                            <div style={{fontSize:14,fontWeight:700,color:'#0F172A'}}>Roof Size</div>
+                                            <div style={{fontSize:12,color:'#64748B',marginTop:2}}>
                                               {step1Done ? `${sq} sq · ${pitch} pitch · ${waste}% waste`
                                                 : qbGenerating ? 'Measuring roof from satellite… (~30s)'
                                                 : 'Satellite measures your roof in ~30 seconds'}
@@ -1197,8 +1205,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:step2Done?10:0}}>
                                           {stepIcon(step2Done, step2Running, 2)}
                                           <div style={{flex:1}}>
-                                            <div style={{fontSize:13,fontWeight:700,color:'#0F172A'}}>Material Lines</div>
-                                            <div style={{fontSize:11,color:'#64748B',marginTop:1}}>
+                                            <div style={{fontSize:14,fontWeight:700,color:'#0F172A'}}>Material Lines</div>
+                                            <div style={{fontSize:12,color:'#64748B',marginTop:2}}>
                                               {step2Done ? `Ridge ${Math.round(lf.ridge_ft)}ft · Hip ${Math.round(lf.hip_ft||0)}ft · Valley ${Math.round(lf.valley_ft||0)}ft · Rake ${Math.round(lf.rake_ft||0)}ft · Eave ${Math.round(lf.eave_ft||0)}ft`
                                                 : step2Running ? 'Getting ridge, hip, valley, rake & eave lengths… (~30s)'
                                                 : step1Done ? 'Ridge, hip, valley, rake & eave — needed to order materials'
@@ -1262,7 +1270,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             ].map(m=>(
                                               <div key={m.label} style={{padding:'8px 6px',borderRadius:8,background:m.bg,border:`1.5px solid ${m.border}`,textAlign:'center' as const}}>
                                                 <div style={{fontSize:15,fontWeight:800,color:m.color,letterSpacing:'-0.02em',lineHeight:1}}>{Math.round(m.val||0)}<span style={{fontSize:10,fontWeight:600}}> ft</span></div>
-                                                <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginTop:3}}>{m.label}</div>
+                                                <div style={{fontSize:11,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginTop:4}}>{m.label}</div>
                                               </div>
                                             ))}
                                           </div>
@@ -1285,11 +1293,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             ? <div style={{width:22,height:22,borderRadius:'50%',background:'rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
                                               </div>
-                                            : <div style={{width:22,height:22,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:11,fontWeight:700,color:'#94A3B8'}}>3</div>
+                                            : <div style={{width:24,height:24,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:12,fontWeight:700,color:'#94A3B8'}}>3</div>
                                           }
                                           <div>
-                                            <div style={{fontSize:13,fontWeight:700,color:step2Done?'#fff':'#0F172A'}}>Price This Job</div>
-                                            <div style={{fontSize:11,color:step2Done?'rgba(255,255,255,0.8)':'#64748B',marginTop:1}}>
+                                            <div style={{fontSize:14,fontWeight:700,color:step2Done?'#fff':'#0F172A'}}>Price This Job</div>
+                                            <div style={{fontSize:12,color:step2Done?'rgba(255,255,255,0.8)':'#64748B',marginTop:2}}>
                                               {step2Done?'Squares + all material lines loaded — ready to price':'Complete Steps 1 & 2 first'}
                                             </div>
                                           </div>
@@ -1303,8 +1311,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       {(showRemeasure) && (
                                         <div style={{marginTop:10,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                                           <button
+                                            disabled={qbGenerating}
                                             onClick={()=>{const street=((lead as any).property_address||'').replace(/, USA$/,'').trim();const city=lead.contact_city||'';const st=lead.contact_state||'';const zip=(lead as any).contact_zip||'';const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')||((lead as any).property_address||'');router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}`:`/dashboard/roofing/promeasure?lead_id=${lead.id}`)}}
-                                            style={{padding:'9px',borderRadius:8,border:`1.5px solid #0F766E`,background:'transparent',color:'#0F766E',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:5,justifyContent:'center'}}>
+                                            style={{padding:'9px',borderRadius:8,border:`1.5px solid #0F766E`,background:'transparent',color:'#0F766E',fontSize:12,fontWeight:700,cursor:qbGenerating?'not-allowed':'pointer',opacity:qbGenerating?0.4:1,display:'flex',alignItems:'center',gap:5,justifyContent:'center'}}>
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
                                             ProMeasure
                                           </button>
@@ -1339,6 +1348,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                     .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
                                                 }
                                                 setQbDone(true);setShowRemeasure(false)
+                                                const newSq=Number(meas?.totalSquaresOrder)
+                                                if(newSq>0)addToast(`Roof re-measured — ${newSq} sq updated`,'success')
                                               }catch(err:unknown){
                                                 const isAbort=err instanceof Error&&err.name==='AbortError'
                                                 setQbError(isAbort?'Timed out — try again':'Network error')
@@ -1347,7 +1358,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             style={{padding:'9px',borderRadius:8,border:`1.5px solid #0F766E`,background:qbGenerating?'#0F766E':'transparent',color:qbGenerating?'#fff':'#0F766E',fontSize:12,fontWeight:700,cursor:qbGenerating?'wait':'pointer',display:'flex',alignItems:'center',gap:5,justifyContent:'center',opacity:qbGenerating?0.8:1}}>
                                             {qbGenerating
                                               ?<><div style={{width:10,height:10,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',animation:'pg-spin 0.7s linear infinite'}}/>Measuring…</>
-                                              :<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>New Report</>
+                                              :<><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Re-measure from Satellite (~30s)</>
                                             }
                                           </button>
                                         </div>
@@ -1358,6 +1369,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           {qbError} — check address or try again
                                         </div>
                                       )}
+                                      </div>{/* end inner padding div */}
                                     </div>
                                   )
                                 })()}

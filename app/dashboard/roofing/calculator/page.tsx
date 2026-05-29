@@ -195,8 +195,8 @@ function FInput({ label, hint, ...p }: React.InputHTMLAttributes<HTMLInputElemen
   const [f, setF] = useState(false)
   return (
     <div>
-      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase' as const, letterSpacing:'0.07em', marginBottom:6 }}>
-        {label}{hint && <span style={{ color:'#94A3B8', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:5 }}>{hint}</span>}
+      <label style={{ display:'block', fontSize:12, fontWeight:700, color:'#475569', textTransform:'uppercase' as const, letterSpacing:'0.06em', marginBottom:7 }}>
+        {label}{hint && <span style={{ color:'#94A3B8', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:6, fontSize:11 }}>{hint}</span>}
       </label>
       <input {...p}
         onFocus={e => { setF(true); (p as any).onFocus?.(e) }}
@@ -205,7 +205,7 @@ function FInput({ label, hint, ...p }: React.InputHTMLAttributes<HTMLInputElemen
           width:'100%', boxSizing:'border-box' as const,
           padding:'9px 12px',
           border:`1.5px solid ${f ? TEAL : BORDER}`,
-          borderRadius:9, fontSize:13, outline:'none',
+          borderRadius:9, fontSize:14, outline:'none',
           background: f ? '#fff' : CREAM, color: NAVY,
           boxShadow: f ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
           transition:'all 0.15s',
@@ -219,8 +219,8 @@ function FSelect({ label, hint, children, ...p }: React.SelectHTMLAttributes<HTM
   const [f, setF] = useState(false)
   return (
     <div>
-      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase' as const, letterSpacing:'0.07em', marginBottom:6 }}>
-        {label}{hint && <span style={{ color:'#94A3B8', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:5 }}>{hint}</span>}
+      <label style={{ display:'block', fontSize:12, fontWeight:700, color:'#475569', textTransform:'uppercase' as const, letterSpacing:'0.06em', marginBottom:7 }}>
+        {label}{hint && <span style={{ color:'#94A3B8', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:6, fontSize:11 }}>{hint}</span>}
       </label>
       <select {...p}
         onFocus={e => { setF(true); (p as any).onFocus?.(e) }}
@@ -229,7 +229,7 @@ function FSelect({ label, hint, children, ...p }: React.SelectHTMLAttributes<HTM
           width:'100%', boxSizing:'border-box' as const,
           padding:'9px 12px',
           border:`1.5px solid ${f ? TEAL : BORDER}`,
-          borderRadius:9, fontSize:13, outline:'none',
+          borderRadius:9, fontSize:14, outline:'none',
           background: f ? '#fff' : CREAM, color: NAVY,
           boxShadow: f ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
           transition:'all 0.15s', cursor:'pointer',
@@ -247,10 +247,10 @@ function Section({ n, label, sub, children, right }: { n: string; label: string;
     <div style={{ background:'#fff', borderRadius:14, border:`1px solid ${BORDER}`, overflow:'hidden', boxShadow:'0 2px 10px rgba(10,22,40,0.05)', marginBottom:14 }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px 0', marginBottom:16 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:28, height:28, borderRadius:8, background:`linear-gradient(135deg,${TEAL},${TEAL_L})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:'#fff', flexShrink:0 }}>{n}</div>
+          <div style={{ width:30, height:30, borderRadius:9, background:`linear-gradient(135deg,${TEAL},${TEAL_L})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, color:'#fff', flexShrink:0 }}>{n}</div>
           <div>
-            <div style={{ fontSize:14, fontWeight:800, color:NAVY, letterSpacing:'-0.01em' }}>{label}</div>
-            <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>{sub}</div>
+            <div style={{ fontSize:15, fontWeight:800, color:NAVY, letterSpacing:'-0.02em' }}>{label}</div>
+            <div style={{ fontSize:12, color:'#94A3B8', marginTop:2 }}>{sub}</div>
           </div>
         </div>
         {right}
@@ -463,7 +463,7 @@ function CalculatorInner() {
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk}
       onToggleDark={() => { const n=!dk; localStorage.setItem('pg_darkmode',n?'1':'0'); setDk(n) }}>
 
-      <div style={{ maxWidth:740, margin:'0 auto', padding:'0 4px 48px', fontFamily:"'DM Sans',system-ui,-apple-system,sans-serif" }}>
+      <div style={{ maxWidth:820, margin:'0 auto', padding:'0 4px 48px', fontFamily:"'DM Sans',system-ui,-apple-system,sans-serif" }}>
 
         {/* ── Page header ── */}
         <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:24, paddingTop:4 }}>
@@ -530,7 +530,7 @@ function CalculatorInner() {
               needsLF ? (
                 <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.3)' }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <span style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>Enter LF manually or re-open from lead after report completes</span>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>Open lead → Re-measure to auto-fill, or enter below</span>
                 </div>
               ) : (
                 <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#F0FDF4', border:'1px solid rgba(5,150,105,0.2)' }}>
@@ -594,7 +594,7 @@ function CalculatorInner() {
                   </button>
                 )}
                 <button onClick={() => setEditPrices(e => !e)}
-                  style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:8, background: editPrices ? `rgba(15,118,110,0.1)` : CREAM, border:`1.5px solid ${editPrices ? TEAL+'40' : BORDER}`, color: editPrices ? TEAL : '#64748B', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                  style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'7px 14px', borderRadius:8, background: editPrices ? `rgba(15,118,110,0.1)` : '#fff', border:`1.5px solid ${editPrices ? TEAL : TEAL}`, color: TEAL, fontSize:12, fontWeight:700, cursor:'pointer', boxShadow: editPrices ? 'none' : '0 1px 4px rgba(15,118,110,0.15)' }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   {editPrices ? 'Cancel' : 'Edit prices'}
                 </button>
@@ -633,13 +633,13 @@ function CalculatorInner() {
                         </span>
                       )}
                     </td>
-                    <td style={{ padding:'10px', fontSize:11, color:'#94A3B8', maxWidth:200 }}>
+                    <td style={{ padding:'10px', fontSize:12, color:'#64748B', maxWidth:200 }}>
                       {item.note}
                     </td>
                     <td style={{ padding:'10px', textAlign:'right' as const, fontSize:13, fontWeight:item.isPlaceholder?400:700, color:item.isPlaceholder?'#94A3B8':NAVY }}>
                       {item.isPlaceholder ? '—' : item.quantity}
                     </td>
-                    <td style={{ padding:'10px', textAlign:'right' as const, fontSize:11, color:'#94A3B8' }}>
+                    <td style={{ padding:'10px', textAlign:'right' as const, fontSize:12, color:'#64748B' }}>
                       {item.unit}
                     </td>
                     {editPrices && (
@@ -662,7 +662,7 @@ function CalculatorInner() {
 
                 {/* Materials subtotal */}
                 <tr style={{ borderTop:`2px solid rgba(15,118,110,0.12)`, background:'rgba(15,118,110,0.03)' }}>
-                  <td colSpan={editPrices ? 5 : 4} style={{ padding:'12px 10px', fontSize:13, fontWeight:700, color:NAVY }}>
+                  <td colSpan={editPrices ? 5 : 4} style={{ padding:'12px 10px', fontSize:14, fontWeight:800, color:NAVY }}>
                     Materials subtotal
                   </td>
                   <td style={{ padding:'12px 10px', textAlign:'right' as const, fontSize:15, fontWeight:800, color:TEAL, letterSpacing:'-0.02em' }}>
@@ -685,7 +685,7 @@ function CalculatorInner() {
         {lineItems.length > 0 && (
           <Section n="4" label="Labour & Installation" sub="Not included in materials — add your labour rate">
             <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:14, alignItems:'end' }}>
-              <FInput label="Labour amount ($)" hint="total install cost"
+              <FInput label="Labour Amount ($)" hint="total install cost"
                 type="number" min="0" step="100" value={labour} placeholder="e.g. 4500"
                 onChange={e => setLabour(e.target.value)} />
               <div style={{ padding:'12px 16px', borderRadius:10, background: labourAmount > 0 ? 'rgba(15,118,110,0.05)' : CREAM, border:`1px solid ${labourAmount > 0 ? 'rgba(15,118,110,0.2)' : BORDER}` }}>
