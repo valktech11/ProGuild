@@ -370,14 +370,15 @@ function CalculatorInner() {
           if (!rjd) return
           // Labour
           if (rjd.labour_amount && rjd.labour_amount > 0) setLabour(String(rjd.labour_amount))
-          // LF — only fill if still empty (sessionStorage may have already filled them)
+          // LF — from roof_reports via roofing_job_data (GET always populates from latest report)
           // linear_footage shape: { ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft }
           const lf = rjd.linear_footage as any
           if (lf) {
             const perim = Math.round((lf.eave_ft||0) + (lf.rake_ft||0))
-            if (!parseFloat(ridgeLF) && lf.ridge_ft > 0) setRidgeLF(String(Math.round(lf.ridge_ft)))
-            if (!parseFloat(eaveLF)  && lf.eave_ft  > 0) setEaveLF(String(Math.round(lf.eave_ft)))
-            if (!parseFloat(perimLF) && perim        > 0) setPerimLF(String(perim))
+            // Use functional setters to avoid stale closure on ridgeLF/eaveLF/perimLF
+            if (lf.ridge_ft > 0) setRidgeLF(prev => prev ? prev : String(Math.round(lf.ridge_ft)))
+            if (lf.eave_ft  > 0) setEaveLF(prev  => prev ? prev : String(Math.round(lf.eave_ft)))
+            if (perim       > 0) setPerimLF(prev  => prev ? prev : String(perim))
           }
         })
         .catch(() => {})

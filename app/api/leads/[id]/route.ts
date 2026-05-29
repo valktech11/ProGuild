@@ -43,7 +43,6 @@ const ROOFING_JOB_FIELDS = [
   'shingle_brand', 'shingle_model', 'warranty_term',
   'decking_replacement', 'layers', 'permit_number', 'permit_status',
   'labour_amount',
-  'linear_footage',
 ] as const
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -71,10 +70,11 @@ export async function GET(
     .eq('lead_id', id)
     .maybeSingle()
 
-  // If roofing_job_data has no square_count, pull latest roof_report for THIS property only
-  // Must match property_id — never backfill from a different property's report
+  // Always read latest roof_report for this property to get measurements + LF
+  // roof_reports is the single source of truth for linear_footage
+  // roofing_job_data holds job-level data (insurance, labour etc) — not report data
   let roofingJobData = rd ?? null
-  if (!roofingJobData?.square_count && data.property_id) {
+  if (data.property_id) {
     const { data: latestReport } = await getSupabaseAdmin()
       .from('roof_reports')
       .select('total_squares_order, dominant_pitch, waste_factor, linear_footage')
@@ -84,13 +84,15 @@ export async function GET(
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    if (latestReport?.total_squares_order) {
+    if (latestReport) {
       roofingJobData = {
         ...(roofingJobData ?? {}),
-        square_count: latestReport.total_squares_order,
-        pitch:        latestReport.dominant_pitch ?? roofingJobData?.pitch ?? null,
-        waste_pct:    latestReport.waste_factor   ?? roofingJobData?.waste_pct ?? null,
-        linear_footage: latestReport.linear_footage ?? null,
+        // Measurements: always use report values — they are the authoritative source
+        square_count:   latestReport.total_squares_order ?? roofingJobData?.square_count ?? null,
+        pitch:          latestReport.dominant_pitch      ?? roofingJobData?.pitch         ?? null,
+        waste_pct:      latestReport.waste_factor        ?? roofingJobData?.waste_pct     ?? null,
+        // LF: from roof_reports only — never stored in roofing_job_data
+        linear_footage: latestReport.linear_footage      ?? null,
       }
     }
   }
