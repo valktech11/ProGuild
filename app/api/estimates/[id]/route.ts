@@ -78,6 +78,12 @@ export async function GET(
       const isInsuranceStage = leadRow?.lead_status === 'insurance_approved'
       roofingJobData = isInsuranceStage ? { insurance_claim: true } : null
     } else {
+      console.log('[estimates GET] roofingJobData for lead', estClean.lead_id, ':', JSON.stringify({
+        insurance_claim: rd?.insurance_claim,
+        approved_amount: rd?.approved_amount,
+        supplement_amount: rd?.supplement_amount,
+        deductible: rd?.deductible,
+      }))
       roofingJobData = rd
     }
   }

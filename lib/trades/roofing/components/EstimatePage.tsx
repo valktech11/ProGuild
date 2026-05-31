@@ -264,7 +264,29 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const [saving,  setSaving]  = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
-  const savedEstType                       = useRef<string>(estimate.estimate_type ?? 'tiered')
+  const savedEstType = useRef<string>(estimate.estimate_type ?? 'tiered')
+  // Snapshot of saved state — used to detect real changes vs undo
+  const initialSnapshot = useRef({
+    stdItems:  JSON.stringify(estimate.items ?? []),
+    scope:     estimate.scope_of_work ?? '',
+    terms:     estimate.terms ?? '',
+    estType:   estimate.estimate_type ?? 'tiered',
+  })
+  const checkDirty = (overrides: { stdItems?: TierLineItem[]; scope?: string; terms?: string; estType?: string }) => {
+    const snap = initialSnapshot.current
+    const cur = {
+      stdItems: JSON.stringify(overrides.stdItems ?? stdItems),
+      scope:    overrides.scope    ?? scope,
+      terms:    overrides.terms    ?? terms,
+      estType:  overrides.estType  ?? estType,
+    }
+    setIsDirty(
+      cur.stdItems !== snap.stdItems ||
+      cur.scope    !== snap.scope    ||
+      cur.terms    !== snap.terms    ||
+      cur.estType  !== snap.estType
+    )
+  }
   const [pendingTypeSwitch, setPendingTypeSwitch] = useState<'standard' | 'tiered' | null>(null)
 
   // Payment milestones — derived from selected tier total
@@ -275,14 +297,17 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const taxAmt  = Math.round(activeTierSubtotal * (estimate.tax_rate / 100))
   const total   = activeTierSubtotal + taxAmt
 
-  const [milestones, setMilestones] = useState<PaymentMilestone[]>(
-    estimate.payment_milestones ?? DEFAULT_MILESTONES(total)
-  )
-
-  // Recalc milestone amounts when total changes
-  const recalcMilestones = useCallback((newTotal: number) => {
-    setMilestones(ms => ms.map(m => ({ ...m, amount: Math.round(newTotal * m.pct / 100) })))
-  }, [])
+  // Milestones — always locked 3-step 30/40/30, auto-calculated from total
+  const LOCKED_MILESTONES = [
+    { id: 'dep', name: 'Deposit',             pct: 30, due_when: 'Due at signing' },
+    { id: 'mat', name: 'At Material Delivery', pct: 40, due_when: 'Due at delivery' },
+    { id: 'com', name: 'On Completion',        pct: 30, due_when: 'Due on completion' },
+  ]
+  const milestones = LOCKED_MILESTONES.map(m => ({
+    ...m, amount: Math.round(total * m.pct / 100)
+  }))
+  // Keep recalcMilestones as no-op for backward compat with saveMeasurements calls
+  const recalcMilestones = useCallback((_newTotal: number) => {}, [])
 
   // Recalc all tier quantities + amounts when measurements change
   const recalcTiersFromSq = useCallback((sq: number, selTier?: TierKey, perimLF?: number, pitch?: string, waste?: number): number => {
@@ -423,10 +448,13 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const handleSave = async () => {
     setSaving(true)
     try {
+      const cleanItems = estType === 'standard'
+        ? stdItems.filter(i => i.name.trim() !== '' && i.unit_price > 0)
+        : undefined
       await onSave({
         estimate_type:      estType,
         tiered_data:        estType === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
-        items:              estType === 'standard' ? stdItems : undefined,
+        items:              cleanItems,
         scope_of_work:      scope,
         terms,
         payment_milestones: milestones,
@@ -434,6 +462,14 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
         tax_amount:         taxAmt,
         total,
       })
+      // Update snapshot so isDirty resets correctly
+      initialSnapshot.current = {
+        stdItems: JSON.stringify(cleanItems ?? stdItems),
+        scope,
+        terms,
+        estType,
+      }
+      if (cleanItems) setStdItems(cleanItems)
       setIsDirty(false)
       setSaveMsg('Saved ✓')
     } catch { setSaveMsg('Save failed') }
@@ -749,23 +785,30 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           ) : (
             <StandardSection
               items={stdItems} onUpdateItem={isLocked ? undefined : ((id, field, val) => {
-                setIsDirty(true)
-                setStdItems(prev => prev.map(i => {
-                  if (i.id !== id) return i
-                  const up = { ...i, [field]: val }
-                  up.amount = Math.round(Number(up.qty) * Number(up.unit_price))
-                  return up
-                }))
+                setStdItems(prev => {
+                  const next = prev.map(i => {
+                    if (i.id !== id) return i
+                    const up = { ...i, [field]: val }
+                    up.amount = Math.round(Number(up.qty) * Number(up.unit_price))
+                    return up
+                  })
+                  checkDirty({ stdItems: next })
+                  return next
+                })
               })}
-              onAdd={isLocked ? undefined : ((id) => { setIsDirty(true); setStdItems(prev => [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]) })}
-              onDelete={isLocked ? undefined : ((id) => { setIsDirty(true); setStdItems(prev => prev.filter(i => i.id !== id)) })}
+              onAdd={isLocked ? undefined : ((id) => {
+                setStdItems(prev => { const next = [...prev, { id, name: '', qty: 1, unit: 'sq', unit_price: 0, amount: 0 }]; checkDirty({ stdItems: next }); return next })
+              })}
+              onDelete={isLocked ? undefined : ((id) => {
+                setStdItems(prev => { const next = prev.filter(i => i.id !== id); checkDirty({ stdItems: next }); return next })
+              })}
               card={card} border={border} textP={textP} textS={textS}
               isLocked={isLocked}
             />
           )}
 
           {/* Scope of work */}
-          <ScopeCard scope={scope} onChange={isLocked ? undefined : (v => { setScope(v); setIsDirty(true) })} card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} />
+          <ScopeCard scope={scope} onChange={isLocked ? undefined : (v => { setScope(v); checkDirty({ scope: v }) })} card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} />
 
           {/* Insurance claim — only when relevant */}
           {(estimate.insurance_claim || !!(estimate.approved_amount || estimate.claim_number)) && (
@@ -773,7 +816,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           )}
 
           {/* Terms */}
-          <TermsCard terms={terms} onChange={isLocked ? undefined : (v => { setTerms(v); setIsDirty(true) })} show={showTerms} onToggle={() => setShowTerms(p => !p)}
+          <TermsCard terms={terms} onChange={isLocked ? undefined : (v => { setTerms(v); checkDirty({ terms: v }) })} show={showTerms} onToggle={() => setShowTerms(p => !p)}
             card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} />
 
         </div>
@@ -784,11 +827,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           selectedTier={selectedTier} selTierData={selTierData}
           total={total} taxAmt={taxAmt} taxRate={estimate.tax_rate}
           pct21={pct21} validUntil={estimate.valid_until}
-          milestones={milestones} onUpdateMilestone={(id, field, val) => {
-            setIsDirty(true)
-            setMilestones(prev => prev.map(m => m.id === id ? { ...m, [field]: val } : m))
-          }}
-          onAddMilestone={() => setMilestones(prev => [...prev, { id: newId(), name: 'Milestone', pct: 0, amount: 0, due_when: 'TBD' }])}
+          milestones={milestones} onUpdateMilestone={() => {}}
+          onAddMilestone={() => {}}
           estimate={estimate}
           onSave={onSave}
           card={card} border={border} textP={textP} textS={textS}
@@ -1969,9 +2009,7 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
                 {i + 1}
               </div>
               <div>
-                <input value={m.name} onChange={e => onUpdateMilestone(m.id, 'name', e.target.value)}
-                  style={{ border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600,
-                    color: textP, outline: 'none', width: '100%' }} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: textP }}>{m.name}</div>
                 <div style={{ fontSize: 11, color: textS }}>{m.pct}% · {m.due_when}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -1980,13 +2018,8 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12,
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 12,
           borderTop: `1px solid ${border}`, marginTop: 8 }}>
-          <button onClick={onAddMilestone}
-            style={{ background: 'none', border: 'none', color: C.teal, fontSize: 13,
-              fontWeight: 700, cursor: 'pointer' }}>
-            + Add milestone
-          </button>
           <div style={{ fontSize: 14, fontWeight: 800, color: textP }}>
             Total {fmt(total)}
           </div>
