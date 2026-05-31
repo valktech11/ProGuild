@@ -232,7 +232,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     })
     setSending(false)
     if (r.ok) {
-      setInvoice(prev => prev ? { ...prev, status: 'sent', sent_at: new Date().toISOString() } : prev)
+      // Refresh full invoice state so button label updates correctly
+      fetch(`/api/invoices/${id}`)
+        .then(r => r.json())
+        .then(d => { if (d.invoice) setInvoice(d.invoice) })
       showToast('Invoice sent to homeowner ✓')
     } else {
       showToast('Failed to send — check email address', false)
