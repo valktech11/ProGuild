@@ -553,6 +553,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           type:  'stage',
         })
       }
+      if (ev.event_type === 'invoice_sent' && ev.event_data) {
+        items.push({
+          date:  ev.created_at,
+          title: `Invoice sent`,
+          sub:   ev.event_data.email ? `→ ${ev.event_data.email}` : '',
+          type:  'invoice_sent',
+        })
+      }
     }
     return items.sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime())
   }
@@ -1593,7 +1601,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             <div style={{position:'absolute',left:15,top:16,bottom:16,width:1,background:bdr,zIndex:0}}/>
                             {acts.map((item,i)=>{
                               const warn=(item as any).warn===true
-                              const ic=warn?'#EF4444':item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':['estimate','estimate_sent','estimate_viewed','estimate_approved'].includes(item.type)?'#0F766E':BRAND.teal
+                              const ic=warn?'#EF4444':item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':item.type==='invoice_sent'?'#0F766E':['estimate','estimate_sent','estimate_viewed','estimate_approved'].includes(item.type)?'#0F766E':BRAND.teal
                               const ib=warn?'#FEF2F2':item.type==='stage'?'#F5F3FF':item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
                               return (
                                 <div key={i} style={{display:'flex',alignItems:'flex-start',gap:14,paddingBottom:i<acts.length-1?18:0,position:'relative',zIndex:1}}>
@@ -1606,7 +1614,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       {item.type==='created'          &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
                                       {item.type==='scheduled'        &&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
                                       {item.type==='estimate'         &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>}
-                                      {item.type==='estimate_sent'    &&<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>}
+                                      {item.type==='invoice_sent'    &&<><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="7" y1="15" x2="12" y2="15"/></>}{item.type==='estimate_sent'    &&<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>}
                                       {item.type==='estimate_viewed'  &&<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
                                       {item.type==='estimate_approved'&&<><polyline points="20 6 9 17 4 12"/></>}
                                     </Svg>

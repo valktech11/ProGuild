@@ -262,13 +262,32 @@ export async function POST(
       .maybeSingle()
 
     if (newInv?.id && newInv?.contact_email) {
-      // Fire and forget — don't block the sign response
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://proguild.ai'
+      // Use absolute URL with correct base — NEXT_PUBLIC_SITE_URL must match current environment
+      // Fallback to staging URL to prevent cross-environment sends
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXTAUTH_URL ?? 'https://staging.proguild.ai'
       fetch(`${baseUrl}/api/invoices/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoice_id: newInv.id, pro_id: est.pro_id }),
-      }).catch(() => null)
+      })
+      .then(async r => {
+        const d = await r.json().catch(() => ({}))
+        if (r.ok) {
+          // Write activity feed entry so roofer sees invoice was sent
+          await getSupabaseAdmin().from('pipeline_events').insert({
+            lead_id:    est.lead_id,
+            pro_id:     est.pro_id,
+            event_type: 'invoice_sent',
+            event_data: { invoice_id: newInv.id, email: newInv.contact_email },
+            actor_type: 'system',
+            created_at: new Date().toISOString(),
+          }).catch(() => null)
+          console.log('[sign] Invoice auto-sent to', newInv.contact_email)
+        } else {
+          console.error('[sign] Invoice auto-send failed:', d)
+        }
+      })
+      .catch(err => console.error('[sign] Invoice auto-send error:', err))
     }
   } catch { /* non-fatal */ }
 
