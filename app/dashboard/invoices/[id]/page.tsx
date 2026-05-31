@@ -288,7 +288,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   const isPaid    = invoice.status === 'paid'
   const isDraft   = invoice.status === 'draft'
-  const canSend   = ['draft', 'sent', 'viewed'].includes(invoice.status)
+  const canSend   = ['draft', 'sent', 'viewed', 'partial_payment'].includes(invoice.status)
   const ss        = STATUS_CONFIG[invoice.status] ?? STATUS_CONFIG.draft
   const isOverdue = invoice.due_date && new Date(invoice.due_date) < new Date() && !isPaid
   const pctPaid   = invoice.total > 0 ? Math.min(100, Math.round((invoice.amount_paid / invoice.total) * 100)) : 0
@@ -340,7 +340,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   style={{ padding: '9px 20px', borderRadius: 10, border: 'none',
                     background: C.teal, color: '#fff', fontSize: 14, fontWeight: 700,
                     cursor: sending ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  📤 {invoice.status === 'draft' ? 'Send Invoice' : 'Resend Invoice'}
+                  📤 {invoice.status === 'draft' ? 'Send Invoice' : invoice.status === 'partial_payment' ? 'Resend Payment Link' : 'Resend Invoice'}
                 </button>
               )}
               {!isPaid && (
