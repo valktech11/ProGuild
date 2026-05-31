@@ -769,7 +769,10 @@ function CalculatorInner() {
               {/* 3 lines */}
               <div style={{ padding:'14px 16px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-                  <span style={{ fontSize:13, color:'#64748B', fontWeight:600 }}>Full job cost</span>
+                  <div>
+                    <div style={{ fontSize:13, color:'#64748B', fontWeight:600 }}>Full job cost</div>
+                    <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>excl. tax — see estimate for final total</div>
+                  </div>
                   <span style={{ fontSize:14, fontWeight:700, color:'#0F172A' }}>${grandTotal.toLocaleString()}</span>
                 </div>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
