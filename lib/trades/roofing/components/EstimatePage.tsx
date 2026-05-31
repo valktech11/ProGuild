@@ -298,14 +298,22 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const total   = activeTierSubtotal + taxAmt
 
   // Milestones — always locked 3-step 30/40/30, auto-calculated from total
+  // Last milestone = total - sum of others to avoid rounding drift
   const LOCKED_MILESTONES = [
-    { id: 'dep', name: 'Deposit',             pct: 30, due_when: 'Due at signing' },
+    { id: 'dep', name: 'Deposit',              pct: 30, due_when: 'Due at signing' },
     { id: 'mat', name: 'At Material Delivery', pct: 40, due_when: 'Due at delivery' },
     { id: 'com', name: 'On Completion',        pct: 30, due_when: 'Due on completion' },
   ]
-  const milestones = LOCKED_MILESTONES.map(m => ({
-    ...m, amount: Math.round(total * m.pct / 100)
-  }))
+  const milestones = (() => {
+    const dep = Math.round(total * 30 / 100)
+    const mat = Math.round(total * 40 / 100)
+    const com = total - dep - mat  // last milestone absorbs rounding
+    return [
+      { ...LOCKED_MILESTONES[0], amount: dep },
+      { ...LOCKED_MILESTONES[1], amount: mat },
+      { ...LOCKED_MILESTONES[2], amount: com },
+    ]
+  })()
   // Keep recalcMilestones as no-op for backward compat with saveMeasurements calls
   const recalcMilestones = useCallback((_newTotal: number) => {}, [])
 

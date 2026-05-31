@@ -545,7 +545,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
             </p>
             <MilestonePaySection
               invoiceId={invoice.id}
-              milestones={(invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0)}
+              milestones={(invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0).map((m, i, arr) => i === arr.length - 1 ? { ...m, amount: balanceDue } : m)}
               paidMilestones={paidMilestones}
               balanceDue={balanceDue}
               total={invoice.total}
