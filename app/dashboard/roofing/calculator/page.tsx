@@ -409,6 +409,21 @@ function CalculatorInner() {
     setAdjSq(adjustedSquares)
   }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices, pipeBoots, tearoff])
 
+  // Auto-save labour to roofing_job_data (debounced 1.5s after user stops typing)
+  useEffect(() => {
+    if (!leadId || !session || labour === '') return
+    const parsed = parseFloat(labour)
+    if (isNaN(parsed)) return
+    const timer = setTimeout(() => {
+      fetch(`/api/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pro_id: session.id, labour_amount: parsed }),
+      }).catch(() => {})
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [labour, leadId, session])
+
   const materialTotal = lineItems.reduce((s, i) => s + i.total, 0)
   const labourAmount  = parseFloat(labour) || 0
   const grandTotal    = materialTotal + labourAmount
