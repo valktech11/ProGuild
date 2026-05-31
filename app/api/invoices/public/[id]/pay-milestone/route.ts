@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
+import { notifyRoofer } from '@/lib/notifyRoofer'
 
 export async function POST(
   req: NextRequest,
@@ -85,6 +86,25 @@ export async function POST(
       },
       actor_type: 'homeowner',
       created_at: new Date().toISOString(),
+    })
+  }
+
+  // Notify roofer of offline payment
+  const { data: invForNotif } = await sb
+    .from('invoices').select('pro_id, lead_id, lead_name, invoice_number').eq('id', id).maybeSingle()
+  if (invForNotif) {
+    const amtFmt = `$${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0 })}`
+    const balFmt = `$${Math.max(balanceDue,0).toLocaleString('en-US', { minimumFractionDigits: 0 })}`
+    const isPaidFull = balanceDue <= 0
+    await notifyRoofer({
+      proId:    invForNotif.pro_id,
+      subject:  isPaidFull ? `💰 Invoice paid in full — ${invForNotif.lead_name}` : `💳 Payment confirmed — ${invForNotif.lead_name}`,
+      headline: isPaidFull ? 'Invoice Paid in Full' : 'Payment Confirmed',
+      body:     isPaidFull
+        ? `${invForNotif.lead_name} confirmed payment of ${amtFmt} (${milestone_name}). Invoice ${invForNotif.invoice_number} is now paid in full.`
+        : `${invForNotif.lead_name} confirmed ${amtFmt} (${milestone_name}) via ${method}. Balance remaining: ${balFmt}.`,
+      leadId:   invForNotif.lead_id,
+      sb,
     })
   }
 

@@ -314,6 +314,12 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
         if (!d) return
         setInvoice(d.invoice)
         setLoading(false)
+        // Track view — deduped per browser session
+        const key = `inv_viewed_${id}`
+        if (!sessionStorage.getItem(key)) {
+          fetch(`/api/invoices/public/${id}/view`, { method: 'POST' }).catch(() => {})
+          sessionStorage.setItem(key, '1')
+        }
       })
       .catch(() => { setNotFound(true); setLoading(false) })
   }, [id])
