@@ -266,9 +266,9 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                   </tr>
                 </thead>
                 <tbody>
-                  {estimate.payment_milestones!.map((m, i) => (
+                  {estimate.payment_milestones!.filter(m => m.pct > 0 && m.amount > 0).map((m, i) => (
                     <tr key={m.id} style={{
-                      borderBottom: i < estimate.payment_milestones!.length - 1
+                      borderBottom: i < estimate.payment_milestones!.filter(m => m.pct > 0 && m.amount > 0).length - 1
                         ? `1px solid ${C.border}` : 'none' }}>
                       <td style={{ padding: '12px 0', fontSize: 14, color: C.text }}>{m.name}</td>
                       <td style={{ padding: '12px 0', fontSize: 14, fontWeight: 700, color: C.text }}>
@@ -289,8 +289,8 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
               <span style={{ fontSize: 20 }}>🛡️</span>
               <div style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6 }}>
                 <strong>Insurance job:</strong> Your deductible of{' '}
-                <strong>{fmt(estimate.deductible)}</strong> is your only out-of-pocket cost.
-                The remainder is covered by your insurance claim.
+                <strong>{fmt(estimate.deductible)}</strong> is paid directly to your contractor.
+                Your insurance covers the rest of the approved amount.
               </div>
             </div>
           )}
