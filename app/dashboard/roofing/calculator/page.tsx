@@ -288,6 +288,9 @@ function CalculatorInner() {
   const [lineItems,  setLineItems]  = useState<LineItem[]>([])
   const [adjSq,      setAdjSq]      = useState(0)
   const [saving,     setSaving]     = useState(false)
+  const [insurance,  setInsurance]  = useState<{
+    isInsurance: boolean; approvedAmount: number; supplement: number; deductible: number
+  } | null>(null)
   const [error,      setError]      = useState<string | null>(null)
   const [success,    setSuccess]    = useState<string | null>(null)
   const [editPrices, setEditPrices] = useState(false)
@@ -370,6 +373,15 @@ function CalculatorInner() {
           if (!rjd) return
           // Labour
           if (rjd.labour_amount && rjd.labour_amount > 0) setLabour(String(rjd.labour_amount))
+          // Insurance data for reconciliation panel
+          if (rjd.insurance_claim) {
+            setInsurance({
+              isInsurance:    true,
+              approvedAmount: Number(rjd.approved_amount)   || 0,
+              supplement:     Number(rjd.supplement_amount) || 0,
+              deductible:     Number(rjd.deductible)        || 0,
+            })
+          }
           // LF — from roof_reports via roofing_job_data (GET always populates from latest report)
           // linear_footage shape: { ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft }
           const lf = rjd.linear_footage as any
@@ -707,6 +719,108 @@ function CalculatorInner() {
             </div>
           </Section>
         )}
+
+        {/* ── Insurance Reconciliation Panel ── */}
+        {insurance?.isInsurance && lineItems.length > 0 && (() => {
+          const insuranceCovers  = insurance.approvedAmount + insurance.supplement - insurance.deductible
+          const gap              = grandTotal - (insurance.approvedAmount + insurance.supplement)
+          const fullySupplemented = gap <= 0
+          const homeownerPays    = Math.max(insurance.deductible + gap, insurance.deductible)
+
+          return (
+            <div style={{
+              marginBottom: 14,
+              borderRadius: 12,
+              border: `1.5px solid ${fullySupplemented ? '#BBF7D0' : '#FED7AA'}`,
+              background: fullySupplemented ? '#F0FDF4' : '#FFFBEB',
+              overflow: 'hidden',
+            }}>
+              {/* Header */}
+              <div style={{ padding:'12px 16px', borderBottom:`1px solid ${fullySupplemented ? '#BBF7D0' : '#FED7AA'}`, display:'flex', alignItems:'center', gap:8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={fullySupplemented ? '#059669' : '#D97706'} strokeWidth="2.5" strokeLinecap="round">
+                  {fullySupplemented
+                    ? <><polyline points="20 6 9 17 4 12"/></>
+                    : <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
+                  }
+                </svg>
+                <span style={{ fontSize:13, fontWeight:800, color: fullySupplemented ? '#065F46' : '#92400E' }}>
+                  {fullySupplemented ? 'Insurance covers the full job' : `Supplement needed — $${Math.abs(gap).toLocaleString()} gap`}
+                </span>
+              </div>
+
+              {/* Breakdown */}
+              <div style={{ padding:'12px 16px' }}>
+                {/* Full cost */}
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Full replacement cost</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>${grandTotal.toLocaleString()}</span>
+                </div>
+
+                <div style={{ height:1, background:'rgba(0,0,0,0.06)', margin:'8px 0' }}/>
+
+                {/* Insurance approved */}
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Insurance approved</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>${insurance.approvedAmount.toLocaleString()}</span>
+                </div>
+                {insurance.supplement > 0 && (
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                    <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Supplement approved</span>
+                    <span style={{ fontSize:13, fontWeight:700, color:'#059669' }}>+${insurance.supplement.toLocaleString()}</span>
+                  </div>
+                )}
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Deductible (homeowner)</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#DC2626' }}>-${insurance.deductible.toLocaleString()}</span>
+                </div>
+
+                <div style={{ height:1, background:'rgba(0,0,0,0.06)', margin:'8px 0' }}/>
+
+                {/* Net insurance payment */}
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Net insurance payment</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>${Math.max(insuranceCovers,0).toLocaleString()}</span>
+                </div>
+
+                {/* Gap */}
+                {!fullySupplemented && (
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                    <span style={{ fontSize:12, color:'#92400E', fontWeight:700 }}>Supplement still needed</span>
+                    <span style={{ fontSize:13, fontWeight:800, color:'#D97706' }}>${Math.abs(gap).toLocaleString()}</span>
+                  </div>
+                )}
+
+                <div style={{ height:1, background:'rgba(0,0,0,0.08)', margin:'10px 0' }}/>
+
+                {/* Homeowner owes */}
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:800, color:'#0F172A' }}>Homeowner pays</div>
+                    <div style={{ fontSize:11, color:'#64748B', marginTop:2 }}>
+                      {fullySupplemented
+                        ? 'Deductible only — insurance covers the rest'
+                        : 'Deductible + gap until supplement approved'}
+                    </div>
+                  </div>
+                  <span style={{ fontSize:20, fontWeight:900, color: fullySupplemented ? '#059669' : '#D97706', letterSpacing:'-0.03em' }}>
+                    ${homeownerPays.toLocaleString()}
+                  </span>
+                </div>
+
+                {/* Supplement call to action */}
+                {!fullySupplemented && (
+                  <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8, background:'rgba(217,119,6,0.08)', border:'1px solid rgba(217,119,6,0.2)' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#92400E', marginBottom:2 }}>Before sending this estimate:</div>
+                    <div style={{ fontSize:12, color:'#92400E', lineHeight:1.5 }}>
+                      File a supplement with the adjuster for the ${ Math.abs(gap).toLocaleString()} gap.
+                      Send the full ${grandTotal.toLocaleString()} estimate to insurance — this is your supplement documentation.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Error / success */}
         {error && (
