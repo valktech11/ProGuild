@@ -62,15 +62,13 @@ export async function GET(
   // Fetch roofing_job_data — always fetch when lead_id present
   // Also fetch leads.lead_status as insurance fallback (stage=insurance_approved implies insurance job)
   let roofingJobData: any = null
-  console.log('[estimates GET] lead_id on estimate:', estClean.lead_id)
   if (estClean.lead_id) {
     const { data: rd, error: rdErr } = await sb
       .from('roofing_job_data')
-      .select('square_count, pitch, waste_pct, perimeter, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
+      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
       .eq('lead_id', estClean.lead_id)
       .maybeSingle()
-    console.log('[estimates GET] rd:', rd ? 'GOT_ROW' : 'NO_ROW', 'rdErr:', rdErr?.message ?? 'none')
-    // Fallback: if no roofing_job_data row, check lead_status — insurance_approved stage means it IS an insurance job
+      // Fallback: if no roofing_job_data row, check lead_status — insurance_approved stage means it IS an insurance job
     if (!rd) {
       const { data: leadRow } = await sb
         .from('leads')
@@ -80,12 +78,6 @@ export async function GET(
       const isInsuranceStage = leadRow?.lead_status === 'insurance_approved'
       roofingJobData = isInsuranceStage ? { insurance_claim: true } : null
     } else {
-      console.log('[estimates GET] roofingJobData for lead', estClean.lead_id, ':', JSON.stringify({
-        insurance_claim: rd?.insurance_claim,
-        approved_amount: rd?.approved_amount,
-        supplement_amount: rd?.supplement_amount,
-        deductible: rd?.deductible,
-      }))
       roofingJobData = rd
     }
   }
@@ -114,7 +106,6 @@ export async function GET(
       square_count:  roofing.square_count ?? roofingJobData?.square_count ?? null,
       pitch:         roofing.pitch        ?? roofingJobData?.pitch        ?? null,
       waste_pct:     roofing.waste_pct    ?? roofingJobData?.waste_pct    ?? null,
-      perimeter:     roofingJobData?.perimeter ?? null,
       // Contact info — prefer lead (live source of truth), fall back to estimate copy
       contact_email: lead.contact_email ?? estClean.contact_email ?? null,
       contact_phone: lead.contact_phone ?? estClean.contact_phone ?? null,
