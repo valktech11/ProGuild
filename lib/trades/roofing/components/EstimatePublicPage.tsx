@@ -39,6 +39,8 @@ export interface PublicRoofingEstimate {
   payment_milestones?: PaymentMilestone[]
   deposit_percent?: number
   insurance_claim?: boolean; deductible?: number
+  approved_amount?: number; supplement_amount?: number
+  insurance_company?: string; claim_number?: string
   pro_id?: string
   pro_name?: string; pro_city?: string; pro_state?: string
   pro_phone?: string; pro_email?: string; pro_license?: string
@@ -283,6 +285,41 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
           )}
 
 
+
+          {/* Insurance breakdown — shown on public proposal when insurance job */}
+          {estimate.insurance_claim && estimate.approved_amount && (() => {
+            const insurancePays = (estimate.approved_amount ?? 0) + (estimate.supplement_amount ?? 0) - (estimate.deductible ?? 0)
+            const outOfPocket   = estimate.total - Math.max(insurancePays, 0)
+            return (
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14,
+                padding: 20, marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: 14 }}>🛡️</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.teal, textTransform: 'uppercase' as const,
+                    letterSpacing: '0.07em' }}>Insurance Claim</span>
+                  {estimate.insurance_company && (
+                    <span style={{ fontSize: 12, color: C.secondary }}>
+                      · {estimate.insurance_company}{estimate.claim_number ? ` · #${estimate.claim_number}` : ''}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, color: C.secondary }}>Full job cost</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{fmt(estimate.total)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: C.secondary }}>Insurance pays</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>{fmt(Math.max(insurancePays, 0))}</span>
+                </div>
+                <div style={{ height: 1, background: C.border, marginBottom: 10 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>You pay</span>
+                  <span style={{ fontSize: 20, fontWeight: 900, color: outOfPocket <= 0 ? C.teal : '#D97706',
+                    letterSpacing: '-0.02em' }}>{fmt(Math.max(outOfPocket, 0))}</span>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Terms */}
           {estimate.terms && (
@@ -719,6 +756,22 @@ function SignatureSection({ lead_name, selectedTierLabel, onConfirm, approving }
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [hasSig,  setHasSig]  = useState(false)
   const [drawing, setDrawing] = useState(false)
+  const [sigMode, setSigMode] = useState<'pick' | 'draw'>('pick')
+  const [pickedSig, setPickedSig] = useState<string | null>(null)
+
+  // Generate 3 signature style options from lead_name
+  const sigStyles = React.useMemo(() => {
+    const name = lead_name ?? ''
+    const parts = name.trim().split(' ')
+    const first = parts[0] ?? ''
+    const last  = parts[parts.length - 1] ?? ''
+    const initial = first ? first[0] + '.' : ''
+    return [
+      { label: name,                    font: 'Dancing Script, cursive' },
+      { label: `${first} ${last[0]}.`,  font: 'Pacifico, cursive' },
+      { label: `${initial} ${last}`,    font: 'Great Vibes, cursive' },
+    ].filter(s => s.label.trim().length > 1)
+  }, [lead_name])
   const lastPos = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -763,6 +816,21 @@ function SignatureSection({ lead_name, selectedTierLabel, onConfirm, approving }
     setHasSig(false)
   }
   const confirm = async () => {
+    if (pickedSig) {
+      // Convert typed signature to canvas image
+      const c = canvasRef.current
+      if (!c) return
+      const ctx = c.getContext('2d')
+      if (!ctx) return
+      ctx.clearRect(0, 0, c.width, c.height)
+      ctx.font = `48px ${sigStyles[0]?.font ?? 'cursive'}`
+      ctx.fillStyle = '#0F172A'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(pickedSig, c.width / 2, c.height / 2)
+      await onConfirm(c.toDataURL('image/png'))
+      return
+    }
     const c = canvasRef.current; if (!c || !hasSig) return
     await onConfirm(c.toDataURL('image/png'))
   }
@@ -782,8 +850,45 @@ function SignatureSection({ lead_name, selectedTierLabel, onConfirm, approving }
         </p>
       )}
 
-      {/* Canvas */}
-      <div style={{ border: '2px dashed #99F6E4', borderRadius: 14, overflow: 'hidden',
+      {/* Google Fonts for signature styles */}
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Pacifico&family=Great+Vibes&display=swap" />
+
+      {/* Signature style picker */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.secondary, marginBottom: 10,
+          textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
+          Choose a signature style
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+          {sigStyles.map((s, i) => (
+            <div key={i} onClick={() => { setPickedSig(s.label); setSigMode('pick'); setHasSig(true) }}
+              style={{ padding: '14px 18px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                border: `2px solid ${pickedSig === s.label ? C.teal : C.border}`,
+                background: pickedSig === s.label ? C.tealLight : '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontFamily: s.font, fontSize: 28, color: '#0F172A', lineHeight: 1 }}>
+                {s.label}
+              </span>
+              {pickedSig === s.label && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="3" strokeLinecap="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              )}
+            </div>
+          ))}
+          <div onClick={() => { setPickedSig(null); setSigMode('draw'); setHasSig(false) }}
+            style={{ padding: '12px 18px', borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+              border: `2px solid ${sigMode === 'draw' ? C.teal : C.border}`,
+              background: sigMode === 'draw' ? C.tealLight : '#fff',
+              fontSize: 14, fontWeight: 600, color: sigMode === 'draw' ? C.teal : C.secondary,
+              display: 'flex', alignItems: 'center', gap: 8 }}>
+            ✏️ Draw my own signature
+          </div>
+        </div>
+      </div>
+
+      {/* Canvas — shown only in draw mode */}
+      {sigMode === 'draw' && <div style={{ border: '2px dashed #99F6E4', borderRadius: 14, overflow: 'hidden',
         background: '#FAFFFE', marginBottom: 12, cursor: 'crosshair', touchAction: 'none',
         position: 'relative' }}>
         <canvas ref={canvasRef} width={520} height={160}
@@ -799,7 +904,7 @@ function SignatureSection({ lead_name, selectedTierLabel, onConfirm, approving }
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       <div style={{ borderBottom: `1px solid ${C.border}`, marginBottom: 16 }} />
 

@@ -98,7 +98,11 @@ export async function GET(
       waste_pct:         roofingEstData?.waste_pct    ?? roofingData?.waste_pct    ?? null,
       // Insurance (public facing — only show if claim)
       insurance_claim:   roofingData?.insurance_claim ?? false,
-      deductible:        roofingData?.deductible ?? null,
+      deductible:        roofingData?.deductible        ?? null,
+      approved_amount:   roofingData?.approved_amount   ?? null,
+      supplement_amount: roofingData?.supplement_amount ?? null,
+      insurance_company: roofingData?.insurance_company ?? null,
+      claim_number:      roofingData?.claim_number      ?? null,
       // Payment milestones — roofing_estimate_data is source of truth; fall back to payment_schedules
       payment_milestones: roofingEstData?.payment_milestones
         ?? (milestones.length > 0 ? milestones.map((m: any) => ({
