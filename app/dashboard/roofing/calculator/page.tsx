@@ -746,100 +746,48 @@ function CalculatorInner() {
 
         {/* ── Insurance Reconciliation Panel ── */}
         {insurance?.isInsurance && lineItems.length > 0 && (() => {
-          const totalInsuranceCommitment = insurance.approvedAmount + insurance.supplement
-          const gap              = grandTotal - totalInsuranceCommitment   // what insurer still owes
-          const fullySupplemented = gap <= 0
-          const homeownerPays    = insurance.deductible                    // homeowner ONLY pays deductible
+          const insurancePays  = insurance.approvedAmount + insurance.supplement - insurance.deductible
+          const outOfPocket    = grandTotal - Math.max(insurancePays, 0)
+          const fullyCovered   = outOfPocket <= 0
 
           return (
             <div style={{
-              marginBottom: 14,
-              borderRadius: 12,
-              border: `1.5px solid ${fullySupplemented ? '#BBF7D0' : '#FED7AA'}`,
-              background: fullySupplemented ? '#F0FDF4' : '#FFFBEB',
-              overflow: 'hidden',
+              marginBottom: 14, borderRadius: 12, overflow: 'hidden',
+              border: `1.5px solid ${fullyCovered ? '#BBF7D0' : '#FED7AA'}`,
+              background: fullyCovered ? '#F0FDF4' : '#FFFBEB',
             }}>
               {/* Header */}
-              <div style={{ padding:'12px 16px', borderBottom:`1px solid ${fullySupplemented ? '#BBF7D0' : '#FED7AA'}`, display:'flex', alignItems:'center', gap:8 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={fullySupplemented ? '#059669' : '#D97706'} strokeWidth="2.5" strokeLinecap="round">
-                  {fullySupplemented
-                    ? <><polyline points="20 6 9 17 4 12"/></>
-                    : <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
-                  }
+              <div style={{ padding:'12px 16px', borderBottom:`1px solid ${fullyCovered ? '#BBF7D0' : '#FED7AA'}`, display:'flex', alignItems:'center', gap:8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={fullyCovered?'#059669':'#D97706'} strokeWidth="2.5" strokeLinecap="round">
+                  {fullyCovered ? <polyline points="20 6 9 17 4 12"/> : <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
                 </svg>
-                <span style={{ fontSize:13, fontWeight:800, color: fullySupplemented ? '#065F46' : '#92400E' }}>
-                  {fullySupplemented ? 'Insurance covers the full job' : `Supplement needed — $${Math.abs(gap).toLocaleString()} gap`}
+                <span style={{ fontSize:13, fontWeight:800, color: fullyCovered?'#065F46':'#92400E' }}>
+                  {fullyCovered ? 'Insurance fully covers this job' : 'Insurance breakdown'}
                 </span>
               </div>
 
-              {/* Breakdown */}
-              <div style={{ padding:'12px 16px' }}>
-                {/* Full cost */}
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Full replacement cost</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>${grandTotal.toLocaleString()}</span>
+              {/* 3 lines */}
+              <div style={{ padding:'14px 16px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                  <span style={{ fontSize:13, color:'#64748B', fontWeight:600 }}>Full job cost</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:'#0F172A' }}>${grandTotal.toLocaleString()}</span>
                 </div>
-
-                <div style={{ height:1, background:'rgba(0,0,0,0.06)', margin:'8px 0' }}/>
-
-                {/* Insurance approved */}
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Insurance approved</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>${insurance.approvedAmount.toLocaleString()}</span>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                  <span style={{ fontSize:13, color:'#64748B', fontWeight:600 }}>Insurance pays homeowner</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:'#059669' }}>${Math.max(insurancePays,0).toLocaleString()}</span>
                 </div>
-                {insurance.supplement > 0 && (
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                    <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Supplement approved</span>
-                    <span style={{ fontSize:13, fontWeight:700, color:'#059669' }}>+${insurance.supplement.toLocaleString()}</span>
-                  </div>
-                )}
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Deductible (homeowner)</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:'#DC2626' }}>-${insurance.deductible.toLocaleString()}</span>
-                </div>
-
-                <div style={{ height:1, background:'rgba(0,0,0,0.06)', margin:'8px 0' }}/>
-
-                {/* Insurance commitment */}
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Total insurance commitment</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>${totalInsuranceCommitment.toLocaleString()}</span>
-                </div>
-
-                {/* Gap */}
-                {!fullySupplemented && (
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                    <span style={{ fontSize:12, color:'#92400E', fontWeight:700 }}>Supplement still needed</span>
-                    <span style={{ fontSize:13, fontWeight:800, color:'#D97706' }}>${Math.abs(gap).toLocaleString()}</span>
-                  </div>
-                )}
-
-                <div style={{ height:1, background:'rgba(0,0,0,0.08)', margin:'10px 0' }}/>
-
-                {/* Homeowner owes */}
+                <div style={{ height:1, background:'rgba(0,0,0,0.08)', marginBottom:10 }}/>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:800, color:'#0F172A' }}>Homeowner pays</div>
-                    <div style={{ fontSize:11, color:'#64748B', marginTop:2 }}>
-                      {fullySupplemented
-                        ? 'Deductible only — insurance covers the rest'
-                        : 'Homeowner only pays the deductible — roofer recovers gap via supplement'}
-                    </div>
-                  </div>
-                  <span style={{ fontSize:20, fontWeight:900, color: fullySupplemented ? '#059669' : '#D97706', letterSpacing:'-0.03em' }}>
-                    ${homeownerPays.toLocaleString()}
+                  <span style={{ fontSize:14, fontWeight:800, color:'#0F172A' }}>Homeowner out of pocket</span>
+                  <span style={{ fontSize:20, fontWeight:900, letterSpacing:'-0.03em', color: fullyCovered?'#059669':'#D97706' }}>
+                    ${Math.max(outOfPocket,0).toLocaleString()}
                   </span>
                 </div>
-
-                {/* Supplement call to action */}
-                {!fullySupplemented && (
-                  <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8, background:'rgba(217,119,6,0.08)', border:'1px solid rgba(217,119,6,0.2)' }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:'#92400E', marginBottom:2 }}>Before sending this estimate:</div>
-                    <div style={{ fontSize:12, color:'#92400E', lineHeight:1.5 }}>
-                      File a supplement with the adjuster to recover the ${ Math.abs(gap).toLocaleString()} gap.
-                      The homeowner only owes the ${insurance.deductible.toLocaleString()} deductible.
-                      Send the full ${grandTotal.toLocaleString()} estimate to insurance as your supplement documentation.
-                    </div>
+                {!fullyCovered && (
+                  <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8,
+                    background:'rgba(217,119,6,0.08)', border:'1px solid rgba(217,119,6,0.2)',
+                    fontSize:12, color:'#92400E', lineHeight:1.6 }}>
+                    ⚠️ Help the homeowner file a supplement to reduce their out-of-pocket cost.
                   </div>
                 )}
               </div>
