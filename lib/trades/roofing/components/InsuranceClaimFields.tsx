@@ -350,7 +350,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   </div>
                 </div>
                 <div style={{ textAlign:'right' as const }}>
-                  <div style={{ fontSize:10, fontWeight:700, color: net > 0 ? '#059669' : '#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Net to Roofer</div>
+                  <div style={{ fontSize:10, fontWeight:700, color: net > 0 ? '#059669' : '#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Insurance pays homeowner</div>
                   <div style={{ fontSize:20, fontWeight:900, color: net > 0 ? '#059669' : (dk ? '#475569' : '#94A3B8'), letterSpacing:'-0.03em' }}>${net.toLocaleString()}</div>
                 </div>
               </div>
