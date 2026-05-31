@@ -142,6 +142,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [showWarranty, setShowWarranty] = useState(false)
   const [confirmBack,  setConfirmBack]  = useState<LeadStatus|null>(null)
   const [warnSched,    setWarnSched]    = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [schedDate,  setSchedDate]  = useState('')
+  const [schedTime,  setSchedTime]  = useState('')
   const [warnDone,     setWarnDone]     = useState(false)
   const [warnProposal, setWarnProposal] = useState(false)  // proposal_sent without an estimate
 
@@ -330,7 +333,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         // Map gate failure to appropriate modal or action
         if (s === 'proposal_sent' || s === 'proposal_signed') { setWarnProposal(true); return }
         if (s === 'job_won') { setWarnDone(true); return }
-        if (s === 'scheduled') { setWarnSched(true); return }
+        if (s === 'scheduled') {
+          // Show schedule modal to pick date + move stage in one action
+          setSchedDate(lead?.scheduled_date || '')
+          setSchedTime(lead?.scheduled_time || '')
+          setShowScheduleModal(true)
+          return
+        }
         // Generic gate failure — show toast with reason
         addToast(gate.reason ?? 'Cannot move to this stage yet', 'error')
         return
@@ -595,6 +604,54 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
               <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end'}}>
                 <button onClick={()=>setConfirmBack(null)} style={{padding:'8px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>Cancel</button>
                 <button onClick={doConfirmBack} style={{padding:'8px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:600}}>Move back</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Schedule Job Modal */}
+        {showScheduleModal && (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}}
+            onClick={()=>setShowScheduleModal(false)}>
+            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:400,width:'100%',border:`1px solid ${bdr}`}}
+              onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:17,fontWeight:800,color:tp,marginBottom:4}}>Schedule Job</div>
+              <div style={{fontSize:13,color:tb,marginBottom:20}}>Set the job date to add this to your calendar.</div>
+              <div style={{display:'flex',flexDirection:'column' as const,gap:14}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.08em',color:ts,marginBottom:6}}>Job Date</div>
+                  <input type="date" value={schedDate} onChange={e=>setSchedDate(e.target.value)}
+                    style={{width:'100%',padding:'10px 12px',border:`1.5px solid ${schedDate?BRAND.teal:bdr}`,borderRadius:T.radSm,
+                      fontSize:14,outline:'none',boxSizing:'border-box' as const,colorScheme:dk?'dark':'light'}} />
+                </div>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.08em',color:ts,marginBottom:6}}>Start Time <span style={{fontWeight:400,opacity:0.6}}>(optional)</span></div>
+                  <input type="time" value={schedTime} onChange={e=>setSchedTime(e.target.value)}
+                    style={{width:'100%',padding:'10px 12px',border:`1.5px solid ${bdr}`,borderRadius:T.radSm,
+                      fontSize:14,outline:'none',boxSizing:'border-box' as const,colorScheme:dk?'dark':'light'}} />
+                </div>
+              </div>
+              <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end',marginTop:20}}>
+                <button onClick={()=>setShowScheduleModal(false)}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>
+                  Cancel
+                </button>
+                <button
+                  disabled={!schedDate}
+                  onClick={async ()=>{
+                    setShowScheduleModal(false)
+                    // Save date+time then move stage
+                    if (schedDate) {
+                      await patch({ scheduled_date: schedDate, scheduled_time: schedTime||null })
+                      setLead(l => l ? { ...l, scheduled_date: schedDate, scheduled_time: schedTime||null } as any : l)
+                    }
+                    moveStage('scheduled' as LeadStatus, true)
+                  }}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',
+                    background:schedDate?BRAND.teal:'#E2E8F0',color:schedDate?'#fff':'#94A3B8',
+                    cursor:schedDate?'pointer':'not-allowed',fontSize:T.fontBody,fontWeight:700}}>
+                  Schedule Job
+                </button>
               </div>
             </div>
           </div>

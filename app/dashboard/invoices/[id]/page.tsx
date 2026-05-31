@@ -81,7 +81,7 @@ function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
   onClose: () => void
   t: ReturnType<typeof theme>
 }) {
-  const milestones = invoice.payment_milestones ?? []
+  const milestones = (invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0)
   const [selMilestone, setSelMilestone] = useState(milestones[0]?.name ?? 'Full Payment')
   const [amount,    setAmount]    = useState(String(milestones[0]?.amount ?? invoice.balance_due))
   const [method,    setMethod]    = useState('zelle')
@@ -316,7 +316,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const isOverdue = invoice.due_date && new Date(invoice.due_date) < new Date() && !isPaid
   const pctPaid   = invoice.total > 0 ? Math.min(100, Math.round((invoice.amount_paid / invoice.total) * 100)) : 0
   const pro       = (invoice as any).pro as Invoice['pro']
-  const milestones: Milestone[] = invoice.payment_milestones ?? []
+  const milestones: Milestone[] = (invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0)
   const history: Payment[]      = invoice.payment_history    ?? []
 
   return (

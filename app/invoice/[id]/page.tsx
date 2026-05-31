@@ -543,7 +543,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
             </p>
             <MilestonePaySection
               invoiceId={invoice.id}
-              milestones={invoice.payment_milestones}
+              milestones={(invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0)}
               paidMilestones={paidMilestones}
               balanceDue={balanceDue}
               total={invoice.total}
