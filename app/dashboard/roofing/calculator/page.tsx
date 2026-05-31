@@ -746,10 +746,10 @@ function CalculatorInner() {
 
         {/* ── Insurance Reconciliation Panel ── */}
         {insurance?.isInsurance && lineItems.length > 0 && (() => {
-          const insuranceCovers  = insurance.approvedAmount + insurance.supplement - insurance.deductible
-          const gap              = grandTotal - (insurance.approvedAmount + insurance.supplement)
+          const totalInsuranceCommitment = insurance.approvedAmount + insurance.supplement
+          const gap              = grandTotal - totalInsuranceCommitment   // what insurer still owes
           const fullySupplemented = gap <= 0
-          const homeownerPays    = Math.max(insurance.deductible + gap, insurance.deductible)
+          const homeownerPays    = insurance.deductible                    // homeowner ONLY pays deductible
 
           return (
             <div style={{
@@ -800,10 +800,10 @@ function CalculatorInner() {
 
                 <div style={{ height:1, background:'rgba(0,0,0,0.06)', margin:'8px 0' }}/>
 
-                {/* Net insurance payment */}
+                {/* Insurance commitment */}
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Net insurance payment</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>${Math.max(insuranceCovers,0).toLocaleString()}</span>
+                  <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Total insurance commitment</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>${totalInsuranceCommitment.toLocaleString()}</span>
                 </div>
 
                 {/* Gap */}
@@ -823,7 +823,7 @@ function CalculatorInner() {
                     <div style={{ fontSize:11, color:'#64748B', marginTop:2 }}>
                       {fullySupplemented
                         ? 'Deductible only — insurance covers the rest'
-                        : 'Deductible + gap until supplement approved'}
+                        : 'Homeowner only pays the deductible — roofer recovers gap via supplement'}
                     </div>
                   </div>
                   <span style={{ fontSize:20, fontWeight:900, color: fullySupplemented ? '#059669' : '#D97706', letterSpacing:'-0.03em' }}>
@@ -836,8 +836,9 @@ function CalculatorInner() {
                   <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8, background:'rgba(217,119,6,0.08)', border:'1px solid rgba(217,119,6,0.2)' }}>
                     <div style={{ fontSize:12, fontWeight:700, color:'#92400E', marginBottom:2 }}>Before sending this estimate:</div>
                     <div style={{ fontSize:12, color:'#92400E', lineHeight:1.5 }}>
-                      File a supplement with the adjuster for the ${ Math.abs(gap).toLocaleString()} gap.
-                      Send the full ${grandTotal.toLocaleString()} estimate to insurance — this is your supplement documentation.
+                      File a supplement with the adjuster to recover the ${ Math.abs(gap).toLocaleString()} gap.
+                      The homeowner only owes the ${insurance.deductible.toLocaleString()} deductible.
+                      Send the full ${grandTotal.toLocaleString()} estimate to insurance as your supplement documentation.
                     </div>
                   </div>
                 )}

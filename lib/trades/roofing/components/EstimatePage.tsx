@@ -1746,14 +1746,14 @@ function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = fal
 function InsuranceCard({ estimate, card, border, textP, textS }: {
   estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
 }) {
-  const approved        = estimate.approved_amount  ?? 0
-  const supplement      = estimate.supplement_amount ?? 0
-  const deductible      = estimate.deductible        ?? 0
-  const netInsurance    = approved + supplement - deductible
-  const fullCost        = estimate.total             ?? 0
-  const gap             = fullCost - (approved + supplement)
-  const fullySupplemented = gap <= 0
-  const homeownerPays   = Math.max(deductible + gap, deductible)
+  const approved               = estimate.approved_amount  ?? 0
+  const supplement             = estimate.supplement_amount ?? 0
+  const deductible             = estimate.deductible        ?? 0
+  const totalInsuranceCommit   = approved + supplement
+  const fullCost               = estimate.total             ?? 0
+  const gap                    = fullCost - totalInsuranceCommit   // gap insurer still owes
+  const fullySupplemented      = gap <= 0
+  const homeownerPays          = deductible                        // homeowner ONLY pays deductible
 
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
@@ -1802,8 +1802,8 @@ function InsuranceCard({ estimate, card, border, textP, textS }: {
           </div>
           <div style={{ height: 1, background: border, margin: '8px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, color: textS }}>Net insurance payment</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: textP }}>{fmtDec(Math.max(netInsurance, 0))}</span>
+            <span style={{ fontSize: 12, color: textS }}>Total insurance commitment</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: textP }}>{fmtDec(totalInsuranceCommit)}</span>
           </div>
         </div>
 
@@ -1826,7 +1826,7 @@ function InsuranceCard({ estimate, card, border, textP, textS }: {
           <div>
             <div style={{ fontSize: 13, fontWeight: 800, color: textP }}>Homeowner pays</div>
             <div style={{ fontSize: 11, color: textS, marginTop: 2 }}>
-              {fullySupplemented ? 'Deductible only — insurance covers the rest' : 'Deductible + gap until supplement approved'}
+              {fullySupplemented ? 'Deductible only — insurance covers the rest' : 'Homeowner only pays the deductible — roofer recovers gap via supplement'}
             </div>
           </div>
           <span style={{ fontSize: 22, fontWeight: 900, color: fullySupplemented ? C.green : '#D97706',
@@ -1847,8 +1847,9 @@ function InsuranceCard({ estimate, card, border, textP, textS }: {
           background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.2)' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Action needed:</div>
           <div style={{ fontSize: 12, color: '#92400E', lineHeight: 1.6 }}>
-            File a supplement with the adjuster for the {fmtDec(Math.abs(gap))} gap.
-            This full-cost estimate is your supplement documentation — send it to insurance before the homeowner signs.
+            File a supplement with the adjuster to recover the {fmtDec(Math.abs(gap))} gap.
+            The homeowner only owes the {fmtDec(deductible)} deductible.
+            Send this full-cost estimate to insurance as your supplement documentation — do this before the homeowner signs.
           </div>
         </div>
       )}
