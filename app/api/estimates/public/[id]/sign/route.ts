@@ -281,7 +281,7 @@ export async function POST(
             event_data: { invoice_id: newInv.id, email: newInv.contact_email },
             actor_type: 'system',
             created_at: new Date().toISOString(),
-          }).catch(() => null)
+          })
           console.log('[sign] Invoice auto-sent to', newInv.contact_email)
         } else {
           console.error('[sign] Invoice auto-send failed:', d)
