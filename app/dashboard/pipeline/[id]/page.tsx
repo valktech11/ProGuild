@@ -326,6 +326,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   async function moveStage(s:LeadStatus, force=false) {
     if (s===stage||saving) return
     if (STAGE_ORDER[s]<STAGE_ORDER[stage]) { setConfirmBack(s); return }
+    // Always show schedule modal when moving to scheduled — regardless of gate
+    if (!force && s === 'scheduled') {
+      setSchedDate(lead?.scheduled_date || '')
+      setSchedTime((lead as any)?.scheduled_time || '')
+      setShowScheduleModal(true)
+      return
+    }
     if (!force) {
       // Unified gate evaluator — reads requires from stage config
       const gate = evalGate(s)
@@ -333,13 +340,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         // Map gate failure to appropriate modal or action
         if (s === 'proposal_sent' || s === 'proposal_signed') { setWarnProposal(true); return }
         if (s === 'job_won') { setWarnDone(true); return }
-        if (s === 'scheduled') {
-          // Show schedule modal to pick date + move stage in one action
-          setSchedDate(lead?.scheduled_date || '')
-          setSchedTime((lead as any)?.scheduled_time || '')
-          setShowScheduleModal(true)
-          return
-        }
         // Generic gate failure — show toast with reason
         addToast(gate.reason ?? 'Cannot move to this stage yet', 'error')
         return
