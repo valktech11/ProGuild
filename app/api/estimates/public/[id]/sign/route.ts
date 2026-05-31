@@ -249,8 +249,8 @@ export async function POST(
     } catch { /* non-fatal */ }
   }
 
-  // Send invoice email to homeowner (non-blocking, best-effort)
-  // Done server-side so we don't need to expose pro_id to the public page
+  // Send invoice email to homeowner — must AWAIT before returning (serverless functions
+  // terminate on return, fire-and-forget fetch() never completes in Vercel)
   try {
     const { data: newInv } = await sb
       .from('invoices')
@@ -262,34 +262,32 @@ export async function POST(
       .maybeSingle()
 
     if (newInv?.id && newInv?.contact_email) {
-      // Use absolute URL with correct base — NEXT_PUBLIC_SITE_URL must match current environment
-      // Fallback to staging URL to prevent cross-environment sends
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXTAUTH_URL ?? 'https://staging.proguild.ai'
-      fetch(`${baseUrl}/api/invoices/send`, {
+      const sendRes = await fetch(`${baseUrl}/api/invoices/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoice_id: newInv.id, pro_id: est.pro_id }),
       })
-      .then(async r => {
-        const d = await r.json().catch(() => ({}))
-        if (r.ok) {
-          // Write activity feed entry so roofer sees invoice was sent
-          await getSupabaseAdmin().from('pipeline_events').insert({
-            lead_id:    est.lead_id,
-            pro_id:     est.pro_id,
-            event_type: 'invoice_sent',
-            event_data: { invoice_id: newInv.id, email: newInv.contact_email },
-            actor_type: 'system',
-            created_at: new Date().toISOString(),
-          })
-          console.log('[sign] Invoice auto-sent to', newInv.contact_email)
-        } else {
-          console.error('[sign] Invoice auto-send failed:', d)
-        }
-      })
-      .catch(err => console.error('[sign] Invoice auto-send error:', err))
+      if (sendRes.ok) {
+        await getSupabaseAdmin().from('pipeline_events').insert({
+          lead_id:    est.lead_id,
+          pro_id:     est.pro_id,
+          event_type: 'invoice_sent',
+          event_data: { invoice_id: newInv.id, email: newInv.contact_email },
+          actor_type: 'system',
+          created_at: new Date().toISOString(),
+        })
+        console.log('[sign] Invoice auto-sent to', newInv.contact_email)
+      } else {
+        const d = await sendRes.json().catch(() => ({}))
+        console.error('[sign] Invoice auto-send failed:', d)
+      }
+    } else {
+      console.log('[sign] No draft invoice found for estimate', id, '— skipping auto-send')
     }
-  } catch { /* non-fatal */ }
+  } catch (err) {
+    console.error('[sign] Invoice auto-send error:', err)
+  }
 
   return NextResponse.json({ ok: true })
 }
