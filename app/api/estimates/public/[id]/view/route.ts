@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { notifyRoofer } from '@/lib/notifyRoofer'
 
 export async function POST(
   _req: NextRequest,
@@ -26,6 +27,22 @@ export async function POST(
     status:       est.status === 'sent' ? 'viewed' : est.status,
     updated_at:   new Date().toISOString(),
   }).eq('id', id)
+
+  // Notify roofer only on first view
+  if (!est.viewed_at) {
+    const { data: estFull } = await sb
+      .from('estimates').select('pro_id, lead_id, lead_name, estimate_number').eq('id', id).maybeSingle()
+    if (estFull) {
+      await notifyRoofer({
+        proId:    estFull.pro_id,
+        subject:  `👀 Proposal viewed — ${estFull.lead_name}`,
+        headline: 'Proposal Viewed',
+        body:     `${estFull.lead_name} has opened your proposal ${estFull.estimate_number}. Follow up while it's top of mind.`,
+        leadId:   estFull.lead_id,
+        sb,
+      })
+    }
+  }
 
   return NextResponse.json({ ok: true })
 }

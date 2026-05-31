@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
+import { notifyRoofer } from '@/lib/notifyRoofer'
 
 // Stripe sends: checkout.session.completed when payment succeeds
 // We: record the milestone payment, update invoice, advance lead stage
@@ -106,5 +107,24 @@ export async function POST(req: NextRequest) {
   }
 
   console.log(`[webhooks/stripe] ✓ ${milestoneNm} $${amount} recorded for invoice ${invoice_id}`)
+
+  // Notify roofer of payment received
+  const { data: invForNotif } = await sb
+    .from('invoices').select('pro_id, lead_id, lead_name, invoice_number, balance_due').eq('id', invoice_id).maybeSingle()
+  if (invForNotif) {
+    const amtFmt = `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`
+    const balFmt = `$${Math.max(balanceDue,0).toLocaleString('en-US', { minimumFractionDigits: 0 })}`
+    const isPaidFull = balanceDue <= 0
+    await notifyRoofer({
+      proId:    invForNotif.pro_id,
+      subject:  isPaidFull ? `💰 Invoice paid in full — ${invForNotif.lead_name}` : `💳 Payment received — ${invForNotif.lead_name}`,
+      headline: isPaidFull ? 'Invoice Paid in Full' : 'Payment Received',
+      body:     isPaidFull
+        ? `${invForNotif.lead_name} has paid invoice ${invForNotif.invoice_number} in full (${amtFmt}). The job is complete.`
+        : `${invForNotif.lead_name} paid ${amtFmt} (${milestoneNm}). Balance remaining: ${balFmt}.`,
+      leadId:   invForNotif.lead_id,
+      sb,
+    })
+  }
   return NextResponse.json({ ok: true, status: newStatus, balance_due: balanceDue })
 }

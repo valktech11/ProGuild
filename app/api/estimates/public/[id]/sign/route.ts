@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { notifyRoofer } from '@/lib/notifyRoofer'
 import { uploadToR2 } from '@/lib/r2'
 import crypto from 'crypto'
 
@@ -278,6 +279,15 @@ export async function POST(
           created_at: new Date().toISOString(),
         })
         console.log('[sign] Invoice auto-sent to', newInv.contact_email)
+        // Notify roofer
+        await notifyRoofer({
+          proId:    est.pro_id,
+          subject:  `✅ Proposal signed — invoice sent to ${newInv.contact_email}`,
+          headline: 'Proposal Signed',
+          body:     `${signer_name} has signed the proposal. Invoice #INV has been automatically sent to ${newInv.contact_email}. You'll be notified when payment is received.`,
+          leadId:   est.lead_id,
+          sb:       getSupabaseAdmin(),
+        })
       } else {
         const d = await sendRes.json().catch(() => ({}))
         console.error('[sign] Invoice auto-send failed:', d)
