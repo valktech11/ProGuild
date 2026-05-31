@@ -13,8 +13,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  console.log("[sign] POST called for estimate:", id)
   const body = await req.json()
   const { signer_name, sig_data_url, selected_tier } = body
+  console.log("[sign] signer_name:", signer_name, "has_sig:", !!sig_data_url)
 
   if (!signer_name || !sig_data_url) {
     return NextResponse.json({ error: 'signer_name and sig_data_url required' }, { status: 400 })
