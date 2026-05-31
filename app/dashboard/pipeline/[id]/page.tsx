@@ -808,7 +808,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                   display:'flex', alignItems:'center', justifyContent:'center', padding:16,
                 }} onClick={()=>setShowWarranty(false)}>
                   <div onClick={e=>e.stopPropagation()} style={{ width:'100%', maxWidth:480 }}>
-                    <WarrantyRecord leadId={lead.id} proId={session!.id} propertyId={null} darkMode={dk}
+                    <WarrantyRecord leadId={lead.id} proId={session!.id} propertyId={(lead as any).property_id ?? null} darkMode={dk}
                       onSaved={()=>{setShowWarranty(false);addToast('Warranty recorded')}}
                       onDismiss={()=>setShowWarranty(false)}/>
                   </div>
@@ -1086,6 +1086,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <div style={{marginTop:12,padding:'10px 14px',borderRadius:T.radSm,textAlign:'center',background:stage===getStageAnchors(session?.trade_slug).won?'linear-gradient(135deg,#065F46,#047857)':t.cardBgAlt,color:stage===getStageAnchors(session?.trade_slug).won?'#fff':ts,fontSize:14,fontWeight:700}}>
                           {stage===getStageAnchors(session?.trade_slug).won?'🏆 Job Complete':stage===getStageAnchors(session?.trade_slug).lost?'Job Lost':'Lead Unqualified'}
                         </div>
+                      )}
+                      {stage===getStageAnchors(session?.trade_slug).won&&isRoofing&&(
+                        <button onClick={()=>setShowWarranty(true)} style={{marginTop:8,width:'100%',padding:'10px 14px',borderRadius:T.radSm,background:t.cardBgAlt,color:BRAND.teal,border:`1px solid ${BRAND.teal}`,fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Record Warranty</button>
                       )}
                     </div>
                   </div>{/* end hero */}
