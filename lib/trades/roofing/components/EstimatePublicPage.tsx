@@ -282,18 +282,7 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
             </ContentSection>
           )}
 
-          {/* Insurance note */}
-          {estimate.insurance_claim && estimate.deductible && (
-            <div style={{ background: C.amberBg, border: '1px solid #FDE68A', borderRadius: 14,
-              padding: 16, marginBottom: 20, display: 'flex', gap: 12 }}>
-              <span style={{ fontSize: 20 }}>🛡️</span>
-              <div style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6 }}>
-                <strong>Insurance job:</strong> Your deductible of{' '}
-                <strong>{fmt(estimate.deductible)}</strong> is paid directly to your contractor.
-                Your insurance covers the rest of the approved amount.
-              </div>
-            </div>
-          )}
+
 
           {/* Terms */}
           {estimate.terms && (
