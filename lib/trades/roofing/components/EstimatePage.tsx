@@ -1836,14 +1836,7 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
         </div>
       </div>
 
-      {/* Supplement nudge */}
-      {!fullyCovered && (
-        <div style={{ padding: '10px 14px', borderRadius: 10,
-          background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.2)',
-          fontSize: 12, color: '#92400E', lineHeight: 1.6 }}>
-          ⚠️ Help the homeowner file a supplement to reduce their out-of-pocket cost.
-        </div>
-      )}
+
 
       {/* Adjuster info */}
       {estimate.adjuster_name && (

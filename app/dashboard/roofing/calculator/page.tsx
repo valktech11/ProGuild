@@ -786,13 +786,7 @@ function CalculatorInner() {
                     ${Math.max(outOfPocket,0).toLocaleString()}
                   </span>
                 </div>
-                {!fullyCovered && (
-                  <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8,
-                    background:'rgba(217,119,6,0.08)', border:'1px solid rgba(217,119,6,0.2)',
-                    fontSize:12, color:'#92400E', lineHeight:1.6 }}>
-                    ⚠️ Help the homeowner file a supplement to reduce their out-of-pocket cost.
-                  </div>
-                )}
+
               </div>
             </div>
           )
