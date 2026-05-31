@@ -108,6 +108,24 @@ export async function POST(req: NextRequest) {
 
   console.log(`[webhooks/stripe] ✓ ${milestoneNm} $${amount} recorded for invoice ${invoice_id}`)
 
+  // Write pipeline_event so activity feed shows payment
+  if (inv.lead_id) {
+    await sb.from('pipeline_events').insert({
+      lead_id:    inv.lead_id,
+      pro_id:     inv.pro_id,
+      event_type: 'payment_received',
+      event_data: {
+        milestone: milestoneNm,
+        amount,
+        method: 'card',
+        balance_due: balanceDue,
+        invoice_id,
+      },
+      actor_type: 'homeowner',
+      created_at: new Date().toISOString(),
+    })
+  }
+
   // Notify roofer of payment received
   const { data: invForNotif } = await sb
     .from('invoices').select('pro_id, lead_id, lead_name, invoice_number, balance_due').eq('id', invoice_id).maybeSingle()

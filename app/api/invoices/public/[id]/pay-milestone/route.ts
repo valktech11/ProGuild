@@ -70,5 +70,23 @@ export async function POST(
     }
   }
 
+  // Write pipeline_event so activity feed shows payment
+  if (inv.lead_id) {
+    await sb.from('pipeline_events').insert({
+      lead_id:    inv.lead_id,
+      pro_id:     inv.pro_id,
+      event_type: 'payment_received',
+      event_data: {
+        milestone: milestone_name,
+        amount:    Number(amount),
+        method,
+        balance_due: balanceDue,
+        invoice_id: id,
+      },
+      actor_type: 'homeowner',
+      created_at: new Date().toISOString(),
+    })
+  }
+
   return NextResponse.json({ ok: true, status: newStatus, amount_paid: totalPaid, balance_due: balanceDue, payment: newPayment })
 }
