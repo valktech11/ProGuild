@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     if (leads) {
       enriched = enriched.map(client => {
         const clientLeads = leads.filter(l => l.client_id === client.id)
-        const paidLeads   = clientLeads.filter(l => l.lead_status === 'Paid' && l.quoted_amount)
+        const paidLeads   = clientLeads.filter(l => (l.lead_status === 'Paid' || l.lead_status === 'job_won') && l.quoted_amount)
         const lifetimeValue = paidLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
         const lastJob = clientLeads.sort((a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
