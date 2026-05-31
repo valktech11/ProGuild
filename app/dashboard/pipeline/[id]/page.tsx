@@ -336,7 +336,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         if (s === 'scheduled') {
           // Show schedule modal to pick date + move stage in one action
           setSchedDate(lead?.scheduled_date || '')
-          setSchedTime(lead?.scheduled_time || '')
+          setSchedTime((lead as any)?.scheduled_time || '')
           setShowScheduleModal(true)
           return
         }

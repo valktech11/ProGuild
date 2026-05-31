@@ -81,23 +81,15 @@ function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
   onClose: () => void
   t: ReturnType<typeof theme>
 }) {
-  const milestones = (invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0)
-  const [selMilestone, setSelMilestone] = useState(milestones[0]?.name ?? 'Full Payment')
-  const [amount,    setAmount]    = useState(String(milestones[0]?.amount ?? invoice.balance_due))
+  const [amount,    setAmount]    = useState(String(invoice.balance_due))
   const [method,    setMethod]    = useState('zelle')
   const [reference, setReference] = useState('')
   const [date,      setDate]      = useState(new Date().toISOString().split('T')[0])
   const [saving,    setSaving]    = useState(false)
 
-  const handleMilestone = (name: string) => {
-    setSelMilestone(name)
-    const m = milestones.find(m => m.name === name)
-    if (m) setAmount(String(m.amount))
-  }
-
   const handle = async () => {
     setSaving(true)
-    await onRecord({ milestone_name: selMilestone, amount: parseFloat(amount) || 0, method, reference, date })
+    await onRecord({ milestone_name: 'Payment', amount: parseFloat(amount) || 0, method, reference, date })
     setSaving(false)
   }
 
@@ -110,32 +102,17 @@ function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
         {/* Header */}
         <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${C.border}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: C.text }}>Record Payment</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: C.text }}>Record Payment Received</div>
           <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 22,
             color: C.muted, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
         </div>
         <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Milestone selector */}
-          {milestones.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.08em', color: C.muted, marginBottom: 8 }}>Milestone</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {milestones.map(m => (
-                  <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                    border: `1.5px solid ${selMilestone === m.name ? C.teal : C.border}`,
-                    background: selMilestone === m.name ? C.tealLight : '#FAFAFA' }}>
-                    <input type="radio" name="milestone" checked={selMilestone === m.name}
-                      onChange={() => handleMilestone(m.name)}
-                      style={{ accentColor: C.teal }} />
-                    <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: C.text }}>{m.name}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>{fmt(m.amount)}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Info note */}
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: '#F0FDF4',
+            border: '1px solid #BBF7D0', fontSize: 12, color: '#065F46', lineHeight: 1.5 }}>
+            📋 This records a payment you already received (cash, check, Zelle etc).
+            It does not charge the homeowner — money was collected outside the system.
+          </div>
           {/* Amount */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
@@ -192,7 +169,7 @@ function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
             style={{ flex: 2, padding: '11px', borderRadius: 10, border: 'none',
               background: C.green, color: '#fff', fontSize: 14, fontWeight: 700,
               cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-            {saving ? 'Recording…' : 'Record Payment'}
+            {saving ? 'Recording…' : 'Mark as Received'}
           </button>
         </div>
       </div>
