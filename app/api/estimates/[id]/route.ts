@@ -62,12 +62,14 @@ export async function GET(
   // Fetch roofing_job_data — always fetch when lead_id present
   // Also fetch leads.lead_status as insurance fallback (stage=insurance_approved implies insurance job)
   let roofingJobData: any = null
+  console.log('[estimates GET] lead_id on estimate:', estClean.lead_id)
   if (estClean.lead_id) {
-    const { data: rd } = await sb
+    const { data: rd, error: rdErr } = await sb
       .from('roofing_job_data')
       .select('square_count, pitch, waste_pct, perimeter, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
       .eq('lead_id', estClean.lead_id)
       .maybeSingle()
+    console.log('[estimates GET] rd:', rd ? 'GOT_ROW' : 'NO_ROW', 'rdErr:', rdErr?.message ?? 'none')
     // Fallback: if no roofing_job_data row, check lead_status — insurance_approved stage means it IS an insurance job
     if (!rd) {
       const { data: leadRow } = await sb
