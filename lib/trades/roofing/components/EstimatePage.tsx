@@ -1746,32 +1746,112 @@ function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = fal
 function InsuranceCard({ estimate, card, border, textP, textS }: {
   estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
 }) {
-  const net = (estimate.approved_amount ?? 0) - (estimate.deductible ?? 0) + (estimate.supplement_amount ?? 0)
+  const approved        = estimate.approved_amount  ?? 0
+  const supplement      = estimate.supplement_amount ?? 0
+  const deductible      = estimate.deductible        ?? 0
+  const netInsurance    = approved + supplement - deductible
+  const fullCost        = estimate.total             ?? 0
+  const gap             = fullCost - (approved + supplement)
+  const fullySupplemented = gap <= 0
+  const homeownerPays   = Math.max(deductible + gap, deductible)
+
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
       border: `1px solid ${border}`, borderLeft: `4px solid ${C.amber}` }}>
+
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase',
+        <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase' as const,
           letterSpacing: '0.08em', color: C.amber }}>🛡️ Insurance Claim</span>
         <span style={{ padding: '3px 10px', borderRadius: 999, background: C.green,
-          color: '#fff', fontSize: 11, fontWeight: 800 }}>ON</span>
+          color: '#fff', fontSize: 11, fontWeight: 800 }}>Approved</span>
+        {estimate.insurance_company && (
+          <span style={{ fontSize: 12, color: textS, marginLeft: 4 }}>
+            {estimate.insurance_company}
+            {estimate.claim_number ? ` · Claim #${estimate.claim_number}` : ''}
+          </span>
+        )}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 14 }}>
-        {[
-          { label: 'Approved', value: fmtDec(estimate.approved_amount ?? 0) },
-          { label: 'Deductible', value: fmtDec(estimate.deductible ?? 0) },
-          { label: 'Net to collect', value: fmtDec(net) },
-        ].map(({ label, value }) => (
-          <div key={label}>
-            <div style={{ fontSize: 12, color: textS, marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: textP }}>{value}</div>
+
+      {/* Cost reconciliation */}
+      <div style={{ borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 14 }}>
+        {/* Full replacement cost */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '10px 14px', background: '#F8FAFC' }}>
+          <span style={{ fontSize: 13, color: textS, fontWeight: 600 }}>Full replacement cost</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: textP }}>{fmtDec(fullCost)}</span>
+        </div>
+
+        <div style={{ height: 1, background: border }} />
+
+        {/* Insurance breakdown */}
+        <div style={{ padding: '10px 14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: textS }}>Insurance approved</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: textP }}>{fmtDec(approved)}</span>
           </div>
-        ))}
+          {supplement > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: textS }}>Supplement approved</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.green }}>+{fmtDec(supplement)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: textS }}>Deductible</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>-{fmtDec(deductible)}</span>
+          </div>
+          <div style={{ height: 1, background: border, margin: '8px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 12, color: textS }}>Net insurance payment</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: textP }}>{fmtDec(Math.max(netInsurance, 0))}</span>
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: border }} />
+
+        {/* Gap or fully covered */}
+        {!fullySupplemented && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '10px 14px', background: '#FFFBEB' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#92400E' }}>Gap to file with insurer</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#D97706' }}>{fmtDec(Math.abs(gap))}</span>
+          </div>
+        )}
+
+        <div style={{ height: 1, background: border }} />
+
+        {/* Homeowner pays */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '12px 14px', background: fullySupplemented ? '#F0FDF4' : '#FFF7ED' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: textP }}>Homeowner pays</div>
+            <div style={{ fontSize: 11, color: textS, marginTop: 2 }}>
+              {fullySupplemented ? 'Deductible only — insurance covers the rest' : 'Deductible + gap until supplement approved'}
+            </div>
+          </div>
+          <span style={{ fontSize: 22, fontWeight: 900, color: fullySupplemented ? C.green : '#D97706',
+            letterSpacing: '-0.03em' }}>{fmtDec(homeownerPays)}</span>
+        </div>
       </div>
-      <div style={{ fontSize: 13, color: textS }}>
-        {estimate.insurance_company} · Claim #{estimate.claim_number}
-        {estimate.adjuster_name ? ` · Adjuster: ${estimate.adjuster_name}` : ''}
-      </div>
+
+      {/* Adjuster info */}
+      {estimate.adjuster_name && (
+        <div style={{ fontSize: 12, color: textS }}>
+          Adjuster: {estimate.adjuster_name}
+        </div>
+      )}
+
+      {/* Supplement guidance */}
+      {!fullySupplemented && (
+        <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10,
+          background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.2)' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Action needed:</div>
+          <div style={{ fontSize: 12, color: '#92400E', lineHeight: 1.6 }}>
+            File a supplement with the adjuster for the {fmtDec(Math.abs(gap))} gap.
+            This full-cost estimate is your supplement documentation — send it to insurance before the homeowner signs.
+          </div>
+        </div>
+      )}
     </div>
   )
 }

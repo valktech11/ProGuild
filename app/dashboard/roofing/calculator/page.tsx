@@ -291,6 +291,7 @@ function CalculatorInner() {
   const [insurance,  setInsurance]  = useState<{
     isInsurance: boolean; approvedAmount: number; supplement: number; deductible: number
   } | null>(null)
+  const [labourSaved, setLabourSaved] = useState(false)
   const [error,      setError]      = useState<string | null>(null)
   const [success,    setSuccess]    = useState<string | null>(null)
   const [editPrices, setEditPrices] = useState(false)
@@ -409,20 +410,19 @@ function CalculatorInner() {
     setAdjSq(adjustedSquares)
   }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices, pipeBoots, tearoff])
 
-  // Auto-save labour to roofing_job_data (debounced 1.5s after user stops typing)
-  useEffect(() => {
+  // Save labour on blur
+  const handleLabourBlur = useCallback(() => {
     if (!leadId || !session || labour === '') return
     const parsed = parseFloat(labour)
     if (isNaN(parsed)) return
-    const timer = setTimeout(() => {
-      fetch(`/api/leads/${leadId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pro_id: session.id, labour_amount: parsed }),
-      }).catch(() => {})
-    }, 1500)
-    return () => clearTimeout(timer)
-  }, [labour, leadId, session])
+    fetch(`/api/leads/${leadId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pro_id: session.id, labour_amount: parsed }),
+    })
+    .then(r => { if (r.ok) { setLabourSaved(true); setTimeout(() => setLabourSaved(false), 3000) } })
+    .catch(() => {})
+  }, [leadId, session, labour])
 
   const materialTotal = lineItems.reduce((s, i) => s + i.total, 0)
   const labourAmount  = parseFloat(labour) || 0
@@ -711,9 +711,18 @@ function CalculatorInner() {
         {lineItems.length > 0 && (
           <Section n="4" label="Labour & Installation" sub="Your install cost — not included in materials above">
             <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:14, alignItems:'end' }}>
-              <FInput label="Labour Amount ($)" hint="total install cost"
-                type="number" min="0" step="100" value={labour} placeholder="e.g. 4500"
-                onChange={e => setLabour(e.target.value)} />
+              <div>
+                <FInput label="Labour Amount ($)" hint="total install cost"
+                  type="number" min="0" step="100" value={labour} placeholder="e.g. 4500"
+                  onChange={e => { setLabour(e.target.value); setLabourSaved(false) }}
+                  onBlur={handleLabourBlur} />
+                {labourSaved && (
+                  <div style={{ fontSize:11, color:'#059669', fontWeight:600, marginTop:4, display:'flex', alignItems:'center', gap:4 }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Saved
+                  </div>
+                )}
+              </div>
               <div style={{ padding:'12px 16px', borderRadius:10, background: labourAmount > 0 ? 'rgba(15,118,110,0.05)' : CREAM, border:`1px solid ${labourAmount > 0 ? 'rgba(15,118,110,0.2)' : BORDER}` }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <span style={{ fontSize:12, color:'#64748B', fontWeight:600 }}>Materials</span>
