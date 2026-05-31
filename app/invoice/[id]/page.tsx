@@ -62,6 +62,9 @@ function MilestonePaySection({
             invoice_id:     invoiceId,
             milestone_name: selMilestone.name,
             amount:         selMilestone.amount,
+            // Pass current origin so redirect always comes back to correct domain
+            success_url: `${window.location.origin}/invoice/${invoiceId}?paid=${encodeURIComponent(selMilestone.name)}`,
+            cancel_url:  `${window.location.origin}/invoice/${invoiceId}?cancelled=1`,
           }),
         })
         const d = await r.json()
