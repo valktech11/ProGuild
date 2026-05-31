@@ -24,7 +24,7 @@ function MilestonePaySection({
 
   const [step, setStep]         = useState<'select' | 'confirm' | 'success'>('select')
   const [selMilestone, setSel]  = useState<Milestone | null>(nextDue)
-  const [method, setMethod]     = useState<string>('zelle')
+  const [method, setMethod]     = useState<string>('card')
   const [reference, setRef]     = useState('')
   const [submitting, setSub]    = useState(false)
   const [error, setError]       = useState<string | null>(null)
@@ -52,6 +52,7 @@ function MilestonePaySection({
     if (!selMilestone) return
     setSub(true); setError(null)
     try {
+      const backendMethod = method === 'offline' ? 'offline' : method
       if (method === 'card') {
         // Card payments go through Stripe Checkout
         const r = await fetch('/api/invoices/stripe/checkout', {
@@ -75,7 +76,7 @@ function MilestonePaySection({
           body: JSON.stringify({
             milestone_name: selMilestone.name,
             amount:         selMilestone.amount,
-            method,
+            method:         backendMethod,
             reference,
             date: new Date().toISOString().split('T')[0],
           }),
@@ -167,45 +168,39 @@ function MilestonePaySection({
             <div className="text-sm text-gray-600 mt-1">{selMilestone.name} · {selMilestone.pct}%</div>
           </div>
 
-          {/* Payment method */}
-          <div className="mb-4">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-              How are you paying?
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { key: 'zelle',  label: 'Zelle',  icon: '💜' },
-                { key: 'venmo',  label: 'Venmo',  icon: '💙' },
-                { key: 'check',  label: 'Check',  icon: '📝' },
-                { key: 'cash',   label: 'Cash',   icon: '💵' },
-                { key: 'card',   label: 'Card',   icon: '💳' },
-                { key: 'other',  label: 'Other',  icon: '🏦' },
-              ].map(m => (
-                <button key={m.key} onClick={() => setMethod(m.key)}
-                  className={`py-2.5 px-3 rounded-lg border-2 text-sm font-semibold transition-all text-center ${
-                    method === m.key
-                      ? 'border-[#0F766E] bg-[#F0FDFA] text-[#0F766E]'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}>
-                  <div>{m.icon}</div>
-                  <div className="text-xs mt-0.5">{m.label}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Reference */}
+          {/* Payment method — 2 clear options */}
           <div className="mb-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-              Reference / Confirmation # (optional)
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+              How would you like to pay?
             </label>
-            <input
-              type="text"
-              value={reference}
-              onChange={e => setRef(e.target.value)}
-              placeholder="e.g. Zelle conf #8821, Check #1234..."
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm outline-none focus:border-[#0F766E] transition-colors"
-            />
+            <div className="flex flex-col gap-3">
+              <button onClick={() => setMethod('card')}
+                className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                  method === 'card'
+                    ? 'border-[#0F766E] bg-[#F0FDFA]'
+                    : 'border-gray-200 bg-white hover:border-[#0F766E]'
+                }`}>
+                <div className="text-2xl">💳</div>
+                <div>
+                  <div className="text-sm font-bold text-gray-900">Pay by Card</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Secure online payment — you'll be redirected to Stripe</div>
+                </div>
+                {method === 'card' && <div className="ml-auto w-5 h-5 rounded-full bg-[#0F766E] flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-white"/></div>}
+              </button>
+              <button onClick={() => setMethod('offline')}
+                className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                  method === 'offline'
+                    ? 'border-[#0F766E] bg-[#F0FDFA]'
+                    : 'border-gray-200 bg-white hover:border-[#0F766E]'
+                }`}>
+                <div className="text-2xl">🏦</div>
+                <div>
+                  <div className="text-sm font-bold text-gray-900">Pay Offline</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Zelle, Venmo, check or cash — confirm with your contractor</div>
+                </div>
+                {method === 'offline' && <div className="ml-auto w-5 h-5 rounded-full bg-[#0F766E] flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-white"/></div>}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -224,7 +219,11 @@ function MilestonePaySection({
                 background: submitting ? '#CBD5E1' : 'linear-gradient(135deg,#0F766E,#0D9488)',
                 cursor: submitting ? 'default' : 'pointer',
               }}>
-              {submitting ? 'Recording…' : `Confirm ${fmtLocal(selMilestone.amount)} Payment`}
+              {submitting
+                ? (method === 'card' ? 'Redirecting to Stripe…' : 'Recording…')
+                : method === 'card'
+                  ? `Pay ${fmtLocal(selMilestone.amount)} by Card →`
+                  : `Confirm ${fmtLocal(selMilestone.amount)} Offline Payment`}
             </button>
           </div>
           <p className="text-xs text-center text-gray-400 mt-3">
