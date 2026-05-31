@@ -367,6 +367,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             adjuster_name:     (estimate as any).adjuster_name,
             approved_amount:   (estimate as any).approved_amount,
             deductible:        (estimate as any).deductible,
+            supplement_amount: (estimate as any).supplement_amount,
             payment_milestones:(estimate as any).payment_milestones,
             pro_name:          (estimate as any).pro_name  ?? session?.name,
             pro_phone:         (estimate as any).pro_phone ?? null,

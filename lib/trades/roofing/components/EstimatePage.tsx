@@ -769,7 +769,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
 
           {/* Insurance claim — only when relevant */}
           {(estimate.insurance_claim || !!(estimate.approved_amount || estimate.claim_number)) && (
-            <InsuranceCard estimate={estimate} card={card} border={border} textP={textP} textS={textS} />
+            <InsuranceCard estimate={estimate} computedTotal={total} card={card} border={border} textP={textP} textS={textS} />
           )}
 
           {/* Terms */}
@@ -1743,14 +1743,14 @@ function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = fal
 }
 
 // ── InsuranceCard ──────────────────────────────────────────────────────────────
-function InsuranceCard({ estimate, card, border, textP, textS }: {
-  estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
+function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: {
+  estimate: RoofingEstimate; computedTotal: number; card: string; border: string; textP: string; textS: string
 }) {
   const approved        = estimate.approved_amount   ?? 0
   const supplement      = estimate.supplement_amount ?? 0
   const deductible      = estimate.deductible        ?? 0
   const insurancePays   = approved + supplement - deductible
-  const fullCost        = estimate.total             ?? 0
+  const fullCost        = computedTotal || estimate.total || 0
   const outOfPocket     = fullCost - Math.max(insurancePays, 0)
   const fullyCovered    = outOfPocket <= 0
 
