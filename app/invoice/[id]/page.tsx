@@ -106,9 +106,9 @@ function MilestonePaySection({
           <div className="space-y-3 mb-5">
             {milestones.map(m => {
               const paid   = paidMilestones.includes(m.name)
-              const isSel  = selMilestone?.id === m.id
+              const isSel  = selMilestone?.name === m.name
               return (
-                <label key={m.id}
+                <label key={m.name}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                     paid    ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50' :
                     isSel   ? 'border-[#0F766E] bg-[#F0FDFA]' :
@@ -551,7 +551,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
             </p>
             <MilestonePaySection
               invoiceId={invoice.id}
-              milestones={(invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0).map((m, i, arr) => i === arr.length - 1 ? { ...m, amount: balanceDue } : m)}
+              milestones={(invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0)}
               paidMilestones={paidMilestones}
               balanceDue={balanceDue}
               total={invoice.total}
