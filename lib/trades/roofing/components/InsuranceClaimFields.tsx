@@ -208,6 +208,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const deductible = parseCurrency(fields.deductible)
   const net        = approved + supplement - deductible
   const claimPayable = fields.claim_status === 'Approved' || fields.claim_status === 'Supplement Approved'
+  const isDenied     = fields.claim_status === 'Denied'
 
   const activeStatus = CLAIM_STATUSES.find(s => s.value === fields.claim_status) ?? CLAIM_STATUSES[0]
 
@@ -327,7 +328,8 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               </div>
             </Field>
 
-            {/* Row 4: Financial — 3-col */}
+            {/* Row 4: Financial — 3-col. Hidden on Denied (values preserved in DB for appeal). */}
+            {!isDenied && (
             <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
               <Field label="Approved amount">
                 <FInput value={fields.approved_amount} onChange={set('approved_amount')} placeholder="$0.00"
@@ -345,6 +347,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 />
               </Field>
             </div>
+            )}
 
             {/* Net calculation — only when the carrier has actually approved */}
             <div style={{ gridColumn:'1 / -1' }}>
