@@ -64,6 +64,7 @@ export interface RoofingEstimate {
   claim_number?: string
   adjuster_name?: string
   approved_amount?: number
+  claim_status?: string | null
   deductible?: number
   supplement_amount?: number
   // Financials
@@ -1801,6 +1802,11 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
   const fullCost        = computedTotal || estimate.total || 0
   const outOfPocket     = fullCost - Math.max(insurancePays, 0)
   const fullyCovered    = outOfPocket <= 0
+  const cs              = estimate.claim_status ?? null
+  const payable         = cs === 'Approved' || cs === 'Supplement Approved'
+  const denied          = cs === 'Denied'
+  const chipBg          = payable ? C.green : denied ? '#DC2626' : '#94A3B8'
+  const chipLabel       = cs || 'Pending'
 
   return (
     <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_SM,
@@ -1810,8 +1816,8 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase' as const,
           letterSpacing: '0.08em', color: C.amber }}>🛡️ Insurance Claim</span>
-        <span style={{ padding: '3px 10px', borderRadius: 999, background: C.green,
-          color: '#fff', fontSize: 11, fontWeight: 800 }}>Approved</span>
+        <span style={{ padding: '3px 10px', borderRadius: 999, background: chipBg,
+          color: '#fff', fontSize: 11, fontWeight: 800 }}>{chipLabel}</span>
         {estimate.insurance_company && (
           <span style={{ fontSize: 12, color: textS, marginLeft: 4 }}>
             {estimate.insurance_company}
@@ -1820,7 +1826,8 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
         )}
       </div>
 
-      {/* 3-line breakdown */}
+      {/* 3-line breakdown — only when carrier has approved */}
+      {payable ? (
       <div style={{ borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '12px 16px' }}>
@@ -1843,6 +1850,14 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
           </span>
         </div>
       </div>
+      ) : (
+      <div style={{ borderRadius: 12, border: `1px solid ${border}`, padding: '12px 16px', marginBottom: 14,
+        fontSize: 13, fontWeight: 600, color: textS }}>
+        {denied
+          ? 'Claim denied — insurance pays nothing. Homeowner pays the full job cost.'
+          : 'Insurance reconciliation appears once the carrier marks the claim Approved.'}
+      </div>
+      )}
 
 
 

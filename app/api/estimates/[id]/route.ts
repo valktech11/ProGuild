@@ -65,7 +65,7 @@ export async function GET(
   if (estClean.lead_id) {
     const { data: rd, error: rdErr } = await sb
       .from('roofing_job_data')
-      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name')
+      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, insurance_company, claim_number, adjuster_name, claim_status')
       .eq('lead_id', estClean.lead_id)
       .maybeSingle()
       // Fallback: if no roofing_job_data row, check lead_status — insurance_approved stage means it IS an insurance job
@@ -113,6 +113,7 @@ export async function GET(
       // Insurance (always from roofing_job_data — live claim state)
       insurance_claim:   roofingJobData?.insurance_claim || !!(roofingJobData?.claim_number || roofingJobData?.approved_amount) || false,
       approved_amount:   roofingJobData?.approved_amount   ?? null,
+      claim_status:      roofingJobData?.claim_status       ?? null,
       deductible:        roofingJobData?.deductible         ?? null,
       supplement_amount: roofingJobData?.supplement_amount ?? null,
       insurance_company: roofingJobData?.insurance_company ?? null,
