@@ -898,15 +898,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {active.map((stg,i)=>{
                           const done  = i<curPos
                           const isAct = i===curPos
+                          const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && done
                           const sz    = isAct?22:done?20:12
                           const rad   = done||isAct?'50%':'3px'
-                          const bg    = done?stg.color:isAct?stg.color:(dk?'#374151':'#E5E7EB')
+                          const bg    = skipped?(dk?'#334155':'#CBD5E1'):done?stg.color:isAct?stg.color:(dk?'#374151':'#E5E7EB')
                           const bdr2  = isAct?`2.5px solid ${card}`:'none'
-                          const shd   = isAct?`0 0 0 2.5px ${stg.color},0 2px 8px ${stg.color}40`:done?`0 1px 4px ${stg.color}30`:'none'
+                          const shd   = isAct?`0 0 0 2.5px ${stg.color},0 2px 8px ${stg.color}40`:done&&!skipped?`0 1px 4px ${stg.color}30`:'none'
                           return (
-                            <div key={stg.key} style={{flex:1,display:'flex',justifyContent:'center',position:'relative',zIndex:1}}>
-                              <div style={{width:sz,height:sz,borderRadius:rad,background:bg,border:bdr2,boxShadow:shd,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                                {done&&<Svg size={9} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
+                            <div key={stg.key} style={{flex:1,display:'flex',justifyContent:'center',position:'relative',zIndex:1}} title={skipped?'Skipped — retail job (no insurance claim)':undefined}>
+                              <div style={{width:sz,height:sz,borderRadius:rad,background:bg,border:bdr2,boxShadow:shd,display:'flex',alignItems:'center',justifyContent:'center',opacity:skipped?0.6:1}}>
+                                {skipped?<Svg size={9} stroke="#fff" sw={3}><line x1="5" y1="12" x2="19" y2="12"/></Svg>:done&&<Svg size={9} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
                               </div>
                             </div>
                           )
@@ -917,10 +918,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {active.map((stg,i)=>{
                           const done  = i<curPos
                           const isAct = i===curPos
-                          const lc    = isAct?stg.color:done?(dk?'#4B5563':'#9CA3AF'):(dk?'#374151':'#CBD5E1')
+                          const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && done
+                          const lc    = skipped?(dk?'#475569':'#CBD5E1'):isAct?stg.color:done?(dk?'#4B5563':'#9CA3AF'):(dk?'#374151':'#CBD5E1')
                           return (
                             <div key={stg.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
-                              <span style={{fontSize:isAct?11:done?9:9,fontWeight:isAct?800:done?500:400,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 2px'}}>
+                              <span style={{fontSize:isAct?11:done?9:9,fontWeight:isAct?800:done?500:400,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 2px',textDecoration:skipped?'line-through':'none'}}>
                                 {stg.label}
                               </span>
                               {/* Active stage: downward caret pointing to status row below */}
