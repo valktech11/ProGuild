@@ -289,7 +289,7 @@ function CalculatorInner() {
   const [adjSq,      setAdjSq]      = useState(0)
   const [saving,     setSaving]     = useState(false)
   const [insurance,  setInsurance]  = useState<{
-    isInsurance: boolean; approvedAmount: number; supplement: number; deductible: number
+    isInsurance: boolean; approvedAmount: number; supplement: number; deductible: number; claimStatus: string
   } | null>(null)
   const [labourSaved, setLabourSaved] = useState(false)
   const [error,      setError]      = useState<string | null>(null)
@@ -381,6 +381,7 @@ function CalculatorInner() {
               approvedAmount: Number(rjd.approved_amount)   || 0,
               supplement:     Number(rjd.supplement_amount) || 0,
               deductible:     Number(rjd.deductible)        || 0,
+              claimStatus:    String(rjd.claim_status ?? ''),
             })
           }
           // LF — from roof_reports via roofing_job_data (GET always populates from latest report)
@@ -745,7 +746,7 @@ function CalculatorInner() {
         )}
 
         {/* ── Insurance Reconciliation Panel ── */}
-        {insurance?.isInsurance && lineItems.length > 0 && (() => {
+        {insurance?.isInsurance && (insurance.claimStatus === 'Approved' || insurance.claimStatus === 'Supplement Approved') && lineItems.length > 0 && (() => {
           const insurancePays  = insurance.approvedAmount + insurance.supplement - insurance.deductible
           const outOfPocket    = grandTotal - Math.max(insurancePays, 0)
           const fullyCovered   = outOfPocket <= 0

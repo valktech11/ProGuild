@@ -52,7 +52,7 @@ export async function GET(
   if (estimate.lead_id && (estimate.pro as any)?.trade_slug?.includes('roof')) {
     const { data } = await sb
       .from('roofing_job_data')
-      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount')
+      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, claim_status')
       .eq('lead_id', estimate.lead_id)
       .maybeSingle()
     roofingData = data
@@ -100,6 +100,7 @@ export async function GET(
       insurance_claim:   roofingData?.insurance_claim ?? false,
       deductible:        roofingData?.deductible        ?? null,
       approved_amount:   roofingData?.approved_amount   ?? null,
+      claim_status:      roofingData?.claim_status      ?? null,
       supplement_amount: roofingData?.supplement_amount ?? null,
       insurance_company: roofingData?.insurance_company ?? null,
       claim_number:      roofingData?.claim_number      ?? null,

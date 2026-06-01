@@ -39,7 +39,7 @@ export interface PublicRoofingEstimate {
   payment_milestones?: PaymentMilestone[]
   deposit_percent?: number
   insurance_claim?: boolean; deductible?: number
-  approved_amount?: number; supplement_amount?: number
+  approved_amount?: number; supplement_amount?: number; claim_status?: string | null
   insurance_company?: string; claim_number?: string
   pro_id?: string
   pro_name?: string; pro_city?: string; pro_state?: string
@@ -287,7 +287,7 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
 
 
           {/* Insurance breakdown — shown on public proposal when insurance job */}
-          {estimate.insurance_claim && estimate.approved_amount && (() => {
+          {estimate.insurance_claim && estimate.approved_amount && (estimate.claim_status === 'Approved' || estimate.claim_status === 'Supplement Approved') && (() => {
             const insurancePays = (estimate.approved_amount ?? 0) + (estimate.supplement_amount ?? 0) - (estimate.deductible ?? 0)
             const outOfPocket   = estimate.total - Math.max(insurancePays, 0)
             return (

@@ -207,6 +207,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const supplement = parseCurrency(fields.supplement_amount)
   const deductible = parseCurrency(fields.deductible)
   const net        = approved + supplement - deductible
+  const claimPayable = fields.claim_status === 'Approved' || fields.claim_status === 'Supplement Approved'
 
   const activeStatus = CLAIM_STATUSES.find(s => s.value === fields.claim_status) ?? CLAIM_STATUSES[0]
 
@@ -345,8 +346,9 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               </Field>
             </div>
 
-            {/* Net calculation — always visible */}
+            {/* Net calculation — only when the carrier has actually approved */}
             <div style={{ gridColumn:'1 / -1' }}>
+              {claimPayable ? (
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderRadius:10, background: net > 0 ? (dk ? 'rgba(5,150,105,0.12)' : '#F0FDF4') : (dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC'), border:`1px solid ${net > 0 ? 'rgba(5,150,105,0.2)' : '#E2E8F0'}`, transition:'all 0.2s' }}>
                 <div style={{ display:'flex', gap:20 }}>
                   <div>
@@ -369,6 +371,13 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   <div style={{ fontSize:20, fontWeight:900, color: net > 0 ? '#059669' : (dk ? '#475569' : '#94A3B8'), letterSpacing:'-0.03em' }}>${Math.max(net,0).toLocaleString()}</div>
                 </div>
               </div>
+              ) : (
+              <div style={{ padding:'12px 16px', borderRadius:10, background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', border:`1px solid ${dk ? '#334155' : '#E2E8F0'}`, fontSize:12, fontWeight:600, color: dk ? '#94A3B8' : '#64748B' }}>
+                {fields.claim_status === 'Denied'
+                  ? 'Claim denied — insurance pays nothing. Homeowner pays the full job cost.'
+                  : 'Insurance reconciliation appears once the carrier marks the claim Approved.'}
+              </div>
+              )}
             </div>
           </div>
 
