@@ -23,15 +23,23 @@ interface Props {
 }
 
 const CLAIM_STATUSES = [
-  { value: 'Filed',               color: '#64748B', bg: '#F8FAFC' },
-  { value: 'Adjuster Scheduled',  color: '#0284C7', bg: '#E0F2FE' },
-  { value: 'Adjuster Visited',    color: '#7C3AED', bg: '#F5F3FF' },
-  { value: 'Approved',            color: '#059669', bg: '#ECFDF5' },
-  { value: 'Supplement Filed',    color: '#D97706', bg: '#FFFBEB' },
-  { value: 'Supplement Approved', color: '#0891B2', bg: '#ECFEFF' },
-  { value: 'Denied',              color: '#DC2626', bg: '#FEF2F2' },
-  { value: 'Closed',              color: '#374151', bg: '#F3F4F6' },
+  { value: 'Filed',               color: '#64748B', bg: '#F8FAFC', group: 'Claim progress', effect: 'track' },
+  { value: 'Adjuster Scheduled',  color: '#0284C7', bg: '#E0F2FE', group: 'Claim progress', effect: 'track' },
+  { value: 'Adjuster Visited',    color: '#7C3AED', bg: '#F5F3FF', group: 'Claim progress', effect: 'track' },
+  { value: 'Approved',            color: '#059669', bg: '#ECFDF5', group: 'Decision',       effect: 'advance' },
+  { value: 'Denied',              color: '#DC2626', bg: '#FEF2F2', group: 'Decision',       effect: 'denied' },
+  { value: 'Supplement Filed',    color: '#D97706', bg: '#FFFBEB', group: 'Supplement',     effect: 'track' },
+  { value: 'Supplement Approved', color: '#0891B2', bg: '#ECFEFF', group: 'Supplement',     effect: 'advance' },
+  { value: 'Closed',              color: '#374151', bg: '#F3F4F6', group: 'Closed',         effect: 'track' },
 ] as const
+
+const STATUS_GROUPS = ['Claim progress', 'Decision', 'Supplement', 'Closed'] as const
+
+const EFFECT_HINT: Record<string, string> = {
+  advance: 'Unlocks advancing the lead to Insurance Approved.',
+  denied:  'Claim denied — convert to retail or mark lost below.',
+  track:   'Tracking only — no pipeline change.',
+}
 
 const TEAL   = '#0F766E'
 const TEAL_L = '#14B8A6'
@@ -301,13 +309,20 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               <div style={{ position:'relative' }}>
                 <select value={fields.claim_status} onChange={set('claim_status')}
                   style={{ width:'100%', padding:'9px 32px 9px 12px', border:`1.5px solid ${activeStatus.color}40`, borderRadius:9, fontSize:13, outline:'none', background: activeStatus.bg, color: activeStatus.color, fontWeight:700, cursor:'pointer', appearance:'none' as const, transition:'all 0.15s' }}>
-                  {CLAIM_STATUSES.map(s => (
-                    <option key={s.value} value={s.value}>{s.value}</option>
+                  {STATUS_GROUPS.map(g => (
+                    <optgroup key={g} label={g}>
+                      {CLAIM_STATUSES.filter(s => s.group === g).map(s => (
+                        <option key={s.value} value={s.value}>{s.value}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 <div style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
+              </div>
+              <div style={{ marginTop:6, fontSize:11, fontWeight:600, color: activeStatus.effect==='advance' ? '#059669' : activeStatus.effect==='denied' ? '#DC2626' : (dk ? '#64748B' : '#94A3B8') }}>
+                {EFFECT_HINT[activeStatus.effect]}
               </div>
             </Field>
 
