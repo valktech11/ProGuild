@@ -1161,6 +1161,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 onSaved={(data)=>setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)}/>
                             )}
 
+                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
+                              <div style={{marginTop:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(220,38,38,0.10)':'#FEF2F2',border:'1px solid #FECACA'}}>
+                                <div style={{fontSize:13,fontWeight:800,color:'#DC2626',marginBottom:4}}>Insurance claim denied</div>
+                                <div style={{fontSize:12,color:dk?'#FCA5A5':'#991B1B',lineHeight:1.5,marginBottom:12}}>This claim can&apos;t proceed on the insurance track. Convert to a retail job so the homeowner pays the full cost, or mark the lead lost. Claim details are preserved either way in case of an appeal.</div>
+                                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                                  <button onClick={async()=>{const ok=await patch({insurance_claim:false});if(ok){setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),insurance_claim:false}} as any:l);addToast('Converted to retail — homeowner pays full cost','success')}else{addToast('Failed to convert','error')}}}
+                                    style={{padding:'8px 14px',borderRadius:8,border:'none',background:BRAND.teal,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>Convert to Retail</button>
+                                  <button onClick={()=>moveStage('lost' as LeadStatus,true)}
+                                    style={{padding:'8px 14px',borderRadius:8,border:`1px solid ${dk?'#475569':'#CBD5E1'}`,background:'transparent',color:dk?'#E2E8F0':'#475569',fontSize:12,fontWeight:700,cursor:'pointer'}}>Mark Lost</button>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Roofing measurement tools — 3-step flow */}
                             {isRoofing&&(
                               <div style={{marginTop:16,borderRadius:12,background:'#fff',border:'1px solid #E2E8F0',borderLeft:'4px solid #0F766E',overflow:'hidden'}}>
