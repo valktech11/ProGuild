@@ -77,6 +77,19 @@ export async function GET(
     safe.items = safe.items.map(({ id, name, amount, description }: any) => ({ id, name, amount, description }))
   }
 
+  // Defensive: if stored totals are 0/missing (legacy bug where standard-estimate
+  // totals saved as 0 due to string-amount concat), recompute from line items so
+  // the homeowner email + public proposal never show $0.
+  const itemsSum = Array.isArray(safe.items)
+    ? safe.items.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+    : 0
+  if ((Number(safe.total) || 0) === 0 && itemsSum > 0) {
+    const rate = Number(safe.tax_rate) || 0
+    safe.subtotal   = itemsSum
+    safe.tax_amount = Math.round(itemsSum * (rate / 100))
+    safe.total      = safe.subtotal + safe.tax_amount
+  }
+
   return NextResponse.json({
     estimate: {
       ...safe,

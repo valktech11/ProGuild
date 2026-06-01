@@ -253,9 +253,15 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     estimate.tiered_data?.selected_tier ?? 'upgraded'
   )
 
-  // Standard items
+  // Standard items — coerce numeric fields: DB returns numerics as strings,
+  // which break sum reduces (string concat -> 0 subtotal on save).
   const [stdItems, setStdItems] = useState<TierLineItem[]>(
-    estimate.items ?? buildDefaultTiers(materialPrices)[0].items
+    (estimate.items ?? buildDefaultTiers(materialPrices)[0].items).map((i: any) => ({
+      ...i,
+      qty:        Number(i.qty)        || 0,
+      unit_price: Number(i.unit_price) || 0,
+      amount:     Number(i.amount)     || 0,
+    }))
   )
 
   // Other fields
@@ -293,7 +299,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   // Payment milestones — derived from selected tier total
   const activeTierSubtotal = estType === 'tiered'
     ? (tiers.find(t => t.key === selectedTier)?.subtotal ?? 0)
-    : (stdItems.reduce((s, i) => s + i.amount, 0))
+    : (stdItems.reduce((s, i) => s + (Number(i.amount) || 0), 0))
 
   const taxAmt  = Math.round(activeTierSubtotal * (estimate.tax_rate / 100))
   const total   = activeTierSubtotal + taxAmt
@@ -734,7 +740,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
                 <button
                   onClick={async () => {
                     const newTotal = pendingTypeSwitch === 'standard'
-                      ? stdItems.reduce((s,i) => s + i.amount, 0) * (1 + estimate.tax_rate/100)
+                      ? stdItems.reduce((s,i) => s + (Number(i.amount) || 0), 0) * (1 + estimate.tax_rate/100)
                       : total
                     setEstType(pendingTypeSwitch)
                     savedEstType.current = pendingTypeSwitch

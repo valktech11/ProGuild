@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
       id, estimate_number, total, status, contact_email, contact_phone,
       lead_name, valid_until, pro_id, lead_id,
       pro:pros(full_name, phone_cell, city, state, trade_slug),
-      roofing:roofing_estimate_data(property_address, estimate_type, tiered_data)
+      roofing:roofing_estimate_data(property_address, estimate_type, tiered_data),
+      items:estimate_items(amount)
     `)
     .eq('id', estimateId)
     .single()
@@ -69,7 +70,13 @@ export async function POST(req: NextRequest) {
     const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
     total = `${fmt(minT)} – ${fmt(maxT)}`
   } else {
-    total = Number(est.total ?? 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+    // Standard estimate: stored total can be 0 (legacy string-amount save bug);
+    // fall back to summing line items so the email never shows $0.
+    const itemsSum = Array.isArray((est as any).items)
+      ? (est as any).items.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+      : 0
+    const effectiveTotal = (Number(est.total) || 0) > 0 ? Number(est.total) : itemsSum
+    total = effectiveTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
   }
   const validUntil  = est.valid_until
     ? new Date(est.valid_until).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
