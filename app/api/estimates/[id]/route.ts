@@ -244,6 +244,29 @@ export async function PATCH(
     } else {
       await sb.from('estimate_items').delete().eq('estimate_id', id)
     }
+
+    // ── Server-side total derivation (authoritative) ──────────────────────────
+    // Do NOT trust client-sent subtotal/total: they were the source of the $0 bug
+    // (DB returns item amounts as strings -> client reduce string-concats -> 0).
+    // For standard (item-based) estimates, recompute from the persisted items so
+    // any invoice created from this estimate inherits a correct total.
+    const { data: estForTotals } = await sb
+      .from('estimates').select('tax_rate').eq('id', id).single()
+    const itemsSubtotal = items.reduce(
+      (s: number, it: any) => s + (Math.round((Number(it.qty) || 0) * (Number(it.unit_price) || 0) * 100) / 100), 0)
+    // Only override when this is an item-based (non-tiered) estimate. Tiered
+    // estimates set their total from the selected tier elsewhere.
+    if (estimate_type !== 'tiered') {
+      const txRate    = Number(estForTotals?.tax_rate) || 0
+      const derivedTax   = Math.round(itemsSubtotal * (txRate / 100) * 100) / 100
+      const derivedTotal = itemsSubtotal + derivedTax
+      await sb.from('estimates').update({
+        subtotal:   itemsSubtotal,
+        tax_amount: derivedTax,
+        total:      derivedTotal,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id)
+    }
   }
 
   // ── Auto-stage lead based on estimate status ────────────────────────────────
@@ -262,7 +285,7 @@ export async function PATCH(
     if (total !== undefined) {
       // Always sync quoted_amount when estimate has a total
       if (['sent','approved','invoiced','paid'].includes(status)) {
-        leadUpdate.quoted_amount = Math.round(total * 100) / 100
+        leadUpdate.quoted_amount = Math.round((Number(total) || 0) * 100) / 100
       }
     }
 

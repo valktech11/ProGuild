@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   // Fetch invoice
   const { data: inv, error: invErr } = await sb
     .from('invoices')
-    .select('id, invoice_number, total, balance_due, due_date, lead_name, contact_email, status, pro_id, lead_id')
+    .select('id, invoice_number, total, balance_due, due_date, lead_name, contact_email, status, pro_id, lead_id, estimate_id')
     .eq('id', invoice_id)
     .maybeSingle()
 
@@ -65,6 +65,29 @@ export async function POST(req: NextRequest) {
   const invoiceUrl  = `${baseUrl}/invoice/${invoice_id}`
   const clientName  = inv.lead_name ?? 'Homeowner'
   const invNumber   = inv.invoice_number ?? 'INV'
+  // Self-heal: if invoice total is 0 (created from a zero-total estimate before
+  // the server-side derive fix), recompute from the parent estimate's items so
+  // the homeowner never receives a $0 invoice.
+  if ((Number(inv.total) || 0) === 0 && (inv as any).estimate_id) {
+    const { data: estItems } = await sb
+      .from('estimate_items').select('amount').eq('estimate_id', (inv as any).estimate_id)
+    const itemsSum = Array.isArray(estItems)
+      ? estItems.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0) : 0
+    if (itemsSum > 0) {
+      const { data: estRow } = await sb
+        .from('estimates').select('tax_rate').eq('id', (inv as any).estimate_id).maybeSingle()
+      const rate = Number(estRow?.tax_rate) || 0
+      const tax  = Math.round(itemsSum * (rate / 100) * 100) / 100
+      const total = itemsSum + tax
+      await sb.from('invoices').update({
+        subtotal: itemsSum, tax_amount: tax, total, balance_due: total,
+        updated_at: new Date().toISOString(),
+      }).eq('id', invoice_id)
+      ;(inv as any).total = total
+      ;(inv as any).balance_due = total
+    }
+  }
+
   const amountDue   = Number(inv.balance_due ?? inv.total ?? 0)
     .toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
   const dueDate = inv.due_date
