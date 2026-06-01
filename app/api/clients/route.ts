@@ -55,7 +55,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'pro_id and full_name required' }, { status: 400 })
   }
 
-  const { data, error } = await getSupabaseAdmin()
+  const db = getSupabaseAdmin()
+
+  // ── Dedup guard: match existing client by phone → email → name+address ──
+  // Prevents duplicate client rows from repeated "Save as Property" clicks,
+  // multi-submits, and retries after a failed lead-link PATCH.
+  let existing: { id: string } | null = null
+  if (phone) {
+    const { data } = await db.from('clients').select('*')
+      .eq('pro_id', pro_id).eq('phone', String(phone).trim()).maybeSingle()
+    if (data) existing = data
+  }
+  if (!existing && email) {
+    const { data } = await db.from('clients').select('*')
+      .eq('pro_id', pro_id).eq('email', String(email).toLowerCase().trim()).maybeSingle()
+    if (data) existing = data
+  }
+  if (!existing && address_line1) {
+    const { data } = await db.from('clients').select('*')
+      .eq('pro_id', pro_id)
+      .ilike('full_name', String(full_name).trim())
+      .eq('address_line1', String(address_line1).trim())
+      .maybeSingle()
+    if (data) existing = data
+  }
+  if (existing) {
+    return NextResponse.json({ client: existing }, { status: 200 })
+  }
+
+  const { data, error } = await db
     .from('clients')
     .insert({ pro_id, full_name, phone, email, address_line1, city, state, zip, preferred_contact: preferred_contact || 'call', notes, tags: tags || [] })
     .select()
