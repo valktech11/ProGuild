@@ -817,13 +817,14 @@ function SignatureSection({ lead_name, selectedTierLabel, onConfirm, approving }
   }
   const confirm = async () => {
     if (pickedSig) {
-      // Convert typed signature to canvas image
-      const c = canvasRef.current
-      if (!c) return
+      // Typed signature: render to an offscreen canvas — the on-screen canvas
+      // only mounts in draw mode, so canvasRef is null here.
+      const c = document.createElement('canvas')
+      c.width = 520; c.height = 160
       const ctx = c.getContext('2d')
       if (!ctx) return
-      ctx.clearRect(0, 0, c.width, c.height)
-      ctx.font = `48px ${sigStyles[0]?.font ?? 'cursive'}`
+      const pickedFont = sigStyles.find(s => s.label === pickedSig)?.font ?? sigStyles[0]?.font ?? 'cursive'
+      ctx.font = `48px ${pickedFont}`
       ctx.fillStyle = '#0F172A'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
