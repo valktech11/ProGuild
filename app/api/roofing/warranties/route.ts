@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
   const sb = getSupabaseAdmin()
   let query = sb
     .from('roofing_warranties')
-    .select('*')
+    .select('*, lead:leads(contact_name, property_address, contact_city, contact_state)')
     .eq('pro_id', proId)
     .order('created_at', { ascending: false })
 
@@ -96,5 +96,18 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ warranties: data ?? [] })
+
+  // Flatten the joined lead fields so the client doesn't dig into a nested object.
+  const warranties = (data ?? []).map((w: any) => {
+    const lead = w.lead ?? {}
+    const { lead: _drop, ...rest } = w
+    return {
+      ...rest,
+      homeowner_name:   lead.contact_name ?? null,
+      property_address: lead.property_address ?? null,
+      property_city:    lead.contact_city ?? null,
+      property_state:   lead.contact_state ?? null,
+    }
+  })
+  return NextResponse.json({ warranties })
 }
