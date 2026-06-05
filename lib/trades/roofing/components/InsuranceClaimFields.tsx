@@ -23,6 +23,7 @@ interface Props {
   proId:    string
   initial:  Partial<InsuranceClaimData>
   darkMode: boolean
+  propertyState?: string | null   // gate FL-only intelligence to FL properties
   onSaved:  (data: InsuranceClaimData) => void
 }
 
@@ -97,7 +98,9 @@ function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { 
   )
 }
 
-export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, onSaved }: Props) {
+export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, onSaved }: Props) {
+  // FL claims-intelligence (SB 2-A, 25% rule) is Florida-specific by design — gate it.
+  const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
   const [open,   setOpen]   = useState(initial.insurance_claim ?? false)
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState<string | null>(null)
@@ -287,6 +290,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               />
             </Field>
 
+            {isFL && (<>
             {/* Row 1b: Date of loss + FL SB 2-A deadlines (full width) */}
             <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, alignItems:'start' }}>
               <Field label="Date of loss">
@@ -343,7 +347,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                           </div>
                         )
                       })}
-                      <div style={{ fontSize:10, color: dk ? '#64748B' : '#94A3B8' }}>{SB2A_DISCLAIMER}</div>
+                      <div style={{ fontSize:12, lineHeight:1.45, color: dk ? '#94A3B8' : '#475569' }}>{SB2A_DISCLAIMER}</div>
                     </div>
                   )
                 })()}
@@ -388,12 +392,13 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                           <div style={{ fontSize:11.5, color: dk ? '#CBD5E1' : '#475569', marginTop:3, lineHeight:1.4 }}>{elig.detail}</div>
                         </div>
                       </div>
-                      <div style={{ fontSize:10, color: dk ? '#64748B' : '#94A3B8' }}>{ROOF_RULE_DISCLAIMER}</div>
+                      <div style={{ fontSize:12, lineHeight:1.45, color: dk ? '#94A3B8' : '#475569' }}>{ROOF_RULE_DISCLAIMER}</div>
                     </div>
                   )
                 })()}
               </div>
             </div>
+            </>)}
 
             {/* Row 2: Adjuster name + phone */}
             <Field label="Adjuster name">
