@@ -27,3 +27,23 @@ export function wonInMonth<T extends WonLead>(leads: T[], wonStatus: string, off
 export function sumQuoted(leads: WonLead[]): number {
   return leads.reduce((s, l) => s + (l.quoted_amount || 0), 0)
 }
+
+interface RevenueLead {
+  quoted_amount?: number | null
+  roofing_job_data?:
+    | { approved_amount?: number | null }
+    | { approved_amount?: number | null }[]
+    | null
+}
+
+/** Revenue for a single lead: the approved (insurance) amount if present, else the quote. */
+export function leadRevenue(l: RevenueLead): number {
+  const rjd = Array.isArray(l.roofing_job_data) ? l.roofing_job_data[0] : l.roofing_job_data
+  const approved = rjd?.approved_amount
+  return approved != null && approved > 0 ? approved : (l.quoted_amount || 0)
+}
+
+/** Sum revenue (approved-else-quoted) over a set of leads. */
+export function sumRevenue(leads: RevenueLead[]): number {
+  return leads.reduce((s, l) => s + leadRevenue(l), 0)
+}

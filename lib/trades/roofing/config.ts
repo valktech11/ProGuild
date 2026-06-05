@@ -171,7 +171,7 @@ export const roofingConfig: RoofingConfig = {
       items: [
         { label: 'Proposals', href: '/dashboard/estimates', icon: '📝', description: 'Good / Better / Best proposals' },
         { label: 'Invoices',  href: '/dashboard/invoices',  icon: '💰', description: 'Payments and outstanding balances' },
-        { label: 'Revenue',   href: '/dashboard/revenue',   icon: '📈', description: 'Revenue and performance', badge: 'pro', comingSoon: true },
+        { label: 'Revenue',   href: '/dashboard/revenue',   icon: '📈', description: 'Revenue and performance' },
       ],
     },
     {

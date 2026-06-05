@@ -1,4 +1,5 @@
 'use client'
+import { wonInMonth, sumRevenue } from '@/lib/metrics/won'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -1183,7 +1184,9 @@ function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onSt
           <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted }}>
             {leads.length === 0
               ? 'No leads'
-              : `${leads.length} lead${leads.length!==1?'s':''} · avg ${(leads.reduce((s,l) => s+(Date.now()-new Date(l.created_at).getTime())/86400000,0)/leads.length).toFixed(1)}d`}
+              : stage.terminal
+                ? `${leads.length} ${leads.length!==1?'jobs':'job'} · all time`
+                : `${leads.length} lead${leads.length!==1?'s':''} · avg ${(leads.reduce((s,l) => s+(Date.now()-new Date(l.created_at).getTime())/86400000,0)/leads.length).toFixed(1)}d`}
           </div>
         </div>
 
@@ -1318,11 +1321,8 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       const kpiTermKeys = new Set([...getTerminalStages(tradeSlug).map((s: any) => s.key), kpiAnchors.won, 'Paid', 'Lost'])
       const activeLeads = leads.filter(l => !kpiTermKeys.has(l.lead_status as string))
       const pipelineVal = activeLeads.reduce((s,l) => s + (l.quoted_amount||0), 0)
-      const wonThisMonth = leads.filter(l =>
-        (l.lead_status === kpiAnchors.won || l.lead_status === 'Paid') &&
-        new Date((l as any).updated_at || l.created_at).getTime() >= monthStart
-      )
-      const wonVal = wonThisMonth.reduce((s,l) => s + (l.quoted_amount||0), 0)
+      const wonThisMonth = [...wonInMonth(leads as any, kpiAnchors.won, 0), ...wonInMonth(leads as any, 'Paid', 0)]
+      const wonVal = sumRevenue(wonThisMonth as any)
       const avgAge = activeLeads.length
         ? (activeLeads.reduce((s,l) => s + (Date.now()-new Date(l.created_at).getTime())/86400000, 0) / activeLeads.length).toFixed(1)
         : '0'

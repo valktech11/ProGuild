@@ -27,3 +27,23 @@ describe('wonInMonth', () => {
     expect(wonInMonth(leads, 'lost', 0).length).toBe(1)
   })
 })
+
+import { leadRevenue, sumRevenue } from '@/lib/metrics/won'
+describe('leadRevenue (approved-else-quoted)', () => {
+  it('uses approved_amount when present', () => {
+    expect(leadRevenue({ quoted_amount: 1000, roofing_job_data: { approved_amount: 41782 } })).toBe(41782)
+  })
+  it('falls back to quoted when no approved', () => {
+    expect(leadRevenue({ quoted_amount: 18433, roofing_job_data: { approved_amount: null } })).toBe(18433)
+    expect(leadRevenue({ quoted_amount: 18433, roofing_job_data: null })).toBe(18433)
+  })
+  it('handles roofing_job_data returned as array', () => {
+    expect(leadRevenue({ quoted_amount: 1000, roofing_job_data: [{ approved_amount: 5000 }] })).toBe(5000)
+  })
+  it('sumRevenue totals correctly', () => {
+    expect(sumRevenue([
+      { quoted_amount: 1000, roofing_job_data: { approved_amount: 41782 } },
+      { quoted_amount: 18433 },
+    ])).toBe(41782 + 18433)
+  })
+})

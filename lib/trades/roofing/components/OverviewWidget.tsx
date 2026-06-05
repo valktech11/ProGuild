@@ -10,7 +10,7 @@
 import { useRouter } from 'next/navigation'
 import { theme, T, BRAND } from '@/lib/tokens'
 import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
-import { wonInMonth, sumQuoted } from '@/lib/metrics/won'
+import { wonInMonth, sumRevenue } from '@/lib/metrics/won'
 
 const TEAL = '#0F766E'
 
@@ -86,23 +86,26 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
   })).filter(s => s.count > 0)
 
   const wonThisMonth   = wonInMonth(leads, 'job_won', 0)
-  const wonRevenue     = sumQuoted(wonThisMonth)
+  const wonRevenue     = sumRevenue(wonThisMonth)
   const totalForecast  = forecastData.reduce((sum, s) => sum + s.amount, 0) + wonRevenue
 
   // ── Performance scorecard (this month vs last), keyed off the real won date ──
   const wonLastMonth   = wonInMonth(leads, 'job_won', 1)
-  const wonRevenueLast = sumQuoted(wonLastMonth)
+  const wonRevenueLast = sumRevenue(wonLastMonth)
   const lostThisMonth  = wonInMonth(leads, 'lost', 0).length
   const decided        = wonThisMonth.length + lostThisMonth
   const winRate        = decided > 0 ? Math.round((wonThisMonth.length / decided) * 100) : null
   const avgTicket      = wonThisMonth.length > 0 ? wonRevenue / wonThisMonth.length : 0
-  const pipelineValue  = sumQuoted(leads.filter(l => l.lead_status !== 'job_won' && l.lead_status !== 'lost'))
+  const pipelineValue  = sumRevenue(leads.filter(l => l.lead_status !== 'job_won' && l.lead_status !== 'lost'))
+  const allWon         = leads.filter(l => l.lead_status === 'job_won')
+  const totalWonRevenue = sumRevenue(allWon)
   const revDelta = wonRevenueLast > 0 ? Math.round(((wonRevenue - wonRevenueLast) / wonRevenueLast) * 100) : null
 
   const scorecard = [
     { label: 'Revenue · this month', value: fmtCurrency(wonRevenue),
       sub: revDelta == null ? `${wonThisMonth.length} won` : `${revDelta >= 0 ? '▲' : '▼'} ${Math.abs(revDelta)}% vs last mo`,
-      subColor: revDelta == null ? '#94A3B8' : revDelta >= 0 ? '#059669' : '#DC2626', accent: '#0F766E' },
+      subColor: revDelta == null ? '#94A3B8' : revDelta >= 0 ? '#059669' : '#DC2626', accent: '#0F766E',
+      sub2: `Total won: ${fmtCurrency(totalWonRevenue)} · ${allWon.length} job${allWon.length!==1?'s':''}` },
     { label: 'Jobs won', value: String(wonThisMonth.length), sub: 'this month', subColor: '#94A3B8', accent: '#2563EB' },
     { label: 'Win rate', value: winRate == null ? '—' : `${winRate}%`,
       sub: decided > 0 ? `${wonThisMonth.length}/${decided} decided` : 'no closes yet', subColor: '#94A3B8', accent: '#059669' },
@@ -123,6 +126,7 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase' as const, color: t.textSubtle }}>{c.label}</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: t.textPri, marginTop: 6, letterSpacing: '-0.02em' }}>{c.value}</div>
             <div style={{ fontSize: 11, fontWeight: 600, color: c.subColor, marginTop: 3 }}>{c.sub}</div>
+            {(c as any).sub2 && <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginTop: 1 }}>{(c as any).sub2}</div>}
           </div>
         ))}
       </div>

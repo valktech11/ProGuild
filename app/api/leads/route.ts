@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
   const { data, error } = await getSupabaseAdmin()
     .from('leads')
-    .select('*, roofing_job_data(insurance_claim)')
+    .select('*, roofing_job_data(insurance_claim, approved_amount, insurance_company, claim_status)')
     .eq('pro_id', proId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
