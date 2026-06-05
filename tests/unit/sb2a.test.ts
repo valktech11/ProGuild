@@ -1,4 +1,5 @@
-// Unit tests for SB 2-A logic. Vitest/Jest-compatible (describe/it/expect).
+// Unit tests for SB 2-A logic. Vitest.
+import { describe, it, expect } from 'vitest';
 import { computeSB2ADeadlines, addMonthsUTC } from '@/lib/fl/sb2a';
 
 describe('addMonthsUTC', () => {

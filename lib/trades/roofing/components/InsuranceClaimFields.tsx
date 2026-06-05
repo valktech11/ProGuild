@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { computeSB2ADeadlines, SB2A_DISCLAIMER } from '@/lib/fl/sb2a'
 
 export interface InsuranceClaimData {
   insurance_claim:        boolean
@@ -12,6 +13,7 @@ export interface InsuranceClaimData {
   approved_amount:        string
   supplement_amount:      string
   deductible:             string
+  date_of_loss:           string   // YYYY-MM-DD — FL SB 2-A clock start
 }
 
 interface Props {
@@ -118,6 +120,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     approved_amount:      initial.approved_amount != null ? String(initial.approved_amount) : '',
     supplement_amount:    initial.supplement_amount != null ? String(initial.supplement_amount) : '',
     deductible:           initial.deductible != null ? String(initial.deductible) : '',
+    date_of_loss:         initial.date_of_loss         ?? '',
   })
 
   function set(key: keyof InsuranceClaimData) {
@@ -161,6 +164,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
           approved_amount:      parseCurrency(fields.approved_amount) || null,
           supplement_amount:    parseCurrency(fields.supplement_amount) || null,
           deductible:           parseCurrency(fields.deductible) || null,
+          date_of_loss:         fields.date_of_loss         || null,
         }),
       })
       if (!res.ok) {
@@ -177,7 +181,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const initialised = useRef(false)
   useEffect(() => {
     // Only sync if we have real data and haven't been edited by user yet
-    if (!initial.claim_number && !initial.insurance_company && !initial.approved_amount) return
+    if (!initial.claim_number && !initial.insurance_company && !initial.approved_amount && !initial.date_of_loss) return
     if (initialised.current) return  // user has started editing — don't overwrite
     initialised.current = true
     setOpen(initial.insurance_claim ?? false)
@@ -199,6 +203,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       approved_amount:      initial.approved_amount != null ? String(initial.approved_amount) : '',
       supplement_amount:    initial.supplement_amount != null ? String(initial.supplement_amount) : '',
       deductible:           initial.deductible != null ? String(initial.deductible) : '',
+      date_of_loss:         initial.date_of_loss         ?? '',
     })
   }, [initial])
 
@@ -276,6 +281,62 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>}
               />
             </Field>
+
+            {/* Row 1b: Date of loss + FL SB 2-A deadlines (full width) */}
+            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, alignItems:'start' }}>
+              <Field label="Date of loss">
+                <div style={{ position:'relative' }}>
+                  <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                  <input type="date" value={fields.date_of_loss} onChange={set('date_of_loss')}
+                    style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
+                    onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
+                    onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
+                  />
+                </div>
+                <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>
+                  Storm claims: hurricane landfall / NOAA date &#8212; not the discovery date.
+                </div>
+              </Field>
+              <div>
+                {(() => {
+                  const dls = computeSB2ADeadlines(fields.date_of_loss)
+                  if (!dls) return (
+                    <div style={{ fontSize:12, color: dk ? '#64748B' : '#94A3B8', paddingTop:24 }}>
+                      Set a date of loss to track SB 2-A deadlines.
+                    </div>
+                  )
+                  const palette: Record<string, [string, string]> = {
+                    expired:     ['#FEE2E2', '#991B1B'],
+                    urgent:      ['#FFEDD5', '#9A3412'],
+                    approaching: ['#FEF3C7', '#92400E'],
+                    ok:          ['#D1FAE5', '#065F46'],
+                  }
+                  return (
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.04em', textTransform:'uppercase' as const, color: dk ? '#94A3B8' : '#64748B' }}>
+                        FL claim deadlines (SB 2-A)
+                      </div>
+                      {dls.map(d => {
+                        const [bg, fg] = palette[d.status]
+                        const txt = d.status === 'expired' ? `passed ${Math.abs(d.daysLeft)}d ago` : `${d.daysLeft}d left`
+                        return (
+                          <div key={d.key} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:bg, color:fg, border:`1px solid ${fg}30`, borderRadius:8, padding:'6px 10px', fontSize:12 }}>
+                            <span style={{ fontWeight:600 }}>{d.label}</span>
+                            <span style={{ display:'flex', gap:8, alignItems:'center' }}>
+                              <span style={{ fontVariantNumeric:'tabular-nums' as const }}>{d.dueDate}</span>
+                              <strong>{txt}</strong>
+                            </span>
+                          </div>
+                        )
+                      })}
+                      <div style={{ fontSize:10, color: dk ? '#64748B' : '#94A3B8' }}>{SB2A_DISCLAIMER}</div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
 
             {/* Row 2: Adjuster name + phone */}
             <Field label="Adjuster name">
