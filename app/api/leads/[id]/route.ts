@@ -39,7 +39,7 @@ const ROOFING_JOB_FIELDS = [
   'insurance_claim', 'insurance_company', 'claim_number',
   'adjuster_name', 'adjuster_phone', 'adjuster_appointment',
   'claim_status', 'approved_amount', 'supplement_amount', 'deductible',
-  'date_of_loss',
+  'date_of_loss', 'roof_install_date',
   'square_count', 'pitch', 'waste_pct', 'roof_type',
   'shingle_brand', 'shingle_model', 'warranty_term',
   'decking_replacement', 'layers', 'permit_number', 'permit_status',

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { computeSB2ADeadlines, SB2A_DISCLAIMER } from '@/lib/fl/sb2a'
+import { computeRoofRuleEligibility, ROOF_RULE_DISCLAIMER } from '@/lib/fl/roofAge'
 
 export interface InsuranceClaimData {
   insurance_claim:        boolean
@@ -14,6 +15,7 @@ export interface InsuranceClaimData {
   supplement_amount:      string
   deductible:             string
   date_of_loss:           string   // YYYY-MM-DD — FL SB 2-A clock start
+  roof_install_date:      string   // YYYY-MM-DD — roof build/last reroof (25% rule)
 }
 
 interface Props {
@@ -121,6 +123,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     supplement_amount:    initial.supplement_amount != null ? String(initial.supplement_amount) : '',
     deductible:           initial.deductible != null ? String(initial.deductible) : '',
     date_of_loss:         initial.date_of_loss         ?? '',
+    roof_install_date:    initial.roof_install_date    ?? '',
   })
 
   function set(key: keyof InsuranceClaimData) {
@@ -165,6 +168,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
           supplement_amount:    parseCurrency(fields.supplement_amount) || null,
           deductible:           parseCurrency(fields.deductible) || null,
           date_of_loss:         fields.date_of_loss         || null,
+          roof_install_date:    fields.roof_install_date    || null,
         }),
       })
       if (!res.ok) {
@@ -181,7 +185,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const initialised = useRef(false)
   useEffect(() => {
     // Only sync if we have real data and haven't been edited by user yet
-    if (!initial.claim_number && !initial.insurance_company && !initial.approved_amount && !initial.date_of_loss) return
+    if (!initial.claim_number && !initial.insurance_company && !initial.approved_amount && !initial.date_of_loss && !initial.roof_install_date) return
     if (initialised.current) return  // user has started editing — don't overwrite
     initialised.current = true
     setOpen(initial.insurance_claim ?? false)
@@ -204,6 +208,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       supplement_amount:    initial.supplement_amount != null ? String(initial.supplement_amount) : '',
       deductible:           initial.deductible != null ? String(initial.deductible) : '',
       date_of_loss:         initial.date_of_loss         ?? '',
+      roof_install_date:    initial.roof_install_date    ?? '',
     })
   }, [initial])
 
@@ -308,30 +313,82 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                     </div>
                   )
                   const palette: Record<string, [string, string]> = {
-                    expired:     ['#FEE2E2', '#991B1B'],
-                    urgent:      ['#FFEDD5', '#9A3412'],
-                    approaching: ['#FEF3C7', '#92400E'],
-                    ok:          ['#D1FAE5', '#065F46'],
+                    expired:     ['#FEF2F2', '#DC2626'],
+                    urgent:      ['#FFF7ED', '#EA580C'],
+                    approaching: ['#FFFBEB', '#D97706'],
+                    ok:          ['#ECFDF5', '#059669'],
                   }
                   return (
-                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                      <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.04em', textTransform:'uppercase' as const, color: dk ? '#94A3B8' : '#64748B' }}>
+                    <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+                      <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.03em', textTransform:'uppercase' as const, color: NAVY }}>
                         FL claim deadlines (SB 2-A)
                       </div>
                       {dls.map(d => {
                         const [bg, fg] = palette[d.status]
-                        const txt = d.status === 'expired' ? `passed ${Math.abs(d.daysLeft)}d ago` : `${d.daysLeft}d left`
                         return (
-                          <div key={d.key} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:bg, color:fg, border:`1px solid ${fg}30`, borderRadius:8, padding:'6px 10px', fontSize:12 }}>
-                            <span style={{ fontWeight:600 }}>{d.label}</span>
-                            <span style={{ display:'flex', gap:8, alignItems:'center' }}>
-                              <span style={{ fontVariantNumeric:'tabular-nums' as const }}>{d.dueDate}</span>
-                              <strong>{txt}</strong>
-                            </span>
+                          <div key={d.key} style={{ display:'flex', alignItems:'stretch', background:bg, border:`1px solid ${fg}33`, borderRadius:9, overflow:'hidden' }}>
+                            <div style={{ width:4, background:fg, flexShrink:0 }} />
+                            <div style={{ flex:1, display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px' }}>
+                              <div>
+                                <div style={{ fontSize:12.5, fontWeight:700, color: NAVY }}>{d.label}</div>
+                                <div style={{ fontSize:11, color:'#64748B', fontVariantNumeric:'tabular-nums' as const, marginTop:1 }}>due {d.dueDate}</div>
+                              </div>
+                              <div style={{ textAlign:'right' as const, lineHeight:1 }}>
+                                <div style={{ fontSize:19, fontWeight:800, color:fg, fontVariantNumeric:'tabular-nums' as const }}>{Math.abs(d.daysLeft)}d</div>
+                                <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' as const, color:fg, opacity:0.85, marginTop:2 }}>
+                                  {d.status === 'expired' ? 'overdue' : 'left'}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         )
                       })}
                       <div style={{ fontSize:10, color: dk ? '#64748B' : '#94A3B8' }}>{SB2A_DISCLAIMER}</div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+
+            {/* Row 1c: Roof age + FL 25% rule eligibility (full width) */}
+            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, alignItems:'start' }}>
+              <Field label="Roof built / last reroofed">
+                <div style={{ position:'relative' }}>
+                  <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+                  </div>
+                  <input type="date" value={fields.roof_install_date} onChange={set('roof_install_date')}
+                    style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
+                    onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
+                    onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
+                  />
+                </div>
+                <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>
+                  Use the last reroof permit date. Threshold: Mar 1, 2009 (2007 FBC).
+                </div>
+              </Field>
+              <div>
+                {(() => {
+                  const elig = computeRoofRuleEligibility(fields.roof_install_date)
+                  const tone: Record<string, [string, string]> = {
+                    exempt:  ['#EFF6FF', '#2563EB'],   // informational — limited 25%-rule leverage
+                    subject: ['#ECFDF5', '#059669'],   // supports full-roof claim
+                    unknown: ['#FFFBEB', '#D97706'],   // need the permit date
+                  }
+                  const [bg, fg] = tone[elig.verdict]
+                  return (
+                    <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+                      <div style={{ fontSize:12, fontWeight:700, letterSpacing:'0.03em', textTransform:'uppercase' as const, color: NAVY }}>
+                        Roof replacement eligibility (25% rule)
+                      </div>
+                      <div style={{ display:'flex', alignItems:'stretch', background:bg, border:`1px solid ${fg}33`, borderRadius:9, overflow:'hidden' }}>
+                        <div style={{ width:4, background:fg, flexShrink:0 }} />
+                        <div style={{ padding:'9px 12px' }}>
+                          <div style={{ fontSize:12.5, fontWeight:700, color:fg }}>{elig.headline}</div>
+                          <div style={{ fontSize:11.5, color: dk ? '#CBD5E1' : '#475569', marginTop:3, lineHeight:1.4 }}>{elig.detail}</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize:10, color: dk ? '#64748B' : '#94A3B8' }}>{ROOF_RULE_DISCLAIMER}</div>
                     </div>
                   )
                 })()}
