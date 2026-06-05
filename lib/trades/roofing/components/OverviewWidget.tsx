@@ -93,11 +93,53 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
   const wonRevenue = wonThisMonth.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
   const totalForecast = forecastData.reduce((sum, s) => sum + s.amount, 0) + wonRevenue
 
+  // ── Performance scorecard (this month vs last) ────────────────────────────
+  const now = new Date()
+  const inMonth = (d: string | null | undefined, offset = 0) => {
+    if (!d) return false
+    const dt = new Date(d)
+    const ref = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+    return dt.getMonth() === ref.getMonth() && dt.getFullYear() === ref.getFullYear()
+  }
+  const wonLastMonth   = leads.filter(l => l.lead_status === 'job_won' && inMonth(l.updated_at, 1))
+  const wonRevenueLast = wonLastMonth.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
+  const lostThisMonth  = leads.filter(l => l.lead_status === 'lost' && inMonth(l.updated_at)).length
+  const decided        = wonThisMonth.length + lostThisMonth
+  const winRate        = decided > 0 ? Math.round((wonThisMonth.length / decided) * 100) : null
+  const avgTicket      = wonThisMonth.length > 0 ? wonRevenue / wonThisMonth.length : 0
+  const pipelineValue  = leads
+    .filter(l => l.lead_status !== 'job_won' && l.lead_status !== 'lost')
+    .reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
+  const revDelta = wonRevenueLast > 0 ? Math.round(((wonRevenue - wonRevenueLast) / wonRevenueLast) * 100) : null
+
+  const scorecard = [
+    { label: 'Revenue · this month', value: fmtCurrency(wonRevenue),
+      sub: revDelta == null ? `${wonThisMonth.length} won` : `${revDelta >= 0 ? '▲' : '▼'} ${Math.abs(revDelta)}% vs last mo`,
+      subColor: revDelta == null ? '#94A3B8' : revDelta >= 0 ? '#059669' : '#DC2626', accent: '#0F766E' },
+    { label: 'Jobs won', value: String(wonThisMonth.length), sub: 'this month', subColor: '#94A3B8', accent: '#2563EB' },
+    { label: 'Win rate', value: winRate == null ? '—' : `${winRate}%`,
+      sub: decided > 0 ? `${wonThisMonth.length}/${decided} decided` : 'no closes yet', subColor: '#94A3B8', accent: '#059669' },
+    { label: 'Avg ticket', value: avgTicket > 0 ? fmtCurrency(Math.round(avgTicket)) : '—', sub: 'per won job', subColor: '#94A3B8', accent: '#D97706' },
+    { label: 'Pipeline value', value: fmtCurrency(pipelineValue), sub: 'open leads', subColor: '#94A3B8', accent: '#0891B2' },
+  ]
+
   const card = t.cardBg
   const bdr  = t.cardBorder
 
   return (
     <>
+      {/* ── Performance scorecard ──────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
+        {scorecard.map(c => (
+          <div key={c.label} style={{ backgroundColor: card, border: `1px solid ${bdr}`, borderRadius: 14, padding: '14px 16px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: c.accent }} />
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase' as const, color: t.textSubtle }}>{c.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: t.textPri, marginTop: 6, letterSpacing: '-0.02em' }}>{c.value}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: c.subColor, marginTop: 3 }}>{c.sub}</div>
+          </div>
+        ))}
+      </div>
+
       {/* ── Today's Schedule ───────────────────────────────────────────────── */}
       <div className="rounded-2xl mb-5" style={{
         backgroundColor: card, border: `1px solid ${bdr}`,
