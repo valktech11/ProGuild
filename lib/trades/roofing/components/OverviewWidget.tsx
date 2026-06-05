@@ -10,6 +10,7 @@
 import { useRouter } from 'next/navigation'
 import { theme, T, BRAND } from '@/lib/tokens'
 import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
+import { wonInMonth, sumQuoted } from '@/lib/metrics/won'
 
 const TEAL = '#0F766E'
 
@@ -84,32 +85,18 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
       .reduce((sum, l) => sum + (l.quoted_amount || 0), 0),
   })).filter(s => s.count > 0)
 
-  const wonThisMonth = leads.filter(l => {
-    if (l.lead_status !== 'job_won') return false
-    const updated = new Date(l.updated_at)
-    const now = new Date()
-    return updated.getMonth() === now.getMonth() && updated.getFullYear() === now.getFullYear()
-  })
-  const wonRevenue = wonThisMonth.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
-  const totalForecast = forecastData.reduce((sum, s) => sum + s.amount, 0) + wonRevenue
+  const wonThisMonth   = wonInMonth(leads, 'job_won', 0)
+  const wonRevenue     = sumQuoted(wonThisMonth)
+  const totalForecast  = forecastData.reduce((sum, s) => sum + s.amount, 0) + wonRevenue
 
-  // ── Performance scorecard (this month vs last) ────────────────────────────
-  const now = new Date()
-  const inMonth = (d: string | null | undefined, offset = 0) => {
-    if (!d) return false
-    const dt = new Date(d)
-    const ref = new Date(now.getFullYear(), now.getMonth() - offset, 1)
-    return dt.getMonth() === ref.getMonth() && dt.getFullYear() === ref.getFullYear()
-  }
-  const wonLastMonth   = leads.filter(l => l.lead_status === 'job_won' && inMonth(l.updated_at, 1))
-  const wonRevenueLast = wonLastMonth.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
-  const lostThisMonth  = leads.filter(l => l.lead_status === 'lost' && inMonth(l.updated_at)).length
+  // ── Performance scorecard (this month vs last), keyed off the real won date ──
+  const wonLastMonth   = wonInMonth(leads, 'job_won', 1)
+  const wonRevenueLast = sumQuoted(wonLastMonth)
+  const lostThisMonth  = wonInMonth(leads, 'lost', 0).length
   const decided        = wonThisMonth.length + lostThisMonth
   const winRate        = decided > 0 ? Math.round((wonThisMonth.length / decided) * 100) : null
   const avgTicket      = wonThisMonth.length > 0 ? wonRevenue / wonThisMonth.length : 0
-  const pipelineValue  = leads
-    .filter(l => l.lead_status !== 'job_won' && l.lead_status !== 'lost')
-    .reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
+  const pipelineValue  = sumQuoted(leads.filter(l => l.lead_status !== 'job_won' && l.lead_status !== 'lost'))
   const revDelta = wonRevenueLast > 0 ? Math.round(((wonRevenue - wonRevenueLast) / wonRevenueLast) * 100) : null
 
   const scorecard = [

@@ -1,4 +1,5 @@
 'use client'
+import { wonInMonth } from '@/lib/metrics/won'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Session, Lead } from '@/types'
@@ -131,7 +132,7 @@ export default function PipelinePage() {
   const activeLeads   = leads.filter(l => !terminalKeys2.some(k => k === l.lead_status))
   const pipelineValue = activeLeads.filter(l => l.quoted_amount).reduce((s, l) => s + (l.quoted_amount || 0), 0)
   const overdueCount  = overdue.length
-  const wonThisMonth  = leads.filter(l => l.lead_status === anchors.won && new Date(l.created_at) > new Date(Date.now() - 30 * 86400000)).length
+  const wonThisMonth  = wonInMonth(leads, anchors.won, 0).length
 
   return (
     <DashboardShell session={session} newLeads={newLeads.length} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
