@@ -213,10 +213,18 @@ export async function PATCH(
     if (rErr) console.error('[PATCH /api/leads] roofing_job_data upsert error:', rErr)
   }
 
-  // Return lead data if we have it; otherwise confirm success
-  return leadData
-    ? NextResponse.json({ lead: leadData })
-    : NextResponse.json({ success: true })
+  // Return lead with roofing_job_data so callers can update UI without a separate GET
+  const { data: updatedRjd } = await getSupabaseAdmin()
+    .from('roofing_job_data').select('*').eq('lead_id', id).maybeSingle()
+  if (leadData) {
+    return NextResponse.json({ lead: { ...leadData, roofing_job_data: updatedRjd ?? null } })
+  }
+  if (Object.keys(roofingPayload).length > 0) {
+    const { data: freshLead } = await getSupabaseAdmin()
+      .from('leads').select('*').eq('id', id).eq('pro_id', proId).single()
+    if (freshLead) return NextResponse.json({ lead: { ...freshLead, roofing_job_data: updatedRjd ?? null } })
+  }
+  return NextResponse.json({ success: true })
 }
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
