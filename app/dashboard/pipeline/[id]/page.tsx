@@ -1667,7 +1667,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             <div style={{padding:'16px 18px',borderRadius:T.radMd,background:t.successBg,border:`1px solid ${t.successBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                               <div>
                                 <div style={{fontSize:10,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Estimate #{est.estimate_number}</div>
-                                <div style={{fontSize:26,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.03em'}}>{est.total > 0 ? `$${est.total.toLocaleString('en-US',{minimumFractionDigits:2})}` : 'Open to see total'}</div>
+                                <div style={{fontSize:26,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.03em'}}>{est.total > 0 ? `$${est.total.toLocaleString('en-US',{minimumFractionDigits:2})}` : inv ? `$${inv.balance_due.toLocaleString('en-US',{minimumFractionDigits:2})}` : 'Open to see total'}</div>
                               </div>
                               <button onClick={()=>router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)}
                                 style={{padding:'10px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
