@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import DashboardShell from '@/components/layout/DashboardShell'
 import Link from 'next/link'
 import { Session, Post, Pro } from '@/types'
@@ -29,6 +30,12 @@ function Lightbox({ imgs, startIndex, onClose }: { imgs: string[]; startIndex: n
   const [idx, setIdx] = useState(startIndex)
 
   useEffect(() => {
+    // Lock body scroll
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowRight') setIdx(i => (i + 1) % imgs.length)
@@ -38,46 +45,62 @@ function Lightbox({ imgs, startIndex, onClose }: { imgs: string[]; startIndex: n
     return () => window.removeEventListener('keydown', onKey)
   }, [imgs.length, onClose])
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
+  // Use a portal so the overlay escapes DashboardShell
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  if (!mounted) return null
+
+  const el = document.body
+
+  const overlay = (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.92)',
+               display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={onClose}>
+
       {/* Close */}
       <button onClick={onClose}
-        className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+        style={{ position: 'absolute', top: 16, right: 16 }}
+        className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
 
       {/* Prev */}
       {imgs.length > 1 && (
         <button onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + imgs.length) % imgs.length) }}
-          className="absolute left-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+          style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)' }}
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
       )}
 
       {/* Image */}
-      <div className="w-[90vw] max-w-3xl max-h-[80vh] flex items-center justify-center"
+      <div style={{ maxWidth: '90vw', maxHeight: '90vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={e => e.stopPropagation()}>
         <img src={imgs[idx]} alt={`Photo ${idx + 1}`}
-          className="w-full h-full object-contain rounded-lg shadow-2xl" />
+          style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }} />
       </div>
 
       {/* Next */}
       {imgs.length > 1 && (
         <button onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % imgs.length) }}
-          className="absolute right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+          style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)' }}
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       )}
 
       {/* Counter */}
       {imgs.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/60 text-sm">
+        <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)' }}
+          className="text-white/60 text-sm">
           {idx + 1} / {imgs.length}
         </div>
       )}
     </div>
   )
+
+  return createPortal(overlay, el)
 }
 
 // ── Before/After Slider ───────────────────────────────────────────────────────
