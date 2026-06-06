@@ -56,9 +56,11 @@ function Lightbox({ imgs, startIndex, onClose }: { imgs: string[]; startIndex: n
       )}
 
       {/* Image */}
-      <img src={imgs[idx]} alt={`Photo ${idx + 1}`}
-        className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
-        onClick={e => e.stopPropagation()} />
+      <div className="w-[90vw] max-w-3xl max-h-[80vh] flex items-center justify-center"
+        onClick={e => e.stopPropagation()}>
+        <img src={imgs[idx]} alt={`Photo ${idx + 1}`}
+          className="w-full h-full object-contain rounded-lg shadow-2xl" />
+      </div>
 
       {/* Next */}
       {imgs.length > 1 && (
