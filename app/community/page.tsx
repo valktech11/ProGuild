@@ -217,18 +217,18 @@ function PostCard({ post, session, onLike, onDelete }: {
           <div className="px-4 pb-3">
             {imgs.length === 1 ? (
               <img src={imgs[0]} alt="Post"
-                className="w-full rounded-xl object-contain bg-stone-50" style={{ maxHeight: '560px' }} />
+                className="w-full rounded-xl object-cover bg-stone-50" style={{ maxHeight: '280px' }} />
             ) : imgs.length === 2 ? (
               <div className="grid grid-cols-2 gap-1.5">
                 {imgs.map((url, i) => (
-                  <img key={i} src={url} alt={`Photo ${i + 1}`} className="w-full h-48 rounded-xl object-cover" />
+                  <img key={i} src={url} alt={`Photo ${i + 1}`} className="w-full h-32 rounded-xl object-cover" />
                 ))}
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-1.5">
                 {imgs.slice(0, 3).map((url, i) => (
                   <div key={i} className="relative">
-                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-32 rounded-xl object-cover" />
+                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-24 rounded-xl object-cover" />
                     {i === 2 && imgs.length > 3 && (
                       <div className="absolute inset-0 rounded-xl bg-black/50 flex items-center justify-center">
                         <span className="text-white font-bold text-lg">+{imgs.length - 3}</span>
@@ -689,8 +689,8 @@ export default function CommunityPage() {
           {session && <PostComposer session={session} onPost={post => setPosts(p => [post, ...p])} />}
 
           {loading ? (
-            <div className="space-y-4">
-              {[1,2,3].map(i => <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 h-40 animate-pulse" />)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[1,2,3,4].map(i => <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 h-40 animate-pulse" />)}
             </div>
           ) : postsWithLikes.length === 0 ? (
             <div className="bg-white border border-gray-200 rounded-xl p-16 text-center">
@@ -705,9 +705,9 @@ export default function CommunityPage() {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {postsWithLikes.map(post => (
-                <div key={post.id}><PostCard post={post} session={session} onLike={handleLike} onDelete={handleDelete} /></div>
+                <PostCard key={post.id} post={post} session={session} onLike={handleLike} onDelete={handleDelete} />
               ))}
             </div>
           )}
