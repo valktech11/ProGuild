@@ -5,12 +5,6 @@ import Link from 'next/link'
 import { Session, Post, Pro } from '@/types'
 import { initials, avatarColor, timeAgo, isPaid } from '@/lib/utils'
 
-const POST_TYPES = [
-  { value: 'update',    label: 'Update',    emoji: '💬' },
-  { value: 'work',      label: 'Work',      emoji: '🔧' },
-  { value: 'tip',       label: 'Ask a pro', emoji: '❓' },
-  { value: 'milestone', label: 'Milestone', emoji: '🏆' },
-]
 
 const TRADE_CHIPS = [
   { label: 'Electrical', slug: 'electrician' },
@@ -99,7 +93,6 @@ function PostCard({ post, session, onLike, onDelete }: {
   const [loadingComments, setLoadingComments]   = useState(false)
   const [submittingComment, setSubmittingComment] = useState(false)
   const isOwn         = session?.id === post.pro_id
-  const typeInfo      = POST_TYPES.find(t => t.value === post.post_type)
   const isVerifiedPro = (post.pro as any)?.is_verified
   const isAskAPro     = post.post_type === 'tip'
   const isMilestone   = post.post_type === 'milestone'
@@ -175,7 +168,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                 isAskAPro   ? 'bg-blue-50 text-blue-700' :
                 isWork      ? 'bg-teal-50 text-teal-700' : 'bg-gray-100 text-gray-500'
               }`}>
-                {typeInfo?.emoji} {typeInfo?.label}
+                {isMilestone ? '🏆 Milestone' : isAskAPro ? '❓ Ask a pro' : isWork ? '🔧 Work' : ''}
               </span>
             )}
             {session && session.id !== post.pro_id && (
@@ -319,24 +312,14 @@ function PostCard({ post, session, onLike, onDelete }: {
   )
 }
 
-// ── Composer with functional type selection ───────────────────────────────────
+// ── Composer — plain text + optional photo ────────────────────────────────────
 function PostComposer({ session, onPost }: { session: Session; onPost: (post: Post) => void }) {
   const [content, setContent]     = useState('')
-  const [postType, setPostType]   = useState<string>('update')
   const [photo, setPhoto]         = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [posting, setPosting]     = useState(false)
   const [error, setError]         = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
-
-  const typeConfig: Record<string, { placeholder: string; requirePhoto?: boolean }> = {
-    update:    { placeholder: 'Share an update with the community...' },
-    work:      { placeholder: 'Describe the project — what trade, what was the challenge?', requirePhoto: false },
-    tip:       { placeholder: 'What question do you have for the community? Be specific about the trade and situation.' },
-    milestone: { placeholder: 'What milestone are you celebrating? Years in business, certification achieved, biggest project?' },
-  }
-
-  const current = typeConfig[postType] || typeConfig.update
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -357,59 +340,28 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
     const r = await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: session.id, content, photo_url: photo, post_type: postType }),
+      body: JSON.stringify({ pro_id: session.id, content, photo_url: photo, post_type: 'update' }),
     })
     const d = await r.json()
-    if (r.ok) { onPost(d.post); setContent(''); setPhoto(null); setPostType('update') }
+    if (r.ok) { onPost(d.post); setContent(''); setPhoto(null) }
     else setError(d.error || 'Could not post. Please try again.')
     setPosting(false)
   }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-4">
-
-      {/* Post type + composer row */}
-      <div className="flex items-center gap-3 px-4 pt-4 pb-0">
+      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
         <Avatar pro={{ full_name: session.name, profile_photo_url: null }} />
         <div className="flex-1">
-          {/* Type dropdown */}
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs text-gray-400 font-medium flex-shrink-0">Post type:</label>
-            <div className="relative">
-              <select
-                value={postType}
-                onChange={e => { setPostType(e.target.value); setError('') }}
-                className="appearance-none text-xs font-semibold pl-3 pr-7 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:border-teal-400 cursor-pointer transition-colors"
-                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}
-              >
-                {POST_TYPES.map(t => (
-                  <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
-                ))}
-              </select>
-            </div>
-            {/* Active type pill */}
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              postType === 'tip'       ? 'bg-blue-50 text-blue-700' :
-              postType === 'milestone' ? 'bg-amber-50 text-amber-700' :
-              postType === 'work'      ? 'bg-teal-50 text-teal-700' :
-                                         'bg-gray-100 text-gray-500'
-            }`}>
-              {postType === 'tip'       ? 'Verified pros will answer' :
-               postType === 'milestone' ? 'Career achievement' :
-               postType === 'work'      ? 'Appears in Top Craftsmanship' :
-                                          'General update'}
-            </span>
-          </div>
-
           <textarea value={content} onChange={e => setContent(e.target.value)}
-            placeholder={current.placeholder}
+            placeholder="Share your work, ask a question, or post an update..."
             rows={3}
             className="w-full text-sm text-gray-900 bg-stone-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-teal-400 focus:bg-white resize-none transition-colors" />
         </div>
       </div>
 
       {photo && (
-        <div className="px-4 pb-0 mt-2">
+        <div className="px-4 pb-3">
           <div className="relative inline-block">
             <img src={photo} alt="Preview" className="h-20 rounded-lg object-cover" />
             <button onClick={() => setPhoto(null)}
@@ -417,19 +369,23 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
           </div>
         </div>
       )}
-      {error && <div className="px-4 mt-2 text-xs text-red-600">{error}</div>}
+      {error && <div className="px-4 pb-2 text-xs text-red-600">{error}</div>}
 
-      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 mt-3">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
         <div className="flex items-center gap-2">
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
-            {uploading ? 'Uploading...' : '📷 Photo'}
+            title="Add photo"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-colors disabled:opacity-50">
+            {uploading
+              ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            }
           </button>
         </div>
         <button onClick={handlePost} disabled={posting || (!content.trim() && !photo)}
           className="px-5 py-1.5 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-40 transition-colors">
-          {posting ? 'Posting...' : postType === 'tip' ? 'Ask' : postType === 'milestone' ? 'Share milestone' : 'Post'}
+          {posting ? 'Posting...' : 'Post'}
         </button>
       </div>
     </div>
