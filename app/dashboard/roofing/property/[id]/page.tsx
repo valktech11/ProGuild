@@ -50,6 +50,10 @@ interface RoofReport {
   r2_url: string
   linear_footage?: LinearFootage | null
   premium_r2_url?: string | null
+  condition_assessment?: string | null
+  condition_assessed_at?: string | null
+  nearest_supplier?: { name?: string; distance_miles?: number; address?: string } | null
+  storm_event?: { event_type?: string; event_date?: string; magnitude?: string; magnitude_type?: string; distance_miles?: number } | null
 }
 
 function Ic({ children, size = 16, color = 'currentColor' }: { children: React.ReactNode; size?: number; color?: string }) {
@@ -469,7 +473,33 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
               </div>
             )}
 
-            {/* Apply to Lead — visible when opened from a lead detail page */}
+            {/* Roof condition (AI) + nearest supplier + storm — stored from the latest report */}
+            {latestReport && (latestReport.condition_assessment || latestReport.nearest_supplier || latestReport.storm_event) && (
+              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: t.textPri, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Roof condition</div>
+                  <div style={{ fontSize: 11, color: t.textSubtle, textAlign: 'right' }}>
+                    Imagery {latestReport.imagery_date}{latestReport.condition_assessed_at ? ` · assessed ${new Date(latestReport.condition_assessed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                  </div>
+                </div>
+                {latestReport.condition_assessment
+                  ? <div style={{ fontSize: 13, color: t.textPri, lineHeight: 1.5 }}>{latestReport.condition_assessment}</div>
+                  : <div style={{ fontSize: 13, color: t.textMuted }}>No AI assessment on the latest report.</div>}
+                {latestReport.storm_event?.event_date && (
+                  <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: '#B45309', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 10px' }}>
+                    ⛈ {latestReport.storm_event.event_type || 'Storm'}{latestReport.storm_event.magnitude ? ` ${latestReport.storm_event.magnitude}${latestReport.storm_event.magnitude_type === 'inches' ? '″' : ''}` : ''} · {latestReport.storm_event.event_date}{latestReport.storm_event.distance_miles != null ? ` · ${latestReport.storm_event.distance_miles} mi away` : ''} — may pre-qualify a claim
+                  </div>
+                )}
+                {latestReport.nearest_supplier?.name && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: t.textMuted }}>
+                    Nearest supplier: <span style={{ fontWeight: 600, color: t.textPri }}>{latestReport.nearest_supplier.name}</span>{latestReport.nearest_supplier.distance_miles != null ? ` · ${latestReport.nearest_supplier.distance_miles} mi` : ''}{latestReport.nearest_supplier.address ? ` · ${latestReport.nearest_supplier.address}` : ''}
+                  </div>
+                )}
+                <div style={{ marginTop: 10, fontSize: 10.5, color: t.textSubtle, lineHeight: 1.4 }}>
+                  AI estimate from aerial imagery for bid prep — not a certified inspection. Condition only changes when Google refreshes imagery; re-run the report to check for newer imagery.
+                </div>
+              </div>
+            )}
             {latestReport && leadId && (
               <div style={{ marginBottom: 12 }}>
                 {appliedToLead ? (

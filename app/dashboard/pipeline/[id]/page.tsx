@@ -193,6 +193,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   }
   function killToast(tid:number) { setToasts(t=>t.filter(x=>x.id!==tid)) }
 
+  async function shareStatus() {
+    if (!session) return
+    try {
+      const r = await fetch(`/api/leads/${id}/public-link`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ pro_id: session.id }) })
+      const d = await r.json()
+      if (!d.path) { addToast('Could not create link', 'error'); return }
+      await navigator.clipboard.writeText(`${window.location.origin}${d.path}`)
+      addToast('Homeowner status link copied', 'success')
+    } catch { addToast('Could not create link', 'error') }
+  }
+
   const tradePlugin = getTradeConfig(session?.trade_slug)
   const isRoofing = isRoofing_guard(tradePlugin)
 
@@ -881,6 +892,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,fontSize:13,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                             <Svg size={13} stroke={ts}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
                             Edit
+                          </button>
+                          <button onClick={shareStatus} title="Copy a public status link to share with the homeowner"
+                            style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,fontSize:13,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            <Svg size={13} stroke={ts}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></Svg>
+                            Share
                           </button>
                         </div>
                       </div>

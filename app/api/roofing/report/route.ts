@@ -122,107 +122,74 @@ function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number):
 }
 
 async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent[]> {
-  // NOAA SWDI nx3hail — correct URL format:
-  // GET /swdiws/json/nx3hail?startdate=YYYYMMDD&enddate=YYYYMMDD&bbox=minLon,minLat,maxLon,maxLat&limit=500
-  // bbox: ~0.22 degrees ≈ 15 miles at mid-US latitudes
-  // SWDI has ~120-day latency — query ends 120 days ago
-  // Split into two yearly queries (API limit: 1 year per request)
+  // Iowa Environmental Mesonet (IEM) Local Storm Reports — free, no key, ground-truth NWS reports.
+  // Replaces the deprecated NOAA SWDI/NCDC service. Queries by NWS WFO over the last ~24 months,
+  // then keeps qualifying hail (>=1") / damaging wind within ~15 miles of the property.
+  // FAIL-SAFE: any error returns [] (no storm flag) and never breaks the report.
+  // NOTE: needs a one-time staging smoke-test — the build sandbox cannot reach IEM to verify the response.
+
+  // FL-first WFO mapping by lat/lng (approximate; national mapping is a later refinement).
+  const wfosFor = (la: number, ln: number): string[] => {
+    if (ln < -84.0) return ['TAE']                       // panhandle
+    if (la >= 29.4) return ['JAX', 'TAE']                // NE / N Florida
+    if (la < 25.6) return ['KEY', 'MFL']                 // Keys
+    if (la >= 27.8 && ln >= -81.6) return ['MLB', 'JAX'] // E-central
+    if (la >= 27.0 && ln < -81.8) return ['TBW', 'TAE']  // W-central
+    return ['MFL', 'TBW']                                // S Florida
+  }
 
   const now = new Date()
-  const endDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)  // 60-day latency (radar faster than reports)
-  const startDate = new Date(endDate.getTime() - 3 * 365 * 24 * 60 * 60 * 1000)  // 3 years back
+  const start = new Date(now.getTime() - 24 * 30 * 24 * 60 * 60 * 1000) // ~24 months
+  const isoZ = (d: Date) => `${d.toISOString().slice(0, 16)}Z`
 
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
-
-  // ~25-mile bounding box (0.36 deg lat ≈ 25mi, lng adjusted for latitude)
-  const latDelta = 0.36
-  const lngDelta = 0.36 / Math.cos(lat * Math.PI / 180)
-  const bbox = `${(lng - lngDelta).toFixed(4)},${(lat - latDelta).toFixed(4)},${(lng + lngDelta).toFixed(4)},${(lat + latDelta).toFixed(4)}`
-
-  // Split into three yearly queries (API limit: 1 year per request)
-  const third = (endDate.getTime() - startDate.getTime()) / 3
-  const split1 = new Date(startDate.getTime() + third)
-  const split2 = new Date(startDate.getTime() + 2 * third)
-
-  const fetchHail = async (start: Date, end: Date): Promise<NoaaStormEvent[]> => {
-    const url = `https://www.ncdc.noaa.gov/swdiws/json/nx3hail?startdate=${fmt(start)}&enddate=${fmt(end)}&bbox=${bbox}&limit=500`
-    console.log('[noaa] fetching:', url)
+  const fetchWfo = async (wfo: string): Promise<NoaaStormEvent[]> => {
+    const url = `https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py`
+      + `?wfo=${wfo}&sts=${isoZ(start)}&ets=${isoZ(now)}&fmt=geojson`
     try {
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'ProGuild/1.0' },
-        signal: AbortSignal.timeout(10000),
-      })
-      console.log('[noaa] status:', res.status)
-      if (!res.ok) return []
-      const raw = await res.text()
-      console.log('[noaa] response length:', raw.length, 'first 400:', raw.slice(0, 400))
-      let json: Record<string, unknown>
-      try { json = JSON.parse(raw) } catch { return [] }
-      // SWDI wraps response in swdiJsonResponse key
-      const inner = (json?.swdiJsonResponse ?? json?.results ?? json) as Record<string, unknown>
-      console.log('[noaa] top keys:', Object.keys(json).join(','), '| inner keys:', Object.keys(inner ?? {}).join(','))
-      const data = (inner?.data ?? inner?.Data) as Array<Record<string, string>> | undefined
-      console.log('[noaa] records returned:', data?.length ?? 0)
-      if (!data?.length) return []
-
-      // Filter: MAXSIZE > 1.0 inch (insurance threshold)
-      const qualifying = data.filter(d => {
-        const size = parseFloat(d.MAXSIZE || d.maxsize || d.MAX_SIZE || d.max_size || '0')
-        return size > 1.0
-      })
-      console.log('[noaa] qualifying hail events (>1"):', qualifying.length)
-      if (!qualifying.length) return []
-
-      // Sort by date desc, return most severe
-      qualifying.sort((a, b) => {
-        const da = a.ZTIME || a.ztime || ''
-        const db = b.ZTIME || b.ztime || ''
-        return db.localeCompare(da)
-      })
-
-      return qualifying.map(ev => {
-        const rawTime = ev.ZTIME || ev.ztime || ''
-        const eventDate = rawTime.length >= 8
-          ? `${rawTime.slice(0,4)}-${rawTime.slice(5,7)}-${rawTime.slice(8,10)}`
-          : fmt(start).slice(0,4) + '-' + fmt(start).slice(4,6) + '-01'
-        const evLat = parseFloat(ev.LAT || ev.lat || String(lat))
-        const evLng = parseFloat(ev.LON || ev.lon || String(lng))
+      const res = await fetch(url, { headers: { 'User-Agent': 'ProGuild/1.0' }, signal: AbortSignal.timeout(10000) })
+      if (!res.ok) { console.log('[storm] IEM', wfo, 'status', res.status); return [] }
+      const json = await res.json() as { features?: Array<{ geometry?: { coordinates?: [number, number] }; properties?: Record<string, unknown> }> }
+      const feats = json?.features ?? []
+      const out: NoaaStormEvent[] = []
+      for (const ft of feats) {
+        const pr = ft.properties || {}
+        const typetext = String(pr.typetext ?? pr.type ?? '').toUpperCase()
+        const mag = parseFloat(String(pr.magnitude ?? pr.mag ?? '0')) || 0
+        const isHail = typetext.includes('HAIL') && mag >= 1.0
+        const isWind = (typetext.includes('WND') || typetext.includes('WIND')) && mag >= 58
+        if (!isHail && !isWind) continue
+        const coords = ft.geometry?.coordinates
+        if (!coords) continue
+        const [evLng, evLat] = coords
         const dist = haversineMiles(lat, lng, evLat, evLng)
-        const size = parseFloat(ev.MAXSIZE || ev.maxsize || ev.MAX_SIZE || ev.max_size || '0').toFixed(2).replace(/\.?0+$/, '')
-        return {
-          event_type: 'Hail',
-          event_date: eventDate,
-          magnitude: size,
-          magnitude_type: 'HAI',
-          county: '',
-          state: '',
+        if (dist > 15) continue
+        const validRaw = String(pr.valid ?? '')
+        out.push({
+          event_type: isHail ? 'Hail' : 'Wind',
+          event_date: validRaw.length >= 10 ? validRaw.slice(0, 10) : '',
+          magnitude: isHail ? mag.toFixed(2).replace(/\.?0+$/, '') : String(Math.round(mag)),
+          magnitude_type: isHail ? 'inches' : 'mph/kt',
+          county: String(pr.county ?? ''),
+          state: String(pr.st ?? pr.state ?? ''),
           distance_miles: dist,
-        } as NoaaStormEvent
-      })
+        })
+      }
+      return out
     } catch (e) {
-      console.log('[noaa] error:', String(e).slice(0, 150))
+      console.log('[storm] IEM error:', String(e).slice(0, 120))
       return []
     }
   }
 
   try {
-    const [q1, q2, q3] = await Promise.all([
-      fetchHail(startDate, split1),
-      fetchHail(split1, split2),
-      fetchHail(split2, endDate),
-    ])
-    const all = [...q1, ...q2, ...q3]
-    if (!all.length) {
-      console.log('[noaa] no qualifying hail events found')
-      return []
-    }
-    // Return most recent qualifying event
+    const results = await Promise.all(wfosFor(lat, lng).map(fetchWfo))
+    const all = results.flat()
+    if (!all.length) { console.log('[storm] no qualifying events'); return [] }
     all.sort((a, b) => b.event_date.localeCompare(a.event_date))
-    console.log('[noaa] returning most recent qualifying event:', all[0].event_date, all[0].magnitude + '"', all[0].distance_miles + 'mi')
+    console.log('[storm] most recent:', all[0].event_type, all[0].event_date, all[0].magnitude, all[0].distance_miles + 'mi')
     return [all[0]]
   } catch (e) {
-    console.log('[noaa] outer error:', String(e).slice(0, 150))
+    console.log('[storm] outer error:', String(e).slice(0, 120))
     return []
   }
 }
@@ -734,6 +701,10 @@ export async function POST(req: NextRequest) {
         imagery_date: measurements.imageryDate,
         pitch_breakdown: measurements.pitchBreakdown,
         solar_raw: solarData,
+        condition_assessment: geminiCondition || null,
+        condition_assessed_at: geminiCondition ? new Date().toISOString() : null,
+        nearest_supplier: nearestSupplier || null,
+        storm_event: stormEvents[0] || null,
       })
       .select('id')
       .single()

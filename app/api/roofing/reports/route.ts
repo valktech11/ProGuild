@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const sb = getSupabaseAdmin()
   let query = sb
     .from('roof_reports')
-    .select('id, created_at, total_squares_raw, total_squares_order, dominant_pitch, facet_count, waste_factor, imagery_date, r2_key, lat, lng, linear_footage, premium_r2_key')
+    .select('id, created_at, total_squares_raw, total_squares_order, dominant_pitch, facet_count, waste_factor, imagery_date, r2_key, lat, lng, linear_footage, premium_r2_key, condition_assessment, condition_assessed_at, nearest_supplier, storm_event')
     .eq('pro_id', proId)
     .order('created_at', { ascending: false })
     .limit(20)
