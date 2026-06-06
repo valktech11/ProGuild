@@ -690,14 +690,14 @@ export default function CommunityPage() {
       {!session && (
         <div className="relative bg-white overflow-hidden" style={{ minHeight: 280 }}>
           {/* Background photo — right half */}
-          <div className="absolute inset-0 left-[38%]">
+          <div className="absolute inset-0 left-[55%]">
             <img
               src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=1200&fit=crop"
               alt="Kitchen remodel"
               className="w-full h-full object-cover"
             />
             {/* Fade from white on the left */}
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, white 0%, white 10%, transparent 50%)' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, white 0%, white 30%, transparent 70%)' }} />
           </div>
 
           {/* Content */}
@@ -708,7 +708,7 @@ export default function CommunityPage() {
                 Real work from<br />licensed pros.
               </h1>
               <p className="text-gray-500 text-base mb-5 leading-relaxed">
-                See projects, ask questions, and connect with trusted professionals near you.
+                See projects, ask questions, and connect<br />with trusted professionals near you.
               </p>
               {/* Search bar */}
               <div className="flex gap-2 mb-5">
