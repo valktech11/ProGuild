@@ -766,7 +766,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
         {/* ── DESKTOP ──────────────────────────────────────────────────────── */}
         <div className="hidden md:flex h-screen overflow-hidden">
 
-          <aside className="flex-shrink-0 flex flex-col h-full overflow-hidden"
+          {session && <aside className="flex-shrink-0 flex flex-col h-full overflow-hidden"
             style={{ width: 220, background: 'linear-gradient(180deg,#0F2847 0%,#091525 60%,#060D18 100%)', borderRight: '1px solid rgba(255,255,255,.04)' }}>
 
             {/* Logo */}
@@ -846,7 +846,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
                 </div>
               </div>
             )}
-          </aside>
+          </aside>}
 
           <main className={`pg-main flex-1 flex flex-col ${fullBleed ? 'overflow-hidden' : 'overflow-y-auto'}`} style={{ backgroundColor: t.pageBg, color: dk ? '#F1F5F9' : undefined }}>
             {/* ── Top header bar ─────────────────────────────────────────── */}
