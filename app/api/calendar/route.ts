@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   // Fetch leads with scheduled_date in range
   const scheduledQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('pro_id', proId)
     .not('scheduled_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   // Fetch leads with follow_up_date in range
   const followupQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('pro_id', proId)
     .not('follow_up_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   // Unscheduled leads (Quoted or Contacted — need scheduling)
   const unscheduledQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('pro_id', proId)
     .in('lead_status', ['Quoted', 'Contacted'])
     .is('scheduled_date', null)
@@ -61,7 +61,8 @@ export async function GET(req: NextRequest) {
   if (scheduledRes.error)   return NextResponse.json({ error: scheduledRes.error.message }, { status: 500 })
   if (followupRes.error)    return NextResponse.json({ error: followupRes.error.message }, { status: 500 })
   if (unscheduledRes.error) return NextResponse.json({ error: unscheduledRes.error.message }, { status: 500 })
-  if (inspectionRes.error)  return NextResponse.json({ error: inspectionRes.error.message }, { status: 500 })
+  // Inspection events are non-fatal: if the column/query fails, still return jobs + followups
+  if (inspectionRes.error)  console.log('[calendar] inspection query skipped:', inspectionRes.error.message)
 
   // Merge scheduled + followup + inspection — dedup by id+type so a lead with
   // multiple dates appears once per type (job on scheduled_date, followup on

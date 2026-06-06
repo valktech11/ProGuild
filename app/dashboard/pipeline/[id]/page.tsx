@@ -464,7 +464,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       contact_phone: ePhone||null, contact_email: eEmail||null,
       contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
       lead_source: eSrc.replace(/ /g,'_')||null,
-      scheduled_date: eDate||null, scheduled_time: eTime||null, inspection_date: eInsp||null,
+      scheduled_date: eDate||null, scheduled_time: eTime||null,
+      ...(eInsp ? { inspection_date: eInsp } : {}),
       follow_up_date: eFU||null, notes: eNotes||null,
     })
     setESaving(false)
@@ -474,7 +475,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         contact_phone: ePhone||null, contact_email: eEmail||null,
         contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
         lead_source: eSrc.replace(/ /g,'_') as any||null,
-        scheduled_date: eDate||null, follow_up_date: eFU||null, inspection_date: eInsp||null, notes: eNotes||null,
+        scheduled_date: eDate||null, follow_up_date: eFU||null, ...(eInsp ? { inspection_date: eInsp } : {}), notes: eNotes||null,
       }:l)
       setIsEditing(false); addToast('Saved')
     } else addToast('Failed to save','error')
