@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   let query = getSupabaseAdmin()
     .from('posts')
-    .select(`*, pro:pros(id, full_name, profile_photo_url, plan_tier, city, state, is_verified, trade_category:trade_categories(id, category_name, slug))`)
+    .select(`*, pro:pros!posts_pro_id_fkey(id, full_name, profile_photo_url, plan_tier, city, state, is_verified, trade_category:trade_categories(id, category_name, slug))`)
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       is_before_after: is_before_after || false,
       post_type: post_type || 'update',
     })
-    .select(`*, pro:pros(id, full_name, profile_photo_url, is_verified, trade_category:trade_categories(id, category_name, slug))`)
+    .select(`*, pro:pros!posts_pro_id_fkey(id, full_name, profile_photo_url, is_verified, trade_category:trade_categories(id, category_name, slug))`)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
