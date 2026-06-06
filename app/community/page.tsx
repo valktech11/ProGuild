@@ -840,25 +840,10 @@ export default function CommunityPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
         {/* ── FEED ── */}
         <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <h1 className="font-serif text-xl text-gray-900">Community</h1>
-            <div className="flex items-center gap-2">
-              <div className="sm:hidden flex items-center bg-stone-100 border border-gray-200 rounded-lg p-0.5">
-                {[{ v: false, l: 'All' }, { v: true, l: 'FL' }].map(opt => (
-                  <button key={String(opt.v)} onClick={() => setLocalOnly(opt.v)}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-all ${localOnly === opt.v ? 'bg-white text-gray-900 border border-gray-200' : 'text-gray-500'}`}>
-                    {opt.l}
-                  </button>
-                ))}
-              </div>
-              <span className="text-sm text-gray-400">{postsWithLikes.length} posts</span>
-            </div>
-          </div>
-
           {/* Search bar */}
           <div className="flex gap-2 mb-3">
             <div className="flex-1 flex gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
@@ -912,20 +897,6 @@ export default function CommunityPage() {
               ))}
             </div>
           </div>
-
-          {/* Logged-out CTA */}
-          {!session && (
-            <div className="bg-white border border-teal-200 rounded-xl p-5 mb-4 flex items-center justify-between gap-4">
-              <div>
-                <div className="text-sm font-semibold text-gray-900 mb-0.5">Join the verified trades network</div>
-                <div className="text-xs text-gray-500">Share work, ask questions, find local pros — free forever.</div>
-              </div>
-              <div className="flex gap-2 flex-shrink-0">
-                <Link href="/login" className="text-xs font-semibold px-3 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Log in</Link>
-                <Link href="/login?tab=signup" className="text-xs font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Join free</Link>
-              </div>
-            </div>
-          )}
 
           {session && <PostComposer session={session} onPost={post => setPosts(p => [post, ...p])} />}
 
