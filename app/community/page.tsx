@@ -866,8 +866,8 @@ export default function CommunityPage() {
           {session && <PostComposer session={session} onPost={post => setPosts(p => [post, ...p])} />}
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[1,2,3,4].map(i => <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 h-40 animate-pulse" />)}
+            <div className="columns-1 sm:columns-2 gap-4">
+              {[1,2,3,4].map(i => <div key={i} className="break-inside-avoid mb-4 bg-white border border-gray-200 rounded-xl p-5 h-40 animate-pulse" />)}
             </div>
           ) : postsWithLikes.length === 0 ? (
             <div className="bg-white border border-gray-200 rounded-xl p-16 text-center">
@@ -882,9 +882,11 @@ export default function CommunityPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+            <div className="columns-1 sm:columns-2 gap-4">
               {postsWithLikes.map(post => (
-                <PostCard key={post.id} post={post} session={session} onLike={handleLike} onDelete={handleDelete} />
+                <div key={post.id} className="break-inside-avoid mb-4">
+                  <PostCard post={post} session={session} onLike={handleLike} onDelete={handleDelete} />
+                </div>
               ))}
             </div>
           )}
