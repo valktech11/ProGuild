@@ -86,7 +86,24 @@ export default function HomeownerStatusPage() {
         <div style={{ ...card, textAlign: 'center', marginBottom: 0 }}>
           <div style={{ fontSize: 13, color: MUTE }}>Questions about your project?</div>
           <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>{data.pro.name}</div>
-          {data.pro.phone && <a href={`tel:${data.pro.phone}`} style={{ display: 'inline-block', marginTop: 10, padding: '10px 22px', background: TEAL, color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 14 }}>Call {data.pro.phone}</a>}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' as const, marginTop: 12 }}>
+            {(data.pro as any).phone && (
+              <a href={`tel:${(data.pro as any).phone}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px',
+                  background: TEAL, color: '#fff', borderRadius: 10, textDecoration: 'none',
+                  fontWeight: 700, fontSize: 14 }}>
+                📞 Call
+              </a>
+            )}
+            {(data.pro as any).email && (
+              <a href={`mailto:${(data.pro as any).email}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px',
+                  background: '#F0FDF4', color: TEAL, borderRadius: 10, textDecoration: 'none',
+                  fontWeight: 700, fontSize: 14, border: `1.5px solid ${TEAL}` }}>
+                ✉ Email
+              </a>
+            )}
+          </div>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: '#94A3B8' }}>Powered by ProGuild</div>

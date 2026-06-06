@@ -490,7 +490,7 @@ function CalendarInner() {
 
   const todayKey   = toDateKey(new Date())
   const todayEvs   = events.filter(ev => { const d=getEventDate(ev); return d&&toDateKey(d)===todayKey })
-  const todayJobs  = todayEvs.filter(ev => ev._type==='job')
+  const todayJobs  = todayEvs.filter(ev => ev._type==='job' || ev._type==='inspection')
   const todayValue = todayJobs.reduce((s,ev)=>s+(ev.quoted_amount||0),0)
 
   // Overdue = only followups with past date
@@ -517,12 +517,12 @@ function CalendarInner() {
     return map
   })()
   const weekValue = weekDays.reduce((sum,d) => {
-    return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job').reduce((s,ev)=>s+(ev.quoted_amount||0),0)
+    return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job'||ev._type==='inspection').reduce((s,ev)=>s+(ev.quoted_amount||0),0)
   }, 0)
   const weekJobs = weekDays.reduce((sum,d) => {
-    return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job').length
+    return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job'||ev._type==='inspection').length
   }, 0)
-  const selectedDayValue = (weekGrouped[toDateKey(selectedDate)]||[]).filter(ev=>ev._type==='job').reduce((s,ev)=>s+(ev.quoted_amount||0),0)
+  const selectedDayValue = (weekGrouped[toDateKey(selectedDate)]||[]).filter(ev=>ev._type==='job'||ev._type==='inspection').reduce((s,ev)=>s+(ev.quoted_amount||0),0)
 
   // Month aggregates
   const monthJobs  = events.filter(ev => {

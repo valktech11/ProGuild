@@ -47,7 +47,7 @@ export async function GET(
   // Pro branding (safe public fields only)
   const { data: pro } = await sb
     .from('pros')
-    .select('business_name, full_name, phone_cell')
+    .select('business_name, full_name, phone_cell, email')
     .eq('id', lead.pro_id)
     .single()
 
@@ -90,7 +90,7 @@ export async function GET(
     stepLabel: closed ? 'On hold' : (VISIBLE_STEPS[stepIdx]?.label ?? 'In progress'),
     steps: VISIBLE_STEPS.map(s => s.label),
     scheduledDate: lead.scheduled_date || null,
-    pro: { name: pro?.business_name || pro?.full_name || 'Your roofer', phone: pro?.phone_cell || null },
+    pro: { name: pro?.business_name || pro?.full_name || 'Your roofer', phone: pro?.phone_cell || null, email: (pro as any)?.email || null },
     condition,
   })
 }
