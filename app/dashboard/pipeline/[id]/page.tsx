@@ -2,7 +2,7 @@
 import { useState, useEffect, use, useCallback, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Lead, Session, LeadStatus } from '@/types'
+import { Lead, Session, LeadStatus, isPaidPlan } from '@/types'
 import { avatarColor, initials, capName, fmtPhone, US_STATES } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
@@ -209,6 +209,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   const tradePlugin = getTradeConfig(session?.trade_slug)
   const isRoofing = isRoofing_guard(tradePlugin)
+  // isPro: unlocked when plan is unset (pre-Stripe) or is a paid plan.
+  // Once Stripe sets plan_tier='Free' for free users, this gates correctly.
+  const isPro = !session?.plan || isPaidPlan(session.plan)
 
   // Derived from trade plugin — no hardcoded stage keys or source labels
   const STAGE_ORDER: Record<string, number> = Object.fromEntries(
@@ -1329,18 +1332,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                     try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
                                                     const rowId=(d as any).reportRowId
                                                     if(rowId)setReportRowId(rowId)
-                                                    if(rowId&&session){
-                                                      fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:rowId,pro_id:session.id})})
-                                                        .then(r=>r.ok?r.json():null)
-                                                        .then(dsmData=>{
-                                                          if(dsmData?.linear_footage){
-                                                            const lf=dsmData.linear_footage
-                                                            try{const raw=sessionStorage.getItem('pg_report_data');if(raw){const ex=JSON.parse(raw);sessionStorage.setItem('pg_report_data',JSON.stringify({...ex,ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}))}}catch{}
-                                                            // Re-fetch lead so the roof_reports join returns linear_footage — same as a manual refresh
-                                                            fetch(`/api/leads/${lead.id}?pro_id=${session.id}`).then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
-                                                          }
-                                                        }).catch(()=>{})
-                                                    }
                                                     fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
                                                       .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
                                                   }
@@ -1370,17 +1361,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:step2Done?10:0}}>
                                           {stepIcon(step2Done, step2Running, 2)}
                                           <div style={{flex:1}}>
-                                            <div style={{fontSize:14,fontWeight:700,color:'#0F172A'}}>Material Lines</div>
+                                            <div style={{fontSize:14,fontWeight:700,color:'#0F172A'}}>Full Material Quantities</div>
                                             <div style={{fontSize:12,color:'#64748B',marginTop:2}}>
                                               {step2Done ? `Ridge ${Math.round(lf.ridge_ft)}ft · Hip ${Math.round(lf.hip_ft||0)}ft · Valley ${Math.round(lf.valley_ft||0)}ft · Rake ${Math.round(lf.rake_ft||0)}ft · Eave ${Math.round(lf.eave_ft||0)}ft`
                                                 : step2Running ? 'Getting ridge, hip, valley, rake & eave lengths… (~30s)'
-                                                : step1Done ? 'Ridge, hip, valley, rake & eave — needed to order materials'
-                                                : 'Complete Step 1 first'}
+                                                : step1Done ? 'Ridge, hip, valley, rake & eave — needed to order materials precisely'
+                                                : 'Runs after Step 1 — measure the roof first'}
                                             </div>
                                           </div>
                                         </div>
-                                        {/* Get Material Lines button — step1 done, LF missing, DSM not running */}
+                                        {/* Full Material Quantities — Pro gate */}
                                         {step1Done && !step2Done && !step2Running && (
+                                          isPro ? (
                                           <button
                                             onClick={async ()=>{
                                               if(!session)return
@@ -1422,6 +1414,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                                             Get Material Lines
                                           </button>
+                                          ) : (
+                                            <div style={{marginTop:8,padding:'10px 12px',borderRadius:8,background:'#F8FAFC',border:'1.5px solid #E2E8F0',display:'flex',alignItems:'center',gap:10}}>
+                                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                                              <div style={{flex:1}}>
+                                                <div style={{fontSize:12,fontWeight:700,color:'#475569'}}>Pro feature — precise material quantities</div>
+                                                <div style={{fontSize:11,color:'#94A3B8',marginTop:1}}>Upgrade to Pro to get ridge, hip, valley, rake & eave for material ordering</div>
+                                              </div>
+                                              <button onClick={()=>window.open('/dashboard/settings?upgrade=1','_self')} style={{padding:'6px 12px',borderRadius:7,border:'none',background:'#0F766E',color:'#fff',fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const,flexShrink:0}}>
+                                                Upgrade
+                                              </button>
+                                            </div>
+                                          )
                                         )}
 
                                         {step2Done && (
