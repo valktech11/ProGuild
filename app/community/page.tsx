@@ -686,6 +686,36 @@ export default function CommunityPage() {
         </div>
       </nav>
 
+      {/* ── Popular Categories ── */}
+      <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-gray-700">Popular Categories</h2>
+            <Link href="/" className="text-xs text-teal-600 hover:underline">View all</Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {[
+              { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1632823471565-1ecdf5c6da3c?w=120&h=120&fit=crop', href: '/community?trade=roofer' },
+              { label: 'Bathroom',      img: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=120&h=120&fit=crop', href: '/community?trade=plumber' },
+              { label: 'Kitchen',       img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=120&h=120&fit=crop', href: '/community?trade=general-contractor' },
+              { label: 'HVAC',          img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=120&h=120&fit=crop', href: '/community?trade=hvac-technician' },
+              { label: 'Storm Damage',  img: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=120&h=120&fit=crop', href: '/community?trade=roofer' },
+              { label: 'Flooring',      img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=120&h=120&fit=crop', href: '/community?trade=carpenter' },
+              { label: 'Painting',      img: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=120&h=120&fit=crop', href: '/community?trade=painter' },
+              { label: 'Electrical',    img: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=120&h=120&fit=crop', href: '/community?trade=electrician' },
+            ].map(cat => (
+              <Link key={cat.label} href={cat.href}
+                className="flex flex-col items-center gap-2 flex-shrink-0 group">
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-transparent group-hover:border-teal-400 transition-all">
+                  <img src={cat.img} alt={cat.label} className="w-full h-full object-cover" />
+                </div>
+                <span className="text-xs font-medium text-gray-600 group-hover:text-teal-700 transition-colors whitespace-nowrap">{cat.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
         {/* ── FEED ── */}
