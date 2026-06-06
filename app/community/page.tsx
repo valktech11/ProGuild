@@ -595,7 +595,7 @@ export default function CommunityPage() {
         {/* ── FEED ── */}
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="font-serif text-xl text-gray-900">Pro Feed</h1>
+            <h1 className="font-serif text-xl text-gray-900">Community</h1>
             <div className="flex items-center gap-2">
               <div className="sm:hidden flex items-center bg-stone-100 border border-gray-200 rounded-lg p-0.5">
                 {[{ v: false, l: 'All' }, { v: true, l: 'FL' }].map(opt => (
