@@ -547,15 +547,16 @@ export default function CommunityPage() {
   return (
     <DashboardShell session={session} newLeads={0}>
       <div className="min-h-screen" style={{ backgroundColor: '#ECEAE5' }}>
-      {/* Community inline subnav */}
-      <nav className="bg-white/95 backdrop-blur border-b px-6 h-12 flex items-center gap-4 sticky top-0 z-40" style={{ borderColor: '#E8E2D9' }}>
-        <div className="flex items-center gap-5">
+      {/* ── Main nav ── */}
+      <nav className="bg-white/95 backdrop-blur border-b px-6 h-14 flex items-center justify-between sticky top-0 z-40" style={{ borderColor: '#E8E2D9' }}>
+        {/* Logo */}
+        <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <div className="w-7 h-7 flex-shrink-0">
               <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#cb)"/>
+                <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#cb2)"/>
                 <text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text>
-                <defs><linearGradient id="cb" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/></linearGradient></defs>
+                <defs><linearGradient id="cb2" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/></linearGradient></defs>
               </svg>
             </div>
             <div className="flex items-baseline gap-0.5">
@@ -563,29 +564,37 @@ export default function CommunityPage() {
               <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
             </div>
           </Link>
+          {/* Nav links */}
           <div className="hidden md:flex items-center gap-1">
-            <Link href="/community" className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700">Feed</Link>
-            <Link href="/" className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Find a pro</Link>
-            <Link href="/jobs" className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Jobs</Link>
+            <Link href="/" className="text-sm text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Find Pros</Link>
+            <Link href="/community" className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 border-b-2 border-teal-600">Community</Link>
+            <Link href="/jobs" className="text-sm text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">Projects</Link>
+            {/* Resources dropdown */}
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-sm text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                Resources
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div className="absolute top-full left-0 mt-1 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <Link href="/blog" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-50">Blog</Link>
+                <Link href="/guides" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-50">Guides</Link>
+                <Link href="/license-lookup" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-50">License Lookup</Link>
+              </div>
+            </div>
           </div>
         </div>
+        {/* Right side */}
         <div className="flex items-center gap-3">
-          {/* Local / National toggle */}
-          <div className="hidden sm:flex items-center bg-stone-100 border border-gray-200 rounded-lg p-0.5">
-            {[{ v: false, l: 'All' }, { v: true, l: 'Florida' }].map(opt => (
-              <button key={String(opt.v)} onClick={() => setLocalOnly(opt.v)}
-                className={`text-sm font-semibold px-3 py-1.5 rounded-md transition-all ${localOnly === opt.v ? 'bg-white text-gray-900 border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}>
-                {opt.l}
-              </button>
-            ))}
-          </div>
           {session ? (
             <>
               <Link href={`/community/profile/${session.id}`} className="text-sm text-gray-500 hover:text-teal-600 hidden sm:block">My profile</Link>
               <Link href="/dashboard" className="text-sm font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Dashboard</Link>
             </>
           ) : (
-            <Link href="/login" className="text-sm font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Log in</Link>
+            <>
+              <Link href="/login" className="text-sm text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors hidden sm:block">Log in</Link>
+              <Link href="/login?tab=signup" className="text-sm font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Join Free</Link>
+            </>
           )}
         </div>
       </nav>
@@ -706,6 +715,26 @@ export default function CommunityPage() {
 
         {/* ── SIDEBAR ── */}
         <div className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pb-4 scrollbar-hide">
+
+          {/* ── Get Matched Now CTA — logged out only ── */}
+          {!session && (
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-5 pt-5 pb-4">
+                <div className="text-base font-bold text-gray-900 mb-1">Need help with your project?</div>
+                <p className="text-sm text-gray-500 mb-4 leading-relaxed">Get matched with verified local pros.</p>
+                <Link href="/post-job"
+                  className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors mb-3">
+                  Get Matched Now
+                </Link>
+                <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <span>100% free</span>
+                  <span>·</span>
+                  <span>No obligation</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Trending in [City] ── */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
