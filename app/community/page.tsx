@@ -690,14 +690,14 @@ export default function CommunityPage() {
       {!session && (
         <div className="relative bg-white overflow-hidden" style={{ minHeight: 280 }}>
           {/* Background photo — right half */}
-          <div className="absolute inset-0 left-[55%]">
+          <div className="absolute inset-0 left-[67%]">
             <img
               src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=1200&fit=crop"
               alt="Kitchen remodel"
               className="w-full h-full object-cover"
             />
             {/* Fade from white on the left */}
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, white 0%, white 30%, transparent 70%)' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, white 0%, transparent 40%)' }} />
           </div>
 
           {/* Content */}
