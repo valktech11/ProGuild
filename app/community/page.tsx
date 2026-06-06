@@ -202,9 +202,11 @@ function PostCard({ post, session, onLike, onDelete }: {
 
       {/* Ask a Pro banner */}
       {isAskAPro && (
-        <div className="bg-blue-50 border-b border-blue-100 px-4 py-2 flex items-center gap-2">
-          <span className="text-lg">❓</span>
-          <span className="text-xs font-bold text-blue-700 uppercase tracking-widest">Question for the Community</span>
+        <div className="px-4 pt-3 pb-0">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-50 text-orange-600 border border-orange-100">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Question for the Community
+          </span>
         </div>
       )}
 
@@ -868,7 +870,7 @@ export default function CommunityPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
               {postsWithLikes.map(post => (
                 <PostCard key={post.id} post={post} session={session} onLike={handleLike} onDelete={handleDelete} />
               ))}
@@ -882,7 +884,7 @@ export default function CommunityPage() {
           {/* ── Projects Near You ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">Projects Near You</div>
+              <div className="text-sm font-semibold text-gray-900">Projects Near You</div>
               <Link href="/post-job" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {jobAlerts.length === 0 ? (
@@ -907,7 +909,7 @@ export default function CommunityPage() {
           {/* ── Top Rated Pros ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">Top Rated Pros{session?.city ? ` in ${session.city}` : ''}</div>
+              <div className="text-sm font-semibold text-gray-900">Top Rated Pros{session?.city ? ` in ${session.city}` : ''}</div>
               <Link href="/" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {suggested.length === 0 ? (
@@ -935,7 +937,7 @@ export default function CommunityPage() {
           {/* ── Trending Questions ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">Trending Questions</div>
+              <div className="text-sm font-semibold text-gray-900">Trending Questions</div>
               <Link href="/community" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {trendingPosts.filter(p => p.post_type === 'tip').length === 0 ? (
