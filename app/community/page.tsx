@@ -692,7 +692,7 @@ export default function CommunityPage() {
           {/* Background photo — right half */}
           <div className="absolute inset-0 left-[38%]">
             <img
-              src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=1200&fit=crop"
+              src="https://images.unsplash.com/photo-1768486143865-342d8cc12c90?w=1200&fit=crop"
               alt="Kitchen remodel"
               className="w-full h-full object-cover"
             />
