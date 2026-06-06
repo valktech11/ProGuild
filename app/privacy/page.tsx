@@ -20,7 +20,8 @@ export default function PrivacyPage() {
           { title: '8. Cookies', content: `We use essential cookies required for the platform to function, including session management. We do not use tracking cookies for advertising purposes. You can control cookie settings through your browser, though disabling essential cookies may affect platform functionality.` },
           { title: '9. Children', content: `ProGuild.ai is not directed at children under 18. We do not knowingly collect personal information from anyone under 18. If we become aware that a minor has provided us with personal information, we will delete it promptly.` },
           { title: '10. Changes to this policy', content: `We may update this Privacy Policy from time to time. We will notify registered users of significant changes by email. Continued use of the platform after changes constitutes acceptance of the updated policy.` },
-          { title: '11. Contact', content: `For privacy-related questions or requests, contact us at: privacy@proguild.ai or ProGuild.ai, Univaro Technologies Pvt Ltd.` },
+          { title: '11. SMS Communications', content: `If you provide your phone number through a contractor using ProGuild.ai, you may receive SMS messages related to your project including appointment confirmations, status updates, estimate notifications, and invoice reminders. Message and data rates may apply. Reply STOP to opt out at any time. Reply HELP for help. Message frequency varies.` },
+          { title: '12. Contact', content: `For privacy-related questions or requests, contact us at: privacy@proguild.ai or ProGuild LLC, proguild.ai.` },
         ].map(section => (
           <div key={section.title} className="mb-8">
             <h2 className="font-semibold text-gray-900 mb-3">{section.title}</h2>

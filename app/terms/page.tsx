@@ -24,7 +24,7 @@ export default function TermsPage() {
           { title: '11. Limitation of liability', content: 'To the maximum extent permitted by law, ProGuild.ai shall not be liable for any indirect, incidental, special, consequential or punitive damages, including loss of profits, data, or goodwill, arising from your use of the platform. Our total liability shall not exceed the amount you paid to us in the 12 months preceding the claim.' },
           { title: '12. Termination', content: 'We reserve the right to suspend or terminate your account at any time for violations of these terms. You may delete your account at any time through your account settings. Upon termination, your right to use the platform ceases immediately.' },
           { title: '13. Governing law', content: 'These terms are governed by the laws of the State of Florida, United States. Any disputes shall be resolved in the courts of Florida, and you consent to personal jurisdiction in those courts.' },
-          { title: '14. Contact', content: 'For questions about these terms, contact us at: legal@proguild.com' },
+          { title: '14. Contact', content: 'For questions about these terms, contact us at: contact@proguild.ai' },
         ].map(section => (
           <div key={section.title} className="mb-8">
             <h2 className="font-semibold text-gray-900 mb-3">{section.title}</h2>
