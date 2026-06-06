@@ -272,7 +272,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   const [saving,  setSaving]  = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
-  const savedEstType = useRef<string>(estimate.estimate_type ?? 'tiered')
+  const savedEstType     = useRef<string>(estimate.estimate_type ?? 'tiered')
+  const hasInitialSynced = useRef(false)
   // Snapshot of saved state — used to detect real changes vs undo
   const initialSnapshot = useRef({
     stdItems:  JSON.stringify(estimate.items ?? []),
@@ -324,6 +325,23 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   })()
   // Keep recalcMilestones as no-op for backward compat with saveMeasurements calls
   const recalcMilestones = useCallback((_newTotal: number) => {}, [])
+
+  // ── Initial sync: if DB total is 0 but computed total is ready, save once silently ──
+  // Happens when estimate is first opened from the calculator (created with total:0)
+  useEffect(() => {
+    if (hasInitialSynced.current) return
+    if (estimate.total > 0) { hasInitialSynced.current = true; return }
+    if (total <= 0) return
+    hasInitialSynced.current = true
+    onSave({
+      subtotal:           activeTierSubtotal,
+      tax_amount:         taxAmt,
+      total,
+      tiered_data:        estType === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
+      estimate_type:      estType,
+      payment_milestones: milestones,
+    }).catch(() => {})
+  }, [total]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Recalc all tier quantities + amounts when measurements change
   const recalcTiersFromSq = useCallback((sq: number, selTier?: TierKey, perimLF?: number, pitch?: string, waste?: number): number => {
