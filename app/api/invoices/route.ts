@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
       notes:          est.notes,
       payment_terms:  bodyTerms || 'due_on_receipt',
       due_date:       bodyDueDate || dueDate.toISOString(),
+      payment_milestones: (est as any).payment_milestones || null,
       status:         'draft',
     }
   } else {
