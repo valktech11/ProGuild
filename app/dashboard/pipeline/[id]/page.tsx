@@ -143,6 +143,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [confirmBack,  setConfirmBack]  = useState<LeadStatus|null>(null)
   const [warnSched,    setWarnSched]    = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [showInspectionModal, setShowInspectionModal] = useState(false)
+  const [inspDate, setInspDate] = useState('')
   const [schedDate,  setSchedDate]  = useState('')
   const [schedTime,  setSchedTime]  = useState('')
   const [warnDone,     setWarnDone]     = useState(false)
@@ -344,6 +346,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       setShowScheduleModal(true)
       return
     }
+    if (!force && s === 'inspection_scheduled') {
+      setInspDate((lead as any)?.inspection_date || '')
+      setShowInspectionModal(true)
+      return
+    }
     if (!force) {
       // Unified gate evaluator — reads requires from stage config
       const gate = evalGate(s)
@@ -529,6 +536,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     const items:{date:string;title:string;sub:string;type:string;warn?:boolean}[] = []
     items.push({date:lead.created_at,title:'Lead created',sub:`From ${(lead.lead_source||'unknown').replace(/_/g,' ')}${lead.message?` · "${lead.message.slice(0,60)}${lead.message.length>60?'…':''}"`:``}`,type:'created'})
     if (lead.quoted_amount!=null) items.push({date:lead.updated_at||lead.created_at,title:'Quote set',sub:`$${Number(lead.quoted_amount).toLocaleString()}`,type:'quote'})
+    if ((lead as any).inspection_date) items.push({date:lead.updated_at||lead.created_at,title:'Inspection scheduled',sub:fmt((lead as any).inspection_date),type:'scheduled'})
     if (lead.scheduled_date) items.push({date:lead.updated_at||lead.created_at,title:'Job scheduled',sub:fmt(lead.scheduled_date),type:'scheduled'})
     if (lead.notes) lead.notes.split(/\n\n+/).filter(Boolean).forEach(n=>items.push({date:lead.updated_at||lead.created_at,title:'Note added',sub:n.slice(0,100)+(n.length>100?'…':''),type:'note'}))
     // Estimate events — pull from linked estimate timestamps
@@ -641,6 +649,42 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
               <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end'}}>
                 <button onClick={()=>setConfirmBack(null)} style={{padding:'8px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>Cancel</button>
                 <button onClick={doConfirmBack} style={{padding:'8px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:600}}>Move back</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Schedule Inspection Modal */}
+        {showInspectionModal && (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}}
+            onClick={()=>setShowInspectionModal(false)}>
+            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:400,width:'100%',border:`1px solid ${bdr}`}}
+              onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:17,fontWeight:800,color:tp,marginBottom:4}}>Schedule Inspection</div>
+              <div style={{fontSize:13,color:tb,marginBottom:20}}>Set the inspection date to add it to your calendar.</div>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.08em',color:ts,marginBottom:6}}>Inspection Date</div>
+                <input type="date" value={inspDate} onChange={e=>setInspDate(e.target.value)}
+                  style={{width:'100%',padding:'10px 12px',border:`1.5px solid ${inspDate?BRAND.teal:bdr}`,borderRadius:T.radSm,fontSize:14,outline:'none',boxSizing:'border-box' as const,colorScheme:dk?'dark':'light'}} />
+              </div>
+              <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end',marginTop:20}}>
+                <button onClick={()=>{setShowInspectionModal(false);moveStage('inspection_scheduled' as LeadStatus,true)}}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>
+                  Skip for now
+                </button>
+                <button
+                  disabled={!inspDate}
+                  onClick={async ()=>{
+                    setShowInspectionModal(false)
+                    if (inspDate) {
+                      await patch({ inspection_date: inspDate })
+                      setLead(l => l ? { ...l, inspection_date: inspDate } as any : l)
+                    }
+                    moveStage('inspection_scheduled' as LeadStatus, true)
+                  }}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:inspDate?BRAND.teal:'#E2E8F0',color:inspDate?'#fff':'#94A3B8',cursor:inspDate?'pointer':'not-allowed',fontSize:T.fontBody,fontWeight:700}}>
+                  Schedule Inspection
+                </button>
               </div>
             </div>
           </div>

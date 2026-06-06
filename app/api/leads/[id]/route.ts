@@ -19,6 +19,7 @@ interface LeadUpdateFields {
   lead_status?:      LeadStatus
   notes?:            string | null
   scheduled_date?:   string | null
+  inspection_date?:  string | null
   scheduled_time?:   string | null
   follow_up_date?:   string | null
   client_id?:        string | null
@@ -145,7 +146,7 @@ export async function PATCH(
     }
   }
   const STRING_FIELDS = [
-    'notes', 'scheduled_date', 'scheduled_time', 'follow_up_date',
+    'notes', 'scheduled_date', 'scheduled_time', 'inspection_date', 'follow_up_date',
     'client_id', 'contact_phone', 'contact_email', 'contact_city',
     'contact_state', 'contact_zip', 'lead_source', 'property_address',
   ] as const
