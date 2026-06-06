@@ -1278,13 +1278,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                                   return (
                                     <div>
-                                      {/* Processing banner */}
-                                      {qbGenerating && (
-                                        <div style={{padding:'10px 16px',background:'#F0FDF4',borderBottom:'1px solid #BBF7D0',display:'flex',alignItems:'center',gap:8}}>
-                                          <div style={{width:14,height:14,borderRadius:'50%',border:'2.5px solid #059669',borderTopColor:'transparent',animation:'pg-spin 0.7s linear infinite',flexShrink:0}}/>
-                                          <span style={{fontSize:13,fontWeight:600,color:'#065F46'}}>Measuring {((lead as any).property_address||'').replace(/, USA$/,'').trim()||'roof'} from satellite… this takes ~30 seconds</span>
-                                        </div>
-                                      )}
                                       <div style={{padding:16,opacity:qbGenerating?0.5:1,pointerEvents:qbGenerating?'none' as const:'auto'}}>
                                       {/* Header */}
                                       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
