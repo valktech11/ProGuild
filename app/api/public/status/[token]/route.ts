@@ -30,8 +30,18 @@ export async function GET(
     .single()
   if (error || !lead) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
+  // Check if this is an insurance job — only then show the Insurance approved step
+  const { data: rjd } = await sb
+    .from('roofing_job_data')
+    .select('insurance_claim')
+    .eq('lead_id', lead.id)
+    .maybeSingle()
+  const isInsurance = !!(rjd?.insurance_claim)
+
+  const VISIBLE_STEPS = STEPS.filter(s => s.key !== 'insurance_approved' || isInsurance)
+
   const status = lead.lead_status as string
-  const stepIdx = STEPS.findIndex(s => s.key === status)
+  const stepIdx = VISIBLE_STEPS.findIndex(s => s.key === status)
   const closed = status === 'lost' || status === 'unqualified'
 
   // Pro branding (safe public fields only)
@@ -77,8 +87,8 @@ export async function GET(
     homeowner: lead.contact_name || 'Homeowner',
     address: [lead.property_address, lead.contact_city, lead.contact_state].filter(Boolean).join(', '),
     currentStep: closed ? -1 : stepIdx,
-    stepLabel: closed ? 'On hold' : (STEPS[stepIdx]?.label ?? 'In progress'),
-    steps: STEPS.map(s => s.label),
+    stepLabel: closed ? 'On hold' : (VISIBLE_STEPS[stepIdx]?.label ?? 'In progress'),
+    steps: VISIBLE_STEPS.map(s => s.label),
     scheduledDate: lead.scheduled_date || null,
     pro: { name: pro?.business_name || pro?.full_name || 'Your roofer', phone: pro?.phone_cell || null },
     condition,
