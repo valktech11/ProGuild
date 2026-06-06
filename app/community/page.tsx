@@ -695,7 +695,7 @@ export default function CommunityPage() {
           </div>
           <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {[
-              { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1632823471565-1ecdf5c6da3c?w=120&h=120&fit=crop', href: '/community?trade=roofer' },
+              { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?w=120&h=120&fit=crop', href: '/community?trade=roofer' },
               { label: 'Bathroom',      img: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=120&h=120&fit=crop', href: '/community?trade=plumber' },
               { label: 'Kitchen',       img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=120&h=120&fit=crop', href: '/community?trade=general-contractor' },
               { label: 'HVAC',          img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=120&h=120&fit=crop', href: '/community?trade=hvac-technician' },
