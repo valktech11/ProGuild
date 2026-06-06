@@ -87,7 +87,7 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
 
   const wonThisMonth   = wonInMonth(leads, 'job_won', 0)
   const wonRevenue     = sumRevenue(wonThisMonth)
-  const totalForecast  = forecastData.reduce((sum, s) => sum + s.amount, 0) + wonRevenue
+  const openPipeline   = forecastData.reduce((sum, s) => sum + s.amount, 0)
 
   // ── Performance scorecard (this month vs last), keyed off the real won date ──
   const wonLastMonth   = wonInMonth(leads, 'job_won', 1)
@@ -126,7 +126,7 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase' as const, color: t.textSubtle }}>{c.label}</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: t.textPri, marginTop: 6, letterSpacing: '-0.02em' }}>{c.value}</div>
             <div style={{ fontSize: 11, fontWeight: 600, color: c.subColor, marginTop: 3 }}>{c.sub}</div>
-            {(c as any).sub2 && <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginTop: 1 }}>{(c as any).sub2}</div>}
+            {(c as any).sub2 && <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${bdr}` }}>{(c as any).sub2}</div>}
           </div>
         ))}
       </div>
@@ -231,69 +231,42 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
         )}
       </div>
 
-      {/* ── Revenue Forecast ─────────────────────────────────────────────────── */}
-      {(forecastData.length > 0 || wonRevenue > 0) && (
+      {/* ── Open pipeline by stage ───────────────────────────────────────────── */}
+      {forecastData.length > 0 && (
         <div className="rounded-2xl mb-5" style={{ backgroundColor: card, border: `1px solid ${bdr}` }}>
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${bdr}` }}>
             <div className="flex items-center gap-2">
               <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(15,118,110,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>💰</div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri }}>Revenue Forecast</div>
-                <div style={{ fontSize: 12, color: t.textSubtle }}>Where your money is in the pipeline</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri }}>Open pipeline by stage</div>
+                <div style={{ fontSize: 12, color: t.textSubtle }}>Money in deals you haven&apos;t won yet</div>
               </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 2 }}>Expected total</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: TEAL }}>{fmtCurrency(totalForecast)}</div>
             </div>
           </div>
 
           <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {forecastData.map(stage => (
               <div key={stage.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                {/* Stage label + count */}
                 <div style={{ width: 160, flexShrink: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: t.textPri }}>{stage.label}</div>
                   <div style={{ fontSize: 11, color: t.textMuted }}>{stage.count} lead{stage.count !== 1 ? 's' : ''}</div>
                 </div>
-
-                {/* Bar */}
                 <div style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: dk ? '#1E293B' : '#F1F5F9', overflow: 'hidden' }}>
-                  {totalForecast > 0 && (
+                  {openPipeline > 0 && (
                     <div style={{
                       height: '100%',
                       borderRadius: 4,
                       backgroundColor: stage.color,
-                      width: `${Math.max((stage.amount / totalForecast) * 100, 2)}%`,
+                      width: `${Math.max((stage.amount / openPipeline) * 100, 2)}%`,
                       transition: 'width 0.4s ease',
                     }} />
                   )}
                 </div>
-
-                {/* Amount */}
                 <div style={{ width: 70, textAlign: 'right', fontSize: 14, fontWeight: 700, color: stage.color, flexShrink: 0 }}>
                   {fmtCurrency(stage.amount)}
                 </div>
               </div>
             ))}
-
-            {/* Won this month */}
-            {wonRevenue > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 10, borderTop: `1px solid ${bdr}` }}>
-                <div style={{ width: 160, flexShrink: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>✅ Won This Month</div>
-                  <div style={{ fontSize: 11, color: t.textMuted }}>{wonThisMonth.length} job{wonThisMonth.length !== 1 ? 's' : ''} completed</div>
-                </div>
-                <div style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: dk ? '#1E293B' : '#F1F5F9', overflow: 'hidden' }}>
-                  {totalForecast > 0 && (
-                    <div style={{ height: '100%', borderRadius: 4, backgroundColor: '#059669', width: `${Math.max((wonRevenue / totalForecast) * 100, 2)}%` }} />
-                  )}
-                </div>
-                <div style={{ width: 70, textAlign: 'right', fontSize: 14, fontWeight: 700, color: '#059669', flexShrink: 0 }}>
-                  {fmtCurrency(wonRevenue)}
-                </div>
-              </div>
-            )}
           </div>
 
           <div style={{ padding: '0 20px 16px' }}>
