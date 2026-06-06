@@ -695,23 +695,26 @@ export default function CommunityPage() {
           </div>
           <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {[
-              { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?w=120&h=120&fit=crop', href: '/community?trade=roofer' },
-              { label: 'Bathroom',      img: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=120&h=120&fit=crop', href: '/community?trade=plumber' },
-              { label: 'Kitchen',       img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=120&h=120&fit=crop', href: '/community?trade=general-contractor' },
-              { label: 'HVAC',          img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=120&h=120&fit=crop', href: '/community?trade=hvac-technician' },
-              { label: 'Storm Damage',  img: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=120&h=120&fit=crop', href: '/community?trade=roofer' },
-              { label: 'Flooring',      img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=120&h=120&fit=crop', href: '/community?trade=carpenter' },
-              { label: 'Painting',      img: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=120&h=120&fit=crop', href: '/community?trade=painter' },
-              { label: 'Electrical',    img: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=120&h=120&fit=crop', href: '/community?trade=electrician' },
-            ].map(cat => (
-              <Link key={cat.label} href={cat.href}
-                className="flex flex-col items-center gap-2 flex-shrink-0 group">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-transparent group-hover:border-teal-400 transition-all">
-                  <img src={cat.img} alt={cat.label} className="w-full h-full object-cover" />
-                </div>
-                <span className="text-xs font-medium text-gray-600 group-hover:text-teal-700 transition-colors whitespace-nowrap">{cat.label}</span>
-              </Link>
-            ))}
+              { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?w=120&h=120&fit=crop', slug: 'roofer' },
+              { label: 'Bathroom',      img: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=120&h=120&fit=crop', slug: 'plumber' },
+              { label: 'Kitchen',       img: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=120&h=120&fit=crop', slug: 'general-contractor' },
+              { label: 'HVAC',          img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=120&h=120&fit=crop', slug: 'hvac-technician' },
+              { label: 'Storm Damage',  img: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=120&h=120&fit=crop', slug: 'roofer' },
+              { label: 'Flooring',      img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=120&h=120&fit=crop', slug: 'carpenter' },
+              { label: 'Painting',      img: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=120&h=120&fit=crop', slug: 'painter' },
+              { label: 'Electrical',    img: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=120&h=120&fit=crop', slug: 'electrician' },
+            ].map(cat => {
+              const active = tradeFilter === cat.slug
+              return (
+                <button key={cat.label} onClick={() => setTradeFilter(active ? '' : cat.slug)}
+                  className="flex flex-col items-center gap-2 flex-shrink-0 group">
+                  <div className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-all ${active ? 'border-teal-500 scale-105' : 'border-transparent group-hover:border-teal-400'}`}>
+                    <img src={cat.img} alt={cat.label} className="w-full h-full object-cover" />
+                  </div>
+                  <span className={`text-xs font-medium whitespace-nowrap transition-colors ${active ? 'text-teal-700 font-semibold' : 'text-gray-600 group-hover:text-teal-700'}`}>{cat.label}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
