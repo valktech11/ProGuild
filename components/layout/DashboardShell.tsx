@@ -850,7 +850,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
 
           <main className={`pg-main flex-1 flex flex-col ${fullBleed ? 'overflow-hidden' : 'overflow-y-auto'}`} style={{ backgroundColor: t.pageBg, color: dk ? '#F1F5F9' : undefined }}>
             {/* ── Top header bar ─────────────────────────────────────────── */}
-            <TopHeader session={session} dk={dk} onAddLead={onAddLead} onToggleDark={onToggleDark} />
+            {session && <TopHeader session={session} dk={dk} onAddLead={onAddLead} onToggleDark={onToggleDark} />}
             <div className={fullBleed ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1'}>
               {children}
             </div>
