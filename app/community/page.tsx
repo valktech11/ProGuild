@@ -686,6 +686,86 @@ export default function CommunityPage() {
         </div>
       </nav>
 
+      {/* ── Hero Banner — logged out only ── */}
+      {!session && (
+        <div className="relative bg-white overflow-hidden" style={{ minHeight: 280 }}>
+          {/* Background photo — right half */}
+          <div className="absolute inset-0 left-[38%]">
+            <img
+              src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&fit=crop"
+              alt="Kitchen remodel"
+              className="w-full h-full object-cover"
+            />
+            {/* Fade from white on the left */}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, white 0%, white 10%, transparent 50%)' }} />
+          </div>
+
+          {/* Content */}
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-10 flex items-start gap-8">
+            {/* Left — headline + search */}
+            <div className="flex-1 max-w-lg">
+              <h1 className="font-serif text-4xl font-bold leading-tight mb-3" style={{ color: '#0A1628' }}>
+                Real work from<br />licensed pros.
+              </h1>
+              <p className="text-gray-500 text-base mb-5 leading-relaxed">
+                See projects, ask questions, and connect with trusted professionals near you.
+              </p>
+              {/* Search bar */}
+              <div className="flex gap-2 mb-5">
+                <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input
+                    placeholder="What project are you planning?"
+                    className="flex-1 text-sm bg-transparent outline-none text-gray-900 placeholder-gray-400"
+                    onKeyDown={e => { if (e.key === 'Enter') { setSearchInput((e.target as HTMLInputElement).value); setSearch((e.target as HTMLInputElement).value) } }}
+                  />
+                </div>
+                <button
+                  onClick={() => {}}
+                  className="px-4 py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors flex-shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm flex-shrink-0">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span className="text-sm text-gray-600">{session ? (session as any).city || 'Florida' : 'Florida'}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              {/* Trust badges */}
+              <div className="flex flex-wrap gap-4">
+                {[
+                  { icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', label: 'Licensed Pros' },
+                  { icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', label: 'Background Checked' },
+                  { icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z', label: 'Real Reviews' },
+                  { icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636', label: 'No Lead Fees' },
+                ].map(b => (
+                  <div key={b.label} className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={b.icon}/></svg>
+                    <span>{b.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right — Get Matched card */}
+            <div className="hidden lg:block flex-shrink-0 w-64 bg-white rounded-2xl shadow-lg p-5 mt-2">
+              <div className="text-base font-bold text-gray-900 mb-1">Need help with your project?</div>
+              <p className="text-sm text-gray-500 mb-4 leading-relaxed">Get matched with verified local pros.</p>
+              <Link href="/post-job"
+                className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors mb-3">
+                Get Matched Now
+              </Link>
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>100% free</span>
+                <span>·</span>
+                <span>No obligation</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Popular Categories ── */}
       <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
@@ -839,26 +919,6 @@ export default function CommunityPage() {
 
         {/* ── SIDEBAR ── */}
         <div className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pb-4 scrollbar-hide">
-
-          {/* ── Get Matched Now CTA — logged out only ── */}
-          {!session && (
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-5 pt-5 pb-4">
-                <div className="text-base font-bold text-gray-900 mb-1">Need help with your project?</div>
-                <p className="text-sm text-gray-500 mb-4 leading-relaxed">Get matched with verified local pros.</p>
-                <Link href="/post-job"
-                  className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors mb-3">
-                  Get Matched Now
-                </Link>
-                <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  <span>100% free</span>
-                  <span>·</span>
-                  <span>No obligation</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* ── Trending in [City] ── */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
