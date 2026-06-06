@@ -832,8 +832,8 @@ export default function CommunityPage() {
 
         {/* ── FEED ── */}
         <div className="lg:col-span-2">
-          {/* Search bar */}
-          <div className="flex gap-2 mb-3">
+          {/* Search bar — logged in only */}
+          {session && <div className="flex gap-2 mb-3">
             <div className="flex-1 flex gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
               <input ref={searchRef} value={searchInput} onChange={e => setSearchInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && applySearch()}
@@ -847,7 +847,7 @@ export default function CommunityPage() {
               className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">
               Search
             </button>
-          </div>
+          </div>}
 
           {session && <PostComposer session={session} onPost={post => setPosts(p => [post, ...p])} />}
 
