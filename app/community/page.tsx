@@ -200,6 +200,20 @@ function PostCard({ post, session, onLike, onDelete }: {
         </div>
       )}
 
+      {/* Post type pill — shown for all post types */}
+      <div className="px-4 pt-3 pb-0">
+        {isAskAPro ? null : (
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
+            isMilestone ? 'bg-amber-50 text-amber-600 border-amber-100' :
+            isWork      ? 'bg-teal-50 text-teal-600 border-teal-100' :
+                          'bg-gray-50 text-gray-500 border-gray-100'
+          }`}>
+            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: isMilestone ? '#D97706' : isWork ? '#0F766E' : '#9CA3AF' }} />
+            {isMilestone ? 'Milestone' : isWork ? 'Project Update' : 'Update'}
+          </span>
+        )}
+      </div>
+
       {/* Ask a Pro banner */}
       {isAskAPro && (
         <div className="px-4 pt-3 pb-0">
@@ -344,30 +358,28 @@ function PostCard({ post, session, onLike, onDelete }: {
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-1 px-4 py-2.5 border-t border-gray-100">
+      <div className="flex items-center gap-1 px-3 py-2 border-t border-gray-100">
         {isOwn ? (
-          /* Own post — show respect count read-only, no button */
-          <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-300 select-none">
-            <span>✊</span>
-            <span>Respect</span>
-            {post.like_count > 0 && <span className="font-semibold">{post.like_count}</span>}
+          <div className="flex items-center gap-1.5 px-2 py-1.5 text-sm text-gray-300 select-none">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+            {post.like_count > 0 && <span className="text-xs font-semibold">{post.like_count}</span>}
           </div>
         ) : (
           <button onClick={() => session && onLike(post.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-              post.liked_by_me ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm transition-colors ${
+              post.liked_by_me ? 'text-teal-600' : 'text-gray-400 hover:text-gray-600'
             }`}>
-            <span>✊</span>
-            <span>Respect</span>
-            {post.like_count > 0 && <span className="font-semibold">{post.like_count}</span>}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill={post.liked_by_me ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+            {post.like_count > 0 && <span className="text-xs font-semibold">{post.like_count}</span>}
           </button>
         )}
         <button onClick={loadComments}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-            isAskAPro ? 'text-blue-600 hover:bg-blue-50 font-medium' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm transition-colors ${
+            isAskAPro ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 hover:text-gray-600'
           }`}>
-          <span>💬</span>
-          <span>{isAskAPro ? (post.comment_count > 0 ? `${post.comment_count} answers` : 'Answer this') : (post.comment_count > 0 ? post.comment_count : 'Comment')}</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          {post.comment_count > 0 && <span className="text-xs font-semibold">{post.comment_count}</span>}
+          <span className="text-xs">{isAskAPro ? (post.comment_count > 0 ? 'answers' : 'Answer') : 'Comment'}</span>
         </button>
       </div>
 
@@ -918,7 +930,12 @@ export default function CommunityPage() {
               <div key={pro.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
                 <Link href={`/community/profile/${pro.id}`}><Avatar pro={pro} size={9} /></Link>
                 <div className="flex-1 min-w-0">
-                  <Link href={`/community/profile/${pro.id}`} className="text-sm font-medium text-gray-900 hover:text-teal-600 block truncate">{pro.full_name}</Link>
+                  <div className="flex items-center gap-1.5">
+                    <Link href={`/community/profile/${pro.id}`} className="text-sm font-medium text-gray-900 hover:text-teal-600 truncate">{pro.full_name}</Link>
+                    {(pro as any).is_verified && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="#16a34a" className="flex-shrink-0"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     {(pro as any).rating && (
                       <span className="flex items-center gap-0.5 text-xs text-amber-500 font-medium">
