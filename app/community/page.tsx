@@ -688,12 +688,12 @@ export default function CommunityPage() {
 
       {/* ── Popular Categories ── */}
       <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between mb-3">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-bold text-gray-700">Popular Categories</h2>
-            <Link href="/" className="text-xs text-teal-600 hover:underline">View all</Link>
+            <Link href="/search" className="text-xs text-teal-600 hover:underline">View all →</Link>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[
               { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1518005020951-eccb494ad742?w=120&h=120&fit=crop', slug: 'roofer' },
               { label: 'Bathroom',      img: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=120&h=120&fit=crop', slug: 'plumber' },
@@ -707,11 +707,11 @@ export default function CommunityPage() {
               const active = tradeFilter === cat.slug
               return (
                 <button key={cat.label} onClick={() => setTradeFilter(active ? '' : cat.slug)}
-                  className="flex flex-col items-center gap-2 flex-shrink-0 group">
-                  <div className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-all ${active ? 'border-teal-500 scale-105' : 'border-transparent group-hover:border-teal-400'}`}>
+                  className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
+                  <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all ${active ? 'border-teal-500 scale-105' : 'border-gray-100 group-hover:border-teal-400'}`}>
                     <img src={cat.img} alt={cat.label} className="w-full h-full object-cover" />
                   </div>
-                  <span className={`text-xs font-medium whitespace-nowrap transition-colors ${active ? 'text-teal-700 font-semibold' : 'text-gray-600 group-hover:text-teal-700'}`}>{cat.label}</span>
+                  <span className={`text-xs whitespace-nowrap transition-colors ${active ? 'text-teal-700 font-semibold' : 'text-gray-500 group-hover:text-teal-700'}`}>{cat.label}</span>
                 </button>
               )
             })}
