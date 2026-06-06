@@ -1031,7 +1031,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <div style={{fontSize:14,fontWeight:700,color:'#fff',lineHeight:1.2}}>
                                   {saving?'Updating...':(stgObj?.label??stage)}
                                 </div>
-                                <div style={{fontSize:11,color:'rgba(255,255,255,0.75)',marginTop:1}}>{stage==='inspection_scheduled'&&(lead as any)?.inspection_date?`Inspection · ${fmt((lead as any).inspection_date)}`:stage==='scheduled'&&lead?.scheduled_date?`Job · ${fmt(lead.scheduled_date)}`:stgObj?.subLabel}</div>
+                                <div style={{fontSize:11,color:'rgba(255,255,255,0.75)',marginTop:1}}>{stgObj?.subLabel}</div>
                               </div>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                                 stroke="rgba(255,255,255,0.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
