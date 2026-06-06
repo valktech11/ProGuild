@@ -197,14 +197,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   function killToast(tid:number) { setToasts(t=>t.filter(x=>x.id!==tid)) }
 
   async function shareStatus() {
-    if (!session) return
+    if (!session || !lead?.contact_email) {
+      addToast('No email on file for this homeowner — add one in Edit', 'error')
+      return
+    }
     try {
-      const r = await fetch(`/api/leads/${id}/public-link`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ pro_id: session.id }) })
+      const r = await fetch('/api/leads/send-status-email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: id, pro_id: session.id }),
+      })
       const d = await r.json()
-      if (!d.path) { addToast('Could not create link', 'error'); return }
-      await navigator.clipboard.writeText(`${window.location.origin}${d.path}`)
-      addToast('Homeowner status link copied', 'success')
-    } catch { addToast('Could not create link', 'error') }
+      if (!r.ok) { addToast(d.error || 'Failed to send', 'error'); return }
+      addToast(`Status link sent to ${lead.contact_email}`, 'success')
+    } catch { addToast('Failed to send status email', 'error') }
   }
 
   const tradePlugin = getTradeConfig(session?.trade_slug)
@@ -950,10 +955,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             <Svg size={13} stroke={ts}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
                             Edit
                           </button>
-                          <button onClick={shareStatus} title="Copy a public status link to share with the homeowner"
+                          <button onClick={shareStatus} title="Email homeowner their project status link"
                             style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,fontSize:13,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                            <Svg size={13} stroke={ts}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></Svg>
-                            Share
+                            <Svg size={13} stroke={ts}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></Svg>
+                            Send Status
                           </button>
                         </div>
                       </div>

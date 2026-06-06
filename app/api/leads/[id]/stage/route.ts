@@ -135,11 +135,22 @@ async function queueAutoTriggers(
   sb: ReturnType<typeof getSupabaseAdmin>
 ) {
   const TRIGGERS: Record<string, string[]> = {
+    inspection_scheduled: ['send_status_link_email'],
     proposal_signed: ['fire_deposit_stripe', 'send_proposal_signed_email'],
     job_won:         ['create_warranty_record', 'queue_review_request'],
   }
   const triggers = TRIGGERS[newStage] ?? []
   if (!triggers.length) return
+
+  // ── Active: fire status email immediately (non-blocking) ─────────────
+  if (triggers.includes('send_status_link_email')) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://proguild.ai'
+    fetch(`${siteUrl}/api/leads/send-status-email`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ lead_id: leadId, pro_id: proId }),
+    }).catch(e => console.error('[stage/route] status email fire error:', e))
+  }
 
   const rows = triggers.map(triggerName => ({
     lead_id:      leadId,
