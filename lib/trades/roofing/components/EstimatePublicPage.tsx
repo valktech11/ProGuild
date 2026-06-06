@@ -103,7 +103,23 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
   const selSubtotal  = selTierData?.subtotal ?? estimate.subtotal
   const taxAmt       = Math.round(selSubtotal * (estimate.tax_rate / 100))
   const selTotal     = selSubtotal + taxAmt
-  const depositAmt   = estimate.payment_milestones?.[0]?.amount
+
+  // Recompute milestones from selected tier total so the payment schedule
+  // updates live when the homeowner switches tiers (not static DB values)
+  const displayMilestones: PaymentMilestone[] = isGBB && selTotal > 0
+    ? (() => {
+        const dep = Math.round(selTotal * 30 / 100)
+        const mat = Math.round(selTotal * 40 / 100)
+        const com = selTotal - dep - mat
+        return [
+          { id: 'dep', name: 'Deposit',             pct: 30, amount: dep, due_when: 'Due at signing'    },
+          { id: 'mat', name: 'At Material Delivery', pct: 40, amount: mat, due_when: 'Due at delivery'   },
+          { id: 'com', name: 'On Completion',        pct: 30, amount: com, due_when: 'Due on completion' },
+        ]
+      })()
+    : (estimate.payment_milestones ?? [])
+
+  const depositAmt = displayMilestones[0]?.amount
     ?? Math.round(selTotal * ((estimate.deposit_percent ?? 30) / 100))
 
   // ── Approved ────────────────────────────────────────────────────────────────
@@ -255,7 +271,7 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
           )}
 
           {/* Payment schedule */}
-          {(estimate.payment_milestones?.length ?? 0) > 0 && (
+          {displayMilestones.length > 0 && (
             <ContentSection title="Payment Schedule">
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -268,9 +284,9 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                   </tr>
                 </thead>
                 <tbody>
-                  {estimate.payment_milestones!.filter(m => m.pct > 0 && m.amount > 0).map((m, i) => (
+                  {displayMilestones.filter(m => m.pct > 0 && m.amount > 0).map((m, i) => (
                     <tr key={m.id} style={{
-                      borderBottom: i < estimate.payment_milestones!.filter(m => m.pct > 0 && m.amount > 0).length - 1
+                      borderBottom: i < displayMilestones.filter(m => m.pct > 0 && m.amount > 0).length - 1
                         ? `1px solid ${C.border}` : 'none' }}>
                       <td style={{ padding: '12px 0', fontSize: 14, color: C.text }}>{m.name}</td>
                       <td style={{ padding: '12px 0', fontSize: 14, fontWeight: 700, color: C.text }}>
