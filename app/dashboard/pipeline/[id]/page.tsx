@@ -1264,7 +1264,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   // ── Step states ──
                                   const step1Done = !!sq
                                   const step2Done = step1Done && hasLF
-                                  const step2Running = step1Done && !hasLF && (qbDone || qbGenerating || dsmRunning)
+                                  const step2Running = step1Done && !hasLF && dsmRunning
 
                                   const stepIcon = (done:boolean, running:boolean, n:number) => {
                                     if (done) return (
