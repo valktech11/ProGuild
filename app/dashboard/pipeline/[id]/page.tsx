@@ -164,6 +164,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [eDate,  setEDate]  = useState('')
   const [eTime,  setETime]  = useState('')
   const [eFU,    setEFU]    = useState('')
+  const [eInsp,  setEInsp]  = useState('')
   const [eNotes, setENotes] = useState('')
   const [eSaving,setESaving]= useState(false)
 
@@ -408,6 +409,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     setEDate(lead.scheduled_date||'')
     setETime((lead as any).scheduled_time||'')
     setEFU(lead.follow_up_date||'')
+    setEInsp((lead as any).inspection_date||'')
     setENotes(lead.notes||'')
     setTab('details'); setIsEditing(true)
   }
@@ -462,7 +464,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       contact_phone: ePhone||null, contact_email: eEmail||null,
       contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
       lead_source: eSrc.replace(/ /g,'_')||null,
-      scheduled_date: eDate||null, scheduled_time: eTime||null,
+      scheduled_date: eDate||null, scheduled_time: eTime||null, inspection_date: eInsp||null,
       follow_up_date: eFU||null, notes: eNotes||null,
     })
     setESaving(false)
@@ -472,7 +474,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         contact_phone: ePhone||null, contact_email: eEmail||null,
         contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
         lead_source: eSrc.replace(/ /g,'_') as any||null,
-        scheduled_date: eDate||null, follow_up_date: eFU||null, notes: eNotes||null,
+        scheduled_date: eDate||null, follow_up_date: eFU||null, inspection_date: eInsp||null, notes: eNotes||null,
       }:l)
       setIsEditing(false); addToast('Saved')
     } else addToast('Failed to save','error')
@@ -1613,6 +1615,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <select value={eSrc} onChange={e=>setESrc(e.target.value)} style={inputCls}>
                                   {SOURCE_OPTIONS.map(s=><option key={s}>{s}</option>)}
                                 </select>
+                              </div>
+                              <div><label style={labelCls}>Inspection Date</label>
+                                <input type="date" value={eInsp} onChange={e=>setEInsp(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
                               </div>
                               <div><label style={labelCls}>Job Date &amp; Time</label>
                                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>

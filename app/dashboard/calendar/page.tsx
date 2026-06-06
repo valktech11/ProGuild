@@ -54,6 +54,8 @@ function isWeekend(d: Date) { return d.getDay()===0||d.getDay()===6 }
 function getEventDate(ev: CalEvent): Date | null {
   const ds = ev._type==='followup'
     ? (ev.follow_up_date || ev.scheduled_date)
+    : ev._type==='inspection'
+    ? ev.inspection_date
     : (ev.scheduled_date || ev.follow_up_date)
   return ds ? parseLocal(ds) : null
 }
@@ -129,16 +131,18 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
 }) {
   const t = theme(dk)
   const isFollowup  = ev._type==='followup'
+  const isInspection = ev._type==='inspection'
   const isCompleted = CALENDAR_DONE_STATUSES.has(ev.lead_status)
   const overdue     = isOverdueEvent(ev, today0)
   const phone = fmtPhone(ev.contact_phone)
   const timeStr = fmtTime(ev.scheduled_time)
-  const dateStr = ev._type==='followup' ? fmt(ev.follow_up_date) : fmt(ev.scheduled_date)
-  const fullDate = [dateStr, timeStr].filter(Boolean).join(' at ')
+  const dateStr = isFollowup ? fmt(ev.follow_up_date) : isInspection ? fmt(ev.inspection_date) : fmt(ev.scheduled_date)
+  const fullDate = [dateStr, isInspection ? '' : timeStr].filter(Boolean).join(' at ')
 
-  // Border colour: overdue=red, followup=amber, else teal
-  const accentColor = overdue ? '#DC2626' : isFollowup ? '#D97706' : '#0F766E'
-  const accentBg    = overdue ? (dk?t.overdueAlertBg:'#FEF2F2') : isFollowup ? (dk?'#1E293B':t.warningBg) : (dk?'#1E293B':'#F0FDFA')
+  // Border colour: overdue=red, followup=amber, inspection=indigo, else teal
+  const accentColor = overdue ? '#DC2626' : isFollowup ? '#D97706' : isInspection ? '#4F46E5' : '#0F766E'
+  const accentBg    = overdue ? (dk?t.overdueAlertBg:'#FEF2F2') : isFollowup ? (dk?'#1E293B':t.warningBg) : isInspection ? (dk?'#1E1B4B':'#EEF2FF') : (dk?'#1E293B':'#F0FDFA')
+  const CLIPBOARD_ICON = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'
 
   // Close on Escape
   useEffect(() => {
@@ -153,9 +157,9 @@ function DetailPanel({ ev, onClose, onOpenLead, dk, onMarkComplete, completing, 
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
-              <Svg path={isFollowup?ICON_PATH.phone:ICON_PATH.wrench} size={11} color={accentColor} sw={2}/>
+              <Svg path={isInspection?CLIPBOARD_ICON:isFollowup?ICON_PATH.phone:ICON_PATH.wrench} size={11} color={accentColor} sw={2}/>
               <span style={{ fontSize: 12, fontWeight:700, color:accentColor, textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                {isFollowup?'Follow-up':CALENDAR_DONE_STATUSES.has(ev.lead_status)?'Job Won':ev.lead_status}
+                {isInspection?'Inspection':isFollowup?'Follow-up':CALENDAR_DONE_STATUSES.has(ev.lead_status)?'Job Won':ev.lead_status}
               </span>
               {overdue && <span style={{ fontSize: 11, fontWeight:700, padding:'1px 6px', borderRadius:8, background:t.dangerBg, color:'#DC2626' }}>Overdue</span>}
             </div>
@@ -285,6 +289,7 @@ function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk, onTeal = f
         const isTod = isToday(d)
         const dayEvs = events.filter(ev => { const ed=getEventDate(ev); return ed&&toDateKey(ed)===key })
         const jobCount      = dayEvs.filter(ev=>ev._type==='job').length
+        const inspCount     = dayEvs.filter(ev=>ev._type==='inspection').length
         const followupCount = dayEvs.filter(ev=>ev._type==='followup').length
         const overdueCount  = dayEvs.filter(ev=>isOverdueEvent(ev,today0)).length
         // Text colours — past/today/future contrast
@@ -308,6 +313,7 @@ function MobileWeekGrid({ selectedDate, events, today0, onSelect, dk, onTeal = f
             <div style={{ display:'flex', gap:2, minHeight:6, alignItems:'center' }}>
               {overdueCount>0  && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel||onTeal?'rgba(255,255,255,0.9)':'#DC2626' }}/>}
               {jobCount>0      && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel||onTeal?'rgba(255,255,255,0.9)':'#0F766E' }}/>}
+              {inspCount>0     && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel||onTeal?'rgba(255,255,255,0.9)':'#4F46E5' }}/>}
               {followupCount>0 && overdueCount===0 && <div style={{ width:5, height:5, borderRadius:'50%', background:isSel||onTeal?'rgba(255,255,255,0.9)':'#D97706' }}/>}
             </div>
           </button>
@@ -344,9 +350,10 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk, onTeal = 
           const isSel = isSameDay(d,selectedDate)
           const dayEvs = events.filter(ev => { const ed=getEventDate(ev); return ed&&toDateKey(ed)===key })
           const hasJob     = dayEvs.some(ev=>ev._type==='job')
+          const hasInsp    = dayEvs.some(ev=>ev._type==='inspection')
           const hasFU      = dayEvs.some(ev=>ev._type==='followup'&&!isOverdueEvent(ev,today0))
           const hasOverdue = dayEvs.some(ev=>isOverdueEvent(ev,today0))
-          const hasEvents  = hasJob||hasFU||hasOverdue
+          const hasEvents  = hasJob||hasInsp||hasFU||hasOverdue
           const isDatePast = d < today0 && !isTod
           const dateOpacity = isDatePast ? 0.3 : 1
           const selBg      = isSel?'rgba(255,255,255,0.92)':isTod?(onTeal?'rgba(255,255,255,0.18)':t.calColToday):'transparent'
@@ -360,6 +367,7 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk, onTeal = 
               <div style={{ display:'flex', gap:2, minHeight:5, alignItems:'center' }}>
                 {hasOverdue && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
                 {hasJob     && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
+                {hasInsp    && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
                 {hasFU      && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
               </div>
             </button>
@@ -371,9 +379,9 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk, onTeal = 
 }
 
 // ─── FilterSheet (mobile) ─────────────────────────────────────────────────────
-function FilterSheet({ open, onClose, showJobs, showFollowups, onToggleJobs, onToggleFU, dk }: {
-  open:boolean; onClose:()=>void; showJobs:boolean; showFollowups:boolean
-  onToggleJobs:()=>void; onToggleFU:()=>void; dk:boolean
+function FilterSheet({ open, onClose, showJobs, showFollowups, showInspections, onToggleJobs, onToggleFU, onToggleInsp, dk }: {
+  open:boolean; onClose:()=>void; showJobs:boolean; showFollowups:boolean; showInspections:boolean
+  onToggleJobs:()=>void; onToggleFU:()=>void; onToggleInsp:()=>void; dk:boolean
 }) {
   const t = theme(dk)
   if (!open) return null
@@ -389,6 +397,7 @@ function FilterSheet({ open, onClose, showJobs, showFollowups, onToggleJobs, onT
         <div style={{ fontSize: 16, fontWeight:800, color:t.textPri, marginBottom:20 }}>Filter Calendar</div>
         {[
           { label:'Jobs', sub:'Scheduled work', color:'#0F766E', on:showJobs, toggle:onToggleJobs },
+          { label:'Inspections', sub:'Roof inspection visits', color:'#4F46E5', on:showInspections, toggle:onToggleInsp },
           { label:'Follow-ups', sub:'Reminders to follow up', color:'#D97706', on:showFollowups, toggle:onToggleFU },
         ].map(item => (
           <div key={item.label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingBottom:18, marginBottom:18, borderBottom:`1px solid ${t.cardBorder}` }}>
@@ -431,6 +440,7 @@ function CalendarInner() {
   const [selectedEvent, setSelectedEvent] = useState<CalEvent|null>(null)
   const [showJobs, setShowJobs]           = useState(true)
   const [showFollowups, setShowFollowups] = useState(true)
+  const [showInspections, setShowInspections] = useState(true)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [completing, setCompleting]       = useState<string|null>(null)
 
@@ -490,6 +500,7 @@ function CalendarInner() {
     return evs.filter(ev => {
       if (ev._type==='job'      && !showJobs)      return false
       if (ev._type==='followup' && !showFollowups) return false
+      if (ev._type==='inspection' && !showInspections) return false
       return true
     })
   }
@@ -587,6 +598,7 @@ function CalendarInner() {
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         {[
           { label:'Jobs', color:'#0F766E', on:showJobs, set:()=>setShowJobs(v=>!v) },
+          { label:'Inspections', color:'#4F46E5', on:showInspections, set:()=>setShowInspections(v=>!v) },
           { label:'Follow-ups', color:'#D97706', on:showFollowups, set:()=>setShowFollowups(v=>!v) },
         ].map(item => (
           <div key={item.label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -1361,8 +1373,8 @@ function CalendarInner() {
 
       {/* Filter sheet */}
       <FilterSheet open={filterSheetOpen} onClose={() => setFilterSheetOpen(false)}
-        showJobs={showJobs} showFollowups={showFollowups}
-        onToggleJobs={() => setShowJobs(v=>!v)} onToggleFU={() => setShowFollowups(v=>!v)} dk={dk}/>
+        showJobs={showJobs} showFollowups={showFollowups} showInspections={showInspections}
+        onToggleJobs={() => setShowJobs(v=>!v)} onToggleFU={() => setShowFollowups(v=>!v)} onToggleInsp={() => setShowInspections(v=>!v)} dk={dk}/>
     </div>
   )
 

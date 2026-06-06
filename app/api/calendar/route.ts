@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   // Fetch leads with scheduled_date in range
   const scheduledQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
     .eq('pro_id', proId)
     .not('scheduled_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   // Fetch leads with follow_up_date in range
   const followupQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
     .eq('pro_id', proId)
     .not('follow_up_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
@@ -33,26 +33,39 @@ export async function GET(req: NextRequest) {
   if (from) followupQ.gte('follow_up_date', from)
   if (to)   followupQ.lte('follow_up_date', to)
 
+  // Fetch leads with inspection_date in range
+  const inspectionQ = sb
+    .from('leads')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
+    .eq('pro_id', proId)
+    .not('inspection_date', 'is', null)
+    .not('lead_status', 'in', '(Lost,Archived)')
+
+  if (from) inspectionQ.gte('inspection_date', from)
+  if (to)   inspectionQ.lte('inspection_date', to)
+
   // Unscheduled leads (Quoted or Contacted — need scheduling)
   const unscheduledQ = sb
     .from('leads')
-    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
+    .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
     .eq('pro_id', proId)
     .in('lead_status', ['Quoted', 'Contacted'])
     .is('scheduled_date', null)
     .order('created_at', { ascending: false })
     .limit(10)
 
-  const [scheduledRes, followupRes, unscheduledRes] = await Promise.all([
-    scheduledQ, followupQ, unscheduledQ
+  const [scheduledRes, followupRes, unscheduledRes, inspectionRes] = await Promise.all([
+    scheduledQ, followupQ, unscheduledQ, inspectionQ
   ])
 
   if (scheduledRes.error)   return NextResponse.json({ error: scheduledRes.error.message }, { status: 500 })
   if (followupRes.error)    return NextResponse.json({ error: followupRes.error.message }, { status: 500 })
   if (unscheduledRes.error) return NextResponse.json({ error: unscheduledRes.error.message }, { status: 500 })
+  if (inspectionRes.error)  return NextResponse.json({ error: inspectionRes.error.message }, { status: 500 })
 
-  // Merge scheduled + followup — dedup by id+type so a lead with both dates
-  // appears once as a job (on scheduled_date) and once as a followup (on follow_up_date)
+  // Merge scheduled + followup + inspection — dedup by id+type so a lead with
+  // multiple dates appears once per type (job on scheduled_date, followup on
+  // follow_up_date, inspection on inspection_date)
   const seen = new Set<string>()
   const events: any[] = []
 
@@ -63,6 +76,10 @@ export async function GET(req: NextRequest) {
   for (const lead of (followupRes.data || [])) {
     const key = lead.id + ':followup'
     if (!seen.has(key)) { seen.add(key); events.push({ ...lead, _type: 'followup' }) }
+  }
+  for (const lead of (inspectionRes.data || [])) {
+    const key = lead.id + ':inspection'
+    if (!seen.has(key)) { seen.add(key); events.push({ ...lead, scheduled_time: null, _type: 'inspection' }) }
   }
 
   return NextResponse.json({

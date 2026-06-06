@@ -15,10 +15,11 @@ export interface CalEvent {
   scheduled_date: string | null
   scheduled_time: string | null
   follow_up_date: string | null
+  inspection_date: string | null
   notes: string | null
   message: string | null
   created_at: string
-  _type: 'job' | 'followup'
+  _type: 'job' | 'followup' | 'inspection'
 }
 
 function fmtTime(t: string | null): string {
@@ -64,12 +65,18 @@ interface EventChipProps {
 export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, isOverdue = false }: EventChipProps) {
   const t   = theme(dk)
   const isFollowup  = ev._type === 'followup'
+  const isInspection = ev._type === 'inspection'
   // 'Completed'/'Paid' = old generic; 'job_won' = new roofing; both mean done
   const DONE_STATUSES = new Set(['Completed', 'Paid', 'job_won', 'Converted'])
   const isCompleted = DONE_STATUSES.has(ev.lead_status)
-  const es  = eventStyle({ isOverdue, isFollowup, isCompleted, leadStatus: ev.lead_status }, dk)
-  const timeLabel = ev.scheduled_time ? fmtTime(ev.scheduled_time) : ''
-  const iconPath  = isOverdue ? ICON_PATH.warning : isFollowup ? ICON_PATH.phone : ICON_PATH.wrench
+  const esBase = eventStyle({ isOverdue, isFollowup, isCompleted, leadStatus: ev.lead_status }, dk)
+  const INSPECTION_STYLE = dk
+    ? { bg: '#1E1B4B', border: '#818CF8', text: '#E0E7FF', mutedText: '#A5B4FC', opacity: esBase.opacity }
+    : { bg: '#EEF2FF', border: '#4F46E5', text: '#312E81', mutedText: '#6366F1', opacity: esBase.opacity }
+  const es = isInspection && !isOverdue ? { ...esBase, ...INSPECTION_STYLE } : esBase
+  const CLIPBOARD = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'
+  const timeLabel = ev._type === 'job' && ev.scheduled_time ? fmtTime(ev.scheduled_time) : ''
+  const iconPath  = isOverdue ? ICON_PATH.warning : isInspection ? CLIPBOARD : isFollowup ? ICON_PATH.phone : ICON_PATH.wrench
 
   // ── micro — month grid cell ───────────────────────────────────────────────
   if (size === 'micro') {
@@ -157,7 +164,7 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <Svg path={iconPath} size={13} color={es.border} sw={2} />
           <span style={{ fontSize: 12, fontWeight: 700, color: es.mutedText, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {isFollowup ? 'Follow-up' : DONE_STATUSES.has(ev.lead_status) ? 'Job Won' : ev.lead_status}
+            {isFollowup ? 'Follow-up' : isInspection ? 'Inspection' : DONE_STATUSES.has(ev.lead_status) ? 'Job Won' : ev.lead_status}
           </span>
           {timeLabel && (
             <>
