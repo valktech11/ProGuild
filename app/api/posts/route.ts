@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const tradeSlug  = searchParams.get('trade_slug')   // filter by trade slug
   const search     = searchParams.get('search')?.trim() // text search in content
   const postType   = searchParams.get('post_type')    // filter by type
+  const city       = searchParams.get('city')         // filter by pro's city
 
   let query = getSupabaseAdmin()
     .from('posts')
@@ -26,9 +27,12 @@ export async function GET(req: NextRequest) {
 
   let posts = data || []
 
-  // Filter by trade slug (client-side after join since Supabase FK filter needs different syntax)
+  // Filter by trade slug and city client-side after join
   if (tradeSlug) {
     posts = posts.filter(p => (p.pro as any)?.trade_category?.slug === tradeSlug)
+  }
+  if (city) {
+    posts = posts.filter(p => (p.pro as any)?.city?.toLowerCase() === city.toLowerCase())
   }
 
   // Boost followed pros to top if feed_for provided

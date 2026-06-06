@@ -418,17 +418,19 @@ function FollowButton({ proId, followerId }: { proId: string; followerId: string
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CommunityPage() {
-  const [session,    setSession]    = useState<Session | null>(null)
-  const [posts,      setPosts]      = useState<Post[]>([])
-  const [suggested,  setSuggested]  = useState<Pro[]>([])
-  const [jobAlerts,  setJobAlerts]  = useState<any[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [likedIds,   setLikedIds]   = useState<Set<string>>(new Set())
-  const [localOnly,  setLocalOnly]  = useState(false)
-  const [tradeFilter,setTradeFilter]= useState('')
-  const [search,     setSearch]     = useState('')
-  const [searchInput,setSearchInput]= useState('')
-  const searchRef    = useRef<HTMLInputElement>(null)
+  const [session,      setSession]      = useState<Session | null>(null)
+  const [posts,        setPosts]        = useState<Post[]>([])
+  const [suggested,    setSuggested]    = useState<Pro[]>([])
+  const [jobAlerts,    setJobAlerts]    = useState<any[]>([])
+  const [trendingPosts,setTrendingPosts]= useState<Post[]>([])
+  const [trendingOpen, setTrendingOpen] = useState(true)
+  const [loading,      setLoading]      = useState(true)
+  const [likedIds,     setLikedIds]     = useState<Set<string>>(new Set())
+  const [localOnly,    setLocalOnly]    = useState(false)
+  const [tradeFilter,  setTradeFilter]  = useState('')
+  const [search,       setSearch]       = useState('')
+  const [searchInput,  setSearchInput]  = useState('')
+  const searchRef     = useRef<HTMLInputElement>(null)
   const chipScrollRef = useRef<HTMLDivElement>(null)
 
   // Build fetch URL from current filters
@@ -447,12 +449,18 @@ export default function CommunityPage() {
     const s   = raw ? JSON.parse(raw) : null
     setSession(s)
 
+    const city = s?.city || ''
+    const trendingUrl = city
+      ? `/api/posts?limit=3&city=${encodeURIComponent(city)}`
+      : `/api/posts?limit=3`
+
     Promise.all([
       fetch(buildFeedUrl(s)).then(r => r.json()),
       fetch('/api/pros?limit=12&sort=rating').then(r => r.json()),
       s ? fetch(`/api/posts/likes?pro_id=${s.id}`).then(r => r.json()) : Promise.resolve({ likes: [] }),
       fetch('/api/jobs?status=Open&limit=4').then(r => r.json()),
-    ]).then(([postsData, prosData, likesData, jobsData]) => {
+      fetch(trendingUrl).then(r => r.json()),
+    ]).then(([postsData, prosData, likesData, jobsData, trendingData]) => {
       setPosts(postsData.posts || [])
       const allPros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
       if (s?.trade) {
@@ -464,6 +472,7 @@ export default function CommunityPage() {
       }
       setLikedIds(new Set(likesData.likes || []))
       setJobAlerts(jobsData.jobs || [])
+      setTrendingPosts(trendingData.posts || [])
       setLoading(false)
     })
   }, [tradeFilter, search, localOnly])
@@ -662,6 +671,50 @@ export default function CommunityPage() {
 
         {/* ── SIDEBAR ── */}
         <div className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pb-4 scrollbar-hide">
+
+          {/* ── Trending in [City] ── */}
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setTrendingOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors">
+              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">
+                🔥 Trending in {session?.city || 'Florida'}
+              </div>
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                className={`text-gray-400 transition-transform ${trendingOpen ? 'rotate-180' : ''}`}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            {trendingOpen && (
+              <div className="border-t border-gray-100">
+                {trendingPosts.length === 0 ? (
+                  <div className="px-4 py-3 text-xs text-gray-400">No posts yet in your area.</div>
+                ) : (
+                  trendingPosts.map((post, i) => (
+                    <div key={post.id} className={`px-4 py-3 ${i < trendingPosts.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Avatar pro={post.pro} size={6} />
+                        <span className="text-xs font-semibold text-gray-800 truncate">{post.pro?.full_name}</span>
+                        <span className="text-xs text-gray-400 ml-auto flex-shrink-0">{timeAgo(post.created_at)}</span>
+                      </div>
+                      {post.content && (
+                        <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{post.content}</p>
+                      )}
+                      {post.photo_url && !post.content && (
+                        <img src={post.photo_url} alt="Post" className="w-full h-16 object-cover rounded-lg mt-1" />
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-400">
+                        <span>✊ {post.like_count || 0}</span>
+                        <span>💬 {post.comment_count || 0}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Job Alerts */}
           {jobAlerts.length > 0 && (
