@@ -41,8 +41,12 @@ export async function GET(
     .eq('id', lead.pro_id)
     .single()
 
-  // Latest roof report condition for this property (optional, homeowner-friendly)
+  // Latest roof report condition for this property (optional, homeowner-friendly).
+  // Prefer the linked property_id; fall back to matching the report address.
   let condition: { text: string | null; imageryDate: string | null; lat: number | null; lng: number | null } | null = null
+  const pickCondition = (rep: { condition_assessment?: string | null; imagery_date?: string | null; lat?: number | null; lng?: number | null } | null) => {
+    if (rep) condition = { text: rep.condition_assessment ?? null, imageryDate: rep.imagery_date ?? null, lat: rep.lat ?? null, lng: rep.lng ?? null }
+  }
   if (lead.property_id) {
     const { data: rep } = await sb
       .from('roof_reports')
@@ -52,12 +56,26 @@ export async function GET(
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    if (rep) condition = { text: rep.condition_assessment ?? null, imageryDate: rep.imagery_date ?? null, lat: rep.lat ?? null, lng: rep.lng ?? null }
+    pickCondition(rep)
+  }
+  if (!condition && lead.property_address) {
+    const street = String(lead.property_address).split(',')[0].trim()
+    if (street) {
+      const { data: rep } = await sb
+        .from('roof_reports')
+        .select('condition_assessment, imagery_date, lat, lng')
+        .eq('pro_id', lead.pro_id)
+        .ilike('address', `${street}%`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      pickCondition(rep)
+    }
   }
 
   return NextResponse.json({
     homeowner: lead.contact_name || 'Homeowner',
-    address: lead.property_address || [lead.contact_city, lead.contact_state].filter(Boolean).join(', ') || '',
+    address: [lead.property_address, lead.contact_city, lead.contact_state].filter(Boolean).join(', '),
     currentStep: closed ? -1 : stepIdx,
     stepLabel: closed ? 'On hold' : (STEPS[stepIdx]?.label ?? 'In progress'),
     steps: STEPS.map(s => s.label),

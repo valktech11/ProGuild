@@ -48,8 +48,9 @@ export default function HomeownerStatusPage() {
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px 48px' }}>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: TEAL, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{data.pro.name}</div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 2px' }}>Your roof project</h1>
-          <div style={{ fontSize: 14, color: MUTE }}>{data.address}</div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '8px 0 4px' }}>Your roof project</h1>
+          <div style={{ fontSize: 15, fontWeight: 700, color: NAVY }}>{data.homeowner}</div>
+          <div style={{ fontSize: 14, color: MUTE, marginTop: 1 }}>{data.address}</div>
         </div>
 
         <div style={{ ...card, textAlign: 'center', background: TEAL, color: '#fff', border: 'none' }}>

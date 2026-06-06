@@ -52,7 +52,7 @@ interface RoofReport {
   premium_r2_url?: string | null
   condition_assessment?: string | null
   condition_assessed_at?: string | null
-  nearest_supplier?: { name?: string; distance_miles?: number; address?: string } | null
+  nearest_supplier?: { name?: string; vicinity?: string; distance_miles?: number } | null
   storm_event?: { event_type?: string; event_date?: string; magnitude?: string; magnitude_type?: string; distance_miles?: number } | null
 }
 
@@ -491,12 +491,19 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                   </div>
                 )}
                 {latestReport.nearest_supplier?.name && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: t.textMuted }}>
-                    Nearest supplier: <span style={{ fontWeight: 600, color: t.textPri }}>{latestReport.nearest_supplier.name}</span>{latestReport.nearest_supplier.distance_miles != null ? ` · ${latestReport.nearest_supplier.distance_miles} mi` : ''}{latestReport.nearest_supplier.address ? ` · ${latestReport.nearest_supplier.address}` : ''}
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${t.cardBorder}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em', color: t.textSubtle, marginBottom: 3 }}>Nearest material supplier</div>
+                    <div style={{ fontSize: 13, color: t.textPri }}>
+                      <span style={{ fontWeight: 700 }}>{latestReport.nearest_supplier.name}</span>{latestReport.nearest_supplier.distance_miles != null ? ` · ${latestReport.nearest_supplier.distance_miles} mi` : ''}
+                    </div>
+                    {latestReport.nearest_supplier.vicinity && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>{latestReport.nearest_supplier.vicinity}</div>}
                   </div>
                 )}
-                <div style={{ marginTop: 10, fontSize: 10.5, color: t.textSubtle, lineHeight: 1.4 }}>
-                  AI estimate from aerial imagery for bid prep — not a certified inspection. Condition only changes when Google refreshes imagery; re-run the report to check for newer imagery.
+                <div style={{ marginTop: 12, padding: '8px 11px', background: dk ? '#1E293B' : '#F8FAFC', border: `1px solid ${t.cardBorder}`, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em', color: t.textSubtle, marginBottom: 2 }}>Disclaimer</div>
+                  <div style={{ fontSize: 10.5, color: t.textMuted, lineHeight: 1.45 }}>
+                    AI estimate from aerial imagery for bid prep — not a certified inspection. Condition only changes when Google refreshes imagery; re-run the report to check for newer imagery.
+                  </div>
                 </div>
               </div>
             )}
