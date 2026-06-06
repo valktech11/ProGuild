@@ -97,6 +97,7 @@ interface Props {
   onSave: (updates: Partial<RoofingEstimate>) => Promise<void>
   onSend: () => Promise<void>
   onBack: () => void
+  backLabel?: string
   darkMode?: boolean
   // Called when roofer edits address/measurements — updates lead + roofing_estimate_data
   onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number }) => Promise<void>
@@ -206,7 +207,7 @@ function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
+export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, backLabel = 'Back to Lead', darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
   const dk = darkMode ?? false
 
   // Proposal type
@@ -530,7 +531,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
-          Back to Jobs
+          {backLabel}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 'auto' }}>

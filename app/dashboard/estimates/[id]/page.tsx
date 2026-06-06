@@ -477,6 +477,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             }
           }}
           onBack={() => router.push(backNav().href)}
+          backLabel={backNav().label}
           darkMode={dk}
           externalSaveMsg={saveMsg}
           isLocked={['approved','void','declined','paid'].includes((estimate as any).status)}
