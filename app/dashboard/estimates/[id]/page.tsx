@@ -442,11 +442,6 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           }}
           onSend={async () => {
             if (isSending) return
-            if (isDirty) {
-              setSaveMsg('Save changes before sending')
-              setTimeout(() => setSaveMsg(null), 3000)
-              return
-            }
             setIsSending(true)
             setSaveMsg('Sending…')
             try {

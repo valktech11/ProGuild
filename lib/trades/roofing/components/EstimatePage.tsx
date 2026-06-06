@@ -595,7 +595,19 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             </button>
           )
           return (
-            <button onClick={onSend}
+            <button onClick={async () => {
+              try {
+                await onSave({
+                  subtotal:           activeTierSubtotal,
+                  tax_amount:         taxAmt,
+                  total,
+                  tiered_data:        estType === 'tiered' ? { tiers, selected_tier: selectedTier } : undefined,
+                  estimate_type:      estType,
+                  payment_milestones: milestones,
+                })
+              } catch { /* proceed to send even if save fails */ }
+              await onSend()
+            }}
               style={{ padding: '9px 22px', borderRadius: 10, border: isSent ? `1.5px solid ${C.teal}` : 'none',
                 background: isSent ? 'transparent' : `linear-gradient(135deg, ${C.teal}, #0D9488)`,
                 color: isSent ? C.teal : '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
