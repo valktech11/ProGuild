@@ -692,7 +692,7 @@ export default function CommunityPage() {
           {/* Background photo — right half */}
           <div className="absolute inset-0 left-[38%]">
             <img
-              src="https://images.unsplash.com/photo-1768486143865-342d8cc12c90?w=1200&fit=crop"
+              src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=1200&fit=crop"
               alt="Kitchen remodel"
               className="w-full h-full object-cover"
             />
@@ -701,7 +701,7 @@ export default function CommunityPage() {
           </div>
 
           {/* Content */}
-          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-10 flex items-start gap-8">
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-10 flex items-start">
             {/* Left — headline + search */}
             <div className="flex-1 max-w-lg">
               <h1 className="font-serif text-4xl font-bold leading-tight mb-3" style={{ color: '#0A1628' }}>
@@ -748,7 +748,7 @@ export default function CommunityPage() {
             </div>
 
             {/* Right — Get Matched card */}
-            <div className="hidden lg:block flex-shrink-0 w-64 bg-white rounded-2xl shadow-lg p-5 mt-2 mr-8">
+            <div className="hidden lg:block flex-shrink-0 bg-white rounded-2xl shadow-lg p-5 mt-2 ml-auto" style={{ width: "calc(33.333% - 10px)" }}>
               <div className="text-base font-bold text-gray-900 mb-1">Need help with your project?</div>
               <p className="text-sm text-gray-500 mb-4 leading-relaxed">Get matched with verified local pros.</p>
               <Link href="/post-job"
