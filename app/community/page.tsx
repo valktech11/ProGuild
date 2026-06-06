@@ -197,35 +197,50 @@ function PostCard({ post, session, onLike, onDelete }: {
         </div>
       )}
 
-      {/* Work post photo — or before/after slider */}
-      {post.photo_url && (
+      {/* Photos — before/after slider, single, or grid */}
+      {(post.is_before_after && post.before_photo_url && post.photo_url) ? (
         <div className="px-4 pb-3">
-          {post.is_before_after && post.before_photo_url ? (
-            <>
-              <BeforeAfterSlider afterUrl={post.photo_url} beforeUrl={post.before_photo_url} />
-              <div className="mt-1.5 flex items-center gap-1">
-                <span className="text-sm text-teal-600 font-medium">📸 Before & After</span>
-                {(post.pro as any)?.trade_category?.category_name && (
-                  <span className="text-sm text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <img src={post.photo_url} alt="Post"
-                className="w-full rounded-xl object-contain bg-stone-50" style={{ maxHeight: '560px' }} />
-              {isWork && (
-                <div className="mt-1.5 flex items-center gap-1">
-                  <span className="text-sm text-teal-600 font-medium">📸 Project work</span>
-                  {(post.pro as any)?.trade_category?.category_name && (
-                    <span className="text-sm text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
-                  )}
-                </div>
-              )}
-            </>
-          )}
+          <BeforeAfterSlider afterUrl={post.photo_url} beforeUrl={post.before_photo_url} />
+          <div className="mt-1.5 flex items-center gap-1">
+            <span className="text-sm text-teal-600 font-medium">📸 Before & After</span>
+            {(post.pro as any)?.trade_category?.category_name && (
+              <span className="text-sm text-gray-400">· {(post.pro as any).trade_category.category_name}</span>
+            )}
+          </div>
         </div>
-      )}
+      ) : (() => {
+        const imgs: string[] = (post as any).photo_urls?.length
+          ? (post as any).photo_urls
+          : post.photo_url ? [post.photo_url] : []
+        if (imgs.length === 0) return null
+        return (
+          <div className="px-4 pb-3">
+            {imgs.length === 1 ? (
+              <img src={imgs[0]} alt="Post"
+                className="w-full rounded-xl object-contain bg-stone-50" style={{ maxHeight: '560px' }} />
+            ) : imgs.length === 2 ? (
+              <div className="grid grid-cols-2 gap-1.5">
+                {imgs.map((url, i) => (
+                  <img key={i} src={url} alt={`Photo ${i + 1}`} className="w-full h-48 rounded-xl object-cover" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-1.5">
+                {imgs.slice(0, 3).map((url, i) => (
+                  <div key={i} className="relative">
+                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-32 rounded-xl object-cover" />
+                    {i === 2 && imgs.length > 3 && (
+                      <div className="absolute inset-0 rounded-xl bg-black/50 flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">+{imgs.length - 3}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Actions */}
       <div className="flex items-center gap-1 px-4 py-2.5 border-t border-gray-100">
@@ -312,38 +327,47 @@ function PostCard({ post, session, onLike, onDelete }: {
   )
 }
 
-// ── Composer — plain text + optional photo ────────────────────────────────────
+// ── Composer — plain text + up to 5 photos ───────────────────────────────────
 function PostComposer({ session, onPost }: { session: Session; onPost: (post: Post) => void }) {
   const [content, setContent]     = useState('')
-  const [photo, setPhoto]         = useState<string | null>(null)
+  const [photos, setPhotos]       = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [posting, setPosting]     = useState(false)
   const [error, setError]         = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files || []) as File[]
+    if (!files.length) return
+    if (photos.length + files.length > 5) {
+      setError('Maximum 5 photos per post.'); return
+    }
     setUploading(true)
-    const form = new FormData()
-    form.append('file', file); form.append('pro_id', session.id)
-    form.append('bucket', 'portfolio'); form.append('folder', `posts/${session.id}`)
-    const r = await fetch('/api/upload', { method: 'POST', body: form })
-    const d = await r.json()
-    if (r.ok) setPhoto(d.url)
+    const uploaded: string[] = []
+    for (const file of files) {
+      const form = new FormData()
+      form.append('file', file); form.append('pro_id', session.id)
+      form.append('bucket', 'portfolio'); form.append('folder', `posts/${session.id}`)
+      const r = await fetch('/api/upload', { method: 'POST', body: form })
+      const d = await r.json()
+      if (r.ok) uploaded.push(d.url)
+    }
+    setPhotos(prev => [...prev, ...uploaded])
     setUploading(false)
+    // reset input so same file can be re-selected
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   async function handlePost() {
-    if (!content.trim() && !photo) return
+    if (!content.trim() && photos.length === 0) return
     setPosting(true); setError('')
     const r = await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: session.id, content, photo_url: photo, post_type: 'update' }),
+      body: JSON.stringify({ pro_id: session.id, content, photo_urls: photos, post_type: 'update' }),
     })
     const d = await r.json()
-    if (r.ok) { onPost(d.post); setContent(''); setPhoto(null) }
+    if (r.ok) { onPost(d.post); setContent(''); setPhotos([]) }
     else setError(d.error || 'Could not post. Please try again.')
     setPosting(false)
   }
@@ -360,30 +384,41 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
         </div>
       </div>
 
-      {photo && (
-        <div className="px-4 pb-3">
-          <div className="relative inline-block">
-            <img src={photo} alt="Preview" className="h-20 rounded-lg object-cover" />
-            <button onClick={() => setPhoto(null)}
-              className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 text-white rounded-full text-xs flex items-center justify-center">✕</button>
-          </div>
+      {photos.length > 0 && (
+        <div className="px-4 pb-3 flex gap-2 flex-wrap">
+          {photos.map((url, i) => (
+            <div key={i} className="relative">
+              <img src={url} alt={`Photo ${i + 1}`} className="h-20 w-20 rounded-lg object-cover" />
+              <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 text-white rounded-full text-xs flex items-center justify-center">✕</button>
+            </div>
+          ))}
+          {photos.length < 5 && (
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}
+              className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 hover:border-teal-400 hover:text-teal-400 transition-colors">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          )}
         </div>
       )}
       {error && <div className="px-4 pb-2 text-xs text-red-600">{error}</div>}
 
       <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
         <div className="flex items-center gap-2">
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-          <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            title="Add photo"
+          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhoto} />
+          <button onClick={() => fileRef.current?.click()} disabled={uploading || photos.length >= 5}
+            title={photos.length >= 5 ? 'Maximum 5 photos' : 'Add photo'}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-teal-600 hover:bg-teal-50 transition-colors disabled:opacity-50">
             {uploading
               ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             }
           </button>
+          {photos.length > 0 && (
+            <span className="text-xs text-gray-400">{photos.length}/5</span>
+          )}
         </div>
-        <button onClick={handlePost} disabled={posting || (!content.trim() && !photo)}
+        <button onClick={handlePost} disabled={posting || (!content.trim() && photos.length === 0)}
           className="px-5 py-1.5 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-40 transition-colors">
           {posting ? 'Posting...' : 'Post'}
         </button>
