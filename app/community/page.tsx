@@ -879,133 +879,78 @@ export default function CommunityPage() {
         {/* ── SIDEBAR ── */}
         <div className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pb-4 scrollbar-hide">
 
-          {/* ── Trending in [City] ── */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <button
-              onClick={() => setTrendingOpen(o => !o)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors">
-              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">
-                🔥 Trending in {session?.city || 'Florida'}
-              </div>
-              <svg
-                width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                className={`text-gray-400 transition-transform ${trendingOpen ? 'rotate-180' : ''}`}>
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-            {trendingOpen && (
-              <div className="border-t border-gray-100">
-                {trendingPosts.length === 0 ? (
-                  <div className="px-4 py-3 text-xs text-gray-400">No posts yet in your area.</div>
-                ) : (
-                  trendingPosts.map((post, i) => (
-                    <div key={post.id} className={`px-4 py-3 ${i < trendingPosts.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Avatar pro={post.pro} size={6} />
-                        <span className="text-xs font-semibold text-gray-800 truncate">{post.pro?.full_name}</span>
-                        <span className="text-xs text-gray-400 ml-auto flex-shrink-0">{timeAgo(post.created_at)}</span>
-                      </div>
-                      {post.content && (
-                        <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{post.content}</p>
-                      )}
-                      {post.photo_url && !post.content && (
-                        <img src={post.photo_url} alt="Post" className="w-full h-16 object-cover rounded-lg mt-1" />
-                      )}
-                      <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-400">
-                        <span>✊ {post.like_count || 0}</span>
-                        <span>💬 {post.comment_count || 0}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Job Alerts */}
-          {jobAlerts.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">Job alerts</div>
-                <Link href="/jobs" className="text-xs text-teal-600 hover:underline">See all →</Link>
-              </div>
-              {jobAlerts.map((job, i) => (
-                <Link key={job.id} href="/jobs"
-                  className={`block py-2.5 ${i < jobAlerts.length - 1 ? 'border-b border-gray-100' : ''} hover:bg-stone-50 -mx-2 px-2 rounded-lg transition-colors`}>
+          {/* ── Projects Near You ── */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">Projects Near You</div>
+              <Link href="/post-job" className="text-xs text-teal-600 hover:underline">View all →</Link>
+            </div>
+            {jobAlerts.length === 0 ? (
+              <div className="text-xs text-gray-400">No open projects nearby.</div>
+            ) : jobAlerts.map((job, i) => (
+              <Link key={job.id} href="/jobs"
+                className={`flex gap-3 py-2.5 ${i < jobAlerts.length - 1 ? 'border-b border-gray-100' : ''} hover:bg-stone-50 -mx-2 px-2 rounded-lg transition-colors`}>
+                <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </div>
+                <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-gray-900 truncate">{job.title}</div>
-                  <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
+                  <div className="text-xs text-gray-400 mt-0.5">
                     {job.city ? `${job.city}, ${job.state}` : job.state || 'Florida'}
                     {job.budget_range ? ` · ${job.budget_range}` : ''}
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {/* Pros to follow */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <div className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3">Pros to follow</div>
-            {suggested.length === 0
-              ? <div className="text-sm text-gray-400">No suggestions yet.</div>
-              : suggested.map(pro => (
-                <div key={pro.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-                  <Link href={`/community/profile/${pro.id}`}><Avatar pro={pro} size={9} /></Link>
-                  <div className="flex-1 min-w-0">
-                    <Link href={`/community/profile/${pro.id}`} className="text-sm font-medium text-gray-900 hover:text-teal-600 block truncate">{pro.full_name}</Link>
-                    <div className="text-xs text-gray-400 truncate">{pro.trade_category?.category_name}{pro.city ? ` · ${pro.city}` : ''}</div>
-                  </div>
-                  {session && session.id !== pro.id && <FollowButton proId={pro.id} followerId={session.id} />}
                 </div>
-              ))
-            }
+              </Link>
+            ))}
           </div>
 
-          {/* Logged-out signup */}
-          {!session && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5">
-              <div className="text-sm font-bold text-gray-900 mb-1">New to ProGuild.ai?</div>
-              <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-                Verified trades network. Share your work, connect with pros, find jobs — free forever.
-              </p>
-              <Link href="/login?tab=signup"
-                className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors mb-2">
-                Join as a pro — free
-              </Link>
-              <Link href="/login"
-                className="block w-full py-2.5 text-center border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">
-                Log in
-              </Link>
-              <div className="mt-4 pt-4 border-t border-gray-100 space-y-1">
-                {[['🔍','Find a pro','/'],['📋','Post a job','/post-job'],['💼','Browse jobs','/jobs']].map(([icon,label,href]) => (
-                  <Link key={href as string} href={href as string}
-                    className="flex items-center gap-2 py-1.5 text-sm text-gray-500 hover:text-teal-600 transition-colors">
-                    <span>{icon}</span>{label}
-                  </Link>
-                ))}
+          {/* ── Top Rated Pros ── */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">Top Rated Pros{session?.city ? ` in ${session.city}` : ''}</div>
+              <Link href="/" className="text-xs text-teal-600 hover:underline">View all →</Link>
+            </div>
+            {suggested.length === 0 ? (
+              <div className="text-xs text-gray-400">No suggestions yet.</div>
+            ) : suggested.map(pro => (
+              <div key={pro.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
+                <Link href={`/community/profile/${pro.id}`}><Avatar pro={pro} size={9} /></Link>
+                <div className="flex-1 min-w-0">
+                  <Link href={`/community/profile/${pro.id}`} className="text-sm font-medium text-gray-900 hover:text-teal-600 block truncate">{pro.full_name}</Link>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {(pro as any).rating && (
+                      <span className="flex items-center gap-0.5 text-xs text-amber-500 font-medium">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        {(pro as any).rating.toFixed(1)}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400 truncate">{pro.trade_category?.category_name}{pro.city ? ` · ${pro.city}` : ''}</span>
+                  </div>
+                </div>
+                {session && session.id !== pro.id && <FollowButton proId={pro.id} followerId={session.id} />}
               </div>
-            </div>
-          )}
+            ))}
+          </div>
 
-          {/* Logged-in quick links */}
-          {session && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3">Quick links</div>
-              {[
-                { href: '/',                                    label: '🔍 Find a pro' },
-                { href: '/post-job',                            label: '📋 Post a job' },
-                { href: '/jobs',                                label: '💼 Browse jobs' },
-                { href: `/community/profile/${session.id}`,    label: '👤 My profile' },
-                { href: '/community/edit',                      label: '✏️ Edit portfolio' },
-              ].map(item => (
-                <Link key={item.href} href={item.href}
-                  className="block text-sm text-gray-600 hover:text-teal-600 py-2 border-b border-gray-100 last:border-0 transition-colors">
-                  {item.label}
-                </Link>
-              ))}
+          {/* ── Trending Questions ── */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-bold text-gray-700 uppercase tracking-widest">Trending Questions</div>
+              <Link href="/community" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
-          )}
+            {trendingPosts.filter(p => p.post_type === 'tip').length === 0 ? (
+              <div className="text-xs text-gray-400">No trending questions yet.</div>
+            ) : trendingPosts.filter(p => p.post_type === 'tip').map((post, i, arr) => (
+              <div key={post.id} className={`py-2.5 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                <p className="text-sm text-gray-800 font-medium leading-snug line-clamp-2">{post.content}</p>
+                <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-400">
+                  <span>{post.comment_count || 0} answers</span>
+                  <span>·</span>
+                  <span>{(post.pro as any)?.trade_category?.category_name || 'General'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
