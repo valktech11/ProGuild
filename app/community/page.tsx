@@ -24,6 +24,60 @@ function Avatar({ pro, size = 10 }: { pro: any; size?: number }) {
   return <div className={cls} style={{ background: bg, color: fg }}>{initials(pro?.full_name || 'A')}</div>
 }
 
+// ── Lightbox ─────────────────────────────────────────────────────────────────
+function Lightbox({ imgs, startIndex, onClose }: { imgs: string[]; startIndex: number; onClose: () => void }) {
+  const [idx, setIdx] = useState(startIndex)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowRight') setIdx(i => (i + 1) % imgs.length)
+      if (e.key === 'ArrowLeft')  setIdx(i => (i - 1 + imgs.length) % imgs.length)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [imgs.length, onClose])
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
+      onClick={onClose}>
+      {/* Close */}
+      <button onClick={onClose}
+        className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      {/* Prev */}
+      {imgs.length > 1 && (
+        <button onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + imgs.length) % imgs.length) }}
+          className="absolute left-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      )}
+
+      {/* Image */}
+      <img src={imgs[idx]} alt={`Photo ${idx + 1}`}
+        className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+        onClick={e => e.stopPropagation()} />
+
+      {/* Next */}
+      {imgs.length > 1 && (
+        <button onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % imgs.length) }}
+          className="absolute right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      )}
+
+      {/* Counter */}
+      {imgs.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/60 text-sm">
+          {idx + 1} / {imgs.length}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Before/After Slider ───────────────────────────────────────────────────────
 function BeforeAfterSlider({ afterUrl, beforeUrl }: { afterUrl: string; beforeUrl: string }) {
   const [pos, setPos] = useState(50)
@@ -92,6 +146,7 @@ function PostCard({ post, session, onLike, onDelete }: {
   const [commentText, setCommentText]   = useState('')
   const [loadingComments, setLoadingComments]   = useState(false)
   const [submittingComment, setSubmittingComment] = useState(false)
+  const [lightbox, setLightbox]         = useState<{ imgs: string[]; idx: number } | null>(null)
   const isOwn         = session?.id === post.pro_id
   const isVerifiedPro = (post.pro as any)?.is_verified
   const isAskAPro     = post.post_type === 'tip'
@@ -197,6 +252,9 @@ function PostCard({ post, session, onLike, onDelete }: {
         </div>
       )}
 
+      {/* Lightbox */}
+      {lightbox && <Lightbox imgs={lightbox.imgs} startIndex={lightbox.idx} onClose={() => setLightbox(null)} />}
+
       {/* Photos — before/after slider, single, or grid */}
       {(post.is_before_after && post.before_photo_url && post.photo_url) ? (
         <div className="px-4 pb-3">
@@ -217,18 +275,22 @@ function PostCard({ post, session, onLike, onDelete }: {
           <div className="px-4 pb-3">
             {imgs.length === 1 ? (
               <img src={imgs[0]} alt="Post"
-                className="w-full rounded-xl object-cover bg-stone-50" style={{ maxHeight: '280px' }} />
+                className="w-full rounded-xl object-cover bg-stone-50 cursor-pointer hover:opacity-95 transition-opacity"
+                style={{ maxHeight: '280px' }}
+                onClick={() => setLightbox({ imgs, idx: 0 })} />
             ) : imgs.length === 2 ? (
               <div className="grid grid-cols-2 gap-1.5">
                 {imgs.map((url, i) => (
-                  <img key={i} src={url} alt={`Photo ${i + 1}`} className="w-full h-32 rounded-xl object-cover" />
+                  <img key={i} src={url} alt={`Photo ${i + 1}`}
+                    className="w-full h-32 rounded-xl object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => setLightbox({ imgs, idx: i })} />
                 ))}
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-1.5">
                 {imgs.slice(0, 3).map((url, i) => (
-                  <div key={i} className="relative">
-                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-24 rounded-xl object-cover" />
+                  <div key={i} className="relative cursor-pointer" onClick={() => setLightbox({ imgs, idx: i })}>
+                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-24 rounded-xl object-cover hover:opacity-95 transition-opacity" />
                     {i === 2 && imgs.length > 3 && (
                       <div className="absolute inset-0 rounded-xl bg-black/50 flex items-center justify-center">
                         <span className="text-white font-bold text-lg">+{imgs.length - 3}</span>
