@@ -255,11 +255,20 @@ function PostCard({ post, session, onLike, onDelete }: {
               <a href={`/messages?with=${post.pro_id}`} className="text-xs text-gray-400 hover:text-teal-600 transition-colors ml-auto">💬</a>
             )}
           </div>
-          <div className="text-sm text-gray-400 mt-0.5">
-            {(post.pro as any)?.trade_category?.category_name}
-            {post.pro?.city ? ` · ${post.pro.city}` : ''}
-            {post.pro?.state ? `, ${post.pro.state}` : ''}
-            {` · ${timeAgo(post.created_at)}`}
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <span className="text-xs text-gray-400">
+              {(post.pro as any)?.trade_category?.category_name}
+              {post.pro?.city ? ` · ${post.pro.city}` : ''}
+              {post.pro?.state ? `, ${post.pro.state}` : ''}
+              {` · ${timeAgo(post.created_at)}`}
+            </span>
+            {(post.pro as any)?.review_count > 0 && (
+              <span className="flex items-center gap-0.5 text-xs text-amber-500 font-medium">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                {((post.pro as any)?.rating || 4.9).toFixed(1)}
+                <span className="text-gray-400">({(post.pro as any)?.review_count})</span>
+              </span>
+            )}
           </div>
         </div>
         {isOwn && (
@@ -329,6 +338,20 @@ function PostCard({ post, session, onLike, onDelete }: {
         )
       })()}
 
+      {/* Trade tags */}
+      {(post.pro as any)?.trade_category?.category_name && (
+        <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+          <span className="text-xs px-2.5 py-1 rounded-full bg-stone-100 text-gray-500 font-medium">
+            {(post.pro as any).trade_category.category_name}
+          </span>
+          {post.pro?.city && (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-stone-100 text-gray-500 font-medium">
+              {post.pro.city}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-1 px-4 py-2.5 border-t border-gray-100">
         {isOwn ? (
@@ -356,6 +379,20 @@ function PostCard({ post, session, onLike, onDelete }: {
           <span>{isAskAPro ? (post.comment_count > 0 ? `${post.comment_count} answers` : 'Answer this') : (post.comment_count > 0 ? post.comment_count : 'Comment')}</span>
         </button>
       </div>
+
+      {/* View Profile + Request Quote */}
+      {!isOwn && (
+        <div className="flex gap-2 px-4 pb-3">
+          <Link href={`/community/profile/${post.pro_id}`}
+            className="flex-1 text-center text-xs font-semibold py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+            View Profile
+          </Link>
+          <Link href={`/post-job?pro=${post.pro_id}`}
+            className="flex-1 text-center text-xs font-semibold py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
+            Request Quote
+          </Link>
+        </div>
+      )}
 
       {/* Comments / Answers */}
       {showComments && (
