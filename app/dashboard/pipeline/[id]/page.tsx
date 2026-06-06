@@ -209,9 +209,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   const tradePlugin = getTradeConfig(session?.trade_slug)
   const isRoofing = isRoofing_guard(tradePlugin)
-  // isPro: unlocked when plan is unset (pre-Stripe) or is a paid plan.
-  // Once Stripe sets plan_tier='Free' for free users, this gates correctly.
-  const isPro = !session?.plan || isPaidPlan(session.plan)
+  // isPro: hardcoded true until Stripe plan enforcement goes live
+  const isPro = true
 
   // Derived from trade plugin — no hardcoded stage keys or source labels
   const STAGE_ORDER: Record<string, number> = Object.fromEntries(
