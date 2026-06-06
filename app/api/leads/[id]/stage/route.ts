@@ -152,6 +152,54 @@ async function queueAutoTriggers(
     }).catch(e => console.error('[stage/route] status email fire error:', e))
   }
 
+  // ── Active: upsert client record on job_won if still missing ─────────
+  if (newStage === 'job_won') {
+    try {
+      const { data: lead } = await sb
+        .from('leads')
+        .select('client_id, contact_name, contact_phone, contact_email, property_address, contact_city, contact_state, contact_zip')
+        .eq('id', leadId)
+        .single()
+
+      if (lead && !lead.client_id && lead.contact_name) {
+        const streetOnly = lead.property_address
+          ? String(lead.property_address).split(',')[0].trim()
+          : null
+
+        // Dedup: phone → email → insert new
+        let clientId: string | null = null
+        if (lead.contact_phone) {
+          const { data: byPhone } = await sb.from('clients').select('id')
+            .eq('pro_id', proId).eq('phone', String(lead.contact_phone).trim()).maybeSingle()
+          if (byPhone) clientId = byPhone.id
+        }
+        if (!clientId && lead.contact_email) {
+          const { data: byEmail } = await sb.from('clients').select('id')
+            .eq('pro_id', proId).eq('email', String(lead.contact_email).toLowerCase().trim()).maybeSingle()
+          if (byEmail) clientId = byEmail.id
+        }
+        if (!clientId) {
+          const { data: newClient } = await sb.from('clients').insert({
+            pro_id:        proId,
+            full_name:     String(lead.contact_name).trim(),
+            phone:         lead.contact_phone  ? String(lead.contact_phone).trim()                  : null,
+            email:         lead.contact_email  ? String(lead.contact_email).toLowerCase().trim()    : null,
+            address_line1: streetOnly,
+            city:          lead.contact_city   ? String(lead.contact_city).trim()                   : null,
+            state:         lead.contact_state  ? String(lead.contact_state).trim()                  : null,
+            zip_code:      lead.contact_zip    ? String(lead.contact_zip).trim()                    : null,
+          }).select('id').single()
+          if (newClient) clientId = newClient.id
+        }
+        if (clientId) {
+          await sb.from('leads').update({ client_id: clientId }).eq('id', leadId)
+        }
+      }
+    } catch (e) {
+      console.error('[stage/route] job_won client upsert error:', e)
+    }
+  }
+
   const rows = triggers.map(triggerName => ({
     lead_id:      leadId,
     pro_id:       proId,
