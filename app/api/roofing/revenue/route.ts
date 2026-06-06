@@ -32,6 +32,15 @@ export async function GET(req: NextRequest) {
   const curYM = ym(now)
   const sum = (arr: { amount: number }[]) => arr.reduce((s, x) => s + x.amount, 0)
 
+  const period = (new URL(req.url).searchParams.get('period') || 'all') as 'mtd' | 'ytd' | '12mo' | 'all'
+  const inPeriod = (d: Date) => {
+    if (period === 'mtd') return ym(d) === curYM
+    if (period === 'ytd') return d.getFullYear() === now.getFullYear()
+    if (period === '12mo') return d.getTime() >= new Date(now.getFullYear(), now.getMonth() - 11, 1).getTime()
+    return true
+  }
+  const titleCase = (str: string) => str.trim().replace(/\s+/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+
   const thisMonth = won.filter(w => ym(w.date) === curYM)
   const lastMonth = won.filter(w => ym(w.date) === curYM - 1)
 
@@ -42,21 +51,28 @@ export async function GET(req: NextRequest) {
     monthly.push({ label: ref.toLocaleString('en-US', { month: 'short' }), revenue: sum(arr), jobs: arr.length })
   }
 
-  const carrierMap = new Map<string, { jobs: number; revenue: number }>()
+  // Normalize carrier names so casing/whitespace variants merge into one row.
+  const carrierMap = new Map<string, { display: string; jobs: number; revenue: number }>()
   for (const w of won) {
-    const c = carrierMap.get(w.carrier) || { jobs: 0, revenue: 0 }
+    if (!inPeriod(w.date)) continue
+    const key = w.carrier.trim().replace(/\s+/g, ' ').toLowerCase()
+    const display = w.carrier === 'No carrier / retail' ? w.carrier : titleCase(w.carrier)
+    const c = carrierMap.get(key) || { display, jobs: 0, revenue: 0 }
     c.jobs += 1; c.revenue += w.amount
-    carrierMap.set(w.carrier, c)
+    carrierMap.set(key, c)
   }
-  const byCarrier = [...carrierMap.entries()]
-    .map(([carrier, v]) => ({ carrier, jobs: v.jobs, revenue: v.revenue, avg: v.jobs ? Math.round(v.revenue / v.jobs) : 0 }))
+  const byCarrier = [...carrierMap.values()]
+    .map(v => ({ carrier: v.display, jobs: v.jobs, revenue: v.revenue, avg: v.jobs ? Math.round(v.revenue / v.jobs) : 0 }))
     .sort((a, b) => b.revenue - a.revenue)
+  const periodTotal = byCarrier.reduce((s, c) => s + c.revenue, 0)
 
   return NextResponse.json({
     thisMonth: { revenue: sum(thisMonth), jobs: thisMonth.length },
     lastMonth: { revenue: sum(lastMonth), jobs: lastMonth.length },
     monthly,
     byCarrier,
+    period,
+    periodTotal,
     totalYTD: sum(won.filter(w => w.date.getFullYear() === now.getFullYear())),
     totalAll: sum(won),
   })

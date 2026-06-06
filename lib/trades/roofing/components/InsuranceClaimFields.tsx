@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { computeSB2ADeadlines, SB2A_DISCLAIMER } from '@/lib/fl/sb2a'
+import { FL_CARRIERS } from '@/lib/roofing/carriers'
 import { computeRoofRuleEligibility, ROOF_RULE_DISCLAIMER } from '@/lib/fl/roofAge'
 
 export interface InsuranceClaimData {
@@ -280,9 +281,19 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
             {/* Row 1: Insurer + Claim # */}
             <Field label="Insurance company">
-              <FInput value={fields.insurance_company} onChange={set('insurance_company')} placeholder="State Farm, Citizens…"
-                icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
-              />
+              <div style={{ position:'relative' }}>
+                <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <input list="pg-carriers" value={fields.insurance_company} onChange={set('insurance_company')} placeholder="Start typing — pick from the list"
+                  style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
+                  onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
+                  onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
+                />
+                <datalist id="pg-carriers">
+                  {FL_CARRIERS.map(c => <option key={c} value={c} />)}
+                </datalist>
+              </div>
             </Field>
             <Field label="Claim number">
               <FInput value={fields.claim_number} onChange={set('claim_number')} placeholder="SF-2026-001"
