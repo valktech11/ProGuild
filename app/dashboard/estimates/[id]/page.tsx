@@ -82,6 +82,10 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   function backNav() {
     if ((_from === 'pipeline' || _from === 'calendar') && fromLeadId)
       return { label: 'Back to Lead', href: `/dashboard/pipeline/${fromLeadId}?from=${_from}` }
+    if (_from === 'calculator' && fromLeadId)
+      return { label: 'Back to Lead', href: `/dashboard/pipeline/${fromLeadId}` }
+    if (_from === 'calculator')
+      return { label: 'Back to Calculator', href: '/dashboard/roofing/calculator' }
     return { label: 'Back to Estimates', href: '/dashboard/estimates' }
   }
 

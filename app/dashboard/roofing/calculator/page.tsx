@@ -477,7 +477,7 @@ function CalculatorInner() {
       }
       sessionStorage.removeItem('pg_report_data')
       setSuccess('Estimate created — taking you there now…')
-      setTimeout(() => router.push(`/dashboard/estimates/${estimateId}`), 1200)
+      setTimeout(() => router.push(`/dashboard/estimates/${estimateId}${leadId ? `?from=calculator&lead_id=${leadId}` : '?from=calculator'}`), 1200)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create estimate')
     } finally { setSaving(false) }

@@ -1343,7 +1343,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                           if(dsmData?.linear_footage){
                                                             const lf=dsmData.linear_footage
                                                             try{const raw=sessionStorage.getItem('pg_report_data');if(raw){const ex=JSON.parse(raw);sessionStorage.setItem('pg_report_data',JSON.stringify({...ex,ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}))}}catch{}
-
+                                                            setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data||{}),linear_footage:lf}} as any:l)
                                                           }
                                                         }).catch(()=>{})
                                                     }
@@ -1512,7 +1512,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                     fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:rowId,pro_id:session.id})})
                                                       .then(r=>r.ok?r.json():null)
                                                       .then(dsmData=>{
-                                                        if(dsmData?.linear_footage){const lf=dsmData.linear_footage;try{const raw=sessionStorage.getItem('pg_report_data');if(raw){const ex=JSON.parse(raw);sessionStorage.setItem('pg_report_data',JSON.stringify({...ex,ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}))}}catch{}}
+                                                        if(dsmData?.linear_footage){const lf=dsmData.linear_footage;try{const raw=sessionStorage.getItem('pg_report_data');if(raw){const ex=JSON.parse(raw);sessionStorage.setItem('pg_report_data',JSON.stringify({...ex,ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}))}}catch{};setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data||{}),linear_footage:lf}} as any:l)}
                                                       }).catch(()=>{})
                                                   }
                                                   fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
