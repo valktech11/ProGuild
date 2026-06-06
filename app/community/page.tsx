@@ -7,17 +7,6 @@ import { Session, Post, Pro } from '@/types'
 import { initials, avatarColor, timeAgo, isPaid } from '@/lib/utils'
 
 
-const TRADE_CHIPS = [
-  { label: 'Electrical', slug: 'electrician' },
-  { label: 'Plumbing',   slug: 'plumber' },
-  { label: 'HVAC',       slug: 'hvac-technician' },
-  { label: 'Carpentry',  slug: 'carpenter' },
-  { label: 'Roofing',    slug: 'roofer' },
-  { label: 'Painting',   slug: 'painter' },
-  { label: 'GC',         slug: 'general-contractor' },
-  { label: 'Drywall',    slug: 'drywall' },
-]
-
 function Avatar({ pro, size = 10 }: { pro: any; size?: number }) {
   const [bg, fg] = avatarColor(pro?.full_name || 'A')
   const cls = `w-${size} h-${size} rounded-full flex items-center justify-center font-serif text-sm flex-shrink-0`
@@ -590,7 +579,6 @@ export default function CommunityPage() {
   const [search,       setSearch]       = useState('')
   const [searchInput,  setSearchInput]  = useState('')
   const searchRef     = useRef<HTMLInputElement>(null)
-  const chipScrollRef = useRef<HTMLDivElement>(null)
 
   // Build fetch URL from current filters
   function buildFeedUrl(s: Session | null) {
@@ -859,43 +847,6 @@ export default function CommunityPage() {
               className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">
               Search
             </button>
-          </div>
-
-          {/* Trade filter chips — swipe on mobile, arrow buttons on desktop */}
-          <div className="relative mb-3">
-            {/* Fade edges — desktop only on left (where arrow sits), both sides hidden on mobile */}
-            <div className="hidden md:block absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
-              style={{ background: 'linear-gradient(to right, #FAF9F6 55%, transparent)' }} />
-            <div className="hidden md:block absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
-              style={{ background: 'linear-gradient(to left, #FAF9F6 55%, transparent)' }} />
-
-            {/* Arrow buttons — desktop only */}
-            <button onClick={() => chipScrollRef.current?.scrollBy({ left: -200, behavior: 'smooth' })}
-              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-9 h-9 items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-teal-600 hover:border-teal-400 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <button onClick={() => chipScrollRef.current?.scrollBy({ left: 200, behavior: 'smooth' })}
-              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-9 h-9 items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm text-gray-500 hover:text-teal-600 hover:border-teal-400 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-
-            {/* Chip row — native swipe on mobile (no padding), arrows on desktop (px-10 clears 36px button) */}
-            <div ref={chipScrollRef}
-              className="flex gap-2 overflow-x-auto px-1 md:px-10"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <button onClick={() => setTradeFilter('')}
-                className={'flex-shrink-0 text-sm font-semibold px-3 py-1.5 rounded-full border transition-all ' + (!tradeFilter ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
-                style={!tradeFilter ? {} : { background: 'rgba(15,118,110,0.06)' }}>
-                All trades
-              </button>
-              {TRADE_CHIPS.map(chip => (
-                <button key={chip.slug} onClick={() => setTradeFilter(tradeFilter === chip.slug ? '' : chip.slug)}
-                  className={'flex-shrink-0 text-sm font-semibold px-3 py-1.5 rounded-full border transition-all ' + (tradeFilter === chip.slug ? 'bg-teal-600 text-white border-teal-600' : 'border-gray-200 text-gray-600 hover:border-teal-400 hover:text-teal-700')}
-                  style={tradeFilter === chip.slug ? {} : { background: 'rgba(15,118,110,0.06)' }}>
-                  {chip.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {session && <PostComposer session={session} onPost={post => setPosts(p => [post, ...p])} />}
