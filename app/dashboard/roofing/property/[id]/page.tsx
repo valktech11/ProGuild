@@ -659,34 +659,6 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                           </div>
                         </div>
                         <div className="rpt-acts">
-                          {/* Use in Calculator — loads this report's measurements into Calculator */}
-                          <button onClick={() => {
-                              const lf = report.linear_footage
-                              const payload = {
-                                squares:    report.total_squares_order || 0,
-                                pitch:      report.dominant_pitch || '6/12',
-                                waste:      report.waste_factor || 12,
-                                source:     'roof_report',
-                                address:    property.address_line1 + (property.city ? ', ' + property.city : ''),
-                                storedAt:   Date.now(),
-                                propertyId: id,
-                                ridgeLF:    lf ? Math.round(lf.ridge_ft) : 0,
-                                eaveLF:     lf ? Math.round(lf.eave_ft)  : 0,
-                                perimLF:    lf ? Math.round((lf.eave_ft || 0) + (lf.rake_ft || 0)) : 0,
-                                hipLF:      lf ? Math.round(lf.hip_ft)   : 0,
-                                valleyLF:   lf ? Math.round(lf.valley_ft): 0,
-                                rakeLF:     lf ? Math.round(lf.rake_ft)  : 0,
-                              }
-                              try {
-                                sessionStorage.setItem('pg_report_data', JSON.stringify(payload))
-                                sessionStorage.setItem('pg_promeasure',  JSON.stringify(payload))
-                              } catch {}
-                              router.push(`/dashboard/roofing/calculator?property_id=${id}`)
-                            }}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 11px', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
-                            Calculator
-                          </button>
                           <a href={report.r2_url} target="_blank" rel="noopener noreferrer"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 11px', borderRadius: 8, border: '1.5px solid #0F766E', background: '#F0FDFA', color: '#0F766E', fontSize: 11, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' as const }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

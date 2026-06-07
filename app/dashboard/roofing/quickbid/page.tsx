@@ -243,13 +243,10 @@ function QuickBidInner() {
       setProgress(95)
       setStatusMsg('Finalising…')
 
-      // Background DSM
-      if ((d as any).reportRowId) {
-        fetch('/api/roofing/dsm', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ report_id: (d as any).reportRowId, pro_id: session.id }),
-        }).catch(() => {})
-      }
+      // NOTE: Quick Bid is the fast-bid tool (Step 1 only — squares/pitch/waste).
+      // DSM / linear footage is deliberately NOT run here — it's on-demand via
+      // "Get Material Lines" on the lead or "Material Order" on the property.
+      // This keeps Quick Bid fast/cheap and consistent with the explicit-Step-2 design.
 
       // Push to sessionStorage for Calculator
       // Use Google's geocoded address (clean, no duplicate city) if available

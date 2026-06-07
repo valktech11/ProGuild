@@ -79,7 +79,7 @@ export async function GET(
   if (data.property_id) {
     const { data: latestReport } = await getSupabaseAdmin()
       .from('roof_reports')
-      .select('total_squares_order, dominant_pitch, waste_factor, linear_footage')
+      .select('total_squares_order, dominant_pitch, waste_factor, linear_footage, r2_url')
       .eq('pro_id', data.pro_id)
       .eq('property_id', data.property_id)
       .not('total_squares_order', 'is', null)
@@ -95,6 +95,8 @@ export async function GET(
         waste_pct:      latestReport.waste_factor        ?? roofingJobData?.waste_pct     ?? null,
         // LF: from roof_reports only — never stored in roofing_job_data
         linear_footage: latestReport.linear_footage      ?? null,
+        // Report PDF link so the lead can download without going to the property page
+        report_url:     latestReport.r2_url              ?? null,
       }
     }
   }

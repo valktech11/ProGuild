@@ -1387,6 +1387,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                 : qbGenerating ? 'Measuring roof from satellite… (~30s)'
                                                 : 'Satellite measures your roof in ~30 seconds'}
                                             </div>
+                                            {step1Done && (lead as any)?.roofing_job_data?.report_url && (
+                                              <a href={(lead as any).roofing_job_data.report_url} target="_blank" rel="noopener noreferrer"
+                                                style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,fontSize:12,fontWeight:700,color:'#0F766E',textDecoration:'none'}}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                                View report PDF
+                                              </a>
+                                            )}
                                           </div>
                                           {!step1Done && !qbGenerating && !showRemeasure && (
                                             <button
