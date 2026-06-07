@@ -703,31 +703,38 @@ function classifyEdge(
     return slopedHoriz < 0.5 ? 'eave' : 'rake'
   }
 
-  // Both facets are genuinely sloped — classify the inter-plane junction by the
-  // HORIZONTAL slope-direction angle (not the 3D dot, which was the prior bug
-  // that misclassified hip corners as valleys and inflated valley LF ~6x).
-  //   Ridge  : planes face away from each other → slope dirs oppose → angle large
-  //   Valley : planes face toward each other     → slope dirs oppose → angle large
-  //   Hip    : corner, planes ~90° apart          → angle mid
-  // Ridge and valley BOTH show a large opposing angle, so angle alone cannot split them.
-  // The true discriminator is ELEVATION: a ridge edge sits ABOVE both facet centroids;
-  // a valley edge sits BELOW them.
+  // Both facets genuinely sloped. Classify the junction.
+  //
+  // Elevation is the reliable discriminator (the horizontal angle alone confuses
+  // inside-corner valleys with hips — both can sit near 90 degrees):
+  //   Ridge  : shared edge sits ABOVE both facet centroids (peak line)
+  //   Valley : shared edge sits BELOW both facet centroids (trough line)
+  //   Hip    : edge runs diagonally from a high corner down toward the eave, so its
+  //            mean elevation is BETWEEN the two centroids.
   const hDot = aN[0] * bN[0] + aN[1] * bN[1]
   const slopeAngle = Math.acos(Math.max(-1, Math.min(1, hDot / (horizA * horizB)))) * 180 / Math.PI
 
-  // Mid-angle junction = hip corner (planes meet at roughly a right angle horizontally).
-  if (slopeAngle <= 135) return 'hip'
-
-  // Opposing slopes (>135°) → ridge OR valley. Disambiguate by edge elevation.
   if (elev) {
-    const meanCentroidZ = (elev.centroidZA + elev.centroidZB) / 2
-    // Edge above the facet centres → peak → ridge. Below → trough → valley.
-    // Small tolerance so near-level joins don't flip on noise.
-    return elev.edgeZ >= meanCentroidZ - 0.10 ? 'ridge' : 'valley'
+    const loZ = Math.min(elev.centroidZA, elev.centroidZB)
+    const hiZ = Math.max(elev.centroidZA, elev.centroidZB)
+    const span = Math.max(0.3, hiZ - loZ)            // guard tiny spans
+    const TOL = 0.15 * span                            // 15% of centroid height span
+
+    if (elev.edgeZ >= hiZ - TOL) return 'ridge'        // at/above higher centroid -> peak
+    if (elev.edgeZ <= loZ + TOL) return 'valley'       // at/below lower centroid -> trough
+    // Between the centroids -> diagonal corner line -> hip.
+    // But a near-opposing slope angle (>150) with a mid elevation is more likely a
+    // ridge/valley we mis-measured than a true hip; use angle as tiebreak.
+    if (slopeAngle > 150) {
+      const meanZ = (loZ + hiZ) / 2
+      return elev.edgeZ >= meanZ ? 'ridge' : 'valley'
+    }
+    return 'hip'
   }
 
-  // No elevation context (shouldn't happen for inter-facet edges) — default to ridge
-  // (safer over-count for capping vs flashing).
+  // No elevation context (shouldn't happen for inter-facet edges) — fall back to angle.
+  if (slopeAngle > 150) return 'ridge'
+  if (slopeAngle > 60)  return 'hip'
   return 'ridge'
 }
 
