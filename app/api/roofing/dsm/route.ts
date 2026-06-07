@@ -246,17 +246,19 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const mode = searchParams.get('mode')
 
-  // mode=recompute-all — runs classifier on all 3 test properties, one URL
+  // mode=recompute-all — runs classifier on all test properties, one URL
   if (mode === 'recompute-all') {
     const TEST_IDS = [
-      { id: 'b200b680-7b7b-48d5-89bd-7de8dc8dfd2c', label: 'Jacksonville' },
-      { id: '208d31e4-fc0a-4a6f-a1e8-9a3d42de6c7a', label: 'Hockley' },
-      { id: '5630f286-b52d-4fcd-a423-57c3ba5f5b5a', label: 'Rochester Hills' },
+      { id: 'ce8141c8-f139-41ee-b38f-f6266907b1df', label: 'Highgate'        },  // 3919 Highgate Ct Jacksonville FL — 8 segs, simple
+      { id: '907d5c7e-e730-447c-8f32-17d4a6ce1cbb', label: 'Silverpoint'     },  // 3985 Silverpoint Ln Jacksonville FL — 26 segs, complex
+      { id: '208d31e4-fc0a-4a6f-a1e8-9a3d42de6c7a', label: 'Hockley'         },  // 17507 Cypress Hilltop Hockley TX — 15 segs, normal
+      { id: '5630f286-b52d-4fcd-a423-57c3ba5f5b5a', label: 'Rochester Hills'  },  // 3696 Walnut Brook Rochester Hills MI — 16 segs, dormers
     ]
     const ROOFR = {
-      Jacksonville:    { ridge: 29,  hip: 149, valley: 37,  eave: 224, rake: 53  },
-      Hockley:         { ridge: 78,  hip: 238, valley: 105, eave: 317, rake: 45  },
-      'Rochester Hills': { ridge: 173, hip: 170, valley: 188, eave: 298, rake: 144 },
+      Highgate:         { ridge: 29,  hip: 149, valley: 37,  eave: 224, rake: 53  },
+      Silverpoint:      { ridge: 121, hip: 396, valley: 212, eave: 557, rake: 13  },
+      Hockley:          { ridge: 78,  hip: 238, valley: 105, eave: 317, rake: 45  },
+      'Rochester Hills':{ ridge: 173, hip: 170, valley: 188, eave: 298, rake: 144 },
     } as Record<string, Record<string, number>>
 
     const sb = getSupabaseAdmin()
