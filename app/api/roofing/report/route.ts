@@ -160,24 +160,31 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
         const cols = line.split(',')
         const get = (field: string) => cols[header.indexOf(field)]?.trim() ?? ''
         const typetext = get('typetext').toUpperCase()
-        const mag = parseFloat(get('mag') || get('magnitude') || '0') || 0
+        // MAG can be "None" or a number
+        const magRaw = get('mag')
+        const mag = magRaw === 'None' || magRaw === '' ? 0 : (parseFloat(magRaw) || 0)
         const isHail = typetext.includes('HAIL') && mag >= 1.0
-        const isWind = (typetext.includes('TSTM WND') || typetext.includes('WIND')) && mag >= 58
+        const isWind = (typetext.includes('TSTM WND') || typetext.includes('NON-TSTM WND')) && mag >= 58
         if (!isHail && !isWind) continue
-        const evLat = parseFloat(get('lat') || get('legacy_lat') || '0')
-        const evLng = parseFloat(get('lon') || get('legacy_lon') || '0')
+        // LAT/LON columns (CSV header: LAT,LON)
+        const evLat = parseFloat(get('lat') || '0')
+        const evLng = parseFloat(get('lon') || '0')
         if (!evLat || !evLng) continue
         const dist = haversineMiles(lat, lng, evLat, evLng)
         if (dist > 15) continue
+        // VALID format: 202406192100 → 2024-06-19
         const validRaw = get('valid')
-        console.log('[storm] qualifying:', typetext, mag, validRaw, dist + 'mi')
+        const eventDate = validRaw.length >= 8
+          ? `${validRaw.slice(0, 4)}-${validRaw.slice(4, 6)}-${validRaw.slice(6, 8)}`
+          : ''
+        console.log('[storm] qualifying:', typetext, mag, eventDate, dist + 'mi')
         out.push({
           event_type: isHail ? 'Hail' : 'Wind',
-          event_date: validRaw.length >= 10 ? validRaw.slice(0, 10) : '',
+          event_date: eventDate,
           magnitude: isHail ? mag.toFixed(2).replace(/\.?0+$/, '') : String(Math.round(mag)),
           magnitude_type: isHail ? 'inches' : 'mph/kt',
           county: get('county'),
-          state: get('st'),
+          state: get('state'),
           distance_miles: dist,
         })
       }
