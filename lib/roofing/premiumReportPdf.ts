@@ -333,9 +333,9 @@ function formatDate(iso: string | null): string {
  * Single source of truth — used on both the cover LF summary and the LF detail page.
  */
 function lfAccuracyDisclaimer(facetCount: number): string {
-  if (facetCount <= 8)  return `±7% avg error on this ${facetCount}-facet roof — sufficient for material ordering.`
-  if (facetCount <= 15) return `±20–30% on this ${facetCount}-facet roof — verify ridge/hip split on site before ordering.`
-  return `±40–60% on this ${facetCount}-facet complex roof — field-measure drip edge before final order.`
+  if (facetCount <= 10) return `±7% avg error (${facetCount} measurement segments, simple complexity) — sufficient for material ordering.`
+  if (facetCount <= 15) return `±20–30% avg error (${facetCount} measurement segments, normal complexity) — verify ridge/hip measurements on-site before ordering.`
+  return `±40–60% avg error (${facetCount} measurement segments, complex roof) — field-measure linear footage before final material order.`
 }
 
 function PageHeader(address: string, pageLabel: string) {
@@ -980,7 +980,7 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
         h(View, { style: { flexDirection: 'row', marginBottom: 8 } },
           MetricBox('ORDER QUANTITY', `${fmt(data.totalSquares, 1)} sq`, `${fmt(data.totalSqft)} sq ft total`),
           MetricBox('DOMINANT PITCH', data.dominantPitch, 'Predominant slope'),
-          MetricBox('ROOF FACETS', `${data.facetCount}`, 'Complexity indicator'),
+          MetricBox('COMPLEXITY', data.facetCount <= 10 ? 'SIMPLE' : data.facetCount <= 15 ? 'NORMAL' : 'COMPLEX', 'Measurement segments'),
           MetricBox('WASTE FACTOR', `${data.wasteFactor}%`, 'Not incl. in sq'),
         ),
 
@@ -1145,7 +1145,7 @@ function buildLFSummaryPage(data: PremiumReportData): React.ReactElement {
 
   return h(Page, { size: 'LETTER', style: styles.page },
     PageHeader(data.address, 'Linear Footage Summary'),
-    SectionHeader('LINEAR FOOTAGE', `Colour-coded edge types · ${data.facetCount}-facet roof · ${data.facetCount <= 8 ? '±7% accuracy' : data.facetCount <= 15 ? '±20–30% accuracy' : '±40–60% accuracy'}`),
+    SectionHeader('LINEAR FOOTAGE', `Colour-coded edge types · ${data.facetCount <= 10 ? 'simple' : data.facetCount <= 15 ? 'normal' : 'complex'} complexity · ${data.facetCount <= 10 ? '±7% accuracy' : data.facetCount <= 15 ? '±20–30% accuracy' : '±40–60% accuracy'}`),
 
     h(View, { style: { paddingHorizontal: 24, paddingTop: 12 } },
       // Table
@@ -1537,7 +1537,7 @@ function buildAllStructuresPage(data: PremiumReportData): React.ReactElement {
         h(View, { style: { flex: 1 } },
           h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 8 } }, 'Summary'),
           Row('Total Roof Area', `${fmt(data.totalSqft)} sq ft`, false, true),
-          Row('Total Roof Facets', `${data.facetCount}`, false, true),
+          Row('Measurement Segments', `${data.facetCount}`, false, true),
           Row('Predominant Pitch', data.dominantPitch, false, true),
           Row('Order Quantity', `${fmt(data.totalSquares, 1)} sq`, false, true),
           Row('Suggested Waste', `${data.wasteFactor}%`),
@@ -1687,8 +1687,8 @@ function buildDisclaimerPage(data: PremiumReportData): React.ReactElement {
       ),
       Para(
         'Linear footage accuracy: +/-20% estimated from ProGuild AI roof geometry analysis. Performance varies by roof complexity: ' +
-        'Simple roofs (8 or fewer facets, ~40% of US housing) achieve +/-7% average error. ' +
-        'Normal complexity (9–15 facets) achieves +/-20–38% error. Complex roofs with dormers (16+ facets) achieves +/-62% error. ' +
+        'Simple complexity achieves +/-7% average error. ' +
+        'Normal complexity achieves +/-20–38% error. Complex roofs (high segment count or dormers) achieve +/-62% error. ' +
         'Sufficient for material ordering and bid preparation. Not suitable for permit drawings or engineering calculations.',
       ),
       Para(
@@ -1700,8 +1700,10 @@ function buildDisclaimerPage(data: PremiumReportData): React.ReactElement {
       ),
       Para(
         'Street View imagery is sourced from Google Street View Static API (heading 0/90/180/270°, pitch 10°, FOV 90°). ' +
-        'Satellite imagery is sourced from Google Maps Static API. Imagery may be up to 3 years old. ' +
-        'Verify current roof condition with a site visit before ordering materials or submitting insurance claims.',
+        'Satellite imagery is sourced from Google Maps Static API. ' +
+        (data.imageryDate
+          ? `This report uses imagery dated ${formatDate(data.imageryDate)} — verify current roof condition on site before ordering or submitting insurance claims.`
+          : 'Imagery date unknown — verify current roof condition on site before ordering or submitting insurance claims.'),
       ),
       Para(
         'For insurance claim submissions, a certified measurement report from a licensed inspector may be required by your carrier. ' +
@@ -1752,3 +1754,4 @@ export async function buildPremiumReport(data: PremiumReportData): Promise<Buffe
   const buffer = await renderToBuffer(doc)
   return Buffer.from(buffer)
 }
+
