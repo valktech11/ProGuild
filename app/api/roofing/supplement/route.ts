@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: buildSupplementPrompt(input) }] }],
-          generationConfig: { maxOutputTokens: 4096, temperature: 0.2, responseMimeType: 'application/json' },
+          generationConfig: { maxOutputTokens: 4096, temperature: 0.2 },
         }),
       },
     )
@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
     }
     const data = JSON.parse(text)
     raw = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    console.log('[supplement] raw preview:', raw.slice(0,300), '| finish:', data.candidates?.[0]?.finishReason)
   } catch (e) {
     console.error('[supplement] exception:', e)
     return NextResponse.json({ error: 'AI request failed. Try again.' }, { status: 502 })
