@@ -1257,7 +1257,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             )}
 
                             {/* FL Supplement Assistant — only for FL insurance claims */}
-                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead.contact_state??'').toUpperCase()==='FL'&&(
+                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(
                               <div style={{marginTop:16}}>
                                 <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(lead as any).roofing_job_data?.insurance_claim} darkMode={dk}/>
                               </div>

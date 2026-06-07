@@ -85,8 +85,11 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   // Gate: roofing FL insurance claims only.
   if (!isFL) {
     return (
-      <div style={{ padding: '16px 18px', borderRadius: 12, background: card, border: `1px solid ${border}`, color: sub, fontSize: 13, lineHeight: 1.5 }}>
-        The Supplement Assistant is Florida-only — it applies FL building-code line items. Set the property state to FL to use it.
+      <div style={{ borderRadius: 12, background: card, border: `1px solid ${border}`, borderLeft: `4px solid ${TEAL}`, padding: '14px 18px' }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, marginBottom: 4 }}>Supplement Assistant</div>
+        <div style={{ fontSize: 13, color: sub, lineHeight: 1.5 }}>
+          The Supplement Assistant applies Florida building-code line items — it only works for FL properties. Set the lead&apos;s state to <strong style={{ color: text }}>FL</strong> in Edit (contact details) to enable it.
+        </div>
       </div>
     )
   }
