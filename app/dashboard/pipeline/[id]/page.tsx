@@ -1256,7 +1256,22 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             {isRoofing&&(
                               <InsuranceClaimFields key={(lead as any).roofing_job_data?.claim_number ?? lead.id} leadId={lead.id} proId={session!.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state}
-                                onSaved={(data)=>setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)}/>
+                                onSaved={(data)=>{
+                                  // Optimistic update first so UI feels instant
+                                  setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
+                                  // Re-fetch after a short delay to pick up any hook side-effects
+                                  // (stage auto-advance, activity events) without requiring a manual refresh
+                                  setTimeout(()=>{
+                                    fetch(`/api/leads/${lead.id}?pro_id=${session!.id}`)
+                                      .then(r=>r.json())
+                                      .then(d=>{
+                                        if(d?.lead){
+                                          setLead(d.lead as LeadExt)
+                                          setStage((d.lead as LeadExt).lead_status as LeadStatus)
+                                        }
+                                      }).catch(()=>{})
+                                  }, 800)
+                                }}/>
                             )}
 
                             {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
