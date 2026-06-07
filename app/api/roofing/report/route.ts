@@ -147,7 +147,7 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
       + `?wfo=${wfo}&sts=${isoZ(start)}&ets=${isoZ(now)}&fmt=geojson`
     try {
       const res = await fetch(url, { headers: { 'User-Agent': 'ProGuild/1.0' }, signal: AbortSignal.timeout(10000) })
-      if (!res.ok) { console.log('[storm] IEM', wfo, 'status', res.status); return [] }
+      console.log('[storm] IEM', wfo, 'url:', url, 'status:', res.status)
       const rawText = await res.text()
       console.log('[storm] IEM', wfo, 'bytes:', rawText.length, 'preview:', rawText.slice(0, 300))
       let json: { features?: Array<{ geometry?: { coordinates?: [number, number] }; properties?: Record<string, unknown> }> }
