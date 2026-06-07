@@ -143,12 +143,16 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const handleToggle = useCallback(async () => {
     const next = !open
     setOpen(next)
-    setFields(f => ({ ...f, insurance_claim: next }))
+    setFields(f => {
+      const updated = { ...f, insurance_claim: next }
+      onSaved(updated)
+      return updated
+    })
     await fetch(`/api/leads/${leadId}`, {
       method:'PATCH', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ pro_id: proId, insurance_claim: next }),
     }).catch(() => {})
-  }, [open, leadId, proId])
+  }, [open, leadId, proId, onSaved])
 
   const handleSave = useCallback(async () => {
     setSaving(true); setError(null); setSaved(false)
