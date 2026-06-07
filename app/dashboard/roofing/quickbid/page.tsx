@@ -5,7 +5,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { theme } from '@/lib/tokens'
@@ -53,6 +53,7 @@ function ProgressBar({ pct }: { pct: number }) {
 // ── Main inner component ──────────────────────────────────────────────────────
 function QuickBidInner() {
   const router  = useRouter()
+  const searchParams = useSearchParams()
   const [session] = useState<Session | null>(() => {
     if (typeof window === 'undefined') return null
     const s = sessionStorage.getItem('pg_pro'); return s ? JSON.parse(s) : null
@@ -76,6 +77,24 @@ function QuickBidInner() {
   const [zip,       setZip]       = useState('')
   const [sourceLabel, setSourceLabel] = useState<string | null>(null) // "From: Rajesh Kumar"
   const [matchedPropertyId, setMatchedPropertyId] = useState<string | null>(null)
+
+  // ── Pre-fill from a lead (deep-link: ?address=&city=&state=&zip=&from=) ─────
+  useEffect(() => {
+    const addr  = searchParams.get('address')
+    const pCity = searchParams.get('city')
+    const pSt   = searchParams.get('state')
+    const pZip  = searchParams.get('zip')
+    const from  = searchParams.get('from')
+    if (addr || pCity) {
+      if (addr)  setStreet(addr)
+      if (pCity) setCity(pCity)
+      if (pSt)   setAddrState(pSt)
+      if (pZip)  setZip(pZip)
+      if (from)  setSourceLabel(`From: ${from}`)
+      setStep('confirm')   // jump straight to the address form, skip search
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Generation state ──────────────────────────────────────────────────────
   const [step,       setStep]      = useState<Step>('search')

@@ -1340,13 +1340,40 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       {/* Header */}
                                       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
                                         <span style={{fontSize:12,fontWeight:800,color:'#0F172A',textTransform:'uppercase' as const,letterSpacing:'0.08em'}}>Roof Measurements</span>
-                                        {step1Done && !qbGenerating && (
-                                          <button onClick={()=>{setShowRemeasure(s=>!s);setQbError('')}}
-                                            style={{fontSize:12,color:'#0F766E',background:'rgba(15,118,110,0.07)',border:'1.5px solid rgba(15,118,110,0.25)',borderRadius:6,cursor:'pointer',fontWeight:700,padding:'4px 10px',transition:'all 0.15s'}}>
-                                            {showRemeasure?'Cancel ↩':'Re-measure ↻'}
-                                          </button>
-                                        )}
+                                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                                          {(lead as any).property_id && (
+                                            <button onClick={()=>router.push(`/dashboard/roofing/property/${(lead as any).property_id}`)}
+                                              style={{fontSize:12,color:'#0F766E',background:'transparent',border:'1.5px solid rgba(15,118,110,0.25)',borderRadius:6,cursor:'pointer',fontWeight:700,padding:'4px 10px',transition:'all 0.15s'}}>
+                                              View property →
+                                            </button>
+                                          )}
+                                          {step1Done && !qbGenerating && (
+                                            <button onClick={()=>{setShowRemeasure(s=>!s);setQbError('')}}
+                                              style={{fontSize:12,color:'#0F766E',background:'rgba(15,118,110,0.07)',border:'1.5px solid rgba(15,118,110,0.25)',borderRadius:6,cursor:'pointer',fontWeight:700,padding:'4px 10px',transition:'all 0.15s'}}>
+                                              {showRemeasure?'Cancel ↩':'Re-measure ↻'}
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
+
+                                      {/* Retail fast-path — Quick Bid (only when not an insurance claim) */}
+                                      {!rjd?.insurance_claim && (
+                                        <button
+                                          onClick={()=>{
+                                            const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                                            const params=new URLSearchParams()
+                                            if(street) params.set('address', street)
+                                            if(lead.contact_city)  params.set('city',  lead.contact_city)
+                                            if(lead.contact_state)  params.set('state', lead.contact_state)
+                                            if((lead as any).contact_zip) params.set('zip', (lead as any).contact_zip)
+                                            if(lead.contact_name)  params.set('from',  lead.contact_name)
+                                            router.push(`/dashboard/roofing/quickbid?${params.toString()}`)
+                                          }}
+                                          style={{width:'100%',marginBottom:12,padding:'11px',borderRadius:10,border:'1.5px solid #0F766E',background:'rgba(15,118,110,0.06)',color:'#0F766E',fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
+                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                          Quick Bid PDF — instant satellite estimate
+                                        </button>
+                                      )}
 
                                       {/* Step 1 — Roof Size */}
                                       <div style={{marginBottom:10,padding:'12px 14px',borderRadius:10,background:step1Done?'#F0FDF4':'#F8FAFC',border:`1.5px solid ${step1Done?'#BBF7D0':'#E2E8F0'}`}}>
