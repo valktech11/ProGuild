@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   for (const wfo of wfos) {
     const url = `https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py`
-      + `?wfo=${wfo}&sts=${isoZ(start)}&ets=${isoZ(now)}&fmt=geojson`
+      + `?wfo=${wfo}&sts=${isoZ(start)}&ets=${isoZ(now)}&fmt=csv`
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': 'ProGuild/1.0' },

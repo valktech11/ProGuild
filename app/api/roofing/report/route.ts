@@ -144,38 +144,40 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
 
   const fetchWfo = async (wfo: string): Promise<NoaaStormEvent[]> => {
     const url = `https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py`
-      + `?wfo=${wfo}&sts=${isoZ(start)}&ets=${isoZ(now)}&fmt=geojson`
+      + `?wfo=${wfo}&sts=${isoZ(start)}&ets=${isoZ(now)}&fmt=csv`
     try {
       const res = await fetch(url, { headers: { 'User-Agent': 'ProGuild/1.0' }, signal: AbortSignal.timeout(10000) })
-      console.log('[storm] IEM', wfo, 'url:', url, 'status:', res.status)
-      const rawText = await res.text()
-      console.log('[storm] IEM', wfo, 'bytes:', rawText.length, 'preview:', rawText.slice(0, 300))
-      let json: { features?: Array<{ geometry?: { coordinates?: [number, number] }; properties?: Record<string, unknown> }> }
-      try { json = JSON.parse(rawText) } catch { console.log('[storm] IEM JSON parse error'); return [] }
-      const feats = json?.features ?? []
-      console.log('[storm] IEM', wfo, 'features total:', feats.length)
+      console.log('[storm] IEM', wfo, 'status:', res.status)
+      if (!res.ok) { console.log('[storm] IEM', wfo, 'non-ok'); return [] }
+      const text = await res.text()
+      const lines = text.trim().split('\n')
+      // CSV header: VALID,LEGACY_LAT,LEGACY_LON,LAT,LON,MAG,WFO,TYPECODE,TYPETEXT,CITY,COUNTY,ST,SOURCE,REMARK,UGC,UGCNAME
+      const header = lines[0]?.split(',').map(h => h.trim().toLowerCase()) ?? []
+      console.log('[storm] IEM', wfo, 'csv rows:', lines.length - 1, 'header:', header.join(','))
       const out: NoaaStormEvent[] = []
-      for (const ft of feats) {
-        const pr = ft.properties || {}
-        const typetext = String(pr.typetext ?? pr.type ?? '').toUpperCase()
-        const mag = parseFloat(String(pr.magnitude ?? pr.mag ?? '0')) || 0
+      for (const line of lines.slice(1)) {
+        if (!line.trim()) continue
+        const cols = line.split(',')
+        const get = (field: string) => cols[header.indexOf(field)]?.trim() ?? ''
+        const typetext = get('typetext').toUpperCase()
+        const mag = parseFloat(get('mag') || get('magnitude') || '0') || 0
         const isHail = typetext.includes('HAIL') && mag >= 1.0
-        const isWind = (typetext.includes('WND') || typetext.includes('WIND')) && mag >= 58
-        console.log('[storm] event:', typetext, 'mag:', mag, 'isHail:', isHail, 'isWind:', isWind)
+        const isWind = (typetext.includes('TSTM WND') || typetext.includes('WIND')) && mag >= 58
         if (!isHail && !isWind) continue
-        const coords = ft.geometry?.coordinates
-        if (!coords) continue
-        const [evLng, evLat] = coords
+        const evLat = parseFloat(get('lat') || get('legacy_lat') || '0')
+        const evLng = parseFloat(get('lon') || get('legacy_lon') || '0')
+        if (!evLat || !evLng) continue
         const dist = haversineMiles(lat, lng, evLat, evLng)
         if (dist > 15) continue
-        const validRaw = String(pr.valid ?? '')
+        const validRaw = get('valid')
+        console.log('[storm] qualifying:', typetext, mag, validRaw, dist + 'mi')
         out.push({
           event_type: isHail ? 'Hail' : 'Wind',
           event_date: validRaw.length >= 10 ? validRaw.slice(0, 10) : '',
           magnitude: isHail ? mag.toFixed(2).replace(/\.?0+$/, '') : String(Math.round(mag)),
           magnitude_type: isHail ? 'inches' : 'mph/kt',
-          county: String(pr.county ?? ''),
-          state: String(pr.st ?? pr.state ?? ''),
+          county: get('county'),
+          state: get('st'),
           distance_miles: dist,
         })
       }
