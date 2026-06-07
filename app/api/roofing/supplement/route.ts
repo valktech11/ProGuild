@@ -143,3 +143,24 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ result }, { status: 200 })
 }
+
+// GET /api/roofing/supplement?lead_id=X&pro_id=Y
+// Returns the most recent session for this lead, if any.
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const lead_id = searchParams.get('lead_id')
+  const pro_id  = searchParams.get('pro_id')
+  if (!lead_id || !pro_id) return NextResponse.json({ session: null })
+
+  const sb = getSupabaseAdmin()
+  const { data } = await sb
+    .from('supplement_sessions')
+    .select('id, scope_text, result_json, created_at')
+    .eq('lead_id', lead_id)
+    .eq('pro_id', pro_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return NextResponse.json({ session: data ?? null })
+}

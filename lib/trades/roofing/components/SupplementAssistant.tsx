@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { SUPPLEMENT_DISCLAIMER, type SupplementResult, type SupplementItem } from '@/lib/fl/supplement'
 
 interface Props {
@@ -51,8 +51,26 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   const [error,   setError]   = useState<string | null>(null)
   const [result,  setResult]  = useState<SupplementResult | null>(null)
   const [copied,  setCopied]  = useState(false)
+  const [lastRun, setLastRun] = useState<string | null>(null)   // ISO timestamp of last saved run
+  const [restoring, setRestoring] = useState(true)
 
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
+
+  // Load the most recent session for this lead on mount
+  useEffect(() => {
+    if (!isFL || !hasClaim) { setRestoring(false); return }
+    fetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.session) {
+          setScope(d.session.scope_text || '')
+          setResult(d.session.result_json as SupplementResult)
+          setLastRun(d.session.created_at)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setRestoring(false))
+  }, [leadId, proId, isFL, hasClaim])
 
   const analyze = useCallback(async () => {
     if (scope.trim().length < 20) { setError('Paste the adjuster\u2019s scope of loss first (a few lines).'); return }
@@ -65,6 +83,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`)
       setResult((data as { result: SupplementResult }).result)
+      setLastRun(new Date().toISOString())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.')
     } finally { setLoading(false) }
@@ -83,6 +102,15 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   const sub    = dk ? '#94A3B8' : '#64748B'
 
   // Gate: roofing FL insurance claims only.
+  if (restoring) {
+    return (
+      <div style={{ borderRadius: 12, background: card, border: `1px solid ${border}`, borderLeft: `4px solid ${TEAL}`, padding: '14px 18px' }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, marginBottom: 4 }}>Supplement Assistant</div>
+        <div style={{ fontSize: 12, color: sub }}>Loading previous analysis…</div>
+      </div>
+    )
+  }
+
   if (!isFL) {
     return (
       <div style={{ borderRadius: 12, background: card, border: `1px solid ${border}`, borderLeft: `4px solid ${TEAL}`, padding: '14px 18px' }}>
@@ -104,9 +132,13 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   return (
     <div style={{ borderRadius: 12, background: card, border: `1px solid ${border}`, borderLeft: `4px solid ${TEAL}`, overflow: 'hidden' }}>
       <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}` }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, letterSpacing: '0.01em' }}>Supplement Assistant</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, letterSpacing: '0.01em' }}>Supplement Assistant</div>
+          {lastRun && <div style={{ fontSize: 11, color: sub }}>{new Date(lastRun).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
+        </div>
         <div style={{ fontSize: 12, color: sub, marginTop: 3, lineHeight: 1.45 }}>
           Paste the adjuster&apos;s scope of loss. The assistant flags FL line items they missed or underpaid and drafts a supplement letter.
+          {lastRun && <span style={{ marginLeft: 6, color: TEAL, fontWeight: 600 }}>· Last run restored</span>}
         </div>
       </div>
 
