@@ -140,7 +140,7 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
 
   const now = new Date()
   const start = new Date(now.getTime() - 24 * 30 * 24 * 60 * 60 * 1000) // ~24 months
-  const isoZ = (d: Date) => `${d.toISOString().slice(0, 16)}Z`
+  const isoZ = (d: Date) => d.toISOString().slice(0, 19) + 'Z'
 
   const fetchWfo = async (wfo: string): Promise<NoaaStormEvent[]> => {
     const url = `https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py`
