@@ -240,6 +240,15 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       .catch(() => {})
   }, [session, id, router])
 
+  // Re-fetch pipeline events (Activity tab) on demand — used after saves that write events
+  const refreshEvents = useCallback(() => {
+    if (!session) return
+    fetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : { events: [] })
+      .then(d => setPipelineEvents(d.events || []))
+      .catch(() => {})
+  }, [session, id])
+
   useEffect(() => {
     if (!session||!lead) return
     fetch(`/api/estimates?pro_id=${session.id}`).then(r=>r.json()).then(d => {
@@ -1270,7 +1279,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           setStage((d.lead as LeadExt).lead_status as LeadStatus)
                                         }
                                       }).catch(()=>{})
-                                  }, 800)
+                                    refreshEvents()   // also refresh Activity tab
+                                  }, 1200)
                                 }}/>
                             )}
 
