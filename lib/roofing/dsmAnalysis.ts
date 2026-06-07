@@ -666,18 +666,7 @@ function extractFacets(dsm: GeoGrid, mask: GeoGrid | null, pixelSizeM: number): 
 // This filters out RANSAC noise facets (< 5° slope) from real roof planes.
 const MIN_SLOPE_HORIZ = 0.25
 
-// Elevation context for an inter-facet edge: the mean elevation of the shared
-// edge pixels, and the mean centroid elevation of each facet. Used to
-// disambiguate ridge (edge ABOVE both centroids) from valley (edge BELOW).
-// All values in DSM elevation units (metres MSL). Pass null to fall back to
-// the slope-angle-only heuristic (perimeter edges or when elevation is absent).
-interface EdgeElevation { edgeZ: number; centroidZA: number; centroidZB: number }
-
-function classifyEdge(
-  planeA: Plane,
-  planeB: Plane | null,
-  elev: EdgeElevation | null = null,
-): 'ridge' | 'hip' | 'valley' | 'rake' | 'eave' | 'skip' {
+function classifyEdge(planeA: Plane, planeB: Plane | null): 'ridge' | 'hip' | 'valley' | 'rake' | 'eave' | 'skip' {
   // Orient both normals upward
   const sA = planeA.c < 0 ? -1 : 1
   const aN: [number, number, number] = [planeA.a * sA, planeA.b * sA, planeA.c * sA]
@@ -693,49 +682,33 @@ function classifyEdge(
   const horizB = Math.sqrt(bN[0] * bN[0] + bN[1] * bN[1])
 
   // CRITICAL: Both facets are near-flat noise — skip entirely, don't count as any line type.
-  // RANSAC segments DSM elevation noise into near-flat pseudo-facets; edges between them
-  // are meaningless for linear footage.
+  // This is the primary fix: RANSAC segments DSM elevation noise into near-flat pseudo-facets.
+  // Edges between them are meaningless for linear footage.
   if (horizA < MIN_SLOPE_HORIZ && horizB < MIN_SLOPE_HORIZ) return 'skip'
 
-  // One facet is real slope, other is flat → perimeter-like transition (eave or rake).
+  // One facet is real slope, other is flat → this is a perimeter-like transition
+  // (eave or rake depending on the sloped facet's orientation)
   if (horizA < MIN_SLOPE_HORIZ || horizB < MIN_SLOPE_HORIZ) {
+    // The sloped facet dominates classification
     const slopedHoriz = horizA >= MIN_SLOPE_HORIZ ? horizA : horizB
     return slopedHoriz < 0.5 ? 'eave' : 'rake'
   }
 
-  // Both facets genuinely sloped. Classify the junction.
-  //
-  // Elevation is the reliable discriminator (the horizontal angle alone confuses
-  // inside-corner valleys with hips — both can sit near 90 degrees):
-  //   Ridge  : shared edge sits ABOVE both facet centroids (peak line)
-  //   Valley : shared edge sits BELOW both facet centroids (trough line)
-  //   Hip    : edge runs diagonally from a high corner down toward the eave, so its
-  //            mean elevation is BETWEEN the two centroids.
+  // Both facets are genuinely sloped — classify the inter-plane junction
+  // Horizontal dot product: direction the two planes face horizontally
+  // Ridge: planes face away from each other → hDot strongly negative
+  // Valley: planes face toward each other → hDot positive
+  // Hip: corner, planes face ~90° apart → hDot near zero
   const hDot = aN[0] * bN[0] + aN[1] * bN[1]
+  const dot3d = aN[0] * bN[0] + aN[1] * bN[1] + aN[2] * bN[2]
+
+  // Angle between horizontal slope directions
   const slopeAngle = Math.acos(Math.max(-1, Math.min(1, hDot / (horizA * horizB)))) * 180 / Math.PI
 
-  if (elev) {
-    const loZ = Math.min(elev.centroidZA, elev.centroidZB)
-    const hiZ = Math.max(elev.centroidZA, elev.centroidZB)
-    const span = Math.max(0.3, hiZ - loZ)            // guard tiny spans
-    const TOL = 0.15 * span                            // 15% of centroid height span
-
-    if (elev.edgeZ >= hiZ - TOL) return 'ridge'        // at/above higher centroid -> peak
-    if (elev.edgeZ <= loZ + TOL) return 'valley'       // at/below lower centroid -> trough
-    // Between the centroids -> diagonal corner line -> hip.
-    // But a near-opposing slope angle (>150) with a mid elevation is more likely a
-    // ridge/valley we mis-measured than a true hip; use angle as tiebreak.
-    if (slopeAngle > 150) {
-      const meanZ = (loZ + hiZ) / 2
-      return elev.edgeZ >= meanZ ? 'ridge' : 'valley'
-    }
-    return 'hip'
-  }
-
-  // No elevation context (shouldn't happen for inter-facet edges) — fall back to angle.
-  if (slopeAngle > 150) return 'ridge'
-  if (slopeAngle > 60)  return 'hip'
-  return 'ridge'
+  if (slopeAngle > 150) return 'ridge'   // slopes face nearly opposite directions → peak
+  if (dot3d < 0)        return 'valley'  // 3D normals diverge downward → trough
+  if (slopeAngle > 60)  return 'hip'     // slopes at wide angle → corner hip
+  return 'ridge'                          // slopes nearly same direction but both real → ridge
 }
 
 // Derives the dominant roof azimuth (clockwise from North, 0–360°) from the largest
@@ -812,26 +785,7 @@ function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid | nul
   const pixelFacet = new Map<number, number>()
   facets.forEach((f, fi) => f.pixels.forEach(px => pixelFacet.set(px, fi)))
   const { width } = dsm
-  const elevAt = (px: number): number => Number(dsm.data[px])
-
-  // Mean elevation of each facet's pixels (its centroid height).
-  const facetCentroidZ: number[] = facets.map(f => {
-    if (f.pixels.length === 0) return 0
-    let sum = 0
-    for (const px of f.pixels) sum += elevAt(px)
-    return sum / f.pixels.length
-  })
-
-  // Collect edge pixel counts AND accumulate edge elevation per facet-pair.
   const edgeCounts = new Map<string, number>()
-  const edgeZSum   = new Map<string, number>()
-  const edgeZCount = new Map<string, number>()
-  const bump = (key: string, za: number, zb: number) => {
-    edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1)
-    // Edge elevation ≈ mean of the two adjacent pixels straddling the boundary.
-    edgeZSum.set(key, (edgeZSum.get(key) || 0) + (za + zb) / 2)
-    edgeZCount.set(key, (edgeZCount.get(key) || 0) + 1)
-  }
   for (const [px, fi] of pixelFacet) {
     const col = px % width
     const row = Math.floor(px / width)
@@ -840,24 +794,21 @@ function computeLinearFootage(facets: Facet[], dsm: GeoGrid, mask: GeoGrid | nul
       const nFi = pixelFacet.get(nPx)
       if (nFi !== undefined && nFi !== fi) {
         const key = fi < nFi ? `${fi}-${nFi}` : `${nFi}-${fi}`
-        bump(key, elevAt(px), elevAt(nPx))
+        edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1)
       }
     }
     const nPx2 = (row + 1) * width + col
     const nFi2 = pixelFacet.get(nPx2)
     if (nFi2 !== undefined && nFi2 !== fi) {
       const key = fi < nFi2 ? `${fi}-${nFi2}` : `${nFi2}-${fi}`
-      bump(key, elevAt(px), elevAt(nPx2))
+      edgeCounts.set(key, (edgeCounts.get(key) || 0) + 1)
     }
   }
   for (const [key, count] of edgeCounts) {
     const [aStr, bStr] = key.split('-')
     const fi = parseInt(aStr), fj = parseInt(bStr)
     const edgeLenM = count * pixelSizeM
-    const zc = edgeZCount.get(key) || 1
-    const edgeZ = (edgeZSum.get(key) || 0) / zc
-    const elev: EdgeElevation = { edgeZ, centroidZA: facetCentroidZ[fi], centroidZB: facetCentroidZ[fj] }
-    const type = classifyEdge(facets[fi].plane, facets[fj].plane, elev)
+    const type = classifyEdge(facets[fi].plane, facets[fj].plane)
     if (type === 'ridge')  ridgeM  += edgeLenM
     else if (type === 'hip')    hipM    += edgeLenM
     else if (type === 'valley') valleyM += edgeLenM
