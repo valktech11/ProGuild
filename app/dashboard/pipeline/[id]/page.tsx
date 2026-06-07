@@ -1002,7 +1002,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {active.map((stg,i)=>{
                           const done  = i<curPos
                           const isAct = i===curPos
-                          const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && done
+                          const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && (done || isAct)
                           const sz    = isAct?22:done?20:12
                           const rad   = done||isAct?'50%':'3px'
                           const bg    = skipped?(dk?'#334155':'#CBD5E1'):done?stg.color:isAct?stg.color:(dk?'#374151':'#E5E7EB')
@@ -1022,7 +1022,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {active.map((stg,i)=>{
                           const done  = i<curPos
                           const isAct = i===curPos
-                          const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && done
+                          const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && (done || isAct)
                           const lc    = skipped?(dk?'#475569':'#CBD5E1'):isAct?stg.color:done?(dk?'#4B5563':'#9CA3AF'):(dk?'#374151':'#CBD5E1')
                           return (
                             <div key={stg.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
