@@ -205,7 +205,10 @@ function QuickBidInner() {
       { pct: 38, msg: 'Analysing roof planes…',        ms: 2000 },
       { pct: 55, msg: 'Calculating pitch & squares…',  ms: 2500 },
       { pct: 70, msg: 'Generating PDF report…',        ms: 3500 },
-      { pct: 85, msg: 'Uploading to your account…',    ms: 4500 },
+      { pct: 82, msg: 'Building your report…',          ms: 5000 },
+      { pct: 88, msg: 'Almost there…',                  ms: 9000 },
+      { pct: 92, msg: 'Finishing up…',                  ms: 16000 },
+      { pct: 94, msg: 'Hang tight — large roofs take a bit longer…', ms: 28000 },
     ]
     let cancelled = false
     steps.forEach(({ pct, msg, ms }) => {
@@ -303,7 +306,7 @@ function QuickBidInner() {
       cancelled = true
       const isAbort = err instanceof Error && err.name === 'AbortError'
       setStep('error')
-      setErrMsg(isAbort ? 'Request timed out (90s). Solar API may be slow — try again.' : 'Network error — please retry.')
+      setErrMsg(isAbort ? 'Request timed out (90s). Satellite service may be slow — try again.' : 'Network error — please retry.')
     }
   }, [session, fullAddress, matchedPropertyId])
 
@@ -568,7 +571,7 @@ function QuickBidInner() {
               <ProgressBar pct={progress} />
             </div>
             <p style={{ fontSize:11, color:t.textSubtle }}>
-              {progress}% · Solar API + PDF generation takes 15–45 seconds
+              {progress}% · Satellite analysis + PDF generation takes 15–45 seconds
             </p>
           </div>
         )}
