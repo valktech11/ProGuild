@@ -2090,6 +2090,11 @@ export function computeLinearFootageV3(
   // ── VALLEY ─────────────────────────────────────────────────────────────────
   // Main↔secondary pairs, azDiff 30-120°, hull adjacent.
   // Same tier logic as v2 — proven to work for valley detection.
+  // TOP-2 PER SEGMENT: mirrors the hip loop above — collect candidates first,
+  // then take the 2 closest per segment to prevent cross-wing accumulation.
+  const valleyNbrs: Array<Array<{ j: number; len: number }>> =
+    Array.from({ length: n }, () => [])
+
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const si = segments[i], sj = segments[j]
@@ -2099,13 +2104,23 @@ export function computeLinearFootageV3(
       const diff = azDiff(si.azimuthDegrees, sj.azimuthDegrees)
       if (diff < VALLEY_AZ_MIN_G || diff > VALLEY_AZ_MAX_G) continue
       if (!adjacent(i, j)) continue
-      const key = `${i}-${j}`
+      const len = rafterLengthM(i, j)
+      valleyNbrs[i].push({ j, len })
+      valleyNbrs[j].push({ j: i, len })
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    valleyNbrs[i].sort((a, b) => a.len - b.len)
+    for (const nb of valleyNbrs[i].slice(0, 2)) {
+      const lo = Math.min(i, nb.j), hi = Math.max(i, nb.j)
+      const key = `${lo}-${hi}`
       if (valleyCounted.has(key)) continue
       valleyCounted.add(key)
       valleyPairs.add(key)
-      const len = rafterLengthM(i, j)
-      valleyM += len
-      console.log(`[v3g] valley: s${i}(${si.azimuthDegrees.toFixed(0)}°,${gnd(si).toFixed(0)}m²)↔s${j}(${sj.azimuthDegrees.toFixed(0)}°,${gnd(sj).toFixed(0)}m²) len=${(len*M_TO_FT).toFixed(0)}ft`)
+      valleyM += nb.len
+      const si = segments[lo], sj = segments[hi]
+      console.log(`[v3g] valley: s${lo}(${si.azimuthDegrees.toFixed(0)}°,${gnd(si).toFixed(0)}m²)↔s${hi}(${sj.azimuthDegrees.toFixed(0)}°,${gnd(sj).toFixed(0)}m²) len=${(nb.len*M_TO_FT).toFixed(0)}ft`)
     }
   }
 
