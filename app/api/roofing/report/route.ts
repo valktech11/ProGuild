@@ -148,8 +148,12 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
     try {
       const res = await fetch(url, { headers: { 'User-Agent': 'ProGuild/1.0' }, signal: AbortSignal.timeout(10000) })
       if (!res.ok) { console.log('[storm] IEM', wfo, 'status', res.status); return [] }
-      const json = await res.json() as { features?: Array<{ geometry?: { coordinates?: [number, number] }; properties?: Record<string, unknown> }> }
+      const rawText = await res.text()
+      console.log('[storm] IEM', wfo, 'bytes:', rawText.length, 'preview:', rawText.slice(0, 300))
+      let json: { features?: Array<{ geometry?: { coordinates?: [number, number] }; properties?: Record<string, unknown> }> }
+      try { json = JSON.parse(rawText) } catch { console.log('[storm] IEM JSON parse error'); return [] }
       const feats = json?.features ?? []
+      console.log('[storm] IEM', wfo, 'features total:', feats.length)
       const out: NoaaStormEvent[] = []
       for (const ft of feats) {
         const pr = ft.properties || {}
@@ -157,6 +161,7 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
         const mag = parseFloat(String(pr.magnitude ?? pr.mag ?? '0')) || 0
         const isHail = typetext.includes('HAIL') && mag >= 1.0
         const isWind = (typetext.includes('WND') || typetext.includes('WIND')) && mag >= 58
+        console.log('[storm] event:', typetext, 'mag:', mag, 'isHail:', isHail, 'isWind:', isWind)
         if (!isHail && !isWind) continue
         const coords = ft.geometry?.coordinates
         if (!coords) continue
