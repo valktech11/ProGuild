@@ -1280,7 +1280,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         }
                                       }).catch(()=>{})
                                     refreshEvents()   // also refresh Activity tab
-                                  }, 1200)
+                                  }, 400)
                                 }}/>
                             )}
 

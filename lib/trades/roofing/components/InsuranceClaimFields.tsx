@@ -183,38 +183,41 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
         const d = await res.json().catch(() => ({}))
         throw new Error((d as {error?: string}).error ?? `HTTP ${res.status}`)
       }
-      setSaved(true); onSaved(fields)
+      setSaved(true)
 
       // ── Hook 1: Approved → auto-advance pipeline to insurance_approved ────
+      // AWAIT these so onSaved (and its activity refresh) runs after events are written.
       if (fields.claim_status === 'Approved') {
-        fetch(`/api/leads/${leadId}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pro_id: proId, lead_status: 'insurance_approved' }),
-        }).then(() => {
-          // Log the auto-advance in activity
-          fetch(`/api/leads/${leadId}/events`, {
+        try {
+          await fetch(`/api/leads/${leadId}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pro_id: proId, lead_status: 'insurance_approved' }),
+          })
+          await fetch(`/api/leads/${leadId}/events`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pro_id: proId, event_type: 'insurance_auto_approved' }),
-          }).catch(() => {})
-        }).catch(() => {}) // non-fatal
+          })
+        } catch { /* non-fatal */ }
       }
 
       // ── Hook 2: Supplement Filed → log activity entry ─────────────────────
       if (fields.claim_status === 'Supplement Filed') {
-        // Fetch latest supplement session for the total amount
-        fetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
-          .then(r => r.json())
-          .then(async (d) => {
-            const total = d.session?.result_json?.total_supplement_estimate ?? null
-            const note  = total
-              ? `Supplement filed — estimated additional: $${total.toLocaleString()}`
-              : 'Supplement filed'
-            await fetch(`/api/leads/${leadId}/events`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pro_id: proId, event_type: 'supplement_filed', note }),
-            }).catch(() => {})
-          }).catch(() => {}) // non-fatal
+        try {
+          const sres = await fetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
+          const d = await sres.json()
+          const total = d.session?.result_json?.total_supplement_estimate ?? null
+          const note  = total
+            ? `Supplement filed — estimated additional: $${total.toLocaleString()}`
+            : 'Supplement filed'
+          await fetch(`/api/leads/${leadId}/events`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pro_id: proId, event_type: 'supplement_filed', note }),
+          })
+        } catch { /* non-fatal */ }
       }
+
+      // Now that hooks (and their events) are committed, notify parent → triggers refresh.
+      onSaved(fields)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally { setSaving(false) }
