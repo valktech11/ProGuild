@@ -282,7 +282,7 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
               (data.stormEvents[0].distance_miles != null ? ' \u00B7 ' + data.stormEvents[0].distance_miles + ' mi from property' : '')
             ),
             h(Text, { style: S.stormSub },
-              'Radar-confirmed hail exceeds 1.0" insurance threshold. Property may qualify for an insurance claim. Verify with carrier before ordering materials.'
+              'Hail detected nearby may qualify this property for an insurance claim. Verify hail size and date with carrier before ordering materials.'
             )
           )
         ] : []),
