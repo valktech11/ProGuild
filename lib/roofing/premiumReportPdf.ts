@@ -1515,6 +1515,8 @@ function buildReportSummaryPage(data: PremiumReportData): React.ReactElement {
 // Page 10 — All Structures Totals
 function buildAllStructuresPage(data: PremiumReportData): React.ReactElement {
   const lf = data.linearFootage
+  const effectiveSegCount = data.segments.length > 0 ? data.segments.length : data.facetCount
+  const isComplex = effectiveSegCount >= 16
   const wallFlashFt = Math.round((lf.hip_ft || 0) * 0.08)
   const stepFlashFt = Math.round((lf.valley_ft || 0) * 1.7)
   const dripEdgeFt = lf.eave_ft + lf.rake_ft
@@ -1566,8 +1568,8 @@ function buildAllStructuresPage(data: PremiumReportData): React.ReactElement {
               'Verify on-site before ordering.',
             ),
           ),
-          Row('Wall flashing (est.)', wallFlashFt > 0 ? `~${fmt(wallFlashFt)} ft` : '—'),
-          Row('Step flashing (est.)', stepFlashFt > 0 ? `~${fmt(stepFlashFt)} ft` : '—'),
+          Row('Wall flashing (est.)', isComplex ? 'Field measure required' : (wallFlashFt > 0 ? `~${fmt(wallFlashFt)} ft` : '—')),
+          Row('Step flashing (est.)', isComplex ? 'Field measure required' : (stepFlashFt > 0 ? `~${fmt(stepFlashFt)} ft` : '—')),
 
           h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 8, marginTop: 16 } }, 'Property Location'),
           Row('Latitude', data.lat.toFixed(6)),
@@ -1667,6 +1669,54 @@ function buildMaterialEstimatePage(data: PremiumReportData): React.ReactElement 
   )
 }
 
+// Page 11 — Material Estimate (COMPLEX GATE: shown only for simple/normal roofs)
+function buildMaterialEstimateBlockerPage(data: PremiumReportData): React.ReactElement {
+  const effectiveSegCount = data.segments.length > 0 ? data.segments.length : data.facetCount
+  return h(Page, { size: 'LETTER', style: styles.page },
+    PageHeader(data.address, 'Material Estimate'),
+    SectionHeader('MATERIAL ESTIMATE', 'Brand × waste % — computed from linear footage and total area'),
+
+    h(View, { style: { ...styles.body, paddingTop: 20 } },
+      // Red warning box
+      h(View, { style: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 8, padding: 24, marginBottom: 20 } },
+        h(Text, { style: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#991B1B', marginBottom: 10 } },
+          'Material Quantities Not Available — Complex Roof',
+        ),
+        h(Text, { style: { fontSize: 9, color: '#7F1D1D', lineHeight: 1.6, marginBottom: 14 } },
+          `This roof has ${effectiveSegCount} measurement segments (complex tier). On multi-wing complex roofs, ` +
+          'individual edge-type errors can exceed 200%\u2014valley in particular\u2014making computed material ' +
+          'quantities unreliable for ordering.',
+        ),
+
+        h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#991B1B', marginBottom: 4 } }, 'What you can use from this report:'),
+        h(Text, { style: { fontSize: 9, color: '#7F1D1D', lineHeight: 1.6, marginBottom: 14 } },
+          '\u2022  Total area (page 1) and waste table (page 6) \u2014 shingle quantity is accurate.\n' +
+          '\u2022  Pitch breakdown (page 6) \u2014 accurate.\n' +
+          '\u2022  Aerial imagery (pages 2\u20134) \u2014 use for visual reference and scope discussion.',
+        ),
+
+        h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#991B1B', marginBottom: 4 } }, 'What requires field measurement:'),
+        h(Text, { style: { fontSize: 9, color: '#7F1D1D', lineHeight: 1.6 } },
+          '\u2022  Ridge, hip, valley, rake, and eave lengths \u2014 measure on-site.\n' +
+          '\u2022  All LF-derived quantities: starter, drip edge, ice & water, capping, valley sheets, step flashing.',
+        ),
+      ),
+
+      // Teal "shingle still valid" callout
+      h(View, { style: { backgroundColor: BRAND_COLORS.tealLight, borderRadius: 6, padding: 14, borderWidth: 0.5, borderColor: BRAND_COLORS.tealMid } },
+        h(Text, { style: { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.teal, marginBottom: 6 } },
+          'Shingle quantity (area-based) is still reliable:',
+        ),
+        h(Text, { style: { fontSize: 9, color: BRAND_COLORS.textDark } },
+          `${fmt(data.totalSqft)} sq ft total area \u00b7 ${fmt(data.totalSquares, 1)} squares \u00b7 ${data.wasteFactor}% suggested waste`,
+        ),
+      ),
+    ),
+
+    PageFooter(8, 9, data.generatedAt),
+  )
+}
+
 // Page 12 — Disclaimer
 function buildDisclaimerPage(data: PremiumReportData): React.ReactElement {
   function Para(text: string) {
@@ -1736,6 +1786,9 @@ function buildDisclaimerPage(data: PremiumReportData): React.ReactElement {
 // ─── Main export ───────────────────────────────────────────────────────────────
 
 export async function buildPremiumReport(data: PremiumReportData): Promise<Buffer> {
+  const effectiveSegCount = data.segments.length > 0 ? data.segments.length : data.facetCount
+  const isComplex = effectiveSegCount >= 16
+
   const doc = h(Document, {},
     buildCoverPage(data),
     buildSatellitePage(data),
@@ -1747,11 +1800,12 @@ export async function buildPremiumReport(data: PremiumReportData): Promise<Buffe
     // better visual reference. Will revisit when polygon vertex source is available.
     buildReportSummaryPage(data),
     buildAllStructuresPage(data),
-    buildMaterialEstimatePage(data),
+    isComplex ? buildMaterialEstimateBlockerPage(data) : buildMaterialEstimatePage(data),
     buildDisclaimerPage(data),
   )
 
   const buffer = await renderToBuffer(doc)
   return Buffer.from(buffer)
 }
+
 
