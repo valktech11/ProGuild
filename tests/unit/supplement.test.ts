@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildSupplementPrompt,
+  buildItemsPrompt,
+  buildLetterPrompt,
   parseSupplementResponse,
   FL_SUPPLEMENT_CHECKLIST,
 } from '@/lib/fl/supplement';
@@ -28,11 +30,11 @@ describe('buildSupplementPrompt', () => {
     expect(p).toContain('Remove and replace shingles, 22 sq.');
   });
   it('uses adjuster name in the salutation when provided', () => {
-    const p = buildSupplementPrompt({ scopeText: 'x', adjusterName: 'Michael Torres' });
+    const p = buildLetterPrompt({ scopeText: 'x', adjusterName: 'Michael Torres' }, []);
     expect(p).toContain('Dear Michael Torres');
   });
   it('falls back to generic salutation without a name', () => {
-    const p = buildSupplementPrompt({ scopeText: 'x' });
+    const p = buildLetterPrompt({ scopeText: 'x' }, []);
     expect(p).toContain('Dear Insurance Adjuster');
   });
   it('includes provided claim context', () => {
@@ -43,8 +45,8 @@ describe('buildSupplementPrompt', () => {
     expect(p).toContain('24.5 squares');
   });
   it('handles missing context gracefully', () => {
-    const p = buildSupplementPrompt({ scopeText: 'x' });
-    expect(p).toContain('no additional claim context');
+    const p = buildItemsPrompt({ scopeText: 'x' });
+    expect(p).toContain('(none)');
   });
 });
 

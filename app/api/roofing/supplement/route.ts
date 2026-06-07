@@ -1,18 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import {
-  buildSupplementPrompt,
+  buildItemsPrompt,
+  buildLetterPrompt,
   parseSupplementResponse,
   type SupplementInput,
+  type SupplementItem,
 } from '@/lib/fl/supplement'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
+async function callGemini(apiKey: string, model: string, prompt: string, maxTokens: number): Promise<string> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: maxTokens, temperature: 0.2 },
+      }),
+    },
+  )
+  const text = await res.text()
+  console.log(`[supplement] Gemini status: ${res.status} bytes: ${text.length}`)
+  if (!res.ok) {
+    console.error('[supplement] Gemini error:', text.slice(0, 300))
+    throw new Error(`Gemini ${res.status}`)
+  }
+  const data = JSON.parse(text)
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  const finish = data.candidates?.[0]?.finishReason
+  console.log(`[supplement] finish: ${finish} raw preview: ${raw.slice(0, 200)}`)
+  if (finish === 'MAX_TOKENS') throw new Error('MAX_TOKENS')
+  return raw
+}
+
 // POST /api/roofing/supplement
-// Body: { lead_id, pro_id, scope_text }
-// Pulls lead + roofing_job_data context, calls Gemini, returns structured supplement,
-// and persists the run to supplement_sessions (the claim-outcome data moat).
 export async function POST(req: NextRequest) {
   let body: any
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
@@ -20,15 +45,15 @@ export async function POST(req: NextRequest) {
   const { lead_id, pro_id, scope_text } = body ?? {}
   if (!lead_id || !pro_id) return NextResponse.json({ error: 'lead_id and pro_id required' }, { status: 400 })
   if (!scope_text || typeof scope_text !== 'string' || scope_text.trim().length < 20) {
-    return NextResponse.json({ error: 'Paste the adjuster\u2019s scope of loss (at least a few lines).' }, { status: 400 })
+    return NextResponse.json({ error: 'Paste the adjuster\'s scope of loss (at least a few lines).' }, { status: 400 })
   }
 
   const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'AI is not configured (missing GEMINI_API_KEY).' }, { status: 503 })
+  if (!apiKey) return NextResponse.json({ error: 'AI is not configured.' }, { status: 503 })
 
   const sb = getSupabaseAdmin()
 
-  // ── Gather lead context (FL gate + claim fields + roof measurements) ──────────
+  // ── Lead context ──────────────────────────────────────────────────────────
   const { data: lead } = await sb
     .from('leads')
     .select('id, pro_id, contact_state, property_address')
@@ -36,11 +61,9 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-  if (lead.pro_id !== pro_id) return NextResponse.json({ error: 'Not authorized for this lead' }, { status: 403 })
-
-  // FL-only — same jurisdiction gate as SB 2-A / 25%-rule.
+  if (lead.pro_id !== pro_id) return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
   if ((lead.contact_state ?? '').toUpperCase() !== 'FL') {
-    return NextResponse.json({ error: 'The Supplement Assistant is Florida-only (the rules it applies are FL-specific).' }, { status: 422 })
+    return NextResponse.json({ error: 'The Supplement Assistant is Florida-only.' }, { status: 422 })
   }
 
   const { data: rjd } = await sb
@@ -74,51 +97,46 @@ export async function POST(req: NextRequest) {
     proCompany:       pro?.business_name || pro?.full_name || null,
   }
 
-  // ── Call Gemini ───────────────────────────────────────────────────────────────
   const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
-  let raw = ''
+
+  // ── Call 1: find items (JSON only, small output) ───────────────────────────
+  let itemsRaw = ''
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: buildSupplementPrompt(input) }] }],
-          generationConfig: { maxOutputTokens: 8192, temperature: 0.2 },
-        }),
-      },
-    )
-    const text = await res.text()
-    console.log('[supplement] Gemini status:', res.status, 'bytes:', text.length)
-    if (!res.ok) {
-      console.error('[supplement] Gemini error body:', text.slice(0, 500))
-      return NextResponse.json({ error: 'AI request failed. Try again.' }, { status: 502 })
-    }
-    const data = JSON.parse(text)
-    raw = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-    console.log('[supplement] raw preview:', raw.slice(0,300), '| finish:', data.candidates?.[0]?.finishReason)
+    itemsRaw = await callGemini(apiKey, model, buildItemsPrompt(input), 2048)
   } catch (e) {
-    console.error('[supplement] exception:', e)
+    console.error('[supplement] items call failed:', e)
     return NextResponse.json({ error: 'AI request failed. Try again.' }, { status: 502 })
   }
 
-  let result
+  let partialResult: any
   try {
-    result = parseSupplementResponse(raw)
+    partialResult = parseSupplementResponse(itemsRaw)
   } catch (e) {
-    console.error('[supplement] parse failed:', e, 'raw:', raw.slice(0, 500))
+    console.error('[supplement] items parse failed:', e, 'raw:', itemsRaw.slice(0, 300))
     return NextResponse.json({ error: 'Could not read the AI response. Try again.' }, { status: 502 })
   }
 
-  // ── Persist the run (data moat). Non-fatal if it fails. ────────────────────────
+  // ── Call 2: draft letter (plain text, separate budget) ────────────────────
+  const allItems: SupplementItem[] = [...partialResult.missing_items, ...partialResult.underpaid_items]
+  let letter = ''
+  if (allItems.length > 0) {
+    try {
+      letter = await callGemini(apiKey, model, buildLetterPrompt(input, allItems), 1024)
+      // Letter is plain text — strip any accidental markdown fences
+      letter = letter.replace(/```[a-z]*/g, '').replace(/```/g, '').trim()
+    } catch (e) {
+      console.error('[supplement] letter call failed (non-fatal):', e)
+      letter = '(Letter generation failed — use the item list above to draft manually.)'
+    }
+  } else {
+    letter = 'The adjuster\'s scope appears complete against the FL checklist. No supplement items were identified.'
+  }
+
+  const result = { ...partialResult, supplement_letter: letter }
+
+  // ── Persist run (data moat, non-fatal) ────────────────────────────────────
   try {
-    await sb.from('supplement_sessions').insert({
-      lead_id,
-      pro_id,
-      scope_text: input.scopeText,
-      result_json: result,
-    })
+    await sb.from('supplement_sessions').insert({ lead_id, pro_id, scope_text: input.scopeText, result_json: result })
   } catch (e) {
     console.error('[supplement] session save failed (non-fatal):', e)
   }

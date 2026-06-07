@@ -65,7 +65,8 @@ export const SUPPLEMENT_DISCLAIMER =
   'Informational only — not legal or public-adjuster advice. Suggested items and prices are AI-generated; verify line items, quantities, and pricing, and review with a licensed public adjuster or attorney before filing. Final scope is the carrier\u2019s determination.';
 
 /** Build the Gemini prompt. The checklist is injected so the model anchors on FL items. */
-export function buildSupplementPrompt(input: SupplementInput): string {
+/** Prompt 1 of 2: find missing/underpaid items only — no letter, keeps output small. */
+export function buildItemsPrompt(input: SupplementInput): string {
   const checklist = FL_SUPPLEMENT_CHECKLIST
     .map(c => `- ${c.item} (${c.code}): ${c.why}`)
     .join('\n');
@@ -78,31 +79,49 @@ export function buildSupplementPrompt(input: SupplementInput): string {
   if (input.dateOfLoss)       ctx.push(`Date of loss: ${input.dateOfLoss}`);
   if (input.roofSquares)      ctx.push(`Roof size: ${input.roofSquares} squares`);
   if (input.roofPitch)        ctx.push(`Pitch: ${input.roofPitch}`);
-  if (input.roofInstallDate)  ctx.push(`Roof built / last reroof: ${input.roofInstallDate}`);
-  if (typeof input.approvedAmount === 'number') ctx.push(`Adjuster approved amount: $${input.approvedAmount}`);
-  const context = ctx.length ? ctx.join('\n') : '(no additional claim context provided)';
+  if (input.roofInstallDate)  ctx.push(`Roof built: ${input.roofInstallDate}`);
+  if (typeof input.approvedAmount === 'number') ctx.push(`Approved: $${input.approvedAmount}`);
+  const context = ctx.length ? ctx.join('\n') : '(none)';
 
-  const salutation = input.adjusterName ? `Dear ${input.adjusterName}` : 'Dear Insurance Adjuster';
-  const signature  = input.proCompany || 'the contractor';
+  return `FL roofing supplement specialist. Find line items the adjuster OMITTED or UNDERPAID vs FL code.
 
-  return `You are a FL roofing insurance-supplement specialist. Find line items the adjuster OMITTED or UNDERPAID vs FL code, then draft a supplement letter.
+CONTEXT: ${context}
 
-CLAIM CONTEXT:
-${context}
-
-FL RE-ROOF CHECKLIST (flag only if actually missing or underpriced):
+CHECKLIST (flag only if missing or underpriced in the scope below):
 ${checklist}
 
 ADJUSTER SCOPE:
 ${input.scopeText}
 
-RULES:
-1. Only flag items you can justify from the scope. Do NOT invent damage. A thorough scope may have zero items — that is valid.
-2. Use provided roof size for quantities; use realistic FL 2026 unit prices.
-3. Write a concise professional letter to "${salutation}", cite FL codes, signed by "${signature}".
+Rules: only flag items justifiable from the scope. Do NOT invent damage. Keep reason to 1 sentence. Use realistic FL 2026 unit prices.
 
-Return JSON only (no markdown):
-{missing_items:[{item:,reason:,fl_code:,suggested_quantity:,suggested_unit_price:0,suggested_total:0}],underpaid_items:[{item:,reason:,fl_code:,suggested_quantity:,suggested_unit_price:0,suggested_total:0}],total_supplement_estimate:0,supplement_letter:}`;
+Return ONLY this JSON (no markdown, no extra text):
+{"missing_items":[{"item":"","reason":"","fl_code":"","suggested_quantity":"","suggested_unit_price":0,"suggested_total":0}],"underpaid_items":[{"item":"","reason":"","fl_code":"","suggested_quantity":"","suggested_unit_price":0,"suggested_total":0}],"total_supplement_estimate":0}`;
+}
+
+/** Prompt 2 of 2: draft the supplement letter given the items already found. */
+export function buildLetterPrompt(input: SupplementInput, items: Array<{item:string;reason:string;fl_code:string;suggested_quantity:string;suggested_total:number}>): string {
+  const salutation = input.adjusterName ? `Dear ${input.adjusterName}` : 'Dear Insurance Adjuster';
+  const signature  = input.proCompany || 'the contractor';
+  const claimRef   = input.claimNumber ? ` (Claim #${input.claimNumber})` : '';
+  const itemList   = items.map(i => `- ${i.item} (${i.fl_code}): ${i.suggested_quantity}, $${i.suggested_total} — ${i.reason}`).join('\n');
+
+  return `Write a professional roofing insurance supplement request letter.
+
+${salutation},
+
+Claim${claimRef} / Property: ${input.propertyAddress || 'on file'}
+
+The following items were omitted or underpaid in the approved scope and are required by FL code or standard re-roof practice:
+${itemList}
+
+Write 3-4 short paragraphs: (1) introduce the supplement request, (2) list the items with their FL code basis, (3) request prompt review, (4) closing. Sign as "${signature}". Factual, non-adversarial tone. Plain text only, no markdown.`;
+}
+
+// Keep buildSupplementPrompt as an alias so existing tests still pass
+/** @deprecated Use buildItemsPrompt + buildLetterPrompt instead */
+export function buildSupplementPrompt(input: SupplementInput): string {
+  return buildItemsPrompt(input);
 }
 
 /** Coerce a raw value to a finite number, else 0. */
