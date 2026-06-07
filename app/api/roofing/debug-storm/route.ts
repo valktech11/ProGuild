@@ -36,16 +36,34 @@ export async function GET(req: NextRequest) {
         signal: AbortSignal.timeout(10000)
       })
       const text = await res.text()
-      let parsed: unknown = null
-      try { parsed = JSON.parse(text) } catch { /* raw */ }
-      const features = (parsed as { features?: unknown[] })?.features ?? []
+      const lines = text.trim().split('\n')
+      const header = lines[0]?.split(',').map(h => h.trim().toLowerCase()) ?? []
+      const typetextIdx = header.indexOf('typetext')
+      const magIdx = header.indexOf('mag')
+      const latIdx = header.indexOf('lat')
+      const lonIdx = header.indexOf('lon')
+
+      // Count event types and find hail
+      const typeCounts: Record<string, number> = {}
+      const hailEvents: unknown[] = []
+      for (const line of lines.slice(1)) {
+        if (!line.trim()) continue
+        const cols = line.split(',')
+        const typetext = cols[typetextIdx]?.trim() ?? ''
+        typeCounts[typetext] = (typeCounts[typetext] || 0) + 1
+        if (typetext.toUpperCase().includes('HAIL')) {
+          hailEvents.push({ raw: line.slice(0, 200) })
+        }
+      }
+
       ;(results.wfo_results as Record<string, unknown>)[wfo] = {
-        url,
-        status: res.status,
-        bytes: text.length,
+        url, status: res.status, bytes: text.length,
+        csv_rows: lines.length - 1,
+        header: header.join(','),
+        type_counts: typeCounts,
+        hail_count: hailEvents.length,
+        hail_events: hailEvents.slice(0, 5),
         preview: text.slice(0, 400),
-        feature_count: Array.isArray(features) ? features.length : 'n/a',
-        first_3_features: Array.isArray(features) ? features.slice(0, 3) : [],
       }
     } catch (e) {
       ;(results.wfo_results as Record<string, unknown>)[wfo] = { url, error: String(e) }
