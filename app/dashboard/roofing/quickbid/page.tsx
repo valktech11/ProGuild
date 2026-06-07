@@ -85,12 +85,14 @@ function QuickBidInner() {
     const pSt   = searchParams.get('state')
     const pZip  = searchParams.get('zip')
     const from  = searchParams.get('from')
+    const pid   = searchParams.get('property_id')
     if (addr || pCity) {
       if (addr)  setStreet(addr)
       if (pCity) setCity(pCity)
       if (pSt)   setAddrState(pSt)
       if (pZip)  setZip(pZip)
       if (from)  setSourceLabel(`From: ${from}`)
+      if (pid)   setMatchedPropertyId(pid)   // link the report to the lead's property
       setStep('confirm')   // jump straight to the address form, skip search
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

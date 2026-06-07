@@ -1367,6 +1367,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             if(lead.contact_state)  params.set('state', lead.contact_state)
                                             if((lead as any).contact_zip) params.set('zip', (lead as any).contact_zip)
                                             if(lead.contact_name)  params.set('from',  lead.contact_name)
+                                            if((lead as any).property_id) params.set('property_id', (lead as any).property_id)
                                             router.push(`/dashboard/roofing/quickbid?${params.toString()}`)
                                           }}
                                           style={{width:'100%',marginBottom:12,padding:'11px',borderRadius:10,border:'1.5px solid #0F766E',background:'rgba(15,118,110,0.06)',color:'#0F766E',fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
