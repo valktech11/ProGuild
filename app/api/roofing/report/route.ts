@@ -147,8 +147,7 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
       + `?wfo=${wfo}&sts=${isoZ(start)}&ets=${isoZ(now)}&fmt=csv`
     try {
       const res = await fetch(url, { headers: { 'User-Agent': 'ProGuild/1.0' }, signal: AbortSignal.timeout(10000) })
-      console.log('[storm] IEM', wfo, 'status:', res.status)
-      if (!res.ok) { console.log('[storm] IEM', wfo, 'non-ok'); return [] }
+      if (!res.ok) { console.log('[storm] IEM', wfo, 'status', res.status); return [] }
       const text = await res.text()
       const lines = text.trim().split('\n')
       // CSV header: VALID,LEGACY_LAT,LEGACY_LON,LAT,LON,MAG,WFO,TYPECODE,TYPETEXT,CITY,COUNTY,ST,SOURCE,REMARK,UGC,UGCNAME
