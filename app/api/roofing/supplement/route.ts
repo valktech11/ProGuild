@@ -19,7 +19,7 @@ async function callGemini(apiKey: string, model: string, prompt: string, maxToke
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: maxTokens, temperature: 0.2 },
+        generationConfig: { maxOutputTokens: maxTokens, temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } },
       }),
     },
   )
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
   // ── Call 1: find items (JSON only, small output) ───────────────────────────
   let itemsRaw = ''
   try {
-    itemsRaw = await callGemini(apiKey, model, buildItemsPrompt(input), 2048)
+    itemsRaw = await callGemini(apiKey, model, buildItemsPrompt(input), 4096)
   } catch (e) {
     console.error('[supplement] items call failed:', e)
     return NextResponse.json({ error: 'AI request failed. Try again.' }, { status: 502 })
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
   let letter = ''
   if (allItems.length > 0) {
     try {
-      letter = await callGemini(apiKey, model, buildLetterPrompt(input, allItems), 1024)
+      letter = await callGemini(apiKey, model, buildLetterPrompt(input, allItems), 2048)
       // Letter is plain text — strip any accidental markdown fences
       letter = letter.replace(/```[a-z]*/g, '').replace(/```/g, '').trim()
     } catch (e) {
