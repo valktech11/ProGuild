@@ -346,6 +346,107 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ results, note: 'READ ONLY — no DB write' })
   }
 
+  // mode=bench&q=<address_substring> — runs classifier on the most recent report matching address.
+  // No UUID needed. Optional truth params for delta: truth_ridge, truth_hip, truth_valley, truth_eave, truth_rake.
+  // READ ONLY — no DB write.
+  //
+  // Examples:
+  //   /api/roofing/dsm?mode=bench&q=silverpoint&truth_ridge=121&truth_hip=396&truth_valley=212&truth_eave=557&truth_rake=13
+  //   /api/roofing/dsm?mode=bench&q=highgate&truth_ridge=29&truth_hip=149&truth_valley=37&truth_eave=224&truth_rake=53
+  //   /api/roofing/dsm?mode=bench&q=hockley
+  if (mode === 'bench') {
+    const q = (searchParams.get('q') ?? '').trim()
+    if (!q) return apiError('q param required — address substring, e.g. q=silverpoint', 400)
+
+    const truthRidge  = Number(searchParams.get('truth_ridge'))  || null
+    const truthHip    = Number(searchParams.get('truth_hip'))    || null
+    const truthValley = Number(searchParams.get('truth_valley')) || null
+    const truthEave   = Number(searchParams.get('truth_eave'))   || null
+    const truthRake   = Number(searchParams.get('truth_rake'))   || null
+    const hasTruth = !!(truthRidge ?? truthHip ?? truthValley ?? truthEave ?? truthRake)
+
+    const sb = getSupabaseAdmin()
+    const { data: report, error: rErr } = await sb
+      .from('roof_reports')
+      .select('id, address, lat, lng, solar_raw, linear_footage')
+      .ilike('address', `%${q}%`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (rErr || !report) {
+      return apiError(`No report found matching "${q}" — run a Quick Bid for this address first`, 404)
+    }
+
+    const solar = report.solar_raw as Record<string, unknown> | null
+    if (!solar) return apiError('No solar_raw on this report — regenerate the Bid Report first', 422)
+
+    const potential   = solar.solarPotential as Record<string, unknown> | null
+    const segments    = potential?.roofSegmentStats as unknown[] | null
+    const solarPanels = potential?.solarPanels as Array<{ center: { latitude: number; longitude: number }; segmentIndex: number }> | null
+    const imageryQuality = (solar.imageryQuality as string | undefined) ?? ''
+    if (!segments?.length) return apiError('No roof segments in solar_raw', 422)
+
+    const M_TO_FT = 3.28084
+    const solarCtr = solar.center as { latitude: number; longitude: number } | null
+    const cLat = solarCtr?.latitude ?? (report.lat as number)
+    const cLng = solarCtr?.longitude ?? (report.lng as number)
+
+    let maskPerimeterM = 0
+    const wings: Array<{ a: { lat: number; lng: number }; b: { lat: number; lng: number } }> = []
+
+    if ((imageryQuality === 'HIGH' || imageryQuality === 'MEDIUM') && GOOGLE_KEY) {
+      try {
+        const layers = await fetchDataLayers(cLat, cLng, GOOGLE_KEY, imageryQuality)
+        if (layers?.maskUrl) {
+          const maskGrid = await decodeGeoTiff(layers.maskUrl, GOOGLE_KEY)
+          if (maskGrid) {
+            const perim = traceMaskPerimeter(maskGrid)
+            if (perim.mainBuildingPixels > 100) maskPerimeterM = perim.perimeterM
+          }
+        }
+      } catch { /* mask optional */ }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const v2m = computeLinearFootageFromSegments(segments as any[], maskPerimeterM, 0, 0, wings)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const v3  = solarPanels?.length ? computeLinearFootageV3(segments as any[], solarPanels, maskPerimeterM, v2m) : null
+    const fin = v3 ?? v2m
+
+    const pct = (got: number, want: number | null) =>
+      want ? `${got > want ? '+' : ''}${Math.round((got - want) / want * 100)}%` : null
+
+    return NextResponse.json({
+      report_id: report.id,
+      address:   report.address,
+      segments:  segments.length,
+      imagery_quality: imageryQuality,
+      mask_ft:   maskPerimeterM > 0 ? Math.round(maskPerimeterM * M_TO_FT) : null,
+      source:    v3 && v3 !== v2m ? 'v3' : 'v2+mask',
+      stored_lf: report.linear_footage,
+      computed: {
+        ridge:  fin.ridge_ft,
+        hip:    fin.hip_ft,
+        valley: fin.valley_ft,
+        eave:   fin.eave_ft,
+        rake:   fin.rake_ft,
+        total:  fin.total_linear_ft,
+      },
+      ...(hasTruth && {
+        roofr: { ridge: truthRidge, hip: truthHip, valley: truthValley, eave: truthEave, rake: truthRake },
+        delta: {
+          ridge:  pct(fin.ridge_ft,  truthRidge),
+          hip:    pct(fin.hip_ft,    truthHip),
+          valley: pct(fin.valley_ft, truthValley),
+          eave:   pct(fin.eave_ft,   truthEave),
+          rake:   pct(fin.rake_ft,   truthRake),
+        },
+      }),
+      note: 'READ ONLY — no DB write',
+    })
+  }
+
   // mode=wing-debug&report_id=<uuid> — dumps segment centroids + derived wing boundaries
   // Shows the PCA projection, spatial gap, and which hip pairs would be rejected.
   if (mode === 'wing-debug') {
@@ -613,3 +714,4 @@ export async function GET(req: NextRequest) {
     return apiError('Failed to fetch Solar dataLayers', 502, e)
   }
 }
+
