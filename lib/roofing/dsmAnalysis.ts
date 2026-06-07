@@ -1434,6 +1434,15 @@ export function computeLinearFootageFromSegments(
   //   Dormer peak faces fail adjOk (centroid too far) but are real valley pairs.
   //   Confirmed by RH data: idx 12,13,15 at 253.9-254.0m above main at 252.1-253.2m.
   //   Previous attempt (0f168a4) rejected where secondary < main — opposite direction.
+  //
+  // TOP-2 PER SEGMENT: collect all qualifying candidates first, then take the 2
+  // closest neighbours per segment (same pattern as hip). Prevents O(n²) cross-wing
+  // accumulation on multi-wing roofs where large main segments (high sqrt(gnd)×2.0
+  // adjOk thresholds) pair with secondary segments across wings.
+  // No effect on simple roofs — Highgate has 1 valley pair, limit never triggers.
+  const valleyNbrs: Array<Array<{ j: number; dist: number; gate: string }>> =
+    Array.from({ length: n }, () => [])
+
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const a = segments[i], b = segments[j]
@@ -1471,14 +1480,25 @@ export function computeLinearFootageFromSegments(
 
       if (!passAdjOk && !bboxAdj) continue
 
-      const key = `${i}-${j}`
+      const dM = distM(a, b)
+      const gate = passAdjOk ? 'adjOk' : `dormer(dh=+${(hSmall-hLarge).toFixed(1)}m)`
+      valleyNbrs[i].push({ j, dist: dM, gate })
+      valleyNbrs[j].push({ j: i, dist: dM, gate })
+    }
+  }
+
+  // Accumulate: top-2 closest per segment, deduplicated.
+  for (let i = 0; i < n; i++) {
+    valleyNbrs[i].sort((a, b) => a.dist - b.dist)
+    for (const nb of valleyNbrs[i].slice(0, 2)) {
+      const lo = Math.min(i, nb.j), hi = Math.max(i, nb.j)
+      const key = `${lo}-${hi}`
       if (valleyCounted.has(key)) continue
       valleyCounted.add(key)
       valleyPairs.add(key)
-      const dM = distM(a, b)
-      valleyM += dM
-      const gate = passAdjOk ? 'adjOk' : `dormer(dh=+${(hSmall-hLarge).toFixed(1)}m)`
-      console.log(`[seg2] valley: s${i}(${a.azimuthDegrees.toFixed(0)}°,${gnd(a).toFixed(0)}m²,h=${h(a).toFixed(1)})↔s${j}(${b.azimuthDegrees.toFixed(0)}°,${gnd(b).toFixed(0)}m²,h=${h(b).toFixed(1)}) diff=${diff.toFixed(0)}° ${gate} len=${(dM*M_TO_FT).toFixed(0)}ft`)
+      valleyM += nb.dist
+      const a = segments[lo], b = segments[hi]
+      console.log(`[seg2] valley: s${lo}(${a.azimuthDegrees.toFixed(0)}°,${gnd(a).toFixed(0)}m²,h=${h(a).toFixed(1)})↔s${hi}(${b.azimuthDegrees.toFixed(0)}°,${gnd(b).toFixed(0)}m²,h=${h(b).toFixed(1)}) ${nb.gate} len=${(nb.dist*M_TO_FT).toFixed(0)}ft`)
     }
   }
 
@@ -2251,3 +2271,4 @@ export async function runDsmAnalysis(lat: number, lng: number, googleKey: string
   console.log('[dsm] result:', JSON.stringify(linear))
   return linear
 }
+
