@@ -10,6 +10,7 @@ import { getPipelineStages } from '@/components/ui/LeadPipeline'
 import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
 // Roofing components accessed via trade module path — not components/roofing
 import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
+import SupplementAssistant from '@/lib/trades/roofing/components/SupplementAssistant'
 import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
 import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
 
@@ -1252,6 +1253,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   <button onClick={()=>moveStage('lost' as LeadStatus,true)}
                                     style={{padding:'8px 14px',borderRadius:8,border:`1px solid ${dk?'#475569':'#CBD5E1'}`,background:'transparent',color:dk?'#E2E8F0':'#475569',fontSize:12,fontWeight:700,cursor:'pointer'}}>Mark Lost</button>
                                 </div>
+                              </div>
+                            )}
+
+                            {/* FL Supplement Assistant — only for FL insurance claims */}
+                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead.contact_state??'').toUpperCase()==='FL'&&(
+                              <div style={{marginTop:16}}>
+                                <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(lead as any).roofing_job_data?.insurance_claim} darkMode={dk}/>
                               </div>
                             )}
 
