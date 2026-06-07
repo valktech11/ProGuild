@@ -268,14 +268,31 @@ function QuickBidInner() {
         } catch {}
       }
 
-      // Fetch the actual signed report URL
+      // Build a report object directly from the API response so the done step
+      // always renders — even when there's no linked property (e.g. opened from a lead).
+      const m = (d as any).measurements as Record<string, unknown> | undefined
+      const directReport: Report = {
+        id:                  (d as any).reportRowId || (d as any).reportId || 'latest',
+        created_at:          new Date().toISOString(),
+        total_squares_order: m ? (Number(m.totalSquaresOrder) || null) : null,
+        dominant_pitch:      m ? ((m.dominantPitch as string) ?? null) : null,
+        waste_factor:        m ? (Number(m.wasteFactor) || null) : null,
+        facet_count:         m ? (Number(m.facetCount) || null) : null,
+        r2_url:              (d as any).url || '',
+        imagery_date:        (d as any)?.debug?.imageryDate ?? null,
+      }
+      setReport(directReport)
+
+      // If a property is linked, also pull history (non-blocking, best-effort)
       const pid = matchedPropertyId || (d as any).property_id || null
       if (pid) {
-        const rr = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${pid}`)
-        const rd = await rr.json()
-        const latest = (rd.reports || [])[0]
-        if (latest) setReport(latest)
-        setPrevReports(rd.reports || [])
+        try {
+          const rr = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${pid}`)
+          const rd = await rr.json()
+          const latest = (rd.reports || [])[0]
+          if (latest) setReport(latest)   // prefer the persisted row if available
+          setPrevReports(rd.reports || [])
+        } catch { /* keep directReport */ }
       }
 
       setProgress(100)
