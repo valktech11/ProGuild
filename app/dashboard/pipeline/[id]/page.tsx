@@ -611,6 +611,22 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           type:  'payment_received',
         })
       }
+      if (ev.event_type === 'supplement_filed' && ev.event_data) {
+        items.push({
+          date:  ev.created_at,
+          title: 'Supplement filed',
+          sub:   (ev.event_data as any).note ?? '',
+          type:  'stage',
+        })
+      }
+      if (ev.event_type === 'insurance_auto_approved') {
+        items.push({
+          date:  ev.created_at,
+          title: 'Pipeline advanced to Insurance Approved',
+          sub:   'Auto-advanced when claim marked Approved',
+          type:  'stage',
+        })
+      }
     }
     return items.sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime())
   }

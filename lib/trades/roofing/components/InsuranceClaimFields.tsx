@@ -184,6 +184,37 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
         throw new Error((d as {error?: string}).error ?? `HTTP ${res.status}`)
       }
       setSaved(true); onSaved(fields)
+
+      // ── Hook 1: Approved → auto-advance pipeline to insurance_approved ────
+      if (fields.claim_status === 'Approved') {
+        fetch(`/api/leads/${leadId}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pro_id: proId, lead_status: 'insurance_approved' }),
+        }).then(() => {
+          // Log the auto-advance in activity
+          fetch(`/api/leads/${leadId}/events`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pro_id: proId, event_type: 'insurance_auto_approved' }),
+          }).catch(() => {})
+        }).catch(() => {}) // non-fatal
+      }
+
+      // ── Hook 2: Supplement Filed → log activity entry ─────────────────────
+      if (fields.claim_status === 'Supplement Filed') {
+        // Fetch latest supplement session for the total amount
+        fetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
+          .then(r => r.json())
+          .then(async (d) => {
+            const total = d.session?.result_json?.total_supplement_estimate ?? null
+            const note  = total
+              ? `Supplement filed — estimated additional: $${total.toLocaleString()}`
+              : 'Supplement filed'
+            await fetch(`/api/leads/${leadId}/events`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pro_id: proId, event_type: 'supplement_filed', note }),
+            }).catch(() => {})
+          }).catch(() => {}) // non-fatal
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally { setSaving(false) }
