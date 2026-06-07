@@ -163,7 +163,7 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
         // MAG can be "None" or a number
         const magRaw = get('mag')
         const mag = magRaw === 'None' || magRaw === '' ? 0 : (parseFloat(magRaw) || 0)
-        const isHail = typetext.includes('HAIL') && mag >= 1.0
+        const isHail = typetext.includes('HAIL') && mag >= 0.75
         const isWind = (typetext.includes('TSTM WND') || typetext.includes('NON-TSTM WND')) && mag >= 58
         if (!isHail && !isWind) continue
         // LAT/LON columns (CSV header: LAT,LON)
