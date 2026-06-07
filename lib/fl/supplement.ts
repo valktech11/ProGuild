@@ -16,18 +16,18 @@ export interface FLLineItem {
 // FL-standard re-roof line items frequently missed/underpaid by carrier scopes.
 // Kept conservative and code-anchored — every entry cites a real FL basis.
 export const FL_SUPPLEMENT_CHECKLIST: FLLineItem[] = [
-  { key: 'drip_edge',        item: 'Drip edge',                  code: 'FBC §1507.2.8.3',   why: 'Drip edge is required at eaves and rakes on asphalt-shingle roofs by the 2020 Florida Building Code; full re-roofs must include it as a separate line item.' },
-  { key: 'ice_water',        item: 'Ice & water shield / underlayment upgrade', code: 'FBC §1507.1.1 / §R905', why: 'FL high-wind underlayment and secondary water barrier requirements often exceed the felt the adjuster scoped; the code-compliant underlayment is a recoverable upgrade.' },
-  { key: 'starter',          item: 'Starter strip (eaves + rakes)', code: 'Mfr. spec / FBC §1507.2.7', why: 'Manufacturer-required starter course is a separate material from field shingles and is commonly bundled into shingle cost or omitted.' },
-  { key: 'ridge_cap',        item: 'Hip & ridge cap shingles',   code: 'Mfr. spec',          why: 'Ridge/hip cap is a distinct material billed per linear foot and is frequently underpriced or scoped as field shingles.' },
-  { key: 'underlayment',     item: 'Synthetic / second-layer underlayment', code: 'FBC §1507.1.1', why: 'Low-slope sections and FL HVHZ areas require specific underlayment that the scoped 15# felt does not satisfy.' },
-  { key: 'pipe_boots',       item: 'Pipe boots / vent flashing (replace)', code: 'FBC §1507.2.9', why: 'On a full re-roof, flashings must be replaced, not reused; replacement boots and vents are recoverable.' },
-  { key: 'step_flashing',    item: 'Step / counter flashing',    code: 'FBC §1507.2.9',     why: 'Wall and chimney flashing must be replaced with the roof system; reuse is not code-compliant.' },
-  { key: 'permit',           item: 'Roofing permit fee',         code: 'FL §553.79 / local', why: 'FL requires a permit for re-roofs; the permit fee is a hard cost the carrier owes on the approved scope.' },
-  { key: 'disposal',         item: 'Tear-off disposal / dumpster', code: 'Std. line item',   why: 'Debris removal and dumpster haul-off is a standard, separately recoverable line on a tear-off.' },
-  { key: 'oh_profit',        item: 'Overhead & profit (10/10)',  code: 'Industry standard',  why: 'When the job involves three or more trades or is reasonably complex, general-contractor O&P (10% + 10%) is recoverable in FL.' },
-  { key: 'code_upgrade',     item: 'Code-upgrade / law & ordinance', code: 'FL §627.7011',   why: 'FL law-and-ordinance coverage funds bringing the roof to current code; SB 4-D / 25%-rule items belong here.' },
-  { key: 'detach_reset',     item: 'Detach & reset (solar, satellite, gutters)', code: 'Std. line item', why: 'Roof-mounted items must be removed and reinstalled; detach-and-reset labor is recoverable when present.' },
+  { key: 'drip_edge',    item: 'Drip edge',                            code: 'FBC §1507.2.8.3',        why: 'Required at eaves and rakes; must be a separate line item.' },
+  { key: 'ice_water',    item: 'Ice & water shield / underlayment upgrade', code: 'FBC §1507.1.1',     why: 'FL wind/WB requirements often exceed basic 15# felt; upgrade is recoverable.' },
+  { key: 'starter',      item: 'Starter strip (eaves + rakes)',         code: 'Mfr. spec / FBC §1507.2.7', why: 'Separate manufacturer-required material; often bundled or omitted.' },
+  { key: 'ridge_cap',    item: 'Hip & ridge cap shingles',              code: 'Mfr. spec',              why: 'Distinct material billed per LF; often underpriced or rolled into shingles.' },
+  { key: 'underlayment', item: 'Synthetic / second-layer underlayment', code: 'FBC §1507.1.1',         why: 'Low-slope or HVHZ sections require more than standard 15# felt.' },
+  { key: 'pipe_boots',   item: 'Pipe boots / vent flashing (replace)',  code: 'FBC §1507.2.9',         why: 'Full re-roof requires replacement of all flashings, not reuse.' },
+  { key: 'step_flashing',item: 'Step / counter flashing',               code: 'FBC §1507.2.9',         why: 'Must be replaced with the roof system; reuse is non-compliant.' },
+  { key: 'permit',       item: 'Roofing permit fee',                    code: 'FL §553.79',             why: 'FL requires a permit for all re-roofs; fee is a recoverable hard cost.' },
+  { key: 'disposal',     item: 'Tear-off disposal / dumpster',          code: 'Std. line item',         why: 'Debris removal is a standard separately recoverable line item.' },
+  { key: 'oh_profit',    item: 'Overhead & profit (10/10)',             code: 'Industry standard',      why: 'General-contractor O&P is recoverable on complex multi-trade jobs.' },
+  { key: 'code_upgrade', item: 'Code-upgrade / law & ordinance',        code: 'FL §627.7011',           why: 'Brings roof to current code; SB 4-D / 25%-rule items belong here.' },
+  { key: 'detach_reset', item: 'Detach & reset (solar, satellite, gutters)', code: 'Std. line item',   why: 'Roof-mounted items must be removed and reinstalled; recoverable when present.' },
 ];
 
 export interface SupplementInput {
@@ -85,32 +85,24 @@ export function buildSupplementPrompt(input: SupplementInput): string {
   const salutation = input.adjusterName ? `Dear ${input.adjusterName}` : 'Dear Insurance Adjuster';
   const signature  = input.proCompany || 'the contractor';
 
-  return `You are a Florida roofing insurance-supplement specialist. A contractor has pasted an insurance adjuster's SCOPE OF LOSS for a full residential re-roof. Your job is to find line items the adjuster OMITTED or UNDERPAID versus Florida code and standard re-roof practice, then draft a professional supplement request letter.
+  return `You are a FL roofing insurance-supplement specialist. Find line items the adjuster OMITTED or UNDERPAID vs FL code, then draft a supplement letter.
 
 CLAIM CONTEXT:
 ${context}
 
-FLORIDA STANDARD RE-ROOF LINE ITEMS commonly missed or underpaid (use as your checklist — only flag an item if the scope actually lacks it or prices it below FL norms):
+FL RE-ROOF CHECKLIST (flag only if actually missing or underpriced):
 ${checklist}
 
-ADJUSTER SCOPE OF LOSS (verbatim, pasted by the contractor):
-"""
+ADJUSTER SCOPE:
 ${input.scopeText}
-"""
 
-INSTRUCTIONS:
-1. Read the scope. For each checklist item, decide: present & fairly priced (ignore), MISSING (not in scope at all), or UNDERPAID (present but priced below FL norms or wrong quantity).
-2. Only include items you can justify from the scope + context. Do NOT invent damage. If the scope is thorough, return few or no items — that is a valid, honest answer.
-3. For quantities, use the provided roof size/pitch when relevant; otherwise give a clearly-estimated placeholder and note it. Use realistic FL 2026 unit prices.
-4. Write a concise, professional supplement letter addressed "${salutation}", referencing the claim number if provided, listing the requested additions with their FL-code basis, and signed by "${signature}". Keep it factual and non-adversarial.
+RULES:
+1. Only flag items you can justify from the scope. Do NOT invent damage. A thorough scope may have zero items — that is valid.
+2. Use provided roof size for quantities; use realistic FL 2026 unit prices.
+3. Write a concise professional letter to "${salutation}", cite FL codes, signed by "${signature}".
 
-Return ONLY a JSON object (no markdown, no preamble) with exactly these keys:
-{
-  "missing_items": [ { "item": string, "reason": string, "fl_code": string, "suggested_quantity": string, "suggested_unit_price": number, "suggested_total": number } ],
-  "underpaid_items": [ { "item": string, "reason": string, "fl_code": string, "suggested_quantity": string, "suggested_unit_price": number, "suggested_total": number } ],
-  "total_supplement_estimate": number,
-  "supplement_letter": string
-}`;
+Return JSON only (no markdown):
+{missing_items:[{item:,reason:,fl_code:,suggested_quantity:,suggested_unit_price:0,suggested_total:0}],underpaid_items:[{item:,reason:,fl_code:,suggested_quantity:,suggested_unit_price:0,suggested_total:0}],total_supplement_estimate:0,supplement_letter:}`;
 }
 
 /** Coerce a raw value to a finite number, else 0. */

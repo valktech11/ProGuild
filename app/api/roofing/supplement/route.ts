@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: buildSupplementPrompt(input) }] }],
-          generationConfig: { maxOutputTokens: 4096, temperature: 0.2 },
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.2 },
         }),
       },
     )
