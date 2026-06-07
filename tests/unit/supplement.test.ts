@@ -31,7 +31,7 @@ describe('buildSupplementPrompt', () => {
   });
   it('uses adjuster name in the salutation when provided', () => {
     const p = buildLetterPrompt({ scopeText: 'x', adjusterName: 'Michael Torres' }, []);
-    expect(p).toContain('Dear Michael Torres');
+    expect(p).toContain('Michael Torres');
   });
   it('falls back to generic salutation without a name', () => {
     const p = buildLetterPrompt({ scopeText: 'x' }, []);

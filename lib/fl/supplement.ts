@@ -101,21 +101,38 @@ Return ONLY this JSON (no markdown, no extra text):
 
 /** Prompt 2 of 2: draft the supplement letter given the items already found. */
 export function buildLetterPrompt(input: SupplementInput, items: Array<{item:string;reason:string;fl_code:string;suggested_quantity:string;suggested_total:number}>): string {
-  const salutation = input.adjusterName ? `Dear ${input.adjusterName}` : 'Dear Insurance Adjuster';
-  const signature  = input.proCompany || 'the contractor';
-  const claimRef   = input.claimNumber ? ` (Claim #${input.claimNumber})` : '';
-  const itemList   = items.map(i => `- ${i.item} (${i.fl_code}): ${i.suggested_quantity}, $${i.suggested_total} — ${i.reason}`).join('\n');
+  const adjuster  = input.adjusterName || null;
+  const company   = input.proCompany || null;
+  const carrier   = input.insuranceCompany || null;
+  const claimNo   = input.claimNumber || null;
+  const property  = input.propertyAddress || null;
+  const today     = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const itemList  = items.map(i => `- ${i.item} (${i.fl_code}): ${i.suggested_quantity}, $${i.suggested_total} — ${i.reason}`).join('\n');
 
-  return `Write a professional roofing insurance supplement request letter.
+  // Build the known facts; the prompt forbids inventing placeholders for anything missing.
+  const facts: string[] = [`Date: ${today}`];
+  if (adjuster) facts.push(`Adjuster name: ${adjuster}`);
+  if (carrier)  facts.push(`Insurance carrier: ${carrier}`);
+  if (claimNo)  facts.push(`Claim number: ${claimNo}`);
+  if (property) facts.push(`Property address: ${property}`);
+  if (company)  facts.push(`Contractor (signs the letter): ${company}`);
 
-${salutation},
+  return `Write a professional roofing insurance supplement request letter as plain text.
 
-Claim${claimRef} / Property: ${input.propertyAddress || 'on file'}
+KNOWN FACTS (use these exact values — do NOT invent or bracket-placeholder any of them):
+${facts.join('\n')}
 
-The following items were omitted or underpaid in the approved scope and are required by FL code or standard re-roof practice:
+ITEMS to request (omitted or underpaid vs FL code / standard re-roof practice):
 ${itemList}
 
-Write 3-4 short paragraphs: (1) introduce the supplement request, (2) list the items with their FL code basis, (3) request prompt review, (4) closing. Sign as "${signature}". Factual, non-adversarial tone. Plain text only, no markdown.`;
+STRICT RULES:
+- Do NOT use ANY bracketed placeholders like [Date], [Your Company], [Adjuster's Title], [Address], etc. If a detail is not in the KNOWN FACTS above, simply omit that line entirely — never write a blank or a placeholder.
+- Use the date, carrier, claim number, property, and contractor name from KNOWN FACTS directly.
+- Open the date line with the date provided. Address it to the adjuster${adjuster ? '' : ' generically as "Dear Insurance Adjuster"'}.
+- Reference the claim number and property in the subject/opening.
+- Body: 3-4 short paragraphs — (1) introduce the supplement request, (2) the itemized list with FL code basis, (3) request prompt review and offer documentation, (4) brief closing.
+- Sign off with "Sincerely," then the contractor name${company ? '' : ' (or "The Contractor" if none)'} on the next line. Do not add title/phone/email placeholder lines.
+- Factual, non-adversarial tone. Plain text only — no markdown, no letterhead block, no bracketed fields.`;
 }
 
 // Keep buildSupplementPrompt as an alias so existing tests still pass
