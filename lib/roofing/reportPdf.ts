@@ -275,17 +275,26 @@ export function buildRoofReportPDF(data: ReportData, reportId: string) {
           })()
         ),
         // Storm events badge — outside pro box, high visual impact
-        ...(data.stormEvents && data.stormEvents.length > 0 ? [
-          h(View, { style: { ...S.stormBadge, marginHorizontal: 60, marginTop: 10 } },
-            h(Text, { style: S.stormTxt },
-              '\u26A0 HAIL EVENT DETECTED \u2014 ' + data.stormEvents[0].magnitude + '" hail \u00B7 ' + data.stormEvents[0].event_date +
-              (data.stormEvents[0].distance_miles != null ? ' \u00B7 ' + data.stormEvents[0].distance_miles + ' mi from property' : '')
-            ),
-            h(Text, { style: S.stormSub },
-              'Hail detected nearby may qualify this property for an insurance claim. Verify hail size and date with carrier before ordering materials.'
+        ...(data.stormEvents && data.stormEvents.length > 0 ? (() => {
+          // Badge must respect event_type. A wind gust (mph) was previously hard-rendered
+          // as inch-hail, e.g. a 61 mph gust showing as '61" hail'. Label by actual type.
+          const ev = data.stormEvents[0]
+          const isHail = ev.event_type === 'Hail'
+          const headline = isHail
+            ? '\u26A0 HAIL EVENT DETECTED \u2014 ' + ev.magnitude + '" hail'
+            : '\u26A0 HIGH WIND EVENT DETECTED \u2014 ' + ev.magnitude + ' mph wind gust'
+          const detail = ' \u00B7 ' + ev.event_date +
+            (ev.distance_miles != null ? ' \u00B7 ' + ev.distance_miles + ' mi from property' : '')
+          const sub = isHail
+            ? 'Hail detected nearby may qualify this property for an insurance claim. Verify hail size and date with carrier before ordering materials.'
+            : 'Severe wind detected nearby may qualify this property for an insurance claim. Verify the event and date with carrier before ordering materials.'
+          return [
+            h(View, { style: { ...S.stormBadge, marginHorizontal: 60, marginTop: 10 } },
+              h(Text, { style: S.stormTxt }, headline + detail),
+              h(Text, { style: S.stormSub }, sub)
             )
-          )
-        ] : []),
+          ]
+        })() : []),
         // Historic district badge
         ...(data.historicDistrict ? [
           h(View, { style: { ...S.historicBadge, marginHorizontal: 60, marginTop: 8 } },
