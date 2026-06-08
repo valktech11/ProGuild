@@ -487,7 +487,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                   : <div style={{ fontSize: 13, color: t.textMuted }}>No AI assessment on the latest report.</div>}
                 {latestReport.storm_event?.event_date && (
                   <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: '#B45309', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 10px' }}>
-                    ⛈ {latestReport.storm_event.event_type || 'Storm'}{latestReport.storm_event.magnitude ? ` ${latestReport.storm_event.magnitude}${latestReport.storm_event.magnitude_type === 'inches' ? '″' : ''}` : ''} · {latestReport.storm_event.event_date}{latestReport.storm_event.distance_miles != null ? ` · ${latestReport.storm_event.distance_miles} mi away` : ''} — may pre-qualify a claim
+                    ⛈ {latestReport.storm_event.event_type || 'Storm'}{latestReport.storm_event.magnitude ? ` ${latestReport.storm_event.magnitude}${latestReport.storm_event.magnitude_type === 'inches' ? '″' : ' mph'}` : ''} · {latestReport.storm_event.event_date}{latestReport.storm_event.distance_miles != null ? ` · ${latestReport.storm_event.distance_miles} mi away` : ''} — may pre-qualify a claim
                   </div>
                 )}
                 {latestReport.nearest_supplier?.name && (
