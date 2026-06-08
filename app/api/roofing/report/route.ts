@@ -121,6 +121,38 @@ function haversineMiles(lat1: number, lng1: number, lat2: number, lng2: number):
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 10) / 10
 }
 
+// Quote-aware CSV line parser. The IEM LSR CSV REMARK column is free text that
+// frequently contains commas and quotes (e.g. "Half Dollar (1.25 in.), roof damage").
+// A naive line.split(',') shifts every column after REMARK, corrupting LAT/LON/etc.
+function parseCsvLine(line: string): string[] {
+  const out: string[] = []
+  let cur = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++ } // escaped double-quote
+        else inQuotes = false
+      } else cur += ch
+    } else if (ch === '"') {
+      inQuotes = true
+    } else if (ch === ',') {
+      out.push(cur); cur = ''
+    } else cur += ch
+  }
+  out.push(cur)
+  return out
+}
+
+// Physical bounds for sanity-checking LSR magnitudes. The largest hailstone ever
+// recorded in the US was ~8 inches; anything above that on a HAIL report is a
+// data/units/parse error, NOT real hail, and must never reach a customer report.
+const HAIL_MIN_IN = 0.75   // insurance-relevant threshold (quarter size)
+const HAIL_MAX_IN = 8.0    // physical ceiling — rejects impossible values like "61"
+const WIND_MIN_KT = 58     // severe wind threshold
+const WIND_MAX_KT = 250    // physical ceiling
+
 async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent[]> {
   // Iowa Environmental Mesonet (IEM) Local Storm Reports — free, no key, ground-truth NWS reports.
   // Replaces the deprecated NOAA SWDI/NCDC service. Queries by NWS WFO over the last ~24 months,
@@ -150,20 +182,32 @@ async function checkNoaaStorms(lat: number, lng: number): Promise<NoaaStormEvent
       if (!res.ok) { console.log('[storm] IEM', wfo, 'status', res.status); return [] }
       const text = await res.text()
       const lines = text.trim().split('\n')
-      // CSV header: VALID,LEGACY_LAT,LEGACY_LON,LAT,LON,MAG,WFO,TYPECODE,TYPETEXT,CITY,COUNTY,ST,SOURCE,REMARK,UGC,UGCNAME
-      const header = lines[0]?.split(',').map(h => h.trim().toLowerCase()) ?? []
+      // Real IEM lsr.py CSV format (verified against IEM docs):
+      // VALID,MAG,WFO,TYPECODE,TYPETEXT,CITY,COUNTY,STATE,SOURCE,REMARK,LAT,LON,UGC,UGCNAME,QUALIFY
+      // Column lookup is by header name (robust to order changes); rows are parsed
+      // with a quote-aware parser because REMARK contains commas.
+      const header = (lines[0] ? parseCsvLine(lines[0]) : []).map(h => h.trim().toLowerCase())
       console.log('[storm] IEM', wfo, 'csv rows:', lines.length - 1, 'header:', header.join(','))
       const out: NoaaStormEvent[] = []
       for (const line of lines.slice(1)) {
         if (!line.trim()) continue
-        const cols = line.split(',')
+        const cols = parseCsvLine(line)
         const get = (field: string) => cols[header.indexOf(field)]?.trim() ?? ''
         const typetext = get('typetext').toUpperCase()
         // MAG can be "None" or a number
         const magRaw = get('mag')
         const mag = magRaw === 'None' || magRaw === '' ? 0 : (parseFloat(magRaw) || 0)
-        const isHail = typetext.includes('HAIL') && mag >= 0.75
-        const isWind = (typetext.includes('TSTM WND') || typetext.includes('NON-TSTM WND')) && mag >= 58
+
+        // Physical sanity bounds. A HAIL report with mag > 8 inches is impossible
+        // (world record ~8") — it indicates a units/parse/column error, not real hail.
+        // Log the raw row so we can see exactly what IEM sent and fix the source if needed.
+        if (typetext.includes('HAIL') && mag > HAIL_MAX_IN) {
+          console.log('[storm] REJECTED implausible hail mag:', mag, '| raw magcol:', JSON.stringify(magRaw), '| raw row:', line.slice(0, 220))
+          continue
+        }
+
+        const isHail = typetext.includes('HAIL') && mag >= HAIL_MIN_IN && mag <= HAIL_MAX_IN
+        const isWind = (typetext.includes('TSTM WND') || typetext.includes('NON-TSTM WND')) && mag >= WIND_MIN_KT && mag <= WIND_MAX_KT
         if (!isHail && !isWind) continue
         // LAT/LON columns (CSV header: LAT,LON)
         const evLat = parseFloat(get('lat') || '0')
