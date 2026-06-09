@@ -1,34 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// ── Prod lock allowlist (active only when PROD_LOCKED === 'true') ──
+// Pages publicly reachable while prod is locked. Everything else redirects to '/'.
+const PUBLIC_PAGES = new Set(['/', '/supplement', '/privacy', '/terms'])
+// Public API prefixes the landing pages legitimately call. Other /api/* return 404.
+const PUBLIC_API_PREFIXES = ['/api/waitlist', '/api/zip', '/api/match-trade', '/api/ping']
+const SEO_PATHS = new Set(['/robots.txt', '/sitemap.xml'])
+
+function publicOnLockedProd(pathname: string): boolean {
+  if (PUBLIC_PAGES.has(pathname) || SEO_PATHS.has(pathname)) return true
+  if (pathname.startsWith('/sitemaps')) return true
+  return PUBLIC_API_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
+}
+
 export function middleware(req: NextRequest) {
-  // Only enforce on staging environment
-  if (process.env.NEXT_PUBLIC_ENV !== 'staging') return NextResponse.next()
-
-  // Allow health checks, static assets, and API routes through
   const { pathname } = req.nextUrl
-  if (pathname.startsWith('/_next') || pathname.startsWith('/api/')) {
-    return NextResponse.next()
-  }
 
-  // Check for staging auth cookie
-  const stagingAuth = req.cookies.get('staging_auth')?.value
-  if (stagingAuth === process.env.STAGING_PASSWORD) return NextResponse.next()
+  // ── Staging password gate (unchanged) ──
+  if (process.env.NEXT_PUBLIC_ENV === 'staging') {
+    if (pathname.startsWith('/_next') || pathname.startsWith('/api/')) {
+      return NextResponse.next()
+    }
+    const stagingAuth = req.cookies.get('staging_auth')?.value
+    if (stagingAuth === process.env.STAGING_PASSWORD) return NextResponse.next()
 
-  // Check for password in URL (first visit)
-  const urlPassword = req.nextUrl.searchParams.get('staging_key')
-  if (urlPassword && urlPassword === process.env.STAGING_PASSWORD) {
-    const response = NextResponse.redirect(req.nextUrl.origin + pathname)
-    response.cookies.set('staging_auth', urlPassword, {
-      httpOnly: true,
-      secure: true,
-      maxAge: 60 * 60 * 24 * 7 // 7 days
-    })
-    return response
-  }
+    const urlPassword = req.nextUrl.searchParams.get('staging_key')
+    if (urlPassword && urlPassword === process.env.STAGING_PASSWORD) {
+      const response = NextResponse.redirect(req.nextUrl.origin + pathname)
+      response.cookies.set('staging_auth', urlPassword, {
+        httpOnly: true,
+        secure: true,
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      })
+      return response
+    }
 
-  // Show password gate
-  return new NextResponse(
-    `<!DOCTYPE html>
+    return new NextResponse(
+      `<!DOCTYPE html>
 <html>
 <head>
   <title>ProGuild Staging</title>
@@ -63,10 +71,28 @@ export function middleware(req: NextRequest) {
   </div>
 </body>
 </html>`,
-    { status: 401, headers: { 'Content-Type': 'text/html' } }
-  )
+      { status: 401, headers: { 'Content-Type': 'text/html' } }
+    )
+  }
+
+  // ── Prod lock (NEW): expose only the landing pages until launch ──
+  // Activate by setting PROD_LOCKED=true in the production environment only.
+  if (process.env.PROD_LOCKED === 'true') {
+    if (pathname.startsWith('/_next')) return NextResponse.next()
+    if (publicOnLockedProd(pathname)) return NextResponse.next()
+    // Block app APIs cleanly (don't redirect a fetch to HTML).
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Not available' }, { status: 404 })
+    }
+    // Block app pages (dashboard, admin, estimate, etc.) → send to landing.
+    const url = req.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
+  }
+
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)']
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
