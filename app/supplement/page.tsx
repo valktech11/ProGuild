@@ -64,7 +64,7 @@ export default function SupplementLanding() {
       <header className="hero">
         <div className="wrap hero-inner">
           <span className="eyebrow"><span className="dot" /> For Florida roofing contractors</span>
-          <h1>Carriers underpay every roof claim by <span className="amber">$7,000–$8,000.</span></h1>
+          <h1>Carriers underpay the average roof claim by <span className="amber">$7,000–$8,000.</span></h1>
           <p className="sub">ProGuild finds what the adjuster left out, documents it to Florida code, and builds your supplement package in minutes — <strong>so you recover what you&rsquo;re owed and keep 100% of your margin.</strong> No supplement service taking a cut.</p>
           <div className="cta">
             <WaitlistForm okText="You're on the list. I'll reach out personally when the first version is ready — and ask what would make it genuinely useful for your shop." />
@@ -86,7 +86,7 @@ export default function SupplementLanding() {
           <div className="options">
             <div className="opt"><div className="tag">Option 1</div><h3>Eat the underpayment</h3><p>Accept the short check and absorb the missing drip edge, starter, decking, and code items out of your own margin.</p></div>
             <div className="opt"><div className="tag">Option 2</div><h3>Hire a supplement service</h3><p>They recover the money — and keep 10–25% of it. On a $7,500 recovery that&rsquo;s up to $1,875 gone, every claim.</p></div>
-            <div className="opt win"><div className="tag">Option 3 — ProGuild</div><h3>Do it yourself, in minutes</h3><p>Software that catches the missed items, documents them to Florida code, and builds the package. Flat fee. Keep 100%.</p></div>
+            <div className="opt win"><div className="tag">Option 3 — ProGuild</div><h3>Do it yourself, in minutes</h3><p>Software that flags the missed items, tells you exactly what to photograph, and assembles the package — so you&rsquo;re not doing claim paperwork at 9pm. Flat fee. Keep 100%.</p></div>
           </div>
         </div>
       </section>
@@ -109,7 +109,7 @@ export default function SupplementLanding() {
           <div className="kicker">Why ProGuild</div>
           <h2>Built for Florida — and built to keep you in control.</h2>
           <div className="why-grid">
-            <div className="why"><div className="ic" aria-hidden>🛡️</div><h3>Florida-specific</h3><p>Tuned to the items Florida carriers miss and the code that backs them up — the 25% rule, wind underlayment, secondary water barrier, and more.</p></div>
+            <div className="why"><div className="ic" aria-hidden>🛡️</div><h3>Florida-specific</h3><p>Built around the items and code upgrades Florida carriers routinely leave off re-roof estimates — drip edge, starter, decking, secondary water barrier, wind-rated underlayment — with the current-code context for each.</p></div>
             <div className="why"><div className="ic" aria-hidden>✓</div><h3>You verify everything</h3><p>ProGuild organizes and documents — you confirm each item and submit it. The claim is always yours, never an AI guessing on your behalf.</p></div>
             <div className="why"><div className="ic" aria-hidden>$</div><h3>Flat fee, full margin</h3><p>No percentage of your recovery. One predictable software cost — every dollar you claw back stays in your business.</p></div>
           </div>
