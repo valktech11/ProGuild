@@ -9,7 +9,7 @@ import { initials, avatarColor, timeAgo, isPaid } from '@/lib/utils'
 
 function Avatar({ pro, size = 10 }: { pro: any; size?: number }) {
   const [bg, fg] = avatarColor(pro?.full_name || 'A')
-  const cls = `w-${size} h-${size} rounded-full flex items-center justify-center font-serif text-sm flex-shrink-0`
+  const cls = `w-${size} h-${size} rounded-full flex items-center justify-center font-sans text-[13px] font-semibold flex-shrink-0`
   if (pro?.profile_photo_url) return <img src={pro.profile_photo_url} alt={pro.full_name} className={`${cls} object-cover`} />
   return <div className={cls} style={{ background: bg, color: fg }}>{initials(pro?.full_name || 'A')}</div>
 }
@@ -232,7 +232,7 @@ function PostCard({ post, session, onLike, onDelete }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Link href={`/community/profile/${post.pro_id}`}
-              className="font-semibold text-base text-gray-900 hover:text-teal-600 transition-colors">
+              className="font-semibold text-[15px] text-gray-900 hover:text-teal-600 transition-colors">
               {post.pro?.full_name}
             </Link>
             {isVerifiedPro && (
@@ -285,7 +285,7 @@ function PostCard({ post, session, onLike, onDelete }: {
       {/* Content */}
       {post.content && (
         <div className="px-4 pb-3">
-          <p className={`text-base leading-relaxed whitespace-pre-wrap ${isAskAPro ? 'text-blue-900 font-medium' : 'text-gray-700'}`}>
+          <p className={`text-[14px] leading-relaxed whitespace-pre-wrap ${isAskAPro ? 'text-blue-900 font-medium' : 'text-gray-700'}`}>
             {post.content}
           </p>
         </div>
@@ -405,7 +405,7 @@ function PostCard({ post, session, onLike, onDelete }: {
           ) : (
             <div className="space-y-2.5 mb-3">
               {comments.length === 0 && (
-                <div className="text-sm text-gray-400">
+                <div className="text-[12px] text-gray-400">
                   {isAskAPro ? 'No answers yet — be the first verified pro to answer.' : 'No comments yet — be the first.'}
                 </div>
               )}
@@ -416,7 +416,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                     <Avatar pro={cm.pro} size={7} />
                     <div className={`flex-1 rounded-xl px-3 py-2 border ${isAskAPro && cmVerified ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-sm font-semibold text-gray-800">{cm.pro?.full_name}</span>
+                        <span className="text-[13px] font-semibold text-gray-800">{cm.pro?.full_name}</span>
                         {cmVerified && (
                           <span className="inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700">
                             <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
@@ -426,7 +426,7 @@ function PostCard({ post, session, onLike, onDelete }: {
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-600 leading-relaxed">{cm.content}</div>
+                      <div className="text-[13px] text-gray-600 leading-relaxed">{cm.content}</div>
                     </div>
                   </div>
                 )
@@ -736,10 +736,10 @@ export default function CommunityPage() {
           <div className="relative px-4 sm:px-6 py-10 flex items-start">
             {/* Left — headline + search */}
             <div className="flex-1 max-w-lg">
-              <h1 className="font-serif text-4xl font-bold leading-tight mb-3" style={{ color: '#0A1628' }}>
+              <h1 className="text-[32px] font-bold leading-tight mb-3" style={{ color: '#0A1628' }}>
                 Real work from<br />licensed pros.
               </h1>
-              <p className="text-gray-700 font-medium text-base mb-5 leading-relaxed">
+              <p className="text-[15px] text-gray-700 font-medium mb-5 leading-relaxed">
                 See projects, ask questions, and connect<br />with trusted professionals near you.
               </p>
               {/* Search bar */}
@@ -781,8 +781,8 @@ export default function CommunityPage() {
 
             {/* Right — Get Matched card */}
             <div className="hidden lg:block flex-shrink-0 bg-white rounded-2xl shadow-lg p-5 mt-2 ml-auto" style={{ width: "calc(33.333% - 10px)" }}>
-              <div className="text-base font-bold text-gray-900 mb-1">Need help with your project?</div>
-              <p className="text-sm text-gray-700 font-medium mb-4 leading-relaxed">Get matched with verified local pros.</p>
+              <div className="text-[15px] font-bold text-gray-900 mb-1">Need help with your project?</div>
+              <p className="text-[13px] text-gray-700 font-medium mb-4 leading-relaxed">Get matched with verified local pros.</p>
               <Link href="/post-job"
                 className="block w-full py-2.5 text-center bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors mb-3">
                 Get Matched Now
@@ -801,7 +801,7 @@ export default function CommunityPage() {
       {/* ── Popular Categories ── */}
       <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
         <div className="px-4 sm:px-6 py-3">
-          <h2 className="text-sm font-bold text-gray-700 mb-2">Popular Categories</h2>
+          <h2 className="text-[13px] font-bold text-gray-700 mb-2">Popular Categories</h2>
           <div className="flex gap-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[
               { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1605450099279-533bd3ce379a?w=120&h=120&fit=crop', slug: 'roofer' },
@@ -866,7 +866,7 @@ export default function CommunityPage() {
             <div className="bg-white border border-gray-200 rounded-xl p-16 text-center">
               <div className="text-4xl mb-3 opacity-20">🔧</div>
               <div className="font-semibold text-gray-700 mb-2">No posts found</div>
-              <div className="text-sm text-gray-400">
+              <div className="text-[12px] text-gray-400">
                 {tradeFilter || search ? 'Try clearing your filters.' : localOnly ? 'No local posts yet. Try switching to All.' : 'Be the first to share something.'}
               </div>
               {(tradeFilter || search) && (
@@ -891,11 +891,11 @@ export default function CommunityPage() {
           {/* ── Projects Near You ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold text-gray-900">Projects Near You</div>
+              <div className="text-[14px] font-semibold text-gray-900">Projects Near You</div>
               <Link href="/post-job" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {jobAlerts.length === 0 ? (
-              <div className="text-xs text-gray-400">No open projects nearby.</div>
+              <div className="text-[12px] text-gray-400">No open projects nearby.</div>
             ) : jobAlerts.map((job, i) => (
               <Link key={job.id} href="/jobs"
                 className={`flex gap-3 py-2.5 ${i < jobAlerts.length - 1 ? 'border-b border-gray-100' : ''} hover:bg-stone-50 -mx-2 px-2 rounded-lg transition-colors`}>
@@ -916,11 +916,11 @@ export default function CommunityPage() {
           {/* ── Top Rated Pros ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold text-gray-900">Top Rated Pros{session?.city ? ` in ${session.city}` : ''}</div>
+              <div className="text-[14px] font-semibold text-gray-900">Top Rated Pros{session?.city ? ` in ${session.city}` : ''}</div>
               <Link href="/" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {suggested.length === 0 ? (
-              <div className="text-xs text-gray-400">No suggestions yet.</div>
+              <div className="text-[12px] text-gray-400">No suggestions yet.</div>
             ) : suggested.map(pro => (
               <div key={pro.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
                 <Link href={`/community/profile/${pro.id}`}><Avatar pro={pro} size={9} /></Link>
@@ -949,11 +949,11 @@ export default function CommunityPage() {
           {/* ── Trending Questions ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold text-gray-900">Trending Questions</div>
+              <div className="text-[14px] font-semibold text-gray-900">Trending Questions</div>
               <Link href="/community" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {trendingPosts.filter(p => p.post_type === 'tip').length === 0 ? (
-              <div className="text-xs text-gray-400">No trending questions yet.</div>
+              <div className="text-[12px] text-gray-400">No trending questions yet.</div>
             ) : trendingPosts.filter(p => p.post_type === 'tip').map((post, i, arr) => (
               <div key={post.id} className={`py-2.5 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
                 <p className="text-sm text-gray-800 font-medium leading-snug line-clamp-2">{post.content}</p>
