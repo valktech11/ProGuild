@@ -711,17 +711,10 @@ export default function CommunityPage() {
         </div>
         {/* Right side */}
         <div className="flex items-center gap-3">
-          {session ? (
-            <>
-              <Link href={`/community/profile/${session.id}`} className="text-sm text-gray-500 hover:text-teal-600 hidden sm:block">My profile</Link>
-              <Link href="/dashboard" className="text-sm font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Dashboard</Link>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className="text-sm text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors hidden sm:block">Log in</Link>
-              <Link href="/login?tab=signup" className="text-sm font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Join Free</Link>
-            </>
-          )}
+          <>
+            <Link href="/login" className="text-sm text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors hidden sm:block">Log in</Link>
+            <Link href="/login?tab=signup" className="text-sm font-semibold px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">Join Free</Link>
+          </>
         </div>
       </nav>}
 
