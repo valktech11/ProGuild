@@ -83,6 +83,30 @@ export function middleware(req: NextRequest) {
     (process.env.VERCEL_ENV === 'production' || process.env.PROD_LOCKED === 'true') &&
     process.env.PROD_UNLOCK !== 'true'
   if (lockOn) {
+    // Owner bypass: a valid cookie (or ?pg_preview=<key> once) unlocks the full
+    // app for you only. Set PROD_PREVIEW_KEY in the prod env, then visit any URL
+    // with ?pg_preview=<that key> — a 30-day cookie is set and you browse freely.
+    const previewKey = process.env.PROD_PREVIEW_KEY
+    if (previewKey) {
+      if (req.cookies.get('pg_preview')?.value === previewKey) {
+        return NextResponse.next()
+      }
+      const urlKey = req.nextUrl.searchParams.get('pg_preview')
+      if (urlKey && urlKey === previewKey) {
+        const clean = req.nextUrl.clone()
+        clean.searchParams.delete('pg_preview')
+        const res = NextResponse.redirect(clean)
+        res.cookies.set('pg_preview', previewKey, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+        })
+        return res
+      }
+    }
+
+    // Public: enforce the lock.
     if (pathname.startsWith('/_next') || pathname.startsWith('/api/')) {
       return NextResponse.next()
     }
