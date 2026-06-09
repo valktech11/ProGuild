@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 // ── Prod lock allowlist (active only when PROD_LOCKED === 'true') ──
-// Pages publicly reachable while prod is locked. Everything else redirects to '/'.
+// PAGES publicly reachable while prod is locked. Every other page redirects to '/'.
+// All /api/ routes pass through (they enforce their own auth), so the homepage's
+// fetches (zip, match-trade, waitlist, etc.) keep working without enumerating them.
 const PUBLIC_PAGES = new Set(['/', '/supplement', '/privacy', '/terms'])
-// Public API prefixes the landing pages legitimately call. Other /api/* return 404.
-const PUBLIC_API_PREFIXES = ['/api/waitlist', '/api/zip', '/api/match-trade', '/api/ping']
 const SEO_PATHS = new Set(['/robots.txt', '/sitemap.xml'])
 
-function publicOnLockedProd(pathname: string): boolean {
+function publicPageOnLockedProd(pathname: string): boolean {
   if (PUBLIC_PAGES.has(pathname) || SEO_PATHS.has(pathname)) return true
   if (pathname.startsWith('/sitemaps')) return true
-  return PUBLIC_API_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  return false
 }
 
 export function middleware(req: NextRequest) {
@@ -78,13 +78,13 @@ export function middleware(req: NextRequest) {
   // ── Prod lock (NEW): expose only the landing pages until launch ──
   // Activate by setting PROD_LOCKED=true in the production environment only.
   if (process.env.PROD_LOCKED === 'true') {
-    if (pathname.startsWith('/_next')) return NextResponse.next()
-    if (publicOnLockedProd(pathname)) return NextResponse.next()
-    // Block app APIs cleanly (don't redirect a fetch to HTML).
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Not available' }, { status: 404 })
+    // Infra + all API routes pass through (APIs enforce their own auth).
+    if (pathname.startsWith('/_next') || pathname.startsWith('/api/')) {
+      return NextResponse.next()
     }
-    // Block app pages (dashboard, admin, estimate, etc.) → send to landing.
+    // Allowlisted public pages stay open.
+    if (publicPageOnLockedProd(pathname)) return NextResponse.next()
+    // Every other page (dashboard, login, admin, estimate, ...) → landing.
     const url = req.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
