@@ -884,7 +884,7 @@ export default function CommunityPage() {
         </div>
 
         {/* ── SIDEBAR ── */}
-        <div className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pb-4 scrollbar-hide">
+        <div className="space-y-4 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto pb-4" style={{ scrollbarWidth: 'none' }}>
 
           {/* ── Projects Near You ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
