@@ -75,16 +75,18 @@ export function middleware(req: NextRequest) {
     )
   }
 
-  // ── Prod lock (NEW): expose only the landing pages until launch ──
-  // Activate by setting PROD_LOCKED=true in the production environment only.
-  if (process.env.PROD_LOCKED === 'true') {
-    // Infra + all API routes pass through (APIs enforce their own auth).
+  // ── Prod lock: expose only the landing pages until launch ──
+  // Locks automatically on the production deployment (VERCEL_ENV === 'production'),
+  // so it no longer depends on a hand-set env var being picked up correctly.
+  // To OPEN the app at launch, set PROD_UNLOCK=true in the production environment.
+  const lockOn =
+    (process.env.VERCEL_ENV === 'production' || process.env.PROD_LOCKED === 'true') &&
+    process.env.PROD_UNLOCK !== 'true'
+  if (lockOn) {
     if (pathname.startsWith('/_next') || pathname.startsWith('/api/')) {
       return NextResponse.next()
     }
-    // Allowlisted public pages stay open.
     if (publicPageOnLockedProd(pathname)) return NextResponse.next()
-    // Every other page (dashboard, login, admin, estimate, ...) → landing.
     const url = req.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
