@@ -357,7 +357,7 @@ function PostCard({ post, session, onLike, onDelete }: {
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions — likes/comment left, View Profile + Request Quote right */}
       <div className="flex items-center gap-1 px-3 py-2 border-t border-gray-100">
         {isOwn ? (
           <div className="flex items-center gap-1.5 px-2 py-1.5 text-sm text-gray-300 select-none">
@@ -381,21 +381,19 @@ function PostCard({ post, session, onLike, onDelete }: {
           {post.comment_count > 0 && <span className="text-xs font-semibold">{post.comment_count}</span>}
           <span className="text-xs">{isAskAPro ? (post.comment_count > 0 ? 'answers' : 'Answer') : 'Comment'}</span>
         </button>
+        {!isOwn && (
+          <div className="flex items-center gap-1.5 ml-auto">
+            <Link href={`/community/profile/${post.pro_id}`}
+              className="text-[11px] font-semibold px-2.5 py-1 border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap">
+              View Profile
+            </Link>
+            <Link href={`/post-job?pro=${post.pro_id}`}
+              className="text-[11px] font-semibold px-2.5 py-1 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors whitespace-nowrap">
+              Request Quote
+            </Link>
+          </div>
+        )}
       </div>
-
-      {/* View Profile + Request Quote */}
-      {!isOwn && (
-        <div className="flex gap-2 px-4 pb-3">
-          <Link href={`/community/profile/${post.pro_id}`}
-            className="flex-1 text-center text-xs font-semibold py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-            View Profile
-          </Link>
-          <Link href={`/post-job?pro=${post.pro_id}`}
-            className="flex-1 text-center text-xs font-semibold py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
-            Request Quote
-          </Link>
-        </div>
-      )}
 
       {/* Comments / Answers */}
       {showComments && (
