@@ -835,7 +835,7 @@ export default function CommunityPage() {
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 py-4 grid grid-cols-1 items-start gap-5" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
+      <div className="px-4 sm:px-6 py-4 grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-5 items-start">
 
         {/* ── FEED ── */}
         <div>
