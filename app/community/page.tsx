@@ -835,10 +835,10 @@ export default function CommunityPage() {
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+      <div className="px-4 sm:px-6 py-4 grid grid-cols-1 items-start gap-5" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
 
         {/* ── FEED ── */}
-        <div className="lg:col-span-2">
+        <div>
           {/* Search bar — logged in only */}
           {session && <div className="flex gap-2 mb-3">
             <div className="flex-1 flex gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
