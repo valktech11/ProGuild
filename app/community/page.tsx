@@ -733,7 +733,7 @@ export default function CommunityPage() {
           </div>
 
           {/* Content */}
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-10 flex items-start">
+          <div className="relative px-4 sm:px-6 py-10 flex items-start">
             {/* Left — headline + search */}
             <div className="flex-1 max-w-lg">
               <h1 className="font-serif text-4xl font-bold leading-tight mb-3" style={{ color: '#0A1628' }}>
@@ -800,7 +800,7 @@ export default function CommunityPage() {
 
       {/* ── Popular Categories ── */}
       <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+        <div className="px-4 sm:px-6 py-3">
           <h2 className="text-sm font-bold text-gray-700 mb-2">Popular Categories</h2>
           <div className="flex gap-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[
@@ -835,7 +835,7 @@ export default function CommunityPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+      <div className="px-4 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
 
         {/* ── FEED ── */}
         <div className="lg:col-span-2">
