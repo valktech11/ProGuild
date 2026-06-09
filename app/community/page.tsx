@@ -811,10 +811,10 @@ export default function CommunityPage() {
           <h2 className="text-sm font-bold text-gray-700 mb-2">Popular Categories</h2>
           <div className="flex gap-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[
-              { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1632823471565-1ecdf5c6da03?w=120&h=120&fit=crop', slug: 'roofer' },
+              { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=120&h=120&fit=crop', slug: 'roofer' },
               { label: 'Bathroom',      img: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=120&h=120&fit=crop', slug: 'plumber' },
               { label: 'Kitchen',       img: 'https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=120&h=120&fit=crop', slug: 'general-contractor' },
-              { label: 'HVAC',          img: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=120&h=120&fit=crop', slug: 'hvac-technician' },
+              { label: 'HVAC',          img: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=120&h=120&fit=crop', slug: 'hvac-technician' },
               { label: 'Storm Damage',  img: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=120&h=120&fit=crop', slug: 'roofer' },
               { label: 'Flooring',      img: 'https://images.unsplash.com/photo-1622372738946-62e02505feb3?w=120&h=120&fit=crop', slug: 'carpenter' },
               { label: 'Painting',      img: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=120&h=120&fit=crop', slug: 'painter' },
