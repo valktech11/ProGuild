@@ -778,7 +778,7 @@ export default function CommunityPage() {
                   { icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z', label: 'Real Reviews' },
                   { icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636', label: 'No Lead Fees' },
                 ].map(b => (
-                  <div key={b.label} className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <div key={b.label} className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={b.icon}/></svg>
                     <span>{b.label}</span>
                   </div>
@@ -827,7 +827,7 @@ export default function CommunityPage() {
                   <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all ${active ? 'border-teal-500 scale-105' : 'border-gray-100 group-hover:border-teal-400'}`}>
                     <img src={cat.img} alt={cat.label} className="w-full h-full object-cover" />
                   </div>
-                  <span className={`text-xs whitespace-nowrap transition-colors ${active ? 'text-teal-700 font-semibold' : 'text-gray-500 group-hover:text-teal-700'}`}>{cat.label}</span>
+                  <span className={`text-xs font-medium whitespace-nowrap transition-colors ${active ? 'text-teal-700 font-semibold' : 'text-gray-700 group-hover:text-teal-700'}`}>{cat.label}</span>
                 </button>
               )
             })}
@@ -836,7 +836,7 @@ export default function CommunityPage() {
               <div className="w-14 h-14 rounded-full border-2 border-gray-100 group-hover:border-teal-400 flex items-center justify-center bg-gray-50 transition-all">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 group-hover:text-teal-600 transition-colors"><polyline points="9 18 15 12 9 6"/></svg>
               </div>
-              <span className="text-xs text-gray-500 group-hover:text-teal-700 transition-colors whitespace-nowrap">View all</span>
+              <span className="text-xs font-medium text-gray-700 group-hover:text-teal-700 transition-colors whitespace-nowrap">View all</span>
             </Link>
           </div>
         </div>
