@@ -719,15 +719,15 @@ export default function CommunityPage() {
       {/* ── Hero Banner — logged out only ── */}
       {!session && (
         <div className="relative bg-white overflow-hidden" style={{ minHeight: 280 }}>
-          {/* Background photo — right half */}
-          <div className="absolute inset-0 left-[35%] right-[10%]">
+          {/* Background photo — full width */}
+          <div className="absolute inset-0">
             <img
-              src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=1200&fit=crop"
+              src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=1600&fit=crop"
               alt="Kitchen remodel"
               className="w-full h-full object-cover"
             />
-            {/* Fade from white on the left */}
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, white 0%, white 5%, transparent 30%, transparent 80%, white 95%, white 100%)' }} />
+            {/* Fade overlay so left text remains readable */}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0.4) 60%, rgba(255,255,255,0.1) 100%)' }} />
           </div>
 
           {/* Content */}
