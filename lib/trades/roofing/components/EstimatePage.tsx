@@ -145,11 +145,18 @@ const fmtDec = (n: number) =>
 
 function newId() { return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10) + '-' + Math.random().toString(36).slice(2, 6) + '-4' + Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 10) }
 
-const DEFAULT_MILESTONES = (total: number): PaymentMilestone[] => [
-  { id: newId(), name: 'Deposit',              pct: 30, amount: Math.round(total * 0.3), due_when: 'Due at signing' },
-  { id: newId(), name: 'At Material Delivery', pct: 40, amount: Math.round(total * 0.4), due_when: 'Due at delivery' },
-  { id: newId(), name: 'On Completion',        pct: 30, amount: Math.round(total * 0.3), due_when: 'Due on completion' },
-]
+const DEFAULT_MILESTONES = (total: number): PaymentMilestone[] => {
+  // Round the first two; the last absorbs the remainder so the three always
+  // sum to EXACTLY the total (no leftover cents from independent rounding).
+  const dep = Math.round(total * 0.3 * 100) / 100
+  const mat = Math.round(total * 0.4 * 100) / 100
+  const com = Math.round((total - dep - mat) * 100) / 100
+  return [
+    { id: newId(), name: 'Deposit',              pct: 30, amount: dep, due_when: 'Due at signing' },
+    { id: newId(), name: 'At Material Delivery', pct: 40, amount: mat, due_when: 'Due at delivery' },
+    { id: newId(), name: 'On Completion',        pct: 30, amount: com, due_when: 'Due on completion' },
+  ]
+}
 
 // ── Market-rate FL defaults — overridden by pro's material prices settings ──
 const MARKET_DEFAULTS = {

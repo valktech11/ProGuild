@@ -108,9 +108,9 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
   // updates live when the homeowner switches tiers (not static DB values)
   const displayMilestones: PaymentMilestone[] = isGBB && selTotal > 0
     ? (() => {
-        const dep = Math.round(selTotal * 30 / 100)
-        const mat = Math.round(selTotal * 40 / 100)
-        const com = selTotal - dep - mat
+        const dep = Math.round(selTotal * 30 / 100 * 100) / 100
+        const mat = Math.round(selTotal * 40 / 100 * 100) / 100
+        const com = Math.round((selTotal - dep - mat) * 100) / 100
         return [
           { id: 'dep', name: 'Deposit',             pct: 30, amount: dep, due_when: 'Due at signing'    },
           { id: 'mat', name: 'At Material Delivery', pct: 40, amount: mat, due_when: 'Due at delivery'   },
