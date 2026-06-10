@@ -51,9 +51,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (newStatus === 'paid' && inv.estimate_id) {
+    // Payment implies the estimate was invoiced — backfill invoiced_at if it's missing
+    // so the estimate tracker shows both the Invoice and Payment steps correctly.
+    const { data: estRow } = await sb
+      .from('estimates').select('invoiced_at').eq('id', inv.estimate_id).single()
     await sb.from('estimates').update({
-      status:  'paid',
-      paid_at: paidAt,
+      status:      'paid',
+      paid_at:     paidAt,
+      invoiced_at: estRow?.invoiced_at ?? paidAt,
     }).eq('id', inv.estimate_id)
   }
 

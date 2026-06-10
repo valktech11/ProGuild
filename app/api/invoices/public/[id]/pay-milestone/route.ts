@@ -55,9 +55,13 @@ export async function POST(
 
   // Keep the linked estimate in sync so its tracker shows Invoice/Payment status
   if (newStatus === 'paid' && inv.estimate_id) {
+    const nowTs = new Date().toISOString()
+    const { data: estRow } = await sb
+      .from('estimates').select('invoiced_at').eq('id', inv.estimate_id).single()
     await sb.from('estimates').update({
-      status:  'paid',
-      paid_at: new Date().toISOString(),
+      status:      'paid',
+      paid_at:     nowTs,
+      invoiced_at: estRow?.invoiced_at ?? nowTs,
     }).eq('id', inv.estimate_id)
   }
 

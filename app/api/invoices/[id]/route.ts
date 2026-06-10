@@ -98,9 +98,13 @@ export async function PATCH(
 
   // ── Invoice paid → sync linked estimate so its tracker reflects payment ──
   if (body.status === 'paid' && data?.estimate_id) {
+    const nowTs = new Date().toISOString()
+    const { data: estRow } = await sb
+      .from('estimates').select('invoiced_at').eq('id', data.estimate_id).single()
     await sb.from('estimates').update({
-      status:  'paid',
-      paid_at: new Date().toISOString(),
+      status:      'paid',
+      paid_at:     nowTs,
+      invoiced_at: estRow?.invoiced_at ?? nowTs,
     }).eq('id', data.estimate_id)
   }
 
