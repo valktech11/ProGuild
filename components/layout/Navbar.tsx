@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Session } from '@/types'
 import { initials, avatarColor } from '@/lib/utils'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 
 // ── Staging environment badge ────────────────────────────────────────────────
@@ -120,23 +122,19 @@ export default function Navbar() {
   const dropdownRef  = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (raw) { try { setSession(JSON.parse(raw)) } catch {} }
+  const { session: realSession } = useProSession()
 
-    const sync = () => {
-      const r = sessionStorage.getItem('pg_pro')
-      const s = r ? JSON.parse(r) : null
-      setSession(s)
-      if (s?.id) {
-        fetch(`/api/notifications?pro_id=${s.id}`)
-          .then(r => r.json())
-          .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unread || 0) })
-          .catch(() => {})
-      }
+  useEffect(() => {
+    if (realSession) setSession(realSession)
+  }, [realSession])
+
+  useEffect(() => {
+    if (realSession?.id) {
+      fetch(`/api/notifications?pro_id=${realSession.id}`)
+        .then(r => r.json())
+        .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unread || 0) })
+        .catch(() => {})
     }
-    window.addEventListener('storage', sync)
-    window.addEventListener('pg-session-changed', sync)
 
     const handleOutside = (e: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false)
@@ -146,17 +144,19 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleOutside)
     document.addEventListener('touchstart', handleOutside as any)
     return () => {
-      window.removeEventListener('storage', sync)
-      window.removeEventListener('pg-session-changed', sync)
       document.removeEventListener('mousedown', handleOutside)
       document.removeEventListener('touchstart', handleOutside as any)
     }
-  }, [])
+  }, [realSession])
 
   useEffect(() => { setMobileMenuOpen(false) }, [path])
 
-  function logout() {
-    sessionStorage.removeItem('pg_pro')
+  async function logout() {
+    try {
+      const supabase = getSupabaseBrowser()
+      await supabase.auth.signOut()
+    } catch {}
+    sessionStorage.removeItem('pg_pro')   // clear any legacy remnants
     setSession(null)
     router.push('/')
   }

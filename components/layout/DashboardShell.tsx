@@ -7,6 +7,7 @@ import { initials, avatarColor, planLabel } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
 import AddLeadModal from '@/components/ui/AddLeadModal'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
 type NavItem  = { label: string; href: string; icon: (a: boolean) => React.ReactNode; badge?: number | null; soon?: boolean; exact?: boolean }
 type NavGroup = { title: string; items: NavItem[] }
@@ -612,8 +613,12 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
   const bdr = t.cardBorder
   const txt = dk ? '#F1F5F9' : '#0A1628'
 
-  function handleLogout() {
-    sessionStorage.removeItem('pg_pro')
+  async function handleLogout() {
+    try {
+      const supabase = getSupabaseBrowser()
+      await supabase.auth.signOut()
+    } catch {}
+    sessionStorage.removeItem('pg_pro')   // clear any legacy remnants
     window.location.href = '/login'
   }
 
