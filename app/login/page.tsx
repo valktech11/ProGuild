@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TradeCategory, Session } from '@/types'
 import { US_STATES, fetchCitiesForState } from '@/lib/utils'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import OAuthButtons from '@/components/auth/OAuthButtons'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -145,54 +147,100 @@ function StepBar({ step, total }: { step: number; total: number }) {
 
 // ── Login form ────────────────────────────────────────────────────────────────
 function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: any }) {
-  const [email, setEmail]   = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState('')
-  const [success, setSuccess] = useState(false)
-  const [proName, setProName] = useState('')
-  const [focused, setFocused] = useState(false)
+  const [email, setEmail]       = useState('')
+  const [password, setPassword] = useState('')
+  const [showPw, setShowPw]     = useState(false)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [resetMsg, setResetMsg] = useState('')
+  const [focused, setFocused]   = useState<string | null>(null)
 
   async function handleLogin() {
     if (!email.trim() || !email.includes('@')) { setError('Please enter a valid email address.'); return }
-    setLoading(true); setError('')
-    const r = await fetch('/api/auth', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email }) })
-    const d = await r.json()
-    setLoading(false)
-    if (!r.ok) { setError(d.error || 'Something went wrong.'); return }
-    sessionStorage.setItem('pg_pro', JSON.stringify(d.session))
-    setProName(d.session.name.split(' ')[0])
-    setSuccess(true)
-    setTimeout(() => router.push('/dashboard'), 1200)
+    if (!password) { setError('Please enter your password.'); return }
+    setLoading(true); setError(''); setResetMsg('')
+
+    const supabase = getSupabaseBrowser()
+    const { error: signInErr } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+
+    if (signInErr) {
+      setLoading(false)
+      const m = signInErr.message.toLowerCase()
+      if (m.includes('invalid')) setError('Incorrect email or password.')
+      else if (m.includes('not confirmed')) setError('Please confirm your email first.')
+      else setError(signInErr.message)
+      return
+    }
+
+    // Session is now set. Route through callback resolver for consistent routing.
+    router.push('/auth/callback')
   }
 
-  if (success) return (
-    <div style={{ textAlign:'center', padding:'48px 0' }}>
-      <div style={{ width:60, height:60, borderRadius:'50%', background:`linear-gradient(135deg, ${C.teal}, ${C.tealL})`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', boxShadow:`0 8px 24px rgba(15,118,110,0.35)` }}>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-      </div>
-      <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 8px', fontFamily:'system-ui' }}>Welcome back, {proName}!</h2>
-      <p style={{ color:C.muted, fontSize:14 }}>Taking you to your dashboard…</p>
-    </div>
-  )
+  async function handleForgotPassword() {
+    if (!email.trim() || !email.includes('@')) {
+      setError('Enter your email above first, then tap "Forgot password".')
+      return
+    }
+    setError(''); setResetMsg('')
+    const supabase = getSupabaseBrowser()
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { redirectTo: `${window.location.origin}/auth/reset` }
+    )
+    if (resetErr) { setError(resetErr.message); return }
+    setResetMsg('Check your email for a password reset link.')
+  }
 
   return (
     <div>
       <h2 style={{ fontSize:26, fontWeight:800, color:C.text, margin:'0 0 6px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Welcome back</h2>
-      <p style={{ color:C.muted, fontSize:14, margin:'0 0 32px', lineHeight:1.6 }}>Enter your email — we'll log you in instantly.</p>
+      <p style={{ color:C.muted, fontSize:14, margin:'0 0 28px', lineHeight:1.6 }}>Log in to your ProGuild account.</p>
+
+      {/* OAuth (Google / Apple) + divider */}
+      <OAuthButtons mode="login" />
 
       {error && (
         <div style={{ background:C.errorBg, border:`1px solid #FECACA`, borderRadius:10, padding:'12px 16px', marginBottom:20, color:C.error, fontSize:13, fontWeight:500 }}>
           {error}
         </div>
       )}
+      {resetMsg && (
+        <div style={{ background:'#ECFDF5', border:'1px solid #A7F3D0', borderRadius:10, padding:'12px 16px', marginBottom:20, color:'#047857', fontSize:13, fontWeight:500 }}>
+          {resetMsg}
+        </div>
+      )}
 
       <Field label="Email address">
         <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleLogin()}
-          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
           placeholder="you@example.com"
-          style={inputStyle(focused)} />
+          style={inputStyle(focused === 'email')} />
       </Field>
+
+      <Field label="Password">
+        <div style={{ position:'relative' }}>
+          <input type={showPw ? 'text' : 'password'} value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+            onFocus={() => setFocused('password')} onBlur={() => setFocused(null)}
+            placeholder="Your password"
+            style={{ ...inputStyle(focused === 'password'), paddingRight:44 }} />
+          <button type="button" onClick={() => setShowPw(s => !s)}
+            style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:C.muted, fontSize:12, fontWeight:600, padding:0 }}>
+            {showPw ? 'Hide' : 'Show'}
+          </button>
+        </div>
+      </Field>
+
+      <div style={{ textAlign:'right', marginTop:-8, marginBottom:20 }}>
+        <button type="button" onClick={handleForgotPassword}
+          style={{ background:'none', border:'none', color:C.teal, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'system-ui' }}>
+          Forgot password?
+        </button>
+      </div>
 
       <button onClick={handleLogin} disabled={loading} style={{
         width:'100%', padding:'14px', background:`linear-gradient(135deg, ${C.teal}, ${C.tealL})`,
@@ -201,7 +249,7 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
         opacity: loading ? 0.7 : 1, transition:'all 0.15s', letterSpacing:'-0.01em',
         fontFamily:'system-ui',
       }}>
-        {loading ? 'Checking…' : 'Continue to dashboard →'}
+        {loading ? 'Signing in…' : 'Log in →'}
       </button>
 
       <p style={{ textAlign:'center', fontSize:13, color:C.muted, marginTop:24 }}>
@@ -226,6 +274,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const [fname, setFname] = useState('')
   const [lname, setLname] = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [trade, setTrade] = useState('')
   const [stateVal, setStateVal] = useState('')
@@ -259,6 +308,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       if (!fname.trim()) return 'First name is required'
       if (!lname.trim()) return 'Last name is required'
       if (!email.trim() || !email.includes('@')) return 'Valid email is required'
+      if (!password || password.length < 8) return 'Password must be at least 8 characters'
     }
     if (step === 1) {
       if (!trade) return 'Please select your trade'
@@ -284,22 +334,37 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     if (err) { setError(err); return }
     setLoading(true)
     const finalCity = city === '__other__' ? otherCity : city
-    const r = await fetch('/api/pros', {
+
+    const r = await fetch('/api/auth/signup', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ full_name:`${fname} ${lname}`, email, phone, trade_category_id:trade, state:stateVal, city:finalCity, years_experience:yrs ? parseInt(yrs) : undefined }),
+      body:JSON.stringify({
+        email,
+        password,
+        full_name:`${fname} ${lname}`,
+        phone,
+        trade_category_id:trade,
+        state:stateVal,
+        city:finalCity,
+        years_experience:yrs ? parseInt(yrs) : undefined,
+      }),
     })
     const d = await r.json()
-    setLoading(false)
-    if (!r.ok) { setError(d.error || 'Could not create account.'); return }
+    if (!r.ok) { setLoading(false); setError(d.error || 'Could not create account.'); return }
 
-    const selectedCat = cats.find(c => c.id === trade)
-    sessionStorage.setItem('pg_just_signed_up', '1')
-    sessionStorage.setItem('pg_pro', JSON.stringify({
-      id:d.pro.id, name:d.pro.full_name, email:d.pro.email, plan:d.pro.plan_tier,
-      trade:selectedCat?.category_name||null,
-      trade_slug:d.pro.trade_slug || selectedCat?.slug || null,
-      city:finalCity, state:stateVal, slug:null,
-    }))
+    // Account created on the server. Now establish a real browser session.
+    const supabase = getSupabaseBrowser()
+    const { error: signInErr } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+    setLoading(false)
+    if (signInErr) {
+      // Account exists but auto-login failed — send them to login
+      setError('Account created. Please log in.')
+      onSwitchTab()
+      return
+    }
+
     setSuccess(true)
     setTimeout(() => router.push('/onboarding'), 1400)
   }
@@ -359,6 +424,8 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       {/* Step 0: Identity */}
       {step === 0 && (
         <div>
+          {/* OAuth signup options */}
+          <OAuthButtons mode="signup" />
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <Field label="First name">
               <input value={fname} onChange={e => setFname(e.target.value)} placeholder="James"
@@ -373,6 +440,11 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
               style={inputStyle(focused==='email')} {...f('email')} />
+          </Field>
+          <Field label="Password" hint="At least 8 characters">
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="Create a password"
+              style={inputStyle(focused==='password')} {...f('password')} />
           </Field>
         </div>
       )}
@@ -489,7 +561,10 @@ function LoginPageInner() {
   const [tab, setTab] = useState<'login' | 'signup'>(params.get('tab') === 'signup' ? 'signup' : 'login')
 
   useEffect(() => {
-    if (sessionStorage.getItem('pg_pro')) router.replace('/dashboard')
+    const supabase = getSupabaseBrowser()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace('/dashboard')
+    })
   }, [])
 
   return (
