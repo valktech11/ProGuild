@@ -3,7 +3,7 @@ import { useState, useEffect, use } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
 import { stageStyle } from '@/lib/design'
 import { capName, fmtCurrency, timeAgo } from '@/lib/utils'
@@ -70,11 +70,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
   const leadId = searchParams.get('lead_id') || null
   const [applyingToLead, setApplyingToLead] = useState(false)
   const [appliedToLead, setAppliedToLead] = useState(false)
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('pg_darkmode') === '1'
   )
@@ -101,7 +97,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
   // Edit form state
   const [form, setForm] = useState<Partial<Property>>({})
 
-  useEffect(() => { if (!session) router.push('/login') }, [session, router])
+  useEffect(() => { if (!_authLoading && !session) router.push('/login') }, [_authLoading, session, router])
 
   useEffect(() => {
     if (!session) return

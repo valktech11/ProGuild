@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, FileText, Search, Trash2, X, Phone, MapPin, User, ArrowRight, ChevronLeft } from 'lucide-react'
 import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { estimateStatusStyle, stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
@@ -660,11 +661,7 @@ function NewEstimateModal({ open, dk, session, noun, onClose, onLeadSelected, on
 export default function EstimatesPage() {
   const router = useRouter()
 
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
 
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -710,7 +707,8 @@ export default function EstimatesPage() {
   }, [voidedToast])
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     fetch(`/api/estimates?pro_id=${session.id}`)
       .then(r => r.json())
       .then(d => setEstimates(d.estimates || []))

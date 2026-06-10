@@ -3,7 +3,7 @@ import { use, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { capName, timeAgo, avatarColor, initials } from '@/lib/utils'
 import { theme } from '@/lib/theme'
 import { getTradeConfig, isHVAC, getTradeLabels, getStageAnchors } from '@/lib/trades/_registry'
@@ -35,11 +35,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const { id } = use(params)
   const router = useRouter()
 
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
@@ -74,7 +70,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }, [session, id, hvac])
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     Promise.all([
       fetch(`/api/clients?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),

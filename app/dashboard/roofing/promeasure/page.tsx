@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
 
@@ -34,10 +34,7 @@ function ProMeasureInner() {
     try { const s = sessionStorage.getItem('pg_pm_draw'); return s ? JSON.parse(s) : null } catch { return null }
   })()
 
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro'); return s ? JSON.parse(s) : null
-  })
+  const { session } = useProSession()
 
   // ── Dark mode — respects pg_darkmode like all other pages ─────────────────
   const [dk, setDk] = useState(() =>

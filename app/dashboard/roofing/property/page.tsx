@@ -9,7 +9,7 @@ import { Btn }       from '@/components/ui/Btn'
 import { ListItem }  from '@/components/ui/ListItem'
 import { PageTitle, BodyText, MetaText } from '@/components/ui/Typography'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Session }   from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme, T, BRAND } from '@/lib/tokens'
 import { timeAgo }   from '@/lib/utils'
 
@@ -50,11 +50,7 @@ const PinIcon = () => (
 
 export default function PropertyListPage() {
   const router    = useRouter()
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('pg_darkmode') === '1'
   )
@@ -75,7 +71,7 @@ export default function PropertyListPage() {
   const [showPredictions, setShowPredictions] = useState(false)
   const [addrInputVal, setAddrInputVal] = useState('')
 
-  useEffect(() => { if (!session) router.push('/login') }, [session, router])
+  useEffect(() => { if (!_authLoading && !session) router.push('/login') }, [_authLoading, session, router])
 
 
 

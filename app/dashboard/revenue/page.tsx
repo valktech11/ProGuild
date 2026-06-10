@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
 
 interface RevenueData {
@@ -20,7 +20,7 @@ const fmt = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(n % 1000 === 0 ? 
 
 export default function RevenuePage() {
   const router = useRouter()
-  const [session, setSession] = useState<Session | null>(null)
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState<boolean>(() => typeof window !== 'undefined' && localStorage.getItem('pg_darkmode') === '1')
   const toggleDark = () => { const n = !dk; setDk(n); localStorage.setItem('pg_darkmode', n ? '1' : '0') }
   const [data, setData] = useState<RevenueData | null>(null)
@@ -28,9 +28,9 @@ export default function RevenuePage() {
   const [period, setPeriod] = useState<'mtd'|'ytd'|'12mo'|'all'>('all')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.push('/login'); return }
-    const s: Session = JSON.parse(raw); setSession(s)
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
+    const s = session
     fetch(`/api/roofing/revenue?pro_id=${s.id}&period=${period}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false) })

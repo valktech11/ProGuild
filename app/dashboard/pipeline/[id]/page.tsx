@@ -2,7 +2,8 @@
 import { useState, useEffect, use, useCallback, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Lead, Session, LeadStatus, isPaidPlan } from '@/types'
+import { Lead, LeadStatus, isPaidPlan } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { avatarColor, initials, capName, fmtPhone, US_STATES } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
@@ -110,10 +111,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   }
 
   // ── Session ─────────────────────────────────────────────────────────────
-  const [session] = useState<Session|null>(() => {
-    if (typeof window==='undefined') return null
-    const s = sessionStorage.getItem('pg_pro'); return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState(false)
   useEffect(() => { if (typeof window!=='undefined') setDk(localStorage.getItem('pg_darkmode')==='1') }, [])
 
@@ -228,7 +226,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   // ── Fetch lead ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     fetch(`/api/leads/${id}?pro_id=${session.id}`)
       .then(r => { if(r.status===404){setMissing(true);setLoading(false);return null}; return r.json() })
       .then(d => { if(!d) return; const l=d.lead as LeadExt; setLead(l); setStage(l.lead_status as LeadStatus); setLoading(false) })

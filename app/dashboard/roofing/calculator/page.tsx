@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme, T } from '@/lib/tokens'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -265,10 +265,7 @@ function CalculatorInner() {
   const router       = useRouter()
   const searchParams = useSearchParams()
 
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro'); return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('pg_darkmode') === '1'
   )
@@ -301,7 +298,8 @@ function CalculatorInner() {
   const fromSq     = searchParams.get('sq')           ?? null  // sq footage from property (fallback)
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
 
     // ── Load pro's saved material prices, convert units to match calculator ──
     // Settings stores: $/sq for shingles, underlayment, ice_water

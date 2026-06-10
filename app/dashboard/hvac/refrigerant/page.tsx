@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/theme'
 import { timeAgo } from '@/lib/utils'
 
@@ -21,11 +21,7 @@ const EMPTY_LOG = {
 
 export default function RefrigerantLogPage() {
   const router = useRouter()
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
@@ -42,7 +38,8 @@ export default function RefrigerantLogPage() {
   const [err,     setErr]     = useState('')
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     fetch(`/api/hvac/refrigerant-log?pro_id=${session.id}`)
       .then(r => r.json())
       .then(d => { setLogs(d.logs || []); setLoading(false) })

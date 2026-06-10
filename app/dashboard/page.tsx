@@ -250,6 +250,7 @@ export default function OverviewPage() {
     // Authenticated but no linked pro yet → home to find & claim their profile
     if (needsProfile) { router.replace('/complete-profile'); return }
     // Not authenticated at all → login
+    if (_authLoading) return
     if (!session) { router.replace('/login'); return }
     fetchData(session)
     // Listen for leads added from the sidebar "+ Add New Lead" button

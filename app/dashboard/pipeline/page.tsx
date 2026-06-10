@@ -2,7 +2,8 @@
 import { wonInMonth } from '@/lib/metrics/won'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Session, Lead } from '@/types'
+import { Lead } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import DashboardShell from '@/components/layout/DashboardShell'
 import LeadPipeline from '@/components/ui/LeadPipeline'
 import ActionAlert from '@/components/ui/ActionAlert'
@@ -15,11 +16,7 @@ import { getTradeConfig, getStageAnchors, isRoofing } from '@/lib/trades/_regist
 export default function PipelinePage() {
   const router = useRouter()
 
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const stored = sessionStorage.getItem('pg_pro')
-    return stored ? JSON.parse(stored) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
 
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -54,7 +51,8 @@ export default function PipelinePage() {
   }, [session])
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     fetchLeads().finally(() => setDataLoading(false))
     // Refresh when a lead is added from the sidebar "+ Add New Lead" button
     const handler = () => fetchLeads()

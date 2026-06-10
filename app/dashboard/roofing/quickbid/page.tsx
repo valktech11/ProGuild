@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
 import { initials, avatarColor, capName } from '@/lib/utils'
@@ -54,10 +54,7 @@ function ProgressBar({ pct }: { pct: number }) {
 function QuickBidInner() {
   const router  = useRouter()
   const searchParams = useSearchParams()
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro'); return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('pg_darkmode') === '1'
   )
@@ -309,6 +306,7 @@ function QuickBidInner() {
     }
   }, [session, fullAddress, matchedPropertyId])
 
+  if (_authLoading) return null
   if (!session) return null
 
   const canGenerate = street.trim().length > 3

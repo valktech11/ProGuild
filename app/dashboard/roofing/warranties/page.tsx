@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
 
 type Warranty = {
@@ -43,7 +43,7 @@ function fmtDate(d: string | null): string {
 export default function WarrantiesPage() {
   const router = useRouter()
 
-  const [session, setSession] = useState<Session | null>(null)
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
@@ -59,10 +59,9 @@ export default function WarrantiesPage() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.push('/login'); return }
-    const s: Session = JSON.parse(raw)
-    setSession(s)
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
+    const s = session
     fetch(`/api/roofing/warranties?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => { setWarranties(d.warranties || []); setLoading(false) })

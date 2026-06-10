@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { initials, avatarColor, timeAgo, fmtCurrency } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
@@ -20,7 +20,7 @@ function TAG_COLORS(dk: boolean): Record<string, { bg: string; text: string }> {
 export default function ClientsPage() {
   const router = useRouter()
 
-  const [session, setSession] = useState<Session | null>(null)
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
@@ -50,10 +50,9 @@ export default function ClientsPage() {
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.push('/login'); return }
-    const s: Session = JSON.parse(raw)
-    setSession(s)
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
+    const s = session
     fetch(`/api/clients?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => { setClients(d.clients || []); setLoading(false) })

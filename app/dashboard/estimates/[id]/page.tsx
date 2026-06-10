@@ -9,7 +9,7 @@ import EstimateSummary from '@/components/estimate/EstimateSummary'
 import PaymentPanel from '@/components/estimate/PaymentPanel'
 import SmartNudges from '@/components/estimate/SmartNudges'
 import EstimateProgressBar from '@/components/estimate/EstimateProgressBar'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme, T } from '@/lib/tokens'
 import { estimateStatusStyle } from '@/lib/design'
 import { isRoofing, getTradeConfig } from '@/lib/trades/_registry'
@@ -90,11 +90,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   }
 
   // Read session synchronously to avoid flicker
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
 
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -133,7 +129,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   const [termsValue,         setTermsValue]         = useState('')
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     // Fetch material prices for this pro so EstimatePage uses real costs
     if (session) {
       fetch(`/api/roofing/settings?pro_id=${session.id}`)

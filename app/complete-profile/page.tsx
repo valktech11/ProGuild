@@ -58,6 +58,13 @@ function CompleteProfileInner() {
   const [error, setError]         = useState('')
   const [success, setSuccess]     = useState(false)
 
+  function formatPhone(val: string) {
+    const d = val.replace(/\D/g, '').slice(0, 10)
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `(${d.slice(0,3)}) ${d.slice(3)}`
+    return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
+  }
+
   // Verify the user is authenticated; if they already have a profile, bounce to dashboard.
   useEffect(() => {
     async function check() {
@@ -193,7 +200,7 @@ function CompleteProfileInner() {
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
           <Field label="Phone (optional)">
-            <input value={phone} onChange={e => setPhone(e.target.value)}
+            <input value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
               onFocus={() => setFocused('phone')} onBlur={() => setFocused(null)}
               placeholder="(555) 123-4567" style={inputStyle(focused==='phone')} />
           </Field>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { EventChip, CalEvent } from '@/components/ui/EventChip'
 import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { capName } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import { ICON_PATH } from '@/lib/design'
@@ -425,7 +426,7 @@ function CalendarInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [session, setSession]   = useState<Session|null>(null)
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk]             = useState(false)
   const [desktopView, setDesktopView] = useState<'day'|'week'|'month'>('day')
   const [mobileView,  setMobileView]  = useState<'agenda'|'week'|'month'>('agenda')
@@ -453,11 +454,10 @@ function CalendarInner() {
 
   useEffect(() => {
     if (typeof window==='undefined') return
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.push('/login'); return }
-    setSession(JSON.parse(raw))
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     setDk(localStorage.getItem('pg_darkmode')==='1')
-  }, [router])
+  }, [session, router])
 
   const doFetch = useCallback(async (s: Session, center: Date) => {
     setLoading(true)

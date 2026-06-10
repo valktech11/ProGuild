@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme, T, BRAND } from '@/lib/tokens'
 
 // Default FL market prices — used when pro hasn't set their own
@@ -70,11 +70,7 @@ const MATERIAL_GROUPS = [
 
 export default function MaterialPricesPage() {
   const router = useRouter()
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState(false)
   const [prices, setPrices] = useState<Prices>({ ...DEFAULTS })
   const [loading, setLoading] = useState(true)
@@ -83,7 +79,8 @@ export default function MaterialPricesPage() {
   const [usingDefaults, setUsingDefaults] = useState(true)
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     setDk(localStorage.getItem('pg_darkmode') === '1')
     fetch(`/api/roofing/settings?pro_id=${session.id}`)
       .then(r => r.json())

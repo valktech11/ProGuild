@@ -3,7 +3,7 @@ import React, { use, useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -183,11 +183,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const { id }  = use(params)
   const router  = useRouter()
 
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
@@ -206,7 +202,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
     fetch(`/api/invoices/${id}`)
       .then(r => r.json())
       .then(d => { if (d.invoice) setInvoice(d.invoice) })
