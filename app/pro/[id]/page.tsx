@@ -398,6 +398,7 @@ export default function ProProfilePage() {
 
   useEffect(() => {
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const s = _real
     if (_real) setSession(_real)
 
     // If the URL param is a vanity slug (not a UUID), resolve it to a UUID first
