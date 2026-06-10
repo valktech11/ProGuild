@@ -738,18 +738,13 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
   // Always open the built-in modal — it's wired into DashboardShell for all pages
   const handleAddLead = () => setShowAddLead(true)
 
-  // Silently refresh session if trade_slug missing (stale sessionStorage from before trade was set)
+  // Silently refresh session if trade_slug missing (stale session from before trade was set)
   React.useEffect(() => {
     if (!session?.id || session?.trade_slug) return
-    fetch(`/api/auth?id=${session.id}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.session?.trade_slug) {
-          sessionStorage.setItem('pg_pro', JSON.stringify(d.session))
-          window.location.reload()
-        }
-      })
-      .catch(() => {})
+    // The session comes from the shared provider; trigger a refresh to pick up trade_slug.
+    // No manual sessionStorage writes or full-page reloads needed.
+    const ev = new Event('pg-session-refresh')
+    window.dispatchEvent(ev)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id])
 
