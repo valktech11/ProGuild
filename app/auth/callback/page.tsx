@@ -57,8 +57,8 @@ function CallbackInner() {
         if (r.ok && d.session) {
           router.replace('/dashboard')
         } else if (r.ok && d.needsProfile) {
-          // Authenticated but no linked pro — send to onboarding/claim
-          router.replace('/onboarding')
+          // Authenticated but no linked pro — send home to find & claim their profile
+          router.replace('/?claim=1')
         } else {
           router.replace('/login')
         }

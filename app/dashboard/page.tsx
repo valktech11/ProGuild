@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Session, Lead, Review } from '@/types'
+import { Lead, Review } from '@/types'
 import { timeAgo, fmtCurrency } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 import { theme, T, BRAND } from '@/lib/tokens'
 import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
@@ -200,11 +201,7 @@ function PipeArrow({ dk }: { dk: boolean }) {
 export default function OverviewPage() {
   const router = useRouter()
 
-  const [session] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const stored = sessionStorage.getItem('pg_pro')
-    return stored ? JSON.parse(stored) : null
-  })
+  const { session, loading: sessionLoading, needsProfile } = useProSession()
 
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -248,13 +245,18 @@ export default function OverviewPage() {
   }
 
   useEffect(() => {
-    if (!session) { router.push('/login'); return }
+    // Wait until auth has resolved before deciding anything (prevents redirect loop)
+    if (sessionLoading) return
+    // Authenticated but no linked pro yet → home to find & claim their profile
+    if (needsProfile) { router.replace('/?claim=1'); return }
+    // Not authenticated at all → login
+    if (!session) { router.replace('/login'); return }
     fetchData(session)
     // Listen for leads added from the sidebar "+ Add New Lead" button
     const handler = () => fetchData(session)
     window.addEventListener('pg:lead-added', handler)
     return () => window.removeEventListener('pg:lead-added', handler)
-  }, [session, router])
+  }, [session, sessionLoading, needsProfile, router])
 
   // Stage filters derived from trade plugin — no hardcoded stage key strings
   const anchors        = getStageAnchors(session?.trade_slug)
@@ -336,7 +338,7 @@ export default function OverviewPage() {
     return { label: 'Needs Improvement', color: '#DC2626', bg: '#FEE2E2' }
   }
 
-  if (!session || dataLoading) {
+  if (sessionLoading || !session || dataLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: t.pageBg }}>
         <div className="flex flex-col items-center gap-3">

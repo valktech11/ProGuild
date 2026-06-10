@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Session } from '@/types'
 import { initials, avatarColor } from '@/lib/utils'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 const C = {
   teal:    '#0F766E',
@@ -63,21 +64,26 @@ export default function OnboardingPage() {
   const [bioFocused, setBioFocused] = useState(false)
   const [licFocused, setLicFocused] = useState(false)
 
+  const { session: authedSession, loading: sessionLoading, needsProfile } = useProSession()
+
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.replace('/login'); return }
-    const s: Session = JSON.parse(raw)
+    if (sessionLoading) return
+    // No auth at all → login
+    if (!authedSession && !needsProfile) { router.replace('/login'); return }
+    // Authenticated but no linked pro record → send home to find & claim their profile
+    if (needsProfile) { router.replace('/?claim=1'); return }
+    if (!authedSession) return
+
     // Only skip onboarding if previously onboarded AND this is NOT a fresh signup
     const justSignedUp = sessionStorage.getItem('pg_just_signed_up')
     if (justSignedUp) {
-      // Fresh signup — always show onboarding, clear the flag
       sessionStorage.removeItem('pg_just_signed_up')
       sessionStorage.removeItem('pg_onboarded') // reset so they see it
     } else if (sessionStorage.getItem('pg_onboarded')) {
       router.replace('/dashboard'); return
     }
-    setSession(s)
-  }, [])
+    setSession(authedSession)
+  }, [authedSession, sessionLoading, needsProfile, router])
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -118,7 +124,14 @@ export default function OnboardingPage() {
     router.push('/dashboard')
   }
 
-  if (!session) return null
+  if (sessionLoading || !session) {
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#fff' }}>
+        <div style={{ width:40, height:40, border:`3px solid ${C.border}`, borderTopColor:C.teal, borderRadius:'50%', animation:'pgspin 0.8s linear infinite' }} />
+        <style>{`@keyframes pgspin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
+  }
   const firstName = session.name.split(' ')[0]
 
   return (
