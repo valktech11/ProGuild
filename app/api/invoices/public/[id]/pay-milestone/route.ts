@@ -19,7 +19,7 @@ export async function POST(
 
   const { data: inv, error } = await sb
     .from('invoices')
-    .select('id, status, total, amount_paid, balance_due, payment_history, lead_id, pro_id')
+    .select('id, status, total, amount_paid, balance_due, payment_history, lead_id, pro_id, estimate_id')
     .eq('id', id)
     .single()
 
@@ -52,6 +52,14 @@ export async function POST(
     paid_at:         balanceDue <= 0 ? new Date().toISOString() : null,
     updated_at:      new Date().toISOString(),
   }).eq('id', id)
+
+  // Keep the linked estimate in sync so its tracker shows Invoice/Payment status
+  if (newStatus === 'paid' && inv.estimate_id) {
+    await sb.from('estimates').update({
+      status:  'paid',
+      paid_at: new Date().toISOString(),
+    }).eq('id', inv.estimate_id)
+  }
 
   if (balanceDue <= 0 && inv.lead_id) {
     const { data: leadRow } = await sb

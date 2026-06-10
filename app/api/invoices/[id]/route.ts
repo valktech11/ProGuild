@@ -96,6 +96,14 @@ export async function PATCH(
     }
   }
 
+  // ── Invoice paid → sync linked estimate so its tracker reflects payment ──
+  if (body.status === 'paid' && data?.estimate_id) {
+    await sb.from('estimates').update({
+      status:  'paid',
+      paid_at: new Date().toISOString(),
+    }).eq('id', data.estimate_id)
+  }
+
   // ── Roofing-specific invoice fields → roofing_invoice_data ─────────────
   const ROOFING_INVOICE_FIELDS = [
     'insurance_company','claim_number','approved_amount','deductible',
