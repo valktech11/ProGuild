@@ -289,7 +289,8 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
     if (creatingEst) return
     setCreatingEst(true)
     try {
-      const session = _pgSession || {}
+      const session = _pgSession
+      if (!session) { setCreatingEst(false); return }
       const r = await fetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -319,7 +320,8 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
     setExistingEst(null)
     setCreatingEst(true)
     try {
-      const session = _pgSession || {}
+      const session = _pgSession
+      if (!session) { setCreatingEst(false); return }
       const r = await fetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
