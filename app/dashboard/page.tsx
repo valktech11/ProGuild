@@ -248,7 +248,7 @@ export default function OverviewPage() {
     // Wait until auth has resolved before deciding anything (prevents redirect loop)
     if (sessionLoading) return
     // Authenticated but no linked pro yet → home to find & claim their profile
-    if (needsProfile) { router.replace('/?claim=1'); return }
+    if (needsProfile) { router.replace('/complete-profile'); return }
     // Not authenticated at all → login
     if (!session) { router.replace('/login'); return }
     fetchData(session)

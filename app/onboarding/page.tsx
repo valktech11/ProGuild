@@ -71,7 +71,7 @@ export default function OnboardingPage() {
     // No auth at all → login
     if (!authedSession && !needsProfile) { router.replace('/login'); return }
     // Authenticated but no linked pro record → send home to find & claim their profile
-    if (needsProfile) { router.replace('/?claim=1'); return }
+    if (needsProfile) { router.replace('/complete-profile'); return }
     if (!authedSession) return
 
     // Only skip onboarding if previously onboarded AND this is NOT a fresh signup
