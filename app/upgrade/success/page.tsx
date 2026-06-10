@@ -2,35 +2,27 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 function SuccessInner() {
   const params = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'loading'|'success'|'error'>('loading')
+  const { session: _real, loading: _authLoading, refresh: _refreshSession } = useProSession()
 
   useEffect(() => {
     const sessionId = params.get('session_id')
     if (!sessionId) { setStatus('error'); return }
+    if (_authLoading) return
 
-    // Refresh session from DB — plan has been updated by webhook
-    const raw = sessionStorage.getItem('pg_pro')
-    if (raw) {
-      const s = JSON.parse(raw)
-      fetch(`/api/pros/${s.id}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d.pro) {
-            const updated = { ...s, plan: d.pro.plan_tier }
-            sessionStorage.setItem('pg_pro', JSON.stringify(updated))
-            window.dispatchEvent(new Event('pg-session-changed'))
-          }
-          setStatus('success')
-        })
-        .catch(() => setStatus('success')) // show success anyway
-    } else {
-      setStatus('success')
-    }
-  }, [])
+    // Plan was updated by the Stripe webhook — re-fetch session so the new plan shows
+    _refreshSession()
+      .then(() => {
+        window.dispatchEvent(new Event('pg-session-changed'))
+        setStatus('success')
+      })
+      .catch(() => setStatus('success'))
+  }, [_authLoading])
 
   if (status === 'loading') return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center">

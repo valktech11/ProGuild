@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { initials, avatarColor } from '@/lib/utils'
+import { useProSession } from '@/lib/hooks/useProSession'
 import Navbar from '@/components/layout/Navbar'
 
 function Star({ filled, half, onClick }: { filled: boolean; half?: boolean; onClick: () => void }) {
@@ -24,17 +25,22 @@ const RATING_LABELS: Record<number, string> = {
 export default function ReviewPage() {
   const { pro_id } = useParams<{ pro_id: string }>()
   const router     = useRouter()
+  const { session: _real } = useProSession()
+
+  // Prefill reviewer name/email if the visitor is a logged-in pro
+  useEffect(() => {
+    if (_real) {
+      setName(prev => prev || _real.name || '')
+      setEmail(prev => prev || _real.email || '')
+    }
+  }, [_real])
 
   const [pro, setPro]         = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [rating, setRating]   = useState(0)
   const [hover, setHover]     = useState(0)
-  const [name, setName]       = useState(() => {
-    try { const s = JSON.parse(sessionStorage.getItem('pg_pro') || '{}'); return s.name || '' } catch { return '' }
-  })
-  const [email, setEmail]     = useState(() => {
-    try { const s = JSON.parse(sessionStorage.getItem('pg_pro') || '{}'); return s.email || '' } catch { return '' }
-  })
+  const [name, setName]       = useState('')
+  const [email, setEmail]     = useState('')
   const [comment, setComment] = useState('')
   const [jobType, setJobType] = useState('')
   const [submitting, setSubmitting] = useState(false)

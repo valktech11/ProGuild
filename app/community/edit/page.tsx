@@ -4,11 +4,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session, PortfolioItem, TradeCategory } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 export default function CommunityEditPage() {
   const router  = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [session, setSession]         = useState<Session | null>(null)
+  const { session: _real, loading: _authLoading } = useProSession()
   const [portfolio, setPortfolio]     = useState<PortfolioItem[]>([])
   const [categories, setCategories]   = useState<TradeCategory[]>([])
   const [loading, setLoading]         = useState(true)
@@ -27,9 +29,9 @@ export default function CommunityEditPage() {
   const [uploadingBefore, setUploadingBefore] = useState(false)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.replace('/login'); return }
-    const s: Session = JSON.parse(raw)
+    if (_authLoading) return
+    if (!_real) { router.replace('/login'); return }
+    const s = _real
     setSession(s)
     Promise.all([
       fetch(`/api/portfolio?pro_id=${s.id}`).then(r => r.json()),
@@ -44,7 +46,7 @@ export default function CommunityEditPage() {
       }
       setLoading(false)
     })
-  }, [])
+  }, [_real, _authLoading])
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

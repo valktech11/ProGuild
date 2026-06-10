@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Lead } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { initials, avatarColor, timeAgo, capName, fmtCurrency } from '@/lib/utils'
 import { stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
@@ -271,6 +272,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
   onStatusChange?: (leadId: string, status: string) => Promise<void>
 }) {
   const router = useRouter()
+  const { session: _pgSession } = useProSession()
   const [bg, fg] = avatarColor(lead.contact_name)
   const days     = daysSince(lead.created_at)
   const ageLabel = (() => {
@@ -287,7 +289,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
     if (creatingEst) return
     setCreatingEst(true)
     try {
-      const session = JSON.parse(sessionStorage.getItem('pg_pro') || '{}')
+      const session = _pgSession || {}
       const r = await fetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -317,7 +319,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
     setExistingEst(null)
     setCreatingEst(true)
     try {
-      const session = JSON.parse(sessionStorage.getItem('pg_pro') || '{}')
+      const session = _pgSession || {}
       const r = await fetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -855,6 +857,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail, stages = getPipelineStag
   stages?: PipelineStage[]
   dk?: boolean
 }) {
+  const { session: _pgSession } = useProSession()
   const [lead, setLead] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [note, setNote] = useState('')
@@ -862,8 +865,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail, stages = getPipelineStag
   const [noteSaved, setNoteSaved] = useState(false)
 
   useEffect(() => {
-    const raw = typeof window !== 'undefined' ? sessionStorage.getItem('pg_pro') : null
-    const session = raw ? JSON.parse(raw) : null
+    const session = _pgSession
     if (!session) return
     fetch(`/api/leads/${leadId}?pro_id=${session.id}`)
       .then(r => r.json())
@@ -873,8 +875,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail, stages = getPipelineStag
 
   async function saveNote() {
     if (!note.trim()) return
-    const raw = typeof window !== 'undefined' ? sessionStorage.getItem('pg_pro') : null
-    const session = raw ? JSON.parse(raw) : null
+    const session = _pgSession
     if (!session) return
     setSavingNote(true)
     try {

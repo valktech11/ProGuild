@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import DashboardShell from '@/components/layout/DashboardShell'
 import Link from 'next/link'
 import { Session, Post, Pro } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { initials, avatarColor, timeAgo, isPaid } from '@/lib/utils'
 
 
@@ -579,6 +580,7 @@ function FollowButton({ proId, followerId }: { proId: string; followerId: string
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CommunityPage() {
   const [session,      setSession]      = useState<Session | null>(null)
+  const { session: _real } = useProSession()
   const [posts,        setPosts]        = useState<Post[]>([])
   const [suggested,    setSuggested]    = useState<Pro[]>([])
   const [jobAlerts,    setJobAlerts]    = useState<any[]>([])
@@ -604,8 +606,7 @@ export default function CommunityPage() {
   }
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    const s   = raw ? JSON.parse(raw) : null
+    const s = _real
     setSession(s)
 
     const city = s?.city || ''
@@ -634,7 +635,7 @@ export default function CommunityPage() {
       setTrendingPosts(trendingData.posts || [])
       setLoading(false)
     })
-  }, [tradeFilter, search, localOnly])
+  }, [tradeFilter, search, localOnly, _real])
 
   // Local filter still applied client-side for instant FL toggle
   const postsWithLikes = posts

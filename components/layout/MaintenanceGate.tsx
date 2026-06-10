@@ -1,27 +1,24 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 export default function MaintenanceGate({ children }: { children: React.ReactNode }) {
   const [config, setConfig]     = useState<Record<string, string> | null>(null)
   const [isAdmin, setIsAdmin]   = useState(false)
   const pathname = usePathname()
+  const { session: _real } = useProSession()
 
   useEffect(() => {
     // Check if current user is admin
-    const raw = sessionStorage.getItem('pg_pro')
-    if (raw) {
-      try {
-        const s = JSON.parse(raw)
-        if (s?.id) {
-          fetch(`/api/admin?section=dashboard`, { headers: { 'x-pro-id': s.id } })
-            .then(r => { if (r.ok) setIsAdmin(true) })
-        }
-      } catch {}
+    if (_real?.id) {
+      fetch(`/api/admin?section=dashboard`, { headers: { 'x-pro-id': _real.id } })
+        .then(r => { if (r.ok) setIsAdmin(true) })
+        .catch(() => {})
     }
     // Fetch config
     fetch('/api/config').then(r => r.json()).then(d => setConfig(d.config || {}))
-  }, [])
+  }, [_real])
 
   // Routes that always pass through regardless of maintenance mode
   const isAdminRoute   = pathname?.startsWith('/admin')

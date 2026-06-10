@@ -5,6 +5,7 @@ import { theme, T } from '@/lib/tokens'
 import { avatarColor, initials } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type TradeCategory = { id: string; category_name: string; slug: string }
@@ -102,11 +103,7 @@ export default function EditProfilePage() {
   const router = useRouter()
 
   // ── Auth + dark mode ──────────────────────────────────────────────────────
-  const [session, setSession] = useState<Session | null>(() => {
-    if (typeof window === 'undefined') return null
-    const s = sessionStorage.getItem('pg_pro')
-    return s ? JSON.parse(s) : null
-  })
+  const { session, loading: _authLoading, refresh: _refreshSession } = useProSession()
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
@@ -181,6 +178,7 @@ export default function EditProfilePage() {
 
   // ── Load data ─────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (_authLoading) return
     if (!session) { router.push('/login'); return }
 
     Promise.all([
@@ -226,7 +224,7 @@ export default function EditProfilePage() {
       setInsurance(insData.insurance || [])
       setLoading(false)
     })
-  }, [])
+  }, [session, _authLoading])
 
   useEffect(() => {
     if (!state) { setCities([]); return }
@@ -295,7 +293,7 @@ export default function EditProfilePage() {
     })
     setSaving(false)
     if (r.ok) {
-      sessionStorage.setItem('pg_pro', JSON.stringify({ ...session!, name: fullName.trim() }))
+      await _refreshSession()   // re-fetch session from DB (now has updated name)
       setSaved(true); setTimeout(() => setSaved(false), 3000)
     } else {
       const d = await r.json()

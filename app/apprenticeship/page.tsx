@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 export default function ApprenticeshipPage() {
   const router  = useRouter()
   const [session, setSession] = useState<Session | null>(null)
+  const { session: _real, loading: _authLoading } = useProSession()
   const [logs, setLogs]       = useState<any[]>([])
   const [totalHours, setTotalHours]  = useState(0)
   const [targetHours, setTargetHours] = useState(8000)
@@ -21,12 +23,12 @@ export default function ApprenticeshipPage() {
   const [error, setError]   = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.replace('/login'); return }
-    const s: Session = JSON.parse(raw)
+    if (_authLoading) return
+    if (!_real) { router.replace('/login'); return }
+    const s = _real
     setSession(s)
     loadData(s.id)
-  }, [])
+  }, [_real, _authLoading])
 
   async function loadData(proId: string) {
     setLoading(true)

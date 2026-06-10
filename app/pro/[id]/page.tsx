@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
@@ -382,6 +383,7 @@ export default function ProProfilePage() {
   const router  = useRouter()
 
   const [session, setSession]         = useState<any>(null)
+  const { session: _real } = useProSession()
   const [pro, setPro]                 = useState<any>(null)
   const [reviews, setReviews]         = useState<any[]>([])
   const [portfolio, setPortfolio]     = useState<any[]>([])
@@ -396,9 +398,7 @@ export default function ProProfilePage() {
 
   useEffect(() => {
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    const raw = sessionStorage.getItem('pg_pro')
-    const s   = raw ? JSON.parse(raw) : null
-    if (s) setSession(s)
+    if (_real) setSession(_real)
 
     // If the URL param is a vanity slug (not a UUID), resolve it to a UUID first
     // then re-render with the real ID so all downstream fetches work correctly
@@ -427,7 +427,7 @@ export default function ProProfilePage() {
       setLoading(false)
       fetch(`/api/pro-licenses?pro_id=${id}`).then(r => r.json()).then(d => setProLicenses(d.licenses || []))
     }).catch(() => { setError('Could not load profile'); setLoading(false) })
-  }, [id])
+  }, [id, _real])
 
   async function toggleFollow() {
     if (!session) { router.push('/login'); return }

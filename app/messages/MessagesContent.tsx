@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { initials, avatarColor, timeAgo } from '@/lib/utils'
 import { theme } from '@/lib/theme'
 
@@ -29,6 +30,7 @@ export default function MessagesContent() {
   const bottomRef    = useRef<HTMLDivElement>(null)
 
   const [session,    setSession]    = useState<Session | null>(null)
+  const { session: _real, loading: _authLoading } = useProSession()
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('pg_darkmode') === '1'
@@ -50,14 +52,14 @@ export default function MessagesContent() {
   const [mobileView, setMobileView] = useState<'threads' | 'conversation'>('threads')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.replace('/login'); return }
-    const s: Session = JSON.parse(raw)
+    if (_authLoading) return
+    if (!_real) { router.replace('/login'); return }
+    const s = _real
     setSession(s)
     fetch(`/api/messages?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => { setThreads(d.threads || []); setLoading(false) })
-  }, [])
+  }, [_real, _authLoading])
 
   useEffect(() => {
     if (!withId || !session) return
