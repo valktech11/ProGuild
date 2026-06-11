@@ -177,7 +177,6 @@ export async function PATCH(
   let leadData: Record<string, unknown> | null = null
   if (Object.keys(updateFields).length > 0) {
     updateFields.updated_at = new Date().toISOString()
-    console.log('[PATCH /api/leads] updating lead', id, 'pro', proId, 'fields:', JSON.stringify(updateFields))
     const { data, error } = await getSupabaseAdmin()
       .from('leads')
       .update(updateFields)
@@ -186,21 +185,13 @@ export async function PATCH(
       .select()
       .single()
     if (error || !data) {
-      // TEMP DIAGNOSTIC: surface the real Postgres error instead of a generic 403
-      console.error('[PATCH /api/leads] UPDATE FAILED:', {
-        message: error?.message, details: error?.details, hint: error?.hint, code: error?.code,
-        fields: Object.keys(updateFields),
-      })
-      return NextResponse.json({
-        error: 'Lead update failed',
-        _debug: {
-          message: error?.message ?? null,
-          details: error?.details ?? null,
-          hint:    error?.hint ?? null,
-          code:    error?.code ?? null,
-          fields:  Object.keys(updateFields),
-        },
-      }, { status: 400 })
+      // A constraint/column error (PG 23xxx/42xxx) is a real data problem, not auth.
+      // Surface a clear message so the UI shows what's wrong instead of "access denied".
+      if (error?.code?.startsWith('23') || error?.code?.startsWith('42')) {
+        console.error('[PATCH /api/leads] update rejected:', error.code, error.message)
+        return apiError(error.message || 'Update rejected by database', 400)
+      }
+      return apiError('Lead not found or access denied', 403)
     }
     leadData = data
   }

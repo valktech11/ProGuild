@@ -15,7 +15,7 @@ import SupplementAssistant from '@/lib/trades/roofing/components/SupplementAssis
 import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
 import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
 
-// TEMP DIAGNOSTIC: captures the last lead-PATCH error so saveEdit can show it in the toast
+// Captures the last lead-PATCH error message so saveEdit can show it in the toast
 let _lastPatchError = ''
 
 // ─── Stage order map ──────────────────────────────────────────────────────────
@@ -314,7 +314,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     if (!r.ok) {
       try {
         const body = await r.json()
-        _lastPatchError = body?._debug?.message || body?.error || `HTTP ${r.status}`
+        _lastPatchError = body?.error || `HTTP ${r.status}`
       } catch { _lastPatchError = `HTTP ${r.status}` }
     }
     return r.ok
