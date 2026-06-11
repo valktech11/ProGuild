@@ -15,6 +15,9 @@ import SupplementAssistant from '@/lib/trades/roofing/components/SupplementAssis
 import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
 import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
 
+// TEMP DIAGNOSTIC: captures the last lead-PATCH error so saveEdit can show it in the toast
+let _lastPatchError = ''
+
 // ─── Stage order map ──────────────────────────────────────────────────────────
 // STAGE_ORDER and SOURCE_OPTIONS are derived inside the component from the trade plugin.
 // This fallback is used for non-roofing trades until their configs define leadSources.
@@ -308,6 +311,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       return r.ok
     }
     const r = await fetch(`/api/leads/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,...fields})})
+    if (!r.ok) {
+      try {
+        const body = await r.json()
+        _lastPatchError = body?._debug?.message || body?.error || `HTTP ${r.status}`
+      } catch { _lastPatchError = `HTTP ${r.status}` }
+    }
     return r.ok
   }, [session, id])
 
@@ -494,7 +503,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         scheduled_date: eDate||null, follow_up_date: eFU||null, ...(eInsp ? { inspection_date: eInsp } : {}), notes: eNotes||null,
       }:l)
       setIsEditing(false); addToast('Saved')
-    } else addToast('Failed to save','error')
+    } else addToast('Failed to save: ' + (_lastPatchError || 'unknown error'), 'error')
   }
 
   // ── Note ─────────────────────────────────────────────────────────────────
