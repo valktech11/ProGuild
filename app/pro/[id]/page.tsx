@@ -563,8 +563,16 @@ export default function ProProfilePage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
 
           {/* Cover / header area — full width hero */}
-          <div className="relative h-40 sm:h-52"
+          <div className="relative h-40 sm:h-52 overflow-hidden"
             style={{ background: pro.cover_image_url ? undefined : 'linear-gradient(135deg, #0A1628 0%, #0D2D4A 50%, #0C5F57 100%)' }}>
+            {/* Faint blueprint grid — premium construction texture, ~4% opacity */}
+            {!pro.cover_image_url && (
+              <div className="absolute inset-0 pointer-events-none" style={{
+                opacity: 0.05,
+                backgroundImage: 'linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)',
+                backgroundSize: '32px 32px',
+              }} />
+            )}
             {pro.cover_image_url && (
               <>
                 <img src={pro.cover_image_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
@@ -574,7 +582,7 @@ export default function ProProfilePage() {
             {/* Trade eyebrow — top of band, clear of the avatar that rises bottom-left */}
             {!pro.cover_image_url && (
               <div className="absolute top-5 left-6 right-6">
-                <div className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                <div className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'rgba(255,255,255,0.6)' }}>
                   {trade}
                 </div>
               </div>
@@ -583,129 +591,132 @@ export default function ProProfilePage() {
 
           {/* Profile info */}
           <div className="px-5 sm:px-7 pb-6">
-            {/* Avatar + CTA row — overlaps cover */}
-            <div className="flex items-end justify-between -mt-12 mb-4">
-              <div className="relative">
-                <ProAvatar pro={pro} size="w-28 h-28 sm:w-32 sm:h-32" />
-                {pro.available_for_work && (
-                  <span className="absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center"
-                    style={{ background: '#22C55E' }}>
-                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                  </span>
-                )}
+            {/* Top row: avatar + identity (left) · contact card (right) */}
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+
+              {/* Left: avatar + identity */}
+              <div className="flex gap-4 -mt-10 sm:-mt-12">
+                <div className="relative flex-shrink-0">
+                  <ProAvatar pro={pro} size="w-20 h-20 sm:w-24 sm:h-24" />
+                  {pro.available_for_work && (
+                    <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"
+                      style={{ background: '#22C55E' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    </span>
+                  )}
+                </div>
+
+                <div className="pt-10 sm:pt-12">
+                  <div className="flex items-center gap-2.5 flex-wrap mb-0.5">
+                    <h1 className="text-2xl sm:text-3xl font-extrabold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+                      {pro.full_name}
+                    </h1>
+                    {!pro.is_claimed && (
+                      <span className="inline-flex flex-col items-start text-[11px] leading-tight font-semibold px-2.5 py-1 rounded-lg"
+                        style={{ background: '#FBF7ED', color: '#92580C', border: '1px solid #F0E2C4' }}>
+                        <span>Public Listing</span>
+                        <span className="font-medium" style={{ color: '#B0894A' }}>Not Yet Claimed</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-base font-semibold mb-2.5" style={{ color: '#0F766E' }}>{trade}</div>
+
+                  {/* Credential / fact row — makes the profile feel established */}
+                  <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap text-sm" style={{ color: '#4A5560' }}>
+                    {pro.license_number && (
+                      <span className="inline-flex items-center gap-1.5 font-medium">
+                        <ShieldBadge size={14} /> Licensed Contractor
+                      </span>
+                    )}
+                    {location && (
+                      <span className="inline-flex items-center gap-1.5 font-medium">📍 {location}</span>
+                    )}
+                    {pro.years_experience > 0 && (
+                      <span className="inline-flex items-center gap-1.5 font-medium">🏗 {pro.years_experience} yrs in business</span>
+                    )}
+                    {pro.available_for_work && (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(34,197,94,0.1)', color: '#15803D', border: '1px solid rgba(34,197,94,0.25)' }}>
+                        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22C55E' }} /> Available now
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              {/* Desktop contact CTA — primary action for homeowners */}
+
+              {/* Right: contact card (grouped, not floating) */}
               {!isOwner && (
-                <button onClick={() => setShowModal(true)}
-                  className="hidden sm:flex items-center gap-2 px-7 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-sm"
-                  style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                  Contact {firstName} →
-                </button>
-              )}
-            </div>
-
-            {/* Name + trade + location */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2.5 flex-wrap mb-1">
-                <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-                  {pro.full_name}
-                </h1>
-                {!pro.is_claimed && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
-                    style={{ background: '#FBF7ED', color: '#92580C', border: '1px solid #F0E2C4' }}>
-                    Unclaimed listing
-                  </span>
-                )}
-              </div>
-              <div className="text-base font-semibold mb-1" style={{ color: '#0F766E' }}>{trade}</div>
-              <div className="flex items-center gap-3 flex-wrap text-sm" style={{ color: '#6B7280' }}>
-                {location && <span>📍 {location}</span>}
-                {pro.years_experience > 0 && <span>· {pro.years_experience} yrs experience</span>}
-                {pro.available_for_work && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: 'rgba(34,197,94,0.1)', color: '#15803D', border: '1px solid rgba(34,197,94,0.25)' }}>
-                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22C55E' }} /> Available now
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Rating — prominent if exists */}
-            {rating > 0 && (
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-amber-400">{starsHtml(rating)}</span>
-                <span className="text-base font-bold" style={{ color: '#0A1628' }}>{rating.toFixed(1)}</span>
-                <span className="text-sm" style={{ color: '#A89F93' }}>({reviewCnt} {reviewCnt === 1 ? 'review' : 'reviews'})</span>
-              </div>
-            )}
-
-            {/* Stats row */}
-            <div className="flex flex-wrap gap-6 mb-4 pb-4 border-b" style={{ borderColor: '#F0EDE8' }}>
-              {reviewCnt > 0 && (
-                <div>
-                  <div className="text-xl font-bold" style={{ color: '#0A1628' }}>{reviewCnt}</div>
-                  <div className="text-xs" style={{ color: '#A89F93' }}>Reviews</div>
+                <div className="w-full lg:w-72 lg:flex-shrink-0 rounded-2xl border p-5 lg:mt-2" style={{ borderColor: '#E8E2D9', background: '#fff' }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'rgba(15,118,110,0.08)' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </div>
+                  <div className="text-lg font-bold mb-1" style={{ color: '#0A1628' }}>Contact {firstName}</div>
+                  <p className="text-sm mb-4 leading-relaxed" style={{ color: '#6B7280' }}>Connect directly to discuss your project.</p>
+                  <button onClick={() => setShowModal(true)}
+                    className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                    Contact {firstName} →
+                  </button>
+                  {pro.phone && (
+                    <a href={`tel:${pro.phone}`}
+                      className="flex items-center justify-center gap-2 w-full mt-2 py-2.5 rounded-xl border text-sm font-semibold transition-colors"
+                      style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
+                      📞 Call {firstName}
+                    </a>
+                  )}
+                  <p className="text-xs text-center mt-3" style={{ color: '#8A9199' }}>
+                    {(pro as any).avg_response_time || 'Response time unknown'}
+                  </p>
                 </div>
               )}
-              {pro.years_experience > 0 && (
-                <div>
-                  <div className="text-xl font-bold" style={{ color: '#0A1628' }}>{pro.years_experience}</div>
-                  <div className="text-xs" style={{ color: '#A89F93' }}>Yrs experience</div>
-                </div>
-              )}
-              {(pro as any).pricing_note && (
-                <div>
-                  <div className="text-sm font-bold" style={{ color: '#0A1628' }}>{(pro as any).pricing_note}</div>
-                  <div className="text-xs" style={{ color: '#A89F93' }}>Pricing</div>
+
+              {/* Owner shortcuts in place of contact card */}
+              {isOwner && (
+                <div className="w-full lg:w-72 lg:flex-shrink-0 rounded-2xl border p-4 space-y-2 lg:mt-2" style={{ borderColor: '#E8E2D9' }}>
+                  <Link href="/edit-profile"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 text-white text-sm font-bold rounded-xl transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                    ✏️ Edit profile
+                  </Link>
+                  <Link href="/dashboard"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold rounded-xl border transition-colors"
+                    style={{ borderColor: '#E8E2D9', color: '#6B7280' }}>
+                    📊 Dashboard
+                  </Link>
                 </div>
               )}
             </div>
 
-            {/* Trust badges */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {pro.is_verified && pro.is_claimed && (
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full"
-                  style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.25)' }}>
-                  <ShieldBadge size={13} /> Guild Verified
-                </span>
-              )}
-              {pro.license_number && (
+            {/* License verification — the killer trust feature, given real weight */}
+            {pro.license_number && (
+              <div className="mt-5 pt-5 border-t flex items-center gap-2 flex-wrap" style={{ borderColor: '#F0EDE8' }}>
                 <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${pro.license_number}`}
                   target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-80"
                   style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.2)' }}>
                   <ShieldBadge size={13} /> FL License #{pro.license_number} · Verify on DBPR ↗
                 </a>
-              )}
-              {hasLicense && !pro.license_number && (
-                <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
-                  style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
-                  🏛 DBPR Licensed
-                </span>
-              )}
-              {hasOsha && (
-                <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
-                  style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
-                  🦺 {pro.osha_card_type}
-                </span>
-              )}
-              {hasInsurance && (
-                <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
-                  style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>
-                  🛡 Insured
-                </span>
-              )}
-              {isElite(pro.plan_tier) && (
-                <span className="text-sm font-bold px-3 py-1.5 rounded-full"
-                  style={{ background: 'rgba(139,92,246,0.1)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.25)' }}>
-                  ✦ Elite Pro
-                </span>
-              )}
-            </div>
+                {pro.is_verified && pro.is_claimed && (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full"
+                    style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.25)' }}>
+                    <ShieldBadge size={13} /> Guild Verified
+                  </span>
+                )}
+                {hasOsha && (
+                  <span className="text-sm font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>🦺 {pro.osha_card_type}</span>
+                )}
+                {hasInsurance && (
+                  <span className="text-sm font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>🛡 Insured</span>
+                )}
+                {isElite(pro.plan_tier) && (
+                  <span className="text-sm font-bold px-3 py-1.5 rounded-full" style={{ background: 'rgba(139,92,246,0.1)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.25)' }}>✦ Elite Pro</span>
+                )}
+              </div>
+            )}
 
-            {/* Services — shown inline on hero for quick scanning */}
+            {/* Services */}
             {(pro as any).services?.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mt-4">
                 {(pro as any).services.slice(0, 6).map((s: string) => (
                   <span key={s} className="text-sm font-medium px-3 py-1 rounded-full"
                     style={{ background: 'rgba(15,118,110,0.06)', color: '#0C5F57', border: '1px solid rgba(15,118,110,0.15)' }}>
@@ -713,33 +724,33 @@ export default function ProProfilePage() {
                   </span>
                 ))}
                 {(pro as any).services.length > 6 && (
-                  <span className="text-sm font-medium px-3 py-1 rounded-full"
-                    style={{ color: '#A89F93', border: '1px solid #E8E2D9' }}>
+                  <span className="text-sm font-medium px-3 py-1 rounded-full" style={{ color: '#A89F93', border: '1px solid #E8E2D9' }}>
                     +{(pro as any).services.length - 6} more
                   </span>
                 )}
               </div>
             )}
 
-            {/* Claim affordance — unclaimed only; quiet for homeowners, clear for the owner */}
+            {/* Claim box — warmer, value-led (unclaimed, non-owner) */}
             {!pro.is_claimed && !isOwner && (
-              <div className="mt-5 pt-4 border-t" style={{ borderColor: '#F0EDE8' }}>
-                <div className="flex items-center justify-between gap-4 flex-wrap rounded-xl px-4 py-3"
-                  style={{ background: '#FAFAF8', border: '1px solid #EDE9E2' }}>
-                  <div className="flex items-center gap-2.5">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" />
-                    </svg>
-                    <span className="text-sm" style={{ color: '#4A5560' }}>
-                      Are you <span className="font-semibold" style={{ color: '#0A1628' }}>{firstName}</span>? This profile isn&apos;t claimed yet.
-                    </span>
+              <div className="mt-5 rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
+                style={{ background: 'linear-gradient(100deg, #FDF9EF 0%, #FBF6E8 100%)', border: '1px solid #F0E2C4' }}>
+                <div className="flex items-start gap-3">
+                  <span className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: '#F5E9CC' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+                  </span>
+                  <div>
+                    <div className="text-sm font-bold mb-0.5" style={{ color: '#0A1628' }}>Own this business?</div>
+                    <div className="text-sm leading-relaxed" style={{ color: '#6B5A3C' }}>
+                      This profile isn&apos;t claimed yet. Claim it to update your info, add photos, and collect reviews.
+                    </div>
                   </div>
-                  <Link href={`/login?tab=signup&claim=${pro.id}`}
-                    className="text-sm font-bold px-4 py-2 rounded-lg whitespace-nowrap transition-all hover:opacity-90"
-                    style={{ background: '#0F766E', color: '#fff' }}>
-                    Claim this profile →
-                  </Link>
                 </div>
+                <Link href={`/login?tab=signup&claim=${pro.id}`}
+                  className="text-sm font-bold px-5 py-2.5 rounded-lg whitespace-nowrap transition-all hover:opacity-90"
+                  style={{ background: 'linear-gradient(135deg, #D97706, #B45309)', color: '#fff' }}>
+                  Claim this profile →
+                </Link>
               </div>
             )}
           </div>
@@ -830,25 +841,37 @@ export default function ProProfilePage() {
                   </div>
                 )}
 
-                {/* Quick stats */}
-                <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
-                  <div className="grid grid-cols-3 gap-4 text-center">
+                {/* Quick stats — real placeholders, never bare dashes */}
+                <div className="bg-white rounded-2xl border p-6" style={{ borderColor: '#E8E2D9' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x" style={{ borderColor: '#F0EDE8' }}>
                     {[
-                      { n: portfolio.length || '—', l: 'Projects' },
-                      { n: reviewCnt > 0 ? rating.toFixed(1) : '—', l: 'Rating' },
-                      { n: pro.years_experience ? `${pro.years_experience}yr` : '—', l: 'Experience' },
+                      {
+                        icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A9199" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>,
+                        label: 'Projects',
+                        value: portfolio.length > 0 ? String(portfolio.length) : 'Not available',
+                        sub: portfolio.length > 0 ? '' : 'Be the first to share a project.',
+                      },
+                      {
+                        icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A9199" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.5 5.8 21 7 14 2 9.3 9 8.5 12 2"/></svg>,
+                        label: 'Rating',
+                        value: rating > 0 ? rating.toFixed(1) : 'No reviews yet',
+                        sub: rating > 0 ? `${reviewCnt} ${reviewCnt === 1 ? 'review' : 'reviews'}` : 'Be the first homeowner to leave a review.',
+                      },
+                      {
+                        icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A9199" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+                        label: 'Experience',
+                        value: pro.years_experience > 0 ? `${pro.years_experience} yrs` : 'Not available',
+                        sub: pro.years_experience > 0 ? 'in business' : 'Information available once claimed.',
+                      },
                     ].map(s => (
-                      <div key={s.l}>
-                        <div className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.n}</div>
-                        <div className="text-xs mt-0.5 font-medium" style={{ color: '#8A9199' }}>{s.l}</div>
+                      <div key={s.label} className="flex flex-col items-center text-center px-3 py-3 sm:py-1">
+                        <div className="mb-2">{s.icon}</div>
+                        <div className="text-sm font-bold" style={{ color: '#8A9199', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+                        <div className="text-base font-bold mt-1" style={{ color: '#0A1628' }}>{s.value}</div>
+                        {s.sub && <div className="text-xs mt-1.5 leading-relaxed" style={{ color: '#9AA1A9' }}>{s.sub}</div>}
                       </div>
                     ))}
                   </div>
-                  {portfolio.length === 0 && reviewCnt === 0 && (
-                    <p className="text-xs text-center mt-4 pt-4 border-t leading-relaxed" style={{ color: '#8A9199', borderColor: '#F0EDE8' }}>
-                      {firstName} is newly listed on ProGuild — be the first to reach out and leave a review.
-                    </p>
-                  )}
                 </div>
 
                 {/* Top 4 portfolio photos preview */}
@@ -1097,24 +1120,48 @@ export default function ProProfilePage() {
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-20 space-y-4">
 
-              {/* Contact CTA */}
-              {!isOwner && (
+              {/* Claim-to-unlock panel — unclaimed, non-owner (contact lives in header now) */}
+              {!isOwner && !pro.is_claimed && (
+                <div className="rounded-2xl border p-5" style={{ borderColor: '#D8E6E1', background: 'linear-gradient(160deg, #F4FAF8 0%, #EFF7F4 100%)' }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ background: 'rgba(15,118,110,0.1)' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <span className="text-sm font-bold" style={{ color: '#0A1628' }}>Own this business?</span>
+                  </div>
+                  <p className="text-xs mb-3 leading-relaxed" style={{ color: '#5A6B66' }}>Claim your profile to unlock powerful tools:</p>
+                  <ul className="space-y-2 mb-4">
+                    {['Add photos and showcase your work', 'Collect and manage reviews', 'Get contacted by quality homeowners', 'Highlight your credentials'].map(item => (
+                      <li key={item} className="flex items-start gap-2 text-xs" style={{ color: '#3F4D49' }}>
+                        <svg className="flex-shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href={`/login?tab=signup&claim=${pro.id}`}
+                    className="block text-center w-full py-2.5 text-white text-sm font-bold rounded-xl transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                    Claim your profile →
+                  </Link>
+                </div>
+              )}
+
+              {/* Sticky contact — claimed profiles keep a contact card on scroll */}
+              {!isOwner && pro.is_claimed && (
                 <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#E8E2D9' }}>
                   <button onClick={() => setShowModal(true)}
-                    className="w-full py-3 text-white text-sm font-bold rounded-xl mb-3 transition-all hover:opacity-90"
+                    className="w-full py-3 text-white text-sm font-bold rounded-xl mb-2 transition-all hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                     Contact {firstName}
                   </button>
                   {pro.phone && (
                     <a href={`tel:${pro.phone}`}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border text-sm font-semibold transition-all"
-                      style={{ borderColor: '#E8E2D9', color: '#0A1628' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border text-sm font-semibold transition-colors"
+                      style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
                       📞 Call {firstName}
                     </a>
                   )}
-                  <p className="text-xs text-center mt-3 leading-relaxed" style={{ color: '#6B7280' }}>
+                  <p className="text-xs text-center mt-3 leading-relaxed" style={{ color: '#8A9199' }}>
                     Contact {firstName} directly. No fees, no middleman.
                   </p>
                 </div>
@@ -1172,6 +1219,28 @@ export default function ProProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* ── BROWSE NEARBY PROS — engagement + SEO, links to real trade/city page ── */}
+      {pro.trade_category?.slug && pro.state && pro.city && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-5 pb-4">
+          <div className="rounded-2xl border p-5 flex items-center justify-between gap-4 flex-wrap" style={{ borderColor: '#E8E2D9', background: '#fff' }}>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0" style={{ background: 'rgba(15,118,110,0.08)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              </span>
+              <div>
+                <div className="text-sm font-bold" style={{ color: '#0A1628' }}>Looking for another contractor?</div>
+                <div className="text-sm" style={{ color: '#6B7280' }}>Browse licensed {trade.toLowerCase()}s in {pro.city ? pro.city.replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'your area'} and nearby.</div>
+              </div>
+            </div>
+            <Link href={`/trades/${pro.trade_category.slug}/${(pro.state || '').toLowerCase()}/${encodeURIComponent((pro.city || '').toLowerCase())}`}
+              className="text-sm font-semibold px-4 py-2.5 rounded-lg border whitespace-nowrap transition-colors"
+              style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
+              Browse nearby pros →
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ── MOBILE STICKY FOOTER ─────────────────────────────────────────── */}
       {!isOwner && (
