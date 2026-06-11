@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const subtotals = tiers.map((t: any) => t.subtotal ?? 0)
     const minT = Math.min(...subtotals)
     const maxT = Math.max(...subtotals)
-    const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+    const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
     total = `${fmt(minT)} – ${fmt(maxT)}`
   } else {
     // Standard estimate: stored total can be 0 (legacy string-amount save bug);
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       ? (est as any).items.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
       : 0
     const effectiveTotal = (Number(est.total) || 0) > 0 ? Number(est.total) : itemsSum
-    total = effectiveTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+    total = effectiveTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
   const validUntil  = est.valid_until
     ? new Date(est.valid_until).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })

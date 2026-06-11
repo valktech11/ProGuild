@@ -17,7 +17,7 @@ function MilestonePaySection({
   onPaid: (milestoneName: string, amount: number) => void
 }) {
   const fmtLocal = (n: number | null | undefined) =>
-    '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   const unpaid = milestones.filter(m => !paidMilestones.includes(m.name))
   const nextDue = unpaid[0] ?? null

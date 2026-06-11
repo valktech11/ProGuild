@@ -137,8 +137,11 @@ const SHADOW_SEL = '0 8px 32px rgba(15,118,110,0.16)'
 const font = "'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif"
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+// Money always renders with 2 decimals so the roofer sees the SAME totals as the
+// homeowner proposal and the email (previously this rounded to whole dollars,
+// causing $12,287 here vs $12,287.10 everywhere else).
 const fmt = (n: number) =>
-  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 const fmtDec = (n: number) =>
   '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

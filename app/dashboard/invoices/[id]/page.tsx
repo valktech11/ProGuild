@@ -44,7 +44,7 @@ const C = {
   amber: '#F59E0B', red: '#DC2626', navy: '#0A1628',
   border: '#E2E8F0', muted: '#94A3B8', text: '#0F172A',
 }
-const fmt = (n: number) => n?.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }) ?? '$0.00'
+const fmt = (n: number) => n?.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '$0.00'
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
 // ── Back nav ───────────────────────────────────────────────────────────────────

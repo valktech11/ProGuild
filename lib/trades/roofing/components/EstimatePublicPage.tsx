@@ -63,7 +63,7 @@ const C = {
   greenLight: '#D1FAE5',
 }
 const font  = "'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif"
-const fmt   = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0 })
+const fmt   = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const SHAD  = '0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04)'
 const SHAD2 = '0 4px 20px rgba(0,0,0,0.08)'
 
@@ -101,8 +101,8 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
 
   const selTierData  = tiers.find(t => t.key === selectedTier)
   const selSubtotal  = selTierData?.subtotal ?? estimate.subtotal
-  const taxAmt       = Math.round(selSubtotal * (estimate.tax_rate / 100))
-  const selTotal     = selSubtotal + taxAmt
+  const taxAmt       = Math.round(selSubtotal * (estimate.tax_rate / 100) * 100) / 100
+  const selTotal     = Math.round((selSubtotal + taxAmt) * 100) / 100
 
   // Recompute milestones from selected tier total so the payment schedule
   // updates live when the homeowner switches tiers (not static DB values)
@@ -469,7 +469,7 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
                   const subtotals = tiers.map((t: any) => t.subtotal ?? 0).filter(Boolean)
                   const minPrice  = Math.min(...subtotals)
                   const maxPrice  = Math.max(...subtotals)
-                  const fmtP = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0 })
+                  const fmtP = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                   return (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const,
