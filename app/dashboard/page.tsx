@@ -482,8 +482,8 @@ export default function OverviewPage() {
                 </svg>
               ),
             }
-            // Default: Roofing
-            return {
+            // Roofing
+            if (isRoofing(tc)) return {
               gradient: 'linear-gradient(135deg, #0A1628 0%, #0F3D38 50%, #0F766E 100%)',
               accentColor: '#5EEAD4',
               accentBg: 'rgba(94,234,212,0.12)',
@@ -517,6 +517,44 @@ export default function OverviewPage() {
                   <path d="M18 26L44 6" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.15"/>
                   <path d="M70 26L44 6" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.15"/>
                   <path d="M12 30L44 12L76 30" stroke="white" strokeWidth="0.75" strokeLinecap="round" opacity="0.1"/>
+                </svg>
+              ),
+            }
+
+            // Default: trade-neutral (General Contractor and any other trade)
+            return {
+              gradient: 'linear-gradient(135deg, #0A1628 0%, #0F3D38 50%, #0F766E 100%)',
+              accentColor: '#5EEAD4',
+              accentBg: 'rgba(94,234,212,0.12)',
+              accentBorder: 'rgba(94,234,212,0.25)',
+              badge: tc.displayName || 'Contractor',
+              headline: 'Your business, all in one place.',
+              sub: 'Land more jobs, send estimates faster, and get paid — all from ProGuild.',
+              stats: [
+                { n: '3×', l: 'more jobs won with CRM' },
+                { n: '$0', l: 'per-lead fee. Ever.' },
+                { n: '$49', l: 'per month, all features' },
+              ],
+              steps: [
+                { icon: '📋', title: 'Add your first lead', body: 'Log a homeowner enquiry, referral or door knock. Your pipeline starts here.' },
+                { icon: '📄', title: 'Send a proposal', body: 'Create a Good / Better / Best estimate and send it for digital approval in minutes.' },
+                { icon: '💵', title: 'Invoice & get paid', body: 'Auto-generate an invoice on approval. Collect by card, Zelle, or cash — all tracked.' },
+              ],
+              svgIcon: (
+                <svg width="80" height="76" viewBox="0 0 80 76" fill="none">
+                  {/* Building / business — trade-neutral */}
+                  <ellipse cx="40" cy="71" rx="26" ry="3" fill="rgba(0,0,0,0.2)"/>
+                  <rect x="14" y="20" width="34" height="48" rx="2" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="2" strokeLinejoin="round"/>
+                  <rect x="48" y="32" width="22" height="36" rx="2" fill="white" fillOpacity="0.08" stroke="white" strokeWidth="2" strokeLinejoin="round"/>
+                  {/* windows */}
+                  <rect x="20" y="27" width="9" height="9" rx="1" fill="white" fillOpacity="0.25"/>
+                  <rect x="33" y="27" width="9" height="9" rx="1" fill="white" fillOpacity="0.25"/>
+                  <rect x="20" y="40" width="9" height="9" rx="1" fill="white" fillOpacity="0.2"/>
+                  <rect x="33" y="40" width="9" height="9" rx="1" fill="white" fillOpacity="0.2"/>
+                  <rect x="54" y="39" width="10" height="9" rx="1" fill="white" fillOpacity="0.2"/>
+                  <rect x="54" y="52" width="10" height="9" rx="1" fill="white" fillOpacity="0.15"/>
+                  {/* door */}
+                  <rect x="26" y="56" width="10" height="12" rx="1" fill="white" fillOpacity="0.3" stroke="white" strokeWidth="1.5"/>
                 </svg>
               ),
             }
