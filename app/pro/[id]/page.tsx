@@ -555,37 +555,8 @@ export default function ProProfilePage() {
         </div>
       )}
 
-      {/* ── CLAIM INVITATION — unclaimed profiles, to non-owners ──────────── */}
-      {!pro.is_claimed && !isOwner && (
-        <div style={{ background: 'linear-gradient(100deg, #0A1628 0%, #0D3B36 55%, #0F766E 100%)' }}>
-          <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              {/* Shield / verified glyph — signals "this is your verified profile" */}
-              <span className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
-                style={{ background: 'rgba(255,255,255,0.1)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" />
-                  <path d="m9 12 2 2 4-4" />
-                </svg>
-              </span>
-              <div className="leading-tight">
-                <div className="text-sm font-semibold text-white">This profile is yours to claim</div>
-                <div className="text-xs" style={{ color: 'rgba(186,230,224,0.75)' }}>
-                  Built from your Florida DBPR license — claim it to manage your profile and leads.
-                </div>
-              </div>
-            </div>
-            <Link href={`/login?tab=signup&claim=${pro.id}`}
-              className="text-sm font-bold px-5 py-2 rounded-lg whitespace-nowrap transition-all hover:opacity-90"
-              style={{ background: '#fff', color: '#0A1628' }}>
-              Claim your profile →
-            </Link>
-          </div>
-        </div>
-      )}
-
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
-      <Navbar hideJoinCta={!pro.is_claimed && !isOwner} />
+      <Navbar />
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-4 sm:px-5 pt-6">
@@ -623,12 +594,12 @@ export default function ProProfilePage() {
                   </span>
                 )}
               </div>
-              {/* Desktop contact CTA */}
+              {/* Desktop contact CTA — primary action for homeowners */}
               {!isOwner && (
                 <button onClick={() => setShowModal(true)}
                   className="hidden sm:flex items-center gap-2 px-7 py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 shadow-sm"
                   style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                  Send an enquiry →
+                  Contact {firstName} →
                 </button>
               )}
             </div>
@@ -741,12 +712,26 @@ export default function ProProfilePage() {
                 )}
               </div>
             )}
+
+            {/* Sleek claim affordance — quiet for homeowners, findable for the owner */}
+            {!pro.is_claimed && !isOwner && (
+              <div className="mt-5 pt-4 flex items-center justify-between gap-3 flex-wrap border-t" style={{ borderColor: '#F0EDE8' }}>
+                <div className="flex items-center gap-2 text-sm" style={{ color: '#8A9199' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" />
+                  </svg>
+                  <span>Is this your business?</span>
+                </div>
+                <Link href={`/login?tab=signup&claim=${pro.id}`}
+                  className="text-sm font-semibold transition-colors hover:opacity-70"
+                  style={{ color: '#0F766E' }}>
+                  Claim this profile →
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-
-      {/* ── TABS ─────────────────────────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-4 sm:px-5 mt-4">
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
           <div className="flex border-b overflow-x-auto scrollbar-hide" style={{ borderColor: '#E8E2D9' }}>
@@ -1174,23 +1159,25 @@ export default function ProProfilePage() {
           style={{ borderColor: '#E8E2D9' }}>
           <div className="flex gap-3 px-4 py-3 max-w-sm mx-auto">
             {pro.phone ? (
-              <a href={`tel:${pro.phone}`}
-                className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
-                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                📞 Call
-              </a>
+              <>
+                <a href={`tel:${pro.phone}`}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl border"
+                  style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
+                  📞 Call
+                </a>
+                <button onClick={() => setShowModal(true)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
+                  style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                  Contact {firstName}
+                </button>
+              </>
             ) : (
               <button onClick={() => setShowModal(true)}
                 className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
                 style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                Contact
+                Contact {firstName}
               </button>
             )}
-            <button onClick={() => setShowModal(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-xl border"
-              style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
-              💬 Message
-            </button>
           </div>
         </div>
       )}
