@@ -324,10 +324,9 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
         const p = d.pro
         if (!p) return
         if (p.is_claimed) {
-          // Already claimed — block re-claim. Show a message, then send them to the
-          // public profile (a param-free destination, so the claim UI can't re-trigger).
+          // Already claimed — block re-claim. Show a message; the user leaves via
+          // the 'View profile' button (no forced auto-redirect).
           setClaimBlocked(true)
-          setTimeout(() => { window.location.href = `/pro/${claimId}` }, 2200)
           return
         }
         setClaimName(p.full_name || '')
