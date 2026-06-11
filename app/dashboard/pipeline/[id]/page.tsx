@@ -223,9 +223,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const STAGE_ORDER: Record<string, number> = Object.fromEntries(
     getActiveStages(session?.trade_slug).map((s, i) => [s.key, i])
   )
-  const SOURCE_OPTIONS: string[] = isRoofing
-    ? tradePlugin.leadSources.map((s: { label: string }) => s.label)
-    : FALLBACK_SOURCE_OPTIONS
+  const SOURCE_OPTIONS: { value: string; label: string }[] = isRoofing
+    ? tradePlugin.leadSources.map((s: { value: string; label: string }) => ({ value: s.value, label: s.label }))
+    : FALLBACK_SOURCE_OPTIONS.map(s => ({ value: s.replace(/ /g, '_'), label: s }))
 
   // ── Fetch lead ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -430,7 +430,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     setECity(lead.contact_city||'')
     setEState(lead.contact_state||'')
     setEZip((lead as any).contact_zip||'')
-    setESrc((lead.lead_source||'').replace(/_/g,' '))
+    setESrc(lead.lead_source||'')
     setEDate(lead.scheduled_date||'')
     setETime((lead as any).scheduled_time||'')
     setEFU(lead.follow_up_date||'')
@@ -488,7 +488,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       property_address: eAddr||null,
       contact_phone: ePhone||null, contact_email: eEmail||null,
       contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
-      lead_source: eSrc.replace(/ /g,'_')||null,
+      lead_source: eSrc||null,
       scheduled_date: eDate||null, scheduled_time: eTime||null,
       ...(eInsp ? { inspection_date: eInsp } : {}),
       follow_up_date: eFU||null, notes: eNotes||null,
@@ -499,7 +499,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         property_address: eAddr||null,
         contact_phone: ePhone||null, contact_email: eEmail||null,
         contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
-        lead_source: eSrc.replace(/ /g,'_') as any||null,
+        lead_source: eSrc as any||null,
         scheduled_date: eDate||null, follow_up_date: eFU||null, ...(eInsp ? { inspection_date: eInsp } : {}), notes: eNotes||null,
       }:l)
       setIsEditing(false); addToast('Saved')
@@ -1717,7 +1717,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               </div>
                               <div><label style={labelCls}>Source</label>
                                 <select value={eSrc} onChange={e=>setESrc(e.target.value)} style={inputCls}>
-                                  {SOURCE_OPTIONS.map(s=><option key={s}>{s}</option>)}
+                                  <option value="">— Select source —</option>
+                                  {SOURCE_OPTIONS.map(s=><option key={s.value} value={s.value}>{s.label}</option>)}
                                 </select>
                               </div>
                               <div><label style={labelCls}>Inspection Date</label>
