@@ -555,18 +555,30 @@ export default function ProProfilePage() {
         </div>
       )}
 
-      {/* ── CLAIM BANNER — only on unclaimed profiles, to non-owners ──────── */}
+      {/* ── CLAIM INVITATION — unclaimed profiles, to non-owners ──────────── */}
       {!pro.is_claimed && !isOwner && (
-        <div className="border-b" style={{ background: 'rgba(245,158,11,0.07)', borderColor: 'rgba(245,158,11,0.22)' }}>
-          <div className="max-w-5xl mx-auto px-5 py-2.5 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2 text-sm" style={{ color: '#92580C' }}>
-              <span>👋</span>
-              <span className="font-medium">Is this you? Claim your profile to manage it and get verified.</span>
+        <div style={{ background: 'linear-gradient(100deg, #0A1628 0%, #0D3B36 55%, #0F766E 100%)' }}>
+          <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              {/* Shield / verified glyph — signals "this is your verified profile" */}
+              <span className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.1)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" />
+                  <path d="m9 12 2 2 4-4" />
+                </svg>
+              </span>
+              <div className="leading-tight">
+                <div className="text-sm font-semibold text-white">This profile is yours to claim</div>
+                <div className="text-xs" style={{ color: 'rgba(186,230,224,0.75)' }}>
+                  Built from your Florida DBPR license — claim it to manage your profile and leads.
+                </div>
+              </div>
             </div>
-            <Link href={`/claim/${pro.id}`}
-              className="text-xs font-bold px-4 py-1.5 rounded-lg text-white transition-all whitespace-nowrap"
-              style={{ background: 'linear-gradient(135deg, #B45309, #92580C)' }}>
-              Claim this profile →
+            <Link href={`/login?tab=signup&claim=${pro.id}`}
+              className="text-sm font-bold px-5 py-2 rounded-lg whitespace-nowrap transition-all hover:opacity-90"
+              style={{ background: '#fff', color: '#0A1628' }}>
+              Claim your profile →
             </Link>
           </div>
         </div>
@@ -588,14 +600,11 @@ export default function ProProfilePage() {
                 <div className="absolute inset-0" style={{ background: 'rgba(10,22,40,0.55)' }} />
               </>
             )}
-            {/* Trade label on cover */}
+            {/* Trade eyebrow on cover — name is shown below the avatar, not here */}
             {!pro.cover_image_url && (
-              <div className="absolute bottom-4 left-6">
-                <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              <div className="absolute bottom-4 left-6 right-6">
+                <div className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.55)' }}>
                   {trade}
-                </div>
-                <div className="text-white text-lg font-bold" style={{ fontFamily: "'DM Serif Display', serif" }}>
-                  {pro.full_name}
                 </div>
               </div>
             )}

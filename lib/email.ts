@@ -162,7 +162,7 @@ export async function sendClaimEmail(pro: {
   city?: string | null; state?: string | null;
   license_number?: string | null; trade_category?: any;
 }) {
-  const claimUrl = `${process.env.NEXT_PUBLIC_URL || 'https://proguild.ai'}/claim/${pro.id}`
+  const claimUrl = `${process.env.NEXT_PUBLIC_URL || 'https://proguild.ai'}/login?tab=signup&claim=${pro.id}`
   const tradeName = pro.trade_category?.category_name || 'trade professional'
   const location  = [pro.city, pro.state].filter(Boolean).join(', ')
 

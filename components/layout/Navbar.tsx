@@ -339,7 +339,7 @@ export default function Navbar() {
                 <Link href="/login?tab=signup"
                   className="text-sm font-semibold px-4 py-2 rounded-lg text-white hover:opacity-90 transition-all"
                   style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 2px 8px rgba(15,118,110,0.3)' }}>
-                  Claim your profile →
+                  Join as a pro →
                 </Link>
               </div>
             )}

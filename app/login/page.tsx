@@ -104,11 +104,11 @@ const HeroPanel = () => (
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
     <div style={{ marginBottom:20 }}>
-      <label style={{ display:'block', fontSize:11, fontWeight:700, color:C.muted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:7, fontFamily:'system-ui' }}>
+      <label style={{ display:'block', fontSize:11.5, fontWeight:700, color:'#33414E', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:7, fontFamily:'system-ui' }}>
         {label}
       </label>
       {children}
-      {hint && <p style={{ fontSize:11, color:C.muted, marginTop:4 }}>{hint}</p>}
+      {hint && <p style={{ fontSize:11.5, color:'#5A6775', marginTop:5 }}>{hint}</p>}
     </div>
   )
 }
@@ -264,6 +264,10 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
 
 // ── Signup form — 3 steps ─────────────────────────────────────────────────────
 function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: any }) {
+  const params = useSearchParams()
+  const claimId = params.get('claim') || ''
+  const isClaiming = !!claimId
+
   const [step, setStep] = useState(0) // 0: identity, 1: trade+location, 2: contact
   const [cats, setCats] = useState<TradeCategory[]>([])
   const [loading, setLoading] = useState(false)
@@ -284,11 +288,37 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const [cities, setCities] = useState<string[]>([])
   const [citiesLoading, setCitiesLoading] = useState(false)
 
+  // Claim mode — license verification + the profile being claimed
+  const [claimName, setClaimName] = useState('')
+  const [claimLicense, setClaimLicense] = useState('')
+  const [claimExpiry, setClaimExpiry] = useState('')
+
   // Focus states
   const [focused, setFocused] = useState<string | null>(null)
   const f = (name: string) => ({ onFocus: () => setFocused(name), onBlur: () => setFocused(null) })
 
   useEffect(() => { fetch('/api/categories').then(r => r.json()).then(d => setCats(d.categories || [])) }, [])
+
+  // Claim mode: fetch the pre-built DBPR profile and pre-fill what we know.
+  useEffect(() => {
+    if (!claimId) return
+    fetch(`/api/pros/${claimId}`)
+      .then(r => r.json())
+      .then(d => {
+        const p = d.pro
+        if (!p) return
+        if (p.is_claimed) { router.replace('/login'); return }  // already claimed
+        setClaimName(p.full_name || '')
+        const parts = (p.full_name || '').trim().split(/\s+/)
+        setFname(parts[0] || '')
+        setLname(parts.length > 1 ? parts.slice(1).join(' ') : '')
+        if (p.trade_category_id) setTrade(p.trade_category_id)
+        if (p.state) setStateVal(p.state)
+        if (p.license_number) setClaimLicense(p.license_number)
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claimId])
 
   useEffect(() => {
     if (!stateVal) { setCities([]); return }
@@ -346,6 +376,11 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
         state:stateVal,
         city:finalCity,
         years_experience:yrs ? parseInt(yrs) : undefined,
+        ...(isClaiming ? {
+          claim_pro_id: claimId,
+          claim_license: claimLicense.trim() || null,
+          claim_license_expiry: claimExpiry || null,
+        } : {}),
       }),
     })
     const d = await r.json()
@@ -402,8 +437,23 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
       {/* Step title */}
       {step === 0 && <>
-        <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Claim your free profile</h2>
-        <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>Your FL license is already in our system. Takes 60 seconds.</p>
+        {isClaiming && claimName ? (
+          <>
+            <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:6, background:'rgba(15,118,110,0.08)', marginBottom:10 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" />
+              </svg>
+              <span style={{ fontSize:11, fontWeight:700, color:C.teal, textTransform:'uppercase', letterSpacing:'0.06em' }}>Claiming your profile</span>
+            </div>
+            <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Welcome, {claimName.split(' ')[0]}</h2>
+            <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>We built this profile from your Florida DBPR license. Verify it&apos;s you and set up your login.</p>
+          </>
+        ) : (
+          <>
+            <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Claim your free profile</h2>
+            <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>Your FL license is already in our system. Takes 60 seconds.</p>
+          </>
+        )}
       </>}
       {step === 1 && <>
         <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Your trade &amp; location</h2>
@@ -424,8 +474,8 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       {/* Step 0: Identity */}
       {step === 0 && (
         <div>
-          {/* OAuth signup options */}
-          <OAuthButtons mode="signup" />
+          {/* OAuth — generic signup only; claiming ties to the license, so email/password */}
+          {!isClaiming && <OAuthButtons mode="signup" />}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <Field label="First name">
               <input value={fname} onChange={e => setFname(e.target.value)} placeholder="James"
@@ -436,6 +486,27 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
                 style={inputStyle(focused==='lname')} {...f('lname')} />
             </Field>
           </div>
+
+          {/* Claim verification — license # + expiry (soft check, never blocks) */}
+          {isClaiming && (
+            <div style={{ padding:'14px 16px', borderRadius:12, background:'rgba(15,118,110,0.04)', border:`1px solid rgba(15,118,110,0.12)`, marginBottom:20 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:C.teal, marginBottom:10, fontFamily:'system-ui' }}>Verify your license</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:C.text, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:7 }}>License #</label>
+                  <input value={claimLicense} onChange={e => setClaimLicense(e.target.value)} placeholder="CGC059304"
+                    style={inputStyle(focused==='lic')} {...f('lic')} />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:C.text, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:7 }}>Expiry date</label>
+                  <input type="date" value={claimExpiry} onChange={e => setClaimExpiry(e.target.value)}
+                    style={inputStyle(focused==='exp')} {...f('exp')} />
+                </div>
+              </div>
+              <p style={{ fontSize:11, color:C.muted, marginTop:8, lineHeight:1.5 }}>Match gets you a verified badge right away. You can still claim and verify later.</p>
+            </div>
+          )}
+
           <Field label="Email address">
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"

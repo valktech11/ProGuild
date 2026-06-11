@@ -18,7 +18,7 @@ function isRealEmail(email: string): boolean {
 function outreachEmail(pro: any, contact: {
   name: string; email: string; phone: string; need: string; tradeName: string
 }): string {
-  const claimUrl  = `https://proguild.ai/claim/${pro.id}`
+  const claimUrl  = `https://proguild.ai/login?tab=signup&claim=${pro.id}`
   const firstName = pro.full_name?.split(' ')[0] || 'there'
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f4ef;font-family:Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
