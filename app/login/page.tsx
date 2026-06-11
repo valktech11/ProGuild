@@ -51,34 +51,50 @@ const HeroPanel = () => (
           <div style={{ width:6, height:6, borderRadius:'50%', background:C.tealL, boxShadow:`0 0 8px ${C.tealL}` }} />
           <span style={{ color:C.tealL, fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>Florida Contractors</span>
         </div>
-        <h1 style={{ color:'#fff', fontSize:38, fontWeight:800, lineHeight:1.15, letterSpacing:'-0.03em', margin:0, fontFamily:'system-ui' }}>
-          Your license is<br/>already waiting.
+        <h1 style={{ color:'#fff', fontSize:38, fontWeight:800, lineHeight:1.12, letterSpacing:'-0.03em', margin:0, fontFamily:'system-ui' }}>
+          Claim your verified<br/>contractor profile.
         </h1>
-        <p style={{ color:'rgba(180,210,220,0.8)', fontSize:16, lineHeight:1.65, marginTop:16, maxWidth:340 }}>
-          124,503 FL contractors pre-loaded from DBPR. Claim your verified profile and start receiving exclusive leads — no bidding, no sharing.
+        <p style={{ color:'rgba(180,210,220,0.8)', fontSize:16, lineHeight:1.6, marginTop:16, maxWidth:360 }}>
+          Already preloaded from Florida DBPR records. Get found by homeowners in minutes.
         </p>
+        {/* Trust pills — contractors scan, they don't read */}
+        <div style={{ display:'flex', gap:20, flexWrap:'wrap', marginTop:22 }}>
+          {[
+            { t:'State verified', s:'DBPR records' },
+            { t:'Secure & private', s:'Your data is protected' },
+            { t:'You own your profile', s:'Claim only your business' },
+          ].map(p => (
+            <div key={p.t} style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.tealL} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <div style={{ color:'#fff', fontSize:12.5, fontWeight:600, lineHeight:1.2 }}>{p.t}</div>
+                <div style={{ color:'rgba(180,210,220,0.55)', fontSize:11 }}>{p.s}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Stats row */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:40 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:36 }}>
         {[
-          { n:'124,503', l:'FL pros verified' },
-          { n:'$0', l:'per-lead fee. Ever.' },
-          { n:'$49/mo', l:'flat rate, all tools' },
-          { n:'1 lead', l:'per job. Not 4.' },
+          { n:'124,503', l:'Licensed Florida contractors' },
+          { n:'$0', l:'Per-lead fee. Ever.' },
+          { n:'$49/mo', l:'Flat rate, all tools included' },
+          { n:'1st lead', l:'Pays for your subscription' },
         ].map(s => (
           <div key={s.n} style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:'14px 16px', backdropFilter:'blur(4px)' }}>
             <div style={{ color:'#fff', fontSize:20, fontWeight:800, letterSpacing:'-0.02em', fontFamily:'system-ui' }}>{s.n}</div>
-            <div style={{ color:'rgba(180,210,220,0.65)', fontSize:12, marginTop:2 }}>{s.l}</div>
+            <div style={{ color:'rgba(180,210,220,0.65)', fontSize:12, marginTop:2, lineHeight:1.35 }}>{s.l}</div>
           </div>
         ))}
       </div>
 
-      {/* Trust badges */}
+      {/* Benefits — outcomes, not features */}
       {[
-        { icon:'🔐', t:'DBPR-Verified Profiles', s:'State license database' },
-        { icon:'📋', t:'Full CRM Built In', s:'Estimates, invoices, pipeline' },
-        { icon:'⚡', t:'Leads Arrive Instantly', s:'Direct to your dashboard' },
+        { icon:'🔎', t:'Get found by homeowners', s:'Appear in local searches and ProGuild listings' },
+        { icon:'📄', t:'Send estimates in minutes', s:'Custom proposals, invoices, and contracts built in' },
+        { icon:'📱', t:'Manage jobs from your phone', s:'Track leads, messages & updates on the go' },
       ].map(f => (
         <div key={f.t} style={{ display:'flex', alignItems:'center', gap:14, marginBottom:18 }}>
           <div style={{ width:38, height:38, borderRadius:10, background:'rgba(15,118,110,0.2)', border:'1px solid rgba(20,184,166,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>{f.icon}</div>
@@ -439,14 +455,28 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       {step === 0 && <>
         {isClaiming && claimName ? (
           <>
-            <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:6, background:'rgba(15,118,110,0.08)', marginBottom:10 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" />
-              </svg>
-              <span style={{ fontSize:11, fontWeight:700, color:C.teal, textTransform:'uppercase', letterSpacing:'0.06em' }}>Claiming your profile</span>
+            {/* License-found success banner — "claim an asset", not "fill a form" */}
+            {claimLicense && (
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12, background:'rgba(15,118,110,0.06)', border:`1px solid rgba(15,118,110,0.18)`, marginBottom:20 }}>
+                <span style={{ flexShrink:0, width:32, height:32, borderRadius:'50%', background:'rgba(15,118,110,0.12)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 9.5 11 14.5 8 11.5"/></svg>
+                </span>
+                <div style={{ lineHeight:1.35 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:C.teal }}>Florida License Found</div>
+                  <div style={{ fontSize:12.5, color:C.muted }}><span style={{ fontWeight:600, color:C.text }}>{claimLicense}</span> has been matched to your business.</div>
+                </div>
+              </div>
+            )}
+            {/* Avatar + welcome — makes ownership feel real */}
+            <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:24 }}>
+              <div style={{ flexShrink:0, width:52, height:52, borderRadius:'50%', background:'#D7EFE9', color:'#0A5F58', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:18, fontFamily:'system-ui' }}>
+                {claimName.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+              </div>
+              <div>
+                <h2 style={{ fontSize:23, fontWeight:800, color:C.text, margin:0, letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Welcome, {claimName.split(' ')[0]}</h2>
+                <p style={{ color:C.muted, fontSize:13, margin:'2px 0 0', lineHeight:1.5, maxWidth:340 }}>This profile was created from state records. Claim ownership to unlock it.</p>
+              </div>
             </div>
-            <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Welcome, {claimName.split(' ')[0]}</h2>
-            <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>We built this profile from your Florida DBPR license. Verify it&apos;s you and set up your login.</p>
           </>
         ) : (
           <>
@@ -487,10 +517,18 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
             </Field>
           </div>
 
-          {/* Claim verification — license # + expiry (soft check, never blocks) */}
+          {/* Claim verification — framed as confirmation, not a form to fill */}
           {isClaiming && (
-            <div style={{ padding:'14px 16px', borderRadius:12, background:'rgba(15,118,110,0.04)', border:`1px solid rgba(15,118,110,0.12)`, marginBottom:20 }}>
-              <div style={{ fontSize:12, fontWeight:700, color:C.teal, marginBottom:10, fontFamily:'system-ui' }}>Verify your license</div>
+            <div style={{ padding:'16px', borderRadius:12, background:'rgba(15,118,110,0.04)', border:`1px solid rgba(15,118,110,0.12)`, marginBottom:20 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+                <span style={{ flexShrink:0, width:24, height:24, borderRadius:'50%', background:C.teal, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                <div>
+                  <div style={{ fontSize:13.5, fontWeight:700, color:C.text, fontFamily:'system-ui' }}>We found your license</div>
+                  <div style={{ fontSize:12, color:C.muted }}>Confirm the details to claim this profile.</div>
+                </div>
+              </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label style={{ display:'block', fontSize:11, fontWeight:700, color:C.text, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:7 }}>License #</label>
@@ -498,12 +536,15 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
                     style={inputStyle(focused==='lic')} {...f('lic')} />
                 </div>
                 <div>
-                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:C.text, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:7 }}>Expiry date</label>
+                  <label style={{ display:'block', fontSize:11, fontWeight:700, color:C.text, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:7 }}>Expiration date</label>
                   <input type="date" value={claimExpiry} onChange={e => setClaimExpiry(e.target.value)}
                     style={inputStyle(focused==='exp')} {...f('exp')} />
                 </div>
               </div>
-              <p style={{ fontSize:11, color:C.muted, marginTop:8, lineHeight:1.5 }}>Match gets you a verified badge right away. You can still claim and verify later.</p>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:10 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span style={{ fontSize:11.5, color:C.muted }}>Matches Florida DBPR records. You can still claim and verify later.</span>
+              </div>
             </div>
           )}
 
@@ -609,9 +650,10 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
           opacity: loading ? 0.7 : 1, transition:'all 0.15s',
           letterSpacing:'-0.01em', fontFamily:'system-ui',
         }}>
-        {loading ? 'Creating your profile…'
+        {loading ? (isClaiming ? 'Claiming your profile…' : 'Creating your profile…')
           : step === 0 ? 'Continue →'
           : step === 1 ? 'Almost done →'
+          : isClaiming ? '🔒 Claim my profile →'
           : 'Create my profile →'}
       </button>
 
