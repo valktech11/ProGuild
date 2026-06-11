@@ -403,20 +403,36 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
     // Account created on the server. Now establish a real browser session.
     const supabase = getSupabaseBrowser()
-    const { error: signInErr } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    })
-    setLoading(false)
+    // Sign in to establish the browser session. The just-created auth user can take a
+    // moment to be fully usable, so retry briefly before giving up.
+    let signInErr: any = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      })
+      signInErr = res.error
+      if (!signInErr) break
+      await new Promise(r => setTimeout(r, 500))
+    }
     if (signInErr) {
+      setLoading(false)
       // Account exists but auto-login failed — send them to login
       setError('Account created. Please log in.')
       onSwitchTab()
       return
     }
 
+    // Mark this as a fresh signup so onboarding shows if the callback routes there.
+    try { sessionStorage.setItem('pg_just_signed_up', '1') } catch {}
+
     setSuccess(true)
-    setTimeout(() => router.push('/onboarding'), 1400)
+    // Route through the shared callback, which reliably waits for the session to be
+    // readable, calls /api/auth/me, and routes: linked pro → /dashboard,
+    // authed-but-no-pro → /complete-profile. This avoids the race where a blind
+    // push to /onboarding mounts before the session cookie is established and bounces
+    // back to /login.
+    setTimeout(() => router.push('/auth/callback'), 600)
   }
 
   if (success) return (
