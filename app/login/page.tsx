@@ -119,7 +119,7 @@ const HeroPanel = () => (
 // ── Floating input ────────────────────────────────────────────────────────────
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
-    <div style={{ marginBottom:20 }}>
+    <div style={{ marginBottom:16 }}>
       <label style={{ display:'block', fontSize:11.5, fontWeight:700, color:'#33414E', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:7, fontFamily:'system-ui' }}>
         {label}
       </label>
@@ -128,7 +128,6 @@ function Field({ label, children, hint }: { label: string; children: React.React
     </div>
   )
 }
-
 const inputStyle = (focused?: boolean): React.CSSProperties => ({
   width:'100%', padding:'12px 16px',
   border:`2px solid ${focused ? C.teal : C.border}`,
@@ -457,7 +456,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
           <>
             {/* License-found success banner — "claim an asset", not "fill a form" */}
             {claimLicense && (
-              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12, background:'rgba(15,118,110,0.06)', border:`1px solid rgba(15,118,110,0.18)`, marginBottom:20 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12, background:'rgba(15,118,110,0.06)', border:`1px solid rgba(15,118,110,0.18)`, marginBottom:16 }}>
                 <span style={{ flexShrink:0, width:32, height:32, borderRadius:'50%', background:'rgba(15,118,110,0.12)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 9.5 11 14.5 8 11.5"/></svg>
                 </span>
@@ -468,7 +467,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
               </div>
             )}
             {/* Avatar + welcome — makes ownership feel real */}
-            <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:24 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:18 }}>
               <div style={{ flexShrink:0, width:52, height:52, borderRadius:'50%', background:'#D7EFE9', color:'#0A5F58', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:18, fontFamily:'system-ui' }}>
                 {claimName.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
               </div>
@@ -519,7 +518,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
           {/* Claim verification — framed as confirmation, not a form to fill */}
           {isClaiming && (
-            <div style={{ padding:'16px', borderRadius:12, background:'rgba(15,118,110,0.04)', border:`1px solid rgba(15,118,110,0.12)`, marginBottom:20 }}>
+            <div style={{ padding:'16px', borderRadius:12, background:'rgba(15,118,110,0.04)', border:`1px solid rgba(15,118,110,0.12)`, marginBottom:16 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
                 <span style={{ flexShrink:0, width:24, height:24, borderRadius:'50%', background:C.teal, display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -699,11 +698,11 @@ function LoginPageInner() {
           <span style={{ fontWeight:700, fontSize:17, color:C.navy }}>ProGuild.ai</span>
         </div>
 
-        <main style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'40px 32px' }}>
-          <div style={{ width:'100%', maxWidth:400 }}>
+        <main style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'32px 40px' }}>
+          <div style={{ width:'100%', maxWidth:480 }}>
 
             {/* Tab toggle */}
-            <div style={{ display:'flex', background:C.cream, borderRadius:12, padding:4, marginBottom:36, border:`1px solid ${C.border}` }}>
+            <div style={{ display:'flex', background:C.cream, borderRadius:12, padding:4, marginBottom:24, border:`1px solid ${C.border}` }}>
               {(['login','signup'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{
                   flex:1, padding:'10px 0', fontSize:14, fontWeight:700, borderRadius:9, border:'none',
