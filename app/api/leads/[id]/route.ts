@@ -177,6 +177,7 @@ export async function PATCH(
   let leadData: Record<string, unknown> | null = null
   if (Object.keys(updateFields).length > 0) {
     updateFields.updated_at = new Date().toISOString()
+    console.log('[PATCH /api/leads] updating lead', id, 'pro', proId, 'fields:', JSON.stringify(updateFields))
     const { data, error } = await getSupabaseAdmin()
       .from('leads')
       .update(updateFields)
@@ -184,7 +185,23 @@ export async function PATCH(
       .eq('pro_id', proId)
       .select()
       .single()
-    if (error || !data) return apiError('Lead not found or access denied', 403)
+    if (error || !data) {
+      // TEMP DIAGNOSTIC: surface the real Postgres error instead of a generic 403
+      console.error('[PATCH /api/leads] UPDATE FAILED:', {
+        message: error?.message, details: error?.details, hint: error?.hint, code: error?.code,
+        fields: Object.keys(updateFields),
+      })
+      return NextResponse.json({
+        error: 'Lead update failed',
+        _debug: {
+          message: error?.message ?? null,
+          details: error?.details ?? null,
+          hint:    error?.hint ?? null,
+          code:    error?.code ?? null,
+          fields:  Object.keys(updateFields),
+        },
+      }, { status: 400 })
+    }
     leadData = data
   }
 
