@@ -310,7 +310,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     ? (tiers.find(t => t.key === selectedTier)?.subtotal ?? 0)
     : (stdItems.reduce((s, i) => s + (Number(i.amount) || 0), 0))
 
-  const taxAmt  = Math.round(activeTierSubtotal * (estimate.tax_rate / 100))
+  const taxAmt  = Math.round(activeTierSubtotal * (estimate.tax_rate / 100) * 100) / 100
   const total   = activeTierSubtotal + taxAmt
 
   // Milestones — always locked 3-step 30/40/30, auto-calculated from total
@@ -321,9 +321,11 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     { id: 'com', name: 'On Completion',        pct: 30, due_when: 'Due on completion' },
   ]
   const milestones = (() => {
-    const dep = Math.round(total * 30 / 100)
-    const mat = Math.round(total * 40 / 100)
-    const com = total - dep - mat  // last milestone absorbs rounding
+    // Cents precision; last milestone absorbs the remainder so the three always
+    // sum to EXACTLY the total (including tax cents — fixes leftover-cents bug).
+    const dep = Math.round(total * 0.3 * 100) / 100
+    const mat = Math.round(total * 0.4 * 100) / 100
+    const com = Math.round((total - dep - mat) * 100) / 100  // last absorbs rounding
     return [
       { ...LOCKED_MILESTONES[0], amount: dep },
       { ...LOCKED_MILESTONES[1], amount: mat },
@@ -377,7 +379,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     const sq = parseFloat(sqCount) || 0
     const wp = parseFloat(wastePct) || 10
     const newSubtotal = recalcTiersFromSq(sq, selectedTier, perimLF)
-    const newTotal = newSubtotal + Math.round(newSubtotal * (estimate.tax_rate / 100))
+    const newTotal = newSubtotal + Math.round(newSubtotal * (estimate.tax_rate / 100) * 100) / 100
     recalcMilestones(newTotal)
     try {
       await onSave({ square_count: sq, pitch: pitchVal, waste_pct: wp } as any)
