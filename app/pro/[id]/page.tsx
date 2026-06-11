@@ -1165,11 +1165,6 @@ export default function ProProfilePage() {
                       </div>
                     ))}
                   </div>
-                  <Link href={`/login?tab=signup&claim=${pro.id}`}
-                    className="block text-center w-full py-2.5 text-white text-sm font-bold rounded-xl transition-all hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                    Claim your profile →
-                  </Link>
                 </div>
               )}
 
