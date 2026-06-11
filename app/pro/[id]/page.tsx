@@ -606,9 +606,17 @@ export default function ProProfilePage() {
 
             {/* Name + trade + location */}
             <div className="mb-4">
-              <h1 className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-                {pro.full_name}
-              </h1>
+              <div className="flex items-center gap-2.5 flex-wrap mb-1">
+                <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+                  {pro.full_name}
+                </h1>
+                {!pro.is_claimed && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{ background: '#FBF7ED', color: '#92580C', border: '1px solid #F0E2C4' }}>
+                    Unclaimed listing
+                  </span>
+                )}
+              </div>
               <div className="text-base font-semibold mb-1" style={{ color: '#0F766E' }}>{trade}</div>
               <div className="flex items-center gap-3 flex-wrap text-sm" style={{ color: '#6B7280' }}>
                 {location && <span>📍 {location}</span>}
@@ -655,7 +663,7 @@ export default function ProProfilePage() {
 
             {/* Trust badges */}
             <div className="flex flex-wrap gap-2 mb-4">
-              {pro.is_verified && (
+              {pro.is_verified && pro.is_claimed && (
                 <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full"
                   style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.25)' }}>
                   <ShieldBadge size={13} /> Guild Verified
@@ -666,7 +674,7 @@ export default function ProProfilePage() {
                   target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-80"
                   style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.2)' }}>
-                  🛡 FL License #{pro.license_number} · Verify on DBPR ↗
+                  <ShieldBadge size={13} /> FL License #{pro.license_number} · Verify on DBPR ↗
                 </a>
               )}
               {hasLicense && !pro.license_number && (
@@ -713,20 +721,25 @@ export default function ProProfilePage() {
               </div>
             )}
 
-            {/* Sleek claim affordance — quiet for homeowners, findable for the owner */}
+            {/* Claim affordance — unclaimed only; quiet for homeowners, clear for the owner */}
             {!pro.is_claimed && !isOwner && (
-              <div className="mt-5 pt-4 flex items-center justify-between gap-3 flex-wrap border-t" style={{ borderColor: '#F0EDE8' }}>
-                <div className="flex items-center gap-2 text-sm" style={{ color: '#8A9199' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" />
-                  </svg>
-                  <span>Is this your business?</span>
+              <div className="mt-5 pt-4 border-t" style={{ borderColor: '#F0EDE8' }}>
+                <div className="flex items-center justify-between gap-4 flex-wrap rounded-xl px-4 py-3"
+                  style={{ background: '#FAFAF8', border: '1px solid #EDE9E2' }}>
+                  <div className="flex items-center gap-2.5">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" />
+                    </svg>
+                    <span className="text-sm" style={{ color: '#4A5560' }}>
+                      Are you <span className="font-semibold" style={{ color: '#0A1628' }}>{firstName}</span>? This profile isn&apos;t claimed yet.
+                    </span>
+                  </div>
+                  <Link href={`/login?tab=signup&claim=${pro.id}`}
+                    className="text-sm font-bold px-4 py-2 rounded-lg whitespace-nowrap transition-all hover:opacity-90"
+                    style={{ background: '#0F766E', color: '#fff' }}>
+                    Claim this profile →
+                  </Link>
                 </div>
-                <Link href={`/login?tab=signup&claim=${pro.id}`}
-                  className="text-sm font-semibold transition-colors hover:opacity-70"
-                  style={{ color: '#0F766E' }}>
-                  Claim this profile →
-                </Link>
               </div>
             )}
           </div>
@@ -827,10 +840,15 @@ export default function ProProfilePage() {
                     ].map(s => (
                       <div key={s.l}>
                         <div className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.n}</div>
-                        <div className="text-xs mt-0.5" style={{ color: '#A89F93' }}>{s.l}</div>
+                        <div className="text-xs mt-0.5 font-medium" style={{ color: '#8A9199' }}>{s.l}</div>
                       </div>
                     ))}
                   </div>
+                  {portfolio.length === 0 && reviewCnt === 0 && (
+                    <p className="text-xs text-center mt-4 pt-4 border-t leading-relaxed" style={{ color: '#8A9199', borderColor: '#F0EDE8' }}>
+                      {firstName} is newly listed on ProGuild — be the first to reach out and leave a review.
+                    </p>
+                  )}
                 </div>
 
                 {/* Top 4 portfolio photos preview */}
@@ -883,17 +901,17 @@ export default function ProProfilePage() {
 
                 {/* Trust strip */}
                 <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                     {[
-                      { icon: '🛡', t: hasCredentials ? 'License Verified' : 'Profile Created', s: hasCredentials ? 'Florida DBPR database check' : 'Awaiting verification' },
-                      { icon: '✦', t: 'Zero Lead Fees', s: 'Direct contact, no middleman' },
-                      { icon: '⭐', t: rating > 0 ? `${rating.toFixed(1)} Star Rating` : 'New Member', s: rating > 0 ? `${reviewCnt} verified reviews` : 'References available on request' },
+                      { icon: '🛡', t: 'DBPR Licensed', s: 'Verified against Florida state records' },
+                      { icon: '✦', t: 'No lead fees', s: 'Homeowners always reach pros free' },
+                      { icon: '⭐', t: rating > 0 ? `${rating.toFixed(1)} star rating` : 'New to ProGuild', s: rating > 0 ? `${reviewCnt} verified ${reviewCnt === 1 ? 'review' : 'reviews'}` : 'Among Florida\u2019s licensed pros' },
                     ].map(item => (
                       <div key={item.t} className="flex items-start gap-3">
-                        <div className="text-xl flex-shrink-0">{item.icon}</div>
+                        <div className="text-lg flex-shrink-0">{item.icon}</div>
                         <div>
-                          <div className="text-xs font-bold" style={{ color: '#0A1628' }}>{item.t}</div>
-                          <div className="text-xs mt-0.5" style={{ color: '#A89F93' }}>{item.s}</div>
+                          <div className="text-sm font-bold" style={{ color: '#0A1628' }}>{item.t}</div>
+                          <div className="text-xs mt-0.5 leading-relaxed" style={{ color: '#6B7280' }}>{item.s}</div>
                         </div>
                       </div>
                     ))}
@@ -1096,7 +1114,9 @@ export default function ProProfilePage() {
                       📞 Call {firstName}
                     </a>
                   )}
-                  <p className="text-xs text-center mt-3" style={{ color: '#C4BAB0' }}>Free · No lead fees · Direct contact</p>
+                  <p className="text-xs text-center mt-3 leading-relaxed" style={{ color: '#6B7280' }}>
+                    Contact {firstName} directly. No fees, no middleman.
+                  </p>
                 </div>
               )}
 
@@ -1136,13 +1156,13 @@ export default function ProProfilePage() {
               <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#E8E2D9' }}>
                 <div className="space-y-3">
                   {[
-                    { icon: '🖼', label: `${portfolio.length} project photos` },
+                    { icon: '🖼', label: portfolio.length > 0 ? `${portfolio.length} project ${portfolio.length === 1 ? 'photo' : 'photos'}` : 'No project photos yet' },
                     { icon: '⭐', label: rating > 0 ? `${rating.toFixed(1)} stars · ${reviewCnt} reviews` : 'No reviews yet' },
                     { icon: '📍', label: location || 'Florida' },
                     ...(pro.years_experience ? [{ icon: '🏗', label: `${pro.years_experience} years experience` }] : []),
                   ].map(item => (
-                    <div key={item.label} className="flex items-center gap-2.5 text-xs" style={{ color: '#6B7280' }}>
-                      <span className="text-sm">{item.icon}</span>
+                    <div key={item.label} className="flex items-center gap-2.5 text-sm" style={{ color: '#4A5560' }}>
+                      <span className="text-base">{item.icon}</span>
                       <span>{item.label}</span>
                     </div>
                   ))}
