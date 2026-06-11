@@ -307,6 +307,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const [claimName, setClaimName] = useState('')
   const [claimLicense, setClaimLicense] = useState('')
   const [claimExpiry, setClaimExpiry] = useState('')
+  const [claimBlocked, setClaimBlocked] = useState(false)  // already-claimed → no re-claim
 
   // Focus states
   const [focused, setFocused] = useState<string | null>(null)
@@ -322,7 +323,13 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       .then(d => {
         const p = d.pro
         if (!p) return
-        if (p.is_claimed) { router.replace('/login'); return }  // already claimed
+        if (p.is_claimed) {
+          // Already claimed — block re-claim. Show a message, then send them to the
+          // public profile (a param-free destination, so the claim UI can't re-trigger).
+          setClaimBlocked(true)
+          setTimeout(() => { window.location.href = `/pro/${claimId}` }, 2200)
+          return
+        }
         setClaimName(p.full_name || '')
         const parts = (p.full_name || '').trim().split(/\s+/)
         setFname(parts[0] || '')
@@ -447,6 +454,27 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
   const stepLabels = ['Your identity', 'Your trade', 'Contact']
   const selectedTrade = cats.find(c => c.id === trade)
+
+  // Already-claimed profile — block re-claim with a clear message (redirect runs in effect).
+  if (claimBlocked) {
+    return (
+      <div style={{ textAlign:'center', padding:'24px 8px' }}>
+        <div style={{ width:48, height:48, borderRadius:'50%', background:'rgba(15,118,110,0.1)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z" /><path d="m9 12 2 2 4-4" />
+          </svg>
+        </div>
+        <h2 style={{ fontSize:20, fontWeight:800, color:C.text, margin:'0 0 8px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>This profile is already claimed</h2>
+        <p style={{ color:C.muted, fontSize:14, margin:'0 0 20px', lineHeight:1.6, maxWidth:340, marginInline:'auto' }}>
+          This contractor profile has already been claimed by its owner. If this is your business and you believe this is a mistake, please contact support.
+        </p>
+        <a href={`/pro/${claimId}`}
+          style={{ display:'inline-block', padding:'11px 22px', borderRadius:10, background:`linear-gradient(135deg, ${C.teal}, ${C.tealL})`, color:'#fff', fontSize:14, fontWeight:700, textDecoration:'none', fontFamily:'system-ui' }}>
+          View profile →
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div>

@@ -67,9 +67,17 @@ export async function POST(req: NextRequest) {
       // profile (is_verified=false, flagged for manual review). We never block.
       const { data: existing } = await admin
         .from('pros')
-        .select('license_number, license_expiry_date')
+        .select('license_number, license_expiry_date, is_claimed, auth_user_id')
         .eq('id', claim_pro_id)
         .single()
+
+      // Hard guard: never let a claimed profile be re-claimed (would hijack the
+      // existing owner's auth_user_id). The client also blocks this, but the
+      // server is the real boundary. Roll back the just-created auth user.
+      if (existing?.is_claimed || existing?.auth_user_id) {
+        await admin.auth.admin.deleteUser(authUserId)
+        return NextResponse.json({ error: 'This profile has already been claimed.' }, { status: 409 })
+      }
 
       const normLic = (s: string | null | undefined) =>
         (s || '').replace(/\s+/g, '').toUpperCase()
@@ -94,6 +102,7 @@ export async function POST(req: NextRequest) {
           ...(verified ? {} : { profile_status: 'Pending_Review' }),
         })
         .eq('id', claim_pro_id)
+        .eq('is_claimed', false)   // atomic: only claim if still unclaimed (race-safe)
         .select('*, trade_category:trade_categories(category_name, slug)')
         .single()
 
