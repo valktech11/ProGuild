@@ -741,22 +741,6 @@ export default function ProProfilePage() {
                   )}
                 </div>
               )}
-
-              {/* Owner shortcuts in place of contact card */}
-              {isOwner && (
-                <div className="w-full lg:w-72 lg:flex-shrink-0 rounded-2xl border p-4 space-y-2 lg:mt-2" style={{ borderColor: '#E8E2D9' }}>
-                  <Link href="/edit-profile"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 text-white text-sm font-bold rounded-xl transition-all hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                    ✏️ Edit profile
-                  </Link>
-                  <Link href="/dashboard"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold rounded-xl border transition-colors"
-                    style={{ borderColor: '#E8E2D9', color: '#6B7280' }}>
-                    📊 Dashboard
-                  </Link>
-                </div>
-              )}
             </div>
 
             {/* Services */}
@@ -1189,22 +1173,12 @@ export default function ProProfilePage() {
                 </div>
               )}
 
-              {/* Owner shortcuts */}
+              {/* Owner: share (Edit + Dashboard live in the top banner) */}
               {isOwner && (
-                <div className="bg-white rounded-2xl border p-4 space-y-2" style={{ borderColor: '#E8E2D9' }}>
-                  <Link href="/edit-profile"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 text-white text-sm font-bold rounded-xl transition-all hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                    ✏️ Edit profile
-                  </Link>
-                  <Link href="/dashboard"
-                    className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold rounded-xl border transition-colors"
-                    style={{ borderColor: '#E8E2D9', color: '#6B7280' }}>
-                    📊 Dashboard
-                  </Link>
+                <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#E8E2D9' }}>
                   <button onClick={shareProfile}
                     className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold rounded-xl border transition-colors"
-                    style={{ borderColor: '#E8E2D9', color: '#6B7280' }}>
+                    style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
                     🔗 Share profile
                   </button>
                 </div>
