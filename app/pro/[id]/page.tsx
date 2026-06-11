@@ -595,7 +595,7 @@ export default function ProProfilePage() {
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
 
               {/* Left: avatar + identity */}
-              <div className="flex gap-4 -mt-10 sm:-mt-12">
+              <div className="flex gap-4 -mt-10 sm:-mt-12 lg:flex-1 lg:min-w-0">
                 <div className="relative flex-shrink-0">
                   <ProAvatar pro={pro} size="w-20 h-20 sm:w-24 sm:h-24" />
                   {pro.available_for_work && (
@@ -606,7 +606,7 @@ export default function ProProfilePage() {
                   )}
                 </div>
 
-                <div className="pt-10 sm:pt-12">
+                <div className="pt-10 sm:pt-12 flex-1 min-w-0">
                   <div className="flex items-center gap-2.5 flex-wrap mb-0.5">
                     <h1 className="text-2xl sm:text-3xl font-extrabold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
                       {pro.full_name}
@@ -641,6 +641,56 @@ export default function ProProfilePage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Claim box — fills the left column under the credentials (mockup layout) */}
+                  {!pro.is_claimed && !isOwner && (
+                    <div className="mt-5 rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
+                      style={{ background: 'linear-gradient(100deg, #FDF9EF 0%, #FBF6E8 100%)', border: '1px solid #F0E2C4' }}>
+                      <div className="flex items-start gap-3">
+                        <span className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: '#F5E9CC' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+                        </span>
+                        <div>
+                          <div className="text-sm font-bold mb-0.5" style={{ color: '#0A1628' }}>Own this business?</div>
+                          <div className="text-sm leading-relaxed" style={{ color: '#6B5A3C' }}>
+                            This profile isn&apos;t claimed yet. Claim it to update your info, add photos, and collect reviews.
+                          </div>
+                        </div>
+                      </div>
+                      <Link href={`/login?tab=signup&claim=${pro.id}`}
+                        className="text-sm font-bold px-5 py-2.5 rounded-lg whitespace-nowrap transition-all hover:opacity-90"
+                        style={{ background: 'linear-gradient(135deg, #D97706, #B45309)', color: '#fff' }}>
+                        Claim this profile →
+                      </Link>
+                    </div>
+                  )}
+
+                  {/* License verification badge */}
+                  {pro.license_number && (
+                    <div className="mt-4 flex items-center gap-2 flex-wrap">
+                      <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${pro.license_number}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-80"
+                        style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.2)' }}>
+                        <ShieldBadge size={13} /> FL License #{pro.license_number} · Verify on DBPR ↗
+                      </a>
+                      {pro.is_verified && pro.is_claimed && (
+                        <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full"
+                          style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.25)' }}>
+                          <ShieldBadge size={13} /> Guild Verified
+                        </span>
+                      )}
+                      {hasOsha && (
+                        <span className="text-sm font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>🦺 {pro.osha_card_type}</span>
+                      )}
+                      {hasInsurance && (
+                        <span className="text-sm font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>🛡 Insured</span>
+                      )}
+                      {isElite(pro.plan_tier) && (
+                        <span className="text-sm font-bold px-3 py-1.5 rounded-full" style={{ background: 'rgba(139,92,246,0.1)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.25)' }}>✦ Elite Pro</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -708,57 +758,6 @@ export default function ProProfilePage() {
                 </div>
               )}
             </div>
-
-            {/* License verification — the killer trust feature, given real weight */}
-            {/* Claim box — directly under identity (unclaimed, non-owner) */}
-            {!pro.is_claimed && !isOwner && (
-              <div className="mt-5 rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
-                style={{ background: 'linear-gradient(100deg, #FDF9EF 0%, #FBF6E8 100%)', border: '1px solid #F0E2C4' }}>
-                <div className="flex items-start gap-3">
-                  <span className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: '#F5E9CC' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
-                  </span>
-                  <div>
-                    <div className="text-sm font-bold mb-0.5" style={{ color: '#0A1628' }}>Own this business?</div>
-                    <div className="text-sm leading-relaxed" style={{ color: '#6B5A3C' }}>
-                      This profile isn&apos;t claimed yet. Claim it to update your info, add photos, and collect reviews.
-                    </div>
-                  </div>
-                </div>
-                <Link href={`/login?tab=signup&claim=${pro.id}`}
-                  className="text-sm font-bold px-5 py-2.5 rounded-lg whitespace-nowrap transition-all hover:opacity-90"
-                  style={{ background: 'linear-gradient(135deg, #D97706, #B45309)', color: '#fff' }}>
-                  Claim this profile →
-                </Link>
-              </div>
-            )}
-
-            {/* License verification badge */}
-            {pro.license_number && (
-              <div className="mt-5 flex items-center gap-2 flex-wrap">
-                <a href={`https://www.myfloridalicense.com/LicenseDetail.asp?SID=&id=${pro.license_number}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-80"
-                  style={{ background: 'rgba(15,118,110,0.06)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.2)' }}>
-                  <ShieldBadge size={13} /> FL License #{pro.license_number} · Verify on DBPR ↗
-                </a>
-                {pro.is_verified && pro.is_claimed && (
-                  <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full"
-                    style={{ background: 'rgba(20,184,166,0.1)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.25)' }}>
-                    <ShieldBadge size={13} /> Guild Verified
-                  </span>
-                )}
-                {hasOsha && (
-                  <span className="text-sm font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>🦺 {pro.osha_card_type}</span>
-                )}
-                {hasInsurance && (
-                  <span className="text-sm font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FAF9F6', color: '#6B7280', border: '1px solid #E8E2D9' }}>🛡 Insured</span>
-                )}
-                {isElite(pro.plan_tier) && (
-                  <span className="text-sm font-bold px-3 py-1.5 rounded-full" style={{ background: 'rgba(139,92,246,0.1)', color: '#7C3AED', border: '1px solid rgba(139,92,246,0.25)' }}>✦ Elite Pro</span>
-                )}
-              </div>
-            )}
 
             {/* Services */}
             {(pro as any).services?.length > 0 && (
