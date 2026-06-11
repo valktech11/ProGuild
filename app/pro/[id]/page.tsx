@@ -555,6 +555,23 @@ export default function ProProfilePage() {
         </div>
       )}
 
+      {/* ── CLAIM BANNER — only on unclaimed profiles, to non-owners ──────── */}
+      {!pro.is_claimed && !isOwner && (
+        <div className="border-b" style={{ background: 'rgba(245,158,11,0.07)', borderColor: 'rgba(245,158,11,0.22)' }}>
+          <div className="max-w-5xl mx-auto px-5 py-2.5 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2 text-sm" style={{ color: '#92580C' }}>
+              <span>👋</span>
+              <span className="font-medium">Is this you? Claim your profile to manage it and get verified.</span>
+            </div>
+            <Link href={`/claim/${pro.id}`}
+              className="text-xs font-bold px-4 py-1.5 rounded-lg text-white transition-all whitespace-nowrap"
+              style={{ background: 'linear-gradient(135deg, #B45309, #92580C)' }}>
+              Claim this profile →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <Navbar />
 

@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
     city,
     years_experience,
     claim_pro_id,   // if present → case B (claiming an existing row)
+    claim_license,       // license # entered by the claimant (for soft verification)
+    claim_license_expiry,// expiry date entered by the claimant (YYYY-MM-DD)
   } = body
 
   if (!email || !password) {
@@ -59,6 +61,26 @@ export async function POST(req: NextRequest) {
   try {
     // ── Case B: claim an existing unclaimed pros row ──
     if (claim_pro_id) {
+      // ── Soft, NON-BLOCKING verification ──────────────────────────────────
+      // Read the stored license data and compare to what the claimant entered.
+      // A match flips is_verified=true (badge); a mismatch still claims the
+      // profile (is_verified=false, flagged for manual review). We never block.
+      const { data: existing } = await admin
+        .from('pros')
+        .select('license_number, license_expiry_date')
+        .eq('id', claim_pro_id)
+        .single()
+
+      const normLic = (s: string | null | undefined) =>
+        (s || '').replace(/\s+/g, '').toUpperCase()
+      const licMatch = !!existing?.license_number &&
+        normLic(claim_license) === normLic(existing.license_number)
+      // Expiry: compare date portion only (stored is a DATE)
+      const expMatch = !!existing?.license_expiry_date &&
+        (claim_license_expiry || '').slice(0, 10) === String(existing.license_expiry_date).slice(0, 10)
+
+      const verified = licMatch && expMatch
+
       const { data: pro, error: proErr } = await admin
         .from('pros')
         .update({
@@ -67,6 +89,9 @@ export async function POST(req: NextRequest) {
           phone:        phone || null,
           is_claimed:   true,
           claimed_at:   new Date().toISOString(),
+          is_verified:  verified,
+          // Unmatched claims go to manual review queue; matched stay Active.
+          ...(verified ? {} : { profile_status: 'Pending_Review' }),
         })
         .eq('id', claim_pro_id)
         .select('*, trade_category:trade_categories(category_name, slug)')
@@ -77,7 +102,7 @@ export async function POST(req: NextRequest) {
         await admin.auth.admin.deleteUser(authUserId)
         return NextResponse.json({ error: 'Could not link profile' }, { status: 500 })
       }
-      return NextResponse.json({ ok: true, pro, claimed: true })
+      return NextResponse.json({ ok: true, pro, claimed: true, verified })
     }
 
     // ── Case A: brand-new pros row ──

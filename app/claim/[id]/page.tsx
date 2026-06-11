@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { initials, avatarColor } from '@/lib/utils'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
+
+// Claim flow: an existing DBPR profile (unclaimed) is claimed by its real owner.
+// Principle: NEVER block enrollment. License # + expiry are a SOFT check — a match
+// grants the verified badge immediately; a mismatch still claims the profile
+// (unverified, queued for manual review). Real Supabase auth account is created.
 
 export default function ClaimProfilePage() {
   const { id }       = useParams<{ id: string }>()
@@ -11,22 +17,21 @@ export default function ClaimProfilePage() {
   const searchParams = useSearchParams()
   const licenseFromUrl = searchParams.get('license') || ''
 
-  const [pro, setPro]       = useState<any>(null)
+  const [pro, setPro]         = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [step, setStep]     = useState<'verify' | 'create' | 'done'>('verify')
+  const [step, setStep]       = useState<'form' | 'done'>('form')
 
-  // Verify step
+  // Form fields
   const [license, setLicense] = useState(licenseFromUrl)
-  const [verifying, setVerifying] = useState(false)
-  const [verifyError, setVerifyError] = useState('')
+  const [expiry, setExpiry]   = useState('')
+  const [name, setName]       = useState('')
+  const [email, setEmail]     = useState('')
+  const [phone, setPhone]     = useState('')
+  const [password, setPassword] = useState('')
 
-  // Create account step
-  const [email, setEmail]   = useState('')
-  const [name, setName]     = useState('')
-  const [phone, setPhone]   = useState('')
-  const [password, setPassword] = useState('') // stored as hash via API
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError]     = useState('')
+  const [wasVerified, setWasVerified] = useState(false)
 
   useEffect(() => {
     fetch(`/api/pros/${id}`)
@@ -35,72 +40,58 @@ export default function ClaimProfilePage() {
         if (d.pro) {
           setPro(d.pro)
           setName(d.pro.full_name || '')
-          if (d.pro.is_claimed) {
-            // Already claimed — redirect to login
-            router.replace('/login')
-          }
+          if (d.pro.is_claimed) router.replace('/login')  // already claimed
         }
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [id])
 
-  async function handleVerify() {
-    if (!license.trim()) { setVerifyError('Please enter your license number'); return }
-    setVerifying(true); setVerifyError('')
-
-    // Check license matches the profile
-    if (license.trim().toUpperCase() !== (pro?.license_number || '').toUpperCase()) {
-      setVerifyError('License number does not match this profile. Please check and try again.')
-      setVerifying(false)
-      return
-    }
-    setVerifying(false)
-    setStep('create')
+  function formatPhone(val: string) {
+    const dd = val.replace(/\D/g, '').slice(0, 10)
+    if (dd.length <= 3) return dd
+    if (dd.length <= 6) return `(${dd.slice(0,3)}) ${dd.slice(3)}`
+    return `(${dd.slice(0,3)}) ${dd.slice(3,6)}-${dd.slice(6)}`
   }
 
-  async function handleCreate() {
-    if (!email.trim() || !name.trim()) { setCreateError('Name and email are required'); return }
-    setCreating(true); setCreateError('')
+  async function handleClaim() {
+    if (!name.trim() || !email.trim()) { setError('Name and email are required'); return }
+    if (password.length < 8) { setError('Password must be at least 8 characters'); return }
+    setSubmitting(true); setError('')
 
-    // Check email not already taken
-    const checkR = await fetch(`/api/pros?email=${encodeURIComponent(email)}`)
-    const checkD = await checkR.json()
-    if ((checkD.pros || []).length > 0 && checkD.pros[0].id !== id) {
-      setCreateError('This email is already registered. Please log in instead.')
-      setCreating(false)
-      return
-    }
-
-    // Update the unclaimed profile to claimed
-    const r = await fetch(`/api/pros/${id}`, {
-      method: 'PATCH',
+    // Create real auth account + claim the profile. The server does the soft
+    // license/expiry match and sets is_verified — we never block on it here.
+    const r = await fetch('/api/auth/signup', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        full_name:  name.trim(),
-        email:      email.trim().toLowerCase(),
-        phone:      phone.trim() || null,
-        is_claimed: true,
-        claimed_at: new Date().toISOString(),
+        email: email.trim().toLowerCase(),
+        password,
+        full_name: name.trim(),
+        phone: phone.trim() || null,
+        claim_pro_id: id,
+        claim_license: license.trim() || null,
+        claim_license_expiry: expiry || null,
       }),
     })
     const d = await r.json()
-    setCreating(false)
 
-    if (!r.ok) { setCreateError(d.error || 'Could not claim profile'); return }
-
-    // Create session
-    const session = {
-      id:    d.pro.id,
-      name:  d.pro.full_name,
-      email: d.pro.email,
-      plan:  d.pro.plan_tier,
-      trade: pro?.trade_category?.category_name || '',
-      city:  d.pro.city || '',
-      state: d.pro.state || '',
+    if (!r.ok) {
+      setSubmitting(false)
+      setError(d.error || 'Could not claim profile')
+      return
     }
-    sessionStorage.setItem('pg_pro', JSON.stringify(session))
+
+    // Sign the new user in so the session resolves app-wide
+    try {
+      const supabase = getSupabaseBrowser()
+      await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
+    } catch { /* non-fatal — they can log in manually */ }
+
+    setWasVerified(!!d.verified)
+    setSubmitting(false)
     setStep('done')
-    setTimeout(() => router.push('/onboarding'), 1800)
+    setTimeout(() => router.push('/dashboard'), 2200)
   }
 
   if (loading) return (
@@ -122,6 +113,8 @@ export default function ClaimProfilePage() {
   const [bg, fg] = avatarColor(pro.full_name)
   const trade = pro.trade_category?.category_name || 'Trade professional'
 
+  const inputCls = "w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 focus:bg-white transition-colors"
+
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col">
       <Navbar />
@@ -138,82 +131,77 @@ export default function ClaimProfilePage() {
               <div className="text-sm text-teal-700">{trade}</div>
               <div className="text-sm text-gray-400">{[pro.city, pro.state].filter(Boolean).join(', ')}</div>
               {pro.license_number && (
-                <div className="text-xs text-teal-600 font-medium mt-0.5">✓ License {pro.license_number} — verified</div>
+                <div className="text-xs text-gray-400 font-medium mt-0.5">DBPR License on file</div>
               )}
             </div>
           </div>
 
-          {/* Step 1 — Verify */}
-          {step === 'verify' && (
+          {step === 'form' && (
             <div className="bg-white border border-gray-100 rounded-2xl p-8">
               <h1 className="font-serif text-2xl text-gray-900 mb-2">Claim your profile</h1>
-              <p className="text-sm text-gray-400 mb-7 leading-relaxed">
-                We found your license in the Florida DBPR database and created this profile for you.
-                Enter your license number to verify it's you.
+              <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+                We built this profile from the Florida DBPR database. Verify your license
+                to get your verified badge — then set up your login. You can claim now and
+                verify later if needed.
               </p>
 
-              {verifyError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{verifyError}</div>
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{error}</div>
               )}
 
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                Your license number
-              </label>
-              <input value={license} onChange={e => setLicense(e.target.value)}
-                placeholder="e.g. EC13004123"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 focus:bg-white transition-colors mb-5" />
-
-              <button onClick={handleVerify} disabled={verifying}
-                className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors">
-                {verifying ? 'Verifying...' : 'Verify license →'}
-              </button>
-
-              <p className="text-xs text-gray-400 text-center mt-4">
-                Not your profile? <Link href="/" className="text-teal-600">Browse ProGuild</Link>
-              </p>
-            </div>
-          )}
-
-          {/* Step 2 — Create account */}
-          {step === 'create' && (
-            <div className="bg-white border border-gray-100 rounded-2xl p-8">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center text-white text-xs font-bold">✓</div>
-                <span className="text-sm font-medium text-teal-700">License verified</span>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">License #</label>
+                  <input value={license} onChange={e => setLicense(e.target.value)} placeholder="EC13004123" className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Expiry date</label>
+                  <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)} className={inputCls} />
+                </div>
               </div>
 
-              <h2 className="font-serif text-2xl text-gray-900 mb-2">Create your account</h2>
-              <p className="text-sm text-gray-400 mb-6">Set up your login details to manage your profile.</p>
-
-              {createError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{createError}</div>
-              )}
+              <div className="border-t border-gray-100 my-5" />
 
               {[
-                { label: 'Full name',     value: name,  set: setName,  placeholder: 'James Harrington', type: 'text'  },
-                { label: 'Email address', value: email, set: setEmail, placeholder: 'james@example.com', type: 'email' },
-                { label: 'Phone',         value: phone, set: setPhone, placeholder: '(555) 000-0000',    type: 'tel'   },
+                { label: 'Full name',     value: name,  set: setName,  ph: 'James Harrington', type: 'text'  },
+                { label: 'Email address', value: email, set: setEmail, ph: 'james@example.com', type: 'email' },
               ].map(f => (
                 <div key={f.label} className="mb-4">
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">{f.label}</label>
-                  <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-stone-50 focus:outline-none focus:border-teal-400 focus:bg-white transition-colors" />
+                  <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.ph} className={inputCls} />
                 </div>
               ))}
 
-              <button onClick={handleCreate} disabled={creating}
-                className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors mt-2">
-                {creating ? 'Claiming...' : 'Claim my profile →'}
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Phone</label>
+                <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 000-0000" className={inputCls} />
+              </div>
+
+              <div className="mb-6">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Create a password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" className={inputCls} />
+              </div>
+
+              <button onClick={handleClaim} disabled={submitting}
+                className="w-full py-3 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-colors">
+                {submitting ? 'Claiming...' : 'Claim my profile →'}
               </button>
+
+              <p className="text-xs text-gray-400 text-center mt-4">
+                Already have an account? <Link href="/login" className="text-teal-600">Log in</Link>
+              </p>
             </div>
           )}
 
-          {/* Step 3 — Done */}
           {step === 'done' && (
             <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center">
               <div className="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl">🎉</div>
               <h2 className="font-serif text-2xl text-gray-900 mb-2">Profile claimed!</h2>
-              <p className="text-sm text-gray-400">Taking you to complete your profile...</p>
+              <p className="text-sm text-gray-400">
+                {wasVerified
+                  ? 'Your license matched — your verified badge is active. Taking you to your dashboard...'
+                  : "You're all set. We'll verify your license shortly — taking you to your dashboard..."}
+              </p>
             </div>
           )}
         </div>
