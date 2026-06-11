@@ -717,6 +717,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             wastePct={wastePct} setWastePct={setWastePct}
             editMeas={editMeas} setEditMeas={setEditMeas}
             savingMeas={savingMeas} onSaveMeas={saveMeasurements}
+            isLocked={isLocked}
           />
 
           {/* Client contact — only for blank estimates (no lead) */}
@@ -1053,7 +1054,7 @@ const PITCH_OPTIONS = ['3/12','4/12','5/12','6/12','7/12','8/12','9/12','10/12',
 
 function PropertyCard({ estimate, card, border, textP, textS,
   addrVal, setAddrVal, sqCount, setSqCount, pitchVal, setPitchVal, wastePct, setWastePct,
-  editMeas, setEditMeas, savingMeas, onSaveMeas }: {
+  editMeas, setEditMeas, savingMeas, onSaveMeas, isLocked = false }: {
   estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
   addrVal: string; setAddrVal: (v: string) => void
   sqCount: string; setSqCount: (v: string) => void
@@ -1061,6 +1062,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
   wastePct: string; setWastePct: (v: string) => void
   editMeas: boolean; setEditMeas: (v: boolean) => void
   savingMeas: boolean; onSaveMeas: () => Promise<void>
+  isLocked?: boolean
 }) {
   const hasSq = parseFloat(sqCount) > 0
 
@@ -1096,6 +1098,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
               ⚠ No measurements — enter below
             </span>
           )}
+          {!isLocked && (
           <button onClick={() => setEditMeas(!editMeas)}
             style={{ padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700,
               background: editMeas ? '#F1F5F9' : C.tealLight,
@@ -1107,11 +1110,12 @@ function PropertyCard({ estimate, card, border, textP, textS,
             </svg>
             {editMeas ? 'Cancel' : 'Edit'}
           </button>
+          )}
         </div>
       </div>
 
       {/* Inline measurement editor */}
-      {editMeas && (
+      {editMeas && !isLocked && (
         <div style={{ borderTop: `1px solid ${border}`, paddingTop: 18 }}>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em',
             textTransform: 'uppercase', color: textS, marginBottom: 14 }}>
