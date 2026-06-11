@@ -585,7 +585,7 @@ export default function ProProfilePage() {
       )}
 
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
-      <Navbar />
+      <Navbar hideJoinCta={!pro.is_claimed && !isOwner} />
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <div className="max-w-5xl mx-auto px-4 sm:px-5 pt-6">
@@ -600,10 +600,10 @@ export default function ProProfilePage() {
                 <div className="absolute inset-0" style={{ background: 'rgba(10,22,40,0.55)' }} />
               </>
             )}
-            {/* Trade eyebrow on cover — name is shown below the avatar, not here */}
+            {/* Trade eyebrow — top of band, clear of the avatar that rises bottom-left */}
             {!pro.cover_image_url && (
-              <div className="absolute bottom-4 left-6 right-6">
-                <div className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              <div className="absolute top-5 left-6 right-6">
+                <div className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.6)' }}>
                   {trade}
                 </div>
               </div>

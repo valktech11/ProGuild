@@ -109,7 +109,7 @@ function MessageIcon({ active }: { active: boolean }) {
   )
 }
 
-export default function Navbar() {
+export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean } = {}) {
   const path   = usePathname()
   const router = useRouter()
   const [session, setSession]           = useState<Session | null>(null)
@@ -336,11 +336,13 @@ export default function Navbar() {
                   className="text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors">
                   Log in
                 </Link>
+                {!hideJoinCta && (
                 <Link href="/login?tab=signup"
                   className="text-sm font-semibold px-4 py-2 rounded-lg text-white hover:opacity-90 transition-all"
                   style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 2px 8px rgba(15,118,110,0.3)' }}>
                   Join as a pro →
                 </Link>
+                )}
               </div>
             )}
           </div>
