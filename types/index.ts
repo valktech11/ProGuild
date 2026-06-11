@@ -101,6 +101,8 @@ export interface Lead {
   // CRM fields
   quoted_amount: number | null
   scheduled_date: string | null
+  scheduled_time: string | null
+  inspection_date: string | null
   notes: string | null
   follow_up_date: string | null
   contact_city: string | null

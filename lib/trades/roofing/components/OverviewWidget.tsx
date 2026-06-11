@@ -59,8 +59,13 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
   const today = new Date().toISOString().split('T')[0]
 
   // ── Today's Schedule ─────────────────────────────────────────────────────
+  // A lead is "on today's schedule" if either its job is scheduled for today
+  // (scheduled_date) OR an inspection is booked for today (inspection_date).
   const todayLeads = leads
-    .filter(l => l.scheduled_date?.startsWith(today))
+    .filter(l =>
+      l.scheduled_date?.startsWith(today) ||
+      l.inspection_date?.startsWith(today)
+    )
     .sort((a, b) => {
       if (!a.scheduled_time) return 1
       if (!b.scheduled_time) return -1
@@ -169,7 +174,7 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
               </svg>
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, marginBottom: 4 }}>Free day ahead</div>
-            <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14 }}>No jobs scheduled today — a good time to follow up on leads.</div>
+            <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14 }}>Nothing scheduled today — a good time to follow up on leads.</div>
             <button
               onClick={() => router.push('/dashboard/pipeline')}
               style={{ fontSize: 12, fontWeight: 700, color: TEAL, background: '#F0FDFA', border: '1px solid #CCFBF1', borderRadius: 8, padding: '7px 14px', cursor: 'pointer' }}>
