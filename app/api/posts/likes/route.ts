@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     .select('id')
     .eq('post_id', post_id)
     .eq('pro_id', pro_id)
-    .single()
+    .maybeSingle()
 
   if (existing) {
     // Unlike
