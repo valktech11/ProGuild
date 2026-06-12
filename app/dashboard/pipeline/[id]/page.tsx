@@ -7,7 +7,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { avatarColor, initials, capName, fmtPhone, US_STATES } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
-import { getPipelineStages } from '@/components/ui/LeadPipeline'
+import { getPipelineStages, LostReasonSheet } from '@/components/ui/LeadPipeline'
 import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
 // Roofing components accessed via trade module path — not components/roofing
 import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
@@ -191,6 +191,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // ── Toasts ───────────────────────────────────────────────────────────────
   const [toasts,   setToasts]   = useState<Toast[]>([])
   const [toastSeq, setToastSeq] = useState(0)
+  const [showLostSheet, setShowLostSheet] = useState(false)
   function addToast(msg:string, type:Toast['type']='success', prev?:LeadStatus) {
     const tid=toastSeq+1; setToastSeq(tid)
     setToasts(t=>[...t,{id:tid,msg,type,prev}])
@@ -297,7 +298,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       const r = await fetch(`/api/leads/${id}/stage`, {
         method: 'PATCH',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ pro_id: session.id, stage: fields.lead_status }),
+        body: JSON.stringify({
+          pro_id: session.id,
+          stage: fields.lead_status,
+          ...(fields.lost_reason ? { lost_reason: fields.lost_reason } : {}),
+        }),
       })
       // If stage route succeeds, also patch any other fields in the payload
       const otherFields = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'lead_status'))
@@ -365,6 +370,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   async function moveStage(s:LeadStatus, force=false) {
     if (s===stage||saving) return
     if (STAGE_ORDER[s]<STAGE_ORDER[stage]) { setConfirmBack(s); return }
+    // Intercept lost — show reason sheet first
+    const lostKey = getStageAnchors(session?.trade_slug)?.lost ?? 'lost'
+    if ((s === lostKey || s === 'lost') && !force) {
+      setShowLostSheet(true)
+      return
+    }
     // Always show schedule modal when moving to scheduled — regardless of gate
     if (!force && s === 'scheduled') {
       setSchedDate(lead?.scheduled_date || '')
@@ -856,6 +867,20 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           const termKeys   = tradePlugin.stages.filter(s => s.terminal).map(s => s.key)
           const isTerminal = stage === anchors2.won || termKeys.some(k => k === stage)
 
+          // stagesWithTerminal includes Lost/Unqualified so the picker CLOSED group renders them
+          const terminalPipelineStages = tradePlugin.stages
+            .filter((s: any) => s.terminal)
+            .map((s: any) => ({
+              key:       s.key      as string,
+              label:     s.label    as string,
+              color:     (s.color   as string) ?? '#6B7280',
+              bg:        (s.bg      as string) ?? '#F3F4F6',
+              subLabel:  (s.subLabel  as string | undefined) ?? 'Did not proceed',
+              nextLabel: (s.nextLabel as string | undefined) ?? 'Reopen',
+              terminal:  true as const,
+            }))
+          const stagesWithTerminal = [...stages, ...terminalPipelineStages]
+
           // Stage tips — roofing-specific content gated by isRoofing
           // Generic tip shown for all trades; trade-specific tips only for roofing
           const ROOFING_TIPS:Record<string,string> = {
@@ -1117,7 +1142,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   {/* ── CHANGE TO ── */}
                                   <div style={{padding:'8px 14px 4px',fontSize:10,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',background:t.cardBgAlt,borderBottom:`1px solid ${bdr}`}}>Change To</div>
                                   {pickerGroups.map((grp,gi)=>{
-                                    const gStages=stages.filter(s=>grp.keys.includes(s.key)&&s.key!==stage)
+                                    const gStages=stagesWithTerminal.filter(s=>grp.keys.includes(s.key)&&s.key!==stage)
                                     if(!gStages.length) return null
                                     return (
                                       <div key={grp.label}>
@@ -1299,7 +1324,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
                                   <button onClick={async()=>{const inApproved=stage==='insurance_approved';const ok=await patch(inApproved?{insurance_claim:false,lead_status:'inspection_scheduled'}:{insurance_claim:false});if(ok){setLead(l=>l?{...l,lead_status:inApproved?('inspection_scheduled' as LeadStatus):l.lead_status,roofing_job_data:{...((l as any).roofing_job_data??{}),insurance_claim:false}} as any:l);if(inApproved)setStage('inspection_scheduled' as LeadStatus);addToast(inApproved?'Converted to retail — moved to Inspection Scheduled':'Converted to retail — homeowner pays full cost','success')}else{addToast('Failed to convert','error')}}}
                                     style={{padding:'8px 14px',borderRadius:8,border:'none',background:BRAND.teal,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>Convert to Retail</button>
-                                  <button onClick={()=>moveStage('lost' as LeadStatus,true)}
+                                  <button onClick={()=>moveStage('lost' as LeadStatus)}
                                     style={{padding:'8px 14px',borderRadius:8,border:`1px solid ${dk?'#475569':'#CBD5E1'}`,background:'transparent',color:dk?'#E2E8F0':'#475569',fontSize:12,fontWeight:700,cursor:'pointer'}}>Mark Lost</button>
                                 </div>
                               </div>
@@ -1935,6 +1960,31 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           )
         })()}
       </div>
+
+      {/* Lost Reason Sheet */}
+      {showLostSheet && lead && (
+        <LostReasonSheet
+          lead={lead}
+          dk={dk}
+          onCancel={() => setShowLostSheet(false)}
+          onConfirm={async (reason) => {
+            setShowLostSheet(false)
+            const lostKey = (getStageAnchors(session?.trade_slug)?.lost ?? 'lost') as LeadStatus
+            const prev = stage
+            setStage(lostKey)
+            setSaving(true)
+            const ok = await patch({ lead_status: lostKey, lost_reason: reason })
+            setSaving(false)
+            if (ok) {
+              setLead(l => l ? { ...l, lead_status: lostKey } : l)
+              addToast('Lead marked as Lost', 'success', prev)
+            } else {
+              setStage(prev)
+              addToast('Failed to update stage', 'error')
+            }
+          }}
+        />
+      )}
     </DashboardShell>
   )
 }

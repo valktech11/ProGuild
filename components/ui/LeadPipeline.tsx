@@ -1124,7 +1124,7 @@ const LOST_REASONS: { value: string; label: string; icon: string }[] = [
   { value: 'other',             label: 'Other',                icon: '📝' },
 ]
 
-function LostReasonSheet({ lead, onConfirm, onCancel, dk = false }: {
+export function LostReasonSheet({ lead, onConfirm, onCancel, dk = false }: {
   lead: Lead
   onConfirm: (reason: string) => void
   onCancel: () => void
