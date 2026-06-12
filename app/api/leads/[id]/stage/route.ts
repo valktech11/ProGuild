@@ -33,7 +33,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       )
     }
 
-    const { stage: newStage, pro_id } = body as { stage: string; pro_id: string }
+    const { stage: newStage, pro_id, lost_reason } = body as { stage: string; pro_id: string; lost_reason?: string }
     if (!UUID_RE.test(pro_id))
       return NextResponse.json({ error: 'Invalid pro_id' }, { status: 400 })
 
@@ -84,13 +84,20 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     }
 
     // ── Persist stage change ──────────────────────────────────────────────
+    const updatePayload: Record<string, unknown> = {
+      lead_status:            newStage,
+      updated_at:             new Date().toISOString(),
+      lead_status_changed_at: new Date().toISOString(),
+    }
+    // Capture lost reason when moving to any terminal stage
+    const lostAnchor = tradeConfig.stageAnchors?.lost
+    if ((newStage === lostAnchor || newStage === 'lost') && lost_reason) {
+      updatePayload.lost_reason = lost_reason
+    }
+
     const { error: updateError } = await sb
       .from('leads')
-      .update({
-        lead_status:            newStage,
-        updated_at:             new Date().toISOString(),
-        lead_status_changed_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', leadId)
       .eq('pro_id', pro_id)
 
@@ -106,7 +113,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         pro_id,
         trade_slug: tradeSlug || null,
         event_type: 'stage_changed',
-        event_data: { from: currentStage, to: newStage },
+        event_data: { from: currentStage, to: newStage, ...(lost_reason ? { lost_reason } : {}) },
         actor_type: 'pro',
         created_at: new Date().toISOString(),
       })

@@ -111,6 +111,7 @@ export interface Lead {
   updated_at?: string
   lead_status_changed_at?: string | null
   insurance_claim?: boolean | null
+  lost_reason?: string | null
   // joined
   pro?: Pro
   job?: Job
