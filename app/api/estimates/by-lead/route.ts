@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ estimate: null })
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://staging.proguild.ai'
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://staging.proguild.ai').replace(/\/$/, '')
 
   return NextResponse.json({
     estimate: {
