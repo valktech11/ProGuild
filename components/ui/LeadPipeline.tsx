@@ -1114,7 +1114,104 @@ function SlidePanel({ stage, leads, onClose, onOpen, dk = false }: {
   )
 }
 
-// ── Pipeline column ────────────────────────────────────────────────────────────
+// ── Lost Reason Sheet ──────────────────────────────────────────────────────────
+const LOST_REASONS: { value: string; label: string; icon: string }[] = [
+  { value: 'price_too_high',    label: 'Price too high',       icon: '💸' },
+  { value: 'hired_competitor',  label: 'Hired a competitor',   icon: '🏢' },
+  { value: 'no_response',       label: 'No response / ghosted',icon: '👻' },
+  { value: 'job_cancelled',     label: 'Job cancelled',        icon: '❌' },
+  { value: 'not_ready',         label: 'Not ready yet',        icon: '⏳' },
+  { value: 'other',             label: 'Other',                icon: '📝' },
+]
+
+function LostReasonSheet({ lead, onConfirm, onCancel, dk = false }: {
+  lead: Lead
+  onConfirm: (reason: string) => void
+  onCancel: () => void
+  dk?: boolean
+}) {
+  const [selected, setSelected] = useState<string | null>(null)
+  const t = theme(dk)
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center"
+      style={{ background: 'rgba(0,0,0,0.55)' }}
+      onClick={onCancel}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: t.cardBg,
+          width: '100%', maxWidth: 480,
+          borderRadius: '20px 20px 0 0',
+          padding: '20px 20px 32px',
+          boxShadow: '0 -8px 40px rgba(0,0,0,0.2)',
+        }}>
+        {/* Handle */}
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: t.inputBorder, margin: '0 auto 18px' }} />
+        {/* Header */}
+        <div style={{ marginBottom: 4 }}>
+          <p style={{ fontSize: 17, fontWeight: 700, color: t.textPri }}>Mark as Lost</p>
+          <p style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>
+            {capName(lead.contact_name)} · Why was this lead lost?
+          </p>
+        </div>
+        {/* Reasons */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '16px 0' }}>
+          {LOST_REASONS.map(r => (
+            <button
+              key={r.value}
+              onClick={() => setSelected(r.value)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 14px',
+                borderRadius: 12,
+                border: `1.5px solid ${selected === r.value ? '#0F766E' : t.cardBorder}`,
+                background: selected === r.value ? (dk ? 'rgba(15,118,110,0.15)' : '#F0FDFA') : t.cardBg,
+                cursor: 'pointer', textAlign: 'left' as const,
+                transition: 'border-color 0.15s, background 0.15s',
+              }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>{r.icon}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: selected === r.value ? '#0F766E' : t.textBody }}>
+                {r.label}
+              </span>
+              {selected === r.value && (
+                <span style={{ marginLeft: 'auto', color: '#0F766E' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700,
+              border: `1.5px solid ${t.cardBorder}`, background: t.cardBgAlt,
+              color: t.textBody, cursor: 'pointer',
+            }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => selected && onConfirm(selected)}
+            disabled={!selected}
+            style={{
+              flex: 2, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700,
+              border: 'none',
+              background: selected ? '#6B7280' : (dk ? '#1E293B' : '#E5E7EB'),
+              color: selected ? '#fff' : t.textSubtle,
+              cursor: selected ? 'pointer' : 'not-allowed',
+              transition: 'background 0.15s',
+            }}>
+            Mark as Lost
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main LeadPipeline export ───────────────────────────────────────────────────
 function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onStatusChange }: {
   stage: PipelineStage
   leads: Lead[]
@@ -1242,6 +1339,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const [mobileStage, setMobileStage] = useState<StageKey>(() => stages[0]?.key ?? '')
   const [showLost, setShowLost] = useState(false)
   const [listView, setListView] = useState(false)
+  const [pendingLostLead, setPendingLostLead] = useState<{ lead: Lead; targetStage: string } | null>(null)
   const kanbanRef = useRef<HTMLDivElement>(null)
   const dragState = useRef<{startX:number;scrollLeft:number;isDragging:boolean}>({startX:0,scrollLeft:0,isDragging:false})
   const [scrollPct, setScrollPct] = useState(0)
@@ -1285,6 +1383,19 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
     window.addEventListener('mouseup', onUp)
   }, [])
 
+  // Intercept stage transitions to 'lost' — show reason sheet first
+  const lostAnchorKey = getStageAnchors(tradeSlug)?.lost ?? 'lost'
+  function handleStatusChange(leadId: string, newStage: string): Promise<void> {
+    if (newStage === lostAnchorKey || newStage === 'lost') {
+      const lead = leads.find(l => l.id === leadId)
+      if (lead) {
+        setPendingLostLead({ lead, targetStage: newStage })
+        return Promise.resolve()
+      }
+    }
+    return onStatusChange(leadId, newStage)
+  }
+
   function openLead(lead: Lead) {
     router.push('/dashboard/pipeline/' + lead.id)
   }
@@ -1311,6 +1422,19 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
   const terminalStageKeys = getTerminalStages(tradeSlug).map(s => s.key as string)
   const terminalKeys = new Set<string>([...terminalStageKeys, 'Lost', 'lost'])  // legacy compat for old DB records
   const lostLeads = leads.filter(l => terminalKeys.has(l.lead_status as string))
+
+  // Build Lost column config from trade config (always show as last column)
+  const lostStageConfig = getTradeConfig(tradeSlug).stages.find((s: any) => s.key === lostAnchorKey || s.key === 'lost') as any
+  const lostColumn: PipelineStage | null = lostStageConfig ? {
+    key:       lostStageConfig.key      as string,
+    label:     lostStageConfig.label    as string,
+    color:     (lostStageConfig.color   as string) ?? '#6B7280',
+    bg:        (lostStageConfig.bg      as string) ?? '#F3F4F6',
+    subLabel:  (lostStageConfig.subLabel  as string | undefined) ?? 'Did not proceed',
+    nextLabel: (lostStageConfig.nextLabel as string | undefined) ?? 'Reopen',
+    terminal:  true,
+  } : null
+
   // wonLeads: leads in the won stage (job_won for roofing, Paid for legacy)
   const wonAnchors = getStageAnchors(tradeSlug)
 
@@ -1483,7 +1607,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           ? <p className="text-center py-8 text-sm text-gray-500">No leads in {stages.find(s => s.key === mobileStage)?.label ?? mobileStage}</p>
           : leadsForStage(mobileStage).map(lead => {
               const stage = stages.find(s => s.key === lead.lead_status) || stages[0]
-              return <div key={lead.id}><LeadCard lead={lead} stage={stage} allStages={stages} onOpen={() => openLead(lead)} dk={dk} onStatusChange={onStatusChange} /></div>
+              return <div key={lead.id}><LeadCard lead={lead} stage={stage} allStages={stages} onOpen={() => openLead(lead)} dk={dk} onStatusChange={handleStatusChange} /></div>
             })
         }
       </div>
@@ -1545,73 +1669,49 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           <div style={{ display:'flex', gap:12, minWidth: stages.length * 292,
             alignItems:'flex-start', paddingBottom:28, paddingRight:40 }}>
             {stages.map(stage => (
-              <PipelineColumn key={stage.key} stage={stage} leads={leadsForStage(stage.key)} allStages={stages} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={onStatusChange} />
+              <PipelineColumn key={stage.key} stage={stage} leads={leadsForStage(stage.key)} allStages={stages} onOpen={lead => openLead(lead)} dk={dk} onStatusChange={handleStatusChange} />
             ))}
+            {/* Lost column — always last, muted visual treatment */}
+            {lostColumn && (
+              <div style={{ opacity: 0.82 }}>
+                <PipelineColumn
+                  key={lostColumn.key}
+                  stage={lostColumn}
+                  leads={lostLeads}
+                  allStages={stages}
+                  onOpen={lead => openLead(lead)}
+                  dk={dk}
+                  onStatusChange={handleStatusChange}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Lost leads — expandable */}
-      {lostLeads.length > 0 && (
-        <div className="mt-3 px-4">
-          <button
-            onClick={() => setShowLost(v => !v)}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[13px] font-medium transition-all"
-            style={{ background: dk ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', color: t.textSubtle, border: `1px solid ${t.cardBorder}` }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              {showLost
-                ? <polyline points="18 15 12 9 6 15"/>
-                : <polyline points="6 9 12 15 18 9"/>}
-            </svg>
-            {showLost ? 'Hide' : `${lostLeads.length} lost lead${lostLeads.length !== 1 ? 's' : ''}`}
-          </button>
-          {showLost && (
-            <div className="mt-2 space-y-2">
-              {lostLeads.map(lead => {
-                const [avBg, avFg] = avatarColor(lead.contact_name)
-                return (
-                  <div key={lead.id} className="rounded-xl overflow-hidden"
-                    style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, opacity: 0.85 }}>
-                    {/* Lead info row */}
-                    <div className="flex items-center gap-2 px-4 py-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-                        style={{ background: avBg, color: avFg }}>
-                        {initials(lead.contact_name)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-semibold truncate" style={{ color: t.textBody }}>{capName(lead.contact_name)}</p>
-                        <p className="text-[12px]" style={{ color: t.textSubtle }}>{timeAgo(lead.created_at)} · Lost</p>
-                      </div>
-                      <button onClick={() => openLead(lead)}
-                        className="text-[12px] font-medium px-2 py-1 rounded-lg flex-shrink-0"
-                        style={{ color: t.textSubtle, border: `1px solid ${t.cardBorder}`, background: 'transparent' }}>
-                        Open
-                      </button>
-                    </div>
-                    {/* Stage move actions — reopen to first two active stages */}
-                    <div className="flex border-t" style={{ borderColor: t.cardBorder }}>
-                      {(stages.slice(0, 2).map(s => s.key) as string[]).map((stageName, i) => (
-                        <button key={stageName}
-                          onClick={async () => { await onStatusChange(lead.id, stageName) }}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-semibold transition-opacity hover:opacity-70"
-                          style={{
-                            background: 'transparent',
-                            color: stages.find(s => s.key === stageName)?.color ?? '#6B7280',
-                            borderRight: i === 0 ? `1px solid ${t.cardBorder}` : 'none',
-                            borderTop: 'none', borderLeft: 'none', borderBottom: 'none',
-                            cursor: 'pointer',
-                          }}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                          Move to {stageName}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+      {/* Lost Reason Sheet */}
+      {pendingLostLead && (
+        <LostReasonSheet
+          lead={pendingLostLead.lead}
+          dk={dk}
+          onCancel={() => setPendingLostLead(null)}
+          onConfirm={async (reason) => {
+            const { lead, targetStage } = pendingLostLead
+            setPendingLostLead(null)
+            // Fire stage change with reason — the stage route saves it
+            await fetch(`/api/leads/${lead.id}/stage`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                stage:       targetStage,
+                pro_id:      lead.pro_id,
+                lost_reason: reason,
+              }),
+            })
+            // Trigger parent refetch via onStatusChange callback
+            await onStatusChange(lead.id, targetStage)
+          }}
+        />
       )}
     </>
   )
