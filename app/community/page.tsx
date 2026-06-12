@@ -150,11 +150,12 @@ function BeforeAfterSlider({ afterUrl, beforeUrl }: { afterUrl: string; beforeUr
 }
 
 // ── Post card with functional type rendering ──────────────────────────────────
-function PostCard({ post, session, onLike, onDelete }: {
+function PostCard({ post, session, onLike, onDelete, liking = false }: {
   post: Post & { liked_by_me: boolean }
   session: Session | null
   onLike: (id: string) => void
   onDelete: (id: string) => void
+  liking?: boolean
 }) {
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments]         = useState<any[]>([])
@@ -366,7 +367,7 @@ function PostCard({ post, session, onLike, onDelete }: {
             {post.like_count > 0 && <span className="text-xs font-semibold">{post.like_count}</span>}
           </div>
         ) : (
-          <button onClick={() => session ? onLike(post.id) : window.location.href='/login'}
+          <button onClick={() => session ? onLike(post.id) : window.location.href='/login'} disabled={liking}
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm transition-colors ${
               post.liked_by_me ? 'text-teal-600' : 'text-gray-400 hover:text-gray-600'
             }`}>
@@ -592,6 +593,7 @@ export default function CommunityPage() {
   const [trendingOpen, setTrendingOpen] = useState(true)
   const [loading,      setLoading]      = useState(true)
   const [likedIds,     setLikedIds]     = useState<Set<string>>(new Set())
+  const [likingIds,    setLikingIds]    = useState<Set<string>>(new Set())
   const [localOnly,    setLocalOnly]    = useState(false)
   const [tradeFilter,  setTradeFilter]  = useState('')
   const [search,       setSearch]       = useState('')
@@ -654,6 +656,8 @@ export default function CommunityPage() {
 
   async function handleLike(postId: string) {
     if (!session) return
+    if (likingIds.has(postId)) return
+    setLikingIds(prev => { const n = new Set(prev); n.add(postId); return n })
     const r = await fetch('/api/posts/likes', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ post_id: postId, pro_id: session.id }),
@@ -663,6 +667,7 @@ export default function CommunityPage() {
       setLikedIds(prev => { const n = new Set(prev); d.liked ? n.add(postId) : n.delete(postId); return n })
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, like_count: p.like_count + (d.liked ? 1 : -1) } : p))
     }
+    setLikingIds(prev => { const n = new Set(prev); n.delete(postId); return n })
   }
 
   async function handleDelete(postId: string) {
@@ -881,7 +886,7 @@ export default function CommunityPage() {
             <div className="columns-1 sm:columns-2 gap-4">
               {postsWithLikes.map(post => (
                 <div key={post.id} className="break-inside-avoid mb-4">
-                  <PostCard post={post} session={session} onLike={handleLike} onDelete={handleDelete} />
+                  <PostCard post={post} session={session} onLike={handleLike} onDelete={handleDelete} liking={likingIds.has(post.id)} />
                 </div>
               ))}
             </div>
