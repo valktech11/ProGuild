@@ -7,10 +7,140 @@ import { timeAgo, fmtCurrency } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import AddLeadModal from '@/components/ui/AddLeadModal'
 import { useProSession } from '@/lib/hooks/useProSession'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
 import { theme, T, BRAND } from '@/lib/tokens'
 import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
 import { getTradeConfig, isHVAC, isRoofing, isPlumbing, isElectrician, isGC, getStageAnchors } from '@/lib/trades/_registry'
+
+// ── Pending Review Banner ──────────────────────────────────────────────────────
+// Shown when profile_status === 'Pending_Review'. Lets the contractor self-serve
+// re-verification without needing admin intervention.
+function PendingReviewBanner({ onVerified }: { onVerified: () => void }) {
+  const [open,    setOpen]    = useState(false)
+  const [lic,     setLic]     = useState('')
+  const [expiry,  setExpiry]  = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+  const [success, setSuccess] = useState(false)
+
+  async function handleSubmit() {
+    setError('')
+    if (!lic.trim() || !expiry) { setError('Both fields are required.'); return }
+    setLoading(true)
+    try {
+      const supabase = getSupabaseBrowser()
+      const { data: { session: authSession } } = await supabase.auth.getSession()
+      if (!authSession) { setError('Session expired — please log in again.'); setLoading(false); return }
+
+      const res = await fetch('/api/auth/reverify', {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${authSession.access_token}`,
+        },
+        body: JSON.stringify({ license_number: lic.trim(), license_expiry: expiry }),
+      })
+      const data = await res.json()
+
+      if (data.verified) {
+        setSuccess(true)
+        onVerified()   // refresh session so banner disappears
+      } else if (data.alreadyActive) {
+        onVerified()
+      } else {
+        setError("Details didn't match our DBPR records. Double-check your license number and expiry date.")
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+    }
+    setLoading(false)
+  }
+
+  if (success) {
+    return (
+      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+        <span className="text-xl">✅</span>
+        <div>
+          <p className="text-sm font-semibold text-emerald-800">Verified! Your Guild Verified badge is now active.</p>
+          <p className="text-xs text-emerald-600 mt-0.5">Your profile is now fully active and verified.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <span className="text-xl mt-0.5">⚠️</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-900">Verification pending</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              The license details you entered didn't match our DBPR records. Your account is fully active —
+              fix this to unlock your <strong>Guild Verified</strong> badge.
+            </p>
+          </div>
+        </div>
+        {!open && (
+          <button
+            onClick={() => setOpen(true)}
+            className="flex-shrink-0 text-xs font-semibold text-amber-800 border border-amber-300 bg-white rounded-xl px-4 py-2 hover:bg-amber-100 transition-colors whitespace-nowrap"
+          >
+            Fix now →
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="mt-4 border-t border-amber-200 pt-4">
+          <p className="text-xs font-semibold text-amber-800 mb-3">Re-enter your Florida license details</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <label className="block text-xs text-amber-700 mb-1">License number</label>
+              <input
+                value={lic}
+                onChange={e => setLic(e.target.value)}
+                placeholder="e.g. CGC021577"
+                className="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-sm text-gray-900 focus:outline-none focus:border-teal-500"
+              />
+            </div>
+            <div className="w-full sm:w-44">
+              <label className="block text-xs text-amber-700 mb-1">Expiry date</label>
+              <input
+                type="date"
+                value={expiry}
+                onChange={e => setExpiry(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-sm text-gray-900 focus:outline-none focus:border-teal-500"
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 disabled:opacity-50 transition-colors"
+              >
+                {loading ? 'Checking…' : 'Verify'}
+              </button>
+              <button
+                onClick={() => { setOpen(false); setError('') }}
+                className="px-4 py-2 rounded-xl border border-amber-300 bg-white text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          <p className="mt-2 text-xs text-amber-600">
+            Details must match your current Florida DBPR record exactly.{' '}
+            <a href="https://www.myfloridalicense.com/wl11.asp" target="_blank" rel="noopener noreferrer"
+              className="underline hover:text-amber-800">Look up your license →</a>
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const TEAL   = '#0F766E'
 const NAVY   = '#0A1628'
@@ -201,7 +331,7 @@ function PipeArrow({ dk }: { dk: boolean }) {
 export default function OverviewPage() {
   const router = useRouter()
 
-  const { session, loading: sessionLoading, needsProfile } = useProSession()
+  const { session, loading: sessionLoading, needsProfile, refresh } = useProSession()
 
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -352,6 +482,11 @@ export default function OverviewPage() {
   return (
     <DashboardShell session={session} newLeads={newLeads.length} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
       <div className="px-4 md:px-8 py-4 md:py-6 md:pr-10">
+
+        {/* ── Pending Review Banner ────────────────────────────────────────── */}
+        {session?.profile_status === 'Pending_Review' && (
+          <PendingReviewBanner onVerified={refresh} />
+        )}
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
