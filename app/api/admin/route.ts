@@ -91,6 +91,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ leads: data || [] })
   }
 
+  if (section === 'claims') {
+    const { data } = await sb
+      .from('pros')
+      .select('id, full_name, email, license_number, license_expiry_date, claimed_at, is_verified, profile_status')
+      .eq('profile_status', 'Pending_Review')
+      .order('claimed_at', { ascending: true })   // oldest first — most urgent
+    return NextResponse.json({ claims: data || [] })
+  }
+
   if (section === 'moderation') {
     const [{ data: posts }, { data: pendingReviews }, { data: approvedReviews }] = await Promise.all([
       sb.from('posts').select('*, pro:pros(full_name)').eq('is_flagged', true).order('created_at', { ascending: false }).limit(50),
