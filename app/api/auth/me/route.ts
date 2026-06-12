@@ -66,15 +66,17 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     session: {
-      id:         pro.id,
-      name:       pro.full_name,
-      email:      pro.email,
-      plan:       pro.plan_tier,
-      trade:      (pro.trade_category as any)?.category_name || null,
-      trade_slug: (pro as any).trade_slug || (pro.trade_category as any)?.slug || null,
-      city:       pro.city,
-      state:      pro.state,
-      slug:       pro.slug || null,
+      id:             pro.id,
+      name:           pro.full_name,
+      email:          pro.email,
+      plan:           pro.plan_tier,
+      trade:          (pro.trade_category as any)?.category_name || null,
+      trade_slug:     (pro as any).trade_slug || (pro.trade_category as any)?.slug || null,
+      city:           pro.city,
+      state:          pro.state,
+      slug:           pro.slug || null,
+      profile_status: pro.profile_status,
+      is_verified:    pro.is_verified,
     },
     needsProfile: false,
   })

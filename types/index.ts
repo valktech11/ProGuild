@@ -164,6 +164,8 @@ export interface Session {
   city: string | null
   state: string | null
   slug: string | null          // vanity URL slug e.g. wasim-akram-painter-jacksonville
+  profile_status: ProfileStatus
+  is_verified: boolean
 }
 
 export const PAID_PLANS: PlanTier[] = [
