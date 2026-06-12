@@ -366,7 +366,7 @@ function PostCard({ post, session, onLike, onDelete }: {
             {post.like_count > 0 && <span className="text-xs font-semibold">{post.like_count}</span>}
           </div>
         ) : (
-          <button onClick={() => session && onLike(post.id)}
+          <button onClick={() => session ? onLike(post.id) : window.location.href='/login'}
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm transition-colors ${
               post.liked_by_me ? 'text-teal-600' : 'text-gray-400 hover:text-gray-600'
             }`}>
@@ -432,7 +432,7 @@ function PostCard({ post, session, onLike, onDelete }: {
               })}
             </div>
           )}
-          {session && (
+          {session ? (
             <div className="flex gap-2 items-center">
               <Avatar pro={{ full_name: session.name, profile_photo_url: null }} size={7} />
               <div className="flex-1 flex gap-2">
@@ -446,6 +446,10 @@ function PostCard({ post, session, onLike, onDelete }: {
                 </button>
               </div>
             </div>
+          ) : (
+            <a href="/login" className="text-[12px] text-teal-600 font-semibold hover:underline">
+              Log in to {isAskAPro ? 'answer' : 'comment'} →
+            </a>
           )}
         </div>
       )}
