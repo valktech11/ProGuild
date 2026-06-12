@@ -387,15 +387,13 @@ function PostCard({ post, session, onLike, onDelete, liking = false }: {
           <div className="flex items-center gap-1.5 ml-auto">
             <Link href={`/community/profile/${post.pro_id}`}
               title="View Profile"
-              className="flex items-center justify-center gap-1 text-[11px] font-semibold px-2 py-1.5 border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0}}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              <span className="hidden sm:inline">View Profile</span>
+              className="flex items-center justify-center w-7 h-7 border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 transition-colors flex-shrink-0">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </Link>
             <Link href={`/post-job?pro=${post.pro_id}`}
               title="Request Quote"
-              className="flex items-center justify-center gap-1 text-[11px] font-semibold px-2 py-1.5 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors whitespace-nowrap">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0}}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span className="hidden sm:inline">Request Quote</span>
+              className="flex items-center justify-center w-7 h-7 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors flex-shrink-0">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             </Link>
           </div>
         )}
