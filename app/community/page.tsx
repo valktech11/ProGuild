@@ -811,7 +811,7 @@ export default function CommunityPage() {
       {/* ── Popular Categories ── */}
       <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
         <div className="px-4 sm:px-6 py-3">
-          <h2 className="text-[13px] font-bold text-gray-700 mb-2">Popular Categories</h2>
+          <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">Popular Categories</h2>
           <div className="flex gap-5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[
               { label: 'Roofing',       img: 'https://images.unsplash.com/photo-1605450099279-533bd3ce379a?w=120&h=120&fit=crop', slug: 'roofer' },
@@ -830,7 +830,7 @@ export default function CommunityPage() {
                   <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all ${active ? 'border-teal-500 scale-105' : 'border-gray-100 group-hover:border-teal-400'}`}>
                     <img src={cat.img} alt={cat.label} className="w-full h-full object-cover" />
                   </div>
-                  <span className={`text-xs font-medium whitespace-nowrap transition-colors ${active ? 'text-teal-700 font-semibold' : 'text-gray-700 group-hover:text-teal-700'}`}>{cat.label}</span>
+                  <span className={`text-[12px] font-medium whitespace-nowrap transition-colors ${active ? 'text-teal-700 font-semibold' : 'text-gray-600 group-hover:text-teal-700'}`}>{cat.label}</span>
                 </button>
               )
             })}
@@ -901,7 +901,7 @@ export default function CommunityPage() {
           {/* ── Projects Near You ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-[14px] font-semibold text-gray-900">Projects Near You</div>
+              <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Projects Near You</div>
               <Link href="/post-job" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {jobAlerts.length === 0 ? (
@@ -926,7 +926,7 @@ export default function CommunityPage() {
           {/* ── Top Rated Pros ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-[14px] font-semibold text-gray-900">Top Rated Pros{session?.city ? ` in ${session.city}` : ''}</div>
+              <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Top Rated Pros{session?.city ? ` in ${session.city}` : ''}</div>
               <Link href="/" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {suggested.length === 0 ? (
@@ -959,7 +959,7 @@ export default function CommunityPage() {
           {/* ── Trending Questions ── */}
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-[14px] font-semibold text-gray-900">Trending Questions</div>
+              <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Trending Questions</div>
               <Link href="/community" className="text-xs text-teal-600 hover:underline">View all →</Link>
             </div>
             {trendingPosts.filter(p => p.post_type === 'tip').length === 0 ? (
