@@ -90,7 +90,9 @@ function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { 
           padding: icon ? '9px 12px 9px 34px' : '9px 12px',
           border:`1.5px solid ${f ? TEAL : '#E2E8F0'}`,
           borderRadius:9, fontSize:13, outline:'none',
-          background: f ? '#fff' : '#F7F6F3', color: NAVY,
+          background: p.disabled ? '#F1F5F9' : (f ? '#fff' : '#F7F6F3'),
+          color: p.disabled ? '#64748B' : NAVY,
+          cursor: p.disabled ? 'not-allowed' : 'auto',
           boxShadow: f ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
           transition:'all 0.15s',
           ...(p.style||{}),
@@ -133,6 +135,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
   function set(key: keyof InsuranceClaimData) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      if (locked) return   // won/lost: claim record is frozen for audit
       setSaved(false)
       const val = key === 'adjuster_phone'
         ? formatPhone(e.target.value)
@@ -337,7 +340,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
-                <input list="pg-carriers" value={fields.insurance_company} onChange={set('insurance_company')} placeholder="Start typing — pick from the list"
+                <input list="pg-carriers" value={fields.insurance_company} onChange={set('insurance_company')} disabled={locked} placeholder="Start typing — pick from the list"
                   style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
                   onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
                   onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
@@ -348,7 +351,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               </div>
             </Field>
             <Field label="Claim number">
-              <FInput value={fields.claim_number} onChange={set('claim_number')} placeholder="SF-2026-001"
+              <FInput value={fields.claim_number} onChange={set('claim_number')} disabled={locked} placeholder="SF-2026-001"
                 icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>}
               />
             </Field>
@@ -361,7 +364,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   </div>
-                  <input type="date" value={fields.date_of_loss} onChange={set('date_of_loss')}
+                  <input type="date" value={fields.date_of_loss} onChange={set('date_of_loss')} disabled={locked}
                     style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
                     onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
                     onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
@@ -424,7 +427,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
                   </div>
-                  <input type="date" value={fields.roof_install_date} onChange={set('roof_install_date')}
+                  <input type="date" value={fields.roof_install_date} onChange={set('roof_install_date')} disabled={locked}
                     style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
                     onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
                     onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
@@ -465,12 +468,12 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
             {/* Row 2: Adjuster name + phone */}
             <Field label="Adjuster name">
-              <FInput value={fields.adjuster_name} onChange={set('adjuster_name')} placeholder="John Doe"
+              <FInput value={fields.adjuster_name} onChange={set('adjuster_name')} disabled={locked} placeholder="John Doe"
                 icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
               />
             </Field>
             <Field label="Adjuster phone">
-              <FInput value={fields.adjuster_phone} onChange={set('adjuster_phone')}
+              <FInput value={fields.adjuster_phone} onChange={set('adjuster_phone')} disabled={locked}
                 type="tel" placeholder="813-555-0142" inputMode="numeric" maxLength={12}
                 icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11 19.79 19.79 0 01.01 2.38a2 2 0 012-2.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>}
               />
@@ -482,7 +485,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
-                <input type="datetime-local" value={fields.adjuster_appointment} onChange={set('adjuster_appointment')}
+                <input type="datetime-local" value={fields.adjuster_appointment} onChange={set('adjuster_appointment')} disabled={locked}
                   style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
                   onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
                   onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
@@ -495,7 +498,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             </Field>
             <Field label="Claim status">
               <div style={{ position:'relative' }}>
-                <select value={fields.claim_status} onChange={set('claim_status')}
+                <select value={fields.claim_status} onChange={set('claim_status')} disabled={locked}
                   style={{ width:'100%', padding:'9px 32px 9px 12px', border:`1.5px solid ${activeStatus.color}40`, borderRadius:9, fontSize:13, outline:'none', background: activeStatus.bg, color: activeStatus.color, fontWeight:700, cursor:'pointer', appearance:'none' as const, transition:'all 0.15s' }}>
                   {STATUS_GROUPS.map(g => (
                     <optgroup key={g} label={g}>
@@ -518,17 +521,17 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             {!isDenied && (
             <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
               <Field label="Approved amount">
-                <FInput value={fields.approved_amount} onChange={set('approved_amount')} placeholder="$0.00"
+                <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
                   icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
                 />
               </Field>
               <Field label="Supplement amount">
-                <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} placeholder="$0.00"
+                <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} disabled={locked} placeholder="$0.00"
                   icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
                 />
               </Field>
               <Field label="Deductible (homeowner)">
-                <FInput value={fields.deductible} onChange={set('deductible')} placeholder="$0.00"
+                <FInput value={fields.deductible} onChange={set('deductible')} disabled={locked} placeholder="$0.00"
                   icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
                 />
               </Field>
@@ -575,7 +578,15 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8, background:'#FEF2F2', border:'1px solid #FECACA', color:'#DC2626', fontSize:13, fontWeight:500 }}>{error}</div>
           )}
 
-          {/* Footer: save button */}
+          {/* Footer: locked message (won/lost) or save button */}
+          {locked ? (
+            <div style={{ marginTop:18, padding:'12px 14px', borderRadius:9, background: dk ? 'rgba(148,163,184,0.1)' : '#F1F5F9', border:`1px solid ${dk ? '#334155' : '#E2E8F0'}`, display:'flex', alignItems:'flex-start', gap:9 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#64748B'} strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0, marginTop:1 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <div style={{ fontSize:12.5, color: dk ? '#94A3B8' : '#64748B', lineHeight:1.5 }}>
+                Locked — this claim is part of the completed job record. Add a note for any updates.
+              </div>
+            </div>
+          ) : (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:18 }}>
             <div style={{ fontSize:11, color:'#94A3B8', display:'flex', alignItems:'center', gap:4 }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -602,6 +613,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               </button>
             </div>
           </div>
+          )}
         </div>
       )}
       <style>{`@keyframes pg-spin{to{transform:rotate(360deg)}}`}</style>
