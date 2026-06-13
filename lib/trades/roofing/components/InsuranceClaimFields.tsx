@@ -25,6 +25,7 @@ interface Props {
   initial:  Partial<InsuranceClaimData>
   darkMode: boolean
   propertyState?: string | null   // gate FL-only intelligence to FL properties
+  locked?: boolean                // hard-disable the claim-type toggle (won/lost jobs)
   onSaved:  (data: InsuranceClaimData) => void
 }
 
@@ -99,7 +100,7 @@ function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { 
   )
 }
 
-export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, onSaved }: Props) {
+export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, locked = false, onSaved }: Props) {
   // FL claims-intelligence (SB 2-A, 25% rule) is Florida-specific by design — gate it.
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
   const [open,   setOpen]   = useState(initial.insurance_claim ?? false)
@@ -141,6 +142,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   }
 
   const handleToggle = useCallback(async () => {
+    if (locked) return   // won/lost: insurance type is locked to protect claim/reporting history
     const next = !open
     setOpen(next)
     setFields(f => {
@@ -152,7 +154,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       method:'PATCH', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ pro_id: proId, insurance_claim: next }),
     }).catch(() => {})
-  }, [open, leadId, proId, onSaved])
+  }, [open, leadId, proId, onSaved, locked])
 
   const handleSave = useCallback(async () => {
     setSaving(true); setError(null); setSaved(false)
@@ -276,7 +278,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     }}>
 
       {/* ── Header row ── */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', cursor:'pointer', background: open ? (dk ? 'rgba(15,118,110,0.1)' : 'rgba(15,118,110,0.04)') : 'transparent' }}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', cursor: locked ? 'default' : 'pointer', background: open ? (dk ? 'rgba(15,118,110,0.1)' : 'rgba(15,118,110,0.04)') : 'transparent' }}
         onClick={handleToggle}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           {/* Icon box */}
@@ -303,10 +305,22 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               {fields.claim_status}
             </span>
           )}
-          {/* Toggle */}
-          <div style={{ width:44, height:24, borderRadius:12, background: open ? TEAL : (dk ? '#334155' : '#CBD5E1'), position:'relative', transition:'background 0.2s', flexShrink:0 }}>
-            <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: open ? 23 : 3, transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
-          </div>
+          {/* Toggle (locked on won/lost jobs to protect claim history) */}
+          {locked ? (
+            <div title="Insurance type is locked on completed jobs"
+              style={{ display:'flex', alignItems:'center', gap:6, opacity:0.55 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#64748B'} strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <div style={{ width:44, height:24, borderRadius:12, background: open ? TEAL : (dk ? '#334155' : '#CBD5E1'), position:'relative', flexShrink:0 }}>
+                <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: open ? 23 : 3, boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+              </div>
+            </div>
+          ) : (
+            <div style={{ width:44, height:24, borderRadius:12, background: open ? TEAL : (dk ? '#334155' : '#CBD5E1'), position:'relative', transition:'background 0.2s', flexShrink:0 }}>
+              <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: open ? 23 : 3, transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1297,7 +1297,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             </div>
 
                             {isRoofing&&(
-                              <InsuranceClaimFields key={(lead as any).roofing_job_data?.claim_number ?? lead.id} leadId={lead.id} proId={session!.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state}
+                              <InsuranceClaimFields key={(lead as any).roofing_job_data?.claim_number ?? lead.id} leadId={lead.id} proId={session!.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} locked={stage==='job_won'||stage==='lost'}
                                 onSaved={(data)=>{
                                   // Optimistic update first so UI feels instant
                                   setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
