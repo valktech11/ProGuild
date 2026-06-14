@@ -195,8 +195,8 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk=fa
             </div>
           </div>
 
-          {/* Source grid — 2 cols */}
-          <div style={{position:'relative',flex:1,display:'flex',flexDirection:'column',gap:8}}>
+          {/* Source grid — scrollable so all sources are reachable on short screens */}
+          <div style={{position:'relative',flex:1,minHeight:0,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,marginRight:-8,paddingRight:8}}>
             {SOURCES.map(s => {
               const active = source === s.value
               return (
@@ -236,7 +236,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk=fa
         </div>
 
         {/* ════ RIGHT PANEL — white, form fields ═══════════════════════════════ */}
-        <div style={{flex:1,display:'flex',flexDirection:'column',background:'#fff',minWidth:0}}>
+        <div style={{flex:1,display:'flex',flexDirection:'column',background:'#fff',minWidth:0,minHeight:0}}>
 
           {/* Right header */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'20px 24px 16px',borderBottom:`1px solid ${BORDER}`,flexShrink:0}}>
@@ -248,7 +248,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk=fa
           </div>
 
           {/* Scrollable form */}
-          <div style={{flex:1,overflowY:'auto',padding:'20px 24px',display:'flex',flexDirection:'column',gap:16}}>
+          <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'20px 24px',display:'flex',flexDirection:'column',gap:16}}>
 
             {/* Row 1: Name + Phone */}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
