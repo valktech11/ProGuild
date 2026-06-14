@@ -33,16 +33,32 @@ function CanvIcon({ a }: { a: boolean }) {
 function OtherIcon({ a }: { a: boolean }) {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={a ? 'white' : '#6B7280'} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
 }
+function StormIcon({ a }: { a: boolean }) {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={a ? 'white' : '#0EA5E9'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 16.9A5 5 0 0018 7h-1.26A8 8 0 104 15.25"/><polyline points="13 11 9 17 15 17 11 23"/></svg>
+}
+function DoorIcon({ a }: { a: boolean }) {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={a ? 'white' : '#7C3AED'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/><circle cx="15" cy="12" r="1" fill={a ? 'white' : '#7C3AED'}/></svg>
+}
+function WebIcon({ a }: { a: boolean }) {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={a ? 'white' : '#0891B2'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+}
+function GoogleIcon({ a }: { a: boolean }) {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={a ? 'white' : '#DB4437'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+}
 
 const SOURCES = [
-  { v: 'Phone_Call', l: 'Phone call',  I: PhoneIcon },
-  { v: 'Facebook',   l: 'Facebook',    I: FbIcon },
-  { v: 'Instagram',  l: 'Instagram',   I: IgIcon },
-  { v: 'Referral',   l: 'Referral',    I: RefIcon },
-  { v: 'Insurance',  l: 'Insurance',   I: InsIcon },
-  { v: 'Yard_Sign',  l: 'Yard sign',   I: YardIcon },
-  { v: 'Canvassing', l: 'Canvassing',  I: CanvIcon },
-  { v: 'Other',      l: 'Other',       I: OtherIcon },
+  { v: 'Phone_Call', l: 'Phone Call',   I: PhoneIcon },
+  { v: 'Storm',      l: 'Storm Damage', I: StormIcon },
+  { v: 'Referral',   l: 'Referral',     I: RefIcon },
+  { v: 'Facebook',   l: 'Facebook',     I: FbIcon },
+  { v: 'Instagram',  l: 'Instagram',    I: IgIcon },
+  { v: 'Door_Knock', l: 'Door Knock',   I: DoorIcon },
+  { v: 'Yard_Sign',  l: 'Yard Sign',    I: YardIcon },
+  { v: 'Insurance',  l: 'Insurance Co.', I: InsIcon },
+  { v: 'Website',    l: 'Website',      I: WebIcon },
+  { v: 'Google',     l: 'Google',       I: GoogleIcon },
+  { v: 'Canvassing', l: 'Canvassing',   I: CanvIcon },
+  { v: 'Other',      l: 'Other',        I: OtherIcon },
 ]
 
 function formatPhone(r: string) {
