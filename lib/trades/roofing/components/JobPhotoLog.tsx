@@ -138,7 +138,16 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
   }, [leadId, proId, selectedPhase])
 
   // ── Delete ─────────────────────────────────────────────────────────────
-  const handleDelete = useCallback(async (photoId: string) => {
+  const handleDelete = useCallback(async (photo: JobPhoto) => {
+    // Confirmation before permanent delete — stronger wording for insurance-
+    // critical phases, since these photos may be claim evidence.
+    const critical = photo.phase === 'Damage' || photo.phase === 'Insurance'
+    const message = critical
+      ? `This is a ${photo.phase} photo and may be part of the insurance record for this claim. Deleting it is permanent and it cannot be recovered.\n\nDelete this photo?`
+      : 'This photo will be permanently deleted and cannot be recovered.\n\nDelete this photo?'
+    if (!window.confirm(message)) return
+
+    const photoId = photo.id
     // Optimistic update
     setPhotos(prev => prev.filter(p => p.id !== photoId))
 
@@ -391,7 +400,7 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
 
                 {/* Delete button */}
                 <button
-                  onClick={() => handleDelete(photo.id)}
+                  onClick={() => handleDelete(photo)}
                   style={{
                     position: 'absolute',
                     top: 6,
