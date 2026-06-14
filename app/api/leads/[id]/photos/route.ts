@@ -40,7 +40,7 @@ export async function GET(req: Request, { params }: RouteParams) {
 
     const { data: photos, error: photosError } = await sb
       .from('lead_photos')
-      .select('id, url, phase, caption, filename, created_at')
+      .select('id, url, phase, caption, filename, created_at, lat, lng, taken_at')
       .eq('lead_id', leadId)
       .order('created_at', { ascending: true })
 
@@ -54,6 +54,9 @@ export async function GET(req: Request, { params }: RouteParams) {
         caption:    p.caption ?? '',
         filename:   p.filename,
         uploadedAt: p.created_at,
+        lat:        p.lat ?? null,
+        lng:        p.lng ?? null,
+        takenAt:    p.taken_at ?? null,
       }))
     })
   } catch (err: unknown) {
@@ -77,6 +80,12 @@ export async function POST(req: Request, { params }: RouteParams) {
     const phase   = (form.get('phase')   as string | null) ?? 'Before'
     const proId   = (form.get('pro_id')  as string | null) ?? ''
     const caption = (form.get('caption') as string | null) ?? ''
+    // Optional geo/time proof metadata (insurance-grade). All nullable.
+    const latRaw    = form.get('lat')      as string | null
+    const lngRaw    = form.get('lng')      as string | null
+    const takenAt   = (form.get('taken_at') as string | null) ?? null
+    const lat = latRaw != null && latRaw !== '' && !isNaN(parseFloat(latRaw)) ? parseFloat(latRaw) : null
+    const lng = lngRaw != null && lngRaw !== '' && !isNaN(parseFloat(lngRaw)) ? parseFloat(lngRaw) : null
 
     if (!file || !proId) {
       return NextResponse.json({ error: 'file and pro_id are required' }, { status: 400 })
@@ -148,6 +157,9 @@ export async function POST(req: Request, { params }: RouteParams) {
         phase,
         caption:   caption || null,
         filename:  file.name,
+        lat,
+        lng,
+        taken_at:  takenAt,
       })
       .select()
       .single()
@@ -161,6 +173,9 @@ export async function POST(req: Request, { params }: RouteParams) {
       caption:    photo.caption ?? '',
       filename:   photo.filename,
       uploadedAt: photo.created_at,
+      lat:        photo.lat ?? null,
+      lng:        photo.lng ?? null,
+      takenAt:    photo.taken_at ?? null,
     })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
