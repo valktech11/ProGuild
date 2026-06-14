@@ -6,6 +6,7 @@
 import type { RoofingConfig } from './types'
 import RoofingAddLeadModal from './components/AddLeadModal'
 import RoofingOverviewWidget from './components/OverviewWidget'
+import { LEAD_SOURCES } from './leadSources'
 
 export const roofingConfig: RoofingConfig = {
   slug:        'roofing',
@@ -226,21 +227,8 @@ export const roofingConfig: RoofingConfig = {
   },
 
   // ── Lead sources — roofing-specific ──────────────────────────────────────────
-  // Shown in AddLeadModal. Each trade has its own source list.
-  leadSources: [
-    { value: 'Phone_Call',    label: 'Phone Call',     icon: '📞' },
-    { value: 'Storm',         label: 'Storm Damage',   icon: '⛈️' },
-    { value: 'Referral',      label: 'Referral',       icon: '🤝' },
-    { value: 'Facebook',      label: 'Facebook',       icon: '📘' },
-    { value: 'Instagram',     label: 'Instagram',      icon: '📸' },
-    { value: 'Door_Knock',    label: 'Door Knock',     icon: '🚪' },
-    { value: 'Yard_Sign',     label: 'Yard Sign',      icon: '🪧' },
-    { value: 'Insurance',     label: 'Insurance Co.',  icon: '🛡️' },
-    { value: 'Website',       label: 'Website',        icon: '🌐' },
-    { value: 'Google',        label: 'Google',         icon: '🔍' },
-    { value: 'Canvassing',    label: 'Canvassing',     icon: '🏘️' },
-    { value: 'Other',         label: 'Other',          icon: '📌' },
-  ],
+  // Shown in AddLeadModal. SINGLE SOURCE: ./leadSources.ts (mirrored on mobile).
+  leadSources: LEAD_SOURCES,
 
   // ── Components ────────────────────────────────────────────────────────────
   // Shell pages import via plugin.components — never import roofing components directly.

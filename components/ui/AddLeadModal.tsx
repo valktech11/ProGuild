@@ -4,6 +4,7 @@ import { capName } from '@/lib/utils'
 import { useState, useRef } from 'react'
 import { getTradeLabels } from '@/lib/trades/_registry'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { LEAD_SOURCES } from '@/lib/trades/roofing/leadSources'
 
 // ── Tokens (match login/onboarding design language) ───────────────────────────
 const TEAL   = '#0F766E'
@@ -13,16 +14,26 @@ const NAVY_M = '#0F2137'
 const BORDER = '#E2E8F0'
 const CREAM  = '#F7F6F3'
 
-const SOURCES = [
-  { value: 'Phone_Call', label: 'Phone Call',  color: TEAL,      bg: '#F0FDFA', dot: '#5EEAD4' },
-  { value: 'Referral',   label: 'Referral',    color: '#7C3AED', bg: '#F5F3FF', dot: '#A78BFA' },
-  { value: 'Facebook',   label: 'Facebook',    color: '#1877F2', bg: '#EFF6FF', dot: '#93C5FD' },
-  { value: 'Instagram',  label: 'Instagram',   color: '#E1306C', bg: '#FFF1F2', dot: '#FDA4AF' },
-  { value: 'Website',    label: 'My Website',  color: '#0369A1', bg: '#E0F2FE', dot: '#7DD3FC' },
-  { value: 'Yard_Sign',  label: 'Yard Sign',   color: '#B45309', bg: '#FFFBEB', dot: '#FCD34D' },
-  { value: 'Walk_In',    label: 'Walk-in',     color: '#059669', bg: '#ECFDF5', dot: '#6EE7B7' },
-  { value: 'Other',      label: 'Other',       color: '#6B7280', bg: '#F9FAFB', dot: '#D1D5DB' },
-]
+// Presentation only — colors per source value. The LIST of sources comes from
+// the golden source (lib/trades/roofing/leadSources.ts); this just styles them.
+const SRC_STYLE: Record<string, { color: string; bg: string; dot: string }> = {
+  Phone_Call: { color: TEAL,      bg: '#F0FDFA', dot: '#5EEAD4' },
+  Storm:      { color: '#0EA5E9', bg: '#F0F9FF', dot: '#7DD3FC' },
+  Referral:   { color: '#7C3AED', bg: '#F5F3FF', dot: '#A78BFA' },
+  Facebook:   { color: '#1877F2', bg: '#EFF6FF', dot: '#93C5FD' },
+  Instagram:  { color: '#E1306C', bg: '#FFF1F2', dot: '#FDA4AF' },
+  Door_Knock: { color: '#7C3AED', bg: '#F5F3FF', dot: '#C4B5FD' },
+  Yard_Sign:  { color: '#B45309', bg: '#FFFBEB', dot: '#FCD34D' },
+  Insurance:  { color: '#B45309', bg: '#FFFBEB', dot: '#FCD34D' },
+  Website:    { color: '#0369A1', bg: '#E0F2FE', dot: '#7DD3FC' },
+  Google:     { color: '#DB4437', bg: '#FEF2F2', dot: '#FCA5A5' },
+  Canvassing: { color: '#059669', bg: '#ECFDF5', dot: '#6EE7B7' },
+  Other:      { color: '#6B7280', bg: '#F9FAFB', dot: '#D1D5DB' },
+}
+const SOURCES = LEAD_SOURCES.map(s => ({
+  value: s.value, label: s.label,
+  ...(SRC_STYLE[s.value] ?? { color: '#6B7280', bg: '#F9FAFB', dot: '#D1D5DB' }),
+}))
 
 function SourceIcon({ value, size = 18, color }: { value: string; size?: number; color?: string }) {
   const s = size

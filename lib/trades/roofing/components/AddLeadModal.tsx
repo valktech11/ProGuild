@@ -5,7 +5,9 @@
 
 import { theme } from '@/lib/tokens'
 import { useState, useRef } from 'react'
+import type { ReactElement } from 'react'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { LEAD_SOURCES } from '../leadSources'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 function PhoneIcon({ a }: { a: boolean }) {
@@ -46,20 +48,16 @@ function GoogleIcon({ a }: { a: boolean }) {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={a ? 'white' : '#DB4437'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 }
 
-const SOURCES = [
-  { v: 'Phone_Call', l: 'Phone Call',   I: PhoneIcon },
-  { v: 'Storm',      l: 'Storm Damage', I: StormIcon },
-  { v: 'Referral',   l: 'Referral',     I: RefIcon },
-  { v: 'Facebook',   l: 'Facebook',     I: FbIcon },
-  { v: 'Instagram',  l: 'Instagram',    I: IgIcon },
-  { v: 'Door_Knock', l: 'Door Knock',   I: DoorIcon },
-  { v: 'Yard_Sign',  l: 'Yard Sign',    I: YardIcon },
-  { v: 'Insurance',  l: 'Insurance Co.', I: InsIcon },
-  { v: 'Website',    l: 'Website',      I: WebIcon },
-  { v: 'Google',     l: 'Google',       I: GoogleIcon },
-  { v: 'Canvassing', l: 'Canvassing',   I: CanvIcon },
-  { v: 'Other',      l: 'Other',        I: OtherIcon },
-]
+// Icons are presentation; the source LIST comes from the golden source
+// (leadSources.ts). Keyed by value so the list and icons can't drift apart.
+const SRC_ICON: Record<string, (p: { a: boolean }) => ReactElement> = {
+  Phone_Call: PhoneIcon, Storm: StormIcon, Referral: RefIcon, Facebook: FbIcon,
+  Instagram: IgIcon, Door_Knock: DoorIcon, Yard_Sign: YardIcon, Insurance: InsIcon,
+  Website: WebIcon, Google: GoogleIcon, Canvassing: CanvIcon, Other: OtherIcon,
+}
+const SOURCES = LEAD_SOURCES.map(s => ({
+  v: s.value, l: s.label, I: SRC_ICON[s.value] ?? OtherIcon,
+}))
 
 function formatPhone(r: string) {
   const d = r.replace(/\D/g, '').slice(0, 10)
