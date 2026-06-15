@@ -392,21 +392,21 @@ function ProMeasureInner() {
 
   // ── Measurements panel — always visible, settings overlays below ──────────
   const MeasurementsPanel = () => (
-    <div style={{padding:20,display:'flex',flexDirection:'column',gap:14}}>
+    <div style={{padding:isWide?20:'12px 14px',display:'flex',flexDirection:'column',gap:isWide?14:10}}>
       <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:T.textSubtle}}>
         Live Measurements
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+      <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'repeat(4,1fr)',gap:isWide?8:6}}>
         {([
           ['Pins','',String(pins),false],
           ['Perimeter','LF',perim?fmt(perim):'—',false],
           ['Area','sq ft',area?fmt(area):'—',!!area],
           ['Squares','sq',area?fmtSq(rawSq):'—',!!area],
         ] as [string,string,string,boolean][]).map(([label,unit,val,hi])=>(
-          <div key={label} style={{background:hi?T.cardHi:T.cardBg,borderRadius:12,padding:'12px',border:`1px solid ${hi?T.cardHiBorder:T.cardBorder}`}}>
-            <div style={{fontSize:10,color:T.textSubtle,fontWeight:600,letterSpacing:'0.06em',marginBottom:4}}>{label}</div>
-            <div style={{fontSize:18,fontWeight:800,color:hi?'#14B8A6':T.text}}>{val}</div>
-            {unit&&<div style={{fontSize:10,color:T.textSubtle,marginTop:1}}>{unit}</div>}
+          <div key={label} style={{background:hi?T.cardHi:T.cardBg,borderRadius:isWide?12:10,padding:isWide?'12px':'9px 8px',border:`1px solid ${hi?T.cardHiBorder:T.cardBorder}`}}>
+            <div style={{fontSize:isWide?10:9,color:T.textSubtle,fontWeight:600,letterSpacing:'0.04em',marginBottom:isWide?4:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{label}</div>
+            <div style={{fontSize:isWide?18:16,fontWeight:800,color:hi?'#14B8A6':T.text,lineHeight:1.1}}>{val}</div>
+            {unit&&<div style={{fontSize:isWide?10:9,color:T.textSubtle,marginTop:1}}>{unit}</div>}
           </div>
         ))}
       </div>
@@ -648,7 +648,7 @@ function ProMeasureInner() {
       <div style={{flex:1,display:'flex',flexDirection:isWide?'row':'column',overflow:'hidden'}}>
 
         {/* Map */}
-        <div style={{flex:isWide?1:'1 1 auto',minHeight:isWide?undefined:'58vh',position:'relative',background:dk?'#0a0f1a':'#E8E2D9'}}>
+        <div style={{flex:isWide?1:'1 1 auto',minHeight:isWide?undefined:'62vh',position:'relative',background:dk?'#0a0f1a':'#E8E2D9'}}>
           {apiErr?(
             <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:32}}>
               <div style={{fontSize:48}}>🗺️</div>
@@ -706,7 +706,7 @@ function ProMeasureInner() {
         </div>
 
         {/* ── RIGHT PANEL — measurements always visible, settings appended below ── */}
-        <div style={{width:isWide?260:'100%',flexShrink:0,maxHeight:isWide?undefined:'42vh',background:T.panel,borderLeft:isWide?`1px solid ${T.panelBorder}`:'none',borderTop:isWide?'none':`1px solid ${T.panelBorder}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{width:isWide?260:'100%',flexShrink:0,maxHeight:isWide?undefined:'38vh',background:T.panel,borderLeft:isWide?`1px solid ${T.panelBorder}`:'none',borderTop:isWide?'none':`1px solid ${T.panelBorder}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
           <div style={{flex:1,overflowY:'auto'}}>
             <MeasurementsPanel/>
             {settingsOpen&&<SettingsPanel/>}
