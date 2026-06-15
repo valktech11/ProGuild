@@ -576,7 +576,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
           {backLabel}
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: isWide ? 'auto' : 0, minWidth: 0 }}>
           <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px' }}>
             #{estimate.estimate_number}
           </span>
@@ -719,11 +719,11 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
       )}
 
       {/* ── Two-column layout ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isWide ? '1fr 340px' : '1fr', gap: isWide ? 24 : 16, padding: isWide ? '24px 32px' : '16px',
+      <div style={{ display: 'grid', gridTemplateColumns: isWide ? '1fr 340px' : 'minmax(0, 1fr)', gap: isWide ? 24 : 16, padding: isWide ? '24px 32px' : '16px',
         alignItems: 'start', maxWidth: 1400, margin: '0 auto' }}>
 
         {/* ── LEFT PANEL ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
 
           {/* Property + measurements */}
           <PropertyCard
@@ -1883,7 +1883,7 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
       border: `1px solid ${border}`, borderLeft: `4px solid ${C.amber}` }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
         <span style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase' as const,
           letterSpacing: '0.08em', color: C.amber }}>🛡️ Insurance Claim</span>
         <span style={{ padding: '3px 10px', borderRadius: 999, background: chipBg,
@@ -1899,22 +1899,22 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
       {/* 3-line breakdown — only when carrier has approved */}
       {payable ? (
       <div style={{ borderRadius: 12, border: `1px solid ${border}`, overflow: 'hidden', marginBottom: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
           padding: '12px 16px' }}>
-          <span style={{ fontSize: 13, color: textS, fontWeight: 600 }}>Full job cost</span>
-          <span style={{ fontSize: 14, fontWeight: 700, color: textP }}>{fmtDec(fullCost)}</span>
+          <span style={{ fontSize: 13, color: textS, fontWeight: 600, minWidth: 0 }}>Full job cost</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: textP, flexShrink: 0 }}>{fmtDec(fullCost)}</span>
         </div>
         <div style={{ height: 1, background: border }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
           padding: '12px 16px' }}>
-          <span style={{ fontSize: 13, color: textS, fontWeight: 600 }}>Insurance pays homeowner</span>
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{fmtDec(Math.max(insurancePays,0))}</span>
+          <span style={{ fontSize: 13, color: textS, fontWeight: 600, minWidth: 0 }}>Insurance pays homeowner</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.green, flexShrink: 0 }}>{fmtDec(Math.max(insurancePays,0))}</span>
         </div>
         <div style={{ height: 1, background: border }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
           padding: '14px 16px', background: fullyCovered ? '#F0FDF4' : '#FFF7ED' }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: textP }}>Homeowner out of pocket</span>
-          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em',
+          <span style={{ fontSize: 14, fontWeight: 800, color: textP, minWidth: 0 }}>Homeowner out of pocket</span>
+          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', flexShrink: 0,
             color: fullyCovered ? C.green : '#D97706' }}>
             {fmtDec(Math.max(outOfPocket, 0))}
           </span>
@@ -1997,7 +1997,7 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
   const expiring = new Date(validUntil) < new Date(Date.now() + 3 * 86400000)
 
   return (
-    <div style={{ position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
 
       {/* Selected tier / summary */}
       <div style={{ background: card, borderRadius: 16, padding: 24, boxShadow: SHADOW_MD,
