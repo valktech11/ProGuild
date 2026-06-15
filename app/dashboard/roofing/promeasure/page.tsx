@@ -411,6 +411,27 @@ function ProMeasureInner() {
         ))}
       </div>
 
+      {/* Mobile only: actions live in the panel (off the compressed map) */}
+      {!isWide&&pins>0&&(
+        <div style={{display:'flex',gap:8,alignItems:'stretch'}}>
+          {area&&(
+            <button onClick={saveRegion}
+              style={{flex:1,padding:'11px 12px',borderRadius:12,border:'none',background:'linear-gradient(135deg,#14B8A6,#0F766E)',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',boxShadow:'0 2px 10px rgba(20,184,166,0.3)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+              Save Region
+            </button>
+          )}
+          <button onClick={undo}
+            style={{padding:'11px 16px',borderRadius:12,border:`1px solid ${T.cardBorder}`,background:T.cardBg,color:T.text,fontSize:13,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+            ↩ Undo
+          </button>
+          <button onClick={clearAll}
+            style={{padding:'11px 16px',borderRadius:12,border:'1px solid #EF4444',background:'#EF4444',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+            Clear
+          </button>
+        </div>
+      )}
+
       {area&&(
         <div style={{background:`linear-gradient(135deg,${T.cardHi},${dk?'rgba(15,118,110,0.1)':'#CCFBF1'})`,border:`1.5px solid ${T.cardHiBorder}`,borderRadius:14,padding:16}}>
           <div style={{fontSize:10,fontWeight:700,color:'#14B8A6',letterSpacing:'0.1em',marginBottom:6}}>ADJUSTED SQUARES</div>
@@ -668,7 +689,7 @@ function ProMeasureInner() {
               )}
 
               {mapReady&&pins===0&&(
-                <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:dk?'rgba(15,20,35,0.88)':'rgba(17,24,39,0.82)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 20px',borderRadius:24,fontSize:13,fontWeight:600,pointerEvents:'none',whiteSpace:'nowrap',border:'1px solid rgba(255,255,255,0.1)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
+                <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:dk?'rgba(15,20,35,0.88)':'rgba(17,24,39,0.82)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 20px',borderRadius:isWide?24:16,fontSize:13,fontWeight:600,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.1)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
                   Click to place pins around the roof perimeter · Double-click pin to remove
                 </div>
               )}
@@ -681,7 +702,7 @@ function ProMeasureInner() {
                 </div>
               )}
 
-              {mapReady&&pins>0&&(
+              {mapReady&&pins>0&&isWide&&(
                 <div style={{position:'absolute',bottom:20,left:'50%',transform:'translateX(-50%)',display:'flex',gap:8,alignItems:'center'}}>
                   {area&&(
                     <button onClick={saveRegion}
