@@ -648,7 +648,7 @@ function ProMeasureInner() {
       <div style={{flex:1,display:'flex',flexDirection:isWide?'row':'column',overflow:'hidden'}}>
 
         {/* Map */}
-        <div style={{flex:isWide?1:'1 1 auto',minHeight:isWide?undefined:'62vh',position:'relative',background:dk?'#0a0f1a':'#E8E2D9'}}>
+        <div style={{flex:isWide?1:'1 1 auto',minHeight:isWide?undefined:0,position:'relative',background:dk?'#0a0f1a':'#E8E2D9'}}>
           {apiErr?(
             <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:32}}>
               <div style={{fontSize:48}}>🗺️</div>
