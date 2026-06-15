@@ -964,7 +964,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                     {/* Identity row */}
                     <div style={{padding:'20px 24px 16px'}}>
-                      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12}}>
+                      <div style={{display:'flex',flexDirection:isWide?'row':'column',alignItems:isWide?'flex-start':'stretch',justifyContent:'space-between',gap:12}}>
                         <div style={{display:'flex',alignItems:'flex-start',gap:14,minWidth:0,flex:1}}>
                           <div style={{width:52,height:52,borderRadius:12,background:avBg,color:avFg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,fontWeight:800,flexShrink:0,letterSpacing:'-0.02em'}}>
                             {initials(lead.contact_name)}
@@ -1001,7 +1001,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           </div>
                         </div>
                         {/* Action buttons */}
-                        <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0,flexWrap:'wrap',justifyContent:isWide?'flex-end':'flex-start',paddingLeft:isWide?0:66}}>
                           {lead.contact_phone&&(
                             <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
                               style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:13,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap'}}>
@@ -1024,8 +1024,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     </div>
 
                     {/* ─── Progress bar ───────────────────────────────── */}
-                    <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 0px'}}>
-                      {/* Fixed-height dot row — all dots same container height so labels align */}
+                    <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 0px',overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch'}}>
+                      <div style={{minWidth:isWide?'auto':active.length*72}}>
                       <div style={{position:'relative',display:'flex',alignItems:'flex-end',height:28}}>
                         {/* Track: grey base + colored progress overlay */}
                         <div style={{position:'absolute',top:5,zIndex:0,left:`${100/active.length/2}%`,right:`${100/active.length/2}%`,height:2,background:dk?'#1E293B':'#E5E7EB',borderRadius:2}}/>
@@ -1072,6 +1072,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           )
                         })}
                       </div>
+                      </div>{/* end min-width track */}
                     </div>
 
                     {/* ─── Status row ─────────────────────────────────── */}
@@ -1236,7 +1237,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                   <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
 
                     {/* Tab strip — underline style, clean */}
-                    <div style={{display:'flex',borderBottom:`1px solid ${bdr}`,paddingLeft:4,paddingRight:4}}>
+                    <div style={{display:'flex',borderBottom:`1px solid ${bdr}`,paddingLeft:4,paddingRight:4,overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch'}}>
                       {tabs.map(tb2=>{
                         const isAct=tab===tb2.key
                         return (
@@ -1268,7 +1269,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {!isEditing&&(
                           <>
                             {/* Fields grid — teal icon circles */}
-                            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,background:bdr,border:`1px solid ${bdr}`,borderRadius:T.radMd,overflow:'hidden',marginBottom:16}}>
+                            <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:1,background:bdr,border:`1px solid ${bdr}`,borderRadius:T.radMd,overflow:'hidden',marginBottom:16}}>
                               {([
                                 {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
                                 {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
@@ -1601,7 +1602,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                                       {/* Re-measure option — shown when measured */}
                                       {(showRemeasure) && (
-                                        <div style={{marginTop:10,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                                        <div style={{marginTop:10,display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:8}}>
                                           <button
                                             disabled={qbGenerating}
                                             onClick={()=>{const street=((lead as any).property_address||'').replace(/, USA$/,'').trim();const city=lead.contact_city||'';const st=lead.contact_state||'';const zip=(lead as any).contact_zip||'';const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')||((lead as any).property_address||'');router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}`:`/dashboard/roofing/promeasure?lead_id=${lead.id}`)}}
@@ -1726,11 +1727,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   </div>
                                 )}
                               </div>
-                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:12}}>
                                 <div><label style={labelCls}>Phone</label><input value={ePhone} onChange={e=>setEPhone(e.target.value)} style={inputCls}/></div>
                                 <div><label style={labelCls}>Email</label><input value={eEmail} onChange={e=>setEEmail(e.target.value)} style={inputCls}/></div>
                               </div>
-                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 90px',gap:12}}>
+                              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr 90px':'1fr',gap:12}}>
                                 <div><label style={labelCls}>City</label><input value={eCity} onChange={e=>setECity(e.target.value)} placeholder="Jacksonville" style={inputCls}/></div>
                                 <div><label style={labelCls}>State</label>
                                   <select value={eState} onChange={e=>setEState(e.target.value)} style={inputCls}>
@@ -1750,7 +1751,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <input type="date" value={eInsp} onChange={e=>setEInsp(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
                               </div>
                               <div><label style={labelCls}>Job Date &amp; Time</label>
-                                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                                <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:8}}>
                                   <input type="date" value={eDate} onChange={e=>setEDate(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
                                   <input type="time" value={eTime} onChange={e=>setETime(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
                                 </div>
@@ -1764,7 +1765,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <div style={{fontSize:12,color:tsu,textAlign:'right',marginTop:3}}>{eNotes.length}/500</div>
                               </div>
                             </div>
-                            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
+                            <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:12,marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
                               <button onClick={()=>setIsEditing(false)} style={{padding:'11px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:t.cardBgAlt,color:tp,cursor:'pointer',fontSize:14,fontWeight:600}}>Cancel</button>
                               <button onClick={saveEdit} disabled={eSaving} style={{padding:'11px',borderRadius:T.radSm,border:'none',background:`linear-gradient(135deg,${BRAND.teal},${BRAND.tealLight})`,color:'#fff',cursor:'pointer',fontSize:14,fontWeight:700}}>
                                 {eSaving?'Saving…':'Save Changes'}
