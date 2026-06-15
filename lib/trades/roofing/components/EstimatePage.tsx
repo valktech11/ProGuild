@@ -220,6 +220,18 @@ function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
 export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, backLabel = 'Back to Lead', darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
   const dk = darkMode ?? false
 
+  // Responsive: this page is desktop-first (2-col body, 3-up tier grid, wide
+  // header/tracker rows). Below 900px we stack the body, turn the tier cards
+  // into a swipe carousel, and let the header/tracker scroll/wrap. The
+  // isWide===true branch is byte-for-byte the original desktop layout.
+  const [isWide, setIsWide] = useState(true)
+  useEffect(() => {
+    const check = () => setIsWide(window.innerWidth >= 900)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   // Proposal type
   const [estType, setEstType] = useState<'standard' | 'tiered'>(
     estimate.estimate_type ?? 'tiered'
@@ -552,8 +564,8 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
     <div style={{ fontFamily: font, background: bg, minHeight: '100vh', color: textP }}>
 
       {/* ── Top header ── */}
-      <div style={{ background: card, borderBottom: `1px solid ${border}`, padding: '14px 32px',
-        display: 'flex', alignItems: 'center', gap: 16, position: 'sticky', top: 0, zIndex: 30,
+      <div style={{ background: card, borderBottom: `1px solid ${border}`, padding: isWide ? '14px 32px' : '12px 16px',
+        display: 'flex', alignItems: 'center', gap: isWide ? 16 : 10, flexWrap: isWide ? 'nowrap' : 'wrap', position: 'sticky', top: 0, zIndex: 30,
         boxShadow: SHADOW_SM }}>
         <button onClick={onBack}
           style={{ display: 'flex', alignItems: 'center', gap: 6, color: textS, background: 'none',
@@ -707,7 +719,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
       )}
 
       {/* ── Two-column layout ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, padding: '24px 32px',
+      <div style={{ display: 'grid', gridTemplateColumns: isWide ? '1fr 340px' : '1fr', gap: isWide ? 24 : 16, padding: isWide ? '24px 32px' : '16px',
         alignItems: 'start', maxWidth: 1400, margin: '0 auto' }}>
 
         {/* ── LEFT PANEL ── */}
@@ -840,6 +852,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
               card={card} border={border} textP={textP} textS={textS}
               isLocked={isLocked}
               materialPrices={materialPrices}
+              isWide={isWide}
             />
           ) : (
             <StandardSection
@@ -918,8 +931,8 @@ function ProgressTimeline({ timeline, border, textS, card, estimate }: {
   const doneKeys = timeline.filter(t => t.timestamp).map(t => t.event)
 
   return (
-    <div style={{ background: card, borderBottom: `1px solid ${border}`, padding: '16px 32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', maxWidth: 700, gap: 0 }}>
+    <div style={{ background: card, borderBottom: `1px solid ${border}`, padding: '16px 32px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ display: 'flex', alignItems: 'center', maxWidth: 700, minWidth: 560, gap: 0 }}>
         {steps.map((step, i) => {
           const done   = doneKeys.includes(step.key)
           const tl     = timeline.find(t => t.event === step.key)
@@ -1268,7 +1281,7 @@ function ProposalTypeToggle({ value, onChange, card, border, textP, textS }: {
 // Collapsed by default — one tier expanded at a time for editing
 function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, onDeleteItem,
   onUpdateLabel, onUpdateBrand, onUpdateWarranty,
-  card, border, textP, textS, isLocked = false, materialPrices }: {
+  card, border, textP, textS, isLocked = false, materialPrices, isWide = true }: {
   tiers: Tier[]
   selectedTier: TierKey
   onSelect?: (k: TierKey) => void
@@ -1281,6 +1294,7 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
   card: string; border: string; textP: string; textS: string
   isLocked?: boolean
   materialPrices?: Record<string, number> | null
+  isWide?: boolean
 }) {
   // Which tier's edit modal is open — null = none
   const [editingKey, setEditingKey] = useState<TierKey | null>(null)
@@ -1387,10 +1401,12 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
       )}
 
       {/* 3-column read-only cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+      <div style={isWide
+        ? { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }
+        : { display: 'flex', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch', paddingTop: 18, paddingBottom: 8, margin: '0 -2px', scrollPaddingLeft: 2 }}>
         {tiers.map(tier => (
+          <div key={tier.key} style={isWide ? undefined : { flex: '0 0 88%', scrollSnapAlign: 'start' }}>
           <TierCard
-            key={tier.key}
             tier={tier}
             selected={selectedTier === tier.key}
             isLocked={isLocked}
@@ -1398,6 +1414,7 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
             onEdit={isLocked ? undefined : () => openModal(tier.key)}
             border={border} textP={textP} textS={textS}
           />
+          </div>
         ))}
       </div>
 
