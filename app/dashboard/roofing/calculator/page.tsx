@@ -245,15 +245,15 @@ function FSelect({ label, hint, children, ...p }: React.SelectHTMLAttributes<HTM
 function Section({ n, label, sub, children, right }: { n: string; label: string; sub: string; children: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div style={{ background:'#fff', borderRadius:14, border:`1px solid ${BORDER}`, overflow:'hidden', boxShadow:'0 2px 10px rgba(10,22,40,0.05)', marginBottom:14 }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px 0', marginBottom:16 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'14px 20px 0', marginBottom:16 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0, flex:1 }}>
           <div style={{ width:30, height:30, borderRadius:9, background:`linear-gradient(135deg,${TEAL},${TEAL_L})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, color:'#fff', flexShrink:0 }}>{n}</div>
-          <div>
+          <div style={{ minWidth:0 }}>
             <div style={{ fontSize:15, fontWeight:800, color:NAVY, letterSpacing:'-0.02em' }}>{label}</div>
             <div style={{ fontSize:12, color:'#94A3B8', marginTop:2 }}>{sub}</div>
           </div>
         </div>
-        {right}
+        {right && <div style={{ flexShrink:0 }}>{right}</div>}
       </div>
       <div style={{ padding:'0 20px 20px' }}>{children}</div>
     </div>
