@@ -105,6 +105,16 @@ function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { 
 export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, locked = false, onSaved }: Props) {
   // FL claims-intelligence (SB 2-A, 25% rule) is Florida-specific by design — gate it.
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
+  // Responsive: collapse internal 2-col / 3-col grids to single column on narrow
+  // screens so the FL deadline + 25%-rule callout cards stop clipping. Matches
+  // the parent page >=900px breakpoint. Desktop (isWide) is unchanged.
+  const [isWide, setIsWide] = useState(true)
+  useEffect(() => {
+    const check = () => setIsWide(window.innerWidth >= 900)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const [open,   setOpen]   = useState(initial.insurance_claim ?? false)
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState<string | null>(null)
@@ -332,7 +342,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
         <div style={{ padding:'0 20px 20px' }}>
           <div style={{ height:1, background: dk ? '#334155' : 'rgba(15,118,110,0.1)', marginBottom:20 }}/>
 
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+          <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr':'1fr', gap:14 }}>
 
             {/* Row 1: Insurer + Claim # */}
             <Field label="Insurance company">
@@ -358,7 +368,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
             {isFL && (<>
             {/* Row 1b: Date of loss + FL SB 2-A deadlines (full width) */}
-            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, alignItems:'start' }}>
+            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:isWide?'1fr 1fr':'1fr', gap:14, alignItems:'start' }}>
               <Field label="Date of loss">
                 <div style={{ position:'relative' }}>
                   <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
@@ -421,7 +431,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             </div>
 
             {/* Row 1c: Roof age + FL 25% rule eligibility (full width) */}
-            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, alignItems:'start' }}>
+            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:isWide?'1fr 1fr':'1fr', gap:14, alignItems:'start' }}>
               <Field label="Roof built / last reroofed">
                 <div style={{ position:'relative' }}>
                   <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
@@ -519,7 +529,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
             {/* Row 4: Financial — 3-col. Hidden on Denied (values preserved in DB for appeal). */}
             {!isDenied && (
-            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:isWide?'1fr 1fr 1fr':'1fr', gap:12 }}>
               <Field label="Approved amount">
                 <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
                   icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}

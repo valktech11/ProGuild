@@ -1077,7 +1077,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                     {/* ─── Status row ─────────────────────────────────── */}
                     <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px'}}>
-                      <div style={{display:'grid',gridTemplateColumns:'auto 1fr auto',gap:32,alignItems:'start'}}>
+                      <div style={{display:'grid',gridTemplateColumns:isWide?'auto 1fr auto':'1fr',gap:isWide?32:18,alignItems:'start'}}>
 
                         {/* Left: status picker — compact inline pill */}
                         <div>
