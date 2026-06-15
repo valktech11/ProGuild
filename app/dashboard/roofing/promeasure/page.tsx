@@ -78,6 +78,11 @@ function ProMeasureInner() {
   const [pitch,        setPitch]        = useState(savedDraw?.pitch || '4/12')
   const [waste,        setWaste]        = useState(savedDraw?.waste ?? 10)
   const [pins,         setPins]         = useState(0)
+  // Responsive: this tool is a fixed full-screen row (map | 260px stats panel).
+  // On mobile that crushes the map to a sliver, so below 900px we flip the body
+  // to a column (map hero on top, stats bar below) and wrap the top bar. The
+  // isWide===true branch is byte-for-byte the original desktop layout.
+  const [isWide,       setIsWide]       = useState(true)
   const [area,         setArea]         = useState<number|null>(null)
   const [perim,        setPerim]        = useState<number|null>(null)
   const [mapReady,     setMapReady]     = useState(false)
@@ -92,6 +97,27 @@ function ProMeasureInner() {
     if (typeof window==='undefined') return DEFAULT_SETTINGS
     try { const s=localStorage.getItem('pg_pm_settings'); return s?{...DEFAULT_SETTINGS,...JSON.parse(s)}:DEFAULT_SETTINGS } catch { return DEFAULT_SETTINGS }
   })
+
+  // Track viewport width for the responsive row/column flip. On the flip the
+  // map container changes size, so trigger a Google Maps resize so it repaints
+  // full-bleed (otherwise it can render a clipped/grey tile band).
+  useEffect(() => {
+    const check = () => {
+      const w = window.innerWidth >= 900
+      setIsWide(prev => {
+        if (prev !== w && mapRef.current && (window as any).google?.maps) {
+          // defer so the new container dimensions are applied first
+          setTimeout(() => {
+            try { (window as any).google.maps.event.trigger(mapRef.current, 'resize') } catch {}
+          }, 80)
+        }
+        return w
+      })
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // Load recent addresses
   useEffect(() => {
@@ -519,7 +545,7 @@ function ProMeasureInner() {
     <div style={{position:'fixed',inset:0,display:'flex',flexDirection:'column',fontFamily:'-apple-system,BlinkMacSystemFont,"Inter",sans-serif',zIndex:10,background:T.pageBg}}>
 
       {/* ── TOP BAR ──────────────────────────────────────────────────────── */}
-      <div style={{height:56,flexShrink:0,background:T.topBar,backdropFilter:'blur(12px)',borderBottom:`1px solid ${T.topBorder}`,display:'flex',alignItems:'center',gap:12,padding:'0 16px'}}>
+      <div style={{minHeight:56,flexShrink:0,background:T.topBar,backdropFilter:'blur(12px)',borderBottom:`1px solid ${T.topBorder}`,display:'flex',alignItems:'center',gap:12,padding:isWide?'0 16px':'8px 12px',flexWrap:isWide?'nowrap':'wrap'}}>
 
         {/* Back */}
         <button onClick={()=>router.back()}
@@ -540,7 +566,7 @@ function ProMeasureInner() {
         </div>
 
         {/* Address input + recent dropdown */}
-        <div id="pm-address-wrapper" style={{flex:1,position:'relative',maxWidth:520}}>
+        <div id="pm-address-wrapper" style={{flex:isWide?1:'1 1 100%',order:isWide?0:5,position:'relative',maxWidth:isWide?520:'none'}}>
           <div style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',pointerEvents:'none',zIndex:1}}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={T.textSubtle} strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </div>
@@ -619,10 +645,10 @@ function ProMeasureInner() {
       </div>
 
       {/* ── BODY ─────────────────────────────────────────────────────────── */}
-      <div style={{flex:1,display:'flex',overflow:'hidden'}}>
+      <div style={{flex:1,display:'flex',flexDirection:isWide?'row':'column',overflow:'hidden'}}>
 
         {/* Map */}
-        <div style={{flex:1,position:'relative',background:dk?'#0a0f1a':'#E8E2D9'}}>
+        <div style={{flex:isWide?1:'1 1 auto',minHeight:isWide?undefined:'58vh',position:'relative',background:dk?'#0a0f1a':'#E8E2D9'}}>
           {apiErr?(
             <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16,padding:32}}>
               <div style={{fontSize:48}}>🗺️</div>
@@ -680,7 +706,7 @@ function ProMeasureInner() {
         </div>
 
         {/* ── RIGHT PANEL — measurements always visible, settings appended below ── */}
-        <div style={{width:260,flexShrink:0,background:T.panel,borderLeft:`1px solid ${T.panelBorder}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{width:isWide?260:'100%',flexShrink:0,maxHeight:isWide?undefined:'42vh',background:T.panel,borderLeft:isWide?`1px solid ${T.panelBorder}`:'none',borderTop:isWide?'none':`1px solid ${T.panelBorder}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
           <div style={{flex:1,overflowY:'auto'}}>
             <MeasurementsPanel/>
             {settingsOpen&&<SettingsPanel/>}
