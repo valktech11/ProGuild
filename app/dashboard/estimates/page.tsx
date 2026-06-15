@@ -917,12 +917,12 @@ export default function EstimatesPage() {
           )}
 
           {/* ── Header ── */}
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
               <h1 className="text-2xl font-bold tracking-tight">{noun}</h1>
               <p className={`text-sm mt-0.5 hidden md:block ${muted}`}>Create and send professional {noun.toLowerCase()} to your leads</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => {}}
                 className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg whitespace-nowrap"
@@ -942,7 +942,7 @@ export default function EstimatesPage() {
           </div>
 
           {/* ── Stats bar ── */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: `Total ${noun}`, value: estimates.length.toString() },
               { label: 'Sent / In Review', value: sentCount.toString() },

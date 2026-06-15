@@ -40,6 +40,16 @@ export default function InvoicesPage() {
   const [loading,  setLoading]  = useState(true)
   const [search,   setSearch]   = useState('')
   const [filter,   setFilter]   = useState<string>('all')
+  // Responsive: collapse the 2-up stat cards to single column on narrow screens
+  // so the Collected value stops clipping. Matches the >=900px breakpoint used
+  // elsewhere. isWide defaults true so SSR first paint is the desktop layout.
+  const [isWide, setIsWide] = useState(true)
+  useEffect(() => {
+    const check = () => setIsWide(window.innerWidth >= 900)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => {
     if (_authLoading) return
@@ -86,7 +96,7 @@ export default function InvoicesPage() {
           </div>
 
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isWide ? 'repeat(2, 1fr)' : '1fr', gap: 12, marginBottom: 24 }}>
             {[
               { label: 'Outstanding', value: fmt(totalOutstanding), color: totalOutstanding > 0 ? '#B45309' : t.textPri, bg: totalOutstanding > 0 ? '#FFFBEB' : t.cardBg },
               { label: 'Collected',   value: fmt(totalPaid),        color: '#15803D', bg: '#F0FDF4' },
