@@ -37,6 +37,7 @@ export default function InvoicesPage() {
   }
 
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
+  const [summary,  setSummary]  = useState<any>(null)
   const [loading,  setLoading]  = useState(true)
   const [search,   setSearch]   = useState('')
   const [filter,   setFilter]   = useState<string>('all')
@@ -54,13 +55,17 @@ export default function InvoicesPage() {
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
-    fetch(`/api/invoices?pro_id=${session.id}`)
-      .then(r => r.json())
-      .then(d => {
-        // Deduplicate by id — prevents duplicate rows from API
+    // Raw list powers the table (search/filter — UI state). Summary powers the
+    // KPI cards (derived metrics — single source for web + mobile).
+    Promise.all([
+      fetch(`/api/invoices?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ invoices: [] })),
+      fetch(`/api/invoices/summary?pro_id=${session.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
+    ])
+      .then(([d, sum]) => {
         const raw: InvoiceSummary[] = d.invoices || []
         const seen = new Set<string>()
         setInvoices(raw.filter(inv => { if (seen.has(inv.id)) return false; seen.add(inv.id); return true }))
+        setSummary(sum)
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -75,8 +80,9 @@ export default function InvoicesPage() {
     return matchSearch && matchFilter
   })
 
-  const totalOutstanding = invoices.filter(i => !['paid','void'].includes(i.status)).reduce((s, i) => s + (i.balance_due || 0), 0)
-  const totalPaid        = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0)
+  // KPI metrics — from /api/invoices/summary (single source for web + mobile).
+  const totalOutstanding = summary?.outstanding ?? invoices.filter(i => !['paid','void'].includes(i.status)).reduce((s, i) => s + (i.balance_due || 0), 0)
+  const totalPaid        = summary?.collected   ?? invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0)
 
   const inputStyle: React.CSSProperties = {
     fontSize: 14, padding: '9px 14px', borderRadius: 10,
@@ -96,17 +102,26 @@ export default function InvoicesPage() {
           </div>
 
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: isWide ? 'repeat(2, 1fr)' : '1fr', gap: 12, marginBottom: 24 }}>
-            {[
+          {(() => {
+            const overdueAmt = summary?.overdue ?? 0
+            const overdueN   = summary?.overdueCount ?? 0
+            const cards = [
               { label: 'Outstanding', value: fmt(totalOutstanding), color: totalOutstanding > 0 ? '#B45309' : t.textPri, bg: totalOutstanding > 0 ? '#FFFBEB' : t.cardBg },
               { label: 'Collected',   value: fmt(totalPaid),        color: '#15803D', bg: '#F0FDF4' },
-            ].map(s => (
-              <div key={s.label} style={{ background: dk ? t.cardBg : s.bg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: '14px 20px' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: t.textMuted, marginBottom: 4 }}>{s.label}</div>
-                <div style={{ fontSize: T.fontStat, fontWeight: 800, color: dk ? t.textPri : s.color }}>{s.value}</div>
+              ...(overdueAmt > 0 ? [{ label: `Overdue${overdueN > 0 ? ` · ${overdueN}` : ''}`, value: fmt(overdueAmt), color: '#DC2626', bg: '#FEF2F2' }] : []),
+            ]
+            const cols = isWide ? cards.length : 1
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 12, marginBottom: 24 }}>
+                {cards.map(s => (
+                  <div key={s.label} style={{ background: dk ? t.cardBg : s.bg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: '14px 20px' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: t.textMuted, marginBottom: 4 }}>{s.label}</div>
+                    <div style={{ fontSize: T.fontStat, fontWeight: 800, color: dk ? t.textPri : s.color }}>{s.value}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )
+          })()}
 
           {/* Search + filter */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
