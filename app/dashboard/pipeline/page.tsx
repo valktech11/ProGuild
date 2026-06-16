@@ -148,25 +148,27 @@ export default function PipelinePage() {
             <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: textMain, margin: 0 }}>
               {noun}
             </h1>
-            {/* Metric pills — only show when there's data */}
+            {/* Status line — action-first: new leads → overdue → open value → won */}
             {leads.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: t.textMuted }}>
-                  {activeCount} active
-                </span>
+                {newCount > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 600, color: t.textMuted }}>
+                    {newCount} new lead{newCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {overdueCount > 0 && (
+                  <>
+                    {newCount > 0 && <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>
+                      {overdueCount} overdue
+                    </span>
+                  </>
+                )}
                 {pipelineValue > 0 && (
                   <>
                     <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#0F766E' }}>
-                      ${pipelineValue.toLocaleString()} pipeline
-                    </span>
-                  </>
-                )}
-                {overdueCount > 0 && (
-                  <>
-                    <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>
-                      {overdueCount} overdue
+                      ${pipelineValue.toLocaleString()} open
                     </span>
                   </>
                 )}
@@ -193,20 +195,6 @@ export default function PipelinePage() {
 
           {/* Right: filter + add lead */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Overdue badge — tight, urgent */}
-            {overdueCount > 0 && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
-                background: dk ? 'rgba(220,38,38,0.12)' : '#FEF2F2',
-                border: '1px solid rgba(220,38,38,0.2)',
-              }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#DC2626' }}>{overdueCount} overdue</span>
-              </div>
-            )}
             {/* Filter */}
             <button onClick={() => setShowFilter(true)} style={{
               display: 'flex', alignItems: 'center', gap: 6,

@@ -139,10 +139,12 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
 
   // Derive stages and sources from trade plugin — no hardcoded values
   const plugin        = getTradeConfig(tradeSlug)
-  const activeStages  = getActiveStages(tradeSlug).filter(s => !s.terminal)
-  const wonStage      = { key: getStageAnchors(tradeSlug).won, label: plugin.labels.wonStage, color: '#4A7B4A', bg: '#F0FDF4' }
-  const terminalStages = getTerminalStages(tradeSlug).filter(s => s.key !== wonStage.key)
-  const stageOptions   = [...activeStages, ...terminalStages, { ...wonStage, terminal: false }]
+  const wonKey        = getStageAnchors(tradeSlug).won
+  const wonStage      = { key: wonKey, label: plugin.labels.wonStage, color: '#4A7B4A', bg: '#F0FDF4' }
+  const activeStages  = getActiveStages(tradeSlug).filter(s => !s.terminal && s.key !== wonKey)
+  const terminalStages = getTerminalStages(tradeSlug).filter(s => s.key !== wonKey)
+  // Order: open stages → terminal (Lost/Unqualified) → Job Won at end
+  const stageOptions  = [...activeStages, ...terminalStages, { ...wonStage, terminal: false }]
   const sourceOptions: { key: string; label: string }[] = (plugin as any).leadSources
     ? (plugin as any).leadSources.map((s: any) => ({ key: s.value ?? s.label as string, label: s.label as string }))
     : SOURCES  // fallback for trades without leadSources
