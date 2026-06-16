@@ -104,15 +104,36 @@ export default function RoofingOverviewWidget({ leads, session, dk, overview }: 
     <>
       {/* ── Performance scorecard ──────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
-        {scorecard.map(c => (
-          <div key={c.label} style={{ backgroundColor: card, border: `1px solid ${bdr}`, borderRadius: 14, padding: '14px 16px', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: c.accent }} />
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase' as const, color: t.textSubtle }}>{c.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: t.textPri, marginTop: 6, letterSpacing: '-0.02em' }}>{c.value}</div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: c.subColor, marginTop: 3 }}>{c.sub}</div>
-            {(c as any).sub2 && <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${bdr}` }}>{(c as any).sub2}</div>}
-          </div>
-        ))}
+        {scorecard.map((c, i) => {
+          const isPrimary = i === 0  // Revenue card is the primary health signal
+          return (
+            <div key={c.label} style={{
+              backgroundColor: card,
+              border: `1px solid ${isPrimary ? c.accent + '30' : bdr}`,
+              borderRadius: 14,
+              padding: isPrimary ? '16px 18px' : '14px 16px',
+              position: 'relative', overflow: 'hidden',
+              boxShadow: isPrimary && !dk ? `0 2px 12px ${c.accent}10` : 'none',
+            }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: isPrimary ? 4 : 3, background: c.accent, opacity: isPrimary ? 1 : 0.75 }} />
+              <div style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                textTransform: 'uppercase' as const, marginBottom: 6,
+                color: isPrimary ? (dk ? '#94A3B8' : '#475569') : (dk ? '#64748B' : '#6B7280'),
+              }}>{c.label}</div>
+              <div style={{
+                fontSize: isPrimary ? 28 : 24, fontWeight: 800, color: t.textPri,
+                letterSpacing: '-0.025em', lineHeight: 1,
+              }}>{c.value}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: c.subColor, marginTop: 4 }}>{c.sub}</div>
+              {(c as any).sub2 && (
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.textPri, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${bdr}` }}>
+                  {(c as any).sub2}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* ── Today's Schedule ───────────────────────────────────────────────── */}

@@ -1528,26 +1528,28 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                   // Layout
                   display: 'flex', flexDirection: 'column' as const,
                   alignItems: 'flex-start', textAlign: 'left' as const,
-                  padding: '16px 18px 14px',
+                  padding: '16px 18px 15px',
                   borderRadius: 12,
-                  // Border: left-edge accent when selected, hairline otherwise
+                  // Border: left-edge accent when selected, slightly visible when idle+active
                   border: isSelected
-                    ? `1px solid ${card.color}30`
-                    : `1px solid ${dk ? '#1E293B' : '#E8EDF2'}`,
+                    ? `1px solid ${card.color}40`
+                    : isEmpty
+                      ? `1px solid ${dk ? '#1E293B' : '#E8EDF2'}`
+                      : `1px solid ${dk ? '#1E293B' : '#E2E8F0'}`,
                   borderLeft: isSelected ? `3px solid ${card.color}` : undefined,
                   paddingLeft: isSelected ? 16 : 18,
                   // Background
                   background: isSelected
                     ? card.selBg
-                    : (isEmpty ? (dk ? '#0F172A' : '#FAFAFA') : (dk ? '#111827' : '#FFFFFF')),
+                    : (isEmpty ? (dk ? '#0F172A' : '#F8FAFC') : (dk ? '#111827' : '#FFFFFF')),
                   // Interaction
                   cursor: isEmpty ? 'default' : 'pointer',
-                  opacity: isEmpty ? 0.45 : 1,
+                  opacity: isEmpty ? 0.5 : 1,
                   // Transition
                   transition: 'border-color 120ms ease, background 120ms ease, box-shadow 120ms ease',
                   boxShadow: isSelected
-                    ? `0 0 0 0 transparent`
-                    : (!isEmpty && !dk ? '0 1px 3px rgba(0,0,0,0.04)' : 'none'),
+                    ? `0 1px 8px ${card.color}18`
+                    : (!isEmpty && !dk ? '0 1px 4px rgba(0,0,0,0.05), 0 0 0 0 transparent' : 'none'),
                 }}
                 onMouseEnter={e => {
                   if (isEmpty || isSelected) return
@@ -1561,26 +1563,27 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                 }}
               >
                 {/* Label row: status dot + label */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                   {!isEmpty && (
                     <span style={{
-                      width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                      background: isSelected ? card.color : card.color + 'AA',
-                      boxShadow: isSelected ? `0 0 0 2px ${card.color}22` : 'none',
+                      width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                      background: card.color,
+                      boxShadow: isSelected ? `0 0 0 3px ${card.color}25` : 'none',
                     }} />
                   )}
                   <span style={{
-                    fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
+                    fontSize: 11, fontWeight: 700, letterSpacing: '0.07em',
                     textTransform: 'uppercase' as const,
-                    color: isEmpty ? (dk ? '#374151' : '#9CA3AF') : (dk ? '#94A3B8' : '#6B7280'),
+                    color: isEmpty
+                      ? (dk ? '#374151' : '#CBD5E1')
+                      : (dk ? '#CBD5E1' : '#374151'),
                   }}>
                     {card.label}
                   </span>
-                  {/* Selected: "Clear" hint floats right */}
                   {isSelected && (
                     <span style={{
-                      marginLeft: 'auto', fontSize: 11, fontWeight: 500,
-                      color: card.color, opacity: 0.8,
+                      marginLeft: 'auto', fontSize: 11, fontWeight: 600,
+                      color: card.color,
                     }}>
                       Clear ✕
                     </span>
@@ -1589,20 +1592,24 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
 
                 {/* Count — the hero */}
                 <div style={{
-                  fontSize: 36, fontWeight: 650, letterSpacing: '-0.03em',
-                  lineHeight: 1, marginBottom: 6,
+                  fontSize: 38, fontWeight: 700, letterSpacing: '-0.03em',
+                  lineHeight: 1, marginBottom: 8,
                   fontVariantNumeric: 'tabular-nums',
+                  // Non-zero: accent color so urgency reads immediately.
+                  // Selected: same accent. Empty: ghost.
                   color: isEmpty
-                    ? (dk ? '#1F2937' : '#D1D5DB')
-                    : (isSelected ? card.color : (dk ? '#F1F5F9' : '#0F172A')),
+                    ? (dk ? '#1F2937' : '#E2E8F0')
+                    : card.color,
                 }}>
-                  {card.count}
+                  {isEmpty ? '—' : card.count}
                 </div>
 
                 {/* Descriptor */}
                 <div style={{
-                  fontSize: 12, fontWeight: 400, lineHeight: 1.4,
-                  color: isEmpty ? (dk ? '#1F2937' : '#D1D5DB') : (dk ? '#475569' : '#94A3B8'),
+                  fontSize: 12, fontWeight: 500, lineHeight: 1.4,
+                  color: isEmpty
+                    ? (dk ? '#1F2937' : '#CBD5E1')
+                    : (dk ? '#64748B' : '#64748B'),
                 }}>
                   {card.sub}
                 </div>
