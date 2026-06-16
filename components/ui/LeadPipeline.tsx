@@ -81,6 +81,8 @@ interface Props {
   dk?:             boolean
   summary?:        PipelineSummary | null
   onActionFilter?: (filterKey: string) => void
+  activeFilter?:   string | null   // which action card filter is currently active
+  onClearFilter?:  () => void      // clear the active action card filter
 }
 
 function daysSince(dateStr: string): number {
@@ -1236,7 +1238,15 @@ function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onSt
   const [expanded, setExpanded] = useState(false)
   const [showSlide, setShowSlide] = useState(false)
   const t = theme(dk)
-  const colValue = leads.reduce((s, l) => s + (l.quoted_amount || 0), 0)
+  const colValue = leads.reduce((s, l) => {
+    // Use approved-else-quoted so won column matches Overview revenue figures.
+    // For open/non-insurance leads, approved_amount is null so this equals quoted_amount.
+    const rjd = Array.isArray((l as any).roofing_job_data)
+      ? (l as any).roofing_job_data[0]
+      : (l as any).roofing_job_data
+    const approved = rjd?.approved_amount
+    return s + (approved != null && approved > 0 ? approved : (l.quoted_amount || 0))
+  }, 0)
   const visibleLeads = expanded ? leads : leads.slice(0, 3)
   const overflow = leads.length - 3
   const emptyBorder = t.cardBorder
@@ -1345,7 +1355,7 @@ function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onSt
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false, summary, onActionFilter }: Props) {
+export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false, summary, onActionFilter, activeFilter, onClearFilter }: Props) {
   const router = useRouter()
   const t = theme(dk)
   const stages = getPipelineStages(tradeSlug)
@@ -1453,121 +1463,148 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
 
   return (
     <>
-    {/* ── Action Cards — desktop only, from /api/pipeline/summary ── */}
-    {/* Each card filters the board to the relevant leads when clicked.    */}
+    {/* ── Action Cards — desktop only, from /api/pipeline/summary ────────────
+        Design: data-forward, Linear/Stripe restraint. Number is the hero.
+        A single status dot is the only color accent when idle. No icons, no
+        top bars, no "Filter →" link. Toggle: click to filter, click again to
+        clear. Card-driven filters show as selected state — no chip duplicate. */}
     {summary && (() => {
       const sm = summary
-      const actionCards = [
+      const cards = [
         {
-          key:     'needsContact',
-          label:   'Needs Contact',
-          sub:     'Entry leads waiting >24h',
-          count:   sm.needsContact,
-          color:   '#DC2626',
-          iconBg:  '#FEF2F2',
-          iconColor: '#DC2626',
-          urgent:  true,
-          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.1 1.18 2 2 0 012.1 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>,
+          key:   'needsContact',
+          label: 'Needs Contact',
+          sub:   'Entry leads waiting >24h',
+          count: sm.needsContact,
+          color: '#DC2626',    // red
+          selBg: '#FFF5F5',
         },
         {
-          key:     'awaitingSignature',
-          label:   'Awaiting Signature',
-          sub:     'Proposals unsigned 48h+',
-          count:   sm.awaitingSignature,
-          color:   '#D97706',
-          iconBg:  '#FFFBEB',
-          iconColor: '#D97706',
-          urgent:  false,
-          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
+          key:   'awaitingSignature',
+          label: 'Awaiting Signature',
+          sub:   'Proposals unsigned 48h+',
+          count: sm.awaitingSignature,
+          color: '#D97706',    // amber
+          selBg: '#FFFBEB',
         },
         {
-          key:     'insuranceFollowUp',
-          label:   'Insurance Follow-Up',
-          sub:     'Carrier action overdue >14d',
-          count:   sm.insuranceFollowUp,
-          color:   '#0891B2',
-          iconBg:  '#ECFEFF',
-          iconColor: '#0891B2',
-          urgent:  false,
-          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+          key:   'insuranceFollowUp',
+          label: 'Insurance Follow-Up',
+          sub:   'Carrier action overdue >14d',
+          count: sm.insuranceFollowUp,
+          color: '#0891B2',    // cyan
+          selBg: '#F0FBFF',
         },
         {
-          key:     'stalledLeads',
-          label:   'Stalled',
-          sub:     'Exceeding stage SLA',
-          count:   sm.stalledLeads,
-          color:   '#7C3AED',
-          iconBg:  '#F5F3FF',
-          iconColor: '#7C3AED',
-          urgent:  false,
-          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+          key:   'stalledLeads',
+          label: 'Stalled',
+          sub:   'Exceeding stage SLA',
+          count: sm.stalledLeads,
+          color: '#7C3AED',    // violet
+          selBg: '#F8F4FF',
         },
       ]
+
       return (
-        <div className="hidden md:grid mb-5 gap-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-          {actionCards.map(card => {
-            const isEmpty = card.count === 0
+        <div className="hidden md:grid mb-5" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+          {cards.map(card => {
+            const isEmpty    = card.count === 0
+            const isSelected = activeFilter === card.key
+
+            const handleClick = () => {
+              if (isEmpty) return
+              if (isSelected) {
+                onClearFilter?.()
+              } else {
+                onActionFilter?.(card.key)
+              }
+            }
+
             return (
               <button
                 key={card.key}
-                onClick={() => !isEmpty && onActionFilter?.(card.key)}
+                onClick={handleClick}
                 style={{
-                  background: t.cardBg,
-                  border: `1.5px solid ${isEmpty ? t.cardBorder : card.color + '40'}`,
-                  borderRadius: 16,
-                  padding: '18px 20px 16px',
-                  boxShadow: isEmpty ? 'none' : (dk ? 'none' : `0 2px 12px ${card.color}12, 0 1px 3px ${card.color}08`),
-                  display: 'flex', flexDirection: 'column' as const, gap: 0,
-                  position: 'relative' as const, overflow: 'hidden' as const,
+                  // Layout
+                  display: 'flex', flexDirection: 'column' as const,
+                  alignItems: 'flex-start', textAlign: 'left' as const,
+                  padding: '16px 18px 14px',
+                  borderRadius: 12,
+                  // Border: left-edge accent when selected, hairline otherwise
+                  border: isSelected
+                    ? `1px solid ${card.color}30`
+                    : `1px solid ${dk ? '#1E293B' : '#E8EDF2'}`,
+                  borderLeft: isSelected ? `3px solid ${card.color}` : undefined,
+                  paddingLeft: isSelected ? 16 : 18,
+                  // Background
+                  background: isSelected
+                    ? card.selBg
+                    : (isEmpty ? (dk ? '#0F172A' : '#FAFAFA') : (dk ? '#111827' : '#FFFFFF')),
+                  // Interaction
                   cursor: isEmpty ? 'default' : 'pointer',
-                  textAlign: 'left' as const,
-                  transition: 'box-shadow 0.15s, border-color 0.15s',
-                  opacity: isEmpty ? 0.6 : 1,
+                  opacity: isEmpty ? 0.45 : 1,
+                  // Transition
+                  transition: 'border-color 120ms ease, background 120ms ease, box-shadow 120ms ease',
+                  boxShadow: isSelected
+                    ? `0 0 0 0 transparent`
+                    : (!isEmpty && !dk ? '0 1px 3px rgba(0,0,0,0.04)' : 'none'),
+                }}
+                onMouseEnter={e => {
+                  if (isEmpty || isSelected) return
+                  ;(e.currentTarget as HTMLElement).style.borderColor = card.color + '50'
+                  ;(e.currentTarget as HTMLElement).style.boxShadow = `0 2px 8px ${card.color}14`
+                }}
+                onMouseLeave={e => {
+                  if (isEmpty || isSelected) return
+                  ;(e.currentTarget as HTMLElement).style.borderColor = dk ? '#1E293B' : '#E8EDF2'
+                  ;(e.currentTarget as HTMLElement).style.boxShadow = !dk ? '0 1px 3px rgba(0,0,0,0.04)' : 'none'
                 }}
               >
-                {/* Top accent line — only when there are items */}
-                {!isEmpty && (
-                  <div style={{ position: 'absolute' as const, top: 0, left: 0, right: 0, height: 3, background: card.color, borderRadius: '16px 16px 0 0' }} />
-                )}
-
-                {/* Header row: label + icon */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase' as const, letterSpacing: '0.09em', lineHeight: 1.2 }}>
+                {/* Label row: status dot + label */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                  {!isEmpty && (
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                      background: isSelected ? card.color : card.color + 'AA',
+                      boxShadow: isSelected ? `0 0 0 2px ${card.color}22` : 'none',
+                    }} />
+                  )}
+                  <span style={{
+                    fontSize: 11, fontWeight: 600, letterSpacing: '0.06em',
+                    textTransform: 'uppercase' as const,
+                    color: isEmpty ? (dk ? '#374151' : '#9CA3AF') : (dk ? '#94A3B8' : '#6B7280'),
+                  }}>
                     {card.label}
                   </span>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: isEmpty ? t.inputBorder : card.iconBg,
-                    color: isEmpty ? t.textSubtle : card.iconColor,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: isEmpty ? 'none' : `0 1px 4px ${card.iconColor}20`,
-                  }}>
-                    {card.svg}
-                  </div>
+                  {/* Selected: "Clear" hint floats right */}
+                  {isSelected && (
+                    <span style={{
+                      marginLeft: 'auto', fontSize: 11, fontWeight: 500,
+                      color: card.color, opacity: 0.8,
+                    }}>
+                      Clear ✕
+                    </span>
+                  )}
                 </div>
 
-                {/* Count */}
+                {/* Count — the hero */}
                 <div style={{
-                  fontSize: 40,
-                  fontWeight: 800,
-                  color: isEmpty ? t.textSubtle : (card.urgent && !isEmpty ? card.color : t.textPri),
-                  letterSpacing: '-0.04em',
-                  lineHeight: 1,
-                  marginBottom: 8,
+                  fontSize: 36, fontWeight: 650, letterSpacing: '-0.03em',
+                  lineHeight: 1, marginBottom: 6,
+                  fontVariantNumeric: 'tabular-nums',
+                  color: isEmpty
+                    ? (dk ? '#1F2937' : '#D1D5DB')
+                    : (isSelected ? card.color : (dk ? '#F1F5F9' : '#0F172A')),
                 }}>
                   {card.count}
                 </div>
 
-                {/* Sub + click hint */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>
-                    {card.sub}
-                  </span>
-                  {!isEmpty && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: card.color, opacity: 0.8 }}>
-                      Filter →
-                    </span>
-                  )}
+                {/* Descriptor */}
+                <div style={{
+                  fontSize: 12, fontWeight: 400, lineHeight: 1.4,
+                  color: isEmpty ? (dk ? '#1F2937' : '#D1D5DB') : (dk ? '#475569' : '#94A3B8'),
+                }}>
+                  {card.sub}
                 </div>
               </button>
             )
