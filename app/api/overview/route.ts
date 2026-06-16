@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
       totalWonJobs: allWon.length,
       winRate,
       decidedThisMonth: decided,
-      avgTicket: Math.round(avgTicket),
+      avgTicket,
       pipelineValue,
     },
     openPipelineByStage,
