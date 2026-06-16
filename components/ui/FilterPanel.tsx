@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import { getTerminalStages,  getStageAnchors, getActiveStages, getTradeConfig, isRoofing } from '@/lib/trades/_registry'
+import { isStalled } from '@/lib/metrics/sla'
 import { Lead } from '@/types'
 import { theme, T } from '@/lib/tokens'
 
@@ -49,12 +50,10 @@ export function applyFilters(leads: Lead[], f: FilterState, tradeSlug?: string |
 
   if (f.needsAttention) {
     const anchors = getStageAnchors(tradeSlug)
-    result = result.filter(l => {
-      // Time in current stage (not total lead age) — uses lead_status_changed_at
-      const since = l.lead_status_changed_at ?? l.created_at
-      const days  = (Date.now() - new Date(since).getTime()) / 86400000
-      return days > 3 && l.lead_status !== anchors.won
-    })
+    // Same predicate as the Stalled action card (lib/metrics/sla) so the card
+    // count and the board it filters to always match. Excludes lead_in and
+    // insurance_approved — each lead lives in exactly one card.
+    result = result.filter(l => isStalled(l, anchors.entry))
   }
 
   if (f.minValue !== '') {

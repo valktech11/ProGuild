@@ -8,6 +8,7 @@ import { initials, avatarColor, timeAgo, capName, fmtCurrency } from '@/lib/util
 import { stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig, getActiveStages, getTerminalStages, getStageAnchors } from '@/lib/trades/_registry'
+import { pastStageSla, daysInStage } from '@/lib/metrics/sla'
 
 // ── Stage definitions ──────────────────────────────────────────────────────────
 // PipelineStage is the display contract used throughout this file.
@@ -380,13 +381,17 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
 
   const urgency = days > 3 ? 'high' : days >= 2 ? 'mid' : 'low'
   const ageBg   = 'transparent'
-  const ageColor= urgency === 'high' ? '#EF4444' : urgency === 'mid' ? '#B45309' : '#6B7280'
+  // Overdue badge is stage-SLA driven (lib/metrics/sla), measured by time in
+  // stage — not flat created_at age. Terminal stages (won/lost) have no SLA
+  // entry, so they never show the badge. `urgency` kept for non-stale tint only.
+  const isStale = pastStageSla(lead)
+  const stageAgeLabel = `${Math.floor(daysInStage(lead))}d`
+  const ageColor = isStale ? '#EF4444' : (urgency === 'mid' ? '#B45309' : '#6B7280')
   const t       = theme(dk)
 
   // Derived values used in new card layout
   const minsOld  = Math.floor((Date.now() - new Date(lead.created_at).getTime()) / 60000)
   const priority = minsOld < 30 ? 'hot' : minsOld < 360 ? 'warm' : null
-  const isStale  = days >= 7
   const src      = (lead.lead_source || '').replace(/_/g,' ')
   const amt      = lead.quoted_amount
   const schedDate = lead.scheduled_date
@@ -453,7 +458,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
                   letterSpacing:'0.04em' }}>WARM</span>
               )}
               <span style={{ fontSize:11, color:ageColor, fontWeight:isStale?700:400 }}>
-                {isStale ? `⚠ ${ageLabel}` : ageLabel}
+                {isStale ? `⚠ ${stageAgeLabel}` : ageLabel}
               </span>
             </div>
           </div>
@@ -1294,7 +1299,7 @@ function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onSt
               ? 'No leads'
               : stage.terminal
                 ? `${leads.length} ${leads.length!==1?'jobs':'job'} · all time`
-                : `${leads.length} lead${leads.length!==1?'s':''} · avg ${(leads.reduce((s,l) => s+(Date.now()-new Date(l.created_at).getTime())/86400000,0)/leads.length).toFixed(1)}d`}
+                : `${leads.length} lead${leads.length!==1?'s':''} · avg ${(leads.reduce((s,l) => s+daysInStage(l),0)/leads.length).toFixed(1)}d in stage`}
           </div>
         </div>
 

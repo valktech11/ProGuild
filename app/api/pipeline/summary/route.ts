@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors, getTerminalStages } from '@/lib/trades/_registry'
 import { wonInMonth } from '@/lib/metrics/won'
+import { daysInStage, isStalled } from '@/lib/metrics/sla'
 
 // ── /api/pipeline/summary ─────────────────────────────────────────────────────
 // Two jobs:
@@ -22,21 +23,6 @@ import { wonInMonth } from '@/lib/metrics/won'
 //   in_progress          >7 days
 
 const DAY = 86400000
-
-const STAGE_SLA_DAYS: Record<string, number> = {
-  lead_in:              1,
-  inspection_scheduled: 3,
-  insurance_approved:   14,
-  proposal_sent:        7,
-  proposal_signed:      14,
-  scheduled:            7,
-  in_progress:          7,
-}
-
-function daysInStage(lead: any, now: number): number {
-  const since = lead.lead_status_changed_at ?? lead.created_at
-  return (now - new Date(since as string).getTime()) / DAY
-}
 
 export async function GET(req: NextRequest) {
   const proId = new URL(req.url).searchParams.get('pro_id')
@@ -92,14 +78,10 @@ export async function GET(req: NextRequest) {
   ).length
 
   // ── Action card 4: Stalled Leads ─────────────────────────────────────────
-  // Open leads exceeding stage-specific SLA — excludes insurance_approved
-  // (already surfaced by insuranceFollowUp card to avoid double-counting)
-  const stalledLeads = openLeads.filter(l => {
-    if (l.lead_status === 'insurance_approved') return false // own card
-    const sla = STAGE_SLA_DAYS[l.lead_status as string]
-    if (!sla) return false
-    return daysInStage(l, now) >= sla
-  }).length
+  // Open leads past their stage-specific SLA. Each lead lives in exactly one
+  // card, so Stalled excludes the entry stage (Needs Contact) and
+  // insurance_approved (Insurance Follow-Up) — see lib/metrics/sla.ts.
+  const stalledLeads = openLeads.filter(l => isStalled(l, anchors.entry, now)).length
 
   return NextResponse.json({
     // ── Command bar ──────────────────────────────────────────────────────────
