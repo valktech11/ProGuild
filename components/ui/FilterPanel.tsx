@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
-import { getStageAnchors, getActiveStages, getTradeConfig, isRoofing } from '@/lib/trades/_registry'
+import { getTerminalStages,  getStageAnchors, getActiveStages, getTradeConfig, isRoofing } from '@/lib/trades/_registry'
 import { Lead } from '@/types'
 import { theme, T } from '@/lib/tokens'
 
@@ -48,11 +48,11 @@ export function applyFilters(leads: Lead[], f: FilterState, tradeSlug?: string |
   }
 
   if (f.needsAttention) {
-    const anchors  = getStageAnchors(tradeSlug)
-    const tc       = anchors  // entry = new leads, first mid stage = quoted equiv
+    const anchors = getStageAnchors(tradeSlug)
     result = result.filter(l => {
-      const days = (Date.now() - new Date(l.created_at).getTime()) / 86400000
-      // Stale new leads or leads that have been quoted but no response
+      // Time in current stage (not total lead age) — uses lead_status_changed_at
+      const since = l.lead_status_changed_at ?? l.created_at
+      const days  = (Date.now() - new Date(since).getTime()) / 86400000
       return days > 3 && l.lead_status !== anchors.won
     })
   }
@@ -68,13 +68,15 @@ export function applyFilters(leads: Lead[], f: FilterState, tradeSlug?: string |
   }
 
   if (f.dateReceived) {
-    const now = Date.now()
-    const startOf = (offset: number) => now - offset * 86400000
+    const now      = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const weekStart  = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
     result = result.filter(l => {
       const t = new Date(l.created_at).getTime()
-      if (f.dateReceived === 'today') return t >= startOf(1)
-      if (f.dateReceived === 'week')  return t >= startOf(7)
-      if (f.dateReceived === 'month') return t >= startOf(30)
+      if (f.dateReceived === 'today') return t >= todayStart
+      if (f.dateReceived === 'week')  return t >= weekStart
+      if (f.dateReceived === 'month') return t >= monthStart
       return true
     })
   }
@@ -139,7 +141,8 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
   const plugin        = getTradeConfig(tradeSlug)
   const activeStages  = getActiveStages(tradeSlug).filter(s => !s.terminal)
   const wonStage      = { key: getStageAnchors(tradeSlug).won, label: plugin.labels.wonStage, color: '#4A7B4A', bg: '#F0FDF4' }
-  const stageOptions  = [...activeStages, ...getActiveStages(tradeSlug).filter(s => s.terminal && s.key === wonStage.key)]
+  const terminalStages = getTerminalStages(tradeSlug).filter(s => s.key !== wonStage.key)
+  const stageOptions   = [...activeStages, ...terminalStages, { ...wonStage, terminal: false }]
   const sourceOptions: { key: string; label: string }[] = (plugin as any).leadSources
     ? (plugin as any).leadSources.map((s: any) => ({ key: s.value ?? s.label as string, label: s.label as string }))
     : SOURCES  // fallback for trades without leadSources
