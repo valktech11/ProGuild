@@ -1525,31 +1525,22 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                 key={card.key}
                 onClick={handleClick}
                 style={{
-                  // Layout
                   display: 'flex', flexDirection: 'column' as const,
                   alignItems: 'flex-start', textAlign: 'left' as const,
                   padding: '16px 18px 15px',
                   borderRadius: 12,
-                  // Border: left-edge accent when selected, slightly visible when idle+active
-                  border: isSelected
-                    ? `1px solid ${card.color}40`
-                    : isEmpty
-                      ? `1px solid ${dk ? '#1E293B' : '#E8EDF2'}`
-                      : `1px solid ${dk ? '#1E293B' : '#E2E8F0'}`,
+                  // Same border for all states — only left-edge changes on selected
+                  border: `1px solid ${isSelected ? card.color + '40' : (dk ? '#1E293B' : '#E2E8F0')}`,
                   borderLeft: isSelected ? `3px solid ${card.color}` : undefined,
                   paddingLeft: isSelected ? 16 : 18,
-                  // Background
-                  background: isSelected
-                    ? card.selBg
-                    : (isEmpty ? (dk ? '#0F172A' : '#F8FAFC') : (dk ? '#111827' : '#FFFFFF')),
-                  // Interaction
+                  // Same white background for all — selected gets faint wash
+                  background: isSelected ? card.selBg : (dk ? '#111827' : '#FFFFFF'),
                   cursor: isEmpty ? 'default' : 'pointer',
-                  opacity: isEmpty ? 0.5 : 1,
-                  // Transition
+                  // NO opacity — empty cards are fully readable, just the count is grey
                   transition: 'border-color 120ms ease, background 120ms ease, box-shadow 120ms ease',
                   boxShadow: isSelected
                     ? `0 1px 8px ${card.color}18`
-                    : (!isEmpty && !dk ? '0 1px 4px rgba(0,0,0,0.05), 0 0 0 0 transparent' : 'none'),
+                    : (!dk ? '0 1px 4px rgba(0,0,0,0.05)' : 'none'),
                 }}
                 onMouseEnter={e => {
                   if (isEmpty || isSelected) return
@@ -1558,58 +1549,49 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
                 }}
                 onMouseLeave={e => {
                   if (isEmpty || isSelected) return
-                  ;(e.currentTarget as HTMLElement).style.borderColor = dk ? '#1E293B' : '#E8EDF2'
-                  ;(e.currentTarget as HTMLElement).style.boxShadow = !dk ? '0 1px 3px rgba(0,0,0,0.04)' : 'none'
+                  ;(e.currentTarget as HTMLElement).style.borderColor = dk ? '#1E293B' : '#E2E8F0'
+                  ;(e.currentTarget as HTMLElement).style.boxShadow = !dk ? '0 1px 4px rgba(0,0,0,0.05)' : 'none'
                 }}
               >
-                {/* Label row: status dot + label */}
+                {/* Label row: dot (always visible, muted when empty) + label */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                  {!isEmpty && (
-                    <span style={{
-                      width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-                      background: card.color,
-                      boxShadow: isSelected ? `0 0 0 3px ${card.color}25` : 'none',
-                    }} />
-                  )}
+                  <span style={{
+                    width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                    // Dot always present — full color when active, very muted when empty
+                    background: isEmpty ? (dk ? '#334155' : '#CBD5E1') : card.color,
+                    boxShadow: isSelected ? `0 0 0 3px ${card.color}25` : 'none',
+                  }} />
                   <span style={{
                     fontSize: 11, fontWeight: 700, letterSpacing: '0.07em',
                     textTransform: 'uppercase' as const,
-                    color: isEmpty
-                      ? (dk ? '#374151' : '#CBD5E1')
-                      : (dk ? '#CBD5E1' : '#374151'),
+                    // Same label color always — no change based on empty state
+                    color: dk ? '#94A3B8' : '#475569',
                   }}>
                     {card.label}
                   </span>
                   {isSelected && (
-                    <span style={{
-                      marginLeft: 'auto', fontSize: 11, fontWeight: 600,
-                      color: card.color,
-                    }}>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: card.color }}>
                       Clear ✕
                     </span>
                   )}
                 </div>
 
-                {/* Count — the hero */}
+                {/* Count — accent color when active, muted grey when empty */}
                 <div style={{
                   fontSize: 38, fontWeight: 700, letterSpacing: '-0.03em',
                   lineHeight: 1, marginBottom: 8,
                   fontVariantNumeric: 'tabular-nums',
-                  // Non-zero: accent color so urgency reads immediately.
-                  // Selected: same accent. Empty: ghost.
                   color: isEmpty
-                    ? (dk ? '#1F2937' : '#E2E8F0')
-                    : card.color,
+                    ? (dk ? '#334155' : '#CBD5E1')   // muted but readable
+                    : card.color,                     // full accent when there's work to do
                 }}>
-                  {isEmpty ? '—' : card.count}
+                  {card.count}
                 </div>
 
-                {/* Descriptor */}
+                {/* Descriptor — same color always */}
                 <div style={{
                   fontSize: 12, fontWeight: 500, lineHeight: 1.4,
-                  color: isEmpty
-                    ? (dk ? '#1F2937' : '#CBD5E1')
-                    : (dk ? '#64748B' : '#64748B'),
+                  color: dk ? '#64748B' : '#6B7280',
                 }}>
                   {card.sub}
                 </div>
