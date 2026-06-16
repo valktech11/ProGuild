@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
     // ── Command bar ──────────────────────────────────────────────────────────
     newCount:      entryLeads.length,
     activeCount:   openLeads.length,
-    pipelineValue: openLeads.reduce((s, l) => s + ((l.quoted_amount as number) || 0), 0),
+    pipelineValue: Math.round(openLeads.reduce((s, l) => s + ((l.quoted_amount as number) || 0), 0) * 100) / 100,
     wonThisMonth:  wonInMonth(leads as never[], anchors.won, 0).length,
     newThisMonth:  leads.filter(l => new Date(l.created_at as string).getTime() >= monthStart).length,
     // ── Action cards ─────────────────────────────────────────────────────────
