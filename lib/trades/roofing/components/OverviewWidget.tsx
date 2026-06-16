@@ -84,12 +84,15 @@ export default function RoofingOverviewWidget({ leads, session, dk, overview }: 
   const avgTicket    = stats.avgTicket ?? 0
   const revDelta     = stats.revenueDeltaPct ?? null
   const totalWonJobs = stats.totalWonJobs ?? 0
+  const collected    = stats.collected ?? 0
 
   const scorecard = [
     { label: 'Revenue · this month', value: fmtCurrency(stats.revenueThisMonth ?? 0),
       sub: revDelta == null ? `${wonMo} won` : `${revDelta >= 0 ? '▲' : '▼'} ${Math.abs(revDelta)}% vs last mo`,
       subColor: revDelta == null ? '#94A3B8' : revDelta >= 0 ? '#059669' : '#DC2626', accent: '#0F766E',
-      sub2: `Total won: ${fmtCurrency(stats.totalWonRevenue ?? 0)} · ${totalWonJobs} job${totalWonJobs!==1?'s':''}` },
+      // Two-line money story under the headline: work won (jobs closed) then cash collected.
+      sub2: `Work won: ${fmtCurrency(stats.totalWonRevenue ?? 0)} · ${totalWonJobs} job${totalWonJobs!==1?'s':''}`,
+      sub3: collected > 0 ? `Collected: ${fmtCurrency(collected)} cash in` : null },
     { label: 'Jobs won', value: String(wonMo), sub: 'this month', subColor: '#94A3B8', accent: '#2563EB' },
     { label: 'Win rate', value: winRate == null ? '—' : `${winRate}%`,
       sub: decided > 0 ? `${wonMo}/${decided} decided` : 'no closes yet', subColor: '#94A3B8', accent: '#059669' },
@@ -127,8 +130,15 @@ export default function RoofingOverviewWidget({ leads, session, dk, overview }: 
               }}>{c.value}</div>
               <div style={{ fontSize: 11, fontWeight: 600, color: c.subColor, marginTop: 4 }}>{c.sub}</div>
               {(c as any).sub2 && (
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.textPri, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${bdr}` }}>
-                  {(c as any).sub2}
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${bdr}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.textPri }}>
+                    {(c as any).sub2}
+                  </div>
+                  {(c as any).sub3 && (
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#15803D', marginTop: 4 }}>
+                      {(c as any).sub3}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

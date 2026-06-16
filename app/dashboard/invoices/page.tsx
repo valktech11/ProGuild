@@ -106,9 +106,9 @@ export default function InvoicesPage() {
             const overdueAmt = summary?.overdue ?? 0
             const overdueN   = summary?.overdueCount ?? 0
             const cards = [
-              { label: 'Outstanding', value: fmt(totalOutstanding), color: totalOutstanding > 0 ? '#B45309' : t.textPri, bg: totalOutstanding > 0 ? '#FFFBEB' : t.cardBg },
-              { label: 'Collected',   value: fmt(totalPaid),        color: '#15803D', bg: '#F0FDF4' },
-              ...(overdueAmt > 0 ? [{ label: `Overdue${overdueN > 0 ? ` · ${overdueN}` : ''}`, value: fmt(overdueAmt), color: '#DC2626', bg: '#FEF2F2' }] : []),
+              { label: 'Outstanding', value: fmt(totalOutstanding), sub: 'money owed to you', color: totalOutstanding > 0 ? '#B45309' : t.textPri, bg: totalOutstanding > 0 ? '#FFFBEB' : t.cardBg },
+              { label: 'Collected',   value: fmt(totalPaid),        sub: 'paid invoices',     color: '#15803D', bg: '#F0FDF4' },
+              ...(overdueAmt > 0 ? [{ label: `Overdue${overdueN > 0 ? ` · ${overdueN}` : ''}`, value: fmt(overdueAmt), sub: 'past due date', color: '#DC2626', bg: '#FEF2F2' }] : []),
             ]
             const cols = isWide ? cards.length : 1
             return (
@@ -117,6 +117,7 @@ export default function InvoicesPage() {
                   <div key={s.label} style={{ background: dk ? t.cardBg : s.bg, border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: '14px 20px' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: t.textMuted, marginBottom: 4 }}>{s.label}</div>
                     <div style={{ fontSize: T.fontStat, fontWeight: 800, color: dk ? t.textPri : s.color }}>{s.value}</div>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: t.textSubtle, marginTop: 2 }}>{s.sub}</div>
                   </div>
                 ))}
               </div>

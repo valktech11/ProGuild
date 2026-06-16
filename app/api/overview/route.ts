@@ -24,18 +24,22 @@ export async function GET(req: NextRequest) {
   const tc      = getTradeConfig(proRow?.trade_slug)
   const terminalKeys = tc.stages.filter(s => s.terminal).map(s => s.key)
 
-  const [leadsRes, estRes] = await Promise.all([
+  const [leadsRes, estRes, invRes] = await Promise.all([
     sb.from('leads')
       .select('id, lead_status, created_at, lead_status_changed_at, updated_at, quoted_amount, scheduled_date, roofing_job_data(approved_amount)')
       .eq('pro_id', proId),
     sb.from('estimates')
       .select('status, valid_until, sent_at, created_at')
       .eq('pro_id', proId),
+    sb.from('invoices')
+      .select('status, total')
+      .eq('pro_id', proId),
   ])
   if (leadsRes.error) return NextResponse.json({ error: leadsRes.error.message }, { status: 500 })
 
   const leads = leadsRes.data || []
   const estimates = estRes.data || []
+  const invoices = invRes.data || []
   const now = Date.now()
   const today = new Date().toISOString().split('T')[0]
 
@@ -67,6 +71,10 @@ export async function GET(req: NextRequest) {
   const avgTicket       = wonThisMonth.length > 0 ? wonRevenue / wonThisMonth.length : 0
   const allWon          = leads.filter(l => l.lead_status === anchors.won)
   const totalWonRevenue = sumRevenue(allWon as never[])
+  // collected: Σ total on paid invoices — actual cash banked. Same definition as
+  // /api/invoices/summary so the Overview and Invoices pages agree.
+  const collected = Math.round(
+    invoices.filter(i => i.status === 'paid').reduce((s, i) => s + ((i.total as number) || 0), 0) * 100) / 100
   // estimatedValue: quoted_amount on canonical open leads (not terminal, not won,
   // not 'Paid'). Matches pipeline/summary route exactly so both screens agree.
   const closedForPipeline = new Set([...terminalKeys, anchors.won, 'Paid'])
@@ -111,6 +119,7 @@ export async function GET(req: NextRequest) {
       jobsWonThisMonth: wonThisMonth.length,
       totalWonRevenue,
       totalWonJobs: allWon.length,
+      collected,
       winRate,
       decidedThisMonth: decided,
       avgTicket,
