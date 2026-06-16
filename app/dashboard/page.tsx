@@ -786,66 +786,39 @@ export default function OverviewPage() {
           )
         })()}
 
-        {/* ── Action Center ── */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#0F766E,#0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(15,118,110,0.3)' }}>
-                <SvgIcon d={ICONS.bell} s={16} sw={2} color="white" />
+        {/* ── Operational Health — condensed single row, links to Pipeline work queue ── */}
+        {(() => {
+          const totalItems = (ac.uncontacted ?? 0) + (ac.expiring ?? 0) + (ac.awaitingSignature ?? 0) + (ac.drafts ?? 0)
+          const atRiskItems = [
+            ac.uncontacted > 0 && `${ac.uncontacted} uncontacted`,
+            ac.awaitingSignature > 0 && `${ac.awaitingSignature} awaiting signature`,
+            ac.expiring > 0 && `${ac.expiring} expiring soon`,
+            ac.drafts > 0 && `${ac.drafts} draft proposals`,
+            ac.jobsToday > 0 && `${ac.jobsToday} jobs today`,
+          ].filter(Boolean).join(' · ')
+          return (
+            <div className="mb-6 rounded-2xl px-5 py-4 flex items-center justify-between gap-4"
+              style={{ background: totalItems > 0 ? (dk ? 'rgba(220,38,38,0.08)' : '#FFF7F7') : (dk ? t.cardBg : '#F8FAFC'), border: `1.5px solid ${totalItems > 0 ? 'rgba(220,38,38,0.18)' : cardBdr}` }}>
+              <div className="flex items-center gap-3 min-w-0">
+                <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: totalItems > 0 ? '#FEE2E2' : '#F0FDFA', color: totalItems > 0 ? '#DC2626' : TEAL }}>
+                  <SvgIcon d={totalItems > 0 ? ICONS.bell : ICONS.checkCirc} s={16} sw={2} color={totalItems > 0 ? '#DC2626' : TEAL} />
+                </div>
+                <div className="min-w-0">
+                  <span style={{ fontSize: 13, fontWeight: 700, color: totalItems > 0 ? '#DC2626' : TEAL }}>
+                    {totalItems > 0 ? `${totalItems} item${totalItems !== 1 ? 's' : ''} need attention` : 'All clear'}
+                  </span>
+                  {atRiskItems && (
+                    <p className="text-[11px] mt-0.5 truncate" style={{ color: BODY, margin: 0 }}>{atRiskItems}</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain, margin: 0 }}>Action Center</h2>
-                <p className="hidden md:block text-[11px] mt-0" style={{ color: BODY, margin: 0 }}>What needs your attention right now</p>
-              </div>
+              <Link href="/dashboard/pipeline" className="hidden md:flex text-[12px] font-semibold items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex-shrink-0"
+                style={{ color: TEAL, background: '#F0FDFA', border: '1px solid #CCFBF1' }}>
+                Go to Jobs <SvgIcon d={ICONS.arrowRight} s={12} sw={2.5} color={TEAL} />
+              </Link>
             </div>
-            <Link href="/dashboard/pipeline" className="hidden md:flex text-[12px] font-semibold items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all"
-              style={{ color: TEAL, background: '#F0FDFA', border: '1px solid #CCFBF1' }}>
-              View all leads <SvgIcon d={ICONS.arrowRight} s={12} sw={2.5} color={TEAL} />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {/* Uncontacted >24h — leads losing interest */}
-            <ActionCard
-              iconPath={ICONS.flame}
-              iconBg="#FEF3C7" iconColor="#F59E0B"
-              count={ac.uncontacted ?? 0} label="Uncontacted Leads" sub="No reply in 24+ hours"
-              ctaLabel="View Leads" ctaHref="/dashboard/pipeline"
-              dk={dk}
-            />
-            {/* Estimates expiring in ≤3 days */}
-            <ActionCard
-              iconPath={ICONS.hourglass}
-              iconBg="#FEE2E2" iconColor="#DC2626"
-              count={ac.expiring ?? 0} label="Expiring Soon" sub="Proposals expire in 3 days"
-              ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
-              dk={dk}
-            />
-            {/* Sent proposals not signed after 48h */}
-            <ActionCard
-              iconPath={ICONS.alertTri}
-              iconBg="#EDE9FE" iconColor="#7C3AED"
-              count={ac.awaitingSignature ?? 0} label="Awaiting Signature" sub="Sent 48+ hrs, not signed"
-              ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
-              dk={dk}
-            />
-            {/* Jobs scheduled today */}
-            <ActionCard
-              iconPath={ICONS.calCheck}
-              iconBg="#DCFCE7" iconColor="#16A34A"
-              count={ac.jobsToday ?? 0} label="Jobs Today" sub="On your schedule today"
-              ctaLabel="View Calendar" ctaHref="/dashboard/calendar"
-              dk={dk}
-            />
-            {/* Draft estimates — unsent */}
-            <ActionCard
-              iconPath={ICONS.fileText}
-              iconBg="#EDE9FE" iconColor="#7C3AED"
-              count={ac.drafts ?? 0} label="Draft Proposals" sub="Not sent yet"
-              ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
-              dk={dk}
-            />
-          </div>
-        </div>
+          )
+        })()}
 
         {/* ── Trade-specific overview widget (Today's Schedule, Revenue Forecast, etc.) ── */}
         {/* Slot renders roofing sections for roofers, null for all other trades              */}

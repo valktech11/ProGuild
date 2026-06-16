@@ -1,5 +1,4 @@
 'use client'
-import { wonInMonth, sumRevenue } from '@/lib/metrics/won'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -65,13 +64,22 @@ function buildStageOrder(stages: PipelineStage[]): Record<string, number> {
   return Object.fromEntries(stages.map((s, i) => [s.key, i]))
 }
 
+interface PipelineSummary {
+  needsContact:       number
+  awaitingSignature:  number
+  insuranceFollowUp:  number
+  stalledLeads:       number
+}
+
 interface Props {
-  leads:          Lead[]
-  onStatusChange: (leadId: string, status: string) => Promise<void>
-  onUpdate: (leadId: string, fields: Partial<Lead>) => Promise<void>
-  isPaid: boolean
-  tradeSlug?: string | null
-  dk?: boolean
+  leads:           Lead[]
+  onStatusChange:  (leadId: string, status: string) => Promise<void>
+  onUpdate:        (leadId: string, fields: Partial<Lead>) => Promise<void>
+  isPaid:          boolean
+  tradeSlug?:      string | null
+  dk?:             boolean
+  summary?:        PipelineSummary | null
+  onActionFilter?: (filterKey: string) => void
 }
 
 function daysSince(dateStr: string): number {
@@ -1332,7 +1340,7 @@ function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onSt
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false }: Props) {
+export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false, summary, onActionFilter }: Props) {
   const router = useRouter()
   const t = theme(dk)
   const stages = getPipelineStages(tradeSlug)
@@ -1440,125 +1448,123 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
 
   return (
     <>
-    {/* ── KPI Stats Bar — desktop only, computed from leads ── */}
-    {(() => {
-      const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
-      const kpiAnchors  = getStageAnchors(tradeSlug)
-      const kpiTermKeys = new Set([...getTerminalStages(tradeSlug).map((s: any) => s.key), kpiAnchors.won, 'Paid', 'Lost'])
-      const activeLeads = leads.filter(l => !kpiTermKeys.has(l.lead_status as string))
-      const pipelineVal = activeLeads.reduce((s,l) => s + (l.quoted_amount||0), 0)
-      const wonThisMonth = [...wonInMonth(leads as any, kpiAnchors.won, 0), ...wonInMonth(leads as any, 'Paid', 0)]
-      const wonVal = sumRevenue(wonThisMonth as any)
-      const avgAge = activeLeads.length
-        ? (activeLeads.reduce((s,l) => s + (Date.now()-new Date(l.created_at).getTime())/86400000, 0) / activeLeads.length).toFixed(1)
-        : '0'
-      const totalThisMonth = leads.filter(l => new Date(l.created_at).getTime() >= monthStart).length
-      const ageNum = parseFloat(String(avgAge))
-      const kpis = [
-        { label: 'Pipeline Value', value: pipelineVal > 0 ? `$${pipelineVal.toLocaleString()}` : '—',
-          sub: `${activeLeads.length} active leads`, trend: `${activeLeads.length} active`, color: '#0F766E', icon: '💰' },
-        { label: 'Won This Month', value: wonVal > 0 ? `$${wonVal.toLocaleString()}` : '—',
-          sub: `${wonThisMonth.length} job${wonThisMonth.length!==1?'s':''}`, trend: `${wonThisMonth.length} job${wonThisMonth.length!==1?'s':''}`, color: '#047857', icon: '🏆' },
-        { label: 'New This Month', value: String(totalThisMonth),
-          sub: 'leads received', trend: 'leads received', color: '#1E40AF', icon: '📥' },
-        { label: 'Avg Lead Age', value: ageNum < 1 ? '< 1 d' : `${avgAge} d`,
-          sub: 'active pipeline', trend: ageNum > 7 ? '⚠ Above target' : 'On track', color: ageNum > 7 ? '#92400E' : '#64748B', icon: '⏱' },
-      ]
-      // KPI card accent configs — SVG icons, gradient tints
-      const kpiAccents: Record<string, { gradient: string; iconBg: string; iconColor: string; svg: React.ReactNode }> = {
-        'Pipeline Value': {
-          gradient: dk ? 'none' : 'linear-gradient(135deg, rgba(15,118,110,0.04) 0%, transparent 60%)',
-          iconBg: '#F0FDFA', iconColor: '#0F766E',
-          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
+    {/* ── Action Cards — desktop only, from /api/pipeline/summary ── */}
+    {/* Each card filters the board to the relevant leads when clicked.    */}
+    {summary && (() => {
+      const sm = summary
+      const actionCards = [
+        {
+          key:     'needsContact',
+          label:   'Needs Contact',
+          sub:     'Entry leads waiting >24h',
+          count:   sm.needsContact,
+          color:   '#DC2626',
+          iconBg:  '#FEF2F2',
+          iconColor: '#DC2626',
+          urgent:  true,
+          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.1 1.18 2 2 0 012.1 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>,
         },
-        'Won This Month': {
-          gradient: dk ? 'none' : 'linear-gradient(135deg, rgba(4,120,87,0.04) 0%, transparent 60%)',
-          iconBg: '#ECFDF5', iconColor: '#047857',
-          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
+        {
+          key:     'awaitingSignature',
+          label:   'Awaiting Signature',
+          sub:     'Proposals unsigned 48h+',
+          count:   sm.awaitingSignature,
+          color:   '#D97706',
+          iconBg:  '#FFFBEB',
+          iconColor: '#D97706',
+          urgent:  false,
+          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
         },
-        'New This Month': {
-          gradient: dk ? 'none' : 'linear-gradient(135deg, rgba(30,64,175,0.04) 0%, transparent 60%)',
-          iconBg: '#EFF6FF', iconColor: '#1E40AF',
-          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>,
+        {
+          key:     'insuranceFollowUp',
+          label:   'Insurance Follow-Up',
+          sub:     'Carrier action overdue >14d',
+          count:   sm.insuranceFollowUp,
+          color:   '#0891B2',
+          iconBg:  '#ECFEFF',
+          iconColor: '#0891B2',
+          urgent:  false,
+          svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
         },
-        'Avg Lead Age': {
-          gradient: dk ? 'none' : `linear-gradient(135deg, rgba(${ageNum > 7 ? '146,64,14' : '100,116,139'},0.04) 0%, transparent 60%)`,
-          iconBg: ageNum > 7 ? '#FEF3C7' : '#F1F5F9',
-          iconColor: ageNum > 7 ? '#B45309' : '#64748B',
+        {
+          key:     'stalledLeads',
+          label:   'Stalled',
+          sub:     'Exceeding stage SLA',
+          count:   sm.stalledLeads,
+          color:   '#7C3AED',
+          iconBg:  '#F5F3FF',
+          iconColor: '#7C3AED',
+          urgent:  false,
           svg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
         },
-      }
-
+      ]
       return (
         <div className="hidden md:grid mb-5 gap-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-          {kpis.map(k => {
-            const acc = kpiAccents[k.label] || kpiAccents['Pipeline Value']
-            const isEmpty = k.value === '—'
-            const isOnTrack = k.label === 'Avg Lead Age' && ageNum <= 7
-            const isAlert   = k.label === 'Avg Lead Age' && ageNum > 7
+          {actionCards.map(card => {
+            const isEmpty = card.count === 0
             return (
-              <div key={k.label} style={{
-                background: t.cardBg,
-                backgroundImage: acc.gradient,
-                border: `1px solid ${t.cardBorder}`,
-                borderRadius: 16,
-                padding: '18px 20px 16px',
-                boxShadow: dk ? 'none' : '0 2px 12px rgba(10,22,40,0.06), 0 1px 3px rgba(10,22,40,0.04)',
-                display: 'flex', flexDirection: 'column' as const, gap: 0,
-                position: 'relative' as const, overflow: 'hidden' as const,
-                transition: 'box-shadow 0.15s',
-              }}>
-                {/* Top accent line */}
-                <div style={{ position: 'absolute' as const, top: 0, left: 0, right: 0, height: 3, background: k.color, borderRadius: '16px 16px 0 0' }} />
+              <button
+                key={card.key}
+                onClick={() => !isEmpty && onActionFilter?.(card.key)}
+                style={{
+                  background: t.cardBg,
+                  border: `1.5px solid ${isEmpty ? t.cardBorder : card.color + '40'}`,
+                  borderRadius: 16,
+                  padding: '18px 20px 16px',
+                  boxShadow: isEmpty ? 'none' : (dk ? 'none' : `0 2px 12px ${card.color}12, 0 1px 3px ${card.color}08`),
+                  display: 'flex', flexDirection: 'column' as const, gap: 0,
+                  position: 'relative' as const, overflow: 'hidden' as const,
+                  cursor: isEmpty ? 'default' : 'pointer',
+                  textAlign: 'left' as const,
+                  transition: 'box-shadow 0.15s, border-color 0.15s',
+                  opacity: isEmpty ? 0.6 : 1,
+                }}
+              >
+                {/* Top accent line — only when there are items */}
+                {!isEmpty && (
+                  <div style={{ position: 'absolute' as const, top: 0, left: 0, right: 0, height: 3, background: card.color, borderRadius: '16px 16px 0 0' }} />
+                )}
 
                 {/* Header row: label + icon */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase' as const, letterSpacing: '0.09em', lineHeight: 1.2 }}>
-                    {k.label}
+                    {card.label}
                   </span>
                   <div style={{
                     width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: acc.iconBg, color: acc.iconColor,
+                    background: isEmpty ? t.inputBorder : card.iconBg,
+                    color: isEmpty ? t.textSubtle : card.iconColor,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: `0 1px 4px ${acc.iconColor}20`,
+                    boxShadow: isEmpty ? 'none' : `0 1px 4px ${card.iconColor}20`,
                   }}>
-                    {acc.svg}
+                    {card.svg}
                   </div>
                 </div>
 
-                {/* Value */}
+                {/* Count */}
                 <div style={{
-                  fontSize: isEmpty ? 28 : 34,
+                  fontSize: 40,
                   fontWeight: 800,
-                  color: isEmpty ? t.textSubtle : t.textPri,
+                  color: isEmpty ? t.textSubtle : (card.urgent && !isEmpty ? card.color : t.textPri),
                   letterSpacing: '-0.04em',
                   lineHeight: 1,
                   marginBottom: 8,
                 }}>
-                  {k.value}
+                  {card.count}
                 </div>
 
-                {/* Sub / trend */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {isOnTrack && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: '#059669', background: '#ECFDF5', borderRadius: 100, padding: '2px 7px' }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      On track
-                    </span>
-                  )}
-                  {isAlert && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: '#B45309', background: '#FEF3C7', borderRadius: 100, padding: '2px 7px' }}>
-                      ⚠ Above target
-                    </span>
-                  )}
-                  {!isOnTrack && !isAlert && (
-                    <span style={{ fontSize: 12, color: isEmpty ? t.textSubtle : t.textMuted, fontWeight: 500 }}>
-                      {k.sub}
+                {/* Sub + click hint */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>
+                    {card.sub}
+                  </span>
+                  {!isEmpty && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: card.color, opacity: 0.8 }}>
+                      Filter →
                     </span>
                   )}
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>

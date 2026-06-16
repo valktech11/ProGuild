@@ -41,6 +41,21 @@ export default function PipelinePage() {
   const [filters,     setFilters]     = useState<FilterState>(DEFAULT_FILTERS)
   const [summary,     setSummary]     = useState<any>(null)
 
+  // Action card click → apply a board filter that matches the card's definition
+  const handleActionFilter = useCallback((key: string) => {
+    const anchors = getStageAnchors(session?.trade_slug)
+    if (key === 'needsContact') {
+      setFilters(f => ({ ...f, stages: [anchors.entry] }))
+    } else if (key === 'awaitingSignature') {
+      setFilters(f => ({ ...f, stages: ['proposal_sent', 'proposal_signed'] }))
+    } else if (key === 'insuranceFollowUp') {
+      setFilters(f => ({ ...f, stages: ['insurance_approved'] }))
+    } else if (key === 'stalledLeads') {
+      setFilters(f => ({ ...f, needsAttention: true }))
+    }
+    setShowFilter(false)
+  }, [session?.trade_slug])
+
   // Single fetch function — reused on mount, after add, after save
   const fetchLeads = useCallback(async () => {
     if (!session) return
@@ -278,6 +293,8 @@ export default function PipelinePage() {
             isPaid={['Pro','Elite','Pro_Founding','Elite_Founding','Pro_Annual','Elite_Annual','Pro_Founding_Annual','Elite_Founding_Annual'].includes(session.plan)}
             tradeSlug={session.trade_slug}
             dk={dk}
+            summary={summary}
+            onActionFilter={handleActionFilter}
           />
         )}
       </div>
