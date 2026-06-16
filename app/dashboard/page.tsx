@@ -350,6 +350,7 @@ export default function OverviewPage() {
   const [reviews,     setReviews]     = useState<Review[]>([])
   const [draftCount,    setDraftCount]    = useState(0)
   const [allEstimates,  setAllEstimates]  = useState<any[]>([])
+  const [overview,      setOverview]      = useState<any>(null)
   const [dataLoading, setDataLoading] = useState(true)
   const [showAddLead, setShowAddLead] = useState(false)
   const [maintenanceReminders, setMaintenanceReminders] = useState<any[]>([])
@@ -363,13 +364,15 @@ export default function OverviewPage() {
       fetch(`/api/reviews?pro_id=${s.id}`).then(r => r.json()),
       fetch(`/api/estimates?pro_id=${s.id}`).then(r => r.json()),
       isHVACTrade ? fetch(`/api/hvac/maintenance-reminders?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
-    ]).then(([leadsData, reviewsData, estimatesData, remindersData]) => {
+      fetch(`/api/overview?pro_id=${s.id}`).then(r => r.json()).catch(() => null),
+    ]).then(([leadsData, reviewsData, estimatesData, remindersData, overviewData]) => {
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))
       const ests = estimatesData.estimates || []
       setAllEstimates(ests)
       setDraftCount(ests.filter((e: any) => e.status === 'draft').length)
       setMaintenanceReminders(remindersData.reminders || [])
+      setOverview(overviewData)
       setDataLoading(false)
     }).catch(() => setDataLoading(false))
   }
@@ -420,30 +423,10 @@ export default function OverviewPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const firstName = session?.name?.split(' ')[0] || ''
 
-  // ── Urgency signals — Action Center (different from pipeline stage counts) ─────
-  const now = Date.now()
-  const today = new Date().toISOString().split('T')[0]
-
-  // Uncontacted: at entry stage AND created >24h ago (money walking away)
-  const uncontactedLeads = newLeads.filter(l =>
-    (now - new Date(l.created_at).getTime()) / 86400000 >= 1
-  )
-  // Estimates expiring in ≤3 days (sent/viewed, not yet approved)
-  const expiringEstimates = allEstimates.filter((e: any) => {
-    if (!e.valid_until || !['sent','viewed'].includes(e.status)) return false
-    const daysLeft = (new Date(e.valid_until).getTime() - now) / 86400000
-    return daysLeft >= 0 && daysLeft <= 3
-  })
-  // Unsigned proposals: sent/viewed >48h ago still not approved
-  const unsignedProposals = allEstimates.filter((e: any) => {
-    if (!['sent','viewed'].includes(e.status)) return false
-    const sentAt = e.sent_at || e.created_at
-    return (now - new Date(sentAt).getTime()) / 86400000 >= 2
-  })
-  // Jobs scheduled today
-  const jobsToday = leads.filter(l => l.scheduled_date?.startsWith(today))
-  // Draft estimates (unsent)
-  const draftEstimates = allEstimates.filter((e: any) => e.status === 'draft')
+  // ── Action Center — counts come from /api/overview (single source) ─────────
+  // Thresholds (24h / 0-3d / 48h / today / draft) live in the endpoint, not here,
+  // so web and mobile can't disagree.
+  const ac = overview?.actionCenter ?? {}
 
   // Smart sub-line: actionable morning summary
   const atRisk = awaitingResp.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
@@ -825,7 +808,7 @@ export default function OverviewPage() {
             <ActionCard
               iconPath={ICONS.flame}
               iconBg="#FEF3C7" iconColor="#F59E0B"
-              count={uncontactedLeads.length} label="Uncontacted Leads" sub="No reply in 24+ hours"
+              count={ac.uncontacted ?? 0} label="Uncontacted Leads" sub="No reply in 24+ hours"
               ctaLabel="View Leads" ctaHref="/dashboard/pipeline"
               dk={dk}
             />
@@ -833,7 +816,7 @@ export default function OverviewPage() {
             <ActionCard
               iconPath={ICONS.hourglass}
               iconBg="#FEE2E2" iconColor="#DC2626"
-              count={expiringEstimates.length} label="Expiring Soon" sub="Proposals expire in 3 days"
+              count={ac.expiring ?? 0} label="Expiring Soon" sub="Proposals expire in 3 days"
               ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
               dk={dk}
             />
@@ -841,7 +824,7 @@ export default function OverviewPage() {
             <ActionCard
               iconPath={ICONS.alertTri}
               iconBg="#EDE9FE" iconColor="#7C3AED"
-              count={unsignedProposals.length} label="Awaiting Signature" sub="Sent 48+ hrs, not signed"
+              count={ac.awaitingSignature ?? 0} label="Awaiting Signature" sub="Sent 48+ hrs, not signed"
               ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
               dk={dk}
             />
@@ -849,7 +832,7 @@ export default function OverviewPage() {
             <ActionCard
               iconPath={ICONS.calCheck}
               iconBg="#DCFCE7" iconColor="#16A34A"
-              count={jobsToday.length} label="Jobs Today" sub="On your schedule today"
+              count={ac.jobsToday ?? 0} label="Jobs Today" sub="On your schedule today"
               ctaLabel="View Calendar" ctaHref="/dashboard/calendar"
               dk={dk}
             />
@@ -857,7 +840,7 @@ export default function OverviewPage() {
             <ActionCard
               iconPath={ICONS.fileText}
               iconBg="#EDE9FE" iconColor="#7C3AED"
-              count={draftEstimates.length} label="Draft Proposals" sub="Not sent yet"
+              count={ac.drafts ?? 0} label="Draft Proposals" sub="Not sent yet"
               ctaLabel="View Estimates" ctaHref="/dashboard/estimates"
               dk={dk}
             />
@@ -868,7 +851,7 @@ export default function OverviewPage() {
         {/* Slot renders roofing sections for roofers, null for all other trades              */}
         {session && (() => {
           const OverviewWidget = tc.components.OverviewWidget
-          return <OverviewWidget leads={leads} session={session} dk={dk} />
+          return <OverviewWidget leads={leads} session={session} dk={dk} overview={overview} />
         })()}
 
         {/* ── Reviews & Growth ─────────────────────────────────────────────── */}

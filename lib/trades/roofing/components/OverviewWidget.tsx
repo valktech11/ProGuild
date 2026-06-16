@@ -10,7 +10,6 @@
 import { useRouter } from 'next/navigation'
 import { theme, T, BRAND } from '@/lib/tokens'
 import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
-import { wonInMonth, sumRevenue } from '@/lib/metrics/won'
 
 const TEAL = '#0F766E'
 
@@ -52,7 +51,7 @@ function stageColor(status: string): string {
   return map[status] || TEAL
 }
 
-export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWidgetProps) {
+export default function RoofingOverviewWidget({ leads, session, dk, overview }: OverviewWidgetProps) {
   const router = useRouter()
   const t = theme(dk)
 
@@ -72,50 +71,30 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
       return a.scheduled_time.localeCompare(b.scheduled_time)
     })
 
-  // ── Revenue Forecast ──────────────────────────────────────────────────────
-  // Dollar amounts per roofing stage — shows where money is in the funnel
-  const forecastStages = [
-    { key: 'proposal_sent',       label: 'Proposals Sent',   color: '#D97706', bg: '#FEF3C7' },
-    { key: 'proposal_signed',     label: 'Proposals Signed', color: '#059669', bg: '#D1FAE5' },
-    { key: 'insurance_approved',  label: 'Insurance Approved', color: '#0891B2', bg: '#CFFAFE' },
-    { key: 'scheduled',           label: 'Scheduled',        color: '#2563EB', bg: '#DBEAFE' },
-    { key: 'in_progress',         label: 'In Progress',      color: '#EA580C', bg: '#FFEDD5' },
-  ]
+  // ── Scorecard + Revenue Forecast — all from /api/overview (single source) ──
+  // No client-side metric math: web and mobile read the same computed block, so
+  // they can't drift. Stage/threshold logic lives in the endpoint + won.ts only.
+  const stats = overview?.stats ?? {}
+  const openStages: any[] = overview?.openPipelineByStage ?? []
+  const openPipeline = openStages.reduce((sum: number, s: any) => sum + (s.amount || 0), 0)
 
-  const forecastData = forecastStages.map(stage => ({
-    ...stage,
-    count:  leads.filter(l => l.lead_status === stage.key).length,
-    amount: leads
-      .filter(l => l.lead_status === stage.key)
-      .reduce((sum, l) => sum + (l.quoted_amount || 0), 0),
-  })).filter(s => s.count > 0)
-
-  const wonThisMonth   = wonInMonth(leads, 'job_won', 0)
-  const wonRevenue     = sumRevenue(wonThisMonth)
-  const openPipeline   = forecastData.reduce((sum, s) => sum + s.amount, 0)
-
-  // ── Performance scorecard (this month vs last), keyed off the real won date ──
-  const wonLastMonth   = wonInMonth(leads, 'job_won', 1)
-  const wonRevenueLast = sumRevenue(wonLastMonth)
-  const lostThisMonth  = wonInMonth(leads, 'lost', 0).length
-  const decided        = wonThisMonth.length + lostThisMonth
-  const winRate        = decided > 0 ? Math.round((wonThisMonth.length / decided) * 100) : null
-  const avgTicket      = wonThisMonth.length > 0 ? wonRevenue / wonThisMonth.length : 0
-  const pipelineValue  = sumRevenue(leads.filter(l => l.lead_status !== 'job_won' && l.lead_status !== 'lost'))
-  const allWon         = leads.filter(l => l.lead_status === 'job_won')
-  const totalWonRevenue = sumRevenue(allWon)
-  const revDelta = wonRevenueLast > 0 ? Math.round(((wonRevenue - wonRevenueLast) / wonRevenueLast) * 100) : null
+  const wonMo        = stats.jobsWonThisMonth ?? 0
+  const decided      = stats.decidedThisMonth ?? 0
+  const winRate      = stats.winRate ?? null
+  const avgTicket    = stats.avgTicket ?? 0
+  const revDelta     = stats.revenueDeltaPct ?? null
+  const totalWonJobs = stats.totalWonJobs ?? 0
 
   const scorecard = [
-    { label: 'Revenue · this month', value: fmtCurrency(wonRevenue),
-      sub: revDelta == null ? `${wonThisMonth.length} won` : `${revDelta >= 0 ? '▲' : '▼'} ${Math.abs(revDelta)}% vs last mo`,
+    { label: 'Revenue · this month', value: fmtCurrency(stats.revenueThisMonth ?? 0),
+      sub: revDelta == null ? `${wonMo} won` : `${revDelta >= 0 ? '▲' : '▼'} ${Math.abs(revDelta)}% vs last mo`,
       subColor: revDelta == null ? '#94A3B8' : revDelta >= 0 ? '#059669' : '#DC2626', accent: '#0F766E',
-      sub2: `Total won: ${fmtCurrency(totalWonRevenue)} · ${allWon.length} job${allWon.length!==1?'s':''}` },
-    { label: 'Jobs won', value: String(wonThisMonth.length), sub: 'this month', subColor: '#94A3B8', accent: '#2563EB' },
+      sub2: `Total won: ${fmtCurrency(stats.totalWonRevenue ?? 0)} · ${totalWonJobs} job${totalWonJobs!==1?'s':''}` },
+    { label: 'Jobs won', value: String(wonMo), sub: 'this month', subColor: '#94A3B8', accent: '#2563EB' },
     { label: 'Win rate', value: winRate == null ? '—' : `${winRate}%`,
-      sub: decided > 0 ? `${wonThisMonth.length}/${decided} decided` : 'no closes yet', subColor: '#94A3B8', accent: '#059669' },
+      sub: decided > 0 ? `${wonMo}/${decided} decided` : 'no closes yet', subColor: '#94A3B8', accent: '#059669' },
     { label: 'Avg ticket', value: avgTicket > 0 ? fmtCurrency(Math.round(avgTicket)) : '—', sub: 'per won job', subColor: '#94A3B8', accent: '#D97706' },
-    { label: 'Pipeline value', value: fmtCurrency(pipelineValue), sub: 'open leads', subColor: '#94A3B8', accent: '#0891B2' },
+    { label: 'Pipeline value', value: fmtCurrency(stats.pipelineValue ?? 0), sub: 'open leads', subColor: '#94A3B8', accent: '#0891B2' },
   ]
 
   const card = t.cardBg
@@ -237,7 +216,7 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
       </div>
 
       {/* ── Open pipeline by stage ───────────────────────────────────────────── */}
-      {forecastData.length > 0 && (
+      {openStages.length > 0 && (
         <div className="rounded-2xl mb-5" style={{ backgroundColor: card, border: `1px solid ${bdr}` }}>
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${bdr}` }}>
             <div className="flex items-center gap-2">
@@ -250,7 +229,7 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
           </div>
 
           <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {forecastData.map(stage => (
+            {openStages.map((stage: any) => (
               <div key={stage.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 160, flexShrink: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: t.textPri }}>{stage.label}</div>
@@ -261,13 +240,13 @@ export default function RoofingOverviewWidget({ leads, session, dk }: OverviewWi
                     <div style={{
                       height: '100%',
                       borderRadius: 4,
-                      backgroundColor: stage.color,
+                      backgroundColor: stageColor(stage.key),
                       width: `${Math.max((stage.amount / openPipeline) * 100, 2)}%`,
                       transition: 'width 0.4s ease',
                     }} />
                   )}
                 </div>
-                <div style={{ width: 70, textAlign: 'right', fontSize: 14, fontWeight: 700, color: stage.color, flexShrink: 0 }}>
+                <div style={{ width: 70, textAlign: 'right', fontSize: 14, fontWeight: 700, color: stageColor(stage.key), flexShrink: 0 }}>
                   {fmtCurrency(stage.amount)}
                 </div>
               </div>

@@ -55,6 +55,7 @@ export interface OverviewWidgetProps {
   leads:    any[]
   session:  any
   dk:       boolean
+  overview?: any
 }
 
 export interface AnyTradeComponents {
