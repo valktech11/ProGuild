@@ -1,9 +1,9 @@
 // app/api/cron/pending-review-promote/route.ts
-// Runs daily. Any pros row that has been in Pending_Review for 14+ days
+// Runs daily. Any pros row that has been in Pending_Review for 7+ days
 // gets promoted to Active (is_verified stays false — no badge, but full access).
 //
 // Rationale: the claim model is "let them in, verify as a quality layer."
-// Admin inaction should never permanently block a contractor. After 14 days
+// Admin inaction should never permanently block a contractor. After 7 days
 // of no admin decision and no self-service, we clear them to Active.
 // If the claim turns out to be fraudulent, admin can Suspend from the Claims tab.
 //
@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
-const DAYS = 14
+const DAYS = 7
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get('authorization')

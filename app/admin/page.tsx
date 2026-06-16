@@ -322,7 +322,7 @@ export default function AdminPage() {
                 ))}
                 {(data?.claims || []).length > 0 && (
                   <div className="px-4 py-3 border-t border-gray-100 text-xs text-gray-400">
-                    {data.claims.length} pending · Auto-promoted to Active after 14 days (no badge)
+                    {data.claims.length} pending · Auto-promoted to Active after 7 days (no badge)
                   </div>
                 )}
               </div>
