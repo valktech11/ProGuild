@@ -94,7 +94,7 @@ export default function RoofingOverviewWidget({ leads, session, dk, overview }: 
     { label: 'Win rate', value: winRate == null ? '—' : `${winRate}%`,
       sub: decided > 0 ? `${wonMo}/${decided} decided` : 'no closes yet', subColor: '#94A3B8', accent: '#059669' },
     { label: 'Avg ticket', value: avgTicket > 0 ? fmtCurrency(Math.round(avgTicket)) : '—', sub: 'per won job', subColor: '#94A3B8', accent: '#D97706' },
-    { label: 'Pipeline value', value: fmtCurrency(stats.pipelineValue ?? 0), sub: 'open leads', subColor: '#94A3B8', accent: '#0891B2' },
+    { label: 'Estimated value', value: fmtCurrency(stats.pipelineValue ?? 0), sub: 'in open estimates', subColor: '#94A3B8', accent: '#0891B2' },
   ]
 
   const card = t.cardBg

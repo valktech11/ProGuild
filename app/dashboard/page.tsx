@@ -406,15 +406,15 @@ export default function OverviewPage() {
   })
   const paidLeads      = leads.filter(l => l.lead_status === anchors.won)
   const revenueLeads   = paidLeads
-  const activeLeads    = leads.filter(l => !terminalKeys.some(k => k === l.lead_status) && l.lead_status !== anchors.won)
   const awaitingResp   = newLeads.filter(l => (Date.now() - new Date(l.created_at).getTime()) / 86400000 >= 1)
   const waitingOnCust  = quotedLeads
   const contactedLeads = quotedLeads  // alias for legacy references
   const scheduledLeads: typeof leads = []
   const completedLeads: typeof leads = []
 
-  const revenue  = revenueLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
-  const pipeline = activeLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
+  // revenue + pipeline removed — Overview reads these from /api/overview (stats.pipelineValue,
+  // stats.revenueThisMonth). Inline math was producing a different number ($58.5k vs $33.7k)
+  // because it used a different formula. Single source: the endpoint.
 
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null
 
@@ -428,12 +428,11 @@ export default function OverviewPage() {
   // so web and mobile can't disagree.
   const ac = overview?.actionCenter ?? {}
 
-  // Smart sub-line: actionable morning summary
-  const atRisk = awaitingResp.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
+  // Smart sub-line: driven by actionCenter from the endpoint (not client-side
+  // awaitingResp, which used a different clock and caused duplicate signals).
   const subLineParts: string[] = []
-  if (awaitingResp.length > 0) subLineParts.push(`${awaitingResp.length} homeowner${awaitingResp.length !== 1 ? 's' : ''} waiting`)
-  if (draftCount > 0) subLineParts.push(`${draftCount} estimate${draftCount !== 1 ? 's' : ''} unsent`)
-  if (atRisk > 0) subLineParts.push(`$${atRisk.toLocaleString()} at risk`)
+  if ((ac.uncontacted ?? 0) > 0) subLineParts.push(`${ac.uncontacted} homeowner${ac.uncontacted !== 1 ? 's' : ''} waiting`)
+  if ((ac.drafts ?? 0) > 0) subLineParts.push(`${ac.drafts} estimate${ac.drafts !== 1 ? 's' : ''} unsent`)
   const smartSubLine = subLineParts.join(' · ')
 
   const cardBg  = t.cardBg
@@ -488,21 +487,6 @@ export default function OverviewPage() {
           </div>
 
         </div>
-
-        {/* ── Hero strip — mobile only, above Action Center ── */}
-        {pipeline > 0 && (
-          <div className="flex md:hidden items-center justify-between px-4 py-3 rounded-2xl mb-4"
-            style={{ backgroundColor: t.cardBg, border: `1px solid ${t.cardBorder}`, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-            <div>
-              <div className="text-[12px] font-bold uppercase tracking-wider mb-0.5" style={{ color: t.textMuted }}>Pipeline Value</div>
-              <div style={{ fontSize: T.fontStat, fontWeight: 800, lineHeight: 1, color: textMain }}>${pipeline.toLocaleString()}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-[12px] font-bold uppercase tracking-wider mb-0.5" style={{ color: t.textMuted }}>Active Leads</div>
-              <div style={{ fontSize: T.fontStat, fontWeight: 800, lineHeight: 1, color: textMain }}>{activeLeads.length}</div>
-            </div>
-          </div>
-        )}
 
         {/* ── Welcome card — trade-aware, shown for fresh accounts with no leads ── */}
         {leads.length === 0 && reviews.length === 0 && (() => {

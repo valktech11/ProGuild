@@ -67,9 +67,12 @@ export async function GET(req: NextRequest) {
   const avgTicket       = wonThisMonth.length > 0 ? wonRevenue / wonThisMonth.length : 0
   const allWon          = leads.filter(l => l.lead_status === anchors.won)
   const totalWonRevenue = sumRevenue(allWon as never[])
-  // pipelineValue mirrors OverviewWidget exactly (excludes won + 'lost' only).
-  const pipelineValue   = sumRevenue(
-    leads.filter(l => l.lead_status !== anchors.won && l.lead_status !== 'lost') as never[])
+  // estimatedValue: quoted_amount on canonical open leads (not terminal, not won,
+  // not 'Paid'). Matches pipeline/summary route exactly so both screens agree.
+  const closedForPipeline = new Set([...terminalKeys, anchors.won, 'Paid'])
+  const openLeads = leads.filter(l => !closedForPipeline.has(l.lead_status as string))
+  const pipelineValue = Math.round(
+    openLeads.reduce((s, l) => s + ((l.quoted_amount as number) || 0), 0) * 100) / 100
   const revenueDeltaPct = wonRevenueLast > 0
     ? Math.round(((wonRevenue - wonRevenueLast) / wonRevenueLast) * 100) : null
 

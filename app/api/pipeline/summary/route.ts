@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   // Fetch leads + estimates in parallel
   const [leadsRes, estRes] = await Promise.all([
     sb.from('leads')
-      .select('lead_status, created_at, lead_status_changed_at, quoted_amount')
+      .select('lead_status, created_at, lead_status_changed_at, quoted_amount, roofing_job_data(approved_amount)')
       .eq('pro_id', proId),
     sb.from('estimates')
       .select('status, sent_at, valid_until')
@@ -83,11 +83,23 @@ export async function GET(req: NextRequest) {
   // insurance_approved (Insurance Follow-Up) — see lib/metrics/sla.ts.
   const stalledLeads = openLeads.filter(l => isStalled(l, anchors.entry, now)).length
 
+  // approvedValue: sum of carrier-approved amounts on open insurance leads.
+  // Only leads where approved_amount > 0 count — this is the "carrier locked in" number.
+  const approvedValue = Math.round(
+    openLeads.reduce((s, l) => {
+      const rjd = Array.isArray((l as any).roofing_job_data)
+        ? (l as any).roofing_job_data[0]
+        : (l as any).roofing_job_data
+      const approved = rjd?.approved_amount
+      return s + (approved != null && approved > 0 ? approved : 0)
+    }, 0) * 100) / 100
+
   return NextResponse.json({
     // ── Command bar ──────────────────────────────────────────────────────────
     newCount:      entryLeads.length,
     activeCount:   openLeads.length,
     pipelineValue: Math.round(openLeads.reduce((s, l) => s + ((l.quoted_amount as number) || 0), 0) * 100) / 100,
+    approvedValue,
     wonThisMonth:  wonInMonth(leads as never[], anchors.won, 0).length,
     newThisMonth:  leads.filter(l => new Date(l.created_at as string).getTime() >= monthStart).length,
     // ── Action cards ─────────────────────────────────────────────────────────

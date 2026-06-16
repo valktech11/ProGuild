@@ -41,6 +41,18 @@ export default function PipelinePage() {
   const [filters,     setFilters]     = useState<FilterState>(DEFAULT_FILTERS)
   const [summary,     setSummary]     = useState<any>(null)
 
+  // Derive which action card (if any) is the source of the current filter.
+  // Used to show selected state on the card and to toggle it off on re-click.
+  const activeFilter = (() => {
+    const anchors = getStageAnchors(session?.trade_slug)
+    if (filters.needsAttention && !filters.stages.length) return 'stalledLeads'
+    const s = filters.stages
+    if (s.length === 1 && s[0] === anchors.entry) return 'needsContact'
+    if (s.length === 1 && s[0] === 'insurance_approved') return 'insuranceFollowUp'
+    if (s.length === 2 && s.includes('proposal_sent') && s.includes('proposal_signed')) return 'awaitingSignature'
+    return null
+  })()
+
   // Action card click → apply a board filter that matches the card's definition
   const handleActionFilter = useCallback((key: string) => {
     const anchors = getStageAnchors(session?.trade_slug)
@@ -145,7 +157,8 @@ export default function PipelinePage() {
   const sm            = summary ?? {}
   const newCount      = sm.newCount ?? 0
   const activeCount   = sm.activeCount ?? 0
-  const pipelineValue = sm.pipelineValue ?? 0
+  const pipelineValue = sm.pipelineValue ?? 0   // estimated (quoted) value of open leads
+  const approvedValue = sm.approvedValue ?? 0   // carrier-approved value on open insurance leads
   const overdueCount  = sm.overdueCount ?? 0
   const wonThisMonth  = sm.wonThisMonth ?? 0
 
@@ -163,7 +176,7 @@ export default function PipelinePage() {
             <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: textMain, margin: 0 }}>
               {noun}
             </h1>
-            {/* Status line — action-first: new leads → overdue → open value → won */}
+            {/* Status line — new leads · $X estimated · $X approved · N won */}
             {leads.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {newCount > 0 && (
@@ -183,7 +196,15 @@ export default function PipelinePage() {
                   <>
                     <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#0F766E' }}>
-                      ${pipelineValue.toLocaleString()} open
+                      ${pipelineValue.toLocaleString()} estimated
+                    </span>
+                  </>
+                )}
+                {approvedValue > 0 && (
+                  <>
+                    <span style={{ color: t.cardBorder, fontSize: 12 }}>·</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0891B2' }}>
+                      ${approvedValue.toLocaleString()} approved
                     </span>
                   </>
                 )}
@@ -232,8 +253,10 @@ export default function PipelinePage() {
           </div>
         </div>
 
-        {/* Active filter chips — inline below command bar, only when active */}
-        {activeFilterCount > 0 && (
+        {/* Active filter chips — inline below command bar, only when active.
+            Card-driven filters (activeFilter set) show as the card's selected state;
+            no chip rendered for those — one affordance per filter. */}
+        {activeFilterCount > 0 && !activeFilter && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
             {filters.stages.map(s => (
               <span key={s}><Chip label={s} onRemove={() => setFilters(f => ({ ...f, stages: f.stages.filter(x => x !== s) }))} /></span>
@@ -295,6 +318,8 @@ export default function PipelinePage() {
             dk={dk}
             summary={summary}
             onActionFilter={handleActionFilter}
+            activeFilter={activeFilter}
+            onClearFilter={() => setFilters(DEFAULT_FILTERS)}
           />
         )}
       </div>
