@@ -1,9 +1,9 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { getTerminalStages,  getStageAnchors, getActiveStages, getTradeConfig, isRoofing } from '@/lib/trades/_registry'
+import { getTerminalStages, getStageAnchors, getActiveStages, getTradeConfig } from '@/lib/trades/_registry'
 import { isStalled } from '@/lib/metrics/sla'
 import { Lead } from '@/types'
-import { theme, T } from '@/lib/tokens'
+import { theme, BRAND } from '@/lib/tokens'
 
 export interface FilterState {
   stages: string[]
@@ -11,8 +11,8 @@ export interface FilterState {
   needsAttention: boolean
   minValue: string
   maxValue: string
-  dateReceived: string   // '' | 'today' | 'week' | 'month'
-  followUpDue: string    // '' | 'overdue' | 'today' | 'week'
+  dateReceived: string
+  followUpDue: string
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -39,32 +39,22 @@ export function isFilterActive(f: FilterState): boolean {
 
 export function applyFilters(leads: Lead[], f: FilterState, tradeSlug?: string | null): Lead[] {
   let result = leads
-
-  if (f.stages.length > 0) {
-    result = result.filter(l => f.stages.some(s => s === l.lead_status))
-  }
-
-  if (f.sources.length > 0) {
-    result = result.filter(l => f.sources.includes(l.lead_source))
-  }
-
+  if (f.stages.length > 0) result = result.filter(l => f.stages.some(s => s === l.lead_status))
+  if (f.sources.length > 0) result = result.filter(l => f.sources.includes(l.lead_source))
   if (f.needsAttention) {
     const anchors = getStageAnchors(tradeSlug)
     result = result.filter(l => isStalled(l, anchors.entry))
   }
-
   if (f.minValue !== '') {
     const min = parseFloat(f.minValue)
     result = result.filter(l => (l.quoted_amount ?? 0) >= min)
   }
-
   if (f.maxValue !== '') {
     const max = parseFloat(f.maxValue)
     result = result.filter(l => (l.quoted_amount ?? 0) <= max)
   }
-
   if (f.dateReceived) {
-    const now      = new Date()
+    const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
     const weekStart  = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
@@ -76,7 +66,6 @@ export function applyFilters(leads: Lead[], f: FilterState, tradeSlug?: string |
       return true
     })
   }
-
   if (f.followUpDue) {
     const today = new Date(); today.setHours(0,0,0,0)
     const todayEnd = new Date(); todayEnd.setHours(23,59,59,999)
@@ -90,23 +79,21 @@ export function applyFilters(leads: Lead[], f: FilterState, tradeSlug?: string |
       return true
     })
   }
-
   return result
 }
 
-// ── Static fallbacks ────────────────────────────────────────────────────────
 const SOURCES_FALLBACK = [
+  { key: 'Phone_Call',    label: 'Phone Call' },
   { key: 'Referral',      label: 'Referral' },
-  { key: 'Profile_Page',  label: 'Profile Page' },
-  { key: 'Job_Post',      label: 'Job Post' },
-  { key: 'Search_Result', label: 'Search Result' },
-  { key: 'Direct',        label: 'Direct' },
   { key: 'Facebook',      label: 'Facebook' },
   { key: 'Instagram',     label: 'Instagram' },
-  { key: 'Website',       label: 'Website' },
-  { key: 'Phone_Call',    label: 'Phone Call' },
   { key: 'Yard_Sign',     label: 'Yard Sign' },
-  { key: 'Walk_In',       label: 'Walk-In' },
+  { key: 'Door_Knock',    label: 'Door Knock' },
+  { key: 'Storm_Damage',  label: 'Storm Damage' },
+  { key: 'Insurance_Co',  label: 'Insurance Co.' },
+  { key: 'Website',       label: 'Website' },
+  { key: 'Google',        label: 'Google' },
+  { key: 'Canvassing',    label: 'Canvassing' },
   { key: 'Other',         label: 'Other' },
 ]
 
@@ -121,256 +108,313 @@ interface Props {
 }
 
 export default function FilterPanel({ open, filters, onChange, onClose, onClear, dk, tradeSlug }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null)
+  const panelRef  = useRef<HTMLDivElement>(null)
   const [stageOpen,  setStageOpen]  = useState(false)
   const [sourceOpen, setSourceOpen] = useState(false)
   const t = theme(dk)
 
-  const plugin       = getTradeConfig(tradeSlug)
-  const wonKey       = getStageAnchors(tradeSlug).won
-  const wonStage     = { key: wonKey, label: plugin.labels.wonStage, color: '#4A7B4A', bg: '#F0FDF4' }
-  const activeStages = getActiveStages(tradeSlug).filter(s => !s.terminal && s.key !== wonKey)
+  const plugin         = getTradeConfig(tradeSlug)
+  const wonKey         = getStageAnchors(tradeSlug).won
+  const wonStage       = { key: wonKey, label: plugin.labels.wonStage, color: '#15803D', bg: '#F0FDF4' }
+  const activeStages   = getActiveStages(tradeSlug).filter(s => !s.terminal && s.key !== wonKey)
   const terminalStages = getTerminalStages(tradeSlug).filter(s => s.key !== wonKey)
-  const stageOptions = [...activeStages, ...terminalStages, { ...wonStage, terminal: false }]
+  const stageOptions   = [...activeStages, ...terminalStages, { ...wonStage, terminal: false }]
   const sourceOptions: { key: string; label: string }[] = (plugin as any).leadSources
     ? (plugin as any).leadSources.map((s: any) => ({ key: s.value ?? s.label as string, label: s.label as string }))
     : SOURCES_FALLBACK
 
   useEffect(() => {
     if (!open) return
-    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, onClose])
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    if (!stageOpen && !sourceOpen) return
+    const handleClick = () => { setStageOpen(false); setSourceOpen(false) }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [stageOpen, sourceOpen])
 
   function toggleArr(arr: string[], val: string): string[] {
     return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
   }
 
-  const TEAL    = '#0F766E'
-  const border  = t.cardBorder
-  const text    = t.textPri
-  const muted   = t.textMuted
-  const subtle  = t.textSubtle
+  const TEAL   = BRAND.teal
+  const activeCount = [
+    filters.stages.length > 0, filters.sources.length > 0, filters.needsAttention,
+    filters.minValue !== '' || filters.maxValue !== '',
+    filters.dateReceived !== '', filters.followUpDue !== '',
+  ].filter(Boolean).length
+
+  const stageSummary = () => {
+    if (!filters.stages.length) return null
+    if (filters.stages.length === 1) return stageOptions.find(s => s.key === filters.stages[0])?.label
+    return `${filters.stages.length} stages selected`
+  }
+  const sourceSummary = () => {
+    if (!filters.sources.length) return null
+    if (filters.sources.length === 1) return sourceOptions.find(s => s.key === filters.sources[0])?.label
+    return `${filters.sources.length} sources selected`
+  }
 
   if (!open) return null
 
-  const activeCount = [
-    filters.stages.length > 0,
-    filters.sources.length > 0,
-    filters.needsAttention,
-    filters.minValue !== '' || filters.maxValue !== '',
-    filters.dateReceived !== '',
-    filters.followUpDue !== '',
-  ].filter(Boolean).length
-
-  // summary label for a dropdown trigger
-  function stageSummary() {
-    if (filters.stages.length === 0) return 'All stages'
-    if (filters.stages.length === 1) {
-      return stageOptions.find(s => s.key === filters.stages[0])?.label ?? filters.stages[0]
-    }
-    return `${filters.stages.length} stages`
+  // shared styles
+  const triggerBase: React.CSSProperties = {
+    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '11px 14px', borderRadius: 10, cursor: 'pointer',
+    fontSize: 13, fontWeight: 500, border: 'none', outline: 'none',
+    transition: 'border-color 120ms, background 120ms',
   }
-  function sourceSummary() {
-    if (filters.sources.length === 0) return 'All sources'
-    if (filters.sources.length === 1) {
-      return sourceOptions.find(s => s.key === filters.sources[0])?.label ?? filters.sources[0]
-    }
-    return `${filters.sources.length} sources`
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '10px 12px 10px 32px',
+    borderRadius: 10, fontSize: 13, fontWeight: 500,
+    border: `1.5px solid ${t.inputBorder}`, color: t.textPri,
+    background: t.inputBg, outline: 'none', boxSizing: 'border-box',
   }
 
   return (
-    <div className="fixed inset-0 z-50" style={{ background: 'rgba(0,0,0,0.30)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-50" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
       <div
         ref={panelRef}
-        className="absolute right-0 top-0 h-full flex flex-col shadow-2xl"
-        style={{ width: 360, maxWidth: '95vw', background: t.cardBg, borderLeft: `1px solid ${border}` }}
+        className="absolute right-0 top-0 h-full flex flex-col"
+        style={{
+          width: 360, maxWidth: '95vw',
+          background: dk ? '#0E1118' : '#FFFFFF',
+          borderLeft: `1px solid ${t.cardBorder}`,
+          boxShadow: '-8px 0 40px rgba(0,0,0,0.15)',
+        }}
         onClick={e => e.stopPropagation()}
       >
 
-        {/* ── Header ── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 16px', borderBottom: `1px solid ${border}` }}>
+        {/* ── Header ───────────────────────────────────────────────────────── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 20px 18px',
+          borderBottom: `1px solid ${t.cardBorder}`,
+          background: dk ? '#111827' : '#FAFAFA',
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.2" strokeLinecap="round">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-            </svg>
-            <span style={{ fontSize: 15, fontWeight: 700, color: text }}>Filter Leads</span>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: '#F0FDFA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.5" strokeLinecap="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: 15, fontWeight: 700, color: t.textPri, letterSpacing: '-0.01em' }}>Filter Leads</span>
             {activeCount > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: TEAL, color: '#fff' }}>
-                {activeCount}
-              </span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                background: TEAL, color: '#fff', letterSpacing: '0.02em',
+              }}>{activeCount} active</span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {activeCount > 0 && (
-              <button onClick={onClear} style={{ fontSize: 12, fontWeight: 600, color: TEAL, background: '#F0FDFA', border: '1px solid #CCFBF1', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>
-                Clear all
-              </button>
+              <button onClick={onClear} style={{
+                fontSize: 12, fontWeight: 600, color: '#EF4444',
+                background: '#FEF2F2', border: '1px solid #FECACA',
+                borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+              }}>Clear all</button>
             )}
-            <button onClick={onClose} style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: muted }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <button onClick={onClose} style={{
+              width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              borderRadius: 8, border: `1px solid ${t.cardBorder}`,
+              background: 'none', cursor: 'pointer', color: t.textMuted,
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
           </div>
         </div>
 
-        {/* ── Body ── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 16px' }}>
+        {/* ── Scrollable body ───────────────────────────────────────────────── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 8px' }}>
 
-          {/* ── Stage dropdown ── */}
-          <FilterSection label="Stage" active={filters.stages.length > 0} onClear={() => onChange({ ...filters, stages: [] })}>
-            <div style={{ position: 'relative' }}>
+          {/* Stage */}
+          <FilterGroup
+            label="Stage"
+            active={filters.stages.length > 0}
+            onClear={() => { onChange({ ...filters, stages: [] }); setStageOpen(false) }}
+            dk={dk}
+          >
+            <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
               <button
                 onClick={() => { setStageOpen(v => !v); setSourceOpen(false) }}
                 style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                  background: filters.stages.length > 0 ? '#F0FDFA' : (dk ? '#1E293B' : '#F8FAFC'),
-                  border: `1.5px solid ${filters.stages.length > 0 ? TEAL : border}`,
-                  color: filters.stages.length > 0 ? TEAL : muted,
-                  fontSize: 13, fontWeight: 500,
+                  ...triggerBase,
+                  background: filters.stages.length > 0 ? (dk ? '#0D2E28' : '#F0FDFA') : (dk ? '#1E293B' : '#F8FAFC'),
+                  border: `1.5px solid ${filters.stages.length > 0 ? TEAL : t.inputBorder}`,
+                  color: filters.stages.length > 0 ? TEAL : t.textMuted,
                 }}
               >
-                <span style={{ fontWeight: filters.stages.length > 0 ? 600 : 400 }}>{stageSummary()}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                  style={{ transform: stageOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms', flexShrink: 0 }}>
+                <span style={{ fontWeight: filters.stages.length > 0 ? 600 : 400 }}>
+                  {stageSummary() ?? 'All stages'}
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transform: stageOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms', opacity: 0.5, flexShrink: 0 }}>
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
 
               {stageOpen && (
                 <div style={{
-                  position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 10,
-                  background: t.cardBg, border: `1px solid ${border}`, borderRadius: 12,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.10)', overflow: 'hidden',
+                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 20,
+                  background: dk ? '#1A2130' : '#FFFFFF',
+                  border: `1px solid ${t.cardBorder}`, borderRadius: 12,
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
+                  overflow: 'hidden',
                 }}>
-                  {stageOptions.map((s, i) => {
-                    const isActive = filters.stages.includes(s.key)
-                    const color = (s as any).color || '#374151'
-                    return (
-                      <button
-                        key={s.key}
-                        onClick={() => onChange({ ...filters, stages: toggleArr(filters.stages, s.key) })}
-                        style={{
-                          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                          padding: '10px 14px', background: isActive ? (dk ? '#0F2922' : '#F0FDFA') : 'transparent',
-                          border: 'none', borderBottom: i < stageOptions.length - 1 ? `1px solid ${border}` : 'none',
-                          cursor: 'pointer', textAlign: 'left' as const,
-                          transition: 'background 100ms',
-                        }}
-                      >
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: color }} />
-                        <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? TEAL : text, flex: 1 }}>
-                          {s.label}
-                        </span>
-                        {isActive && (
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.5" strokeLinecap="round">
-                            <polyline points="20 6 9 17 4 12"/>
-                          </svg>
-                        )}
+                  {/* Select all / clear */}
+                  <div style={{ padding: '10px 14px 8px', borderBottom: `1px solid ${t.cardBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      {filters.stages.length} of {stageOptions.length} selected
+                    </span>
+                    {filters.stages.length > 0 && (
+                      <button onClick={() => onChange({ ...filters, stages: [] })}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        Clear
                       </button>
-                    )
-                  })}
-                  {filters.stages.length > 0 && (
-                    <button
-                      onClick={() => { onChange({ ...filters, stages: [] }); setStageOpen(false) }}
-                      style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', borderTop: `1px solid ${border}`, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#EF4444', textAlign: 'left' as const }}
-                    >
-                      Clear stage filter
-                    </button>
-                  )}
+                    )}
+                  </div>
+                  <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                    {stageOptions.map((s, i) => {
+                      const on = filters.stages.includes(s.key)
+                      const color = (s as any).color || '#374151'
+                      return (
+                        <button key={s.key}
+                          onClick={() => onChange({ ...filters, stages: toggleArr(filters.stages, s.key) })}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '10px 14px',
+                            background: on ? (dk ? '#0D2E28' : '#F0FDFA') : 'transparent',
+                            border: 'none',
+                            borderBottom: i < stageOptions.length - 1 ? `1px solid ${t.divider}` : 'none',
+                            cursor: 'pointer', textAlign: 'left',
+                          }}>
+                          {/* Checkbox */}
+                          <span style={{
+                            width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                            border: `2px solid ${on ? TEAL : t.inputBorder}`,
+                            background: on ? TEAL : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {on && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                          </span>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, fontWeight: on ? 600 : 400, color: on ? t.textPri : t.textBody, flex: 1 }}>
+                            {s.label}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Selected stage pills — compact summary below trigger */}
+            {/* Selected pills */}
             {filters.stages.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
                 {filters.stages.map(key => {
                   const s = stageOptions.find(o => o.key === key)
-                  const color = (s as any)?.color || '#374151'
+                  const color = (s as any)?.color || TEAL
                   return (
                     <span key={key} style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      padding: '3px 8px 3px 6px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                      background: '#F0FDFA', color: TEAL, border: `1px solid #CCFBF1`,
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '3px 6px 3px 8px', borderRadius: 20,
+                      fontSize: 11, fontWeight: 600,
+                      background: dk ? '#0D2E28' : '#F0FDFA',
+                      color: TEAL, border: `1px solid ${dk ? '#1A4A40' : '#CCFBF1'}`,
                     }}>
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
                       {s?.label ?? key}
                       <button onClick={() => onChange({ ...filters, stages: filters.stages.filter(x => x !== key) })}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: TEAL, lineHeight: 1, fontSize: 13 }}>×</button>
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '0 0 0 2px', color: TEAL, lineHeight: 1, fontSize: 14, display: 'flex', alignItems: 'center' }}>×</button>
                     </span>
                   )
                 })}
               </div>
             )}
-          </FilterSection>
+          </FilterGroup>
 
-          <Divider />
-
-          {/* ── Lead Source dropdown ── */}
-          <FilterSection label="Lead Source" active={filters.sources.length > 0} onClear={() => onChange({ ...filters, sources: [] })}>
-            <div style={{ position: 'relative' }}>
+          {/* Lead Source */}
+          <FilterGroup
+            label="Lead Source"
+            active={filters.sources.length > 0}
+            onClear={() => { onChange({ ...filters, sources: [] }); setSourceOpen(false) }}
+            dk={dk}
+          >
+            <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
               <button
                 onClick={() => { setSourceOpen(v => !v); setStageOpen(false) }}
                 style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                  background: filters.sources.length > 0 ? '#F0FDFA' : (dk ? '#1E293B' : '#F8FAFC'),
-                  border: `1.5px solid ${filters.sources.length > 0 ? TEAL : border}`,
-                  color: filters.sources.length > 0 ? TEAL : muted,
-                  fontSize: 13, fontWeight: 500,
+                  ...triggerBase,
+                  background: filters.sources.length > 0 ? (dk ? '#0D2E28' : '#F0FDFA') : (dk ? '#1E293B' : '#F8FAFC'),
+                  border: `1.5px solid ${filters.sources.length > 0 ? TEAL : t.inputBorder}`,
+                  color: filters.sources.length > 0 ? TEAL : t.textMuted,
                 }}
               >
-                <span style={{ fontWeight: filters.sources.length > 0 ? 600 : 400 }}>{sourceSummary()}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                  style={{ transform: sourceOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms', flexShrink: 0 }}>
+                <span style={{ fontWeight: filters.sources.length > 0 ? 600 : 400 }}>
+                  {sourceSummary() ?? 'All sources'}
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transform: sourceOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms', opacity: 0.5, flexShrink: 0 }}>
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
 
               {sourceOpen && (
                 <div style={{
-                  position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 10,
-                  background: t.cardBg, border: `1px solid ${border}`, borderRadius: 12,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.10)', overflow: 'hidden',
-                  maxHeight: 280, overflowY: 'auto',
+                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 20,
+                  background: dk ? '#1A2130' : '#FFFFFF',
+                  border: `1px solid ${t.cardBorder}`, borderRadius: 12,
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
+                  overflow: 'hidden',
                 }}>
-                  {sourceOptions.map((s, i) => {
-                    const isActive = filters.sources.includes(s.key)
-                    return (
-                      <button
-                        key={s.key}
-                        onClick={() => onChange({ ...filters, sources: toggleArr(filters.sources, s.key) })}
-                        style={{
-                          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                          padding: '10px 14px', background: isActive ? (dk ? '#0F2922' : '#F0FDFA') : 'transparent',
-                          border: 'none', borderBottom: i < sourceOptions.length - 1 ? `1px solid ${border}` : 'none',
-                          cursor: 'pointer', textAlign: 'left' as const,
-                          transition: 'background 100ms',
-                        }}
-                      >
-                        <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? TEAL : text, flex: 1 }}>
-                          {s.label}
-                        </span>
-                        {isActive && (
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.5" strokeLinecap="round">
-                            <polyline points="20 6 9 17 4 12"/>
-                          </svg>
-                        )}
+                  <div style={{ padding: '10px 14px 8px', borderBottom: `1px solid ${t.cardBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      {filters.sources.length} of {sourceOptions.length} selected
+                    </span>
+                    {filters.sources.length > 0 && (
+                      <button onClick={() => onChange({ ...filters, sources: [] })}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        Clear
                       </button>
-                    )
-                  })}
-                  {filters.sources.length > 0 && (
-                    <button
-                      onClick={() => { onChange({ ...filters, sources: [] }); setSourceOpen(false) }}
-                      style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', borderTop: `1px solid ${border}`, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#EF4444', textAlign: 'left' as const }}
-                    >
-                      Clear source filter
-                    </button>
-                  )}
+                    )}
+                  </div>
+                  <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                    {sourceOptions.map((s, i) => {
+                      const on = filters.sources.includes(s.key)
+                      return (
+                        <button key={s.key}
+                          onClick={() => onChange({ ...filters, sources: toggleArr(filters.sources, s.key) })}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '10px 14px',
+                            background: on ? (dk ? '#0D2E28' : '#F0FDFA') : 'transparent',
+                            border: 'none',
+                            borderBottom: i < sourceOptions.length - 1 ? `1px solid ${t.divider}` : 'none',
+                            cursor: 'pointer', textAlign: 'left',
+                          }}>
+                          <span style={{
+                            width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                            border: `2px solid ${on ? TEAL : t.inputBorder}`,
+                            background: on ? TEAL : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {on && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: on ? 600 : 400, color: on ? t.textPri : t.textBody, flex: 1 }}>
+                            {s.label}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -382,145 +426,143 @@ export default function FilterPanel({ open, filters, onChange, onClose, onClear,
                   return (
                     <span key={key} style={{
                       display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '3px 8px 3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                      background: '#F0FDFA', color: TEAL, border: '1px solid #CCFBF1',
+                      padding: '3px 6px 3px 10px', borderRadius: 20,
+                      fontSize: 11, fontWeight: 600,
+                      background: dk ? '#0D2E28' : '#F0FDFA',
+                      color: TEAL, border: `1px solid ${dk ? '#1A4A40' : '#CCFBF1'}`,
                     }}>
                       {s?.label ?? key}
                       <button onClick={() => onChange({ ...filters, sources: filters.sources.filter(x => x !== key) })}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: TEAL, lineHeight: 1, fontSize: 13 }}>×</button>
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '0 0 0 2px', color: TEAL, lineHeight: 1, fontSize: 14, display: 'flex', alignItems: 'center' }}>×</button>
                     </span>
                   )
                 })}
               </div>
             )}
-          </FilterSection>
+          </FilterGroup>
 
-          <Divider />
-
-          {/* ── Needs attention ── */}
-          <FilterSection label="Status">
+          {/* Status */}
+          <FilterGroup label="Status" dk={dk}>
             <button
               onClick={() => onChange({ ...filters, needsAttention: !filters.needsAttention })}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                padding: '11px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left' as const,
-                background: filters.needsAttention ? '#FFFBEB' : (dk ? '#1E293B' : '#F8FAFC'),
-                border: `1.5px solid ${filters.needsAttention ? '#D97706' : border}`,
+                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                background: filters.needsAttention ? (dk ? '#1C1600' : '#FFFBEB') : (dk ? '#1E293B' : '#F8FAFC'),
+                border: `1.5px solid ${filters.needsAttention ? '#D97706' : t.inputBorder}`,
                 transition: 'all 120ms',
-              }}
-            >
-              <span style={{ fontSize: 16, lineHeight: 1 }}>⚠️</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: filters.needsAttention ? '#92400E' : text }}>Needs attention</div>
-                <div style={{ fontSize: 11, color: subtle, marginTop: 1 }}>Stalled past stage SLA</div>
-              </div>
+              }}>
               <div style={{
-                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                background: filters.needsAttention ? '#D97706' : (dk ? '#334155' : '#E2E8F0'),
+                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                background: filters.needsAttention ? '#FEF3C7' : (dk ? '#2D3A4A' : '#F1F5F9'),
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                {filters.needsAttention && (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                )}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={filters.needsAttention ? '#D97706' : '#9CA3AF'} strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: filters.needsAttention ? '#92400E' : t.textPri }}>Needs attention</div>
+                <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 2 }}>Stalled past stage SLA</div>
+              </div>
+              {/* Toggle */}
+              <div style={{
+                width: 36, height: 20, borderRadius: 20, flexShrink: 0,
+                background: filters.needsAttention ? '#D97706' : (dk ? '#374151' : '#D1D5DB'),
+                position: 'relative', transition: 'background 200ms',
+              }}>
+                <div style={{
+                  position: 'absolute', top: 2, left: filters.needsAttention ? 18 : 2,
+                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                  transition: 'left 200ms',
+                }} />
               </div>
             </button>
-          </FilterSection>
+          </FilterGroup>
 
-          <Divider />
-
-          {/* ── Estimated Value ── */}
-          <FilterSection label="Estimated Value" active={!!(filters.minValue || filters.maxValue)} onClear={() => onChange({ ...filters, minValue: '', maxValue: '' })}>
+          {/* Estimated Value */}
+          <FilterGroup label="Estimated Value" active={!!(filters.minValue || filters.maxValue)} onClear={() => onChange({ ...filters, minValue: '', maxValue: '' })} dk={dk}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: muted, pointerEvents: 'none' }}>$</span>
-                <input type="number" placeholder="Min" value={filters.minValue}
-                  onChange={e => onChange({ ...filters, minValue: e.target.value })}
-                  style={{
-                    width: '100%', paddingLeft: 26, paddingRight: 10, paddingTop: 10, paddingBottom: 10,
-                    borderRadius: 10, fontSize: 13, fontWeight: 500,
-                    background: dk ? '#1E293B' : '#F8FAFC',
-                    border: `1.5px solid ${filters.minValue ? TEAL : border}`,
-                    color: text, outline: 'none', boxSizing: 'border-box' as const,
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: 13, color: muted, flexShrink: 0 }}>to</span>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: muted, pointerEvents: 'none' }}>$</span>
-                <input type="number" placeholder="Max" value={filters.maxValue}
-                  onChange={e => onChange({ ...filters, maxValue: e.target.value })}
-                  style={{
-                    width: '100%', paddingLeft: 26, paddingRight: 10, paddingTop: 10, paddingBottom: 10,
-                    borderRadius: 10, fontSize: 13, fontWeight: 500,
-                    background: dk ? '#1E293B' : '#F8FAFC',
-                    border: `1.5px solid ${filters.maxValue ? TEAL : border}`,
-                    color: text, outline: 'none', boxSizing: 'border-box' as const,
-                  }}
-                />
-              </div>
+              {(['minValue', 'maxValue'] as const).map((field, i) => (
+                <div key={field} style={{ flex: 1, position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: t.textSubtle, pointerEvents: 'none', fontWeight: 500 }}>$</span>
+                  <input
+                    type="number"
+                    placeholder={i === 0 ? 'Min' : 'Max'}
+                    value={filters[field]}
+                    onChange={e => onChange({ ...filters, [field]: e.target.value })}
+                    style={{
+                      ...inputStyle,
+                      border: `1.5px solid ${filters[field] ? TEAL : t.inputBorder}`,
+                    }}
+                  />
+                </div>
+              ))}
+              <span style={{ fontSize: 13, color: t.textMuted, flexShrink: 0 }}>to</span>
             </div>
-          </FilterSection>
+          </FilterGroup>
 
-          <Divider />
-
-          {/* ── Date Received ── */}
-          <FilterSection label="Date Received" active={!!filters.dateReceived} onClear={() => onChange({ ...filters, dateReceived: '' })}>
-            <SegmentedControl
-              options={[{ key: 'today', label: 'Today' }, { key: 'week', label: 'This week' }, { key: 'month', label: 'This month' }]}
+          {/* Date Received */}
+          <FilterGroup label="Date Received" active={!!filters.dateReceived} onClear={() => onChange({ ...filters, dateReceived: '' })} dk={dk}>
+            <Seg
+              options={[{ k: 'today', l: 'Today' }, { k: 'week', l: 'This week' }, { k: 'month', l: 'This month' }]}
               value={filters.dateReceived}
               onChange={v => onChange({ ...filters, dateReceived: v === filters.dateReceived ? '' : v })}
-              dk={dk} color={TEAL}
+              dk={dk}
             />
-          </FilterSection>
+          </FilterGroup>
 
-          <Divider />
-
-          {/* ── Follow-up Due ── */}
-          <FilterSection label="Follow-up Due" active={!!filters.followUpDue} onClear={() => onChange({ ...filters, followUpDue: '' })}>
-            <SegmentedControl
-              options={[{ key: 'overdue', label: 'Overdue', red: true }, { key: 'today', label: 'Today' }, { key: 'week', label: 'This week' }]}
+          {/* Follow-up Due */}
+          <FilterGroup label="Follow-up Due" active={!!filters.followUpDue} onClear={() => onChange({ ...filters, followUpDue: '' })} dk={dk}>
+            <Seg
+              options={[{ k: 'overdue', l: 'Overdue', red: true }, { k: 'today', l: 'Today' }, { k: 'week', l: 'This week' }]}
               value={filters.followUpDue}
               onChange={v => onChange({ ...filters, followUpDue: v === filters.followUpDue ? '' : v })}
-              dk={dk} color={TEAL}
+              dk={dk}
             />
-          </FilterSection>
+          </FilterGroup>
 
         </div>
 
-        {/* ── Footer ── */}
-        <div style={{ flexShrink: 0, padding: '12px 20px 16px', borderTop: `1px solid ${border}`, background: t.cardBg }}>
+        {/* ── Footer ───────────────────────────────────────────────────────── */}
+        <div style={{
+          flexShrink: 0, padding: '14px 20px 20px',
+          borderTop: `1px solid ${t.cardBorder}`,
+          background: dk ? '#111827' : '#FAFAFA',
+        }}>
           <button
             onClick={onClose}
             style={{
-              width: '100%', padding: '13px 0', borderRadius: 12, fontSize: 14, fontWeight: 700,
-              background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff',
-              border: 'none', cursor: 'pointer',
+              width: '100%', padding: '13px 0', borderRadius: 12,
+              fontSize: 14, fontWeight: 700, cursor: 'pointer', border: 'none',
+              background: 'linear-gradient(135deg, #0F766E 0%, #0D9488 100%)',
+              color: '#fff', letterSpacing: '-0.01em',
             }}
           >
-            {activeCount > 0 ? `Show results · ${activeCount} filter${activeCount !== 1 ? 's' : ''} active` : 'Done'}
+            {activeCount > 0 ? `Apply ${activeCount} filter${activeCount !== 1 ? 's' : ''}` : 'Done'}
           </button>
         </div>
-
       </div>
     </div>
   )
 }
 
-// ── Sub-components ───────────────────────────────────────────────────────────
+// ── Sub-components ────────────────────────────────────────────────────────────
 
-function FilterSection({ label, active, onClear, children }: {
-  label: string; active?: boolean; onClear?: () => void; children: React.ReactNode
+function FilterGroup({ label, active, onClear, dk, children }: {
+  label: string; active?: boolean; onClear?: () => void; dk: boolean; children: React.ReactNode
 }) {
+  const t = theme(dk)
   return (
-    <div style={{ marginBottom: 20 }}>
+    <div style={{ padding: '18px 20px 16px', borderBottom: `1px solid ${t.cardBorder}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#6B7280' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: t.textSubtle }}>
           {label}
         </span>
         {active && onClear && (
-          <button onClick={onClear} style={{ fontSize: 11, fontWeight: 600, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <button onClick={onClear}
+            style={{ fontSize: 11, fontWeight: 600, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
             Clear
           </button>
         )}
@@ -530,50 +572,35 @@ function FilterSection({ label, active, onClear, children }: {
   )
 }
 
-function Divider() {
-  return <div style={{ height: 1, background: '#F1F5F9', margin: '0 0 20px' }} />
-}
-
-function SegmentedControl({ options, value, onChange, dk, color }: {
-  options: { key: string; label: string; red?: boolean }[]
-  value: string
-  onChange: (v: string) => void
-  dk: boolean
-  color: string
+function Seg({ options, value, onChange, dk }: {
+  options: { k: string; l: string; red?: boolean }[]
+  value: string; onChange: (v: string) => void; dk: boolean
 }) {
   const t = theme(dk)
   return (
-    <div style={{ display: 'flex', background: dk ? '#1E293B' : '#F1F5F9', borderRadius: 10, padding: 3, gap: 2 }}>
-      {options.map(({ key, label, red }) => {
-        const active = value === key
-        const activeColor = red ? '#DC2626' : color
+    <div style={{
+      display: 'flex', borderRadius: 10, overflow: 'hidden',
+      border: `1.5px solid ${t.inputBorder}`,
+      background: dk ? '#1E293B' : '#F8FAFC',
+    }}>
+      {options.map(({ k, l, red }, i) => {
+        const on = value === k
+        const ac = red && on ? '#DC2626' : BRAND.teal
         return (
-          <button
-            key={key}
-            onClick={() => onChange(key)}
+          <button key={k}
+            onClick={() => onChange(k)}
             style={{
-              flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 12, fontWeight: active ? 600 : 500,
-              border: 'none', cursor: 'pointer', transition: 'all 120ms',
-              background: active ? (dk ? '#1E3A35' : '#fff') : 'transparent',
-              color: active ? activeColor : t.textMuted,
-              boxShadow: active ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-            }}
-          >
-            {label}
+              flex: 1, padding: '9px 6px', fontSize: 12, fontWeight: on ? 700 : 500,
+              cursor: 'pointer', border: 'none',
+              borderRight: i < options.length - 1 ? `1px solid ${t.inputBorder}` : 'none',
+              background: on ? (red ? (dk ? '#2D0A0A' : '#FEF2F2') : (dk ? '#0D2E28' : '#F0FDFA')) : 'transparent',
+              color: on ? ac : t.textMuted,
+              transition: 'all 120ms',
+            }}>
+            {l}
           </button>
         )
       })}
     </div>
   )
-}
-
-function countActiveFilters(f: FilterState): number {
-  let n = 0
-  if (f.stages.length > 0) n++
-  if (f.sources.length > 0) n++
-  if (f.needsAttention) n++
-  if (f.minValue || f.maxValue) n++
-  if (f.dateReceived) n++
-  if (f.followUpDue) n++
-  return n
 }
