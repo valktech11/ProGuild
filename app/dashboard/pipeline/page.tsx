@@ -1,5 +1,4 @@
 'use client'
-import { wonInMonth } from '@/lib/metrics/won'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Lead } from '@/types'
@@ -40,14 +39,17 @@ export default function PipelinePage() {
   const [saveError,   setSaveError]   = useState<string | null>(null)
   const [showFilter,  setShowFilter]  = useState(false)
   const [filters,     setFilters]     = useState<FilterState>(DEFAULT_FILTERS)
+  const [summary,     setSummary]     = useState<any>(null)
 
   // Single fetch function — reused on mount, after add, after save
   const fetchLeads = useCallback(async () => {
     if (!session) return
-    const r = await fetch(`/api/leads?pro_id=${session.id}`)
-    if (!r.ok) return
-    const data = await r.json()
-    setLeads(data.leads || [])
+    const [r, sr] = await Promise.all([
+      fetch(`/api/leads?pro_id=${session.id}`),
+      fetch(`/api/pipeline/summary?pro_id=${session.id}`),
+    ])
+    if (r.ok)  setLeads(((await r.json()).leads) || [])
+    if (sr.ok) setSummary(await sr.json())
   }, [session])
 
   useEffect(() => {
@@ -61,7 +63,6 @@ export default function PipelinePage() {
   }, [session, router, fetchLeads])
 
   const anchors  = getStageAnchors(session?.trade_slug)
-  const newLeads = leads.filter(l => l.lead_status === anchors.entry)
   const overdue  = leads.filter(l => {
     const days = (Date.now() - new Date(l.created_at).getTime()) / 86400000
     return days >= 3 && l.lead_status === anchors.entry
@@ -124,16 +125,17 @@ export default function PipelinePage() {
     )
   }
 
-  // Derived metrics for command bar
-  const tc2           = getTradeConfig(session?.trade_slug)
-  const terminalKeys2 = tc2.stages.filter(s => s.terminal).map(s => s.key)
-  const activeLeads   = leads.filter(l => !terminalKeys2.some(k => k === l.lead_status))
-  const pipelineValue = activeLeads.filter(l => l.quoted_amount).reduce((s, l) => s + (l.quoted_amount || 0), 0)
-  const overdueCount  = overdue.length
-  const wonThisMonth  = wonInMonth(leads, anchors.won, 0).length
+  // Command-bar metrics — from /api/pipeline/summary (single source). The board
+  // grouping/filters and the `overdue` list (for the alert) stay client-side.
+  const sm            = summary ?? {}
+  const newCount      = sm.newCount ?? 0
+  const activeCount   = sm.activeCount ?? 0
+  const pipelineValue = sm.pipelineValue ?? 0
+  const overdueCount  = sm.overdueCount ?? 0
+  const wonThisMonth  = sm.wonThisMonth ?? 0
 
   return (
-    <DashboardShell session={session} newLeads={newLeads.length} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
+    <DashboardShell session={session} newLeads={newCount} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{ padding: '16px 20px 0', color: textMain }}>
 
         {/* ── Command bar — full width, always visible ─────────────────────── */}
@@ -150,7 +152,7 @@ export default function PipelinePage() {
             {leads.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: t.textMuted }}>
-                  {activeLeads.length} active
+                  {activeCount} active
                 </span>
                 {pipelineValue > 0 && (
                   <>
