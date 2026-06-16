@@ -671,6 +671,7 @@ export default function EstimatesPage() {
   const noun = tc.labels.estimate ?? 'Proposals'
 
   const [estimates,    setEstimates]    = useState<EstimateSummary[]>([])
+  const [summary,      setSummary]      = useState<any>(null)
   const [loading,      setLoading]      = useState(true)
   const [creating,     setCreating]     = useState(false)
   const [search,       setSearch]       = useState('')
@@ -709,10 +710,16 @@ export default function EstimatesPage() {
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
-    fetch(`/api/estimates?pro_id=${session.id}`)
-      .then(r => r.json())
-      .then(d => setEstimates(d.estimates || []))
-      .catch(() => setEstimates([]))
+    // Raw list powers the table (filter/sort/search — UI state).
+    // Summary powers the KPI cards (derived metrics — single source for web + mobile).
+    Promise.all([
+      fetch(`/api/estimates?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ estimates: [] })),
+      fetch(`/api/estimates/summary?pro_id=${session.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
+    ])
+      .then(([list, sum]) => {
+        setEstimates(list.estimates || [])
+        setSummary(sum)
+      })
       .finally(() => setLoading(false))
   }, [session, router])
 
@@ -870,25 +877,12 @@ export default function EstimatesPage() {
       return 0
     })
 
-  const archivedCount = estimates.filter(e => archivedStatuses.includes(e.status)).length
-
-  // Stats
-  const STATUS_PRIORITY: Record<string, number> = { invoiced: 1, approved: 2, viewed: 3, sent: 4 }
-  const activeStatuses = ['sent', 'viewed', 'approved', 'invoiced']
-  const bestPerLead = Object.values(
-    estimates
-      .filter(e => activeStatuses.includes(e.status))
-      .reduce((acc, e) => {
-        const key = e.lead_id || e.id
-        const existing = acc[key]
-        if (!existing || (STATUS_PRIORITY[e.status] || 99) < (STATUS_PRIORITY[existing.status] || 99)) {
-          acc[key] = e
-        }
-        return acc
-      }, {} as Record<string, typeof estimates[0]>)
-  )
-  const totalValue    = (bestPerLead as typeof estimates).reduce((s, e) => s + e.total, 0)
-  const sentCount     = estimates.filter(e => e.status === 'sent' || e.status === 'viewed').length
+  // KPI metrics — from /api/estimates/summary (single source for web + mobile).
+  // archivedCount also drives the archived toggle below.
+  const totalCount    = summary?.totalEstimates ?? estimates.length
+  const sentCount     = summary?.sentCount ?? 0
+  const totalValue    = summary?.activeValue ?? 0
+  const archivedCount = summary?.archivedCount ?? estimates.filter(e => archivedStatuses.includes(e.status)).length
 
   const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
 
@@ -944,7 +938,7 @@ export default function EstimatesPage() {
           {/* ── Stats bar ── */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: `Total ${noun}`, value: estimates.length.toString() },
+              { label: `Total ${noun}`, value: totalCount.toString() },
               { label: 'Sent / In Review', value: sentCount.toString() },
               { label: 'Active Estimates Value', value: fmt(totalValue) },
             ].map(stat => (
