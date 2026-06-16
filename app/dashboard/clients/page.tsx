@@ -32,6 +32,7 @@ export default function ClientsPage() {
   }
 
   const [clients, setClients]   = useState<any[]>([])
+  const [summary, setSummary]   = useState<any>(null)
   const [loading, setLoading]   = useState(true)
   const [search,  setSearch]    = useState('')
   const [sort,    setSort]      = useState<'name' | 'value' | 'recent'>('recent')
@@ -53,9 +54,13 @@ export default function ClientsPage() {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
     const s = session
-    fetch(`/api/clients?pro_id=${s.id}`)
-      .then(r => r.json())
-      .then(d => { setClients(d.clients || []); setLoading(false) })
+    // Raw list powers the rows (search/sort — UI state). Summary powers the
+    // header totals (derived metrics — single source for web + mobile).
+    Promise.all([
+      fetch(`/api/clients?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ clients: [] })),
+      fetch(`/api/clients/summary?pro_id=${s.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
+    ])
+      .then(([d, sum]) => { setClients(d.clients || []); setSummary(sum); setLoading(false) })
   }, [router])
 
   async function addClient() {
@@ -106,7 +111,9 @@ export default function ClientsPage() {
       return new Date(b.last_contact || b.created_at).getTime() - new Date(a.last_contact || a.created_at).getTime()
     })
 
-  const totalValue = clients.reduce((sum, c) => sum + (c.lifetime_value || 0), 0)
+  // Header totals — from /api/clients/summary (single source for web + mobile).
+  const totalValue   = summary?.totalLifetime ?? clients.reduce((sum, c) => sum + (c.lifetime_value || 0), 0)
+  const totalClients = summary?.totalClients ?? clients.length
   const t = theme(dk)
 
   const inputStyle: React.CSSProperties = {
@@ -130,7 +137,7 @@ export default function ClientsPage() {
               </div>
               <h1 style={{ fontSize: 24, fontWeight: 700, color: t.textPri, margin: 0 }}>Clients</h1>
               <p style={{ fontSize: 14, color: t.textMuted, marginTop: 2 }}>
-                {clients.length} client{clients.length !== 1 ? 's' : ''}
+                {totalClients} client{totalClients !== 1 ? 's' : ''}
                 {totalValue > 0 && ` · ${fmtCurrency(totalValue)} lifetime revenue`}
               </p>
             </div>
