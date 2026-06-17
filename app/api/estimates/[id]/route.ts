@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
+import { computeMilestones } from '@/lib/estimates/milestones'
 
 // ── GET /api/estimates/[id] ──────────────────────────────────────────────────
 export async function GET(
@@ -99,7 +100,10 @@ export async function GET(
       estimate_type:      roofing.estimate_type      ?? 'tiered',
       tiered_data:        roofing.tiered_data        ?? null,
       scope_of_work:      roofing.scope_of_work      ?? null,
-      payment_milestones: roofing.payment_milestones ?? null,
+      // Milestones are ALWAYS computed from the authoritative total (single source
+      // of truth: lib/estimates/milestones). Never return the stored value — it can
+      // go stale when the total changes via a path that didn't resave milestones.
+      payment_milestones: computeMilestones(Number(estClean.total) || 0),
       // Property address — roofing_estimate_data → lead (estimates column dropped)
       property_address:   lead.property_address ?? roofing.property_address ?? null,  // lead is golden source
       // Measurements — roofing_estimate_data first, then roofing_job_data (live job data)
@@ -154,6 +158,7 @@ export async function PATCH(
     subtotal_cents?: number; tax_amount_cents?: number; total_cents?: number;
     items?: { id: string; amount: number; amount_cents: number }[];
     tiered_data?: { selected_tier?: string; tiers: { key: string; subtotal: number; subtotal_cents: number }[] };
+    payment_milestones?: { id: string; name: string; pct: number; due_when: string; amount: number }[];
   } = {}
   const toCents = (n: number) => Math.round(n * 100)
 
@@ -247,6 +252,12 @@ export async function PATCH(
               subtotal_cents: toCents(Number(t.subtotal) || 0),
             })),
           }
+          // Milestones derived from the authoritative total (single source). Store
+          // fresh (for the PDF/send path) and return them.
+          const freshMs = computeMilestones(newTotal)
+          await sb.from('roofing_estimate_data')
+            .update({ payment_milestones: freshMs }).eq('estimate_id', id)
+          computed.payment_milestones = freshMs
         }
       }
     }
@@ -315,6 +326,12 @@ export async function PATCH(
       computed.subtotal_cents = toCents(itemsSubtotal)
       computed.tax_amount_cents = toCents(derivedTax)
       computed.total_cents = toCents(derivedTotal)
+      // Milestones derived from the authoritative total (single source). Store
+      // fresh (for the PDF/send path) and return them.
+      const freshMs = computeMilestones(derivedTotal)
+      await sb.from('roofing_estimate_data')
+        .update({ payment_milestones: freshMs }).eq('estimate_id', id)
+      computed.payment_milestones = freshMs
     }
   }
 
