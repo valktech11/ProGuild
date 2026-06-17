@@ -145,6 +145,18 @@ export async function PATCH(
   // ── Universal estimate fields → estimates table ──────────────────────────
   // CRITICAL: only include fields explicitly present in payload
   // Undefined values would null out existing DB data (e.g. total → 0)
+  // ── Authoritative computed values to return (Slice 1) ────────────────────────
+  // Whichever derivation path runs (tiered sync or standard recompute) records the
+  // final numbers here so the client can render them without a re-fetch. dollars
+  // are the canonical money values; *_cents are integer cents (money contract).
+  const computed: {
+    subtotal?: number; tax_amount?: number; total?: number;
+    subtotal_cents?: number; tax_amount_cents?: number; total_cents?: number;
+    items?: { id: string; amount: number; amount_cents: number }[];
+    tiered_data?: { selected_tier?: string; tiers: { key: string; subtotal: number; subtotal_cents: number }[] };
+  } = {}
+  const toCents = (n: number) => Math.round(n * 100)
+
   const updatePayload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   }
@@ -220,6 +232,21 @@ export async function PATCH(
               updated_at: new Date().toISOString(),
             }).eq('id', id)
           }
+          // Record authoritative values for the response (Slice 1)
+          computed.subtotal = newSub
+          computed.tax_amount = newTax
+          computed.total = newTotal
+          computed.subtotal_cents = toCents(newSub)
+          computed.tax_amount_cents = toCents(newTax)
+          computed.total_cents = toCents(newTotal)
+          computed.tiered_data = {
+            selected_tier: tiered_data.selected_tier,
+            tiers: tiers.map((t: any) => ({
+              key: t.key,
+              subtotal: Number(t.subtotal) || 0,
+              subtotal_cents: toCents(Number(t.subtotal) || 0),
+            })),
+          }
         }
       }
     }
@@ -251,21 +278,43 @@ export async function PATCH(
     // For standard (item-based) estimates, recompute from the persisted items so
     // any invoice created from this estimate inherits a correct total.
     const { data: estForTotals } = await sb
-      .from('estimates').select('tax_rate').eq('id', id).single()
-    const itemsSubtotal = items.reduce(
-      (s: number, it: any) => s + (Math.round((Number(it.qty) || 0) * (Number(it.unit_price) || 0) * 100) / 100), 0)
+      .from('estimates').select('tax_rate, discount, discount_type').eq('id', id).single()
+    const lineAmt = (it: any) =>
+      Math.round((Number(it.qty) || 0) * (Number(it.unit_price) || 0) * 100) / 100
+    const itemsSubtotal = items.reduce((s: number, it: any) => s + lineAmt(it), 0)
+    // Record per-line authoritative amounts for the response (Slice 1).
+    computed.items = items.map((it: any) => {
+      const amount = lineAmt(it)
+      return { id: it.id, amount, amount_cents: toCents(amount) }
+    })
     // Only override when this is an item-based (non-tiered) estimate. Tiered
     // estimates set their total from the selected tier elsewhere.
     if (estimate_type !== 'tiered') {
-      const txRate    = Number(estForTotals?.tax_rate) || 0
-      const derivedTax   = Math.round(itemsSubtotal * (txRate / 100) * 100) / 100
-      const derivedTotal = itemsSubtotal + derivedTax
+      const txRate = Number(estForTotals?.tax_rate) || 0
+      // Discount is applied to the subtotal BEFORE tax. Roofing always passes 0
+      // (no discount UI on the roofing flow), so this is a no-op there; it makes
+      // the formula correct for trades that do use discounts (e.g. HVAC later).
+      const discType = (discount_type ?? estForTotals?.discount_type ?? '$') as string
+      const discRaw  = Number(discount ?? estForTotals?.discount) || 0
+      const discAmt  = discType === '%'
+        ? Math.round(itemsSubtotal * (discRaw / 100) * 100) / 100
+        : discRaw
+      const discountedSub = Math.max(0, Math.round((itemsSubtotal - discAmt) * 100) / 100)
+      const derivedTax   = Math.round(discountedSub * (txRate / 100) * 100) / 100
+      const derivedTotal = discountedSub + derivedTax
       await sb.from('estimates').update({
         subtotal:   itemsSubtotal,
         tax_amount: derivedTax,
         total:      derivedTotal,
         updated_at: new Date().toISOString(),
       }).eq('id', id)
+      // Record authoritative values for the response (Slice 1).
+      computed.subtotal = itemsSubtotal
+      computed.tax_amount = derivedTax
+      computed.total = derivedTotal
+      computed.subtotal_cents = toCents(itemsSubtotal)
+      computed.tax_amount_cents = toCents(derivedTax)
+      computed.total_cents = toCents(derivedTotal)
     }
   }
 
@@ -306,7 +355,9 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json({ ok: true })
+  // Return the authoritative computed values so clients render without a re-fetch
+  // (Slice 1). `computed` is empty when the payload changed nothing money-related.
+  return NextResponse.json({ ok: true, computed })
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
