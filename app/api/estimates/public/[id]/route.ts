@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { computeMilestones } from '@/lib/estimates/milestones'
 
 // Public GET — no auth required
 export async function GET(
@@ -58,14 +59,6 @@ export async function GET(
     roofingData = data
   }
 
-  // Fetch payment milestones
-  let milestones: any[] = []
-  const { data: ms } = await sb
-    .from('payment_schedules')
-    .select('id, milestone_name, percentage, amount, due_at')
-    .eq('invoice_id', estimate.id)  // future: link to estimate too
-    .order('sort_order')
-  milestones = ms ?? []
 
   const pro = estimate.pro as any
 
@@ -86,7 +79,10 @@ export async function GET(
   if ((Number(safe.total) || 0) === 0 && itemsSum > 0) {
     const rate = Number(safe.tax_rate) || 0
     safe.subtotal   = itemsSum
-    safe.tax_amount = Math.round(itemsSum * (rate / 100))
+    // Cents-accurate tax (same rule as the authoritative server derivation) —
+    // was Math.round(itemsSum * rate/100) which rounded tax to whole dollars and
+    // diverged from every other surface.
+    safe.tax_amount = Math.round(itemsSum * (rate / 100) * 100) / 100
     safe.total      = safe.subtotal + safe.tax_amount
   }
 
@@ -117,12 +113,10 @@ export async function GET(
       supplement_amount: roofingData?.supplement_amount ?? null,
       insurance_company: roofingData?.insurance_company ?? null,
       claim_number:      roofingData?.claim_number      ?? null,
-      // Payment milestones — roofing_estimate_data is source of truth; fall back to payment_schedules
-      payment_milestones: roofingEstData?.payment_milestones
-        ?? (milestones.length > 0 ? milestones.map((m: any) => ({
-            id: m.id, name: m.milestone_name, pct: m.percentage ?? 0,
-            amount: m.amount, due_when: m.due_at ?? '',
-          })) : null),
+      // Payment milestones — ALWAYS computed fresh from the authoritative total
+      // (single source: lib/estimates/milestones), never the stored value, so the
+      // homeowner sees the same schedule as the contractor and it can't go stale.
+      payment_milestones: computeMilestones(Number(safe.total) || 0),
     }
   })
 }
