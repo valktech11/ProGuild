@@ -52,6 +52,31 @@ export const DEFAULT_PRICES: Record<string, number> = {
   labour:        0,   // roofer fills in separately
 }
 
+// ── settingsToCalculatorPrices ────────────────────────────────────────────────
+// The pro's saved prices (pros.roofing_material_prices, surfaced by the settings
+// API as `material_prices`) are stored in SETTINGS UNITS: $/sq for sheet goods,
+// $/LF for linear items, keyed shingles_upgraded / underlayment / ice_water /
+// ridge_cap / starter_strip / drip_edge. The calculator expects CALCULATOR UNITS
+// ($/bundle, $/10ft piece, $/sq), keyed shingles / underlayment / iceWater /
+// ridgeCap / starterStrip / dripEdge. This conversion is the SINGLE definition
+// used by BOTH the web calculator page and the /api/roofing/calculate endpoint,
+// so neither side can drift from the other. Returns a partial override map to be
+// spread over DEFAULT_PRICES.
+export function settingsToCalculatorPrices(sp: Record<string, number> | null | undefined): Record<string, number> {
+  const out: Record<string, number> = {}
+  if (!sp || typeof sp !== 'object') return out
+  // Shingles: $/sq → $/bundle (3 bundles/sq)
+  if (sp.shingles_upgraded != null) out.shingles     = Math.round(sp.shingles_upgraded / 3)
+  // Sheet goods: both $/sq — direct
+  if (sp.underlayment      != null) out.underlayment = sp.underlayment
+  if (sp.ice_water         != null) out.iceWater     = sp.ice_water
+  // Linear items: $/LF → $/bundle or $/10ft piece
+  if (sp.ridge_cap         != null) out.ridgeCap     = Math.round(sp.ridge_cap     * 35)   // 35 LF/bundle
+  if (sp.starter_strip     != null) out.starterStrip = Math.round(sp.starter_strip * 105)  // 105 LF/bundle
+  if (sp.drip_edge         != null) out.dripEdge     = Math.round(sp.drip_edge     * 10)   // 10 ft/piece
+  return out
+}
+
 export interface CalcInput {
   squares: number
   pitchKey: string

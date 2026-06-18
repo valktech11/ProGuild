@@ -39,7 +39,7 @@ interface ReportData {
 
 // ── Pitch factors ─────────────────────────────────────────────────────────────
 import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
-import { calculateMaterials, DEFAULT_PRICES, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
+import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
 
 function normalizePitch(raw: string | number): string {
   if (typeof raw === 'number') return '6/12'
@@ -188,20 +188,9 @@ function CalculatorInner() {
       .then(d => {
         const sp = d?.material_prices  // saved prices from settings
         if (!sp) return               // nothing saved yet — keep DEFAULT_PRICES
-        setPrices(prev => ({
-          ...prev,
-          // Shingles: settings is $/sq, calculator is $/bundle (3 bundles/sq)
-          ...(sp.shingles_upgraded != null && { shingles:     Math.round(sp.shingles_upgraded / 3) }),
-          // Sheet materials: both $/sq — direct map
-          ...(sp.underlayment      != null && { underlayment: sp.underlayment }),
-          ...(sp.ice_water         != null && { iceWater:     sp.ice_water }),
-          // Linear items: settings $/LF → calculator $/bundle or $/piece
-          ...(sp.ridge_cap         != null && { ridgeCap:     Math.round(sp.ridge_cap     * 35) }),  // 35 LF/bundle
-          ...(sp.starter_strip     != null && { starterStrip: Math.round(sp.starter_strip * 105) }), // 105 LF/bundle
-          ...(sp.drip_edge         != null && { dripEdge:     Math.round(sp.drip_edge     * 10) }),  // 10 ft/piece
-          // Labor: settings $/sq (upgraded tier) → calculator uses flat amount entered by roofer
-          // Not mapped — calculator labour is entered as flat dollar, not $/sq
-        }))
+        // Convert via the SHARED function (same one /api/roofing/calculate uses),
+        // so this live preview and the server price the job identically.
+        setPrices(prev => ({ ...prev, ...settingsToCalculatorPrices(sp) }))
       })
       .catch(() => {}) // silently keep defaults if fetch fails
 

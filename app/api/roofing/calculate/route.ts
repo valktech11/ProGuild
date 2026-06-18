@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { calculateMaterials, DEFAULT_PRICES } from '@/lib/roofing/calculator'
+import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices } from '@/lib/roofing/calculator'
 
 // ── POST /api/roofing/calculate ───────────────────────────────────────────────
 // Single source of truth for roofing material pricing. Web (calculator page) and
@@ -23,15 +23,19 @@ export async function POST(req: NextRequest) {
   const proId = (body.pro_id as string | undefined) ?? undefined
   const num = (v: unknown, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d }
 
-  // Price resolution: DEFAULT_PRICES ← pro's saved prices ← explicit body.prices.
+  // ── Price resolution: DEFAULT_PRICES ← pro's saved settings prices ← body.prices ──
+  // The pro's saved prices live in pros.roofing_material_prices in SETTINGS UNITS.
+  // settingsToCalculatorPrices (shared with the web page) converts them to the
+  // CALCULATOR UNITS the formula expects, so web and mobile price identically.
   let prices: Record<string, number> = { ...DEFAULT_PRICES }
   if (proId) {
     const { data: pro } = await getSupabaseAdmin()
       .from('pros').select('roofing_material_prices').eq('id', proId).single()
     const saved = pro?.roofing_material_prices as Record<string, number> | null | undefined
-    if (saved && typeof saved === 'object') prices = { ...prices, ...saved }
+    prices = { ...prices, ...settingsToCalculatorPrices(saved) }
   }
   if (body.prices && typeof body.prices === 'object') {
+    // Explicit overrides are already in CALCULATOR units (used by Edit prices).
     prices = { ...prices, ...(body.prices as Record<string, number>) }
   }
 
