@@ -203,14 +203,14 @@ export async function POST(req: NextRequest) {
         const taxRate     = ((best as any).tax_rate ?? 6)
         const newTax      = Math.round(newSubtotal * taxRate / 100 * 100) / 100
         const newTotal    = Math.round((newSubtotal + newTax) * 100) / 100
-        // 5. Force Standard mode — update estimates table totals
+        // 5. Force Standard mode — update estimates table totals.
+        // NOTE: square_count/pitch/waste_pct are NOT columns on `estimates` — they
+        // live in roofing_estimate_data (written at 5b). Writing them here errors
+        // ("Could not find the 'pitch' column of 'estimates'").
         const { error: updateErr } = await sb.from('estimates').update({
           subtotal:   newSubtotal,
           tax_amount: newTax,
           total:      newTotal,
-          square_count,
-          pitch,
-          waste_pct,
         }).eq('id', best.id)
         if (updateErr) {
           console.error('[estimates POST] update totals failed:', updateErr.message, 'id:', best.id)
