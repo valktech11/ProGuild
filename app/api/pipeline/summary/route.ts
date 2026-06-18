@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { getStageAnchors, getTerminalStages } from '@/lib/trades/_registry'
-import { wonInMonth } from '@/lib/metrics/won'
+import { getStageAnchors } from '@/lib/trades/_registry'
+import { wonInMonth, closedPipelineKeys } from '@/lib/metrics/won'
 import { daysInStage, isStalled } from '@/lib/metrics/sla'
 
 // ── /api/pipeline/summary ─────────────────────────────────────────────────────
@@ -33,11 +33,7 @@ export async function GET(req: NextRequest) {
   const tradeSlug = proRow?.trade_slug ?? null
   const anchors   = getStageAnchors(tradeSlug)
 
-  const closedKeys = new Set([
-    ...getTerminalStages(tradeSlug).map(s => s.key),
-    anchors.won,
-    'Paid',
-  ])
+  const closedKeys = closedPipelineKeys(tradeSlug, anchors.won)
 
   // Fetch leads + estimates in parallel
   const [leadsRes, estRes] = await Promise.all([

@@ -47,3 +47,36 @@ export function leadRevenue(l: RevenueLead): number {
 export function sumRevenue(leads: RevenueLead[]): number {
   return leads.reduce((s, l) => s + leadRevenue(l), 0)
 }
+
+// ── Shared derived sets/sums (were duplicated across summary routes) ──────────
+// These existed independently in /api/overview, /api/invoices/summary, and
+// /api/pipeline/summary with identical logic. Centralized here so the formula
+// physically exists once and the routes can't drift.
+
+import { getTerminalStages } from '@/lib/trades/_registry'
+
+interface PaidInvoice { status?: string | null; total?: number | null }
+
+/** "Collected" = realized cash = Σ total over PAID invoices, rounded to cents.
+ *  Single definition shared by /api/overview and /api/invoices/summary. */
+export function collectedFromInvoices(invoices: PaidInvoice[]): number {
+  const sum = invoices
+    .filter(i => i.status === 'paid')
+    .reduce((s, i) => s + ((i.total as number) || 0), 0)
+  return Math.round(sum * 100) / 100
+}
+
+/** The set of lead_status values considered CLOSED for pipeline purposes:
+ *  terminal stages + the won anchor + 'Paid'. Anything not in this set is "open".
+ *  Single definition shared by /api/overview (estimatedValue) and
+ *  /api/pipeline/summary (open-leads), so the two can't disagree on what's open. */
+export function closedPipelineKeys(
+  tradeSlug: string | null | undefined,
+  wonAnchor: string,
+): Set<string> {
+  return new Set<string>([
+    ...getTerminalStages(tradeSlug).map(s => s.key),
+    wonAnchor,
+    'Paid',
+  ])
+}

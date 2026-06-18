@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { collectedFromInvoices } from '@/lib/metrics/won'
 
 // ── /api/invoices/summary ─────────────────────────────────────────────────────
 // Single source of truth for invoice aggregates. Web (invoices/page.tsx) and
@@ -36,8 +37,7 @@ export async function GET(req: NextRequest) {
   const outstanding = round2(outstandingInvoices.reduce((s, i) => s + ((i.balance_due as number) || 0), 0))
 
   // Collected: realized money from paid invoices.
-  const collected = round2(
-    invoices.filter(i => i.status === 'paid').reduce((s, i) => s + ((i.total as number) || 0), 0))
+  const collected = collectedFromInvoices(invoices as { status?: string | null; total?: number | null }[])
 
   // Overdue: past due_date and still chaseable (sent/viewed/partial_payment).
   const overdueInvoices = invoices.filter(i =>

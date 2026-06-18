@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors, getTradeConfig } from '@/lib/trades/_registry'
-import { wonInMonth, sumRevenue } from '@/lib/metrics/won'
+import { wonInMonth, sumRevenue, collectedFromInvoices, closedPipelineKeys } from '@/lib/metrics/won'
 
 // ── /api/overview ────────────────────────────────────────────────────────────
 // Single source of truth for the dashboard Overview / mobile Home block.
@@ -22,7 +22,6 @@ export async function GET(req: NextRequest) {
   const { data: proRow } = await sb.from('pros').select('trade_slug').eq('id', proId).single()
   const anchors = getStageAnchors(proRow?.trade_slug)
   const tc      = getTradeConfig(proRow?.trade_slug)
-  const terminalKeys = tc.stages.filter(s => s.terminal).map(s => s.key)
 
   const [leadsRes, estRes, invRes] = await Promise.all([
     sb.from('leads')
@@ -71,13 +70,12 @@ export async function GET(req: NextRequest) {
   const avgTicket       = wonThisMonth.length > 0 ? wonRevenue / wonThisMonth.length : 0
   const allWon          = leads.filter(l => l.lead_status === anchors.won)
   const totalWonRevenue = sumRevenue(allWon as never[])
-  // collected: Σ total on paid invoices — actual cash banked. Same definition as
-  // /api/invoices/summary so the Overview and Invoices pages agree.
-  const collected = Math.round(
-    invoices.filter(i => i.status === 'paid').reduce((s, i) => s + ((i.total as number) || 0), 0) * 100) / 100
-  // estimatedValue: quoted_amount on canonical open leads (not terminal, not won,
-  // not 'Paid'). Matches pipeline/summary route exactly so both screens agree.
-  const closedForPipeline = new Set([...terminalKeys, anchors.won, 'Paid'])
+  // collected: realized cash from paid invoices — shared definition with
+  // /api/invoices/summary (lib/metrics/won) so the two pages can't disagree.
+  const collected = collectedFromInvoices(invoices as { status?: string | null; total?: number | null }[])
+  // estimatedValue: quoted_amount on canonical open leads. Open-set is the shared
+  // closedPipelineKeys (lib/metrics/won), identical to /api/pipeline/summary.
+  const closedForPipeline = closedPipelineKeys(proRow?.trade_slug, anchors.won)
   const openLeads = leads.filter(l => !closedForPipeline.has(l.lead_status as string))
   const pipelineValue = Math.round(
     openLeads.reduce((s, l) => s + ((l.quoted_amount as number) || 0), 0) * 100) / 100
