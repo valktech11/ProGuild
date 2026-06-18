@@ -158,8 +158,35 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Failed to create revision: ' + (revErr?.message ?? 'unknown') }, { status: 500 })
           }
 
-          // Pre-fill the revision with the calculator's lines.
-          await sb.from('estimate_items').insert(calcItems.map(i => ({ ...i, estimate_id: rev.id })))
+          // Pre-fill the revision: carry the ORIGINAL's custom lines (anything the
+          // roofer hand-added, e.g. Permit Fee) PLUS the calculator's fresh material
+          // lines. Mirrors the editable-path merge so custom work survives into the
+          // revision (what we agreed: copy the original as a starting point).
+          const { data: origItems } = await sb
+            .from('estimate_items').select('*').eq('estimate_id', best.id)
+          const origCustom = (origItems ?? []).filter(
+            (it: any) => !CALCULATOR_LINE_NAMES.includes(String(it.name ?? it.description ?? ''))
+          )
+          const revItems = [
+            ...calcItems.map((i, idx) => ({ ...i, estimate_id: rev.id, sort_order: idx })),
+            ...origCustom.map((it: any, idx: number) => ({
+              estimate_id: rev.id,
+              name:        it.name,
+              description: it.description ?? it.name,
+              qty:         Number(it.qty) || 1,
+              unit_price:  Number(it.unit_price) || 0,
+              amount:      Number(it.amount) || (Number(it.qty) * Number(it.unit_price)) || 0,
+              sort_order:  calcItems.length + idx,
+            })),
+          ]
+          await sb.from('estimate_items').insert(revItems)
+          // Recompute the revision totals including the carried custom lines.
+          const revSubtotal = revItems.reduce((s, i: any) => s + (Number(i.amount) || 0), 0)
+          const revTax      = Math.round(revSubtotal * carriedTaxRate / 100 * 100) / 100
+          const revTotal    = Math.round((revSubtotal + revTax) * 100) / 100
+          await sb.from('estimates').update({
+            subtotal: revSubtotal, tax_amount: revTax, total: revTotal,
+          }).eq('id', rev.id)
 
           // Roofing extension row — standard mode, carry measurements.
           if (trade_slug?.includes('roof')) {
