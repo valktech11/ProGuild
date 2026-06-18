@@ -747,11 +747,18 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
 
           {/* Revision banner — shown when this estimate is a revision of a signed one */}
           {estimate.revision_of && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: darkMode ? 'rgba(13,148,136,0.10)' : '#F0FDFA', border: '1px solid #5EEAD4', marginBottom: 16 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.5-5.7L3 8"/></svg>
-              <p style={{ fontSize: 13, color: darkMode ? '#5EEAD4' : '#0F766E', margin: 0 }}>
-                {`Revision ${estimate.revision_number ?? ''} — re-priced from an earlier signed estimate. The original is kept on record and will be superseded once this is signed.`}
-              </p>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, background: darkMode ? 'rgba(13,148,136,0.08)' : '#F0FDFA', border: darkMode ? '1px solid rgba(94,234,212,0.25)' : '1px solid #CCFBF1', borderLeft: '3px solid #0D9488', marginBottom: 16 }}>
+              <div style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, background: '#0D9488', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.5-5.7L3 8"/></svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: darkMode ? '#99F6E4' : '#0F766E', marginBottom: 2 }}>
+                  Revision {estimate.revision_number ?? ''}
+                </div>
+                <div style={{ fontSize: 13, color: darkMode ? '#CBD5E1' : '#475569', lineHeight: 1.45 }}>
+                  Re-priced from an earlier signed estimate. The original stays on record and is superseded once this one is signed.
+                </div>
+              </div>
             </div>
           )}
 
