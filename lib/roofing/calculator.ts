@@ -76,7 +76,11 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
   const dripPieces     = perimLF > 0 ? Math.ceil(perimLF / 10)        : null
   const iceSquares     = eaveLF  > 0 ? Math.ceil((eaveLF * 3) / 100)  : null
 
-  const underlaymentQty = Math.round(adjSqRounded * 1.1 * 10) / 10
+  // Underlayment is ordered in whole squares. Price AND store the rounded qty so
+  // the calculator total (qty×price) matches what the estimate recomputes on save.
+  // (Previously qty was 37.5 but total used round(37.5)=38 → calculator $836 vs
+  // saved estimate 37.5×price → $825. Rounding the qty itself keeps them identical.)
+  const underlaymentQty = Math.round(adjSqRounded * 1.1)
   const nailsQty        = Math.ceil(adjSqRounded * 2.5)
   const shinglesQty     = Math.ceil(adjSqRounded * 3)
 
@@ -94,7 +98,7 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
       description: 'Synthetic underlayment',
       note: `${underlaymentQty} sq (10% overlap)`,
       quantity: underlaymentQty, unit: 'squares',
-      unitPrice: prices.underlayment, total: Math.round(underlaymentQty) * prices.underlayment,
+      unitPrice: prices.underlayment, total: underlaymentQty * prices.underlayment,
       isPlaceholder: false,
     },
     {
