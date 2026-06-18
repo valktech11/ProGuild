@@ -30,11 +30,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [needsProfile, setNeedsProfile] = useState(false)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
 
-  const resolve = useCallback(async () => {
+  const resolve = useCallback(async (opts?: { silent?: boolean }) => {
     const supabase = getSupabaseBrowser()
     const { data: { session: authSession } } = await supabase.auth.getSession()
 
     if (!authSession) {
+      // Genuinely signed out (no Supabase session at all) — clear everything.
       setSession(null)
       setNeedsProfile(false)
       setAuthEmail(null)
@@ -52,25 +53,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (r.ok) {
         setSession(d.session)
         setNeedsProfile(!!d.needsProfile)
-      } else {
+      } else if (!opts?.silent) {
+        // Only downgrade to null on a NON-silent (initial) resolve. On a silent
+        // re-resolve (token refresh / tab refocus) a transient non-ok response must
+        // NOT wipe a session we already have — that caused the login flicker.
         setSession(null)
         setNeedsProfile(false)
       }
     } catch {
-      setSession(null)
-      setNeedsProfile(false)
+      // Network blip during a silent re-resolve: keep the existing session.
+      if (!opts?.silent) {
+        setSession(null)
+        setNeedsProfile(false)
+      }
     }
     setLoading(false)
   }, [])
 
   useEffect(() => {
     resolve()
-    // Re-resolve on auth changes (login, logout, token refresh) — but only real changes.
+    // Re-resolve on auth changes — but only ones that actually change login state.
+    // TOKEN_REFRESHED and USER_UPDATED keep the user logged in; re-resolving them
+    // silently (without ever nulling an existing session) prevents the flicker
+    // where a routine token refresh briefly bounced pages toward /login.
     const supabase = getSupabaseBrowser()
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      // Ignore the initial event (resolve() already ran above) to avoid a double pass.
       if (event === 'INITIAL_SESSION') return
-      resolve()
+      if (event === 'SIGNED_OUT') { setSession(null); setNeedsProfile(false); setAuthEmail(null); return }
+      if (event === 'SIGNED_IN') { resolve(); return }
+      // TOKEN_REFRESHED / USER_UPDATED / others: refresh data but never null on a blip.
+      resolve({ silent: true })
     })
     return () => sub.subscription.unsubscribe()
   }, [resolve])
