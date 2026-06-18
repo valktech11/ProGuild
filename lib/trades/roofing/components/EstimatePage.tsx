@@ -42,6 +42,8 @@ export interface RoofingEstimate {
   estimate_number: string
   status: 'draft' | 'sent' | 'viewed' | 'approved' | 'declined' | 'invoiced' | 'paid' | 'void'
   lead_id?: string
+  revision_of?: string | null
+  revision_number?: number
   lead_name: string
   contact_phone?: string
   contact_email?: string
@@ -742,6 +744,16 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             estimate={estimate} onSave={onSave}
             card={card} border={border} textP={textP} textS={textS}
           />
+
+          {/* Revision banner — shown when this estimate is a revision of a signed one */}
+          {estimate.revision_of && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: darkMode ? 'rgba(13,148,136,0.10)' : '#F0FDFA', border: '1px solid #5EEAD4', marginBottom: 16 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.5-5.7L3 8"/></svg>
+              <p style={{ fontSize: 13, color: darkMode ? '#5EEAD4' : '#0F766E', margin: 0 }}>
+                {`Revision ${estimate.revision_number ?? ''} — re-priced from an earlier signed estimate. The original is kept on record and will be superseded once this is signed.`}
+              </p>
+            </div>
+          )}
 
           {/* Proposal type toggle — hidden when locked or insurance job */}
 
