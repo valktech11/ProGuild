@@ -83,10 +83,21 @@ export async function GET(
     }
   }
 
+  // Derive subtotal from items (single source of truth — DB column can be stale)
+  // Same pattern as payment_milestones being derived from total rather than trusting the stored value.
+  const derivedSubtotal = items.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
+  const storedTaxRate   = Number(estClean.tax_rate) || 0
+  const derivedTax      = Math.round(derivedSubtotal * storedTaxRate / 100 * 100) / 100
+  const derivedTotal    = Math.round((derivedSubtotal + derivedTax) * 100) / 100
+
   return NextResponse.json({
     estimate: {
       ...estClean,
       items,  // from separate estimate_items query
+      // Always derive money from items — never trust stale DB columns
+      subtotal:   derivedSubtotal,
+      tax_amount: derivedTax,
+      total:      derivedTotal,
       timeline,
       trade_slug:    tradeSlugResolved,
       // Pro info
@@ -103,7 +114,7 @@ export async function GET(
       // Milestones are ALWAYS computed from the authoritative total (single source
       // of truth: lib/estimates/milestones). Never return the stored value — it can
       // go stale when the total changes via a path that didn't resave milestones.
-      payment_milestones: computeMilestones(Number(estClean.total) || 0),
+      payment_milestones: computeMilestones(derivedTotal),
       // Property address — roofing_estimate_data → lead (estimates column dropped)
       property_address:   lead.property_address ?? roofing.property_address ?? null,  // lead is golden source
       // Measurements — roofing_estimate_data first, then roofing_job_data (live job data)
