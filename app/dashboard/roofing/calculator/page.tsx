@@ -166,6 +166,9 @@ function CalculatorInner() {
   const [error,      setError]      = useState<string | null>(null)
   const [success,    setSuccess]    = useState<string | null>(null)
   const [editPrices, setEditPrices] = useState(false)
+  // If this lead already has a live (non-void) estimate, pricing will UPDATE it
+  // rather than create a new one (server dedupes). Surface that so the roofer knows.
+  const [existingEstimate, setExistingEstimate] = useState<{ number: string; status: string } | null>(null)
 
   const leadId     = searchParams.get('lead_id')     ?? null
   const propertyId = searchParams.get('property_id') ?? null
@@ -239,6 +242,15 @@ function CalculatorInner() {
     // Restore saved labour + LF from roofing_job_data for this lead
     // LF fallback: if sessionStorage didn't have LF (DSM still running), read from DB
     if (leadId && session) {
+      // Pre-check: does this lead already have a live estimate? If so, applying
+      // updates it (server dedupes) — reflect that in the CTA + a notice.
+      fetch(`/api/estimates?pro_id=${session.id}&lead_id=${leadId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          const live = (d?.estimates ?? []).find((e: any) => !['void', 'declined'].includes(e.status))
+          if (live) setExistingEstimate({ number: live.estimate_number, status: live.status })
+        })
+        .catch(() => {})
       fetch(`/api/leads/${leadId}?pro_id=${session.id}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => {
@@ -348,7 +360,7 @@ function CalculatorInner() {
         }).catch(() => {})
       }
       sessionStorage.removeItem('pg_report_data')
-      setSuccess('Estimate created — taking you there now…')
+      setSuccess((respData.existed ? 'Estimate updated' : 'Estimate created') + ' — taking you there now…')
       setTimeout(() => router.push(`/dashboard/estimates/${estimateId}${leadId ? `?from=calculator&lead_id=${leadId}` : '?from=calculator'}`), 1200)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create estimate')
@@ -666,6 +678,12 @@ function CalculatorInner() {
         })()}
 
         {/* Error / success */}
+        {existingEstimate && !success && (
+          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', borderRadius:10, background:'#FFFBEB', border:'1px solid #FDE68A', marginBottom:14 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span style={{ fontSize:13, color:'#92400E', fontWeight:600 }}>This lead already has estimate #{existingEstimate.number}. Applying will update it, not create a new one.</span>
+          </div>
+        )}
         {error && (
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', borderRadius:10, background:'#FEF2F2', border:'1px solid #FECACA', marginBottom:14 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -692,8 +710,8 @@ function CalculatorInner() {
                 letterSpacing:'-0.01em', transition:'all 0.15s',
               }}>
               {saving
-                ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> Creating estimate…</>
-                : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Apply to Estimate</>
+                ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> {existingEstimate ? 'Updating estimate…' : 'Creating estimate…'}</>
+                : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> {existingEstimate ? `Update Estimate #${existingEstimate.number}` : 'Apply to Estimate'}</>
               }
             </button>
             <button onClick={() => router.back()}
