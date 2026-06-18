@@ -930,6 +930,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     <div style={{ padding: 24 }}>
                       {activeTab === 'items' ? (
                         <>
+                          <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 8 }}>
+                            [debug] revision_of={String((estimate as any).revision_of)} · revision_number={String((estimate as any).revision_number)}
+                          </div>
                           {estimate.revision_of && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: dk ? 'rgba(13,148,136,0.10)' : '#F0FDFA', border: '1px solid #5EEAD4', marginBottom: 16 }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.5-5.7L3 8"/></svg>
