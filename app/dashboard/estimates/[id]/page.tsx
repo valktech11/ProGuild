@@ -273,31 +273,20 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         setSaveMsg('Saved ✓')
         setIsDirty(false)
         // ── Labour sync (Position B) ──────────────────────────────────────────
-        // The calculator stores its labour figure on the lead (roofing_job_data
-        // .labour_amount) and restores it on open. If the roofer edits the
-        // "Labour & installation" line here, write it back to the lead so the
-        // calculator shows the SAME number next time — one labour value everywhere.
+        // Mirror the onSave path: if the "Labour & installation" line was edited,
+        // write it back to the lead so the calculator restores the same value.
         const leadId = (estimate as any).lead_id
         const labourLine = estimate.items.find(
           (it: any) => String(it.name ?? it.description ?? '').toLowerCase().includes('labour')
                     || String(it.name ?? it.description ?? '').toLowerCase().includes('labor')
         )
-        console.log('[labour-sync] leadId:', leadId, '| sessionId:', session?.id,
-          '| labourLine:', labourLine ? { name: labourLine.name, qty: labourLine.qty, unit_price: labourLine.unit_price, amount: labourLine.amount } : 'NOT FOUND',
-          '| items:', estimate.items.map((i:any)=>i.name))
         if (leadId && session?.id && labourLine) {
           const labourAmt = Number(labourLine.amount ?? (Number(labourLine.qty) * Number(labourLine.unit_price))) || 0
-          try {
-            const lr = await fetch(`/api/leads/${leadId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pro_id: session.id, labour_amount: labourAmt }),
-            })
-            const lj = await lr.json().catch(() => ({}))
-            console.log('[labour-sync] PATCH lead labour_amount:', labourAmt, '| status:', lr.status, '| resp rjd labour:', lj?.lead?.roofing_job_data?.labour_amount)
-          } catch (e) {
-            console.error('[labour-sync] PATCH failed:', e)
-          }
+          fetch(`/api/leads/${leadId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pro_id: session.id, labour_amount: labourAmt }),
+          }).catch(() => {})
         }
       }
     } catch {
@@ -463,6 +452,24 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               setEstimate(prev => prev ? { ...prev, ...updates } as any : prev)
               setSaveMsg('Saved ✓')
               setTimeout(() => setSaveMsg(null), 2500)
+              // ── Labour sync (Position B) ────────────────────────────────────
+              // This onSave is the path the line-items editor uses (NOT handleSave).
+              // If the roofer edited the "Labour & installation" line, write it back
+              // to the lead so the calculator restores the SAME value next time.
+              const leadId = (estimate as any).lead_id
+              const itemsForSync = (updates.items !== undefined ? updates.items : estimate.items) as any[]
+              const labourLine = itemsForSync?.find(
+                (it: any) => String(it.name ?? it.description ?? '').toLowerCase().includes('labour')
+                          || String(it.name ?? it.description ?? '').toLowerCase().includes('labor')
+              )
+              if (leadId && session?.id && labourLine) {
+                const labourAmt = Number(labourLine.amount ?? (Number(labourLine.qty) * Number(labourLine.unit_price))) || 0
+                fetch(`/api/leads/${leadId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ pro_id: session.id, labour_amount: labourAmt }),
+                }).catch(() => {})
+              }
             } catch (err: any) { setSaveMsg(err?.message || 'Save failed'); setTimeout(() => setSaveMsg(null), 3000) }
             finally { setSaving(false) }
           }}
