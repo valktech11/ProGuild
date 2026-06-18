@@ -2049,6 +2049,10 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
         <div style={{ borderTop: `1px solid ${border}`, paddingTop: 14, marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13,
             color: textS, marginBottom: 8 }}>
+            <span>Subtotal</span><span>{fmt(total - taxAmt)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13,
+            color: textS, marginBottom: 8 }}>
             <span>Tax ({taxRate}%)</span><span>{fmt(taxAmt)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
