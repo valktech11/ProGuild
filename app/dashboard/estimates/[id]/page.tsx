@@ -1093,7 +1093,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 {/* Right sidebar */}
-                <div className="w-full xl:w-[340px] xl:shrink-0 space-y-5">
+                <div className="w-full xl:w-[340px] xl:shrink-0 space-y-5" style={{ position: 'sticky', top: 16 }}>
                   <EstimateSummary estimate={estimate} darkMode={dk} />
                   <PaymentPanel
                     estimate={estimate}
