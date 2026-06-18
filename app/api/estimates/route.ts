@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   let q = getSupabaseAdmin()
     .from('estimates')
-    .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count')
+    .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count, revision_of, revision_number')
     .eq('pro_id', proId)
   if (leadId) q = q.eq('lead_id', leadId)
 

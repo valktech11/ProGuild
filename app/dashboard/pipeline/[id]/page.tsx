@@ -183,6 +183,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   // ── Estimate / invoice ───────────────────────────────────────────────────
   const [est, setEst] = useState<{id:string;estimate_number:string;total:number;status:string}|null>(null)
+  // All non-void estimates for this lead (original + any revisions) — for stacked display
+  const [estList, setEstList] = useState<{id:string;estimate_number:string;total:number;status:string;revision_of?:string|null;revision_number?:number}[]>([])
   const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number}|null>(null)
   const [creatingEst, setCreatingEst] = useState(false)
   const [creatingInv, setCreatingInv] = useState(false)
@@ -256,9 +258,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     if (!session||!lead) return
     fetch(`/api/estimates?pro_id=${session.id}`).then(r=>r.json()).then(d => {
       const arr=(d.estimates||[]).filter((e:any)=>e.lead_id===lead.id&&!['void','declined'].includes(e.status))
-      if (!arr.length) return
+      if (!arr.length) { setEst(null); setEstList([]); return }
       const pri=['invoiced','approved','paid','sent','viewed','draft']
-      setEst(arr.sort((a:any,b:any)=>pri.indexOf(a.status)<pri.indexOf(b.status)?-1:1)[0])
+      const sorted=[...arr].sort((a:any,b:any)=>pri.indexOf(a.status)<pri.indexOf(b.status)?-1:1)
+      setEst(sorted[0])
+      // Stacked display: original first, then revisions in order (oldest → newest)
+      const ordered=[...arr].sort((a:any,b:any)=>(a.revision_number??0)-(b.revision_number??0))
+      setEstList(ordered)
     }).catch(()=>{})
   }, [session, lead])
 
@@ -1804,18 +1810,28 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     {/* Estimate tab */}
                     {tab==='estimate'&&(
                       <div style={{padding:'18px 20px'}}>
-                        {est?(
+                        {estList.length>0?(
                           <div style={{display:'flex',flexDirection:'column',gap:12}}>
-                            <div style={{padding:'16px 18px',borderRadius:T.radMd,background:t.successBg,border:`1px solid ${t.successBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                              <div>
-                                <div style={{fontSize:10,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Estimate #{est.estimate_number}</div>
-                                <div style={{fontSize:26,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.03em'}}>{est.total > 0 ? `$${est.total.toLocaleString('en-US',{minimumFractionDigits:2})}` : inv ? `$${inv.balance_due.toLocaleString('en-US',{minimumFractionDigits:2})}` : 'Open to see total'}</div>
-                              </div>
-                              <button onClick={()=>router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)}
-                                style={{padding:'10px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
-                                Open
-                              </button>
-                            </div>
+                            {estList.map((e)=>{
+                              const isRevision = !!e.revision_of
+                              const statusLabel = e.status.charAt(0).toUpperCase()+e.status.slice(1)
+                              return (
+                                <div key={e.id} style={{padding:'16px 18px',borderRadius:T.radMd,background:t.successBg,border:`1px solid ${t.successBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                                  <div>
+                                    <div style={{fontSize:10,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                                      <span>Estimate #{e.estimate_number}</span>
+                                      {isRevision&&<span style={{padding:'1px 7px',borderRadius:100,background:'rgba(15,118,110,0.12)',color:BRAND.teal,fontSize:9}}>Revision {e.revision_number??''}</span>}
+                                      <span style={{padding:'1px 7px',borderRadius:100,background:t.cardBgAlt,color:ts,fontSize:9}}>{statusLabel}</span>
+                                    </div>
+                                    <div style={{fontSize:26,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.03em'}}>{e.total > 0 ? `$${e.total.toLocaleString('en-US',{minimumFractionDigits:2})}` : 'Open to see total'}</div>
+                                  </div>
+                                  <button onClick={()=>router.push(`/dashboard/estimates/${e.id}?from=pipeline&lead_id=${id}`)}
+                                    style={{padding:'10px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
+                                    Open
+                                  </button>
+                                </div>
+                              )
+                            })}
                             {inv&&(
                               <div style={{padding:'14px 18px',borderRadius:T.radSm,background:t.warningBg,border:`1px solid ${t.warningBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                                 <div>
