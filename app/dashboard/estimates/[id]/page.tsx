@@ -278,17 +278,25 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         // "Labour & installation" line here, write it back to the lead so the
         // calculator shows the SAME number next time — one labour value everywhere.
         const leadId = (estimate as any).lead_id
-        if (leadId && session?.id) {
-          const labourLine = estimate.items.find(
-            (it: any) => String(it.name ?? it.description ?? '').toLowerCase() === 'labour & installation'
-          )
-          if (labourLine) {
-            const labourAmt = Number(labourLine.amount ?? (Number(labourLine.qty) * Number(labourLine.unit_price))) || 0
-            fetch(`/api/leads/${leadId}`, {
+        const labourLine = estimate.items.find(
+          (it: any) => String(it.name ?? it.description ?? '').toLowerCase().includes('labour')
+                    || String(it.name ?? it.description ?? '').toLowerCase().includes('labor')
+        )
+        console.log('[labour-sync] leadId:', leadId, '| sessionId:', session?.id,
+          '| labourLine:', labourLine ? { name: labourLine.name, qty: labourLine.qty, unit_price: labourLine.unit_price, amount: labourLine.amount } : 'NOT FOUND',
+          '| items:', estimate.items.map((i:any)=>i.name))
+        if (leadId && session?.id && labourLine) {
+          const labourAmt = Number(labourLine.amount ?? (Number(labourLine.qty) * Number(labourLine.unit_price))) || 0
+          try {
+            const lr = await fetch(`/api/leads/${leadId}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ pro_id: session.id, labour_amount: labourAmt }),
-            }).catch(() => {})
+            })
+            const lj = await lr.json().catch(() => ({}))
+            console.log('[labour-sync] PATCH lead labour_amount:', labourAmt, '| status:', lr.status, '| resp rjd labour:', lj?.lead?.roofing_job_data?.labour_amount)
+          } catch (e) {
+            console.error('[labour-sync] PATCH failed:', e)
           }
         }
       }
