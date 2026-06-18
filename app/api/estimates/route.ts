@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   if (lead_id && !force_new) {
     const { data: existing } = await sb
       .from('estimates')
-      .select('id, estimate_number, status, total, created_at')
+      .select('id, estimate_number, status, total, tax_rate, created_at')
       .eq('pro_id', pro_id)
       .eq('lead_id', lead_id)
       .not('status', 'in', '("void","declined")')
@@ -106,10 +106,10 @@ export async function POST(req: NextRequest) {
         // 3. Recalculate totals
         const newSubtotal = items.reduce((s: number, i: any) => s + (i.amount ?? 0), 0)
         const taxRate     = (((best as any).tax_rate ?? 6))
-        const newTax      = Math.round(newSubtotal * taxRate / 100)
-        const newTotal    = newSubtotal + newTax
+        const newTax      = Math.round(newSubtotal * taxRate / 100 * 100) / 100
+        const newTotal    = Math.round((newSubtotal + newTax) * 100) / 100
         // 4. Force Standard mode — update estimates table totals
-        await sb.from('estimates').update({
+        const { error: updateErr } = await sb.from('estimates').update({
           subtotal:   newSubtotal,
           tax_amount: newTax,
           total:      newTotal,
@@ -117,6 +117,10 @@ export async function POST(req: NextRequest) {
           pitch,
           waste_pct,
         }).eq('id', best.id)
+        if (updateErr) {
+          console.error('[estimates POST] update totals failed:', updateErr.message, 'id:', best.id)
+          return NextResponse.json({ error: 'Failed to update estimate totals: ' + updateErr.message }, { status: 500 })
+        }
         // 4b. Force Standard mode in roofing_estimate_data (where estimate_type lives)
         await sb.from('roofing_estimate_data').upsert({
           estimate_id:   best.id,
