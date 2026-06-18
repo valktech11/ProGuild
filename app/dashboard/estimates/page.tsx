@@ -34,6 +34,8 @@ type EstimateSummary = {
   total: number
   created_at: string
   valid_until: string
+  revision_of?: string | null
+  revision_number?: number
 }
 
 // ── New Estimate Modal (Option C) ─────────────────────────────────────────────
@@ -1044,7 +1046,10 @@ export default function EstimatesPage() {
                     <div className="flex items-center gap-3 px-4 py-3.5 md:hidden">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate" style={{ color: t.textPri }}>{est.lead_name}</p>
-                        <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>#{est.estimate_number}</p>
+                        <p className="text-xs mt-0.5 flex items-center gap-1.5" style={{ color: t.textMuted }}>
+                          #{est.estimate_number}
+                          {est.revision_of && <span style={{ padding: '0px 6px', borderRadius: 100, background: dk ? 'rgba(15,118,110,0.2)' : 'rgba(15,118,110,0.1)', color: '#0F766E', fontSize: 10, fontWeight: 700 }}>Rev {est.revision_number ?? ''}</span>}
+                        </p>
                       </div>
                       <span style={{ background: estimateStatusStyle(est.status, dk).bg, color: estimateStatusStyle(est.status, dk).text, padding: '2px 10px', borderRadius: 20, fontSize: T.fontBadge, fontWeight: 600, display: 'inline-flex', flexShrink: 0 }}>
                         {estimateStatusStyle(est.status, dk).label}
@@ -1058,7 +1063,10 @@ export default function EstimatesPage() {
                     <div className="hidden md:grid grid-cols-[1fr_140px_100px_120px_100px_40px] gap-4 px-5 py-4">
                       <div>
                         <p className="text-sm font-semibold" style={{ color: t.textPri }}>{est.lead_name}</p>
-                        <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>#{est.estimate_number}</p>
+                        <p className="text-xs mt-0.5 flex items-center gap-1.5" style={{ color: t.textMuted }}>
+                          #{est.estimate_number}
+                          {est.revision_of && <span style={{ padding: '0px 6px', borderRadius: 100, background: dk ? 'rgba(15,118,110,0.2)' : 'rgba(15,118,110,0.1)', color: '#0F766E', fontSize: 10, fontWeight: 700 }}>Rev {est.revision_number ?? ''}</span>}
+                        </p>
                       </div>
                       <div className="text-sm self-center truncate" style={{ color: t.textMuted }}>{est.trade}</div>
                       <div className="self-center">

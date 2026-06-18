@@ -27,14 +27,16 @@ export async function GET(req: NextRequest) {
   const sb = getSupabaseAdmin()
   const { data, error } = await sb
     .from('estimates')
-    .select('id, lead_id, status, total')
+    .select('id, lead_id, status, total, revision_of')
     .eq('pro_id', proId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const estimates = data || []
 
-  const totalEstimates = estimates.length
+  // Total Proposal counts distinct proposals, not revisions. A revision (revision_of
+  // set) is the same job as its original, so it must not inflate the count.
+  const totalEstimates = estimates.filter(e => !e.revision_of).length
   const sentCount      = estimates.filter(e => e.status === 'sent' || e.status === 'viewed').length
   const draftCount     = estimates.filter(e => e.status === 'draft').length
   const archivedCount  = estimates.filter(e => ARCHIVED_STATUSES.includes(e.status as string)).length

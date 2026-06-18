@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (lead_id && !force_new) {
     const { data: existing } = await sb
       .from('estimates')
-      .select('id, estimate_number, status, total, tax_rate, created_at')
+      .select('id, estimate_number, status, total, tax_rate, created_at, lead_name')
       .eq('pro_id', pro_id)
       .eq('lead_id', lead_id)
       .not('status', 'in', '("void","declined")')
