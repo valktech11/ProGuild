@@ -262,12 +262,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     }).catch(()=>{})
   }, [session, lead])
 
-  // Re-fetch estimate when tab regains focus — covers returning from calculator, estimate editor, etc.
+  // Re-fetch estimate on visibility change (tab switch) and on fromParam change
+  // (covers returning from calculator/estimate editor via client-side nav)
   useEffect(() => {
-    const onFocus = () => refreshEst()
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshEst() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [refreshEst])
+
+  useEffect(() => {
+    refreshEst()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromParam])
 
   useEffect(() => {
     if (!session||!lead) return
