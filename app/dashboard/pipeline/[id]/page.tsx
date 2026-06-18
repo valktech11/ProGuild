@@ -252,7 +252,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       .catch(() => {})
   }, [session, id])
 
-  useEffect(() => {
+  const refreshEst = useCallback(() => {
     if (!session||!lead) return
     fetch(`/api/estimates?pro_id=${session.id}`).then(r=>r.json()).then(d => {
       const arr=(d.estimates||[]).filter((e:any)=>e.lead_id===lead.id&&!['void','declined'].includes(e.status))
@@ -260,6 +260,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       const pri=['invoiced','approved','paid','sent','viewed','draft']
       setEst(arr.sort((a:any,b:any)=>pri.indexOf(a.status)<pri.indexOf(b.status)?-1:1)[0])
     }).catch(()=>{})
+  }, [session, lead])
+
+  // Re-fetch estimate when tab regains focus — covers returning from calculator, estimate editor, etc.
+  useEffect(() => {
+    const onFocus = () => refreshEst()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [refreshEst])
+
+  useEffect(() => {
+    if (!session||!lead) return
+    refreshEst()
     fetch(`/api/invoices?pro_id=${session.id}&lead_id=${lead.id}`).then(r=>r.json()).then(d => {
       const i=(d.invoices||[]).find((x:any)=>x.status!=='void'); if(i) setInv(i)
     }).catch(()=>{})
