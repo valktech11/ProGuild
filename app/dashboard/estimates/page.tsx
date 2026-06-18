@@ -862,6 +862,12 @@ export default function EstimatesPage() {
   const archivedStatuses = ['void', 'declined']
   const filtered = estimates
     .filter(e => {
+      // 'superseded' chip: show only voided estimates (revision chain originals)
+      if (statusFilter === 'superseded') {
+        if (e.status !== 'void') return false
+        return e.lead_name.toLowerCase().includes(search.toLowerCase()) ||
+               e.estimate_number.toLowerCase().includes(search.toLowerCase())
+      }
       if (!showArchived && archivedStatuses.includes(e.status)) return false
       if (statusFilter !== 'all' && e.status !== statusFilter) return false
       return e.lead_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -989,6 +995,15 @@ export default function EstimatesPage() {
                 {s === 'all' ? 'All Active' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
+            <button key="superseded"
+              onClick={() => setStatusFilter('superseded')}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors shrink-0 ${
+                statusFilter === 'superseded'
+                  ? 'bg-[#64748B] border-[#64748B] text-white'
+                  : dk ? 'border-[#334155] text-slate-400 hover:border-slate-500' : 'border-[#E8E2D9] text-[#6B7280] hover:border-slate-400'
+              }`}>
+              Superseded
+            </button>
           </div>
 
           {/* ── Estimates table ── */}
