@@ -272,6 +272,25 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       } else {
         setSaveMsg('Saved ✓')
         setIsDirty(false)
+        // ── Labour sync (Position B) ──────────────────────────────────────────
+        // The calculator stores its labour figure on the lead (roofing_job_data
+        // .labour_amount) and restores it on open. If the roofer edits the
+        // "Labour & installation" line here, write it back to the lead so the
+        // calculator shows the SAME number next time — one labour value everywhere.
+        const leadId = (estimate as any).lead_id
+        if (leadId && session?.id) {
+          const labourLine = estimate.items.find(
+            (it: any) => String(it.name ?? it.description ?? '').toLowerCase() === 'labour & installation'
+          )
+          if (labourLine) {
+            const labourAmt = Number(labourLine.amount ?? (Number(labourLine.qty) * Number(labourLine.unit_price))) || 0
+            fetch(`/api/leads/${leadId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pro_id: session.id, labour_amount: labourAmt }),
+            }).catch(() => {})
+          }
+        }
       }
     } catch {
       setSaveMsg('Network error')
