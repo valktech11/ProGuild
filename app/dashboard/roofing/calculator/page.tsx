@@ -647,8 +647,11 @@ function CalculatorInner() {
                   </div>
                 )}
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:12, fontWeight:800, color:NAVY }}>Est. Total (incl. tax)</span>
+                  <span style={{ fontSize:12, fontWeight:800, color:NAVY }}>Calculated total{taxRate > 0 ? ' (incl. tax)' : ''}</span>
                   <span style={{ fontSize:20, fontWeight:900, color:TEAL, letterSpacing:'-0.03em' }}>${totalWithTax.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                </div>
+                <div style={{ fontSize:11, color:'#94A3B8', marginTop:6, lineHeight:1.4 }}>
+                  Materials + labour for this roof. {existingEstimate ? 'Any custom lines already on the estimate are added on top — see the estimate for the final total.' : 'The estimate total may differ if you add custom lines.'}
                 </div>
               </div>
             </div>
