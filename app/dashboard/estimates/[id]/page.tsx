@@ -55,6 +55,8 @@ export type Estimate = {
   decline_reason?: string
   voided_at?: string
   void_reason?: string
+  revision_of?: string | null
+  revision_number?: number
   timeline: { event: string; label: string; timestamp: string | null }[]
 }
 
@@ -894,6 +896,14 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     <div style={{ padding: 24 }}>
                       {activeTab === 'items' ? (
                         <>
+                          {estimate.revision_of && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: dk ? 'rgba(13,148,136,0.10)' : '#F0FDFA', border: '1px solid #5EEAD4', marginBottom: 16 }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.5-5.7L3 8"/></svg>
+                              <p style={{ fontSize: 13, color: dk ? '#5EEAD4' : '#0F766E', margin: 0 }}>
+                                {`Revision ${estimate.revision_number ?? ''} — re-priced from an earlier signed estimate. The original is kept on record and will be superseded once this is signed.`}
+                              </p>
+                            </div>
+                          )}
                           {isLocked(estimate.status) && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: dk ? 'rgba(245,158,11,0.08)' : '#FFFBEB', border: '1px solid #FCD34D', marginBottom: 16 }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>

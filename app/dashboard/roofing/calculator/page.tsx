@@ -366,7 +366,7 @@ function CalculatorInner() {
         const d = await res.json().catch(()=>({}))
         throw new Error((d as any).error ?? `HTTP ${res.status}`)
       }
-      const respData = await res.json() as { id?: string; estimate?: { id: string }; existed?: boolean }
+      const respData = await res.json() as { id?: string; estimate?: { id: string }; existed?: boolean; revised?: boolean; revision_number?: number; custom_lines_preserved?: number }
       const estimateId = respData.id ?? respData.estimate?.id
       // Persist labour amount to roofing_job_data so it restores next time
       if (leadId && session && labour) {
@@ -377,7 +377,10 @@ function CalculatorInner() {
         }).catch(() => {})
       }
       sessionStorage.removeItem('pg_report_data')
-      setSuccess((respData.existed ? 'Estimate updated' : 'Estimate created') + ' — taking you there now…')
+      const msg = respData.revised
+        ? `Revision ${respData.revision_number ?? ''} created — the signed original is kept on record. Taking you to the new draft…`
+        : (respData.existed ? 'Estimate updated' : 'Estimate created') + ' — taking you there now…'
+      setSuccess(msg)
       setTimeout(() => router.push(`/dashboard/estimates/${estimateId}${leadId ? `?from=calculator&lead_id=${leadId}` : '?from=calculator'}`), 1200)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create estimate')
@@ -704,7 +707,11 @@ function CalculatorInner() {
         {existingEstimate && !success && (
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', borderRadius:10, background:'#FFFBEB', border:'1px solid #FDE68A', marginBottom:14 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span style={{ fontSize:13, color:'#92400E', fontWeight:600 }}>This lead already has estimate #{existingEstimate.number}. Applying will update it, not create a new one.</span>
+            <span style={{ fontSize:13, color:'#92400E', fontWeight:600 }}>
+              {['approved','invoiced','paid'].includes(existingEstimate.status)
+                ? `Estimate #${existingEstimate.number} is already signed. Applying creates a new revision and keeps the original on record — it won't change the signed one.`
+                : `This lead already has estimate #${existingEstimate.number}. Applying updates it (your hand-added lines are kept), it won't create a duplicate.`}
+            </span>
           </div>
         )}
         {error && (
@@ -733,8 +740,8 @@ function CalculatorInner() {
                 letterSpacing:'-0.01em', transition:'all 0.15s',
               }}>
               {saving
-                ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> {existingEstimate ? 'Updating estimate…' : 'Creating estimate…'}</>
-                : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> {existingEstimate ? `Update Estimate #${existingEstimate.number}` : 'Apply to Estimate'}</>
+                ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> {existingEstimate ? (['approved','invoiced','paid'].includes(existingEstimate.status) ? 'Creating revision…' : 'Updating estimate…') : 'Creating estimate…'}</>
+                : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> {existingEstimate ? (['approved','invoiced','paid'].includes(existingEstimate.status) ? `Create Revision of #${existingEstimate.number}` : `Update Estimate #${existingEstimate.number}`) : 'Apply to Estimate'}</>
               }
             </button>
             <button onClick={() => router.back()}

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { CALCULATOR_LINE_NAMES } from '@/lib/roofing/calculator'
+
+// Frozen estimate states — a homeowner has signed/agreed. Re-pricing must NOT
+// overwrite these; it spins off a revision instead (see revision branch below).
+const FROZEN_STATUSES = ['approved', 'invoiced', 'paid']
 
 // Base state sales tax rates (Tax Foundation 2024)
 // These are state-level rates only — county/city additions vary
@@ -83,32 +88,122 @@ export async function POST(req: NextRequest) {
         await sb.from('roofing_estimate_data').upsert(syncPayload, { onConflict: 'estimate_id' })
       }
 
-      // Calculator output → force Standard mode, replace all items, recalc totals
+      // Calculator output handling — branches on whether the estimate is frozen.
       if (source === 'roofing_calculator' && Array.isArray(line_items) && line_items.length > 0) {
-        // 1. Delete existing items
-        await sb.from('estimate_items').delete().eq('estimate_id', best.id)
-        // 2. Insert calculator line items
-        const items = line_items.map((item: any, idx: number) => {
+
+        // Build the calculator's material lines once (reused by both branches).
+        const calcItems = line_items.map((item: any, idx: number) => {
           const qty       = Number(item.quantity  ?? item.qty ?? 1)
           const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0)
-          const itemTotal = Number(item.total ?? item.amount ?? Math.round(qty * unitPrice))
+          const itemTotal = Number(item.total ?? item.amount ?? Math.round(qty * unitPrice * 100) / 100)
           return {
-            estimate_id:  best.id,
-            name:         String(item.description ?? item.name ?? ''),
-            description:  String(item.description ?? item.name ?? ''),
-            qty:          qty,
-            unit_price:   unitPrice,
-            amount:       itemTotal,
-            sort_order:   idx,
+            name:        String(item.description ?? item.name ?? ''),
+            description: String(item.description ?? item.name ?? ''),
+            qty, unit_price: unitPrice, amount: itemTotal, sort_order: idx,
           }
         })
-        await sb.from('estimate_items').insert(items)
-        // 3. Recalculate totals
-        const newSubtotal = items.reduce((s: number, i: any) => s + (i.amount ?? 0), 0)
-        const taxRate     = (((best as any).tax_rate ?? 6))
+
+        // ─────────────────────────────────────────────────────────────────────
+        // FROZEN (approved / invoiced / paid) → create a REVISION, never overwrite.
+        // The original keeps its signature, invoice and status intact. A new draft
+        // estimate is created, linked via revision_of, pre-filled with the calc lines,
+        // and returned so the UI takes the roofer there to re-price and re-send.
+        // ─────────────────────────────────────────────────────────────────────
+        if (FROZEN_STATUSES.includes(best.status)) {
+          // Determine revision depth: walk the chain so each revision is numbered.
+          // best may itself be a revision; count existing revisions in this lead's chain.
+          const { data: chain } = await sb
+            .from('estimates')
+            .select('id, revision_number')
+            .eq('pro_id', pro_id)
+            .eq('lead_id', lead_id)
+            .not('revision_of', 'is', null)
+          const nextRevNum = (chain?.length ?? 0) + 1
+
+          const { data: numData2 } = await sb.rpc('next_estimate_number')
+          const revNumber: string = numData2 || `EST-${Date.now().toString().slice(-4)}`
+          const validUntil2 = new Date(); validUntil2.setDate(validUntil2.getDate() + 14)
+
+          // Carry tax_rate forward from the original (it was already resolved at create).
+          const carriedTaxRate = (best as any).tax_rate ?? STATE_TAX_RATES[state?.toUpperCase() ?? ''] ?? 6
+
+          const calcSubtotal = calcItems.reduce((s, i) => s + (i.amount ?? 0), 0)
+          const calcTax      = Math.round(calcSubtotal * carriedTaxRate / 100 * 100) / 100
+          const calcTotal    = Math.round((calcSubtotal + calcTax) * 100) / 100
+
+          const { data: rev, error: revErr } = await sb.from('estimates').insert({
+            pro_id,
+            lead_id,
+            estimate_number: revNumber,
+            status:          'draft',
+            lead_name:       (best as any).lead_name ?? lead_name ?? 'New Client',
+            trade:           trade || '',
+            trade_slug:      trade_slug || null,
+            subtotal:        calcSubtotal,
+            discount:        0,
+            tax_rate:        carriedTaxRate,
+            tax_amount:      calcTax,
+            total:           calcTotal,
+            require_deposit: true,
+            valid_until:     validUntil2.toISOString(),
+            contact_phone:   contact_phone || null,
+            contact_email:   contact_email || null,
+            terms:           'This estimate is valid for 14 days. Payment is due upon job completion.',
+            revision_of:     best.id,
+            revision_number: nextRevNum,
+          }).select().single()
+
+          if (revErr || !rev) {
+            console.error('[estimates POST] revision create failed:', revErr?.message)
+            return NextResponse.json({ error: 'Failed to create revision: ' + (revErr?.message ?? 'unknown') }, { status: 500 })
+          }
+
+          // Pre-fill the revision with the calculator's lines.
+          await sb.from('estimate_items').insert(calcItems.map(i => ({ ...i, estimate_id: rev.id })))
+
+          // Roofing extension row — standard mode, carry measurements.
+          if (trade_slug?.includes('roof')) {
+            await sb.from('roofing_estimate_data').upsert({
+              estimate_id:   rev.id,
+              pro_id,
+              estimate_type: 'standard',
+              tiered_data:   null,
+              square_count:  Number(square_count) || null,
+              pitch:         pitch ?? null,
+              waste_pct:     Number(waste_pct) || null,
+            }, { onConflict: 'estimate_id' })
+          }
+
+          return NextResponse.json({
+            estimate: rev, existed: true, revised: true,
+            revision_of: best.id, revision_number: nextRevNum,
+          })
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // EDITABLE (draft / sent / viewed) → MERGE: replace only the calculator's
+        // own material lines, preserve any line the roofer added by hand.
+        // ─────────────────────────────────────────────────────────────────────
+        // 1. Read existing items, keep the ones NOT owned by the calculator.
+        const { data: existingItems } = await sb
+          .from('estimate_items').select('*').eq('estimate_id', best.id)
+        const customItems = (existingItems ?? []).filter(
+          (it: any) => !CALCULATOR_LINE_NAMES.includes(String(it.name ?? it.description ?? ''))
+        )
+        // 2. Delete only the calculator-owned lines.
+        await sb.from('estimate_items').delete()
+          .eq('estimate_id', best.id)
+          .in('name', CALCULATOR_LINE_NAMES as string[])
+        // 3. Insert the fresh calculator lines (custom lines stay as-is).
+        await sb.from('estimate_items').insert(calcItems.map(i => ({ ...i, estimate_id: best.id })))
+        // 4. Recalculate totals from ALL persisted lines (calc + preserved custom).
+        const calcSubtotal   = calcItems.reduce((s, i) => s + (i.amount ?? 0), 0)
+        const customSubtotal = customItems.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
+        const newSubtotal = Math.round((calcSubtotal + customSubtotal) * 100) / 100
+        const taxRate     = ((best as any).tax_rate ?? 6)
         const newTax      = Math.round(newSubtotal * taxRate / 100 * 100) / 100
         const newTotal    = Math.round((newSubtotal + newTax) * 100) / 100
-        // 4. Force Standard mode — update estimates table totals
+        // 5. Force Standard mode — update estimates table totals
         const { error: updateErr } = await sb.from('estimates').update({
           subtotal:   newSubtotal,
           tax_amount: newTax,
@@ -121,7 +216,7 @@ export async function POST(req: NextRequest) {
           console.error('[estimates POST] update totals failed:', updateErr.message, 'id:', best.id)
           return NextResponse.json({ error: 'Failed to update estimate totals: ' + updateErr.message }, { status: 500 })
         }
-        // 4b. Force Standard mode in roofing_estimate_data (where estimate_type lives)
+        // 5b. Force Standard mode in roofing_estimate_data (where estimate_type lives)
         await sb.from('roofing_estimate_data').upsert({
           estimate_id:   best.id,
           pro_id:        pro_id,
@@ -131,9 +226,12 @@ export async function POST(req: NextRequest) {
           pitch:         pitch ?? null,
           waste_pct:     Number(waste_pct) || null,
         }, { onConflict: 'estimate_id' })
-        // 5. Return fresh estimate row
+        // 6. Return fresh estimate row
         const { data: updated } = await sb.from('estimates').select('*').eq('id', best.id).single()
-        return NextResponse.json({ estimate: updated ?? best, existed: true, items_replaced: true })
+        return NextResponse.json({
+          estimate: updated ?? best, existed: true, items_replaced: true,
+          custom_lines_preserved: customItems.length,
+        })
       }
       return NextResponse.json({ estimate: best, existed: true })
     }

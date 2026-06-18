@@ -25,7 +25,7 @@ export async function POST(
   // Validate estimate exists and is signable
   const { data: est } = await sb
     .from('estimates')
-    .select('id, status, valid_until, pro_id, lead_id, tax_rate')
+    .select('id, status, valid_until, pro_id, lead_id, tax_rate, revision_of, estimate_number')
     .eq('id', id).single()
 
   if (!est) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -107,6 +107,25 @@ export async function POST(
       void_reason: 'Superseded by signed estimate',
     }).eq('lead_id', est.lead_id).neq('id', id)
       .in('status', ['draft', 'sent', 'viewed'])
+  }
+
+  // ── Revision supersede ───────────────────────────────────────────────────
+  // If THIS signed estimate is a revision of an earlier (frozen) estimate, the
+  // original must now step aside: mark it superseded and void ITS invoice, so the
+  // signed-document trail and the money trail stay one-to-one. The original row is
+  // NOT deleted — it remains as the historical record of what was first agreed.
+  if (est.revision_of) {
+    await sb.from('estimates').update({
+      status:      'void',
+      voided_at:   new Date().toISOString(),
+      void_reason: `Superseded by revision ${(est as any).estimate_number ?? id}`,
+    }).eq('id', est.revision_of)
+
+    await sb.from('invoices').update({
+      status:      'void',
+      updated_at:  new Date().toISOString(),
+    }).eq('estimate_id', est.revision_of)
+      .neq('status', 'paid')  // never void a paid invoice — money already collected
   }
 
   // ── Auto-stage: move lead to proposal_signed ─────────────────────────────

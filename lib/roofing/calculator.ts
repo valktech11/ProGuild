@@ -19,6 +19,25 @@ export interface CalcLineItem {
   isPlaceholder: boolean
 }
 
+// ── Canonical line-item names the calculator emits ───────────────────────────
+// Used by POST /api/estimates to tell calculator-owned material lines apart from
+// lines a roofer added by hand. When the calculator re-prices an estimate it
+// replaces ONLY these lines and leaves everything else (custom lines) untouched.
+// 'Labour & installation' is appended by the apply handler, not calculateMaterials,
+// so it's included here explicitly.
+export const CALCULATOR_LINE_NAMES: readonly string[] = [
+  'Architectural shingles',
+  'Synthetic underlayment',
+  'Ridge cap shingles',
+  'Starter strip',
+  'Roofing nails',
+  'Drip edge',
+  'Ice & water shield (eave protection)',
+  'Pipe boots & vent covers',
+  'Tear-off & disposal',
+  'Labour & installation',
+]
+
 // ── Default FL market prices (per the web calculator) ─────────────────────────
 export const DEFAULT_PRICES: Record<string, number> = {
   shingles:     95,   // per bundle (3 bundles = 1 square)
