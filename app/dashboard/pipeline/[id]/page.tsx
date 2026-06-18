@@ -185,6 +185,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [est, setEst] = useState<{id:string;estimate_number:string;total:number;status:string}|null>(null)
   // All non-void estimates for this lead (original + any revisions) — for stacked display
   const [estList, setEstList] = useState<{id:string;estimate_number:string;total:number;status:string;revision_of?:string|null;revision_number?:number}[]>([])
+  // Superseded/voided estimates for this lead — for the history trail
+  const [supersededList, setSupersededList] = useState<{id:string;estimate_number:string;total:number;status:string;void_reason?:string|null;voided_at?:string|null;revision_number?:number}[]>([])
+  const [showHistory, setShowHistory] = useState(false)
   const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number}|null>(null)
   const [creatingEst, setCreatingEst] = useState(false)
   const [creatingInv, setCreatingInv] = useState(false)
@@ -265,6 +268,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       // Stacked display: original first, then revisions in order (oldest → newest)
       const ordered=[...arr].sort((a:any,b:any)=>(a.revision_number??0)-(b.revision_number??0))
       setEstList(ordered)
+      // History trail: voided estimates that were superseded (part of this lead's revision chain)
+      const voided=(d.estimates||[]).filter((e:any)=>e.lead_id===lead.id&&e.status==='void')
+        .sort((a:any,b:any)=>(a.revision_number??0)-(b.revision_number??0))
+      setSupersededList(voided)
     }).catch(()=>{})
   }, [session, lead])
 
@@ -618,6 +625,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         items.push({date:(est as any).viewed_at,title:`Proposal viewed`,sub:`#${est.estimate_number}${count}`,type:'estimate_viewed'})
       }
       if ((est as any).approved_at) items.push({date:(est as any).approved_at,title:`Proposal approved`,sub:`#${est.estimate_number}`,type:'estimate_approved'})
+    }
+    // Superseded versions — show the supersede in the audit trail
+    for (const sv of supersededList) {
+      if ((sv as any).voided_at) {
+        items.push({
+          date: (sv as any).voided_at,
+          title: `Estimate superseded`,
+          sub: `#${sv.estimate_number}${sv.revision_number?` (Rev ${sv.revision_number})`:''} · ${sv.void_reason||'Replaced by a newer version'}`,
+          type: 'estimate',
+        })
+      }
     }
     // Merge pipeline_events (stage transitions from DB)
     const stageLabels: Record<string,string> = {
@@ -1842,6 +1860,36 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:'#B45309',color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
                                   View
                                 </button>
+                              </div>
+                            )}
+                            {/* History trail: previous (superseded) versions, collapsed by default */}
+                            {supersededList.length>0&&(
+                              <div style={{borderRadius:T.radSm,border:`1px solid ${bdr}`,overflow:'hidden'}}>
+                                <button onClick={()=>setShowHistory(h=>!h)}
+                                  style={{width:'100%',padding:'11px 16px',background:t.cardBgAlt,border:'none',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',color:ts,fontSize:13,fontWeight:600}}>
+                                  <span>Previous versions ({supersededList.length})</span>
+                                  <span style={{fontSize:11,transform:showHistory?'rotate(180deg)':'none',transition:'transform 0.15s'}}>▼</span>
+                                </button>
+                                {showHistory&&(
+                                  <div style={{padding:'4px 0'}}>
+                                    {supersededList.map(sv=>(
+                                      <div key={sv.id} style={{padding:'10px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',borderTop:`1px solid ${bdr}`}}>
+                                        <div style={{minWidth:0}}>
+                                          <div style={{fontSize:12,fontWeight:600,color:ts,display:'flex',alignItems:'center',gap:6}}>
+                                            <span>#{sv.estimate_number}</span>
+                                            {sv.revision_number?<span style={{padding:'0px 6px',borderRadius:100,background:t.cardBgAlt,color:tsu,fontSize:9,fontWeight:700}}>Rev {sv.revision_number}</span>:null}
+                                            <span style={{padding:'0px 6px',borderRadius:100,background:dk?'rgba(148,163,184,0.15)':'#F1F5F9',color:tsu,fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em'}}>Superseded</span>
+                                          </div>
+                                          <div style={{fontSize:11,color:tsu,marginTop:2}}>${Number(sv.total||0).toLocaleString('en-US',{minimumFractionDigits:2})} · {sv.void_reason||'Replaced by a newer version'}</div>
+                                        </div>
+                                        <button onClick={()=>router.push(`/dashboard/estimates/${sv.id}?from=pipeline&lead_id=${id}`)}
+                                          style={{padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'transparent',color:ts,fontSize:12,fontWeight:600,cursor:'pointer',flexShrink:0}}>
+                                          View
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
