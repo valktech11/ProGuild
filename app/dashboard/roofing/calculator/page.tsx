@@ -70,7 +70,7 @@ function FInput({ label, hint, ...p }: React.InputHTMLAttributes<HTMLInputElemen
   return (
     <div>
       <label style={{ display:'block', fontSize:12, fontWeight:700, color:'#475569', textTransform:'uppercase' as const, letterSpacing:'0.06em', marginBottom:7 }}>
-        {label}{hint && <span style={{ color:'#94A3B8', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:6, fontSize:11 }}>{hint}</span>}
+        {label}{hint && <span style={{ color:'#64748B', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:6, fontSize:11 }}>{hint}</span>}
       </label>
       <input {...p}
         onFocus={e => { setF(true); (p as any).onFocus?.(e) }}
@@ -94,7 +94,7 @@ function FSelect({ label, hint, children, ...p }: React.SelectHTMLAttributes<HTM
   return (
     <div>
       <label style={{ display:'block', fontSize:12, fontWeight:700, color:'#475569', textTransform:'uppercase' as const, letterSpacing:'0.06em', marginBottom:7 }}>
-        {label}{hint && <span style={{ color:'#94A3B8', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:6, fontSize:11 }}>{hint}</span>}
+        {label}{hint && <span style={{ color:'#64748B', fontWeight:400, textTransform:'none' as const, letterSpacing:0, marginLeft:6, fontSize:11 }}>{hint}</span>}
       </label>
       <select {...p}
         onFocus={e => { setF(true); (p as any).onFocus?.(e) }}
@@ -124,7 +124,7 @@ function Section({ n, label, sub, children, right }: { n: string; label: string;
           <div style={{ width:30, height:30, borderRadius:9, background:`linear-gradient(135deg,${TEAL},${TEAL_L})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, color:'#fff', flexShrink:0 }}>{n}</div>
           <div style={{ minWidth:0 }}>
             <div style={{ fontSize:15, fontWeight:800, color:NAVY, letterSpacing:'-0.02em' }}>{label}</div>
-            <div style={{ fontSize:12, color:'#94A3B8', marginTop:2 }}>{sub}</div>
+            <div style={{ fontSize:12, color:'#64748B', marginTop:2 }}>{sub}</div>
           </div>
         </div>
         {right && <div style={{ flexShrink:0 }}>{right}</div>}
@@ -446,7 +446,7 @@ function CalculatorInner() {
                   background: s.highlight ? `linear-gradient(135deg,${TEAL},${TEAL_L})` : CREAM,
                   border: s.highlight ? 'none' : `1px solid ${BORDER}`,
                 }}>
-                  <div style={{ fontSize:10, fontWeight:700, color: s.highlight ? 'rgba(255,255,255,0.75)' : '#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>{s.label}</div>
+                  <div style={{ fontSize:10, fontWeight:700, color: s.highlight ? 'rgba(255,255,255,0.85)' : '#64748B', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>{s.label}</div>
                   <div style={{ fontSize:16, fontWeight:800, color: s.highlight ? '#fff' : NAVY, letterSpacing:'-0.02em', marginTop:2 }}>{s.value}</div>
                 </div>
               ))}
@@ -576,7 +576,7 @@ function CalculatorInner() {
                     {editPrices && (
                       <td style={{ padding:'10px', textAlign:'right' as const }}>
                         <div style={{ display:'inline-flex', alignItems:'center', gap:3, background:'#fff', border:`1.5px solid ${BORDER}`, borderRadius:7, padding:'4px 8px' }}>
-                          <span style={{ fontSize:11, color:'#94A3B8' }}>$</span>
+                          <span style={{ fontSize:11, color:'#64748B' }}>$</span>
                           <input type="number" min="0" step="0.01"
                             value={prices[item.key]}
                             onChange={e => setPrices(p => ({ ...p, [item.key]: parseFloat(e.target.value)||0 }))}
@@ -650,7 +650,7 @@ function CalculatorInner() {
                   <span style={{ fontSize:12, fontWeight:800, color:NAVY }}>Calculated total{taxRate > 0 ? ' (incl. tax)' : ''}</span>
                   <span style={{ fontSize:20, fontWeight:900, color:TEAL, letterSpacing:'-0.03em' }}>${totalWithTax.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                 </div>
-                <div style={{ fontSize:11, color:'#94A3B8', marginTop:6, lineHeight:1.4 }}>
+                <div style={{ fontSize:12, color:'#64748B', marginTop:6, lineHeight:1.45 }}>
                   Materials + labour for this roof. {existingEstimate ? 'Any custom lines already on the estimate are added on top — see the estimate for the final total.' : 'The estimate total may differ if you add custom lines.'}
                 </div>
               </div>
@@ -685,7 +685,7 @@ function CalculatorInner() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                   <div>
                     <div style={{ fontSize:13, color:'#64748B', fontWeight:600 }}>Full job cost</div>
-                    <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>excl. tax — see estimate for final total</div>
+                    <div style={{ fontSize:12, color:'#64748B', marginTop:2 }}>excl. tax — see estimate for final total</div>
                   </div>
                   <span style={{ fontSize:14, fontWeight:700, color:'#0F172A' }}>${grandTotal.toLocaleString()}</span>
                 </div>
