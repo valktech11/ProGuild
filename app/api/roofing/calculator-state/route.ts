@@ -34,6 +34,19 @@ interface LinearFootage {
   [k: string]: unknown
 }
 
+// Shape of the roofing_estimate_data row this endpoint reads (all nullable —
+// pre-v114 estimates won't have the LF/boots/tear-off columns populated).
+interface EstimateMeasurements {
+  square_count?:   number | null
+  pitch?:          string | null
+  waste_pct?:      number | null
+  ridge_lf?:       number | null
+  eave_lf?:        number | null
+  perimeter_lf?:   number | null
+  pipe_boots?:     number | null
+  tearoff_layers?: number | null
+}
+
 // Derive ridge / eave / perimeter LF from the roof report's linear_footage blob.
 // Perimeter = eave + rake (matches the calculator's own fresh derivation).
 function deriveFreshLF(lf: LinearFootage | null | undefined): {
@@ -110,7 +123,7 @@ export async function GET(req: NextRequest) {
         pipe_boots:     3,
         tearoff_layers: 1,
       },
-      price_overrides: settingsToCalculatorPrices(pro?.roofing_material_prices),
+      price_overrides: settingsToCalculatorPrices((pro?.roofing_material_prices ?? null) as Record<string, number> | null),
       labour_amount:   0,
       custom_items:    [],
       tax_rate:        STATE_TAX_RATES[proState] ?? 0,
@@ -125,7 +138,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle(),
     sb.from('estimate_items').select('*').eq('estimate_id', best.id),
   ])
-  const red   = redRes.data ?? {}
+  const red: EstimateMeasurements = redRes.data ?? {}
   const items = (itemsRes.data ?? []).map((i: any) => ({
     name:       String(i.name ?? i.description ?? ''),
     quantity:   Number(i.qty ?? i.quantity ?? 1),
