@@ -117,7 +117,13 @@ export async function GET(req: NextRequest) {
   const plan = evaluateStagePlan(ctx)
 
   // Each entry carries its own "happened on" date (null if it hasn't yet).
-  const stagesWithDates = plan.stages.map(s => ({ ...s, date: s.skipped ? null : (dates[s.key] ?? null) }))
+  // A date belongs only to a stage the lead has actually reached. Future stages
+  // (and skipped branch stages) never show one — even if a source timestamp like a
+  // draft estimate's created_at happens to exist.
+  const stagesWithDates = plan.stages.map(s => ({
+    ...s,
+    date: (s.isComplete || s.isCurrent) ? (dates[s.key] ?? null) : null,
+  }))
 
   return NextResponse.json({
     current_stage: plan.currentStage,
