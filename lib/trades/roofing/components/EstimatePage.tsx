@@ -737,6 +737,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             editMeas={editMeas} setEditMeas={setEditMeas}
             savingMeas={savingMeas} onSaveMeas={saveMeasurements}
             isLocked={isLocked}
+            estType={estType} leadId={(estimate as any).lead_id}
           />
 
           {/* Client contact — only for blank estimates (no lead) */}
@@ -1091,7 +1092,7 @@ const PITCH_OPTIONS = ['3/12','4/12','5/12','6/12','7/12','8/12','9/12','10/12',
 
 function PropertyCard({ estimate, card, border, textP, textS,
   addrVal, setAddrVal, sqCount, setSqCount, pitchVal, setPitchVal, wastePct, setWastePct,
-  editMeas, setEditMeas, savingMeas, onSaveMeas, isLocked = false }: {
+  editMeas, setEditMeas, savingMeas, onSaveMeas, isLocked = false, estType, leadId }: {
   estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
   addrVal: string; setAddrVal: (v: string) => void
   sqCount: string; setSqCount: (v: string) => void
@@ -1100,8 +1101,16 @@ function PropertyCard({ estimate, card, border, textP, textS,
   editMeas: boolean; setEditMeas: (v: boolean) => void
   savingMeas: boolean; onSaveMeas: () => Promise<void>
   isLocked?: boolean
+  estType: 'standard' | 'tiered'; leadId?: string
 }) {
+  const router = useRouter()
   const hasSq = parseFloat(sqCount) > 0
+  // Standard estimates price off measurements, and the calculator is the one
+  // surface that re-prices them correctly (header + lines together). So on a
+  // Standard estimate with a lead, "Edit" opens the calculator instead of the
+  // inline editor — which only recomputed GBB tiers and left Standard lines stale.
+  // GBB estimates keep the inline editor (it recomputes their tiers correctly).
+  const editInCalculator = estType === 'standard' && !!leadId
 
   return (
     <div style={{ background: card, borderRadius: 16, padding: '20px 24px', boxShadow: SHADOW_SM,
@@ -1136,7 +1145,9 @@ function PropertyCard({ estimate, card, border, textP, textS,
             </span>
           )}
           {!isLocked && (
-          <button onClick={() => setEditMeas(!editMeas)}
+          <button onClick={editInCalculator
+              ? () => router.push(`/dashboard/roofing/calculator?lead_id=${leadId}`)
+              : () => setEditMeas(!editMeas)}
             style={{ padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700,
               background: editMeas ? '#F1F5F9' : C.tealLight,
               color: editMeas ? textS : C.teal,
@@ -1145,7 +1156,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
             </svg>
-            {editMeas ? 'Cancel' : 'Edit'}
+            {editInCalculator ? 'Edit in calculator' : (editMeas ? 'Cancel' : 'Edit')}
           </button>
           )}
         </div>
