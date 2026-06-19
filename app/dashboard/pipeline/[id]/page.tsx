@@ -1136,12 +1136,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <div style={{padding:'7px 14px 2px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em'}}>{grp.label}</div>
                                         {gStages.map(stg=>{
                                           const dc=stg.terminal?t.accentRed:stg.color
+                                          const p = planFor(stg.key)
+                                          const allowed   = p?.allowed ?? true
+                                          const locked    = p?.locked ?? false
+                                          const suggested = (p?.suggested ?? false) && allowed && !stg.terminal
+                                          const tint = suggested ? (dk?`${BRAND.teal}22`:`${BRAND.teal}0D`) : 'transparent'
                                           return (
                                             <button key={stg.key}
                                               onClick={()=>{setShowPicker(false);moveStage(stg.key as LeadStatus)}}
-                                              style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'7px 14px',background:'transparent',border:'none',cursor:'pointer',textAlign:'left'}}
+                                              style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'7px 14px',background:tint,border:'none',cursor:'pointer',textAlign:'left',opacity:allowed?1:0.5}}
                                               onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background=dk?'#1F2937':'#F8FAFC'}}
-                                              onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background='transparent'}}>
+                                              onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background=tint}}>
                                               {/* Small icon — no circle background, just the icon */}
                                               <div style={{width:32,height:32,borderRadius:8,background:dc+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                                                 <StageIcon k={stg.key} color={dc} size={22}/>
@@ -1150,6 +1155,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                 <div style={{fontSize:13,fontWeight:500,color:tp,lineHeight:1.2}}>{stg.label}</div>
                                                 <div style={{fontSize:11,color:tsu,marginTop:1}}>{stg.subLabel}</div>
                                               </div>
+                                              {suggested
+                                                ? <span style={{fontSize:9,fontWeight:800,color:BRAND.teal,background:`${BRAND.teal}1A`,padding:'3px 7px',borderRadius:20,textTransform:'uppercase',letterSpacing:'0.05em',flexShrink:0,whiteSpace:'nowrap'}}>Suggested</span>
+                                                : locked
+                                                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tsu} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,opacity:0.7}}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                                  : null}
                                             </button>
                                           )
                                         })}
