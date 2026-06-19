@@ -24,10 +24,10 @@ export async function GET(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
-  // Lead — current stage + the fields the gates read.
+  // Lead — current stage + the fields the gates read + created_at for lead_in date.
   const { data: lead } = await sb
     .from('leads')
-    .select('lead_status, property_address, scheduled_date, inspection_date')
+    .select('lead_status, property_address, scheduled_date, inspection_date, created_at')
     .eq('id', leadId)
     .eq('pro_id', proId)
     .maybeSingle()
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   // the calculator librarian, so "the estimate" means the same thing everywhere.
   const { data: estimates } = await sb
     .from('estimates')
-    .select('id, status, total, created_at')
+    .select('id, status, total, created_at, sent_at, signed_at, approved_at')
     .eq('pro_id', proId)
     .eq('lead_id', leadId)
     .not('status', 'in', '("void","declined")')
@@ -62,13 +62,42 @@ export async function GET(req: NextRequest) {
   // Latest non-void invoice — drives the paid-in-full check for Job Won.
   const { data: invoices } = await sb
     .from('invoices')
-    .select('id, status, balance_due, created_at')
+    .select('id, status, balance_due, created_at, paid_at')
     .eq('lead_id', leadId)
     .neq('status', 'void')
     .order('created_at', { ascending: false })
     .limit(1)
 
   const inv = (invoices && invoices.length > 0) ? invoices[0] : null
+
+  // ── Per-stage "happened on" date — server-computed so web + mobile show the
+  // same timeline. Auto stages don't advance via stage_changed, so events alone
+  // miss them; we overlay the authoritative source column per stage. ──
+  const { data: events } = await sb
+    .from('pipeline_events')
+    .select('event_type, event_data, created_at')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: true })   // earliest entry into a stage wins
+
+  const dates: Partial<Record<RoofingStage, string | null>> = {}
+  for (const e of (events ?? [])) {
+    const t = e.created_at as string
+    if (e.event_type === 'lead_created') {
+      dates['lead_in'] ??= t
+    } else if (e.event_type === 'insurance_auto_approved') {
+      dates['insurance_approved'] ??= t
+    } else if (e.event_type === 'stage_changed') {
+      const to = (e.event_data as { to?: RoofingStage } | null)?.to
+      if (to) dates[to] ??= t
+    }
+  }
+  // Authoritative source columns take precedence over the generic event time.
+  dates['lead_in']              = (lead.created_at as string | null) ?? dates['lead_in'] ?? null
+  dates['inspection_scheduled'] = (lead.inspection_date as string | null) ?? dates['inspection_scheduled'] ?? null
+  dates['proposal_sent']        = (bestEst?.sent_at as string | undefined) ?? dates['proposal_sent'] ?? null
+  dates['proposal_signed']      = (bestEst?.signed_at as string | undefined) ?? (bestEst?.approved_at as string | undefined) ?? dates['proposal_signed'] ?? null
+  dates['scheduled']            = (lead.scheduled_date as string | null) ?? dates['scheduled'] ?? null
+  dates['job_won']              = (inv?.paid_at as string | undefined) ?? dates['job_won'] ?? null
 
   const ctx: StageContext = {
     currentStage:    lead.lead_status as RoofingStage,
@@ -87,9 +116,12 @@ export async function GET(req: NextRequest) {
 
   const plan = evaluateStagePlan(ctx)
 
+  // Each entry carries its own "happened on" date (null if it hasn't yet).
+  const stagesWithDates = plan.stages.map(s => ({ ...s, date: dates[s.key] ?? null }))
+
   return NextResponse.json({
     current_stage: plan.currentStage,
-    stages:        plan.stages,
+    stages:        stagesWithDates,
     // Echo the context the decision was made from — useful for client debugging
     // and so the move sheet can prefill date pickers without a second fetch.
     context: {

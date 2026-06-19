@@ -52,6 +52,7 @@ export interface StagePlanEntry {
   suggested:  boolean              // in the branch graph from current
   reason:     string | null        // gate failure, or the action hint when locked
   prompt:     StagePrompt | null   // what to collect before committing
+  date?:      string | null        // "happened on" date — attached by the route, not the evaluator
 }
 
 export interface StagePlan {

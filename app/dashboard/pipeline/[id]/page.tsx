@@ -1122,6 +1122,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal,lineHeight:1.2}}>{stgObj?.label??stage}</div>
                                         <div style={{fontSize:11,color:tsu,marginTop:1}}>{stgObj?.subLabel}</div>
                                       </div>
+                                      {planFor(stage)?.date&&<span style={{fontSize:11,fontWeight:600,color:tsu,flexShrink:0,whiteSpace:'nowrap'}}>{new Date(planFor(stage)!.date!).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>}
                                     </div>
                                   </div>
 
@@ -1140,6 +1141,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           const allowed   = p?.allowed ?? true
                                           const locked    = p?.locked ?? false
                                           const suggested = (p?.suggested ?? false) && allowed && !stg.terminal && !(p?.backward)
+                                          const pd = p?.date ? new Date(p.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : null
                                           const tint = suggested ? (dk?`${BRAND.teal}22`:`${BRAND.teal}0D`) : 'transparent'
                                           return (
                                             <button key={stg.key}
@@ -1155,6 +1157,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                 <div style={{fontSize:13,fontWeight:500,color:tp,lineHeight:1.2}}>{stg.label}</div>
                                                 <div style={{fontSize:11,color:tsu,marginTop:1}}>{stg.subLabel}</div>
                                               </div>
+                                              {pd&&<span style={{fontSize:11,fontWeight:600,color:tsu,flexShrink:0,whiteSpace:'nowrap',marginRight:(suggested||locked)?8:0}}>{pd}</span>}
                                               {suggested
                                                 ? <span style={{fontSize:9,fontWeight:800,color:BRAND.teal,background:`${BRAND.teal}1A`,padding:'3px 7px',borderRadius:20,textTransform:'uppercase',letterSpacing:'0.05em',flexShrink:0,whiteSpace:'nowrap'}}>Suggested</span>
                                                 : locked
