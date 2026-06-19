@@ -251,15 +251,19 @@ export async function PATCH(
           const newSub   = selTier.subtotal
           const newTax   = Math.round(newSub * (txRate / 100) * 100) / 100
           const newTotal = newSub + newTax
-          // Only update if total !== undefined (not already in payload — avoid double-write)
-          if (total === undefined) {
-            await sb.from('estimates').update({
-              subtotal:   newSub,
-              tax_amount: newTax,
-              total:      newTotal,
-              updated_at: new Date().toISOString(),
-            }).eq('id', id)
-          }
+          // The selected tier's subtotal is AUTHORITATIVE for a GBB estimate, so
+          // always persist the tier-derived total — never defer to a client-sent
+          // `total`, which can be stale (e.g. a Standard total left over from the
+          // calculator after a Standard→GBB flip). Mirrors the "do NOT trust
+          // client-sent total" rule the standard path uses below. Previously this
+          // was guarded by `if (total === undefined)`, which let the stale client
+          // total win and desynced the lead's estimate card from the real total.
+          await sb.from('estimates').update({
+            subtotal:   newSub,
+            tax_amount: newTax,
+            total:      newTotal,
+            updated_at: new Date().toISOString(),
+          }).eq('id', id)
           // Record authoritative values for the response (Slice 1)
           computed.subtotal = newSub
           computed.tax_amount = newTax
