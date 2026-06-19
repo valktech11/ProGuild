@@ -683,7 +683,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
         {/* ── Toasts — rendered via portal to escape any transform stacking context ── */}
         {typeof window !== 'undefined' && toasts.length > 0 && createPortal(
-          <div style={{position:'fixed',bottom:32,left:'50%',transform:'translateX(-50%)',zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
+          <div style={{position:'fixed',top:24,left:'50%',transform:'translateX(-50%)',zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
             {toasts.map(toast=>(
               <div key={toast.id} style={{pointerEvents:'all',background:toast.type==='error'?t.dangerBg:t.successBg,border:`1.5px solid ${toast.type==='error'?t.dangerBorder:t.successBorder}`,borderRadius:T.radMd,padding:'12px 18px',display:'flex',alignItems:'center',gap:12,fontSize:T.fontBody,fontWeight:500,color:toast.type==='error'?'#991B1B':'#166534',minWidth:260,maxWidth:420,boxShadow:'0 4px 20px rgba(0,0,0,0.10)'}}>
                 <span style={{flex:1}}>{toast.msg}</span>
