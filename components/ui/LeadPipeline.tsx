@@ -153,12 +153,17 @@ function LeadModal({ lead, onClose, onStatusChange, onUpdate, stages = getPipeli
 
   async function save() {
     setSaving(true)
+    // Non-stage fields go through the generic update.
     await onUpdate(lead.id, {
       notes: notes || null,
       scheduled_date: schedDate || null,
       follow_up_date: followUp || null,
-      lead_status: status as import('@/types').LeadStatus,
     })
+    // The stage goes through the enforced /stage path so corruption-risky moves are
+    // rejected here too (any rejection surfaces on the board and the card stays put).
+    if (status !== lead.lead_status) {
+      await onStatusChange(lead.id, status)
+    }
     setSaving(false)
     onClose()
   }

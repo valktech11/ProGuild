@@ -105,18 +105,22 @@ export default function PipelinePage() {
   const textMain = dk ? '#F1F5F9' : '#0A1628'
   const t        = theme(dk)
 
-  // Status change — PATCH [id] route with pro_id ownership param, then re-fetch from DB
+  // Stage change — routes through the enforced /stage endpoint so corruption-risky
+  // moves (Job Won without a paid invoice, Install Sched. without a signed proposal)
+  // are rejected here exactly as they are on the lead detail page. On rejection we
+  // re-fetch so any optimistic card move on the board snaps back to DB truth.
   async function handleStatusChange(leadId: string, status: string) {
     if (!session) return
     setSaveError(null)
-    const r = await fetch(`/api/leads/${leadId}?pro_id=${session.id}`, {
+    const r = await fetch(`/api/leads/${leadId}/stage`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lead_status: status }),
+      body: JSON.stringify({ stage: status, pro_id: session.id }),
     })
     if (!r.ok) {
       const err = await r.json().catch(() => ({}))
       setSaveError(err.error || 'Failed to save — please try again')
+      await fetchLeads()   // revert any optimistic move to the real stage
       return
     }
     // Re-fetch from Supabase so mobile + desktop see identical DB state
