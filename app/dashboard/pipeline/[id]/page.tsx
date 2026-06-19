@@ -44,7 +44,7 @@ function daysAgo(d: string): number {
 }
 function isOverdue(d: string | null) { return !!d && new Date(d) < new Date() }
 
-interface Toast { id:number; msg:string; type:'success'|'error'; prev?:LeadStatus }
+interface Toast { id:number; msg:string; type:'success'|'error'|'info'; prev?:LeadStatus }
 
 // ─── SVG helper ───────────────────────────────────────────────────────────────
 function Svg({ size=14, stroke='currentColor', sw=2, children }: {
@@ -383,7 +383,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       // Auto stages advance by their action (send / sign / claim approved /
       // payment), never by a chip flip, so there is no "do it anyway".
       if (entry && !entry.allowed) {
-        addToast(entry.reason ?? 'This stage advances automatically', 'error')
+        addToast(entry.reason ?? 'This stage advances automatically', 'info')
         return
       }
 
@@ -684,13 +684,24 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         {/* ── Toasts — rendered via portal to escape any transform stacking context ── */}
         {typeof window !== 'undefined' && toasts.length > 0 && createPortal(
           <div style={{position:'fixed',top:24,left:'50%',transform:'translateX(-50%)',zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
-            {toasts.map(toast=>(
-              <div key={toast.id} style={{pointerEvents:'all',background:toast.type==='error'?t.dangerBg:t.successBg,border:`1.5px solid ${toast.type==='error'?t.dangerBorder:t.successBorder}`,borderRadius:T.radMd,padding:'12px 18px',display:'flex',alignItems:'center',gap:12,fontSize:T.fontBody,fontWeight:500,color:toast.type==='error'?'#991B1B':'#166534',minWidth:260,maxWidth:420,boxShadow:'0 4px 20px rgba(0,0,0,0.10)'}}>
-                <span style={{flex:1}}>{toast.msg}</span>
-                {toast.prev&&toast.type==='success'&&<button onClick={()=>undoMove(toast.id,toast.prev!)} style={{fontSize:T.fontBody,color:BRAND.teal,fontWeight:700,background:'none',border:'none',cursor:'pointer',textDecoration:'underline',padding:0}}>Undo</button>}
-                <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:20,lineHeight:1,padding:0}}>×</button>
-              </div>
-            ))}
+            {toasts.map(toast=>{
+              const accent = toast.type==='error' ? '#DC2626' : toast.type==='success' ? '#059669' : BRAND.teal
+              const icon = toast.type==='success'
+                ? <path d="M20 6 9 17l-5-5"/>
+                : toast.type==='error'
+                  ? <><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></>
+                  : <><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>
+              return (
+                <div key={toast.id} style={{pointerEvents:'all',background:card,border:`1px solid ${bdr}`,borderLeft:`4px solid ${accent}`,borderRadius:14,padding:'13px 14px',display:'flex',alignItems:'center',gap:12,minWidth:300,maxWidth:440,boxShadow:dk?'0 14px 36px rgba(0,0,0,0.5)':'0 14px 36px rgba(15,23,42,0.16)'}}>
+                  <div style={{width:28,height:28,borderRadius:9,background:accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+                  </div>
+                  <span style={{flex:1,fontSize:13.5,fontWeight:600,color:tp,lineHeight:1.35}}>{toast.msg}</span>
+                  {toast.prev&&toast.type==='success'&&<button onClick={()=>undoMove(toast.id,toast.prev!)} style={{fontSize:T.fontBody,color:BRAND.teal,fontWeight:700,background:'none',border:'none',cursor:'pointer',padding:'2px 4px'}}>Undo</button>}
+                  <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:18,lineHeight:1,padding:0,opacity:0.55}}>×</button>
+                </div>
+              )
+            })}
           </div>,
           document.body
         )}
