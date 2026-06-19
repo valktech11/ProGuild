@@ -25,6 +25,8 @@ export interface CalcLineItem {
 // replaces ONLY these lines and leaves everything else (custom lines) untouched.
 // 'Labour & installation' is appended by the apply handler, not calculateMaterials,
 // so it's included here explicitly.
+export const LABOUR_LINE_NAME = 'Labour & installation'
+
 export const CALCULATOR_LINE_NAMES: readonly string[] = [
   'Architectural shingles',
   'Synthetic underlayment',
@@ -35,7 +37,7 @@ export const CALCULATOR_LINE_NAMES: readonly string[] = [
   'Ice & water shield (eave protection)',
   'Pipe boots & vent covers',
   'Tear-off & disposal',
-  'Labour & installation',
+  LABOUR_LINE_NAME,
 ]
 
 // ── Default FL market prices (per the web calculator) ─────────────────────────

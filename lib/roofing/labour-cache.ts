@@ -26,7 +26,7 @@
 //     (don't create roofing_job_data rows for non-roofing leads).
 //   - Never throws: a failure to update the mirror must not fail the estimate save.
 
-const LABOUR_RE = /lab(o|ou)r/i
+import { LABOUR_LINE_NAME } from '@/lib/roofing/calculator'
 
 export async function syncLabourCacheFromEstimate(
   sb: ReturnType<typeof import('@/lib/supabase').getSupabaseAdmin>,
@@ -41,8 +41,11 @@ export async function syncLabourCacheFromEstimate(
       .select('name, description, qty, unit_price, amount')
       .eq('estimate_id', estimateId)
 
+    // Exact match on the canonical calculator labour line — NOT a loose "contains
+    // labour" test, so a hand-added custom line like "Extra labour" can never be
+    // mistaken for it and poison the cache. Mirrors CALCULATOR_LINE_NAMES semantics.
     const labourLine = (items ?? []).find((it: any) =>
-      LABOUR_RE.test(String(it.name ?? it.description ?? '')))
+      String(it.name ?? it.description ?? '') === LABOUR_LINE_NAME)
 
     const updatedAt = new Date().toISOString()
 
