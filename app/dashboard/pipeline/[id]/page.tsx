@@ -728,6 +728,33 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           </div>
         )}
 
+        {/* Blocked / locked stage — same centered treatment as the confirm dialog */}
+        {stageNotice&&(()=>{
+          const isWarn = stageNotice.kind==='warning'
+          const accent = isWarn ? '#D97706' : BRAND.teal
+          const title  = isWarn ? 'Action needed' : 'Information'
+          return (
+            <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setStageNotice(null)}>
+              <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:360,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                  <div style={{width:34,height:34,borderRadius:10,background:accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                      {isWarn
+                        ? <><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>
+                        : <><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>}
+                    </svg>
+                  </div>
+                  <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,margin:0}}>{title}</p>
+                </div>
+                <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp5,lineHeight:1.5}}>{stageNotice.msg}</p>
+                <div style={{display:'flex',justifyContent:'flex-end'}}>
+                  <button onClick={()=>setStageNotice(null)} style={{padding:'8px 20px',borderRadius:T.radSm,border:'none',background:accent,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:700}}>Got it</button>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Schedule Inspection Modal */}
         {showInspectionModal && (
           <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}}
@@ -1134,33 +1161,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               </>
                             )}
-
-                            {stageNotice&&(()=>{
-                              const isWarn = stageNotice.kind==='warning'
-                              const accent = isWarn ? '#D97706' : BRAND.teal
-                              const title  = isWarn ? 'Action needed' : 'Information'
-                              return (
-                                <>
-                                  <div style={{position:'fixed',inset:0,zIndex:199}} onClick={()=>setStageNotice(null)}/>
-                                  <div style={{position:'absolute',top:'calc(100% + 8px)',left:0,zIndex:200,width:330,maxWidth:'90vw',background:card,border:`1px solid ${bdr}`,borderLeft:`4px solid ${accent}`,borderRadius:14,boxShadow:dk?'0 18px 44px rgba(0,0,0,0.55)':'0 18px 44px rgba(15,23,42,0.20)',padding:'15px 16px'}}>
-                                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
-                                      <div style={{width:30,height:30,borderRadius:9,background:accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                                          {isWarn
-                                            ? <><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>
-                                            : <><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>}
-                                        </svg>
-                                      </div>
-                                      <div style={{fontSize:13.5,fontWeight:800,color:accent}}>{title}</div>
-                                    </div>
-                                    <div style={{fontSize:13.5,fontWeight:500,color:tp,lineHeight:1.45,marginBottom:14}}>{stageNotice.msg}</div>
-                                    <div style={{display:'flex',justifyContent:'flex-end'}}>
-                                      <button onClick={()=>setStageNotice(null)} style={{padding:'8px 20px',borderRadius:9,border:'none',background:accent,color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer'}}>Got it</button>
-                                    </div>
-                                  </div>
-                                </>
-                              )
-                            })()}
                           </div>
                         </div>
 
