@@ -39,7 +39,7 @@ interface ReportData {
 
 // ── Pitch factors ─────────────────────────────────────────────────────────────
 import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
-import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices, CALCULATOR_LINE_NAMES, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
+import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
 
 function normalizePitch(raw: string | number): string {
   if (typeof raw === 'number') return '6/12'
@@ -244,11 +244,9 @@ function CalculatorInner() {
           fetch(`/api/estimates/${live.id}?pro_id=${session.id}`)
             .then(r => r.ok ? r.json() : null)
             .then(ed => {
-              const items = (ed?.estimate?.items ?? []) as any[]
+              const custom = (ed?.estimate?.custom_items ?? []) as any[]
               setCustomLines(
-                items
-                  .filter(it => !CALCULATOR_LINE_NAMES.includes(String(it.name ?? it.description ?? '')))
-                  .map(it => ({ name: String(it.name ?? it.description ?? 'Custom line'), amount: Number(it.amount) || 0 }))
+                custom.map(it => ({ name: String(it.name ?? it.description ?? 'Custom line'), amount: Number(it.amount) || 0 }))
               )
             })
             .catch(() => {})

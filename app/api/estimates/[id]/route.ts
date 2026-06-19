@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
 import { computeMilestones } from '@/lib/estimates/milestones'
 import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
+import { CALCULATOR_LINE_NAMES, LABOUR_LINE_NAME } from '@/lib/roofing/calculator'
 
 // ── GET /api/estimates/[id] ──────────────────────────────────────────────────
 export async function GET(
@@ -91,10 +92,20 @@ export async function GET(
   const derivedTax      = Math.round(derivedSubtotal * storedTaxRate / 100 * 100) / 100
   const derivedTotal    = Math.round((derivedSubtotal + derivedTax) * 100) / 100
 
+  // Server-derived line classification — single source for web AND mobile so the
+  // calculator-owned line names live in ONE place (lib/roofing/calculator.ts).
+  const customItems = items.filter((i: any) =>
+    !CALCULATOR_LINE_NAMES.includes(String(i.name ?? i.description ?? '')))
+  const labourLine = items.find((i: any) =>
+    String(i.name ?? i.description ?? '') === LABOUR_LINE_NAME)
+  const labourAmount = labourLine ? (Number(labourLine.amount) || 0) : 0
+
   return NextResponse.json({
     estimate: {
       ...estClean,
       items,  // from separate estimate_items query
+      custom_items:  customItems,   // hand-added lines (not calculator-owned)
+      labour_amount: labourAmount,  // amount on the 'Labour & installation' line
       // Always derive money from items — never trust stale DB columns
       subtotal:   derivedSubtotal,
       tax_amount: derivedTax,
