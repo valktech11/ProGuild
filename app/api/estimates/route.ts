@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { CALCULATOR_LINE_NAMES } from '@/lib/roofing/calculator'
+import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
 
 // Frozen estimate states — a homeowner has signed/agreed. Re-pricing must NOT
 // overwrite these; it spins off a revision instead (see revision branch below).
@@ -201,6 +202,7 @@ export async function POST(req: NextRequest) {
             }, { onConflict: 'estimate_id' })
           }
 
+          await syncLabourCacheFromEstimate(sb, rev.id, lead_id, pro_id)
           return NextResponse.json({
             estimate: rev, existed: true, revised: true,
             revision_of: best.id, revision_number: nextRevNum,
@@ -255,6 +257,7 @@ export async function POST(req: NextRequest) {
         }, { onConflict: 'estimate_id' })
         // 6. Return fresh estimate row
         const { data: updated } = await sb.from('estimates').select('*').eq('id', best.id).single()
+        await syncLabourCacheFromEstimate(sb, best.id, lead_id, pro_id)
         return NextResponse.json({
           estimate: updated ?? best, existed: true, items_replaced: true,
           custom_lines_preserved: customItems.length,
@@ -328,5 +331,6 @@ export async function POST(req: NextRequest) {
     if (itemsErr) console.error('[estimates POST] line_items insert error:', itemsErr.message)
   }
 
+  if (estimate) await syncLabourCacheFromEstimate(sb, estimate.id, lead_id, pro_id)
   return NextResponse.json({ estimate: { ...estimate, id: estimate.id }, existed: false })
 }

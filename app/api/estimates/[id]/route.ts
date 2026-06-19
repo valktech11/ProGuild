@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
 import { computeMilestones } from '@/lib/estimates/milestones'
+import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
 
 // ── GET /api/estimates/[id] ──────────────────────────────────────────────────
 export async function GET(
@@ -293,6 +294,11 @@ export async function PATCH(
     } else {
       await sb.from('estimate_items').delete().eq('estimate_id', id)
     }
+
+    // Keep the labour cache (roofing_job_data.labour_amount) in lockstep with the
+    // persisted labour line — server-owned single source; clients never write it.
+    const { data: estLp } = await sb.from('estimates').select('lead_id, pro_id').eq('id', id).single()
+    await syncLabourCacheFromEstimate(sb, id, (estLp as any)?.lead_id, (estLp as any)?.pro_id)
 
     // ── Server-side total derivation (authoritative) ──────────────────────────
     // Do NOT trust client-sent subtotal/total: they were the source of the $0 bug
