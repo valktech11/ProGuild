@@ -169,6 +169,9 @@ function CalculatorInner() {
   // rather than create a new one (server dedupes). Surface that so the roofer knows.
   const [existingEstimate, setExistingEstimate] = useState<{ number: string; status: string } | null>(null)
   const [customLines, setCustomLines] = useState<{ name: string; amount: number }[]>([])
+  // Real tax rate from the calculator-state endpoint (replaces the hardcoded 6%
+  // preview, so the total is right off-FL too). Null until the librarian answers.
+  const [taxRatePct, setTaxRatePct] = useState<number | null>(null)
 
   const leadId     = searchParams.get('lead_id')     ?? null
   const propertyId = searchParams.get('property_id') ?? null
@@ -177,111 +180,113 @@ function CalculatorInner() {
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
+    const proId = session.id
 
-    // ── Load pro's saved material prices, convert units to match calculator ──
-    // Settings stores: $/sq for shingles, underlayment, ice_water
-    //                  $/LF for ridge_cap, starter_strip, drip_edge
-    // Calculator uses: $/bundle for shingles (3/sq), ridgeCap (35 LF), starterStrip (105 LF)
-    //                  $/10ft piece for dripEdge, $/sq for underlayment/iceWater
-    fetch(`/api/roofing/settings?pro_id=${session.id}`)
+    // Legacy fresh bootstrap — pro's saved prices (settings units → calc units).
+    // Only used when there's NO lead to ask the librarian about; with a lead the
+    // calculator-state endpoint already returns the right prices.
+    const loadSettingsPrices = () => {
+      fetch(`/api/roofing/settings?pro_id=${proId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          const sp = d?.material_prices
+          if (!sp) return
+          setPrices(prev => ({ ...prev, ...settingsToCalculatorPrices(sp) }))
+        })
+        .catch(() => {})
+    }
+
+    // Just-generated report numbers live in sessionStorage before they're saved to
+    // the lead. Used as the fresh bootstrap (no lead), and as an overlay when a lead
+    // exists but has no estimate yet (numbers the roofer just produced should win).
+    const applySessionReport = () => {
+      const raw = sessionStorage.getItem('pg_report_data')
+      if (raw) {
+        try {
+          const d = JSON.parse(raw) as ReportData
+          const storedAt  = d.storedAt as number | undefined
+          const ageMs     = storedAt ? (Date.now() - storedAt) : Infinity
+          const noContext = !propertyId && !leadId
+          const isStale   = ageMs > 10 * 60 * 1000 || noContext
+          if (isStale) {
+            sessionStorage.removeItem('pg_report_data')
+            if (fromSq) setSquares(fromSq)
+          } else {
+            setReportData({ ...d, address: cleanAddress(d.address) })
+            setSquares(String(Math.round(d.squares * 10) / 10))
+            setPitch(normalizePitch(d.pitch))
+            setWaste(String(Math.round(d.waste)))
+            if (d.ridgeLF && d.ridgeLF > 0) setRidgeLF(String(Math.round(d.ridgeLF)))
+            if (d.eaveLF  && d.eaveLF  > 0) setEaveLF(String(Math.round(d.eaveLF)))
+            if (d.perimLF && d.perimLF > 0) setPerimLF(String(Math.round(d.perimLF)))
+          }
+        } catch { sessionStorage.removeItem('pg_report_data') }
+      } else if (fromSq) {
+        setSquares(fromSq)
+      }
+    }
+
+    // ── No lead → legacy fresh bootstrap; nothing to ask the librarian. ──
+    if (!leadId) {
+      loadSettingsPrices()
+      applySessionReport()
+      return
+    }
+
+    // ── Lead present → the librarian is the SINGLE source for every input. ──
+    // One call decides estimate-vs-fresh and returns measurements, prices, labour,
+    // custom lines, tax, and (if an estimate exists) its number/status. The old
+    // per-field fetches (settings, estimates list, leads labour/LF) are gone, so
+    // web and mobile load identically and can't race or disagree.
+    fetch(`/api/roofing/calculator-state?lead_id=${leadId}&pro_id=${proId}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        const sp = d?.material_prices  // saved prices from settings
-        if (!sp) return               // nothing saved yet — keep DEFAULT_PRICES
-        // Convert via the SHARED function (same one /api/roofing/calculate uses),
-        // so this live preview and the server price the job identically.
-        setPrices(prev => ({ ...prev, ...settingsToCalculatorPrices(sp) }))
-      })
-      .catch(() => {}) // silently keep defaults if fetch fails
-
-    const raw = sessionStorage.getItem('pg_report_data')
-    if (raw) {
-      try {
-        const d = JSON.parse(raw) as ReportData
-        // Validate: if a property_id is in the URL, check the report was generated
-        // for this property's address by checking the timestamp (reports expire after 2h in sessionStorage)
-        // Simpler: if property_id is in URL, only use sessionStorage if it was set
-        // in the last 10 minutes (fresh from Generate or Quick Bid)
-        const storedAt   = d.storedAt as number | undefined
-        const ageMs      = storedAt ? (Date.now() - storedAt) : Infinity
-        // Stale if: older than 10 min, OR opened with no property context (nav bar direct link)
-        const noContext  = !propertyId && !leadId
-        const isStale    = ageMs > 10 * 60 * 1000 || noContext
-        if (isStale) {
-          // Don't use stale data — it could be from a different property
-          sessionStorage.removeItem('pg_report_data')
-          // If property has sq footage from URL param, use that
-          if (fromSq) setSquares(fromSq)
-        } else {
-          setReportData({ ...d, address: cleanAddress(d.address) })
-          setSquares(String(Math.round(d.squares * 10) / 10))
-          setPitch(normalizePitch(d.pitch))
-          setWaste(String(Math.round(d.waste)))
-          // Auto-fill linear footage from DSM if available
-          if (d.ridgeLF && d.ridgeLF > 0) setRidgeLF(String(Math.round(d.ridgeLF)))
-          if (d.eaveLF  && d.eaveLF  > 0) setEaveLF(String(Math.round(d.eaveLF)))
-          if (d.perimLF && d.perimLF > 0) setPerimLF(String(Math.round(d.perimLF)))
+        if (!d) { loadSettingsPrices(); applySessionReport(); return }
+        const m = d.measurements ?? {}
+        if (m.squares        != null) setSquares(String(m.squares))
+        if (m.pitch          != null) setPitch(String(m.pitch))
+        if (m.waste_pct      != null) setWaste(String(m.waste_pct))
+        if (m.ridge_lf       != null) setRidgeLF(String(m.ridge_lf))
+        if (m.eave_lf        != null) setEaveLF(String(m.eave_lf))
+        if (m.perimeter_lf   != null) setPerimLF(String(m.perimeter_lf))
+        if (m.pipe_boots     != null) setPipeBoots(String(m.pipe_boots))
+        if (m.tearoff_layers != null) setTearoff(String(m.tearoff_layers))
+        setPrices({ ...DEFAULT_PRICES, ...(d.price_overrides ?? {}) })
+        setLabour(d.labour_amount > 0 ? String(d.labour_amount) : '')
+        setCustomLines(
+          (d.custom_items ?? []).map((it: any) => ({
+            name:   String(it.description ?? 'Custom line'),
+            amount: Number(it.amount) || 0,
+          }))
+        )
+        if (d.tax_rate != null) setTaxRatePct(Number(d.tax_rate))
+        if (d.source === 'estimate' && d.estimate_number) {
+          setExistingEstimate({ number: String(d.estimate_number), status: String(d.status ?? '') })
         }
-      } catch { sessionStorage.removeItem('pg_report_data') }
-    } else if (fromSq) {
-      // No report data but property has sq footage — use it
-      setSquares(fromSq)
-    }
+        // Fresh lead (no estimate yet): let a just-generated report overlay the
+        // librarian's saved numbers, since those are the freshest the roofer has.
+        if (d.source === 'fresh') applySessionReport()
+      })
+      .catch(() => { loadSettingsPrices(); applySessionReport() })
 
-    // Restore saved labour + LF from roofing_job_data for this lead
-    // LF fallback: if sessionStorage didn't have LF (DSM still running), read from DB
-    if (leadId && session) {
-      // Pre-check: does this lead already have a live estimate? If so, applying
-      // updates it (server dedupes) — reflect that in the CTA + a notice.
-      fetch(`/api/estimates?pro_id=${session.id}&lead_id=${leadId}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {
-          const live = (d?.estimates ?? []).find((e: any) => !['void', 'declined'].includes(e.status))
-          if (!live) return
-          setExistingEstimate({ number: live.estimate_number, status: live.status })
-          // Pull the live estimate's hand-added (non-calculator) lines so the roofer
-          // can see they're preserved — the calculator only prices roof + labour.
-          fetch(`/api/estimates/${live.id}?pro_id=${session.id}`)
-            .then(r => r.ok ? r.json() : null)
-            .then(ed => {
-              const custom = (ed?.estimate?.custom_items ?? []) as any[]
-              setCustomLines(
-                custom.map(it => ({ name: String(it.name ?? it.description ?? 'Custom line'), amount: Number(it.amount) || 0 }))
-              )
-            })
-            .catch(() => {})
-        })
-        .catch(() => {})
-      fetch(`/api/leads/${leadId}?pro_id=${session.id}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {
-          const rjd = d?.lead?.roofing_job_data
-          if (!rjd) return
-          // Labour
-          if (rjd.labour_amount && rjd.labour_amount > 0) setLabour(String(rjd.labour_amount))
-          // Insurance data for reconciliation panel
-          if (rjd.insurance_claim) {
-            setInsurance({
-              isInsurance:    true,
-              approvedAmount: Number(rjd.approved_amount)   || 0,
-              supplement:     Number(rjd.supplement_amount) || 0,
-              deductible:     Number(rjd.deductible)        || 0,
-              claimStatus:    String(rjd.claim_status ?? ''),
-            })
-          }
-          // LF — from roof_reports via roofing_job_data (GET always populates from latest report)
-          // linear_footage shape: { ridge_ft, hip_ft, valley_ft, rake_ft, eave_ft }
-          const lf = rjd.linear_footage as any
-          if (lf) {
-            const perim = Math.round((lf.eave_ft||0) + (lf.rake_ft||0))
-            // Use functional setters to avoid stale closure on ridgeLF/eaveLF/perimLF
-            if (lf.ridge_ft > 0) setRidgeLF(prev => prev ? prev : String(Math.round(lf.ridge_ft)))
-            if (lf.eave_ft  > 0) setEaveLF(prev  => prev ? prev : String(Math.round(lf.eave_ft)))
-            if (perim       > 0) setPerimLF(prev  => prev ? prev : String(perim))
-          }
-        })
-        .catch(() => {})
-    }
+    // Insurance reconciliation panel — read live from the lead. Not a calculator
+    // pricing input, so it stays a separate read; touches different rjd fields, no
+    // overlap with anything the librarian sets.
+    fetch(`/api/leads/${leadId}?pro_id=${proId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const rjd = d?.lead?.roofing_job_data
+        if (rjd?.insurance_claim) {
+          setInsurance({
+            isInsurance:    true,
+            approvedAmount: Number(rjd.approved_amount)   || 0,
+            supplement:     Number(rjd.supplement_amount) || 0,
+            deductible:     Number(rjd.deductible)        || 0,
+            claimStatus:    String(rjd.claim_status ?? ''),
+          })
+        }
+      })
+      .catch(() => {})
   }, [session, router, fromSq, leadId])
 
   useEffect(() => {
@@ -315,9 +320,9 @@ function CalculatorInner() {
     SD:4.5,TN:7.0,TX:6.25,UT:5.95,VT:6.0,VA:5.3,WA:6.5,WV:6.0,WI:5.0,WY:4.0,DC:6.0,
   }
   const proState   = (session?.state ?? '').toUpperCase()
-  const taxRate    = existingEstimate
+  const taxRate    = taxRatePct ?? (existingEstimate
     ? 6  // update path: server uses stored tax_rate ?? 6; we show 6 as the safe preview
-    : (STATE_TAX_RATES_PREVIEW[proState] ?? 0)
+    : (STATE_TAX_RATES_PREVIEW[proState] ?? 0))
   const taxAmount  = Math.round(grandTotal * taxRate / 100 * 100) / 100
   const totalWithTax = grandTotal + taxAmount
   // Hand-added custom lines live on the estimate and are added on top, taxed too.

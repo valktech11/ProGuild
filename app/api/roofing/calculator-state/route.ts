@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
   // Is there a live estimate for this lead? (Same priority pick as POST /api/estimates.)
   const { data: existing } = await sb
     .from('estimates')
-    .select('id, tax_rate, status, created_at')
+    .select('id, estimate_number, tax_rate, status, created_at')
     .eq('pro_id', proId)
     .eq('lead_id', leadId)
     .not('status', 'in', '("void","declined")')
@@ -113,6 +113,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       source:        'fresh',
       estimate_id:   null,
+      estimate_number: null,
+      status:        null,
       measurements: {
         squares:        rjd?.square_count ?? null,
         pitch:          rjd?.pitch        ?? null,
@@ -158,11 +160,13 @@ export async function GET(req: NextRequest) {
   const labourAmount = labourLine ? labourLine.amount : 0
   const customItems = items
     .filter((i: any) => !CALCULATOR_LINE_NAMES.includes(i.name))
-    .map((i: any) => ({ description: i.name, quantity: i.quantity, unit_price: i.unit_price }))
+    .map((i: any) => ({ description: i.name, quantity: i.quantity, unit_price: i.unit_price, amount: i.amount }))
 
   return NextResponse.json({
     source:        'estimate',
     estimate_id:   best.id,
+    estimate_number: best.estimate_number ?? null,
+    status:        best.status ?? null,
     measurements: {
       // Snapshot first, per-field fallback to the roof report for pre-v114 estimates.
       squares:        red.square_count   ?? rjd?.square_count ?? null,
