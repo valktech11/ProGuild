@@ -1139,7 +1139,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           const p = planFor(stg.key)
                                           const allowed   = p?.allowed ?? true
                                           const locked    = p?.locked ?? false
-                                          const suggested = (p?.suggested ?? false) && allowed && !stg.terminal
+                                          const suggested = (p?.suggested ?? false) && allowed && !stg.terminal && !(p?.backward)
                                           const tint = suggested ? (dk?`${BRAND.teal}22`:`${BRAND.teal}0D`) : 'transparent'
                                           return (
                                             <button key={stg.key}
