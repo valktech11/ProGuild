@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   // the calculator librarian, so "the estimate" means the same thing everywhere.
   const { data: estimates } = await sb
     .from('estimates')
-    .select('id, status, total, created_at, sent_at, signed_at, approved_at')
+    .select('id, status, total, created_at, sent_at, approved_at')
     .eq('pro_id', proId)
     .eq('lead_id', leadId)
     .not('status', 'in', '("void","declined")')
@@ -94,8 +94,8 @@ export async function GET(req: NextRequest) {
   // Authoritative source columns take precedence over the generic event time.
   dates['lead_in']              = (lead.created_at as string | null) ?? dates['lead_in'] ?? null
   dates['inspection_scheduled'] = (lead.inspection_date as string | null) ?? dates['inspection_scheduled'] ?? null
-  dates['proposal_sent']        = (bestEst?.sent_at as string | undefined) ?? dates['proposal_sent'] ?? null
-  dates['proposal_signed']      = (bestEst?.signed_at as string | undefined) ?? (bestEst?.approved_at as string | undefined) ?? dates['proposal_signed'] ?? null
+  dates['proposal_sent']        = (bestEst?.sent_at as string | undefined) ?? dates['proposal_sent'] ?? (bestEst?.created_at as string | undefined) ?? null
+  dates['proposal_signed']      = (bestEst?.approved_at as string | undefined) ?? dates['proposal_signed'] ?? (bestEst?.created_at as string | undefined) ?? null
   dates['scheduled']            = (lead.scheduled_date as string | null) ?? dates['scheduled'] ?? null
   dates['job_won']              = (inv?.paid_at as string | undefined) ?? dates['job_won'] ?? null
 
