@@ -142,6 +142,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [tab,          setTab]          = useState<Tab>('details')
   const [isEditing,    setIsEditing]    = useState(false)
   const [showPicker,   setShowPicker]   = useState(false)
+  // Persistent info/warning popover anchored under the status dropdown (replaces
+  // the transient toast for blocked/locked stage taps — stays until dismissed).
+  const [stageNotice, setStageNotice] = useState<{ kind:'info'|'warning'; msg:string }|null>(null)
   const [showWarranty, setShowWarranty] = useState(false)
   const [confirmBack,  setConfirmBack]  = useState<LeadStatus|null>(null)
   // Canonical move rules for this lead — served by /api/roofing/stage-plan.
@@ -383,8 +386,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       // Auto stages advance by their action (send / sign / claim approved /
       // payment), never by a chip flip, so there is no "do it anyway".
       if (entry && !entry.allowed) {
-        // Auto stages advance by action (info); a gated manual stage is a "not yet" (warning).
-        addToast(entry.reason ?? 'This stage advances automatically', entry.kind === 'auto' ? 'info' : 'warning')
+        // Persistent popover under the dropdown — auto stage = info, gated manual = warning.
+        setShowPicker(false)
+        setStageNotice({ kind: entry.kind === 'auto' ? 'info' : 'warning', msg: entry.reason ?? 'This stage advances automatically' })
         return
       }
 
@@ -1038,7 +1042,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Current Status</div>
                           <div style={{position:'relative',display:'inline-block'}}>
                             <button
-                              onClick={()=>setShowPicker(v=>!v)}
+                              onClick={()=>{setStageNotice(null);setShowPicker(v=>!v)}}
                               disabled={saving}
                               style={{
                                 display:'inline-flex',alignItems:'center',gap:8,
@@ -1130,6 +1134,33 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               </>
                             )}
+
+                            {stageNotice&&(()=>{
+                              const isWarn = stageNotice.kind==='warning'
+                              const accent = isWarn ? '#D97706' : BRAND.teal
+                              const title  = isWarn ? 'Action needed' : 'Information'
+                              return (
+                                <>
+                                  <div style={{position:'fixed',inset:0,zIndex:199}} onClick={()=>setStageNotice(null)}/>
+                                  <div style={{position:'absolute',top:'calc(100% + 8px)',left:0,zIndex:200,width:330,maxWidth:'90vw',background:card,border:`1px solid ${bdr}`,borderLeft:`4px solid ${accent}`,borderRadius:14,boxShadow:dk?'0 18px 44px rgba(0,0,0,0.55)':'0 18px 44px rgba(15,23,42,0.20)',padding:'15px 16px'}}>
+                                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
+                                      <div style={{width:30,height:30,borderRadius:9,background:accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                                          {isWarn
+                                            ? <><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>
+                                            : <><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>}
+                                        </svg>
+                                      </div>
+                                      <div style={{fontSize:13.5,fontWeight:800,color:accent}}>{title}</div>
+                                    </div>
+                                    <div style={{fontSize:13.5,fontWeight:500,color:tp,lineHeight:1.45,marginBottom:14}}>{stageNotice.msg}</div>
+                                    <div style={{display:'flex',justifyContent:'flex-end'}}>
+                                      <button onClick={()=>setStageNotice(null)} style={{padding:'8px 20px',borderRadius:9,border:'none',background:accent,color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer'}}>Got it</button>
+                                    </div>
+                                  </div>
+                                </>
+                              )
+                            })()}
                           </div>
                         </div>
 
