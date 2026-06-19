@@ -44,7 +44,7 @@ function daysAgo(d: string): number {
 }
 function isOverdue(d: string | null) { return !!d && new Date(d) < new Date() }
 
-interface Toast { id:number; msg:string; type:'success'|'error'|'info'; prev?:LeadStatus }
+interface Toast { id:number; msg:string; type:'success'|'error'|'info'|'warning'; prev?:LeadStatus }
 
 // ─── SVG helper ───────────────────────────────────────────────────────────────
 function Svg({ size=14, stroke='currentColor', sw=2, children }: {
@@ -383,7 +383,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       // Auto stages advance by their action (send / sign / claim approved /
       // payment), never by a chip flip, so there is no "do it anyway".
       if (entry && !entry.allowed) {
-        addToast(entry.reason ?? 'This stage advances automatically', 'info')
+        // Auto stages advance by action (info); a gated manual stage is a "not yet" (warning).
+        addToast(entry.reason ?? 'This stage advances automatically', entry.kind === 'auto' ? 'info' : 'warning')
         return
       }
 
@@ -683,22 +684,25 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
         {/* ── Toasts — rendered via portal to escape any transform stacking context ── */}
         {typeof window !== 'undefined' && toasts.length > 0 && createPortal(
-          <div style={{position:'fixed',top:24,left:'50%',transform:'translateX(-50%)',zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
+          <div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
             {toasts.map(toast=>{
-              const accent = toast.type==='error' ? '#DC2626' : toast.type==='success' ? '#059669' : BRAND.teal
-              const icon = toast.type==='success'
-                ? <path d="M20 6 9 17l-5-5"/>
-                : toast.type==='error'
-                  ? <><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></>
-                  : <><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>
+              const cfg = ({
+                success: { accent:'#059669', title:'Done',     icon:<path d="M20 6 9 17l-5-5"/> },
+                error:   { accent:'#DC2626', title:'Error',    icon:<><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></> },
+                warning: { accent:'#D97706', title:'Not yet',  icon:<><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></> },
+                info:    { accent:BRAND.teal, title:'Heads up', icon:<><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></> },
+              } as const)[toast.type]
               return (
-                <div key={toast.id} style={{pointerEvents:'all',background:card,border:`1px solid ${bdr}`,borderLeft:`4px solid ${accent}`,borderRadius:14,padding:'13px 14px',display:'flex',alignItems:'center',gap:12,minWidth:300,maxWidth:440,boxShadow:dk?'0 14px 36px rgba(0,0,0,0.5)':'0 14px 36px rgba(15,23,42,0.16)'}}>
-                  <div style={{width:28,height:28,borderRadius:9,background:accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+                <div key={toast.id} style={{pointerEvents:'all',background:card,border:`1px solid ${bdr}`,borderLeft:`4px solid ${cfg.accent}`,borderRadius:14,padding:'13px 14px',display:'flex',alignItems:'flex-start',gap:12,minWidth:300,maxWidth:440,boxShadow:dk?'0 16px 40px rgba(0,0,0,0.5)':'0 16px 40px rgba(15,23,42,0.18)'}}>
+                  <div style={{width:28,height:28,borderRadius:9,background:cfg.accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={cfg.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{cfg.icon}</svg>
                   </div>
-                  <span style={{flex:1,fontSize:13.5,fontWeight:600,color:tp,lineHeight:1.35}}>{toast.msg}</span>
-                  {toast.prev&&toast.type==='success'&&<button onClick={()=>undoMove(toast.id,toast.prev!)} style={{fontSize:T.fontBody,color:BRAND.teal,fontWeight:700,background:'none',border:'none',cursor:'pointer',padding:'2px 4px'}}>Undo</button>}
-                  <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:18,lineHeight:1,padding:0,opacity:0.55}}>×</button>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:11,fontWeight:800,color:cfg.accent,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>{cfg.title}</div>
+                    <div style={{fontSize:13.5,fontWeight:500,color:tp,lineHeight:1.35}}>{toast.msg}</div>
+                  </div>
+                  {toast.prev&&toast.type==='success'&&<button onClick={()=>undoMove(toast.id,toast.prev!)} style={{fontSize:T.fontBody,color:BRAND.teal,fontWeight:700,background:'none',border:'none',cursor:'pointer',padding:'2px 4px',alignSelf:'center'}}>Undo</button>}
+                  <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:18,lineHeight:1,padding:0,opacity:0.55,alignSelf:'flex-start'}}>×</button>
                 </div>
               )
             })}
