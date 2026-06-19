@@ -40,6 +40,23 @@ export const CALCULATOR_LINE_NAMES: readonly string[] = [
   LABOUR_LINE_NAME,
 ]
 
+// ── Line name → price key ────────────────────────────────────────────────────
+// Each calculator-owned material line maps 1:1 to a price key in DEFAULT_PRICES.
+// Lets a server endpoint turn a SAVED estimate line's unit_price back into a
+// calculator price override (so reopening the calculator restores edited prices
+// instead of resetting to defaults). Labour is excluded — handled separately.
+export const LINE_NAME_TO_PRICE_KEY: Record<string, string> = {
+  'Architectural shingles':               'shingles',
+  'Synthetic underlayment':               'underlayment',
+  'Ridge cap shingles':                   'ridgeCap',
+  'Starter strip':                        'starterStrip',
+  'Roofing nails':                        'nails',
+  'Drip edge':                            'dripEdge',
+  'Ice & water shield (eave protection)': 'iceWater',
+  'Pipe boots & vent covers':             'pipeBoot',
+  'Tear-off & disposal':                  'disposal',
+}
+
 // ── Default FL market prices (per the web calculator) ─────────────────────────
 export const DEFAULT_PRICES: Record<string, number> = {
   shingles:     95,   // per bundle (3 bundles = 1 square)

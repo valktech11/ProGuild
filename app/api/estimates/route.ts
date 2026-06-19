@@ -9,7 +9,7 @@ const FROZEN_STATUSES = ['approved', 'invoiced', 'paid']
 
 // Base state sales tax rates (Tax Foundation 2024)
 // These are state-level rates only — county/city additions vary
-const STATE_TAX_RATES: Record<string, number> = {
+export const STATE_TAX_RATES: Record<string, number> = {
   AL: 4.0,  AK: 0.0,  AZ: 5.6,  AR: 6.5,  CA: 7.25,
   CO: 2.9,  CT: 6.35, DE: 0.0,  FL: 6.0,  GA: 4.0,
   HI: 4.0,  ID: 6.0,  IL: 6.25, IN: 7.0,  IA: 6.0,
