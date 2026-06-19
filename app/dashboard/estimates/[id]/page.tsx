@@ -272,22 +272,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       } else {
         setSaveMsg('Saved ✓')
         setIsDirty(false)
-        // ── Labour sync (Position B) ──────────────────────────────────────────
-        // Mirror the onSave path: if the "Labour & installation" line was edited,
-        // write it back to the lead so the calculator restores the same value.
-        const leadId = (estimate as any).lead_id
-        const labourLine = estimate.items.find(
-          (it: any) => String(it.name ?? it.description ?? '').toLowerCase().includes('labour')
-                    || String(it.name ?? it.description ?? '').toLowerCase().includes('labor')
-        )
-        if (leadId && session?.id && labourLine) {
-          const labourAmt = Number(labourLine.amount ?? (Number(labourLine.qty) * Number(labourLine.unit_price))) || 0
-          fetch(`/api/leads/${leadId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pro_id: session.id, labour_amount: labourAmt }),
-          }).catch(() => {})
-        }
+        // Labour cache is synced server-side from the persisted estimate line
+        // (lib/roofing/labour-cache.ts). The client no longer writes labour_amount.
       }
     } catch {
       setSaveMsg('Network error')
@@ -452,24 +438,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               setEstimate(prev => prev ? { ...prev, ...updates } as any : prev)
               setSaveMsg('Saved ✓')
               setTimeout(() => setSaveMsg(null), 2500)
-              // ── Labour sync (Position B) ────────────────────────────────────
-              // This onSave is the path the line-items editor uses (NOT handleSave).
-              // If the roofer edited the "Labour & installation" line, write it back
-              // to the lead so the calculator restores the SAME value next time.
-              const leadId = (estimate as any).lead_id
-              const itemsForSync = (updates.items !== undefined ? updates.items : estimate.items) as any[]
-              const labourLine = itemsForSync?.find(
-                (it: any) => String(it.name ?? it.description ?? '').toLowerCase().includes('labour')
-                          || String(it.name ?? it.description ?? '').toLowerCase().includes('labor')
-              )
-              if (leadId && session?.id && labourLine) {
-                const labourAmt = Number(labourLine.amount ?? (Number(labourLine.qty) * Number(labourLine.unit_price))) || 0
-                fetch(`/api/leads/${leadId}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ pro_id: session.id, labour_amount: labourAmt }),
-                }).catch(() => {})
-              }
+              // Labour cache is now synced server-side from the persisted estimate
+              // line (lib/roofing/labour-cache.ts). The client no longer writes
+              // labour_amount — that was the source of the 4000-vs-3000 drift.
             } catch (err: any) { setSaveMsg(err?.message || 'Save failed'); setTimeout(() => setSaveMsg(null), 3000) }
             finally { setSaving(false) }
           }}

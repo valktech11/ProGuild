@@ -162,7 +162,6 @@ function CalculatorInner() {
   const [insurance,  setInsurance]  = useState<{
     isInsurance: boolean; approvedAmount: number; supplement: number; deductible: number; claimStatus: string
   } | null>(null)
-  const [labourSaved, setLabourSaved] = useState(false)
   const [error,      setError]      = useState<string | null>(null)
   const [success,    setSuccess]    = useState<string | null>(null)
   const [editPrices, setEditPrices] = useState(false)
@@ -284,19 +283,8 @@ function CalculatorInner() {
     setAdjSq(adjustedSquares)
   }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices, pipeBoots, tearoff])
 
-  // Save labour on blur
-  const handleLabourBlur = useCallback(() => {
-    if (!leadId || !session || labour === '') return
-    const parsed = parseFloat(labour)
-    if (isNaN(parsed)) return
-    fetch(`/api/leads/${leadId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: session.id, labour_amount: parsed }),
-    })
-    .then(r => { if (r.ok) { setLabourSaved(true); setTimeout(() => setLabourSaved(false), 3000) } })
-    .catch(() => {})
-  }, [leadId, session, labour])
+  // Labour is persisted server-side from the estimate's saved line on Apply
+  // (lib/roofing/labour-cache.ts). The calculator no longer writes labour_amount.
 
   const materialTotal = lineItems.reduce((s, i) => s + i.total, 0)
   const labourAmount  = parseFloat(labour) || 0
@@ -357,14 +345,8 @@ function CalculatorInner() {
       }
       const respData = await res.json() as { id?: string; estimate?: { id: string }; existed?: boolean; revised?: boolean; revision_number?: number; custom_lines_preserved?: number }
       const estimateId = respData.id ?? respData.estimate?.id
-      // Persist labour amount to roofing_job_data so it restores next time
-      if (leadId && session && labour) {
-        fetch(`/api/leads/${leadId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pro_id: session.id, labour_amount: parseFloat(labour) || 0 }),
-        }).catch(() => {})
-      }
+      // Labour cache is written server-side from the persisted estimate line
+      // (lib/roofing/labour-cache.ts) — no client PATCH needed here.
       sessionStorage.removeItem('pg_report_data')
       const msg = respData.revised
         ? `Revision ${respData.revision_number ?? ''} created — the signed original is kept on record. Taking you to the new draft…`
@@ -608,14 +590,7 @@ function CalculatorInner() {
               <div>
                 <FInput label="Labour Amount ($)" hint="total install cost"
                   type="number" min="0" step="100" value={labour} placeholder="e.g. 4500"
-                  onChange={e => { setLabour(e.target.value); setLabourSaved(false) }}
-                  onBlur={handleLabourBlur} />
-                {labourSaved && (
-                  <div style={{ fontSize:11, color:'#059669', fontWeight:600, marginTop:4, display:'flex', alignItems:'center', gap:4 }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Saved
-                  </div>
-                )}
+                  onChange={e => setLabour(e.target.value)} />
               </div>
               <div style={{ padding:'12px 16px', borderRadius:10, background: labourAmount > 0 ? 'rgba(15,118,110,0.05)' : CREAM, border:`1px solid ${labourAmount > 0 ? 'rgba(15,118,110,0.2)' : BORDER}` }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
