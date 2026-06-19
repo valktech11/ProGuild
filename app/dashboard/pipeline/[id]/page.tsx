@@ -9,6 +9,7 @@ import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getPipelineStages, LostReasonSheet } from '@/components/ui/LeadPipeline'
 import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
+import type { StagePlanEntry } from '@/lib/trades/roofing/stage-rules'
 // Roofing components accessed via trade module path — not components/roofing
 import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
 import SupplementAssistant from '@/lib/trades/roofing/components/SupplementAssistant'
@@ -143,6 +144,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [showPicker,   setShowPicker]   = useState(false)
   const [showWarranty, setShowWarranty] = useState(false)
   const [confirmBack,  setConfirmBack]  = useState<LeadStatus|null>(null)
+  // Canonical move rules for this lead — served by /api/roofing/stage-plan.
+  const [stagePlan, setStagePlan] = useState<StagePlanEntry[]>([])
+  const planFor = (k: string) => stagePlan.find(e => e.key === k)
   const [warnSched,    setWarnSched]    = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showInspectionModal, setShowInspectionModal] = useState(false)
@@ -283,6 +287,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [refreshEst])
 
+  // The move sheet's single source of truth. Refetched whenever the inputs the
+  // gates read can change (stage / estimate / invoice / lead fields).
+  const refreshPlan = useCallback(() => {
+    if (!session || !lead || !isRoofing) return
+    fetch(`/api/roofing/stage-plan?lead_id=${lead.id}&pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.stages) setStagePlan(d.stages as StagePlanEntry[]) })
+      .catch(() => {})
+  }, [session, lead, isRoofing])
+
+  useEffect(() => { refreshPlan() }, [refreshPlan, stage, est, inv])
+
   useEffect(() => {
     refreshEst()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -357,94 +373,48 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   }, [session, id])
 
   // ── Stage move ───────────────────────────────────────────────────────────
-  // ── Gate evaluator — reads `requires` from stage config ─────────────────
-  function evalGate(targetKey: string): { pass: boolean; reason?: string; action?: string } {
-    const rjd = (lead as any)?.roofing_job_data
-    switch (targetKey) {
-      case 'inspection_scheduled':
-        if (!(lead as any).property_address) return { pass: false, reason: 'Add a property address before scheduling inspection.', action: 'Edit Lead' }
-        return { pass: true }
-      case 'proposal_sent':
-        if (!est) return { pass: false, reason: 'Create a proposal before marking as Proposal Sent.', action: 'Create Proposal' }
-        if (!(est as any).total || (est as any).total === 0) return { pass: false, reason: 'Your proposal has no items yet. Add line items before sending.', action: 'Open Proposal' }
-        return { pass: true }
-      case 'proposal_signed':
-        if (!est) return { pass: false, reason: 'No proposal exists. Create and send a proposal first.', action: 'Create Proposal' }
-        if (!['sent','viewed','approved'].includes((est as any).status)) return { pass: false, reason: 'Proposal must be sent to the homeowner before it can be signed.', action: 'Open Proposal' }
-        return { pass: true }
-      case 'insurance_approved': {
-        if (!rjd?.insurance_claim) return { pass: false, reason: 'Mark this job as an insurance claim before moving to Insurance Approved.', action: 'Open Insurance Fields' }
-        const claimStatus = rjd?.claim_status as string | undefined
-        const approvedStatuses = ['Approved', 'Supplement Approved']
-        if (claimStatus && !approvedStatuses.includes(claimStatus)) {
-          return { pass: false, reason: `Insurance claim status is "${claimStatus}". Set Claim Status to "Approved" or "Supplement Approved" in the insurance fields before moving to this stage.`, action: 'Open Insurance Fields' }
-        }
-        return { pass: true }
-      }
-      case 'scheduled':
-        if (!est) return { pass: false, reason: 'No proposal exists. A signed proposal is required before scheduling.', action: 'Create Proposal' }
-        if (!['approved','invoiced','paid'].includes((est as any).status) && STAGE_ORDER['proposal_signed'] > STAGE_ORDER[stage]) {
-          return { pass: false, reason: 'Get the proposal signed before scheduling the job.', action: 'Open Proposal' }
-        }
-        return { pass: true }
-      case 'in_progress':
-        if (!lead?.scheduled_date) return { pass: false, reason: 'Set a job date before marking as In Progress.', action: 'Edit Lead' }
-        return { pass: true }
-      case 'job_won':
-        if (!inv) return { pass: false, reason: 'Create an invoice before marking the job as won.', action: 'Create Invoice' }
-        return { pass: true }
-      default:
-        return { pass: true }
-    }
-  }
-
+  // Move rules come entirely from the server plan (/api/roofing/stage-plan, via
+  // planFor). No gate logic lives in this client anymore.
   async function moveStage(s:LeadStatus, force=false) {
     if (s===stage||saving) return
-    if (STAGE_ORDER[s]<STAGE_ORDER[stage]) { setConfirmBack(s); return }
-    // Intercept lost — show reason sheet first
-    const lostKey = getStageAnchors(session?.trade_slug)?.lost ?? 'lost'
-    if ((s === lostKey || s === 'lost') && !force) {
-      setShowLostSheet(true)
-      return
-    }
-    // Always show schedule modal when moving to scheduled — regardless of gate
-    if (!force && s === 'scheduled') {
-      setSchedDate(lead?.scheduled_date || '')
-      setSchedTime((lead as any)?.scheduled_time || '')
-      setShowScheduleModal(true)
-      return
-    }
-    if (!force && s === 'inspection_scheduled') {
-      setInspDate((lead as any)?.inspection_date || '')
-      setShowInspectionModal(true)
-      return
-    }
+    if (STAGE_ORDER[s]<STAGE_ORDER[stage]) { setConfirmBack(s); return }   // backward → confirm
+
     if (!force) {
-      // Unified gate evaluator — reads requires from stage config
-      const gate = evalGate(s)
-      if (!gate.pass) {
-        // Map gate failure to appropriate modal or action
+      const lostKey = getStageAnchors(session?.trade_slug)?.lost ?? 'lost'
+      const wonKey  = getStageAnchors(session?.trade_slug)?.won  ?? 'job_won'
+      const entry   = planFor(s)
+
+      // Blocked or locked — surface the reason with the most helpful CTA we have.
+      if (entry && !entry.allowed) {
         if (s === 'proposal_sent' || s === 'proposal_signed') { setWarnProposal(true); return }
-        if (s === 'job_won') { setWarnDone(true); return }
-        // Generic gate failure — show toast with reason
-        addToast(gate.reason ?? 'Cannot move to this stage yet', 'error')
+        if (s === wonKey || s === 'job_won')                  { setWarnDone(true);     return }
+        addToast(entry.reason ?? 'Cannot move to this stage yet', 'error')
         return
       }
-      // proposal_sent special: move stage AND open estimate immediately
-      if (s === 'proposal_sent' && est) {
-        const prev2 = stage; setStage(s as LeadStatus); setSaving(true)
-        const ok2 = await patch({ lead_status: s }); setSaving(false)
-        if (ok2) {
-          setLead(l => l ? { ...l, lead_status: s } : l)
-          addToast('Moved to Proposal Sent', 'success', prev2)
-          router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)
-        } else { setStage(prev2); addToast('Failed to update stage', 'error') }
+
+      // Allowed — collect any required input first (prompt comes from the plan).
+      if (s === lostKey || s === 'lost') { setShowLostSheet(true); return }
+      if (s === 'scheduled' || entry?.prompt === 'datetime') {
+        setSchedDate(lead?.scheduled_date || '')
+        setSchedTime((lead as any)?.scheduled_time || '')
+        setShowScheduleModal(true)
+        return
+      }
+      if (s === 'inspection_scheduled' || entry?.prompt === 'date') {
+        setInspDate((lead as any)?.inspection_date || '')
+        setShowInspectionModal(true)
         return
       }
     }
+
     const prev=stage; setStage(s); setSaving(true)
     const ok = await patch({lead_status:s}); setSaving(false)
-    if (ok) { setLead(l=>l?{...l,lead_status:s}:l); addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev); if(tradePlugin && _isRoofing(tradePlugin) && s===((tradePlugin as any).stageAnchors?.warrantyTrigger ?? getStageAnchors(session?.trade_slug).won)) setShowWarranty(true) }
+    if (ok) {
+      setLead(l=>l?{...l,lead_status:s}:l)
+      addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev)
+      refreshPlan()
+      if(tradePlugin && _isRoofing(tradePlugin) && s===((tradePlugin as any).stageAnchors?.warrantyTrigger ?? getStageAnchors(session?.trade_slug).won)) setShowWarranty(true)
+    }
     else { setStage(prev); addToast('Failed to update stage','error') }
   }
 
@@ -867,13 +837,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setWarnProposal(false)}>
             <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:380,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
               {(()=>{
-                const g = evalGate(stage === 'proposal_sent' ? 'proposal_sent' : 'proposal_signed')
+                const g = planFor(stage === 'proposal_sent' ? 'proposal_sent' : 'proposal_signed')
                 return (<>
                   <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,marginBottom:6}}>
                     {!est ? 'No proposal yet' : !['sent','viewed','approved'].includes((est as any).status||'') && stage !== 'proposal_sent' ? 'Proposal not sent yet' : 'Proposal has no items'}
                   </p>
                   <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp4}}>
-                    {g.reason ?? 'A proposal is required before moving to this stage.'}
+                    {g?.reason ?? 'A proposal is required before moving to this stage.'}
                   </p>
                   <div style={{display:'flex',gap:T.sp2}}>
                     <button
