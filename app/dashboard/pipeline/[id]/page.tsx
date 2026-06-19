@@ -147,14 +147,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // Canonical move rules for this lead — served by /api/roofing/stage-plan.
   const [stagePlan, setStagePlan] = useState<StagePlanEntry[]>([])
   const planFor = (k: string) => stagePlan.find(e => e.key === k)
-  const [warnSched,    setWarnSched]    = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [showInspectionModal, setShowInspectionModal] = useState(false)
   const [inspDate, setInspDate] = useState('')
   const [schedDate,  setSchedDate]  = useState('')
   const [schedTime,  setSchedTime]  = useState('')
-  const [warnDone,     setWarnDone]     = useState(false)
-  const [warnProposal, setWarnProposal] = useState(false)  // proposal_sent without an estimate
 
   // ── Edit fields ──────────────────────────────────────────────────────────
   const [eAddr,  setEAddr]  = useState('')
@@ -194,7 +191,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [showHistory, setShowHistory] = useState(false)
   const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number}|null>(null)
   const [creatingEst, setCreatingEst] = useState(false)
-  const [creatingInv, setCreatingInv] = useState(false)
   const [photoCount, setPhotoCount]   = useState(0)
 
   // ── Toasts ───────────────────────────────────────────────────────────────
@@ -381,14 +377,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
     if (!force) {
       const lostKey = getStageAnchors(session?.trade_slug)?.lost ?? 'lost'
-      const wonKey  = getStageAnchors(session?.trade_slug)?.won  ?? 'job_won'
       const entry   = planFor(s)
 
-      // Blocked or locked — surface the reason with the most helpful CTA we have.
+      // Blocked or locked — the plan says why. Surface it; no manual override.
+      // Auto stages advance by their action (send / sign / claim approved /
+      // payment), never by a chip flip, so there is no "do it anyway".
       if (entry && !entry.allowed) {
-        if (s === 'proposal_sent' || s === 'proposal_signed') { setWarnProposal(true); return }
-        if (s === wonKey || s === 'job_won')                  { setWarnDone(true);     return }
-        addToast(entry.reason ?? 'Cannot move to this stage yet', 'error')
+        addToast(entry.reason ?? 'This stage advances automatically', 'error')
         return
       }
 
@@ -561,15 +556,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       })})
       const d=await r.json(); if(d.estimate?.id) router.push(`/dashboard/estimates/${d.estimate.id}?from=pipeline&lead_id=${id}`)
     } catch { setCreatingEst(false) }
-  }
-  async function createInv() {
-    if (!lead||!session||creatingInv) return
-    if (inv) { router.push(`/dashboard/invoices/${inv.id}`); return }
-    setCreatingInv(true)
-    try {
-      const r=await fetch('/api/invoices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,lead_id:lead.id,estimate_id:est?.id,lead_name:lead.contact_name,trade:session.trade||'',contact_name:lead.contact_name,contact_email:lead.contact_email||'',contact_phone:lead.contact_phone||''})})
-      const d=await r.json(); if(d.invoice?.id) router.push(`/dashboard/invoices/${d.invoice.id}`)
-    } catch {} finally { setCreatingInv(false) }
   }
 
   // ── Activity ──────────────────────────────────────────────────────────────
@@ -803,65 +789,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                   Schedule Job
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {warnSched&&(
-          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setWarnSched(false)}>
-            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:360,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
-              <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,marginBottom:6}}>No estimate yet</p>
-              <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp4}}>Create an estimate before scheduling.</p>
-              <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end'}}>
-                <button onClick={()=>{setWarnSched(false);createEst()}} style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:700}}>Create Estimate</button>
-                <button onClick={()=>{setWarnSched(false);moveStage('Scheduled' as LeadStatus,true)}} style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>Schedule Anyway</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {warnDone&&(
-          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setWarnDone(false)}>
-            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:360,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
-              <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,marginBottom:6}}>No invoice created</p>
-              <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp4}}>Create an invoice before completing.</p>
-              <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end'}}>
-                <button onClick={()=>{setWarnDone(false);createInv()}} style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:700}}>Create Invoice</button>
-                <button onClick={()=>{setWarnDone(false);moveStage('Completed' as LeadStatus,true)}} style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>Complete Anyway</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {warnProposal&&(
-          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setWarnProposal(false)}>
-            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:380,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
-              {(()=>{
-                const g = planFor(stage === 'proposal_sent' ? 'proposal_sent' : 'proposal_signed')
-                return (<>
-                  <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,marginBottom:6}}>
-                    {!est ? 'No proposal yet' : !['sent','viewed','approved'].includes((est as any).status||'') && stage !== 'proposal_sent' ? 'Proposal not sent yet' : 'Proposal has no items'}
-                  </p>
-                  <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp4}}>
-                    {g?.reason ?? 'A proposal is required before moving to this stage.'}
-                  </p>
-                  <div style={{display:'flex',gap:T.sp2}}>
-                    <button
-                      onClick={()=>{
-                        setWarnProposal(false)
-                        if (est) router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${id}`)
-                        else createEst()
-                      }}
-                      style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:700}}>
-                      {est ? 'Open Proposal' : 'Create Proposal'}
-                    </button>
-                    <button onClick={()=>setWarnProposal(false)}
-                      style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>
-                      Cancel
-                    </button>
-                  </div>
-                </>)
-              })()}
             </div>
           </div>
         )}
