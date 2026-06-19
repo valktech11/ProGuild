@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 // Creates a blank draft estimate and returns it so the UI can redirect to /[id]
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source, square_count, pitch, waste_pct } = body
+  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source, square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, pipe_boots, tearoff_layers } = body
 
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
@@ -58,6 +58,13 @@ export async function POST(req: NextRequest) {
   }
 
   const sb = getSupabaseAdmin()
+
+  // Slice 1: normalize calculator measurement-snapshot inputs → number | null
+  const numOrNull = (v: unknown): number | null => {
+    if (v == null) return null
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
 
   // C2 FIX: check for any non-void, non-declined estimate (not just draft)
   // Priority: approved > invoiced > paid > sent > viewed > draft
@@ -86,6 +93,11 @@ export async function POST(req: NextRequest) {
         if (square_count) syncPayload.square_count = Number(square_count)
         if (pitch)        syncPayload.pitch        = pitch
         if (waste_pct)    syncPayload.waste_pct    = Number(waste_pct)
+        if (ridge_lf       != null) syncPayload.ridge_lf       = numOrNull(ridge_lf)
+        if (eave_lf        != null) syncPayload.eave_lf        = numOrNull(eave_lf)
+        if (perimeter_lf   != null) syncPayload.perimeter_lf   = numOrNull(perimeter_lf)
+        if (pipe_boots     != null) syncPayload.pipe_boots     = numOrNull(pipe_boots)
+        if (tearoff_layers != null) syncPayload.tearoff_layers = numOrNull(tearoff_layers)
         await sb.from('roofing_estimate_data').upsert(syncPayload, { onConflict: 'estimate_id' })
       }
 
@@ -199,6 +211,11 @@ export async function POST(req: NextRequest) {
               square_count:  Number(square_count) || null,
               pitch:         pitch ?? null,
               waste_pct:     Number(waste_pct) || null,
+              ridge_lf:       numOrNull(ridge_lf),
+              eave_lf:        numOrNull(eave_lf),
+              perimeter_lf:   numOrNull(perimeter_lf),
+              pipe_boots:     numOrNull(pipe_boots),
+              tearoff_layers: numOrNull(tearoff_layers),
             }, { onConflict: 'estimate_id' })
           }
 
@@ -254,6 +271,11 @@ export async function POST(req: NextRequest) {
           square_count:  Number(square_count) || null,
           pitch:         pitch ?? null,
           waste_pct:     Number(waste_pct) || null,
+          ridge_lf:       numOrNull(ridge_lf),
+          eave_lf:        numOrNull(eave_lf),
+          perimeter_lf:   numOrNull(perimeter_lf),
+          pipe_boots:     numOrNull(pipe_boots),
+          tearoff_layers: numOrNull(tearoff_layers),
         }, { onConflict: 'estimate_id' })
         // 6. Return fresh estimate row
         const { data: updated } = await sb.from('estimates').select('*').eq('id', best.id).single()
@@ -314,6 +336,11 @@ export async function POST(req: NextRequest) {
       square_count:     square_count     ? Number(square_count)  : null,
       pitch:            pitch            || null,
       waste_pct:        waste_pct        ? Number(waste_pct)     : 10,
+      ridge_lf:         numOrNull(ridge_lf),
+      eave_lf:          numOrNull(eave_lf),
+      perimeter_lf:     numOrNull(perimeter_lf),
+      pipe_boots:       numOrNull(pipe_boots),
+      tearoff_layers:   numOrNull(tearoff_layers),
     }, { onConflict: 'estimate_id' })
   }
 
