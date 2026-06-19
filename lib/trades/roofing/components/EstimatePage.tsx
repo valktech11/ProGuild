@@ -1796,25 +1796,37 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
         {pendingDeleteId && (() => {
           const item = items.find(i => i.id === pendingDeleteId)
           if (!item) return null
-          const fmt2 = (n: number) => '$' + Math.round(n).toLocaleString()
           return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 14px', borderRadius: 10, background: '#FEF2F2',
-              border: '1.5px solid #FECACA', gap: 12 }}>
-              <span style={{ fontSize: 13, color: '#991B1B' }}>
-                Remove <strong>{item.name || 'this item'}</strong> ({fmt2(item.amount)})?
-              </span>
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                <button onClick={() => setPendingDeleteId(null)}
-                  style={{ padding: '5px 14px', borderRadius: 7, border: '1px solid #FECACA',
-                    background: 'transparent', color: '#991B1B', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                  Cancel
-                </button>
-                <button onClick={() => { onDelete?.(pendingDeleteId!); setPendingDeleteId(null) }}
-                  style={{ padding: '5px 14px', borderRadius: 7, border: 'none',
-                    background: '#DC2626', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                  Remove
-                </button>
+            <div onClick={() => setPendingDeleteId(null)}
+              style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.45)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+              <div onClick={e => e.stopPropagation()}
+                style={{ background: card, borderRadius: 14, padding: 24, width: '100%', maxWidth: 380,
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.3)', border: `1px solid ${border}` }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FEF2F2',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: textP, marginBottom: 6 }}>
+                  Remove {item.name || 'this item'}?
+                </div>
+                <div style={{ fontSize: 13, color: textS, marginBottom: 20, lineHeight: 1.5 }}>
+                  This removes <strong>{item.name || 'this item'}</strong> ({fmt(item.amount)}) from the estimate. You can add it back manually.
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button onClick={() => setPendingDeleteId(null)}
+                    style={{ padding: '9px 18px', borderRadius: 9, border: `1px solid ${border}`,
+                      background: 'transparent', color: textP, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                  <button onClick={() => { onDelete?.(pendingDeleteId!); setPendingDeleteId(null) }}
+                    style={{ padding: '9px 18px', borderRadius: 9, border: 'none',
+                      background: '#DC2626', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                    Remove
+                  </button>
+                </div>
               </div>
             </div>
           )
