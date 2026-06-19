@@ -200,6 +200,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [toasts,   setToasts]   = useState<Toast[]>([])
   const [toastSeq, setToastSeq] = useState(0)
   const [showLostSheet, setShowLostSheet] = useState(false)
+  const [reasonTarget, setReasonTarget] = useState<LeadStatus>('lost')
   function addToast(msg:string, type:Toast['type']='success', prev?:LeadStatus) {
     const tid=toastSeq+1; setToastSeq(tid)
     setToasts(t=>[...t,{id:tid,msg,type,prev}])
@@ -393,7 +394,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       }
 
       // Allowed — collect any required input first (prompt comes from the plan).
-      if (s === lostKey || s === 'lost') { setShowLostSheet(true); return }
+      if (entry?.prompt === 'reason' || s === lostKey || s === 'lost') {
+        setReasonTarget(s as LeadStatus); setShowLostSheet(true); return
+      }
       if (s === 'scheduled' || entry?.prompt === 'datetime') {
         setSchedDate(lead?.scheduled_date || '')
         setSchedTime((lead as any)?.scheduled_time || '')
@@ -2002,30 +2005,36 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         })()}
       </div>
 
-      {/* Lost Reason Sheet */}
-      {showLostSheet && lead && (
+      {/* Reason sheet — Lost or Unqualified (target from the plan prompt) */}
+      {showLostSheet && lead && (() => {
+        const isUnq = reasonTarget === 'unqualified'
+        return (
         <LostReasonSheet
           lead={lead}
           dk={dk}
+          title={isUnq ? 'Mark as Unqualified' : 'Mark as Lost'}
+          prompt={isUnq ? 'Why isn\u2019t this lead a fit?' : 'Why was this lead lost?'}
           onCancel={() => setShowLostSheet(false)}
           onConfirm={async (reason) => {
             setShowLostSheet(false)
-            const lostKey = (getStageAnchors(session?.trade_slug)?.lost ?? 'lost') as LeadStatus
+            const target = reasonTarget
             const prev = stage
-            setStage(lostKey)
+            setStage(target)
             setSaving(true)
-            const ok = await patch({ lead_status: lostKey, lost_reason: reason })
+            const ok = await patch({ lead_status: target, lost_reason: reason })
             setSaving(false)
             if (ok) {
-              setLead(l => l ? { ...l, lead_status: lostKey } : l)
-              addToast('Lead marked as Lost', 'success', prev)
+              setLead(l => l ? { ...l, lead_status: target } : l)
+              addToast(isUnq ? 'Lead marked as Unqualified' : 'Lead marked as Lost', 'success', prev)
+              refreshPlan()
             } else {
               setStage(prev)
               addToast('Failed to update stage', 'error')
             }
           }}
         />
-      )}
+        )
+      })()}
     </DashboardShell>
   )
 }

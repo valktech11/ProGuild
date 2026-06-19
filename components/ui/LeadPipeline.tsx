@@ -1139,11 +1139,13 @@ const LOST_REASONS: { value: string; label: string; icon: string }[] = [
   { value: 'other',             label: 'Other',                icon: '📝' },
 ]
 
-export function LostReasonSheet({ lead, onConfirm, onCancel, dk = false }: {
+export function LostReasonSheet({ lead, onConfirm, onCancel, dk = false, title = 'Mark as Lost', prompt }: {
   lead: Lead
   onConfirm: (reason: string) => void
   onCancel: () => void
   dk?: boolean
+  title?: string
+  prompt?: string
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const t = theme(dk)
@@ -1164,9 +1166,9 @@ export function LostReasonSheet({ lead, onConfirm, onCancel, dk = false }: {
         <div style={{ width: 36, height: 4, borderRadius: 2, background: t.inputBorder, margin: '0 auto 18px' }} />
         {/* Header */}
         <div style={{ marginBottom: 4 }}>
-          <p style={{ fontSize: 17, fontWeight: 700, color: t.textPri }}>Mark as Lost</p>
+          <p style={{ fontSize: 17, fontWeight: 700, color: t.textPri }}>{title}</p>
           <p style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>
-            {capName(lead.contact_name)} · Why was this lead lost?
+            {capName(lead.contact_name)} · {prompt ?? 'Why was this lead lost?'}
           </p>
         </div>
         {/* Reasons */}

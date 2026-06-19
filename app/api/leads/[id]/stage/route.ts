@@ -1,13 +1,20 @@
 // app/api/leads/[id]/stage/route.ts
 // PATCH /api/leads/[id]/stage
-// Two-layer protection:
+// Three-layer protection:
 //   1. DB constraint: rejects completely unknown stage values
 //   2. API: rejects stages valid globally but wrong for this lead's trade
+//   3. Roofing: rejects corruption-risky user moves (e.g. Job Won without a
+//      paid invoice, Install Sched. without a signed proposal) via the canonical
+//      stage rules. Action routes (sign, send, mark-paid, claim) set lead_status
+//      directly and never pass through here, so they are unaffected.
 // Writes to pipeline_events on every successful transition.
 
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { getTradeConfig } from '@/lib/trades/_registry'
+import { getTradeConfig, isRoofing } from '@/lib/trades/_registry'
+import { validateUserMove } from '@/lib/trades/roofing/stage-rules'
+import { gatherRoofingStageContext } from '@/lib/trades/roofing/stage-context'
+import type { RoofingStage } from '@/lib/trades/roofing/types'
 
 type RouteParams = { params: Promise<{ id: string }> }
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -42,7 +49,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     // ── Fetch lead — ownership enforced ──────────────────────────────────
     const { data: lead, error: fetchError } = await sb
       .from('leads')
-      .select('id, lead_status, trade_slug, pro_id')
+      .select('id, lead_status, trade_slug, pro_id, property_address, scheduled_date, inspection_date')
       .eq('id', leadId)
       .eq('pro_id', pro_id)
       .single()
@@ -68,17 +75,25 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     if (currentStage === newStage)
       return NextResponse.json({ success: true, leadId, from: currentStage, to: newStage, noop: true })
 
-    // ── Server-side gate: insurance_approved requires insurance_claim=true ──
-    if (newStage === 'insurance_approved') {
-      const { data: rjd } = await sb
-        .from('roofing_job_data')
-        .select('insurance_claim, claim_status')
-        .eq('lead_id', leadId)
-        .maybeSingle()
-      if (!rjd?.insurance_claim) {
+    // ── Layer 3: roofing move enforcement (canonical rules) ────────────────
+    // Backstop for stale clients / direct API calls. Backward corrections and
+    // gate-satisfying forward moves pass; jumping to an action-driven milestone
+    // (e.g. Job Won without a paid invoice) is rejected. Action routes set the
+    // stage directly and never reach this handler.
+    if (isRoofing(tradeConfig)) {
+      const { ctx } = await gatherRoofingStageContext(
+        leadId, pro_id, currentStage as RoofingStage,
+        {
+          property_address: (lead.property_address as string | null) ?? null,
+          scheduled_date:   (lead.scheduled_date as string | null) ?? null,
+          inspection_date:  (lead.inspection_date as string | null) ?? null,
+        },
+      )
+      const verdict = validateUserMove(ctx, newStage as RoofingStage)
+      if (!verdict.ok) {
         return NextResponse.json(
-          { error: 'Mark this job as an insurance claim before moving to Insurance Approved.' },
-          { status: 422 }
+          { error: verdict.reason ?? 'This stage move is not allowed right now.' },
+          { status: 422 },
         )
       }
     }
