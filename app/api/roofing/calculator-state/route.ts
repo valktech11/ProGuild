@@ -37,6 +37,7 @@ interface LinearFootage {
 // Shape of the roofing_estimate_data row this endpoint reads (all nullable —
 // pre-v114 estimates won't have the LF/boots/tear-off columns populated).
 interface EstimateMeasurements {
+  estimate_type?:  string | null
   square_count?:   number | null
   pitch?:          string | null
   waste_pct?:      number | null
@@ -113,6 +114,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       source:        'fresh',
       estimate_id:   null,
+      estimate_type: null,
       estimate_number: null,
       status:        null,
       measurements: {
@@ -135,7 +137,7 @@ export async function GET(req: NextRequest) {
   // ── ESTIMATE branch ──────────────────────────────────────────────────────────
   const [redRes, itemsRes] = await Promise.all([
     sb.from('roofing_estimate_data')
-      .select('square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, pipe_boots, tearoff_layers')
+      .select('estimate_type, square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, pipe_boots, tearoff_layers')
       .eq('estimate_id', best.id)
       .maybeSingle(),
     sb.from('estimate_items').select('*').eq('estimate_id', best.id),
@@ -165,6 +167,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     source:        'estimate',
     estimate_id:   best.id,
+    estimate_type: red.estimate_type ?? 'standard',
     estimate_number: best.estimate_number ?? null,
     status:        best.status ?? null,
     measurements: {

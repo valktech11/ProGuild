@@ -267,7 +267,10 @@ export async function POST(req: NextRequest) {
           estimate_id:   best.id,
           pro_id:        pro_id,
           estimate_type: 'standard',
-          tiered_data:   null,
+          // tiered_data intentionally NOT set here — converting a GBB estimate to
+          // Standard via the calculator preserves its tiers (reversible from the
+          // estimate's Proposal Type toggle), matching the toggle's own behaviour.
+          // Previously this set tiered_data: null and silently destroyed them.
           square_count:  Number(square_count) || null,
           pitch:         pitch ?? null,
           waste_pct:     Number(waste_pct) || null,

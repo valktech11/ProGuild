@@ -172,6 +172,9 @@ function CalculatorInner() {
   // Real tax rate from the calculator-state endpoint (replaces the hardcoded 6%
   // preview, so the total is right off-FL too). Null until the librarian answers.
   const [taxRatePct, setTaxRatePct] = useState<number | null>(null)
+  // True when applying would convert a Good/Better/Best estimate to a single
+  // Standard price. The tiers are preserved (reversible), but we still flag it.
+  const [isGbbEstimate, setIsGbbEstimate] = useState(false)
 
   const leadId     = searchParams.get('lead_id')     ?? null
   const propertyId = searchParams.get('property_id') ?? null
@@ -263,6 +266,7 @@ function CalculatorInner() {
         if (d.source === 'estimate' && d.estimate_number) {
           setExistingEstimate({ number: String(d.estimate_number), status: String(d.status ?? '') })
         }
+        setIsGbbEstimate(d.source === 'estimate' && d.estimate_type === 'tiered')
         // Fresh lead (no estimate yet): let a just-generated report overlay the
         // librarian's saved numbers, since those are the freshest the roofer has.
         if (d.source === 'fresh') applySessionReport()
@@ -726,6 +730,14 @@ function CalculatorInner() {
               {['approved','invoiced','paid'].includes(existingEstimate.status)
                 ? `Estimate #${existingEstimate.number} is already signed. Applying creates a new revision and keeps the original on record — it won't change the signed one.`
                 : `This lead already has estimate #${existingEstimate.number}. Applying updates it (your hand-added lines are kept), it won't create a duplicate.`}
+            </span>
+          </div>
+        )}
+        {isGbbEstimate && !success && (
+          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', borderRadius:10, background:'#F0FDFA', border:'1px solid #99F6E4', marginBottom:14 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span style={{ fontSize:13, color:'#0F766E', fontWeight:600 }}>
+              This job is currently a Good / Better / Best proposal (3 options). Applying the calculator shows it as a single price — your 3 options are kept and you can switch back anytime on the estimate.
             </span>
           </div>
         )}
