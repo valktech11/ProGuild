@@ -1158,7 +1158,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                 <div style={{fontSize:11,color:tsu,marginTop:1}}>{stg.subLabel}</div>
                                               </div>
                                               {pd&&<span style={{fontSize:11,fontWeight:600,color:tsu,flexShrink:0,whiteSpace:'nowrap',marginRight:(suggested||locked)?8:0}}>{pd}</span>}
-                                              {suggested
+                                              {p?.skipped
+                                                ? <span style={{fontSize:9,fontWeight:700,color:tsu,background:dk?'#33415588':'#F1F5F9',padding:'3px 7px',borderRadius:20,textTransform:'uppercase',letterSpacing:'0.05em',flexShrink:0,whiteSpace:'nowrap'}}>Skipped</span>
+                                                : suggested
                                                 ? <span style={{fontSize:9,fontWeight:800,color:BRAND.teal,background:`${BRAND.teal}1A`,padding:'3px 7px',borderRadius:20,textTransform:'uppercase',letterSpacing:'0.05em',flexShrink:0,whiteSpace:'nowrap'}}>Suggested</span>
                                                 : locked
                                                   ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tsu} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,opacity:0.7}}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>

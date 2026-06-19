@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
   const plan = evaluateStagePlan(ctx)
 
   // Each entry carries its own "happened on" date (null if it hasn't yet).
-  const stagesWithDates = plan.stages.map(s => ({ ...s, date: dates[s.key] ?? null }))
+  const stagesWithDates = plan.stages.map(s => ({ ...s, date: s.skipped ? null : (dates[s.key] ?? null) }))
 
   return NextResponse.json({
     current_stage: plan.currentStage,

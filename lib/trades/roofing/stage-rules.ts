@@ -45,7 +45,8 @@ export interface StagePlanEntry {
   key:        RoofingStage
   kind:       StageKind
   isCurrent:  boolean
-  isComplete: boolean              // a past linear stage
+  isComplete: boolean              // a past linear stage actually traversed
+  skipped:    boolean              // a branch stage this lead bypassed (e.g. insurance on a cash job)
   backward:   boolean              // earlier in order than current
   locked:     boolean              // not a tappable move target right now
   allowed:    boolean              // user may initiate this move now
@@ -149,7 +150,10 @@ export function evaluateStagePlan(ctx: StageContext): StagePlan {
     const order    = ROOFING_STAGE_ORDER[key] ?? 0
     const isCurrent = key === ctx.currentStage
     const backward  = !isCurrent && order < curOrder
-    const isComplete = backward && kind !== 'terminal'
+    // A branch stage the lead never went through (insurance approval on a cash job)
+    // sits "behind" current by order but was never actually traversed.
+    const skipped    = key === 'insurance_approved' && !ctx.insuranceClaim && backward
+    const isComplete = backward && kind !== 'terminal' && !skipped
     const prompt    = STAGE_PROMPT[key] ?? null
     const suggested = suggestedSet.has(key)
 
@@ -181,7 +185,7 @@ export function evaluateStagePlan(ctx: StageContext): StagePlan {
       }
     }
 
-    return { key, kind, isCurrent, isComplete, backward, locked, allowed, suggested, reason, prompt }
+    return { key, kind, isCurrent, isComplete, skipped, backward, locked, allowed, suggested, reason, prompt }
   })
 
   return { currentStage: ctx.currentStage, stages }
