@@ -39,7 +39,7 @@ interface ReportData {
 
 // ── Pitch factors ─────────────────────────────────────────────────────────────
 import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
-import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
+import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices, CALCULATOR_LINE_NAMES, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
 
 function normalizePitch(raw: string | number): string {
   if (typeof raw === 'number') return '6/12'
@@ -168,6 +168,7 @@ function CalculatorInner() {
   // If this lead already has a live (non-void) estimate, pricing will UPDATE it
   // rather than create a new one (server dedupes). Surface that so the roofer knows.
   const [existingEstimate, setExistingEstimate] = useState<{ number: string; status: string } | null>(null)
+  const [customLines, setCustomLines] = useState<{ name: string; amount: number }[]>([])
 
   const leadId     = searchParams.get('lead_id')     ?? null
   const propertyId = searchParams.get('property_id') ?? null
@@ -236,7 +237,21 @@ function CalculatorInner() {
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           const live = (d?.estimates ?? []).find((e: any) => !['void', 'declined'].includes(e.status))
-          if (live) setExistingEstimate({ number: live.estimate_number, status: live.status })
+          if (!live) return
+          setExistingEstimate({ number: live.estimate_number, status: live.status })
+          // Pull the live estimate's hand-added (non-calculator) lines so the roofer
+          // can see they're preserved — the calculator only prices roof + labour.
+          fetch(`/api/estimates/${live.id}?pro_id=${session.id}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(ed => {
+              const items = (ed?.estimate?.items ?? []) as any[]
+              setCustomLines(
+                items
+                  .filter(it => !CALCULATOR_LINE_NAMES.includes(String(it.name ?? it.description ?? '')))
+                  .map(it => ({ name: String(it.name ?? it.description ?? 'Custom line'), amount: Number(it.amount) || 0 }))
+              )
+            })
+            .catch(() => {})
         })
         .catch(() => {})
       fetch(`/api/leads/${leadId}?pro_id=${session.id}`)
@@ -307,6 +322,12 @@ function CalculatorInner() {
     : (STATE_TAX_RATES_PREVIEW[proState] ?? 0)
   const taxAmount  = Math.round(grandTotal * taxRate / 100 * 100) / 100
   const totalWithTax = grandTotal + taxAmount
+  // Hand-added custom lines live on the estimate and are added on top, taxed too.
+  // We surface them read-only so the roofer sees the true final estimate total.
+  const customTotal        = customLines.reduce((s, l) => s + l.amount, 0)
+  const estSubtotalWithCustom = grandTotal + customTotal
+  const estTaxWithCustom   = Math.round(estSubtotalWithCustom * taxRate / 100 * 100) / 100
+  const estTotalWithCustom = Math.round((estSubtotalWithCustom + estTaxWithCustom) * 100) / 100
 
   const handleApply = useCallback(async () => {
     if (!session || lineItems.length === 0) return
@@ -617,6 +638,25 @@ function CalculatorInner() {
                 <div style={{ fontSize:12, color:'#64748B', marginTop:6, lineHeight:1.45 }}>
                   Materials + labour for this roof. {existingEstimate ? 'Any custom lines already on the estimate are added on top — see the estimate for the final total.' : 'The estimate total may differ if you add custom lines.'}
                 </div>
+                {customLines.length > 0 && (
+                  <div style={{ marginTop:12, paddingTop:12, borderTop:`1px dashed ${BORDER}` }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:8 }}>
+                      Also on the estimate · kept, not priced here
+                    </div>
+                    {customLines.map((l, i) => (
+                      <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                        <span style={{ fontSize:13, color:'#475569' }}>{l.name}</span>
+                        <span style={{ fontSize:13, fontWeight:600, color:'#475569' }}>+${l.amount.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                      </div>
+                    ))}
+                    <div style={{ height:1, background:BORDER, margin:'8px 0' }}/>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:NAVY }}>Estimate total (incl. these)</span>
+                      <span style={{ fontSize:15, fontWeight:800, color:NAVY, letterSpacing:'-0.02em' }}>${estTotalWithCustom.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                    </div>
+                    <div style={{ fontSize:11, color:'#94A3B8', marginTop:6 }}>Edit these lines on the estimate — applying here keeps them.</div>
+                  </div>
+                )}
               </div>
             </div>
           </Section>
