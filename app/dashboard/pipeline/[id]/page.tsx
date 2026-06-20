@@ -970,15 +970,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 {stgObj?.label??stage}
                               </span>
                               <span style={{fontSize:12,color:tsu}}>
-                                {stage==='inspection_scheduled'&&(lead as any)?.inspection_date
-                                  ? <><span style={{fontWeight:700,color:'#4F46E5'}}>{'• Inspection '}{fmt((lead as any).inspection_date)}</span></>
-                                  : stage==='scheduled'&&lead?.scheduled_date
-                                  ? <><span style={{fontWeight:700,color:tp}}>{'• Job '}{fmt(lead.scheduled_date)}</span></>
-                                  : <>
-                                      {'• since '}{new Date((lead as any).lead_status_changed_at||(est as any)?.approved_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
-                                      {' at '}
-                                      {new Date((lead as any).lead_status_changed_at||(est as any)?.approved_at||lead.updated_at||lead.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
-                                    </>}
+                                {(() => {
+                                  const appt = stage==='inspection_scheduled'&&(lead as any)?.inspection_date
+                                    ? <span style={{fontWeight:700,color:'#4F46E5'}}>{'Inspection '}{fmt((lead as any).inspection_date)}</span>
+                                    : stage==='scheduled'&&lead?.scheduled_date
+                                    ? <span style={{fontWeight:700,color:tp}}>{'Job '}{fmt(lead.scheduled_date)}</span>
+                                    : null
+                                  const d = daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)
+                                  const age = d===0?'in stage today':`in stage ${d}d`
+                                  return <>{'• '}{appt}{appt?' · ':''}{age}</>
+                                })()}
                               </span>
                               {lead.quoted_amount!=null&&(
                                 <span style={{fontSize:14,fontWeight:700,color:BRAND.teal,marginLeft:'auto'}}>
@@ -1069,7 +1070,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                         {/* Left: status picker — compact inline pill */}
                         <div>
-                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Current Status</div>
+                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Change Stage</div>
                           <div style={{position:'relative',display:'inline-block'}}>
                             <button
                               onClick={()=>{setStageNotice(null);setShowPicker(v=>!v)}}
@@ -1182,19 +1183,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           </div>
                         </div>
 
-                        {/* Middle: status since — flat */}
+                        {/* Middle: time in stage — duration primary, entered date labeled */}
                         <div>
-                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Status Since</div>
+                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Time in Stage</div>
                           <div style={{display:'flex',alignItems:'center',gap:10}}>
                             <div style={{width:34,height:34,borderRadius:9,background:t.cardBgAlt,border:`1px solid ${bdr}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                              <Svg size={16} stroke={ts}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                              <Svg size={16} stroke={ts}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
                             </div>
                             <div>
                               <div style={{fontSize:14,fontWeight:600,color:tp}}>
-                                {new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                                {daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)===0?'Today':`${daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)} days`}
                               </div>
                               <div style={{fontSize:12,color:tsu,marginTop:1}}>
-                                {daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)===0?'Today':`${daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)} days in stage`}
+                                {'Entered '}{new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
                               </div>
                             </div>
                           </div>

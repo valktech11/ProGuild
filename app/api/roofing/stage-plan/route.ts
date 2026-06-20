@@ -69,12 +69,16 @@ export async function GET(req: NextRequest) {
       if (to) dates[to] ??= t
     }
   }
-  // Authoritative source columns take precedence over the generic event time.
+  // Ladder dates mean ONE thing: when the lead REACHED that stage. The appointment
+  // dates (inspection date, job date) are NOT reach-events — they belong on the lead
+  // header / job details, not the stage ladder — so inspection_scheduled and scheduled
+  // use their event-reached time, never lead.inspection_date / lead.scheduled_date.
+  // (lead_in uses created_at, and sent/signed/paid are the events that ARE the reach.)
   dates['lead_in']              = (lead.created_at as string | null) ?? dates['lead_in'] ?? null
-  dates['inspection_scheduled'] = (lead.inspection_date as string | null) ?? dates['inspection_scheduled'] ?? null
+  dates['inspection_scheduled'] = dates['inspection_scheduled'] ?? null
   dates['proposal_sent']        = (bestEst?.sent_at ?? undefined) ?? dates['proposal_sent'] ?? (bestEst?.created_at ?? undefined) ?? null
   dates['proposal_signed']      = (bestEst?.approved_at ?? undefined) ?? dates['proposal_signed'] ?? (bestEst?.created_at ?? undefined) ?? null
-  dates['scheduled']            = (lead.scheduled_date as string | null) ?? dates['scheduled'] ?? null
+  dates['scheduled']            = dates['scheduled'] ?? null
   dates['job_won']              = (inv?.paid_at ?? undefined) ?? dates['job_won'] ?? null
 
   const plan = evaluateStagePlan(ctx)
