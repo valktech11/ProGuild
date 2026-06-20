@@ -6,7 +6,7 @@ import {
   LINE_NAME_TO_PRICE_KEY,
   settingsToCalculatorPrices,
 } from '@/lib/roofing/calculator'
-import { STATE_TAX_RATES } from '@/app/api/estimates/route'
+import { resolveTaxRate } from '@/app/api/estimates/route'
 
 // ── GET /api/roofing/calculator-state?lead_id=<id>&pro_id=<id> ────────────────
 //
@@ -86,6 +86,14 @@ export async function GET(req: NextRequest) {
     .maybeSingle()
   const proState = (pro?.state ?? '').toUpperCase()
 
+  // Job-location state — the authoritative source for tax (pro state is fallback).
+  const { data: leadRow } = await sb
+    .from('leads')
+    .select('contact_state')
+    .eq('id', leadId)
+    .maybeSingle()
+  const leadState = (leadRow?.contact_state ?? '').toUpperCase()
+
   // Lead's roof-report data — the fresh source AND the per-field fallback.
   const { data: rjd } = await sb
     .from('roofing_job_data')
@@ -130,7 +138,7 @@ export async function GET(req: NextRequest) {
       price_overrides: settingsToCalculatorPrices((pro?.roofing_material_prices ?? null) as Record<string, number> | null),
       labour_amount:   0,
       custom_items:    [],
-      tax_rate:        STATE_TAX_RATES[proState] ?? 0,
+      tax_rate:        resolveTaxRate(leadState, proState),
     })
   }
 
@@ -184,6 +192,6 @@ export async function GET(req: NextRequest) {
     price_overrides: priceOverrides,
     labour_amount:   labourAmount,
     custom_items:    customItems,
-    tax_rate:        best.tax_rate ?? STATE_TAX_RATES[proState] ?? 6,
+    tax_rate:        best.tax_rate ?? resolveTaxRate(leadState, proState),
   })
 }

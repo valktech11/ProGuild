@@ -7,21 +7,11 @@ import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
 // overwrite these; it spins off a revision instead (see revision branch below).
 const FROZEN_STATUSES = ['approved', 'invoiced', 'paid']
 
-// Base state sales tax rates (Tax Foundation 2024)
-// These are state-level rates only — county/city additions vary
-export const STATE_TAX_RATES: Record<string, number> = {
-  AL: 4.0,  AK: 0.0,  AZ: 5.6,  AR: 6.5,  CA: 7.25,
-  CO: 2.9,  CT: 6.35, DE: 0.0,  FL: 6.0,  GA: 4.0,
-  HI: 4.0,  ID: 6.0,  IL: 6.25, IN: 7.0,  IA: 6.0,
-  KS: 6.5,  KY: 6.0,  LA: 4.45, ME: 5.5,  MD: 6.0,
-  MA: 6.25, MI: 6.0,  MN: 6.875,MS: 7.0,  MO: 4.225,
-  MT: 0.0,  NE: 5.5,  NV: 6.85, NH: 0.0,  NJ: 6.625,
-  NM: 5.125,NY: 4.0,  NC: 4.75, ND: 5.0,  OH: 5.75,
-  OK: 4.5,  OR: 0.0,  PA: 6.0,  RI: 7.0,  SC: 6.0,
-  SD: 4.5,  TN: 7.0,  TX: 6.25, UT: 5.95, VT: 6.0,
-  VA: 5.3,  WA: 6.5,  WV: 6.0,  WI: 5.0,  WY: 4.0,
-  DC: 6.0,
-}
+// Sales-tax table + resolver now live in one place (lib/estimates/tax.ts).
+import { resolveTaxRate } from '@/lib/estimates/tax'
+// Re-exported here so existing importers (calculator-state, calculator page)
+// that import STATE_TAX_RATES from this route keep resolving unchanged.
+export { STATE_TAX_RATES, resolveTaxRate } from '@/lib/estimates/tax'
 
 // ── GET /api/estimates?pro_id=xxx ─────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -58,6 +48,18 @@ export async function POST(req: NextRequest) {
   }
 
   const sb = getSupabaseAdmin()
+
+  // Tax follows the JOB location, not the client-passed session snapshot.
+  // Resolve once here so every branch (create / revision / re-price) keys tax
+  // off the property's state. Authoritative sources only: lead.contact_state
+  // (job) → pros.state (pro's DB profile) → client `state` (last-resort snapshot).
+  const [{ data: leadRow }, { data: proRow }] = await Promise.all([
+    sb.from('leads').select('contact_state').eq('id', lead_id).single(),
+    sb.from('pros').select('state').eq('id', pro_id).maybeSingle(),
+  ])
+  const leadState: string | null  = (leadRow as any)?.contact_state ?? null
+  const proStateDb: string | null = (proRow as any)?.state ?? null
+  const resolvedTaxRate = resolveTaxRate(leadState, proStateDb || state)
 
   // Slice 1: normalize calculator measurement-snapshot inputs → number | null
   const numOrNull = (v: unknown): number | null => {
@@ -137,8 +139,9 @@ export async function POST(req: NextRequest) {
           const revNumber: string = numData2 || `EST-${Date.now().toString().slice(-4)}`
           const validUntil2 = new Date(); validUntil2.setDate(validUntil2.getDate() + 14)
 
-          // Carry tax_rate forward from the original (it was already resolved at create).
-          const carriedTaxRate = (best as any).tax_rate ?? STATE_TAX_RATES[state?.toUpperCase() ?? ''] ?? 6
+          // Carry tax_rate forward from the original (it was already resolved at
+          // create); if absent, resolve from the job's state, not a magic default.
+          const carriedTaxRate = (best as any).tax_rate ?? resolvedTaxRate
 
           const calcSubtotal = calcItems.reduce((s, i) => s + (i.amount ?? 0), 0)
           const calcTax      = Math.round(calcSubtotal * carriedTaxRate / 100 * 100) / 100
@@ -246,7 +249,7 @@ export async function POST(req: NextRequest) {
         const calcSubtotal   = calcItems.reduce((s, i) => s + (i.amount ?? 0), 0)
         const customSubtotal = customItems.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
         const newSubtotal = Math.round((calcSubtotal + customSubtotal) * 100) / 100
-        const taxRate     = ((best as any).tax_rate ?? 6)
+        const taxRate     = ((best as any).tax_rate ?? resolvedTaxRate)
         const newTax      = Math.round(newSubtotal * taxRate / 100 * 100) / 100
         const newTotal    = Math.round((newSubtotal + newTax) * 100) / 100
         // 5. Force Standard mode — update estimates table totals.
@@ -311,7 +314,7 @@ export async function POST(req: NextRequest) {
       trade:           trade || '',
       subtotal:        0,
       discount:        0,
-      tax_rate:        STATE_TAX_RATES[state?.toUpperCase() ?? ''] ?? 0,
+      tax_rate:        resolvedTaxRate,
       tax_amount:      0,
       total:           0,
       require_deposit: true,
