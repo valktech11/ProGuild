@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const [leadsRes, estRes, invRes] = await Promise.all([
     sb.from('leads')
-      .select('id, lead_status, created_at, lead_status_changed_at, updated_at, quoted_amount, scheduled_date, roofing_job_data(approved_amount)')
+      .select('id, lead_status, created_at, lead_status_changed_at, updated_at, quoted_amount, scheduled_date, roofing_job_data(insurance_claim, approved_amount, supplement_amount, claim_status)')
       .eq('pro_id', proId),
     sb.from('estimates')
       .select('status, valid_until, sent_at, created_at')
@@ -82,6 +82,21 @@ export async function GET(req: NextRequest) {
   const revenueDeltaPct = wonRevenueLast > 0
     ? Math.round(((wonRevenue - wonRevenueLast) / wonRevenueLast) * 100) : null
 
+  // ── Insurance moat (the FL differentiator) ─────────────────────────────────
+  // Computed over the same canonical open-set. approvedInFlight = carrier-
+  // committed $ still in play; awaiting = open claims in flight; supplementOpps
+  // = approved claims with no supplement filed yet (found-money opportunities).
+  const APPROVED_CLAIM = new Set(['Approved', 'Supplement Approved'])
+  const rjdOf = (l: any) => Array.isArray(l.roofing_job_data) ? l.roofing_job_data[0] : l.roofing_job_data
+  const openInsurance = openLeads.filter(l => rjdOf(l)?.insurance_claim)
+  const approvedInFlight = Math.round(
+    openInsurance.reduce((s, l) => s + (Number(rjdOf(l)?.approved_amount) || 0), 0) * 100) / 100
+  const insuranceAwaiting = openInsurance.length
+  const supplementOpportunities = openInsurance.filter(l => {
+    const r = rjdOf(l)
+    return APPROVED_CLAIM.has(String(r?.claim_status ?? '')) && !(Number(r?.supplement_amount) > 0)
+  }).length
+
   // ── Open pipeline by stage (money in deals not yet won) ────────────────────
   // Open = non-terminal, excluding entry and won — derived from config, not
   // hardcoded. (Adds inspection_scheduled vs the old curated web list.)
@@ -124,6 +139,11 @@ export async function GET(req: NextRequest) {
       pipelineValue,
     },
     openPipelineByStage,
+    insurance: {
+      approvedInFlight,
+      awaiting: insuranceAwaiting,
+      supplementOpportunities,
+    },
     subLine: parts.join(' · '),
   })
 }
