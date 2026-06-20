@@ -40,6 +40,7 @@ interface ReportData {
 // ── Pitch factors ─────────────────────────────────────────────────────────────
 import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
 import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
+import { computeInsuranceReconciliation } from '@/lib/insurance/reconciliation'
 
 function normalizePitch(raw: string | number): string {
   if (typeof raw === 'number') return '6/12'
@@ -676,9 +677,12 @@ function CalculatorInner() {
 
         {/* ── Insurance Reconciliation Panel ── */}
         {insurance?.isInsurance && (insurance.claimStatus === 'Approved' || insurance.claimStatus === 'Supplement Approved') && lineItems.length > 0 && (() => {
-          const insurancePays  = insurance.approvedAmount + insurance.supplement - insurance.deductible
-          const outOfPocket    = grandTotal - Math.max(insurancePays, 0)
-          const fullyCovered   = outOfPocket <= 0
+          const { insurancePays, outOfPocket, fullyCovered } = computeInsuranceReconciliation({
+            jobCost:        grandTotal,
+            approvedAmount: insurance.approvedAmount,
+            supplement:     insurance.supplement,
+            deductible:     insurance.deductible,
+          })
 
           return (
             <div style={{
