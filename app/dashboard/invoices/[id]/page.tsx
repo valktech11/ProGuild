@@ -86,10 +86,14 @@ function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
   const [reference, setReference] = useState('')
   const [date,      setDate]      = useState(new Date().toISOString().split('T')[0])
   const [saving,    setSaving]    = useState(false)
+  const [err,       setErr]       = useState<string | null>(null)
 
   const handle = async () => {
+    const amt = parseFloat(amount) || 0
+    if (amt <= 0) { setErr('Enter an amount greater than zero.'); return }
+    if (amt > invoice.balance_due + 0.005) { setErr(`That's more than the ${fmt(invoice.balance_due)} balance due.`); return }
     setSaving(true)
-    await onRecord({ milestone_name: 'Payment', amount: parseFloat(amount) || 0, method, reference, date })
+    await onRecord({ milestone_name: 'Payment', amount: amt, method, reference, date })
     setSaving(false)
   }
 
@@ -120,11 +124,12 @@ function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
                 color: C.muted, fontSize: 15 }}>$</span>
-              <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+              <input type="number" value={amount} onChange={e => { setAmount(e.target.value); if (err) setErr(null) }}
                 style={{ width: '100%', paddingLeft: 28, padding: '10px 12px 10px 28px',
-                  border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15,
+                  border: `1.5px solid ${err ? C.red : C.border}`, borderRadius: 10, fontSize: 15,
                   outline: 'none', boxSizing: 'border-box' }} />
             </div>
+            {err && <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: C.red }}>{err}</div>}
           </div>
           {/* Method + Date row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
