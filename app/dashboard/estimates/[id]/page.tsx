@@ -10,6 +10,7 @@ import PaymentPanel from '@/components/estimate/PaymentPanel'
 import SmartNudges from '@/components/estimate/SmartNudges'
 import EstimateProgressBar from '@/components/estimate/EstimateProgressBar'
 import { useProSession } from '@/lib/hooks/useProSession'
+import InPersonSignModal from '@/components/estimates/InPersonSignModal'
 import { theme, T } from '@/lib/tokens'
 import { estimateStatusStyle } from '@/lib/design'
 import { isRoofing, getTradeConfig } from '@/lib/trades/_registry'
@@ -100,6 +101,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
   })
 
   const [estimate, setEstimate] = useState<Estimate | null>(null)
+  const [showSign, setShowSign] = useState(false)
   const [materialPrices, setMaterialPrices] = useState<Record<string, number> | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -783,6 +785,14 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           Send Reminder
                         </button>
                       )}
+                      {['draft', 'sent', 'viewed'].includes(estimate.status) && (
+                        <button onClick={() => setShowSign(true)}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 whitespace-nowrap"
+                          style={{ border: '1.5px solid #0F766E', background: 'transparent', color: '#0F766E' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                          Sign in person
+                        </button>
+                      )}
                       {estimate.status === 'declined' && (
                         <button onClick={handleDuplicate} disabled={duplicating}
                           className="flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-60 whitespace-nowrap"
@@ -1357,6 +1367,24 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           </button>
         </div>
       </div>
+    )}
+
+    {showSign && estimate && (
+      <InPersonSignModal
+        estimateId={id}
+        proId={session.id}
+        tiers={(() => {
+          const td = (estimate as any).tiered_data
+          return (td?.tiers?.length > 1) ? td.tiers.map((tr: any) => ({ key: tr.key, subtotal: tr.subtotal })) : null
+        })()}
+        onClose={() => setShowSign(false)}
+        onSigned={() => {
+          setShowSign(false)
+          fetch(`/api/estimates/${id}`).then(r => r.json()).then(d => { if (d.estimate) setEstimate(d.estimate) }).catch(() => {})
+          setSaveMsg('Signed — invoice created ✓')
+          setTimeout(() => setSaveMsg(null), 4000)
+        }}
+      />
     )}
     </>
   )
