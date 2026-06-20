@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
 import { computeMilestones } from '@/lib/estimates/milestones'
+import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
 import { CALCULATOR_LINE_NAMES, LABOUR_LINE_NAME } from '@/lib/roofing/calculator'
 
@@ -85,12 +86,19 @@ export async function GET(
     }
   }
 
-  // Derive subtotal from items (single source of truth — DB column can be stale)
-  // Same pattern as payment_milestones being derived from total rather than trusting the stored value.
-  const derivedSubtotal = items.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
-  const storedTaxRate   = Number(estClean.tax_rate) || 0
-  const derivedTax      = Math.round(derivedSubtotal * storedTaxRate / 100 * 100) / 100
-  const derivedTotal    = Math.round((derivedSubtotal + derivedTax) * 100) / 100
+  // Subtotal/tax/total come from the ONE calculator (lib/estimates/totals).
+  // Tiered estimate → the SELECTED tier's subtotal; standard → sum of items.
+  // This is the same function the save path uses, so the detail endpoint, the
+  // list/summary endpoints, and the save path can never return different totals.
+  // (Previously this re-summed items for every estimate, which was wrong for
+  // tiered estimates and made mobile show a different number than web.)
+  const { subtotal: derivedSubtotal, tax_amount: derivedTax, total: derivedTotal } =
+    computeEstimateTotals({
+      estimate_type: roofing.estimate_type,
+      tiered_data:   roofing.tiered_data,
+      items,
+      tax_rate:      estClean.tax_rate,
+    })
 
   // Server-derived line classification — single source for web AND mobile so the
   // calculator-owned line names live in ONE place (lib/roofing/calculator.ts).
@@ -247,10 +255,14 @@ export async function PATCH(
           ? tiers.find((t: any) => t.key === selKey)
           : tiers.find((t: any) => t.key === 'upgraded') ?? tiers[Math.floor(tiers.length / 2)]
         if (selTier?.subtotal !== undefined) {
-          const txRate   = estRow.tax_rate ?? 0
-          const newSub   = selTier.subtotal
-          const newTax   = Math.round(newSub * (txRate / 100) * 100) / 100
-          const newTotal = newSub + newTax
+          // Same calculator the detail GET uses — guarantees the stored total and
+          // the rendered total are identical.
+          const { subtotal: newSub, tax_amount: newTax, total: newTotal } =
+            computeEstimateTotals({
+              estimate_type: 'tiered',
+              tiered_data,
+              tax_rate: estRow.tax_rate,
+            })
           // The selected tier's subtotal is AUTHORITATIVE for a GBB estimate, so
           // always persist the tier-derived total — never defer to a client-sent
           // `total`, which can be stale (e.g. a Standard total left over from the
