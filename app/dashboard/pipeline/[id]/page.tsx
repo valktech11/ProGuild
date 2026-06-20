@@ -964,29 +964,31 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             <div style={{fontSize:13,color:tsu,lineHeight:1.5}}>
                               {heroSub||'No contact info'}
                             </div>
-                            {/* Stage + timestamp inline */}
-                            <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,flexWrap:'wrap'}}>
-                              <span style={{fontSize:13,fontWeight:700,padding:'4px 10px',borderRadius:20,background:stgObj?.color??BRAND.teal,color:'#fff',letterSpacing:'-0.01em'}}>
-                                {stgObj?.label??stage}
-                              </span>
-                              <span style={{fontSize:12,color:tsu}}>
-                                {(() => {
-                                  const appt = stage==='inspection_scheduled'&&(lead as any)?.inspection_date
-                                    ? <span style={{fontWeight:700,color:'#4F46E5'}}>{'Inspection '}{fmt((lead as any).inspection_date)}</span>
-                                    : stage==='scheduled'&&lead?.scheduled_date
-                                    ? <span style={{fontWeight:700,color:tp}}>{'Job '}{fmt(lead.scheduled_date)}</span>
-                                    : null
-                                  const d = daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)
-                                  const age = d===0?'in stage today':`in stage ${d}d`
-                                  return <>{'• '}{appt}{appt?' · ':''}{age}</>
-                                })()}
-                              </span>
-                              {lead.quoted_amount!=null&&(
-                                <span style={{fontSize:14,fontWeight:700,color:BRAND.teal,marginLeft:'auto'}}>
-                                  ${Number(lead.quoted_amount).toLocaleString()}
-                                </span>
-                              )}
-                            </div>
+                            {/* Appointment line — the stepper owns the stage; this carries
+                                only the booked date (labeled). Aging lives in Time in Stage. */}
+                            {(() => {
+                              const appt = stage==='inspection_scheduled'&&(lead as any)?.inspection_date
+                                ? {label:'Inspection booked', date:(lead as any).inspection_date as string, color:'#4F46E5'}
+                                : stage==='scheduled'&&lead?.scheduled_date
+                                ? {label:'Job scheduled', date:lead.scheduled_date as string, color:tp}
+                                : null
+                              if (!appt && lead.quoted_amount==null) return null
+                              return (
+                                <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,flexWrap:'wrap'}}>
+                                  {appt&&(
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,color:tsu}}>
+                                      <Svg size={15} stroke={appt.color}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                                      <span><span style={{fontWeight:700,color:appt.color}}>{appt.label}</span>{' — '}{fmt(appt.date)}</span>
+                                    </span>
+                                  )}
+                                  {lead.quoted_amount!=null&&(
+                                    <span style={{fontSize:14,fontWeight:700,color:BRAND.teal,marginLeft:'auto'}}>
+                                      ${Number(lead.quoted_amount).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })()}
                           </div>
                         </div>
                         {/* Action buttons */}
