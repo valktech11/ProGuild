@@ -192,7 +192,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // Superseded/voided estimates for this lead — for the history trail
   const [supersededList, setSupersededList] = useState<{id:string;estimate_number:string;total:number;status:string;void_reason?:string|null;voided_at?:string|null;revision_number?:number}[]>([])
   const [showHistory, setShowHistory] = useState(false)
-  const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number}|null>(null)
+  const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number;total:number}|null>(null)
   const [creatingEst, setCreatingEst] = useState(false)
   const [photoCount, setPhotoCount]   = useState(0)
 
@@ -1811,18 +1811,42 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               )
                             })}
-                            {inv&&(
-                              <div style={{padding:'14px 18px',borderRadius:T.radSm,background:t.warningBg,border:`1px solid ${t.warningBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                                <div>
-                                  <div style={{fontSize:10,fontWeight:700,color:'#B45309',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Invoice #{inv.invoice_number}</div>
-                                  <div style={{fontSize:18,fontWeight:700,color:'#B45309'}}>${inv.balance_due.toLocaleString('en-US',{minimumFractionDigits:2})} due</div>
+                            {inv&&(()=>{
+                              const paid = Math.max(0, (inv.total||0) - inv.balance_due)
+                              const isPaid = inv.status==='paid' || inv.balance_due<=0
+                              const isPartial = !isPaid && (inv.status==='partial_payment' || paid>0)
+                              const sc  = isPaid ? '#15803D' : isPartial ? '#B45309' : BRAND.teal
+                              const sbg = isPaid ? '#DCFCE7'  : isPartial ? '#FEF3C7' : `${BRAND.teal}1A`
+                              const sLabel = isPaid ? 'Paid' : isPartial ? 'Partial' : (inv.status ? inv.status[0].toUpperCase()+inv.status.slice(1) : 'Invoice')
+                              const money = (v:number)=>`$${v.toLocaleString('en-US',{minimumFractionDigits:2})}`
+                              const stat = (label:string, val:number, color:string) => (
+                                <div style={{flex:1}}>
+                                  <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase',color:ts}}>{label}</div>
+                                  <div style={{fontSize:15,fontWeight:800,color,marginTop:3}}>{money(val)}</div>
                                 </div>
-                                <button onClick={()=>router.push(`/dashboard/invoices/${inv.id}`)}
-                                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:'#B45309',color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
-                                  View
-                                </button>
-                              </div>
-                            )}
+                              )
+                              return (
+                                <div style={{padding:16,borderRadius:T.radLg,background:card,border:`1px solid ${bdr}`}}>
+                                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
+                                    <div style={{width:36,height:36,borderRadius:10,background:`${BRAND.teal}1A`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                      <Svg size={19} stroke={BRAND.teal} sw={2}><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></Svg>
+                                    </div>
+                                    <div style={{flex:1,fontSize:15,fontWeight:800,color:tp}}>Invoice #{inv.invoice_number}</div>
+                                    <span style={{fontSize:11,fontWeight:800,color:sc,background:sbg,padding:'5px 11px',borderRadius:20}}>{sLabel}</span>
+                                  </div>
+                                  <div style={{height:1,background:bdr,marginBottom:12}}/>
+                                  <div style={{display:'flex',gap:8}}>
+                                    {stat('Total', inv.total||0, tp)}
+                                    {stat('Paid', paid, paid>0?'#15803D':ts)}
+                                    {stat('Balance', inv.balance_due, inv.balance_due>0?'#B45309':'#15803D')}
+                                  </div>
+                                  <button onClick={()=>router.push(`/dashboard/invoices/${inv.id}`)}
+                                    style={{marginTop:14,width:'100%',padding:'9px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+                                    View invoice
+                                  </button>
+                                </div>
+                              )
+                            })()}
                             {/* History trail: previous (superseded) versions, collapsed by default */}
                             {supersededList.length>0&&(
                               <div style={{borderRadius:T.radSm,border:`1px solid ${bdr}`,overflow:'hidden'}}>
