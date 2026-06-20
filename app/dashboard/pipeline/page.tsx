@@ -90,10 +90,6 @@ export default function PipelinePage() {
   }, [session, router, fetchLeads])
 
   const anchors  = getStageAnchors(session?.trade_slug)
-  const overdue  = leads.filter(l => {
-    const days = (Date.now() - new Date(l.created_at).getTime()) / 86400000
-    return days >= 3 && l.lead_status === anchors.entry
-  })
 
   const filteredLeads = applyFilters(leads, filters)
   const activeFilterCount = isFilterActive(filters)
@@ -157,14 +153,18 @@ export default function PipelinePage() {
   }
 
   // Command-bar metrics — from /api/pipeline/summary (single source). The board
-  // grouping/filters and the `overdue` list (for the alert) stay client-side.
+  // Pipeline metrics are computed once on the server (/api/pipeline/summary).
+  // The "overdue" alert + badge render the server's stalled set — the page no
+  // longer recomputes its own rule (single source).
   const sm            = summary ?? {}
   const newCount      = sm.newCount ?? 0
   const activeCount   = sm.activeCount ?? 0
   const pipelineValue = sm.pipelineValue ?? 0   // estimated (quoted) value of open leads
   const approvedValue = sm.approvedValue ?? 0   // carrier-approved value on open insurance leads
-  const overdueCount  = sm.overdueCount ?? 0
+  const overdueCount  = sm.stalledLeads ?? 0
   const wonThisMonth  = sm.wonThisMonth ?? 0
+  const stalledIds    = new Set<string>(sm.stalledList ?? [])
+  const overdue       = leads.filter(l => stalledIds.has(l.id))
 
   return (
     <DashboardShell session={session} newLeads={newCount} onAddLead={() => setShowAddLead(true)} darkMode={dk} onToggleDark={toggleDark}>

@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   // Fetch leads + estimates in parallel
   const [leadsRes, estRes] = await Promise.all([
     sb.from('leads')
-      .select('lead_status, created_at, lead_status_changed_at, quoted_amount, roofing_job_data(approved_amount)')
+      .select('id, lead_status, created_at, lead_status_changed_at, quoted_amount, roofing_job_data(approved_amount)')
       .eq('pro_id', proId),
     sb.from('estimates')
       .select('status, sent_at, valid_until')
@@ -77,7 +77,11 @@ export async function GET(req: NextRequest) {
   // Open leads past their stage-specific SLA. Each lead lives in exactly one
   // card, so Stalled excludes the entry stage (Needs Contact) and
   // insurance_approved (Insurance Follow-Up) — see lib/metrics/sla.ts.
-  const stalledLeads = openLeads.filter(l => isStalled(l, anchors.entry, now)).length
+  const stalledOpen  = openLeads.filter(l => isStalled(l, anchors.entry, now))
+  const stalledLeads = stalledOpen.length
+  // The exact leads behind the count — so the page renders the alert from this
+  // server-defined set instead of recomputing its own "overdue" rule.
+  const stalledList  = stalledOpen.map(l => (l as any).id)
 
   // approvedValue: sum of carrier-approved amounts on open insurance leads.
   // Only leads where approved_amount > 0 count — this is the "carrier locked in" number.
@@ -103,5 +107,6 @@ export async function GET(req: NextRequest) {
     awaitingSignature,
     insuranceFollowUp,
     stalledLeads,
+    stalledList,
   })
 }
