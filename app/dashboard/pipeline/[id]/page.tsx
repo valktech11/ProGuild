@@ -1837,9 +1837,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       View
                                     </button>
                                   </div>
-                                  <div style={{display:'flex',gap:8}}>
+                                  <div style={{display:'flex',gap:8,alignItems:'stretch'}}>
                                     {stat('Total', inv.total||0, tp)}
+                                    <div style={{width:1,background:bdr}}/>
                                     {stat('Paid', paid, paid>0?'#15803D':ts)}
+                                    <div style={{width:1,background:bdr}}/>
                                     {stat('Balance', inv.balance_due, inv.balance_due>0?'#B45309':'#15803D')}
                                   </div>
                                 </div>
