@@ -1815,35 +1815,33 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const paid = Math.max(0, (inv.total||0) - inv.balance_due)
                               const isPaid = inv.status==='paid' || inv.balance_due<=0
                               const isPartial = !isPaid && (inv.status==='partial_payment' || paid>0)
-                              const sc  = isPaid ? '#15803D' : isPartial ? '#B45309' : BRAND.teal
-                              const sbg = isPaid ? '#DCFCE7'  : isPartial ? '#FEF3C7' : `${BRAND.teal}1A`
+                              const sc  = isPaid ? '#15803D' : isPartial ? '#B45309' : ts
+                              const sbg = isPaid ? '#DCFCE7'  : isPartial ? '#FEF3C7' : t.cardBgAlt
                               const sLabel = isPaid ? 'Paid' : isPartial ? 'Partial' : (inv.status ? inv.status[0].toUpperCase()+inv.status.slice(1) : 'Invoice')
                               const money = (v:number)=>`$${v.toLocaleString('en-US',{minimumFractionDigits:2})}`
                               const stat = (label:string, val:number, color:string) => (
                                 <div style={{flex:1}}>
                                   <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase',color:ts}}>{label}</div>
-                                  <div style={{fontSize:15,fontWeight:800,color,marginTop:3}}>{money(val)}</div>
+                                  <div style={{fontSize:17,fontWeight:800,color,marginTop:3,letterSpacing:'-0.02em'}}>{money(val)}</div>
                                 </div>
                               )
                               return (
-                                <div style={{padding:16,borderRadius:T.radLg,background:card,border:`1px solid ${bdr}`}}>
-                                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
-                                    <div style={{width:36,height:36,borderRadius:10,background:`${BRAND.teal}1A`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                      <Svg size={19} stroke={BRAND.teal} sw={2}><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/></Svg>
+                                <div style={{padding:'16px 18px',borderRadius:T.radMd,background:card,border:`1px solid ${bdr}`}}>
+                                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+                                    <div style={{fontSize:10,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                                      <span>Invoice #{inv.invoice_number}</span>
+                                      <span style={{padding:'1px 7px',borderRadius:100,background:sbg,color:sc,fontSize:9,fontWeight:700}}>{sLabel}</span>
                                     </div>
-                                    <div style={{flex:1,fontSize:15,fontWeight:800,color:tp}}>Invoice #{inv.invoice_number}</div>
-                                    <span style={{fontSize:11,fontWeight:800,color:sc,background:sbg,padding:'5px 11px',borderRadius:20}}>{sLabel}</span>
+                                    <button onClick={()=>router.push(`/dashboard/invoices/${inv.id}`)}
+                                      style={{padding:'8px 16px',borderRadius:T.radSm,border:`1px solid ${BRAND.teal}`,background:'none',color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0}}>
+                                      View
+                                    </button>
                                   </div>
-                                  <div style={{height:1,background:bdr,marginBottom:12}}/>
                                   <div style={{display:'flex',gap:8}}>
                                     {stat('Total', inv.total||0, tp)}
                                     {stat('Paid', paid, paid>0?'#15803D':ts)}
                                     {stat('Balance', inv.balance_due, inv.balance_due>0?'#B45309':'#15803D')}
                                   </div>
-                                  <button onClick={()=>router.push(`/dashboard/invoices/${inv.id}`)}
-                                    style={{marginTop:14,width:'100%',padding:'9px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer'}}>
-                                    View invoice
-                                  </button>
                                 </div>
                               )
                             })()}
