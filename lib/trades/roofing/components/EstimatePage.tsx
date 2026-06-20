@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import InPersonSignModal from '@/components/estimates/InPersonSignModal'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ export interface GBBTemplate {
 
 interface Props {
   estimate: RoofingEstimate
+  proId?: string
   templates?: GBBTemplate[]
   onSave: (updates: Partial<RoofingEstimate>) => Promise<void>
   onSend: () => Promise<void>
@@ -219,7 +221,7 @@ function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function RoofingEstimatePage({ estimate, templates = [], onSave, onSend, onBack, backLabel = 'Back to Lead', darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
+export default function RoofingEstimatePage({ estimate, proId, templates = [], onSave, onSend, onBack, backLabel = 'Back to Lead', darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
   const dk = darkMode ?? false
 
   // Responsive: this page is desktop-first (2-col body, 3-up tier grid, wide
@@ -292,6 +294,7 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
   // Other fields
   const [scope, setScope]       = useState(estimate.scope_of_work ?? '')
   const [terms, setTerms]       = useState(estimate.terms ?? 'This proposal is valid for 14 days. Payment is due per the schedule above. A deposit is required before work begins. Prices may adjust if insurance supplements are approved.')
+  const [showSign, setShowSign] = useState(false)
   const [showTerms, setShowTerms]         = useState(false)  // collapsed by default
   const [saving,  setSaving]  = useState(false)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
@@ -663,8 +666,29 @@ export default function RoofingEstimatePage({ estimate, templates = [], onSave, 
             </button>
           )
         })()}
+        {['draft','sent','viewed'].includes(estimate.status) && !isLocked && (
+          <button onClick={() => setShowSign(true)}
+            style={{ padding: '9px 18px', borderRadius: 10, border: `1.5px solid ${C.teal}`,
+              background: 'transparent', color: C.teal, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/>
+            </svg>
+            Sign in person
+          </button>
+        )}
         <div style={{ fontSize: 12, color: textS }}>Client can approve &amp; pay instantly</div>
       </div>
+
+      {showSign && proId && (
+        <InPersonSignModal
+          estimateId={estimate.id}
+          proId={proId}
+          tiers={estType === 'tiered' ? tiers : null}
+          onClose={() => setShowSign(false)}
+          onSigned={() => { setShowSign(false); if (typeof window !== 'undefined') window.location.reload() }}
+        />
+      )}
 
       {/* ── Progress timeline ── */}
       <ProgressTimeline timeline={estimate.timeline ?? []} border={border} textS={textS} card={card} estimate={estimate} />

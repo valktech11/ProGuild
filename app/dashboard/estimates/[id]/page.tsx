@@ -359,6 +359,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       <DashboardShell session={session} newLeads={0} onAddLead={() => {}}
         darkMode={dk} onToggleDark={toggleDark}>
         <RoofingEstimatePage
+          proId={session?.id}
           estimate={{
             ...(estimate as any),
             estimate_number:   estimate.estimate_number,
