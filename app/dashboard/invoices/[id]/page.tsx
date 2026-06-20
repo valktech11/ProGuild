@@ -246,27 +246,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   const handleRecordPayment = async (data: { milestone_name: string; amount: number; method: string; reference: string; date: string }) => {
     if (!invoice) return
-    const newPayment: Payment = {
-      id: crypto.randomUUID(), ...data, recorded_at: new Date().toISOString(),
-    }
-    const history = [...(invoice.payment_history ?? []), newPayment]
-    const totalPaid = history.reduce((s, p) => s + p.amount, 0)
-    const balanceDue = Math.max(0, invoice.total - totalPaid)
-    const newStatus = balanceDue <= 0 ? 'paid' : totalPaid > 0 ? 'partial_payment' : invoice.status
-
-    const ok = await patch({
-      payment_history: history,
-      amount_paid:     totalPaid,
-      balance_due:     balanceDue,
-      status:          newStatus,
-      paid_at:         balanceDue <= 0 ? new Date().toISOString() : invoice.paid_at,
+    // Client sends only the payment; the server appends it and derives
+    // amount_paid / balance_due / status / paid_at (lib/invoices/balances).
+    const r = await fetch(`/api/invoices/${id}/record-payment`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pro_id: session?.id, ...data }),
     })
-    if (ok) {
-      setShowPayModal(false)
-      showToast(balanceDue <= 0 ? 'Invoice paid in full ✓' : `Payment of ${fmt(data.amount)} recorded ✓`)
-    } else {
-      showToast('Failed to record payment', false)
-    }
+    if (!r.ok) { showToast('Failed to record payment', false); return }
+    // Re-pull the full invoice so items/timeline stay intact; balances are server-truth.
+    const fd = await (await fetch(`/api/invoices/${id}`)).json()
+    if (fd.invoice) setInvoice(fd.invoice)
+    setShowPayModal(false)
+    const paidInFull = (fd.invoice?.balance_due ?? 1) <= 0
+    showToast(paidInFull ? 'Invoice paid in full ✓' : `Payment of ${fmt(data.amount)} recorded ✓`)
   }
 
   const t = theme(dk)
