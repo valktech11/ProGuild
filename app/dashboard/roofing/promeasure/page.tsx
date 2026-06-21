@@ -510,6 +510,11 @@ function ProMeasureInner() {
             {row('Ridge Cap', 'Not measured', undefined, true)}
             {row('Hip Cap', 'Not measured', undefined, true)}
             {row('Valley Metal', 'Not measured', undefined, true)}
+            {(perimLF>0 && perimComplete) && (
+              <div style={{fontSize:10,color:T.textSubtle,marginTop:8,lineHeight:1.4}}>
+                Starter/Drip from polygon perimeter — proposal estimate; verify before material order.
+              </div>
+            )}
           </div>
         )
       })()}
