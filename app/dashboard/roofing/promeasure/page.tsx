@@ -89,7 +89,7 @@ function ProMeasureInner() {
   const [apiErr,       setApiErr]       = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [colorTarget,  setColorTarget]  = useState<keyof Settings|null>(null)
-  const [regions,      setRegions]      = useState<{name:string;sqFt:number;color:string}[]>(savedDraw?.regions || [])
+  const [regions,      setRegions]      = useState<{name:string;sqFt:number;perimLF?:number;color:string}[]>(savedDraw?.regions || [])
   const [showRecent,   setShowRecent]   = useState(false)
   const [recentAddrs,  setRecentAddrs]  = useState<string[]>([])
 
@@ -300,9 +300,14 @@ function ProMeasureInner() {
     sessionStorage.removeItem('pg_pm_draw')
   }
 
+  function startOver() {
+    clearAll()
+    setRegions([])
+  }
+
   function saveRegion() {
     if(!area) return
-    setRegions(r=>[...r,{name:`Region ${r.length+1}`,sqFt:area!,color:settings.fillColor}])
+    setRegions(r=>[...r,{name:`Region ${r.length+1}`,sqFt:area!,perimLF:perim?+perim.toFixed(0):undefined,color:settings.fillColor}])
     clearAll()
   }
 
@@ -462,6 +467,10 @@ function ProMeasureInner() {
             <div style={{fontSize:20,fontWeight:800,color:'#14B8A6'}}>{fmtSq(grandAdj)} adj sq</div>
             <div style={{fontSize:11,color:T.textSubtle}}>{fmt(totalSqFt)} sq ft total</div>
           </div>
+          <button onClick={startOver}
+            style={{marginTop:8,width:'100%',padding:'8px',background:'transparent',color:T.textMuted,border:`1px solid ${T.cardBorder}`,borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer'}}>
+            ↺ Start over (clear all regions)
+          </button>
         </div>
       )}
 
@@ -470,7 +479,12 @@ function ProMeasureInner() {
         // Polygon-derived (high accuracy). perim = measured boundary; starter/drip
         // = perimeter (industry rule). Ridge/Hip/Valley require line measurements
         // (not derivable from boundary polygon) — shown as Not measured until drawn.
-        const perimLF   = perim ? +perim.toFixed(0) : 0
+        // Sum captured region perimeters + active polygon. Regions saved before
+        // perimeter capture have perimLF undefined -> excluded (shown Not measured).
+        const regionPerim = regions.reduce((s,r)=>s+(r.perimLF||0),0)
+        const activePerim = perim ? +perim.toFixed(0) : 0
+        const perimLF   = regionPerim + activePerim
+        const perimComplete = regions.every(r=>r.perimLF!=null) // every region contributed perimeter
         const starterLF = perimLF
         const dripLF    = perimLF
         const underlayQ = +grandAdj.toFixed(1)
@@ -487,12 +501,12 @@ function ProMeasureInner() {
         return (
           <div style={{background:T.panel,borderRadius:12,border:`1px solid ${T.divider}`,padding:'12px 14px',marginTop:4}}>
             {head('Materials')}
-            {row('Roof Area', `${fmtSq(rawSq)} sq`)}
+            {row('Roof Area', `${fmtSq(totalSqFt/100)} sq`)}
             {row('Adjusted', `${fmtSq(grandAdj)} sq`, '(pitch+waste)')}
             {row('Underlayment', `${underlayQ} sq`)}
             {row('Bundles', `${bundles}`, '3 bdl/sq')}
-            {perimLF>0 && row('Starter', `${starterLF} LF`)}
-            {perimLF>0 && row('Drip Edge', `${dripLF} LF`)}
+            {(perimLF>0 && perimComplete) ? row('Starter', `${starterLF} LF`) : row('Starter','Not measured',undefined,true)}
+            {(perimLF>0 && perimComplete) ? row('Drip Edge', `${dripLF} LF`) : row('Drip Edge','Not measured',undefined,true)}
             {row('Ridge Cap', 'Not measured', undefined, true)}
             {row('Hip Cap', 'Not measured', undefined, true)}
             {row('Valley Metal', 'Not measured', undefined, true)}
