@@ -467,30 +467,35 @@ function ProMeasureInner() {
 
       {/* ── Material Summary — deterministic from geometry, no inference ── */}
       {(area||regions.length>0) && grandAdj > 0 && (() => {
-        // All formulas are arithmetic on contractor-verified measured inputs.
-        // perim = measured polygon perimeter; fallbacks are industry-standard rules.
+        // Polygon-derived (high accuracy). perim = measured boundary; starter/drip
+        // = perimeter (industry rule). Ridge/Hip/Valley require line measurements
+        // (not derivable from boundary polygon) — shown as Not measured until drawn.
         const perimLF   = perim ? +perim.toFixed(0) : 0
-        const starterLF = perimLF                          // starter = perimeter
-        const dripLF    = perimLF                          // drip edge = perimeter
-        const ridgeLF   = perimLF > 0 ? Math.round(perimLF * 0.15) : 0  // ~15% of perim if not drawn
-        const underlayQ = +grandAdj.toFixed(1)             // sq (pitch+waste adjusted)
-        const bundles   = Math.ceil(grandAdj * 3)          // 3 bundles/sq standard
-        const row = (label: string, val: string, note?: string) => (
+        const starterLF = perimLF
+        const dripLF    = perimLF
+        const underlayQ = +grandAdj.toFixed(1)
+        const bundles   = Math.ceil(grandAdj * 3)
+        const row = (label: string, val: string, note?: string, muted = false) => (
           <div key={label} style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'6px 0',borderBottom:`1px solid ${T.divider}`}}>
             <span style={{fontSize:12,color:T.textMuted}}>{label}</span>
-            <span style={{fontSize:13,fontWeight:700,color:T.text}}>{val}{note&&<span style={{fontSize:10,color:T.textSubtle,fontWeight:400}}> {note}</span>}</span>
+            <span style={{fontSize:13,fontWeight:muted?400:700,color:muted?T.textSubtle:T.text}}>{val}{note&&<span style={{fontSize:10,color:T.textSubtle,fontWeight:400}}> {note}</span>}</span>
           </div>
+        )
+        const head = (txt: string) => (
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.06em',color:T.textMuted,margin:'4px 0 8px',textTransform:'uppercase'}}>{txt}</div>
         )
         return (
           <div style={{background:T.panel,borderRadius:12,border:`1px solid ${T.divider}`,padding:'12px 14px',marginTop:4}}>
-            <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.06em',color:T.textMuted,marginBottom:8,textTransform:'uppercase'}}>Est. Materials</div>
+            {head('Materials')}
             {row('Roof Area', `${fmtSq(rawSq)} sq`)}
             {row('Adjusted', `${fmtSq(grandAdj)} sq`, '(pitch+waste)')}
-            {perimLF>0 && row('Starter', `${starterLF} LF`)}
-            {perimLF>0 && row('Drip Edge', `${dripLF} LF`)}
-            {ridgeLF>0 && row('Ridge Cap', `~${ridgeLF} LF`, 'approx')}
             {row('Underlayment', `${underlayQ} sq`)}
             {row('Bundles', `${bundles}`, '3 bdl/sq')}
+            {perimLF>0 && row('Starter', `${starterLF} LF`)}
+            {perimLF>0 && row('Drip Edge', `${dripLF} LF`)}
+            {row('Ridge Cap', 'Not measured', undefined, true)}
+            {row('Hip Cap', 'Not measured', undefined, true)}
+            {row('Valley Metal', 'Not measured', undefined, true)}
           </div>
         )
       })()}
