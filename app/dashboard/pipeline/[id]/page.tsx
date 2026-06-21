@@ -10,7 +10,6 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { getPipelineStages, LostReasonSheet } from '@/components/ui/LeadPipeline'
 import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
 import type { StagePlanEntry } from '@/lib/trades/roofing/stage-rules'
-import { computeInsuranceReconciliation } from '@/lib/insurance/reconciliation'
 // Roofing components accessed via trade module path — not components/roofing
 import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
 import SupplementAssistant from '@/lib/trades/roofing/components/SupplementAssistant'
@@ -1239,41 +1238,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       )}
                     </div>
                   </div>{/* end hero */}
-
-                  {/* ─── MONEY STRIP — surfaces job money at top of Job Detail ─── */}
-                  {(()=>{
-                    const rjd=(lead as any).roofing_job_data||{}
-                    const approved=Number(rjd.approved_amount)||0
-                    const supplement=Number(rjd.supplement_amount)||0
-                    const deductible=Number(rjd.deductible)||0
-                    const estimate=Number(est?.total)||0
-                    const collected=inv?Math.max(0,(Number(inv.total)||0)-(Number(inv.balance_due)||0)):0
-                    if(approved<=0&&supplement<=0&&estimate<=0&&collected<=0) return null
-                    const recon=computeInsuranceReconciliation({jobCost:estimate,approvedAmount:approved,supplement,deductible})
-                    const m=(n:number)=>`$${Math.round(n).toLocaleString('en-US')}`
-                    const cell=(label:string,val:number,accent?:string)=>(
-                      <div key={label} style={{flex:'1 1 110px',minWidth:104}}>
-                        <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>{label}</div>
-                        <div style={{fontSize:19,fontWeight:800,color:accent||tp,letterSpacing:'-0.02em'}}>{m(val)}</div>
-                      </div>
-                    )
-                    return (
-                      <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,padding:'14px 18px',marginBottom:14,boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:20,alignItems:'flex-start'}}>
-                          {cell('Approved',approved)}
-                          {cell('Supplement',supplement)}
-                          {cell('Estimate',estimate)}
-                          {cell('Collected',collected,collected>0?'#059669':undefined)}
-                        </div>
-                        {estimate>0&&(approved>0||supplement>0)&&(
-                          <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${bdr}`,display:'flex',flexWrap:'wrap',gap:20,fontSize:12.5,color:tsu}}>
-                            <span>Insurance pays <b style={{color:tp}}>{m(recon.insurancePays)}</b></span>
-                            <span>Out of pocket <b style={{color:recon.fullyCovered?'#059669':tp}}>{recon.fullyCovered?'$0 · fully covered':m(recon.outOfPocket)}</b></span>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
 
                   {/* ─── TABS CARD ───────────────────────────────────────── */}
                   <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
