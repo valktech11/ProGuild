@@ -34,8 +34,36 @@ type EstimateSummary = {
   total: number
   created_at: string
   valid_until: string
+  sent_at?: string | null
+  viewed_at?: string | null
+  approved_at?: string | null
+  viewed_count?: number
   revision_of?: string | null
   revision_number?: number
+}
+
+// Deterministic proposal-aging indicator (no inference). Open estimates only:
+// surfaces "Viewed Nd ago" / "Sent Nd · unopened" with escalating colour so a
+// rep can triage follow-up. Closed/draft states return null.
+function daysSince(iso?: string | null): number | null {
+  if (!iso) return null
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  return isNaN(d) ? null : d
+}
+function estimateAging(est: EstimateSummary): { text: string; color: string } | null {
+  if (est.status !== 'sent' && est.status !== 'viewed') return null
+  const GREEN = '#059669', AMBER = '#D97706', RED = '#DC2626', GREY = '#94A3B8'
+  const opened = est.status === 'viewed' || (est.viewed_count ?? 0) > 0
+  if (opened) {
+    const d = daysSince(est.viewed_at) ?? daysSince(est.sent_at)
+    const color = d == null ? GREY : d >= 7 ? RED : d >= 3 ? AMBER : GREEN
+    const text = d == null ? 'Viewed' : d === 0 ? 'Viewed today' : `Viewed ${d}d ago`
+    return { text, color }
+  }
+  const d = daysSince(est.sent_at)
+  const color = d == null ? GREY : d >= 3 ? RED : AMBER
+  const text = d == null ? 'Sent' : d === 0 ? 'Sent today · unopened' : `Sent ${d}d ago · unopened`
+  return { text, color }
 }
 
 // ── New Estimate Modal (Option C) ─────────────────────────────────────────────
@@ -1048,7 +1076,9 @@ export default function EstimatesPage() {
                 )
             ) : (
               <div>
-                {filtered.map((est, i) => (
+                {filtered.map((est, i) => {
+                  const aging = estimateAging(est)
+                  return (
                   <button
                     key={est.id}
                     onClick={() => router.push(`/dashboard/estimates/${est.id}`)}
@@ -1065,6 +1095,12 @@ export default function EstimatesPage() {
                           #{est.estimate_number}
                           {est.revision_of && <span style={{ padding: '0px 6px', borderRadius: 100, background: dk ? 'rgba(15,118,110,0.2)' : 'rgba(15,118,110,0.1)', color: '#0F766E', fontSize: 10, fontWeight: 700 }}>Rev {est.revision_number ?? ''}</span>}
                         </p>
+                        {aging && (
+                          <p className="text-xs mt-1 flex items-center gap-1.5" style={{ color: aging.color, fontWeight: 600 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 3, background: aging.color, display: 'inline-block', flexShrink: 0 }} />
+                            {aging.text}
+                          </p>
+                        )}
                       </div>
                       <span style={{ background: estimateStatusStyle(est.status, dk).bg, color: estimateStatusStyle(est.status, dk).text, padding: '2px 10px', borderRadius: 20, fontSize: T.fontBadge, fontWeight: 600, display: 'inline-flex', flexShrink: 0 }}>
                         {estimateStatusStyle(est.status, dk).label}
@@ -1082,6 +1118,12 @@ export default function EstimatesPage() {
                           #{est.estimate_number}
                           {est.revision_of && <span style={{ padding: '0px 6px', borderRadius: 100, background: dk ? 'rgba(15,118,110,0.2)' : 'rgba(15,118,110,0.1)', color: '#0F766E', fontSize: 10, fontWeight: 700 }}>Rev {est.revision_number ?? ''}</span>}
                         </p>
+                        {aging && (
+                          <p className="text-xs mt-1 flex items-center gap-1.5" style={{ color: aging.color, fontWeight: 600 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 3, background: aging.color, display: 'inline-block', flexShrink: 0 }} />
+                            {aging.text}
+                          </p>
+                        )}
                       </div>
                       <div className="text-sm self-center truncate" style={{ color: t.textMuted }}>{est.trade}</div>
                       <div className="self-center">
@@ -1098,7 +1140,8 @@ export default function EstimatesPage() {
                       </button>
                     </div>
                   </button>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
