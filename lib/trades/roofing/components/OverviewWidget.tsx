@@ -86,6 +86,13 @@ export default function RoofingOverviewWidget({ leads, session, dk, overview }: 
   const totalWonJobs = stats.totalWonJobs ?? 0
   const collected    = stats.collected ?? 0
 
+  // ── Insurance moat — the differentiator; mirrors mobile hero moat row ──────
+  const ins         = overview?.insurance ?? {}
+  const insApproved = ins.approvedInFlight ?? 0
+  const insAwaiting = ins.awaiting ?? 0
+  const insSupp     = ins.supplementOpportunities ?? 0
+  const hasIns      = insApproved > 0 || insAwaiting > 0
+
   const scorecard = [
     { label: 'Revenue · this month', value: fmtCurrency(stats.revenueThisMonth ?? 0),
       sub: revDelta == null ? `${wonMo} won` : `${revDelta >= 0 ? '▲' : '▼'} ${Math.abs(revDelta)}% vs last mo`,
@@ -145,6 +152,31 @@ export default function RoofingOverviewWidget({ leads, session, dk, overview }: 
           )
         })}
       </div>
+
+      {/* ── Insurance moat (Ins. approved / Supplements / Open claims) ───────── */}
+      {hasIns && (
+        <div style={{
+          display: 'flex', gap: 28, flexWrap: 'wrap' as const, marginBottom: 20,
+          background: dk ? '#0C2E2B' : '#F0FDFA',
+          border: `1px solid ${dk ? '#134E4A' : '#CCFBF1'}`,
+          borderRadius: 14, padding: '14px 18px',
+        }}>
+          {([
+            ['Ins. approved', fmtCurrency(insApproved)],
+            ['Supplements',   String(insSupp)],
+            ['Open claims',   String(insAwaiting)],
+          ] as [string, string][]).map(([label, val]) => (
+            <div key={label} style={{ minWidth: 110 }}>
+              <div style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                textTransform: 'uppercase' as const, marginBottom: 4,
+                color: dk ? '#5EEAD4' : TEAL,
+              }}>{label}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: t.textPri, letterSpacing: '-0.02em', lineHeight: 1 }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Today's Schedule ───────────────────────────────────────────────── */}
       <div className="rounded-2xl mb-5" style={{
