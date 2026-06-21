@@ -51,7 +51,35 @@ function stageColor(status: string): string {
   return map[status] || TEAL
 }
 
-export default function RoofingOverviewWidget({ leads, session, dk, overview }: OverviewWidgetProps) {
+function activityAccent(token: string, t: any): string {
+  switch (token) {
+    case 'green':  return '#059669'
+    case 'teal':   return TEAL
+    case 'blue':   return '#2563EB'
+    case 'purple': return '#7C3AED'
+    case 'red':    return '#DC2626'
+    default:       return t.textMuted
+  }
+}
+
+function relTime(iso: string): string {
+  if (!iso) return ''
+  const dt = new Date(iso).getTime()
+  if (isNaN(dt)) return ''
+  const diff = Date.now() - dt
+  const m = Math.floor(diff / 60000)
+  if (m < 1)  return 'now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 7)  return `${d}d ago`
+  if (d < 35) return `${Math.floor(d / 7)}w ago`
+  if (d < 365) return `${Math.floor(d / 30)}mo ago`
+  return `${Math.floor(d / 365)}y ago`
+}
+
+export default function RoofingOverviewWidget({ leads, session, dk, overview, activity }: OverviewWidgetProps) {
   const router = useRouter()
   const t = theme(dk)
 
@@ -322,6 +350,33 @@ export default function RoofingOverviewWidget({ leads, session, dk, overview }: 
               style={{ fontSize: 12, fontWeight: 700, color: TEAL, background: 'none', border: 'none', cursor: 'pointer' }}>
               View full pipeline →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Recent Activity (server-authored phrasing; client maps accent→colour) ─ */}
+      {(activity?.length ?? 0) > 0 && (
+        <div className="rounded-2xl mb-5" style={{ background: card, border: `1px solid ${bdr}`, borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 8px' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: t.textPri, letterSpacing: '-0.01em' }}>Recent Activity</div>
+            <button onClick={() => router.push('/dashboard/jobs')}
+              style={{ fontSize: 12, fontWeight: 700, color: TEAL, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+              View all →
+            </button>
+          </div>
+          <div style={{ padding: '4px 20px 12px' }}>
+            {(activity ?? []).map((it: any, i: number) => (
+              <div key={it.id ?? i} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0',
+                borderTop: i > 0 ? `1px solid ${bdr}` : 'none',
+              }}>
+                <div style={{ width: 8, height: 8, borderRadius: 4, flexShrink: 0, background: activityAccent(it.accent, t) }} />
+                <div style={{ flex: 1, fontSize: 13.5, color: t.textMuted, lineHeight: 1.35 }}>
+                  <span style={{ fontWeight: 700, color: t.textPri }}>{it.name}</span> {it.label}
+                </div>
+                <div style={{ fontSize: 12, color: t.textMuted, flexShrink: 0 }}>{relTime(it.created_at)}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}

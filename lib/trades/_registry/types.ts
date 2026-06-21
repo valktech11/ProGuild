@@ -56,6 +56,7 @@ export interface OverviewWidgetProps {
   session:  any
   dk:       boolean
   overview?: any
+  activity?: any[]
 }
 
 export interface AnyTradeComponents {

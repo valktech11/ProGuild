@@ -351,6 +351,7 @@ export default function OverviewPage() {
   const [draftCount,    setDraftCount]    = useState(0)
   const [allEstimates,  setAllEstimates]  = useState<any[]>([])
   const [overview,      setOverview]      = useState<any>(null)
+  const [activity,      setActivity]      = useState<any[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [showAddLead, setShowAddLead] = useState(false)
   const [maintenanceReminders, setMaintenanceReminders] = useState<any[]>([])
@@ -365,7 +366,8 @@ export default function OverviewPage() {
       fetch(`/api/estimates?pro_id=${s.id}`).then(r => r.json()),
       isHVACTrade ? fetch(`/api/hvac/maintenance-reminders?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
       fetch(`/api/overview?pro_id=${s.id}`).then(r => r.json()).catch(() => null),
-    ]).then(([leadsData, reviewsData, estimatesData, remindersData, overviewData]) => {
+      fetch(`/api/activity/recent?pro_id=${s.id}&limit=6`).then(r => r.json()).catch(() => ({ activity: [] })),
+    ]).then(([leadsData, reviewsData, estimatesData, remindersData, overviewData, activityData]) => {
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))
       const ests = estimatesData.estimates || []
@@ -373,6 +375,7 @@ export default function OverviewPage() {
       setDraftCount(ests.filter((e: any) => e.status === 'draft').length)
       setMaintenanceReminders(remindersData.reminders || [])
       setOverview(overviewData)
+      setActivity(activityData?.activity || [])
       setDataLoading(false)
     }).catch(() => setDataLoading(false))
   }
@@ -808,7 +811,7 @@ export default function OverviewPage() {
         {/* Slot renders roofing sections for roofers, null for all other trades              */}
         {session && (() => {
           const OverviewWidget = tc.components.OverviewWidget
-          return <OverviewWidget leads={leads} session={session} dk={dk} overview={overview} />
+          return <OverviewWidget leads={leads} session={session} dk={dk} overview={overview} activity={activity} />
         })()}
 
         {/* ── Reviews & Growth ─────────────────────────────────────────────── */}
