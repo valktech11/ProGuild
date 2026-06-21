@@ -909,7 +909,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
             {key:'details', label:'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
             ...(isRoofing?[{key:'photos' as Tab, label:photoCount>0?`Photos (${photoCount})`:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
-            {key:'estimate',label:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>},
+            {key:'estimate',label:estList.length>0?`Estimate (${estList.length})`:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>},
             {key:'activity',label:acts.length>0?`Activity (${acts.length})`:'Activity', icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>},
           ]
 
