@@ -776,11 +776,12 @@ export default function OverviewPage() {
         {/* ── Operational Health — condensed single row, links to Pipeline work queue ── */}
         {(() => {
           const totalItems = (ac.uncontacted ?? 0) + (ac.expiring ?? 0) + (ac.awaitingSignature ?? 0) + (ac.drafts ?? 0)
+          const m = (n: number) => n >= 1000 ? `$${Math.round(n/1000)}k` : `$${Math.round(n)}`
           const atRiskItems = [
             ac.uncontacted > 0 && `${ac.uncontacted} uncontacted`,
-            ac.awaitingSignature > 0 && `${ac.awaitingSignature} awaiting signature`,
-            ac.expiring > 0 && `${ac.expiring} expiring soon`,
-            ac.drafts > 0 && `${ac.drafts} draft proposals`,
+            ac.awaitingSignature > 0 && `${ac.awaitingSignature} awaiting signature${ac.awaitingSignatureValue > 0 ? ` (${m(ac.awaitingSignatureValue)})` : ''}`,
+            ac.expiring > 0 && `${ac.expiring} expiring soon${ac.expiringValue > 0 ? ` (${m(ac.expiringValue)})` : ''}`,
+            ac.drafts > 0 && `${ac.drafts} draft proposals${ac.draftsValue > 0 ? ` (${m(ac.draftsValue)})` : ''}`,
             ac.jobsToday > 0 && `${ac.jobsToday} jobs today`,
           ].filter(Boolean).join(' · ')
           return (
