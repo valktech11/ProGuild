@@ -70,6 +70,18 @@ function ProMeasureInner() {
   const mapDivRef  = useRef<HTMLDivElement>(null)
   const mapRef     = useRef<any>(null)
   const polyRef    = useRef<any>(null)
+  // Line tool (ridge/hip/valley) — separate from polygon markers/refs.
+  const [drawMode, setDrawMode] = useState<'polygon'|'line'>('polygon')
+  const [lineType, setLineType] = useState<'ridge'|'hip'|'valley'>('ridge')
+  const [lines, setLines] = useState<{type:'ridge'|'hip'|'valley';lf:number;latlngs:{lat:number;lng:number}[]}[]>(savedDraw?.lines || [])
+  const lineMarkers = useRef<any[]>([])   // active in-progress line vertices
+  const linePolyRef = useRef<any>(null)   // active in-progress polyline
+  const savedLineRefs = useRef<any[]>([]) // committed polylines on map
+  const drawModeRef = useRef<'polygon'|'line'>('polygon')
+  const lineTypeRef = useRef<'ridge'|'hip'|'valley'>('ridge')
+  useEffect(()=>{ drawModeRef.current=drawMode },[drawMode])
+  useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
+  const LINE_COLOR: Record<string,string> = { ridge:'#DC2626', hip:'#EA580C', valley:'#2563EB' }
   const markers    = useRef<any[]>([])
   const inputRef   = useRef<HTMLInputElement>(null)
   const saveRecentRef = useRef<(addr: string) => void>(() => {})
@@ -187,7 +199,11 @@ function ProMeasureInner() {
     mapRef.current = map
     setMapReady(true)
 
-    map.addListener('click', (e:any) => { if (e.latLng) addPin(e.latLng, map) })
+    map.addListener('click', (e:any) => {
+      if (!e.latLng) return
+      if (drawModeRef.current === 'line') addLinePoint(e.latLng, map)
+      else addPin(e.latLng, map)
+    })
 
     // Auto-geocode: if address was passed via URL and no saved center exists, fly to it
     if (!saved?.center && initAddress.trim()) {
@@ -293,6 +309,66 @@ function ProMeasureInner() {
     if(m){m.setMap(null);if(mapRef.current)redraw(mapRef.current)}
   }
 
+  // ── Line tool ──────────────────────────────────────────────────────────────
+  function addLinePoint(latLng: any, map: any) {
+    const marker = new window.google.maps.Marker({
+      position:latLng, map, draggable:true,
+      icon:{ path:window.google.maps.SymbolPath.CIRCLE, scale:5,
+        fillColor:LINE_COLOR[lineTypeRef.current], fillOpacity:1, strokeColor:'#fff', strokeWeight:2 },
+    })
+    lineMarkers.current.push(marker)
+    marker.addListener('drag', () => redrawLine(map))
+    redrawLine(map)
+  }
+
+  function redrawLine(map: any) {
+    const pts = lineMarkers.current.map(m=>m.getPosition()).filter(Boolean)
+    if (linePolyRef.current) { linePolyRef.current.setMap(null); linePolyRef.current=null }
+    if (pts.length < 2) return
+    linePolyRef.current = new window.google.maps.Polyline({
+      path:pts, map, strokeColor:LINE_COLOR[lineTypeRef.current], strokeOpacity:0.95, strokeWeight:4,
+    })
+  }
+
+  function lineLF(): number {
+    const pts = lineMarkers.current.map(m=>m.getPosition()).filter(Boolean)
+    if (pts.length < 2) return 0
+    let m=0
+    for(let i=0;i<pts.length-1;i++) m+=window.google.maps.geometry.spherical.computeDistanceBetween(pts[i],pts[i+1])
+    return m*3.28084
+  }
+
+  function clearActiveLine() {
+    lineMarkers.current.forEach(m=>m.setMap(null)); lineMarkers.current=[]
+    if(linePolyRef.current){linePolyRef.current.setMap(null);linePolyRef.current=null}
+  }
+
+  function saveLine() {
+    const lf = lineLF()
+    if (lf <= 0) { setDrawMode('polygon'); clearActiveLine(); return }
+    const pts = lineMarkers.current.map(m=>m.getPosition())
+    const latlngs = pts.map((p:any)=>({lat:p.lat(),lng:p.lng()}))
+    const type = lineTypeRef.current
+    // Render committed polyline (stays on map)
+    if (mapRef.current) {
+      const poly = new window.google.maps.Polyline({
+        path:pts, map:mapRef.current, strokeColor:LINE_COLOR[type], strokeOpacity:0.9, strokeWeight:3.5,
+      })
+      savedLineRefs.current.push(poly)
+    }
+    setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs}])
+    clearActiveLine()
+    setDrawMode('polygon')
+  }
+
+  function cancelLine() { clearActiveLine(); setDrawMode('polygon') }
+
+  function startLine(t:'ridge'|'hip'|'valley') {
+    clearActiveLine()
+    setLineType(t); lineTypeRef.current=t
+    setDrawMode('line'); drawModeRef.current='line'
+  }
+
   function clearAll() {
     markers.current.forEach(m=>m.setMap(null)); markers.current=[]
     if(polyRef.current){polyRef.current.setMap(null);polyRef.current=null}
@@ -303,6 +379,9 @@ function ProMeasureInner() {
   function startOver() {
     clearAll()
     setRegions([])
+    clearActiveLine()
+    savedLineRefs.current.forEach(p=>p.setMap(null)); savedLineRefs.current=[]
+    setLines([]); setDrawMode('polygon')
   }
 
   function saveRegion() {
@@ -328,7 +407,10 @@ function ProMeasureInner() {
   async function pushToCalc() {
     const totalSqFt = regions.reduce((s,r)=>s+r.sqFt,0)+(area||0)
     const squares   = +(totalSqFt/100).toFixed(2)
-    const measData  = { squares, pitch, waste, perimeter:perim?+perim.toFixed(1):null, address }
+    const measData  = { squares, pitch, waste, perimeter:perim?+perim.toFixed(1):null, address,
+      ridge_lf: lines.filter(l=>l.type==='ridge').reduce((a,l)=>a+l.lf,0) || null,
+      hip_lf:   lines.filter(l=>l.type==='hip').reduce((a,l)=>a+l.lf,0) || null,
+      valley_lf:lines.filter(l=>l.type==='valley').reduce((a,l)=>a+l.lf,0) || null }
     sessionStorage.setItem('pg_promeasure', JSON.stringify(measData))
     sessionStorage.setItem('pg_report_data', JSON.stringify(measData))
 
@@ -498,6 +580,20 @@ function ProMeasureInner() {
         const head = (txt: string) => (
           <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.06em',color:T.textMuted,margin:'4px 0 8px',textTransform:'uppercase'}}>{txt}</div>
         )
+        const ridgeFt = lines.filter(l=>l.type==='ridge').reduce((s,l)=>s+l.lf,0)
+        const hipFt   = lines.filter(l=>l.type==='hip').reduce((s,l)=>s+l.lf,0)
+        const valleyFt= lines.filter(l=>l.type==='valley').reduce((s,l)=>s+l.lf,0)
+        const lineRow = (label:string, ft:number, t:'ridge'|'hip'|'valley') => (
+          <div key={label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:`1px solid ${T.divider}`}}>
+            <span style={{fontSize:12,color:T.textMuted}}>{label}</span>
+            {ft>0
+              ? <span style={{fontSize:13,fontWeight:700,color:T.text}}>{ft} LF</span>
+              : <button onClick={()=>startLine(t)} disabled={drawMode==='line'}
+                  style={{fontSize:11,fontWeight:600,color:LINE_COLOR[t],background:'transparent',border:`1px solid ${LINE_COLOR[t]}`,borderRadius:6,padding:'2px 8px',cursor:drawMode==='line'?'default':'pointer',opacity:drawMode==='line'?0.4:1}}>
+                  + Add {label.split(' ')[0]}
+                </button>}
+          </div>
+        )
         return (
           <div style={{background:T.panel,borderRadius:12,border:`1px solid ${T.divider}`,padding:'12px 14px',marginTop:4}}>
             {head('Materials')}
@@ -507,9 +603,18 @@ function ProMeasureInner() {
             {row('Bundles', `${bundles}`, '3 bdl/sq')}
             {(perimLF>0 && perimComplete) ? row('Starter', `${starterLF} LF`) : row('Starter','Not measured',undefined,true)}
             {(perimLF>0 && perimComplete) ? row('Drip Edge', `${dripLF} LF`) : row('Drip Edge','Not measured',undefined,true)}
-            {row('Ridge Cap', 'Not measured', undefined, true)}
-            {row('Hip Cap', 'Not measured', undefined, true)}
-            {row('Valley Metal', 'Not measured', undefined, true)}
+            {lineRow('Ridge Cap', ridgeFt, 'ridge')}
+            {lineRow('Hip Cap', hipFt, 'hip')}
+            {lineRow('Valley Metal', valleyFt, 'valley')}
+            {drawMode==='line' && (
+              <div style={{marginTop:10,padding:'8px 10px',background:T.cardBg,borderRadius:8,border:`1px solid ${LINE_COLOR[lineType]}`}}>
+                <div style={{fontSize:11,color:T.text,marginBottom:6}}>Click points along the {lineType} on the map.</div>
+                <div style={{display:'flex',gap:6}}>
+                  <button onClick={saveLine} style={{flex:1,fontSize:12,fontWeight:700,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:6,padding:'6px',cursor:'pointer'}}>Save {lineType}</button>
+                  <button onClick={cancelLine} style={{fontSize:12,fontWeight:600,color:T.textMuted,background:'transparent',border:`1px solid ${T.cardBorder}`,borderRadius:6,padding:'6px 12px',cursor:'pointer'}}>Cancel</button>
+                </div>
+              </div>
+            )}
             {(perimLF>0 && perimComplete) && (
               <div style={{fontSize:10,color:T.textSubtle,marginTop:8,lineHeight:1.4}}>
                 Starter/Drip from polygon perimeter — proposal estimate; verify before material order.
