@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       .select('id, lead_status, created_at, lead_status_changed_at, updated_at, quoted_amount, scheduled_date, roofing_job_data(insurance_claim, approved_amount, supplement_amount, claim_status)')
       .eq('pro_id', proId),
     sb.from('estimates')
-      .select('status, valid_until, sent_at, created_at')
+      .select('status, valid_until, sent_at, created_at, total')
       .eq('pro_id', proId),
     sb.from('invoices')
       .select('status, total')
@@ -118,6 +118,9 @@ export async function GET(req: NextRequest) {
   if (drafts.length > 0)      parts.push(`${drafts.length} estimate${drafts.length !== 1 ? 's' : ''} unsent`)
   if (atRisk > 0)             parts.push(`$${Math.round(atRisk).toLocaleString()} at risk`)
 
+  const sumTotal = (arr: { total?: unknown }[]) =>
+    arr.reduce((s, e) => s + (Number(e.total) || 0), 0)
+
   return NextResponse.json({
     actionCenter: {
       uncontacted: uncontacted.length,
@@ -125,6 +128,12 @@ export async function GET(req: NextRequest) {
       awaitingSignature: awaitingSig.length,
       jobsToday: jobsToday.length,
       drafts: drafts.length,
+      // Per-category $ (stored values summed server-side; clients render only).
+      // uncontacted omitted — entry-stage leads are pre-pricing (no signal).
+      expiringValue: sumTotal(expiring as never[]),
+      awaitingSignatureValue: sumTotal(awaitingSig as never[]),
+      draftsValue: sumTotal(drafts as never[]),
+      jobsTodayValue: jobsToday.reduce((s, l) => s + (Number(l.quoted_amount) || 0), 0),
     },
     stats: {
       revenueThisMonth: wonRevenue,
