@@ -213,6 +213,21 @@ function ProMeasureInner() {
 
     map.addListener('click', (e:any) => {
       if (!e.latLng) return
+      // Ignore clicks that land on an existing pin — otherwise double-clicking a
+      // pin to remove it also fires map clicks that drop stray pins. Let the
+      // marker's own dblclick handle removal.
+      const proj = map.getProjection?.()
+      if (proj && drawModeRef.current !== 'line') {
+        const clickPt = proj.fromLatLngToPoint(e.latLng)
+        const scale = Math.pow(2, map.getZoom())
+        const near = markers.current.some((m:any) => {
+          const mp = proj.fromLatLngToPoint(m.getPosition())
+          const dx = (clickPt.x - mp.x) * scale
+          const dy = (clickPt.y - mp.y) * scale
+          return Math.hypot(dx, dy) < 12 // px
+        })
+        if (near) return
+      }
       if (drawModeRef.current === 'line') addLinePoint(e.latLng, map)
       else addPin(e.latLng, map)
     })
@@ -626,27 +641,30 @@ function ProMeasureInner() {
 
       {regions.length>0&&(
         <div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:T.textSubtle,marginBottom:8}}>Saved Regions</div>
-          {regions.map((r,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:`1px solid ${T.divider}`}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <div style={{width:10,height:10,borderRadius:3,background:r.color,flexShrink:0}}/>
-                <span style={{fontSize:13,color:T.textMuted}}>{r.name}</span>
-              </div>
-              <div style={{textAlign:'right'}}>
-                <div style={{fontSize:13,fontWeight:700,color:T.text}}>{fmtSq(r.sqFt/100)} sq</div>
-                <div style={{fontSize:10,color:T.textSubtle}}>{fmt(r.sqFt)} sq ft</div>
-              </div>
+          {/* Compact: grand total headline + collapsible region breakdown */}
+          <div style={{padding:'10px 12px',background:T.cardBg,borderRadius:10,border:`1px solid ${T.cardBorder}`,marginBottom:8}}>
+            <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between'}}>
+              <span style={{fontSize:11,color:T.textSubtle,fontWeight:700,letterSpacing:'0.06em'}}>GRAND TOTAL</span>
+              <span style={{fontSize:11,color:T.textSubtle}}>{regions.length} region{regions.length>1?'s':''} · {fmt(totalSqFt)} sq ft</span>
             </div>
-          ))}
-          <div style={{marginTop:10,padding:'10px 12px',background:T.cardBg,borderRadius:10,border:`1px solid ${T.cardBorder}`}}>
-            <div style={{fontSize:11,color:T.textSubtle,marginBottom:3}}>GRAND TOTAL</div>
-            <div style={{fontSize:20,fontWeight:800,color:'#14B8A6'}}>{fmtSq(grandAdj)} adj sq</div>
-            <div style={{fontSize:11,color:T.textSubtle}}>{fmt(totalSqFt)} sq ft total</div>
+            <div style={{fontSize:22,fontWeight:800,color:'#14B8A6',marginTop:2}}>{fmtSq(grandAdj)} adj sq</div>
+            <details style={{marginTop:6}}>
+              <summary style={{fontSize:11,color:T.textMuted,cursor:'pointer',listStyle:'none',userSelect:'none'}}>▸ Regions</summary>
+              <div style={{marginTop:6}}>
+                {regions.map((r,i)=>(
+                  <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 0',fontSize:12}}>
+                    <span style={{display:'flex',alignItems:'center',gap:6,color:T.textMuted}}>
+                      <span style={{width:8,height:8,borderRadius:2,background:r.color,flexShrink:0}}/>{r.name}
+                    </span>
+                    <span style={{fontWeight:600,color:T.text}}>{fmtSq(r.sqFt/100)} sq</span>
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
           <button onClick={startOver}
-            style={{marginTop:8,width:'100%',padding:'8px',background:'transparent',color:T.textMuted,border:`1px solid ${T.cardBorder}`,borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer'}}>
-            ↺ Start over (clear all regions)
+            style={{width:'100%',padding:'7px',background:'transparent',color:T.textMuted,border:`1px solid ${T.cardBorder}`,borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer'}}>
+            ↺ Start over
           </button>
         </div>
       )}
