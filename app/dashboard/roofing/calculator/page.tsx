@@ -479,13 +479,27 @@ function CalculatorInner() {
 
         {/* ── Section 2: Linear footage ── */}
         {parseFloat(squares) > 0 && (
-          <Section n="2" label="Edge & Ridge Lengths" sub="Auto-filled from satellite report — needed for trim, starter strip and drip edge"
+          <Section n="2" label="Edge & Ridge Lengths" sub="Enter manually, or measure precisely with ProMeasure — needed for ridge cap, trim, starter strip and drip edge"
             right={
               needsLF ? (
-                <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.3)' }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <span style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>Open lead → Re-measure to auto-fill, or enter below</span>
-                </div>
+                leadId ? (
+                  <button
+                    onClick={()=>{
+                      const addr = reportData?.address || ''
+                      router.push(addr
+                        ? `/dashboard/roofing/promeasure?lead_id=${leadId}&address=${encodeURIComponent(addr)}`
+                        : `/dashboard/roofing/promeasure?lead_id=${leadId}`)
+                    }}
+                    style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:100, background:'#0F766E', border:'none', color:'#fff', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                    Measure with ProMeasure →
+                  </button>
+                ) : (
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.3)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>Enter linear footage below</span>
+                  </div>
+                )
               ) : (
                 <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#F0FDF4', border:'1px solid rgba(5,150,105,0.2)' }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -637,7 +651,7 @@ function CalculatorInner() {
             {needsLF && (
               <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:12, padding:'10px 14px', borderRadius:9, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.25)' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span style={{ fontSize:12, color:'#B45309', fontWeight:500 }}>Ridge cap, starter strip, drip edge and ice/water shield need linear footage. Enter Ridge LF, Eave LF and Perimeter LF in Section 2 for a complete total.</span>
+                <span style={{ fontSize:12, color:'#B45309', fontWeight:500 }}>Ridge cap, starter strip, drip edge and ice/water shield need linear footage. Enter it in Section 2, or measure precisely with ProMeasure, for a complete total.</span>
               </div>
             )}
           </Section>
