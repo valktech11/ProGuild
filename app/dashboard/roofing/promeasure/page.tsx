@@ -100,9 +100,9 @@ function ProMeasureInner() {
   const [perim,        setPerim]        = useState<number|null>(null)
   const [mapReady,     setMapReady]     = useState(false)
 
-  // When launched for a specific lead, the lead's property_address is authoritative.
-  // A stale pg_pm_draw from measuring a *different* property must not win — clear it
-  // and geocode to the lead's address once the map is ready.
+  // When launched for a specific lead, the lead's full address is authoritative.
+  // A stale pg_pm_draw from a *different* property must not win — wipe drawn state
+  // (regions, lines, overlays) and geocode to the lead's address once map is ready.
   const leadAddrApplied = useRef(false)
   useEffect(() => {
     if (!leadId || !mapReady || leadAddrApplied.current) return
@@ -112,11 +112,27 @@ function ProMeasureInner() {
         const proId = session?.id
         const res = await fetch(`/api/leads/${leadId}${proId ? `?pro_id=${proId}` : ''}`)
         const d = res.ok ? await res.json() : null
-        const leadAddr = (d?.lead?.property_address || '').replace(/, USA$/, '').trim()
+        const L = d?.lead
+        if (!L) return
+        // Build the full address from parts — property_address alone often lacks
+        // city/state/zip, which geocodes to the wrong same-named street.
+        const street = String(L.property_address || '').replace(/, USA$/, '').trim()
+        const full = [street, L.contact_city, L.contact_state, L.contact_zip]
+          .filter(Boolean).join(', ')
+        const leadAddr = full || street
         if (!leadAddr) return
-        // If the current address already matches the lead, leave the (possibly drawn) view alone.
+        // Already on this exact lead address with a draw in progress → leave it alone.
         if (address.trim() && leadAddr.toLowerCase() === address.trim().toLowerCase()) return
-        // Different/empty address → this is a fresh lead measure. Clear stale draw + fly to lead.
+        // Fresh lead measure → hard-reset any stale drawn state from another property.
+        try {
+          markers.current.forEach((m:any)=>m.setMap(null)); markers.current=[]
+          if (polyRef.current) { polyRef.current.setMap(null); polyRef.current=null }
+          savedLineRefs.current.forEach((p:any)=>p.setMap(null)); savedLineRefs.current=[]
+          if (linePolyRef.current) { linePolyRef.current.setMap(null); linePolyRef.current=null }
+          lineMarkers.current.forEach((m:any)=>m.setMap(null)); lineMarkers.current=[]
+        } catch {}
+        setPins(0); setArea(null); setPerim(null)
+        setRegions([]); setLines([])
         try { sessionStorage.removeItem('pg_pm_draw') } catch {}
         setAddress(leadAddr)
         if (mapRef.current && (window as any).google?.maps) {
