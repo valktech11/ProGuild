@@ -539,6 +539,12 @@ function ProMeasureInner() {
           square_count: squares,
           pitch:        pitch,
           waste_pct:    waste,
+          ridge_lf:     measData.ridge_lf  ?? null,
+          hip_lf:       measData.hip_lf    ?? null,
+          valley_lf:    measData.valley_lf ?? null,
+          eave_lf:      null,
+          perimeter_lf: measData.perimeter ?? null,
+          lines:        measData.lines     ?? [],
         }
         const patchRes = await fetch(`/api/leads/${leadId}`, {
           method: 'PATCH',

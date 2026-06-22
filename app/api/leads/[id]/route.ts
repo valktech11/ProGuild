@@ -42,6 +42,7 @@ const ROOFING_JOB_FIELDS = [
   'claim_status', 'approved_amount', 'supplement_amount', 'deductible',
   'date_of_loss', 'roof_install_date',
   'square_count', 'pitch', 'waste_pct', 'roof_type',
+  'ridge_lf', 'hip_lf', 'valley_lf', 'eave_lf', 'perimeter_lf', 'lines',
   'shingle_brand', 'shingle_model', 'warranty_term',
   'decking_replacement', 'layers', 'permit_number', 'permit_status',
   'labour_amount',
@@ -87,16 +88,45 @@ export async function GET(
       .limit(1)
       .maybeSingle()
     if (latestReport) {
+      // Human-traced ProMeasure lines on roofing_job_data are authoritative.
+      // DSM linear_footage from roof_reports is fallback only (and being retired).
+      const humanLines = Array.isArray(roofingJobData?.lines) ? roofingJobData!.lines : []
+      const hasHumanLF = humanLines.length > 0 ||
+        roofingJobData?.ridge_lf != null || roofingJobData?.hip_lf != null || roofingJobData?.valley_lf != null
+      const humanLF = hasHumanLF ? {
+        ridge_ft:  roofingJobData?.ridge_lf  ?? 0,
+        hip_ft:    roofingJobData?.hip_lf    ?? 0,
+        valley_ft: roofingJobData?.valley_lf ?? 0,
+        eave_ft:   roofingJobData?.eave_lf   ?? 0,
+        rake_ft:   0,
+        source:    'promeasure_manual',
+      } : null
       roofingJobData = {
         ...(roofingJobData ?? {}),
-        // Measurements: always use report values — they are the authoritative source
         square_count:   latestReport.total_squares_order ?? roofingJobData?.square_count ?? null,
         pitch:          latestReport.dominant_pitch      ?? roofingJobData?.pitch         ?? null,
         waste_pct:      latestReport.waste_factor        ?? roofingJobData?.waste_pct     ?? null,
-        // LF: from roof_reports only — never stored in roofing_job_data
-        linear_footage: latestReport.linear_footage      ?? null,
-        // Report PDF link so the lead can download without going to the property page
+        // LF precedence: human ProMeasure lines > DSM roof_reports
+        linear_footage: humanLF ?? latestReport.linear_footage ?? null,
         report_url:     latestReport.r2_url              ?? null,
+      }
+    }
+  }
+
+  // Human ProMeasure LF fallback for leads with no property_id (never reached the
+  // report block above). Only synthesize linear_footage if not already set.
+  if (roofingJobData && !(roofingJobData as any).linear_footage) {
+    const humanLines = Array.isArray((roofingJobData as any).lines) ? (roofingJobData as any).lines : []
+    const hasHumanLF = humanLines.length > 0 ||
+      (roofingJobData as any).ridge_lf != null || (roofingJobData as any).hip_lf != null || (roofingJobData as any).valley_lf != null
+    if (hasHumanLF) {
+      ;(roofingJobData as any).linear_footage = {
+        ridge_ft:  (roofingJobData as any).ridge_lf  ?? 0,
+        hip_ft:    (roofingJobData as any).hip_lf    ?? 0,
+        valley_ft: (roofingJobData as any).valley_lf ?? 0,
+        eave_ft:   (roofingJobData as any).eave_lf   ?? 0,
+        rake_ft:   0,
+        source:    'promeasure_manual',
       }
     }
   }

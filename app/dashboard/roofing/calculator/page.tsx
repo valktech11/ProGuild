@@ -304,6 +304,15 @@ function CalculatorInner() {
             claimStatus:    String(rjd.claim_status ?? ''),
           })
         }
+        // Pre-fill LF from the lead's linear_footage (human ProMeasure lines win
+        // via GET precedence). Only set fields the user hasn't already typed.
+        const lf = rjd?.linear_footage
+        if (lf) {
+          if (lf.ridge_ft  > 0) setRidgeLF(p => p || String(Math.round(lf.ridge_ft)))
+          if (lf.hip_ft    > 0) setHipLF(p => p || String(Math.round(lf.hip_ft)))
+          if (lf.valley_ft > 0) setValleyLF(p => p || String(Math.round(lf.valley_ft)))
+          if (lf.eave_ft   > 0) setEaveLF(p => p || String(Math.round(lf.eave_ft)))
+        }
       })
       .catch(() => {})
   }, [session, router, fromSq, leadId])
