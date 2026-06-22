@@ -467,7 +467,7 @@ function ProMeasureInner() {
       valley_lf:lines.filter(l=>l.type==='valley').reduce((a,l)=>a+l.lf,0) || null,
       lines: lines.map(l=>({type:l.type,lf:l.lf,user_adjusted:l.user_adjusted,source:l.source})) }
     sessionStorage.setItem('pg_promeasure', JSON.stringify(measData))
-    sessionStorage.setItem('pg_report_data', JSON.stringify(measData))
+    sessionStorage.setItem('pg_report_data', JSON.stringify({...measData, storedAt: Date.now()}))
 
     // If opened from a lead, write measurements to roofing_job_data
     if (leadId && session) {
