@@ -45,14 +45,14 @@ function ProMeasureInner() {
   const T = {
     topBar:      dk ? 'rgba(15,20,35,0.97)'  : 'rgba(255,255,255,0.97)',
     topBorder:   dk ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-    panel:       dk ? 'rgba(15,20,35,0.97)'  : '#FFFFFF',
+    panel:       dk ? 'rgba(22,35,54,0.98)'  : '#FFFFFF',
     panelBorder: dk ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)',
     text:        dk ? '#FFFFFF'              : '#111827',
     textMuted:   dk ? 'rgba(255,255,255,0.5)' : '#6B7280',
     textSubtle:  dk ? 'rgba(255,255,255,0.3)' : '#9CA3AF',
     inputBg:     dk ? 'rgba(255,255,255,0.07)' : '#F9FAFB',
     inputBorder: dk ? 'rgba(255,255,255,0.12)' : '#E5E7EB',
-    cardBg:      dk ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
+    cardBg:      dk ? 'rgba(255,255,255,0.07)' : '#F9FAFB',
     cardBorder:  dk ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
     cardHi:      dk ? 'rgba(20,184,166,0.1)'  : '#F0FDFA',
     cardHiBorder:dk ? 'rgba(20,184,166,0.3)'  : '#99F6E4',
@@ -558,25 +558,40 @@ function ProMeasureInner() {
   }, [])
 
   // ── Measurements panel — always visible, settings overlays below ──────────
-  const MeasurementsPanel = () => (
+  const MeasurementsPanel = () => {
+    const isDrawing = pins > 0
+    return (
     <div style={{padding:isWide?20:'12px 14px',display:'flex',flexDirection:'column',gap:isWide?14:10}}>
-      <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:T.textSubtle}}>
-        Live Measurements
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'repeat(4,1fr)',gap:isWide?8:6}}>
-        {([
-          ['Pins','',String(pins),false],
-          ['Perimeter','LF',perim?fmt(perim):'—',false],
-          ['Area','sq ft',area?fmt(area):'—',!!area],
-          ['Squares','sq',area?fmtSq(rawSq):'—',!!area],
-        ] as [string,string,string,boolean][]).map(([label,unit,val,hi])=>(
-          <div key={label} style={{background:hi?T.cardHi:T.cardBg,borderRadius:isWide?12:10,padding:isWide?'12px':'9px 8px',border:`1px solid ${hi?T.cardHiBorder:T.cardBorder}`}}>
-            <div style={{fontSize:isWide?10:9,color:T.textSubtle,fontWeight:600,letterSpacing:'0.04em',marginBottom:isWide?4:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{label}</div>
-            <div style={{fontSize:isWide?18:16,fontWeight:800,color:hi?'#14B8A6':T.text,lineHeight:1.1}}>{val}</div>
-            {unit&&<div style={{fontSize:isWide?10:9,color:T.textSubtle,marginTop:1}}>{unit}</div>}
+      {/* Collapsed single-line when no active polygon; expands while drawing */}
+      {!isDrawing ? (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+          background:T.cardBg,borderRadius:10,padding:'8px 12px',border:`1px solid ${T.cardBorder}`}}>
+          <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:T.textSubtle}}>
+            Live Measurements
+          </span>
+          <span style={{fontSize:12,color:T.textSubtle}}>Click map to draw →</span>
+        </div>
+      ) : (
+        <>
+          <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:T.textSubtle}}>
+            Live Measurements
           </div>
-        ))}
-      </div>
+          <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'repeat(4,1fr)',gap:isWide?8:6}}>
+            {([
+              ['Pins','',String(pins),false],
+              ['Perimeter','LF',perim?fmt(perim):'—',false],
+              ['Area','sq ft',area?fmt(area):'—',!!area],
+              ['Squares','sq',area?fmtSq(rawSq):'—',!!area],
+            ] as [string,string,string,boolean][]).map(([label,unit,val,hi])=>(
+              <div key={label} style={{background:hi?T.cardHi:T.cardBg,borderRadius:isWide?12:10,padding:isWide?'12px':'9px 8px',border:`1px solid ${hi?T.cardHiBorder:T.cardBorder}`}}>
+                <div style={{fontSize:isWide?10:9,color:T.textSubtle,fontWeight:600,letterSpacing:'0.04em',marginBottom:isWide?4:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{label}</div>
+                <div style={{fontSize:isWide?18:16,fontWeight:800,color:hi?'#14B8A6':T.text,lineHeight:1.1}}>{val}</div>
+                {unit&&<div style={{fontSize:isWide?10:9,color:T.textSubtle,marginTop:1}}>{unit}</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Mobile only: actions live in the panel (off the compressed map) */}
       {!isWide&&pins>0&&(
@@ -735,7 +750,8 @@ function ProMeasureInner() {
         )}
       </div>
     </div>
-  )
+    )
+  }
 
   const SettingsPanel = () => (
     <div style={{padding:20,borderTop:`1px solid ${T.divider}`}}>
