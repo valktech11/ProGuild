@@ -181,6 +181,7 @@ function ProMeasureInner() {
   const buildMap = useCallback(() => {
     const div = mapDivRef.current
     if (!div || !window.google?.maps?.Map) return
+    if (mapRef.current) return // already built — re-entry would reset view + orphan overlays
 
     // Restore saved center/zoom if returning from calculator
     const saved = (() => { try { const s=sessionStorage.getItem('pg_pm_draw'); return s?JSON.parse(s):null } catch { return null } })()
@@ -362,6 +363,13 @@ function ProMeasureInner() {
   }
 
   function cancelLine() { clearActiveLine(); setDrawMode('polygon') }
+
+  function removeLine(i:number) {
+    const poly = savedLineRefs.current[i]
+    if (poly) poly.setMap(null)
+    savedLineRefs.current.splice(i,1)
+    setLines(l=>l.filter((_,idx)=>idx!==i))
+  }
 
   function startLine(t:'ridge'|'hip'|'valley') {
     clearActiveLine()
@@ -606,6 +614,16 @@ function ProMeasureInner() {
             {lineRow('Ridge Cap', ridgeFt, 'ridge')}
             {lineRow('Hip Cap', hipFt, 'hip')}
             {lineRow('Valley Metal', valleyFt, 'valley')}
+            {lines.length>0 && (
+              <div style={{marginTop:8,display:'flex',flexDirection:'column',gap:4}}>
+                {lines.map((ln,i)=>(
+                  <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,color:T.textSubtle}}>
+                    <span><span style={{display:'inline-block',width:8,height:8,borderRadius:2,background:LINE_COLOR[ln.type],marginRight:6}}></span>{ln.type} · {ln.lf} LF</span>
+                    <button onClick={()=>removeLine(i)} style={{color:T.textSubtle,background:'transparent',border:'none',cursor:'pointer',fontSize:13,padding:'0 4px'}}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
             {drawMode==='line' && (
               <div style={{marginTop:10,padding:'8px 10px',background:T.cardBg,borderRadius:8,border:`1px solid ${LINE_COLOR[lineType]}`}}>
                 <div style={{fontSize:11,color:T.text,marginBottom:6}}>Click points along the {lineType} on the map.</div>
