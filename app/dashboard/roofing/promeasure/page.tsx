@@ -322,14 +322,48 @@ function ProMeasureInner() {
   }
 
   // ── Line tool ──────────────────────────────────────────────────────────────
-  function addLinePoint(latLng: any, map: any) {
-    const marker = new window.google.maps.Marker({
+  const hubRef = useRef<any>(null)
+
+  function placeMarker(latLng: any, map: any, scale=5): any {
+    const m = new window.google.maps.Marker({
       position:latLng, map, draggable:true,
-      icon:{ path:window.google.maps.SymbolPath.CIRCLE, scale:5,
+      icon:{ path:window.google.maps.SymbolPath.CIRCLE, scale,
         fillColor:LINE_COLOR[lineTypeRef.current], fillOpacity:1, strokeColor:'#fff', strokeWeight:2 },
     })
-    lineMarkers.current.push(marker)
-    marker.addListener('drag', () => redrawLine(map))
+    m.addListener('drag', () => redrawLine(map))
+    return m
+  }
+
+  function addLinePoint(latLng: any, map: any) {
+    if (lineTypeRef.current === 'hip') {
+      if (!hubRef.current) {
+        // First click = hub (center peak) — larger white-fill marker, draggable.
+        const hub = new window.google.maps.Marker({
+          position:latLng, map, draggable:true,
+          icon:{ path:window.google.maps.SymbolPath.CIRCLE, scale:7,
+            fillColor:'#fff', fillOpacity:1,
+            strokeColor:LINE_COLOR['hip'], strokeWeight:3 },
+          title:'Hub — drag to center peak', zIndex:10,
+        })
+        hub.addListener('drag', () => { hubRef.current=hub; redrawLine(map) })
+        hubRef.current = hub
+        lineMarkers.current.push(hub)
+      } else {
+        // Corner click — push corner then invisible hub-clone so polyline
+        // returns to hub; next corner click auto-starts from hub (star pattern).
+        const corner = placeMarker(latLng, map)
+        lineMarkers.current.push(corner)
+        const hubPos = hubRef.current.getPosition?.() ?? hubRef.current
+        const clone = new window.google.maps.Marker({
+          position:hubPos, map, draggable:false,
+          icon:{ path:window.google.maps.SymbolPath.CIRCLE,
+            scale:0, fillOpacity:0, strokeOpacity:0 },
+        })
+        lineMarkers.current.push(clone)
+      }
+    } else {
+      lineMarkers.current.push(placeMarker(latLng, map))
+    }
     redrawLine(map)
   }
 
@@ -384,6 +418,7 @@ function ProMeasureInner() {
 
   function startLine(t:'ridge'|'hip'|'valley') {
     clearActiveLine()
+    hubRef.current = null
     setLineType(t); lineTypeRef.current=t
     setDrawMode('line'); drawModeRef.current='line'
   }
@@ -663,7 +698,13 @@ function ProMeasureInner() {
             )}
             {drawMode==='line' && (
               <div style={{marginTop:10,padding:'8px 10px',background:T.cardBg,borderRadius:8,border:`1px solid ${LINE_COLOR[lineType]}`}}>
-                <div style={{fontSize:11,color:T.text,marginBottom:6}}>Click points along the {lineType} on the map.</div>
+                <div style={{fontSize:11,color:T.text,marginBottom:6}}>
+                  {lineType==='hip'
+                    ? (lines.filter(l=>l.type==='hip').length===0 && lineMarkers.current.length===0)
+                      ? '① Click the center peak (hub). Then click each corner — lines auto-connect back to center.'
+                      : 'Click each corner — lines auto-connect to hub.'
+                    : `Click points along the ${lineType} on the map.`}
+                </div>
                 <div style={{display:'flex',gap:6}}>
                   <button onClick={saveLine} style={{flex:1,fontSize:12,fontWeight:700,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:6,padding:'6px',cursor:'pointer'}}>Save {lineType}</button>
                   <button onClick={cancelLine} style={{fontSize:12,fontWeight:600,color:T.textMuted,background:'transparent',border:`1px solid ${T.cardBorder}`,borderRadius:6,padding:'6px 12px',cursor:'pointer'}}>Cancel</button>
