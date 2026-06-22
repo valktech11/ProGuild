@@ -103,22 +103,26 @@ export interface CalcInput {
   ridgeLF: number
   eaveLF: number
   perimLF: number
+  hipLF: number
+  valleyLF: number
   prices: Record<string, number>
   pipeBoots: number
   tearoffLayers: number
 }
 
 export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; adjustedSquares: number } {
-  const { squares, pitchKey, wastePct, ridgeLF, eaveLF, perimLF, prices, pipeBoots, tearoffLayers } = input
+  const { squares, pitchKey, wastePct, ridgeLF, eaveLF, perimLF, hipLF, valleyLF, prices, pipeBoots, tearoffLayers } = input
 
   const pitchFactor  = getPitchFactor(pitchKey)
   const adjSq        = squares * pitchFactor * (1 + wastePct / 100)
   const adjSqRounded = Math.round(adjSq * 10) / 10
 
-  const ridgeBundles   = ridgeLF > 0 ? Math.ceil(ridgeLF / 35)        : null
-  const starterBundles = eaveLF  > 0 ? Math.ceil(eaveLF / 105)        : null
-  const dripPieces     = perimLF > 0 ? Math.ceil(perimLF / 10)        : null
-  const iceSquares     = eaveLF  > 0 ? Math.ceil((eaveLF * 3) / 100)  : null
+  const ridgeBundles   = ridgeLF   > 0 ? Math.ceil(ridgeLF   / 35)  : null
+  const hipBundles     = hipLF     > 0 ? Math.ceil(hipLF     / 35)  : null  // same coverage as ridge cap
+  const valleyRolls    = valleyLF  > 0 ? Math.ceil(valleyLF  / 33)  : null  // std 33 LF roll
+  const starterBundles = eaveLF    > 0 ? Math.ceil(eaveLF    / 105) : null
+  const dripPieces     = perimLF   > 0 ? Math.ceil(perimLF   / 10)  : null
+  const iceSquares     = eaveLF    > 0 ? Math.ceil((eaveLF * 3) / 100) : null
 
   // Underlayment is ordered in whole squares. Price AND store the rounded qty so
   // the calculator total (qty×price) matches what the estimate recomputes on save.
@@ -152,6 +156,24 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
       quantity: ridgeBundles ?? 0, unit: 'bundles',
       unitPrice: prices.ridgeCap, total: (ridgeBundles ?? 0) * prices.ridgeCap,
       isPlaceholder: !ridgeBundles,
+    },
+    {
+      key: 'hipCap',
+      description: 'Hip cap shingles',
+      note: hipBundles ? `${hipLF} LF ÷ 35 = ${hipBundles} bundles` : 'Enter Hip LF above',
+      quantity: hipBundles ?? 0, unit: 'bundles',
+      unitPrice: prices.ridgeCap, // same unit price as ridge cap
+      total: (hipBundles ?? 0) * prices.ridgeCap,
+      isPlaceholder: !hipBundles,
+    },
+    {
+      key: 'valleyMetal',
+      description: 'Valley metal / ice & water',
+      note: valleyRolls ? `${valleyLF} LF ÷ 33 = ${valleyRolls} rolls` : 'Enter Valley LF above',
+      quantity: valleyRolls ?? 0, unit: 'rolls',
+      unitPrice: prices.valleyMetal ?? prices.iceWater ?? 85,
+      total: (valleyRolls ?? 0) * (prices.valleyMetal ?? prices.iceWater ?? 85),
+      isPlaceholder: !valleyRolls,
     },
     {
       key: 'starterStrip',

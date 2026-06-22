@@ -151,6 +151,8 @@ function CalculatorInner() {
   const [pitch,      setPitch]      = useState('6/12')
   const [waste,      setWaste]      = useState('10')
   const [ridgeLF,    setRidgeLF]    = useState('')
+  const [hipLF,      setHipLF]      = useState('')
+  const [valleyLF,   setValleyLF]   = useState('')
   const [eaveLF,     setEaveLF]     = useState('')
   const [perimLF,    setPerimLF]    = useState('')
   const [pipeBoots,  setPipeBoots]  = useState('3')
@@ -230,6 +232,8 @@ function CalculatorInner() {
             const eaveLF  = d.eaveLF  ?? (d as any).eave_lf  ?? 0
             const perimLF = d.perimLF ?? (d as any).perimeter ?? 0
             if (ridgeLF  > 0) setRidgeLF(String(Math.round(ridgeLF)))
+            if (hipLF    > 0) setHipLF(String(Math.round(hipLF)))
+            if (valleyLF > 0) setValleyLF(String(Math.round(valleyLF)))
             if (eaveLF   > 0) setEaveLF(String(Math.round(eaveLF)))
             if (perimLF  > 0) setPerimLF(String(Math.round(perimLF)))
           }
@@ -309,11 +313,12 @@ function CalculatorInner() {
     const { items, adjustedSquares } = calculateMaterials({
       squares: sq, pitchKey: pitch, wastePct: parseFloat(waste) || 0,
       ridgeLF: parseFloat(ridgeLF) || 0, eaveLF: parseFloat(eaveLF) || 0, perimLF: parseFloat(perimLF) || 0,
+      hipLF: parseFloat(hipLF) || 0, valleyLF: parseFloat(valleyLF) || 0,
       prices, pipeBoots: parseInt(pipeBoots) || 0, tearoffLayers: parseInt(tearoff) || 0,
     })
     setLineItems(items)
     setAdjSq(adjustedSquares)
-  }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, prices, pipeBoots, tearoff])
+  }, [squares, pitch, waste, ridgeLF, eaveLF, perimLF, hipLF, valleyLF, prices, pipeBoots, tearoff])
 
   // Labour is persisted server-side from the estimate's saved line on Apply
   // (lib/roofing/labour-cache.ts). The calculator no longer writes labour_amount.
@@ -373,7 +378,9 @@ function CalculatorInner() {
           pitch:            pitch,
           waste_pct:        parseFloat(waste) || 10,
           ridge_lf:         parseFloat(ridgeLF) || null,
-          eave_lf:          parseFloat(eaveLF) || null,
+          hip_lf:           parseFloat(hipLF)   || null,
+          valley_lf:        parseFloat(valleyLF)|| null,
+          eave_lf:          parseFloat(eaveLF)  || null,
           perimeter_lf:     parseFloat(perimLF) || null,
           pipe_boots:       parseInt(pipeBoots, 10) || null,
           tearoff_layers:   Number.isFinite(parseInt(tearoff, 10)) ? parseInt(tearoff, 10) : null,
@@ -488,6 +495,14 @@ function CalculatorInner() {
               <FInput label="Ridge LF" hint="for ridge cap bundles"
                 type="number" min="0" step="1" value={ridgeLF} placeholder="e.g. 48"
                 onChange={e => setRidgeLF(e.target.value)} />
+              <FInput label="Hip LF" hint="for hip cap bundles"
+                type="number" min="0" step="1" value={hipLF} placeholder="e.g. 60"
+                onChange={e => setHipLF(e.target.value)} />
+              <FInput label="Valley LF" hint="for valley metal / I&W"
+                type="number" min="0" step="1" value={valleyLF} placeholder="e.g. 24"
+                onChange={e => setValleyLF(e.target.value)} />
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:14 }}>
               <FInput label="Eave LF" hint="for starter strip + ice/water"
                 type="number" min="0" step="1" value={eaveLF} placeholder="e.g. 120"
                 onChange={e => setEaveLF(e.target.value)} />
