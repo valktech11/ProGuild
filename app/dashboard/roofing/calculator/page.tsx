@@ -232,9 +232,6 @@ function CalculatorInner() {
             if (ridgeLF  > 0) setRidgeLF(String(Math.round(ridgeLF)))
             if (eaveLF   > 0) setEaveLF(String(Math.round(eaveLF)))
             if (perimLF  > 0) setPerimLF(String(Math.round(perimLF)))
-            // hip/valley available from ProMeasure — set if calculator has fields
-            if (typeof setHipLF   === 'function' && hipLF    > 0) setHipLF(String(Math.round(hipLF)))
-            if (typeof setValleyLF=== 'function' && valleyLF > 0) setValleyLF(String(Math.round(valleyLF)))
           }
         } catch { sessionStorage.removeItem('pg_report_data') }
       } else if (fromSq) {
