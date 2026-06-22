@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
     ridgeLF:       num(body.ridgeLF),
     eaveLF:        num(body.eaveLF),
     perimLF:       num(body.perimLF),
+    hipLF:         num(body.hipLF),
+    valleyLF:      num(body.valleyLF),
     prices,
     pipeBoots:     num(body.pipeBoots),
     tearoffLayers: num(body.tearoffLayers),
