@@ -36,7 +36,15 @@ export async function GET(req: NextRequest) {
 // Creates a blank draft estimate and returns it so the UI can redirect to /[id]
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source, square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, pipe_boots, tearoff_layers } = body
+  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source, square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, hip_lf, valley_lf, lines, pipe_boots, tearoff_layers } = body
+  const linesJson = Array.isArray(lines)
+    ? (lines as any[]).map(l => ({
+        type: String(l?.type ?? ''),
+        lf: Number(l?.lf) || 0,
+        user_adjusted: l?.user_adjusted === true,
+        source: l?.source === 'gemini_adjusted' ? 'gemini_adjusted' : 'manual',
+      })).filter(l => l.type && l.lf > 0)
+    : null
 
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
@@ -98,6 +106,9 @@ export async function POST(req: NextRequest) {
         if (ridge_lf       != null) syncPayload.ridge_lf       = numOrNull(ridge_lf)
         if (eave_lf        != null) syncPayload.eave_lf        = numOrNull(eave_lf)
         if (perimeter_lf   != null) syncPayload.perimeter_lf   = numOrNull(perimeter_lf)
+        if (hip_lf         != null) syncPayload.hip_lf         = numOrNull(hip_lf)
+        if (valley_lf      != null) syncPayload.valley_lf      = numOrNull(valley_lf)
+        if (linesJson      != null) syncPayload.lines          = linesJson
         if (pipe_boots     != null) syncPayload.pipe_boots     = numOrNull(pipe_boots)
         if (tearoff_layers != null) syncPayload.tearoff_layers = numOrNull(tearoff_layers)
         await sb.from('roofing_estimate_data').upsert(syncPayload, { onConflict: 'estimate_id' })
@@ -217,6 +228,9 @@ export async function POST(req: NextRequest) {
               ridge_lf:       numOrNull(ridge_lf),
               eave_lf:        numOrNull(eave_lf),
               perimeter_lf:   numOrNull(perimeter_lf),
+              hip_lf:         numOrNull(hip_lf),
+              valley_lf:      numOrNull(valley_lf),
+              lines:          linesJson ?? [],
               pipe_boots:     numOrNull(pipe_boots),
               tearoff_layers: numOrNull(tearoff_layers),
             }, { onConflict: 'estimate_id' })
@@ -280,6 +294,9 @@ export async function POST(req: NextRequest) {
           ridge_lf:       numOrNull(ridge_lf),
           eave_lf:        numOrNull(eave_lf),
           perimeter_lf:   numOrNull(perimeter_lf),
+          hip_lf:         numOrNull(hip_lf),
+          valley_lf:      numOrNull(valley_lf),
+          lines:          linesJson ?? [],
           pipe_boots:     numOrNull(pipe_boots),
           tearoff_layers: numOrNull(tearoff_layers),
         }, { onConflict: 'estimate_id' })
@@ -345,6 +362,9 @@ export async function POST(req: NextRequest) {
       ridge_lf:         numOrNull(ridge_lf),
       eave_lf:          numOrNull(eave_lf),
       perimeter_lf:     numOrNull(perimeter_lf),
+      hip_lf:           numOrNull(hip_lf),
+      valley_lf:        numOrNull(valley_lf),
+      lines:            linesJson ?? [],
       pipe_boots:       numOrNull(pipe_boots),
       tearoff_layers:   numOrNull(tearoff_layers),
     }, { onConflict: 'estimate_id' })

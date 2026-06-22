@@ -34,6 +34,7 @@ interface ReportData {
   hipLF?:      number
   valleyLF?:   number
   rakeLF?:     number
+  lines?:      { type:string; lf:number; user_adjusted:boolean; source:string }[]
 }
 
 
@@ -380,6 +381,7 @@ function CalculatorInner() {
           ridge_lf:         parseFloat(ridgeLF) || null,
           hip_lf:           parseFloat(hipLF)   || null,
           valley_lf:        parseFloat(valleyLF)|| null,
+          lines:            reportData?.lines ?? null,
           eave_lf:          parseFloat(eaveLF)  || null,
           perimeter_lf:     parseFloat(perimLF) || null,
           pipe_boots:       parseInt(pipeBoots, 10) || null,
