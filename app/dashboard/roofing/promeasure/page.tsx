@@ -99,6 +99,37 @@ function ProMeasureInner() {
   const [area,         setArea]         = useState<number|null>(null)
   const [perim,        setPerim]        = useState<number|null>(null)
   const [mapReady,     setMapReady]     = useState(false)
+
+  // When launched for a specific lead, the lead's property_address is authoritative.
+  // A stale pg_pm_draw from measuring a *different* property must not win — clear it
+  // and geocode to the lead's address once the map is ready.
+  const leadAddrApplied = useRef(false)
+  useEffect(() => {
+    if (!leadId || !mapReady || leadAddrApplied.current) return
+    leadAddrApplied.current = true
+    ;(async () => {
+      try {
+        const proId = session?.id
+        const res = await fetch(`/api/leads/${leadId}${proId ? `?pro_id=${proId}` : ''}`)
+        const d = res.ok ? await res.json() : null
+        const leadAddr = (d?.lead?.property_address || '').replace(/, USA$/, '').trim()
+        if (!leadAddr) return
+        // If the current address already matches the lead, leave the (possibly drawn) view alone.
+        if (address.trim() && leadAddr.toLowerCase() === address.trim().toLowerCase()) return
+        // Different/empty address → this is a fresh lead measure. Clear stale draw + fly to lead.
+        try { sessionStorage.removeItem('pg_pm_draw') } catch {}
+        setAddress(leadAddr)
+        if (mapRef.current && (window as any).google?.maps) {
+          new (window as any).google.maps.Geocoder().geocode({ address: leadAddr }, (r: any, s: any) => {
+            if (s === 'OK' && r?.[0]?.geometry?.location) {
+              mapRef.current.setCenter(r[0].geometry.location)
+              mapRef.current.setZoom(20)
+            }
+          })
+        }
+      } catch {}
+    })()
+  }, [leadId, mapReady, session, address])
   const [apiErr,       setApiErr]       = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [colorTarget,  setColorTarget]  = useState<keyof Settings|null>(null)
