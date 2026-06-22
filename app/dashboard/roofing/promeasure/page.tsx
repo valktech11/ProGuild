@@ -73,7 +73,8 @@ function ProMeasureInner() {
   // Line tool (ridge/hip/valley) — separate from polygon markers/refs.
   const [drawMode, setDrawMode] = useState<'polygon'|'line'>('polygon')
   const [lineType, setLineType] = useState<'ridge'|'hip'|'valley'>('ridge')
-  const [lines, setLines] = useState<{type:'ridge'|'hip'|'valley';lf:number;latlngs:{lat:number;lng:number}[]}[]>(savedDraw?.lines || [])
+  type LineRec = {type:'ridge'|'hip'|'valley';lf:number;latlngs:{lat:number;lng:number}[];user_adjusted:boolean;source:'manual'|'gemini_adjusted'}
+  const [lines, setLines] = useState<LineRec[]>(savedDraw?.lines || [])
   const lineMarkers = useRef<any[]>([])   // active in-progress line vertices
   const linePolyRef = useRef<any>(null)   // active in-progress polyline
   const savedLineRefs = useRef<any[]>([]) // committed polylines on map
@@ -357,7 +358,7 @@ function ProMeasureInner() {
       })
       savedLineRefs.current.push(poly)
     }
-    setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs}])
+    setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs,user_adjusted:true,source:'manual'}])
     clearActiveLine()
     setDrawMode('polygon')
   }
@@ -418,7 +419,8 @@ function ProMeasureInner() {
     const measData  = { squares, pitch, waste, perimeter:perim?+perim.toFixed(1):null, address,
       ridge_lf: lines.filter(l=>l.type==='ridge').reduce((a,l)=>a+l.lf,0) || null,
       hip_lf:   lines.filter(l=>l.type==='hip').reduce((a,l)=>a+l.lf,0) || null,
-      valley_lf:lines.filter(l=>l.type==='valley').reduce((a,l)=>a+l.lf,0) || null }
+      valley_lf:lines.filter(l=>l.type==='valley').reduce((a,l)=>a+l.lf,0) || null,
+      lines: lines.map(l=>({type:l.type,lf:l.lf,user_adjusted:l.user_adjusted,source:l.source})) }
     sessionStorage.setItem('pg_promeasure', JSON.stringify(measData))
     sessionStorage.setItem('pg_report_data', JSON.stringify(measData))
 
@@ -474,6 +476,29 @@ function ProMeasureInner() {
   const grandAdj  = (totalSqFt/100)*(getPitchFactor(pitch, 1.054))*(1+waste/100)
   const fmt  = (n:number) => n.toLocaleString(undefined,{maximumFractionDigits:0})
   const fmtSq= (n:number) => n.toFixed(2)
+
+  // Persist full draw (lines + regions + params) on state change — single source,
+  // no stale-closure scatter. Merges over the redraw-path geometry write.
+  useEffect(() => {
+    try {
+      const prev = (() => { try { const s=sessionStorage.getItem('pg_pm_draw'); return s?JSON.parse(s):{} } catch { return {} } })()
+      sessionStorage.setItem('pg_pm_draw', JSON.stringify({ ...prev, lines, regions, address, pitch, waste }))
+    } catch {}
+  }, [lines, regions, address, pitch, waste])
+
+  // Restore committed line polylines once the map is ready (state survives reload
+  // via savedDraw; the map overlays must be re-instantiated against the new map).
+  const linesRestored = useRef(false)
+  useEffect(() => {
+    if (!mapReady || linesRestored.current || !mapRef.current || lines.length===0) return
+    linesRestored.current = true
+    for (const ln of lines) {
+      const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
+      const poly = new window.google.maps.Polyline({ path, map:mapRef.current,
+        strokeColor:LINE_COLOR[ln.type], strokeOpacity:0.9, strokeWeight:3.5 })
+      savedLineRefs.current.push(poly)
+    }
+  }, [mapReady, lines])
 
   // Close recent dropdown on outside click
   useEffect(() => {
