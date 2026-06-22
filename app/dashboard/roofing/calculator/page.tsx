@@ -211,7 +211,10 @@ function CalculatorInner() {
           const storedAt  = d.storedAt as number | undefined
           const ageMs     = storedAt ? (Date.now() - storedAt) : Infinity
           const noContext = !propertyId && !leadId
-          const isStale   = ageMs > 10 * 60 * 1000 || noContext
+          const fromPromeasure = searchParams.get('from') === 'promeasure'
+          // ProMeasure standalone has no lead/property context by design — exempt it
+          // from the noContext stale gate; use age-only (10 min).
+          const isStale   = ageMs > 10 * 60 * 1000 || (!fromPromeasure && noContext)
           if (isStale) {
             sessionStorage.removeItem('pg_report_data')
             if (fromSq) setSquares(fromSq)
@@ -220,9 +223,18 @@ function CalculatorInner() {
             setSquares(String(Math.round(d.squares * 10) / 10))
             setPitch(normalizePitch(d.pitch))
             setWaste(String(Math.round(d.waste)))
-            if (d.ridgeLF && d.ridgeLF > 0) setRidgeLF(String(Math.round(d.ridgeLF)))
-            if (d.eaveLF  && d.eaveLF  > 0) setEaveLF(String(Math.round(d.eaveLF)))
-            if (d.perimLF && d.perimLF > 0) setPerimLF(String(Math.round(d.perimLF)))
+            // Normalize snake_case (ProMeasure) + camelCase (satellite report) keys
+            const ridgeLF = d.ridgeLF ?? (d as any).ridge_lf ?? 0
+            const hipLF   = (d as any).hip_lf ?? 0
+            const valleyLF= (d as any).valley_lf ?? 0
+            const eaveLF  = d.eaveLF  ?? (d as any).eave_lf  ?? 0
+            const perimLF = d.perimLF ?? (d as any).perimeter ?? 0
+            if (ridgeLF  > 0) setRidgeLF(String(Math.round(ridgeLF)))
+            if (eaveLF   > 0) setEaveLF(String(Math.round(eaveLF)))
+            if (perimLF  > 0) setPerimLF(String(Math.round(perimLF)))
+            // hip/valley available from ProMeasure — set if calculator has fields
+            if (typeof setHipLF   === 'function' && hipLF    > 0) setHipLF(String(Math.round(hipLF)))
+            if (typeof setValleyLF=== 'function' && valleyLF > 0) setValleyLF(String(Math.round(valleyLF)))
           }
         } catch { sessionStorage.removeItem('pg_report_data') }
       } else if (fromSq) {
