@@ -200,6 +200,16 @@ function ProMeasureInner() {
     })
     mapRef.current = map
     setMapReady(true)
+    // Persist viewport on idle so reload restores the user's pan/zoom (the
+    // state-driven effect only captures center/zoom on data change).
+    map.addListener('idle', () => {
+      try {
+        const c = map.getCenter()
+        if (!c) return
+        const prev = (() => { try { const s=sessionStorage.getItem('pg_pm_draw'); return s?JSON.parse(s):{} } catch { return {} } })()
+        sessionStorage.setItem('pg_pm_draw', JSON.stringify({ ...prev, center:{lat:c.lat(),lng:c.lng()}, zoom: map.getZoom() }))
+      } catch {}
+    })
 
     map.addListener('click', (e:any) => {
       if (!e.latLng) return
@@ -482,7 +492,9 @@ function ProMeasureInner() {
   useEffect(() => {
     try {
       const prev = (() => { try { const s=sessionStorage.getItem('pg_pm_draw'); return s?JSON.parse(s):{} } catch { return {} } })()
-      sessionStorage.setItem('pg_pm_draw', JSON.stringify({ ...prev, lines, regions, address, pitch, waste }))
+      const c = mapRef.current?.getCenter?.()
+      const view = c ? { center:{lat:c.lat(),lng:c.lng()}, zoom: mapRef.current.getZoom() } : {}
+      sessionStorage.setItem('pg_pm_draw', JSON.stringify({ ...prev, ...view, lines, regions, address, pitch, waste }))
     } catch {}
   }, [lines, regions, address, pitch, waste])
 
