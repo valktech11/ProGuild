@@ -581,14 +581,14 @@ function ProMeasureInner() {
       {!isDrawing ? (
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
           background:T.cardBg,borderRadius:10,padding:'8px 12px',border:`1px solid ${T.cardBorder}`}}>
-          <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:T.textSubtle}}>
+          <span style={{fontSize:11,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.1em',color:T.text}}>
             Live Measurements
           </span>
           <span style={{fontSize:12,color:T.textSubtle}}>Click map to draw →</span>
         </div>
       ) : (
         <>
-          <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:T.textSubtle}}>
+          <div style={{fontSize:11,fontWeight:800,textTransform:'uppercase',letterSpacing:'0.1em',color:T.text}}>
             Live Measurements
           </div>
           <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'repeat(4,1fr)',gap:isWide?8:6}}>
@@ -630,10 +630,10 @@ function ProMeasureInner() {
       )}
 
       {area&&(
-        <div style={{background:`linear-gradient(135deg,${T.cardHi},${dk?'rgba(15,118,110,0.1)':'#CCFBF1'})`,border:`1.5px solid ${T.cardHiBorder}`,borderRadius:14,padding:16}}>
-          <div style={{fontSize:10,fontWeight:700,color:'#14B8A6',letterSpacing:'0.1em',marginBottom:6}}>ADJUSTED SQUARES</div>
-          <div style={{fontSize:36,fontWeight:900,color:'#14B8A6',letterSpacing:'-0.02em'}}>{fmtSq(adjSq)}</div>
-          <div style={{fontSize:11,color:T.textMuted,marginTop:4}}>
+        <div style={{background:`linear-gradient(135deg,${T.cardHi},${dk?'rgba(15,118,110,0.1)':'#CCFBF1'})`,border:`1.5px solid ${T.cardHiBorder}`,borderRadius:14,padding:'11px 14px'}}>
+          <div style={{fontSize:10,fontWeight:700,color:'#14B8A6',letterSpacing:'0.1em',marginBottom:3}}>ADJUSTED SQUARES</div>
+          <div style={{fontSize:26,fontWeight:900,color:'#14B8A6',letterSpacing:'-0.02em'}}>{fmtSq(adjSq)}</div>
+          <div style={{fontSize:10.5,color:T.textMuted,marginTop:2}}>
             {fmtSq(rawSq)} × {PITCH_FACTORS[pitch]} pitch × {1+waste/100} waste
           </div>
         </div>
