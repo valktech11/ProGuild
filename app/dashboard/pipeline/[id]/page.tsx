@@ -178,7 +178,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [noteText,    setNoteText]    = useState('')
   const [savingNote,  setSavingNote]  = useState(false)
   const [qbGenerating,   setQbGenerating]   = useState(false)
-  const [dsmRunning,     setDsmRunning]     = useState(false)
   const [reportRowId,    setReportRowId]    = useState<string|null>(null)
   const [pipelineEvents, setPipelineEvents] = useState<any[]>([])
   const [qbDone,         setQbDone]         = useState(false)
@@ -1352,13 +1351,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   const sq   = rjd?.square_count
                                   const pitch= rjd?.pitch
                                   const waste= rjd?.waste_pct
-                                  const lf   = rjd?.linear_footage as any
-                                  const hasLF= !!(lf?.ridge_ft)
 
                                   // ── Step states ──
                                   const step1Done = !!sq
-                                  const step2Done = step1Done && hasLF
-                                  const step2Running = step1Done && !hasLF && dsmRunning
 
                                   const stepIcon = (done:boolean, running:boolean, n:number) => {
                                     if (done) return (
@@ -1486,121 +1481,30 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         )}
                                       </div>
 
-                                      {/* Step 2 — Linear Footage */}
-                                      <div style={{marginBottom:10,padding:'12px 14px',borderRadius:10,background:step2Done?'#F0FDF4':step2Running?'#FFFBEB':'#F8FAFC',border:`1.5px solid ${step2Done?'#BBF7D0':step2Running?'#FDE68A':'#E2E8F0'}`,opacity:step1Done?1:0.5}}>
-                                        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:step2Done?10:0}}>
-                                          {stepIcon(step2Done, step2Running, 2)}
-                                          <div style={{flex:1}}>
-                                            <div style={{fontSize:14,fontWeight:700,color:'#0F172A'}}>Full Material Quantities</div>
-                                            <div style={{fontSize:12,color:'#64748B',marginTop:2}}>
-                                              {step2Done ? `Ridge ${Math.round(lf.ridge_ft)}ft · Hip ${Math.round(lf.hip_ft||0)}ft · Valley ${Math.round(lf.valley_ft||0)}ft · Rake ${Math.round(lf.rake_ft||0)}ft · Eave ${Math.round(lf.eave_ft||0)}ft`
-                                                : step2Running ? 'Getting ridge, hip, valley, rake & eave lengths… (~30s)'
-                                                : step1Done ? 'Ridge, hip, valley, rake & eave — needed to order materials precisely'
-                                                : 'Runs after Step 1 — measure the roof first'}
-                                            </div>
-                                          </div>
-                                        </div>
-                                        {/* Full Material Quantities — Pro gate */}
-                                        {step1Done && !step2Done && !step2Running && (
-                                          isPro ? (
-                                          <button
-                                            onClick={async ()=>{
-                                              if(!session)return
-                                              setDsmRunning(true)
-                                              try{
-                                                const propId = (lead as any).property_id
-                                                // Fetch reports for this property
-                                                const rRes = await fetch(`/api/roofing/reports?pro_id=${session.id}${propId?`&property_id=${propId}`:''}`)
-                                                const rData = rRes.ok ? await rRes.json() : null
-                                                const reports = rData?.reports || []
-                                                // Find best report: prefer one with LF already calculated
-                                                const sq = (lead as any)?.roofing_job_data?.square_count
-                                                const withLF = reports.find((r:any) => r.linear_footage?.ridge_ft)
-                                                const sqMatch = sq ? reports.find((r:any) => Math.abs((r.total_squares_order||0)-sq)<1) : null
-                                                const best = withLF ?? sqMatch ?? (reportRowId ? reports.find((r:any)=>r.id===reportRowId) : null) ?? reports[0]
-                                                if(!best){addToast('Measure the roof first','error');setDsmRunning(false);return}
-                                                if(best.linear_footage?.ridge_ft){
-                                                  // LF already in report — just refresh lead (GET reads LF from roof_reports)
-                                                  const lRes = await fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
-                                                  const lData = lRes.ok ? await lRes.json() : null
-                                                  if(lData?.lead) setLead(lData.lead)
-                                                  addToast('Material lines loaded','success')
-                                                } else {
-                                                  // LF not calculated yet — trigger DSM, then refresh lead
-                                                  const dsmRes = await fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:best.id,pro_id:session.id})})
-                                                  if(dsmRes.ok){
-                                                    const lRes = await fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
-                                                    const lData = lRes.ok ? await lRes.json() : null
-                                                    if(lData?.lead) setLead(lData.lead)
-                                                    addToast('Material lines calculated','success')
-                                                  } else {
-                                                    addToast('Could not calculate — try New Measurement','error')
-                                                  }
-                                                }
-                                              }catch{addToast('Failed — try again','error')}
-                                              finally{setDsmRunning(false)}
-                                            }}
-                                            style={{marginTop:8,width:'100%',padding:'9px',borderRadius:8,border:'none',background:'#0F766E',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                                            Get Material Lines
-                                          </button>
-                                          ) : (
-                                            <div style={{marginTop:8,padding:'10px 12px',borderRadius:8,background:'#F8FAFC',border:'1.5px solid #E2E8F0',display:'flex',alignItems:'center',gap:10}}>
-                                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                                              <div style={{flex:1}}>
-                                                <div style={{fontSize:12,fontWeight:700,color:'#475569'}}>Pro feature — precise material quantities</div>
-                                                <div style={{fontSize:11,color:'#94A3B8',marginTop:1}}>Upgrade to Pro to get ridge, hip, valley, rake & eave for material ordering</div>
-                                              </div>
-                                              <button onClick={()=>window.open('/dashboard/settings?upgrade=1','_self')} style={{padding:'6px 12px',borderRadius:7,border:'none',background:'#0F766E',color:'#fff',fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const,flexShrink:0}}>
-                                                Upgrade
-                                              </button>
-                                            </div>
-                                          )
-                                        )}
-
-                                        {step2Done && (
-                                          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}}>
-                                            {[
-                                              {label:'Ridge',  val:lf.ridge_ft,  color:'#7C3AED',bg:'#F5F3FF',border:'#DDD6FE'},
-                                              {label:'Hip',    val:lf.hip_ft,    color:'#0891B2',bg:'#E0F2FE',border:'#BAE6FD'},
-                                              {label:'Valley', val:lf.valley_ft, color:'#EA580C',bg:'#FFF7ED',border:'#FED7AA'},
-                                              {label:'Rake',   val:lf.rake_ft,   color:'#B45309',bg:'#FFFBEB',border:'#FDE68A'},
-                                              {label:'Eave',   val:lf.eave_ft,   color:'#059669',bg:'#F0FDF4',border:'#BBF7D0'},
-                                            ].map(m=>(
-                                              <div key={m.label} style={{padding:'8px 6px',borderRadius:8,background:m.bg,border:`1.5px solid ${m.border}`,textAlign:'center' as const}}>
-                                                <div style={{fontSize:15,fontWeight:800,color:m.color,letterSpacing:'-0.02em',lineHeight:1}}>{Math.round(m.val||0)}<span style={{fontSize:10,fontWeight:600}}> ft</span></div>
-                                                <div style={{fontSize:11,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginTop:4}}>{m.label}</div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {/* Step 3 — Open Calculator */}
-                                      <div style={{padding:'12px 14px',borderRadius:10,background:step2Done?`linear-gradient(135deg,#0F766E,#14B8A6)`:'#F8FAFC',border:`1.5px solid ${step2Done?'transparent':'#E2E8F0'}`,opacity:step2Done?1:0.5,cursor:step2Done?'pointer':'default'}}
+                                      {/* Step 2 — Price This Job (squares is enough; LF entered in calculator or ProMeasure) */}
+                                      <div style={{padding:'12px 14px',borderRadius:10,background:step1Done?`linear-gradient(135deg,#0F766E,#14B8A6)`:'#F8FAFC',border:`1.5px solid ${step1Done?'transparent':'#E2E8F0'}`,opacity:step1Done?1:0.5,cursor:step1Done?'pointer':'default'}}
                                         onClick={()=>{
-                                          if(!step2Done)return
+                                          if(!step1Done)return
                                           try{
-                                            const payload={squares:Number(sq)||0,pitch:pitch??'6/12',waste:Number(waste)||12,source:'roof_report',address:(lead as any).property_address||'',storedAt:Date.now(),leadId:lead.id,
-                                              ...(lf?.ridge_ft?{ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}:{})}
+                                            const payload={squares:Number(sq)||0,pitch:pitch??'6/12',waste:Number(waste)||12,source:'roof_report',address:(lead as any).property_address||'',storedAt:Date.now(),leadId:lead.id}
                                             sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))
                                           }catch{}
                                           router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                                         }}>
                                         <div style={{display:'flex',alignItems:'center',gap:10}}>
-                                          {step2Done
+                                          {step1Done
                                             ? <div style={{width:22,height:22,borderRadius:'50%',background:'rgba(255,255,255,0.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
                                               </div>
-                                            : <div style={{width:24,height:24,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:12,fontWeight:700,color:'#94A3B8'}}>3</div>
+                                            : <div style={{width:24,height:24,borderRadius:'50%',background:'#F1F5F9',border:'1.5px solid #CBD5E1',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:12,fontWeight:700,color:'#94A3B8'}}>2</div>
                                           }
                                           <div>
-                                            <div style={{fontSize:14,fontWeight:700,color:step2Done?'#fff':'#0F172A'}}>Price This Job</div>
-                                            <div style={{fontSize:12,color:step2Done?'rgba(255,255,255,0.8)':'#64748B',marginTop:2}}>
-                                              {step2Done?'Squares + all material lines loaded — ready to price':'Complete Steps 1 & 2 first'}
+                                            <div style={{fontSize:14,fontWeight:700,color:step1Done?'#fff':'#0F172A'}}>Price This Job</div>
+                                            <div style={{fontSize:12,color:step1Done?'rgba(255,255,255,0.8)':'#64748B',marginTop:2}}>
+                                              {step1Done?'Squares loaded — add ridge/hip/valley in the calculator or measure with ProMeasure':'Measure the roof first'}
                                             </div>
                                           </div>
-                                          {step2Done && (
+                                          {step1Done && (
                                             <svg style={{marginLeft:'auto'}} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
                                           )}
                                         </div>
@@ -1636,13 +1540,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                   const payload:Record<string,unknown>={squares:Number(meas.totalSquaresOrder)||0,pitch:meas.dominantPitch??'4/12',waste:Number(meas.wasteFactor)||12,source:'roof_report',address:fullAddr,storedAt:Date.now(),leadId:lead.id,ridgeLF:0,eaveLF:0,perimLF:0}
                                                   try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
                                                   const rowId=(d as any).reportRowId
-                                                  if(rowId&&session){
-                                                    fetch('/api/roofing/dsm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:rowId,pro_id:session.id})})
-                                                      .then(r=>r.ok?r.json():null)
-                                                      .then(dsmData=>{
-                                                        if(dsmData?.linear_footage){const lf=dsmData.linear_footage;try{const raw=sessionStorage.getItem('pg_report_data');if(raw){const ex=JSON.parse(raw);sessionStorage.setItem('pg_report_data',JSON.stringify({...ex,ridgeLF:Math.round(lf.ridge_ft||0),eaveLF:Math.round(lf.eave_ft||0),perimLF:Math.round((lf.eave_ft||0)+(lf.rake_ft||0)),hipLF:Math.round(lf.hip_ft||0),valleyLF:Math.round(lf.valley_ft||0),rakeLF:Math.round(lf.rake_ft||0)}))}}catch{};fetch(`/api/leads/${lead.id}?pro_id=${session.id}`).then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})}
-                                                      }).catch(()=>{})
-                                                  }
+                                                  if(rowId)setReportRowId(rowId)
                                                   fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
                                                     .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
                                                 }
