@@ -11,6 +11,13 @@
  */
 
 import React from 'react'
+// ── DSM linear-footage suppression ──────────────────────────────────────────
+// DSM segment-geometry LF proved badly inaccurate vs ground truth (hip +130%,
+// valley -53% on real FL roofs). Suppressed from the shareable premium PDF to
+// avoid adjuster-facing wrong numbers. DSM engine + all render code retained;
+// flip to true to restore. Re-enable properly only once LF is human-sourced
+// (ProMeasure confirmed lines, source:'manual'|'gemini_adjusted').
+const SHOW_DSM_LF = false
 import {
   Document,
   Page,
@@ -789,7 +796,8 @@ function computeMaterialRows(data: PremiumReportData): MaterialRow[] {
     })
   })
 
-  // ── Starter ──
+  // ── Starter ── (LF-derived; suppressed when DSM LF off)
+  if (SHOW_DSM_LF) {
   rows.push({
     product: `Starter (eaves + rakes)`,
     unit: '',
@@ -808,8 +816,10 @@ function computeMaterialRows(data: PremiumReportData): MaterialRow[] {
       isGroupHeader: false,
     })
   })
+  }
 
-  // ── Ice & Water ──
+  // ── Ice & Water ── (LF-derived; suppressed when DSM LF off)
+  if (SHOW_DSM_LF) {
   rows.push({
     product: 'Ice & water (eaves + valleys + flashing)',
     unit: '',
@@ -828,6 +838,7 @@ function computeMaterialRows(data: PremiumReportData): MaterialRow[] {
       isGroupHeader: false,
     })
   })
+  }
 
   // ── Synthetic underlayment ──
   rows.push({
@@ -849,7 +860,8 @@ function computeMaterialRows(data: PremiumReportData): MaterialRow[] {
     })
   })
 
-  // ── Capping ──
+  // ── Capping ── (LF-derived; suppressed when DSM LF off)
+  if (SHOW_DSM_LF) {
   rows.push({
     product: 'Ridge & hip capping',
     unit: '',
@@ -888,6 +900,7 @@ function computeMaterialRows(data: PremiumReportData): MaterialRow[] {
     quantities: WASTE_FACTORS.map(() => `${dripEdgePcs}`),
     isGroupHeader: false,
   })
+  }
 
   return rows
 }
@@ -984,7 +997,8 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
           MetricBox('WASTE FACTOR', `${data.wasteFactor}%`, 'Not incl. in sq'),
         ),
 
-        // LF summary
+        // LF summary (suppressed when DSM LF off)
+        ...(SHOW_DSM_LF ? [
         h(Text, { style: { color: '#374151', fontSize: 7, letterSpacing: 1.5, marginBottom: 6, marginTop: 4, fontFamily: 'Helvetica-Bold' } }, 'LINEAR FOOTAGE SUMMARY'),
         h(View, { style: { backgroundColor: '#F8FAFC', borderRadius: 6, padding: 10, borderWidth: 0.5, borderColor: '#E2E8F0' } },
           LFRow('Ridge', ridge, 'Ridge cap'),
@@ -1000,6 +1014,7 @@ function buildCoverPage(data: PremiumReportData): React.ReactElement {
             lfAccuracyDisclaimer(data.facetCount),
           ),
         ),
+        ] : []),
       ),
 
       // Right — prepared for
@@ -1546,6 +1561,7 @@ function buildAllStructuresPage(data: PremiumReportData): React.ReactElement {
           Row('Imagery Date', data.imageryDate ? formatDate(data.imageryDate) : '—'),
           Row('Coordinates', `${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`),
 
+          ...(SHOW_DSM_LF ? [
           h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 8, marginTop: 16 } }, 'Lengths, Areas and Pitches'),
           Row('Ridges', `${fmt(lf.ridge_ft)} ft`, false, true),
           Row('Hips', `${fmt(lf.hip_ft)} ft`, false, true),
@@ -1556,10 +1572,12 @@ function buildAllStructuresPage(data: PremiumReportData): React.ReactElement {
           Row('Eaves + Rakes', `${fmt(dripEdgeFt)} ft`),
           Row('Drip Edge (eaves + rakes)', `${fmt(dripEdgeFt)} ft`),
           Row('Total Linear Footage', `${fmt(lf.total_linear_ft)} ft`, false, true),
+          ] : []),
         ),
 
         // Right column
         h(View, { style: { flex: 1 } },
+          ...(SHOW_DSM_LF ? [
           h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 8 } }, 'Flashing (Approximated)'),
           h(View, { style: { backgroundColor: '#FEF3C7', borderRadius: 4, padding: 8, marginBottom: 10 } },
             h(Text, { style: { fontSize: 7.5, color: '#92400E', marginBottom: 4, fontFamily: 'Helvetica-Bold' } }, 'Note — field measurement recommended for flashing'),
@@ -1570,6 +1588,7 @@ function buildAllStructuresPage(data: PremiumReportData): React.ReactElement {
           ),
           Row('Wall flashing (est.)', isComplex ? 'Field measure required' : (wallFlashFt > 0 ? `~${fmt(wallFlashFt)} ft` : '—')),
           Row('Step flashing (est.)', isComplex ? 'Field measure required' : (stepFlashFt > 0 ? `~${fmt(stepFlashFt)} ft` : '—')),
+          ] : []),
 
           h(Text, { style: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: BRAND_COLORS.textDark, marginBottom: 8, marginTop: 16 } }, 'Property Location'),
           Row('Latitude', data.lat.toFixed(6)),
@@ -1794,7 +1813,7 @@ export async function buildPremiumReport(data: PremiumReportData): Promise<Buffe
     buildSatellitePage(data),
     buildObliqueNSPage(data),
     buildObliqueEWPage(data),
-    buildLFSummaryPage(data),
+    SHOW_DSM_LF ? buildLFSummaryPage(data) : null,
     // Pitch/Area/Notes diagram pages removed — diagram quality insufficient
     // without polygon vertex data. Satellite photos (pages 2-4) give roofers
     // better visual reference. Will revisit when polygon vertex source is available.
