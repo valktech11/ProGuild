@@ -42,6 +42,7 @@ interface ReportData {
 import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
 import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
 import { computeInsuranceReconciliation } from '@/lib/insurance/reconciliation'
+import { groundSupplementFlags } from '@/lib/fl/supplement'
 
 function normalizePitch(raw: string | number): string {
   if (typeof raw === 'number') return '6/12'
@@ -337,6 +338,14 @@ function CalculatorInner() {
   const labourAmount  = parseFloat(labour) || 0
   const grandTotal    = materialTotal + labourAmount
   const needsLF       = !parseFloat(ridgeLF) || !parseFloat(eaveLF) || !parseFloat(perimLF)
+
+  // Deterministic supplement flags from human-traced LF. Detected-only (derived, no
+  // persistence). Rendered only on insurance jobs, below the reconciliation panel.
+  const supplementFlags = groundSupplementFlags({
+    ridge_ft:  parseFloat(ridgeLF)  || 0,
+    hip_ft:    parseFloat(hipLF)    || 0,
+    valley_ft: parseFloat(valleyLF) || 0,
+  })
 
   // Tax preview — mirrors server logic so the roofer sees the real total before clicking Apply.
   // Update path: stored estimate tax_rate (unknown client-side) ?? 6. Create path: STATE_TAX_RATES[state] ?? 0.
@@ -773,6 +782,33 @@ function CalculatorInner() {
             </div>
           )
         })()}
+
+        {/* ── Supplement flags — detected from human-traced LF (insurance jobs) ── */}
+        {insurance?.isInsurance && supplementFlags.length > 0 && (
+          <div style={{ marginBottom:14, borderRadius:12, overflow:'hidden', border:'1px solid #99F6E4', background:'#F0FDFA' }}>
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid #99F6E4', display:'flex', alignItems:'center', gap:8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <span style={{ fontSize:13, fontWeight:800, color:'#065F46' }}>Supplement items from your measurements</span>
+            </div>
+            <div style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+              {supplementFlags.map(f => (
+                <div key={f.key} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:13.5, fontWeight:700, color:'#0F172A' }}>{f.item}</div>
+                    <div style={{ fontSize:12, color:'#475569', marginTop:2, lineHeight:1.45 }}>
+                      {f.basis === 'code' ? 'Code-required' : 'Standard supplement'} — confirm it is line-itemed in the carrier estimate.
+                    </div>
+                    <span style={{ display:'inline-block', marginTop:5, fontSize:11, fontWeight:600, color:'#0F766E', background:'rgba(15,118,110,0.08)', padding:'2px 7px', borderRadius:5 }}>{f.code}</span>
+                  </div>
+                  <div style={{ fontSize:13, fontWeight:800, color:'#0F766E', whiteSpace:'nowrap' }}>{f.measured_lf} LF</div>
+                </div>
+              ))}
+              <div style={{ fontSize:11, color:'#64748B', lineHeight:1.45 }}>
+                Based on your traced lines. Informational — verify against the carrier scope; not legal or public-adjuster advice.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Error / success */}
         {existingEstimate && !success && (

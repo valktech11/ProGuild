@@ -1,6 +1,6 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
-import { SUPPLEMENT_DISCLAIMER, type SupplementResult, type SupplementItem } from '@/lib/fl/supplement'
+import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, type SupplementResult, type SupplementItem, type MeasuredLinearFootage } from '@/lib/fl/supplement'
 
 interface Props {
   leadId:        string
@@ -8,6 +8,7 @@ interface Props {
   propertyState?: string | null
   hasClaim:       boolean   // roofing_job_data.insurance_claim
   darkMode:       boolean
+  measuredLF?:    MeasuredLinearFootage | null  // synthesized linear_footage from the lead (human ProMeasure LF)
 }
 
 const TEAL = '#0F766E'
@@ -45,7 +46,7 @@ function ItemTable({ items, dk, accent }: { items: SupplementItem[]; dk: boolean
   )
 }
 
-export default function SupplementAssistant({ leadId, proId, propertyState, hasClaim, darkMode: dk }: Props) {
+export default function SupplementAssistant({ leadId, proId, propertyState, hasClaim, darkMode: dk, measuredLF }: Props) {
   const [scope,   setScope]   = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -55,6 +56,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   const [restoring, setRestoring] = useState(true)
 
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
+  const grounded = groundSupplementFlags(measuredLF)
 
   // Load the most recent session for this lead on mount
   useEffect(() => {
@@ -143,6 +145,27 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
       </div>
 
       <div style={{ padding: 18 }}>
+        {grounded.length > 0 && (
+          <div style={{ marginBottom: 14, borderRadius: 10, border: `1px solid ${TEAL}44`, background: TEAL + (dk ? '18' : '0C'), padding: '12px 14px' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>From your measurements</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {grounded.map(f => (
+                <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: text }}>{f.item}</div>
+                    <div style={{ fontSize: 11.5, color: sub, marginTop: 2, lineHeight: 1.4 }}>
+                      {f.basis === 'code' ? 'Code-required' : 'Standard supplement'} — confirm it is in the carrier scope.
+                    </div>
+                    <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 600, color: TEAL, background: TEAL + '14', padding: '2px 7px', borderRadius: 5 }}>{f.code}</span>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: text, whiteSpace: 'nowrap' }}>{f.measured_lf} LF</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: sub, marginTop: 8, lineHeight: 1.4 }}>Measured by ProMeasure — check the pasted scope below covers these.</div>
+          </div>
+        )}
+
         <textarea
           value={scope}
           onChange={e => { setScope(e.target.value); setError(null) }}

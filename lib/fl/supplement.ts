@@ -16,19 +16,79 @@ export interface FLLineItem {
 // FL-standard re-roof line items frequently missed/underpaid by carrier scopes.
 // Kept conservative and code-anchored — every entry cites a real FL basis.
 export const FL_SUPPLEMENT_CHECKLIST: FLLineItem[] = [
-  { key: 'drip_edge',    item: 'Drip edge',                            code: 'FBC §1507.2.8.3',        why: 'Required at eaves and rakes; must be a separate line item.' },
-  { key: 'ice_water',    item: 'Ice & water shield / underlayment upgrade', code: 'FBC §1507.1.1',     why: 'FL wind/WB requirements often exceed basic 15# felt; upgrade is recoverable.' },
-  { key: 'starter',      item: 'Starter strip (eaves + rakes)',         code: 'Mfr. spec / FBC §1507.2.7', why: 'Separate manufacturer-required material; often bundled or omitted.' },
+  { key: 'drip_edge',    item: 'Drip edge',                            code: 'FBC R905.2.8.5 / §1507.2.9.3', why: 'Required at eaves and rakes (gables) of shingle roofs; must be a separate line item.' },
+  { key: 'valley_lining',item: 'Valley lining (metal or approved equivalent)', code: 'FBC R905.2.8.2 / §1507.2.9.2', why: 'Valleys must be lined — open metal, two-ply mineral roll, or D1970 in-lieu; separate LF line, routinely omitted.' },
+  { key: 'ice_water',    item: 'Self-adhered underlayment / secondary water barrier', code: 'FBC R905.1.1 / §1507.1.1', why: 'FL adopts no ice barrier (R905.2.7 Reserved); the 8th-edition two-layer self-adhered / secondary water barrier requirement is the recoverable basis, not 15# felt.' },
+  { key: 'starter',      item: 'Starter strip (eaves + rakes)',         code: 'Mfr. installation instructions (required per R905.2.4)', why: 'Manufacturer-required material the code mandates be followed; often bundled or omitted.' },
   { key: 'ridge_cap',    item: 'Hip & ridge cap shingles',              code: 'Mfr. spec',              why: 'Distinct material billed per LF; often underpriced or rolled into shingles.' },
-  { key: 'underlayment', item: 'Synthetic / second-layer underlayment', code: 'FBC §1507.1.1',         why: 'Low-slope or HVHZ sections require more than standard 15# felt.' },
-  { key: 'pipe_boots',   item: 'Pipe boots / vent flashing (replace)',  code: 'FBC §1507.2.9',         why: 'Full re-roof requires replacement of all flashings, not reuse.' },
-  { key: 'step_flashing',item: 'Step / counter flashing',               code: 'FBC §1507.2.9',         why: 'Must be replaced with the roof system; reuse is non-compliant.' },
+  { key: 'underlayment', item: 'Synthetic / second-layer underlayment', code: 'FBC R905.1.1 / §1507.1.1', why: 'FL 8th-edition requires two layers of underlayment for asphalt shingles; low-slope/HVHZ sections require more than standard 15# felt.' },
+  { key: 'pipe_boots',   item: 'Pipe boots / vent flashing (replace)',  code: 'FBC R905.2.8 / §1507.2.9', why: 'Full re-roof requires replacement of all flashings, not reuse.' },
+  { key: 'step_flashing',item: 'Step / counter flashing',               code: 'FBC R905.2.8 / §1507.2.9', why: 'Must be replaced with the roof system; reuse is non-compliant.' },
   { key: 'permit',       item: 'Roofing permit fee',                    code: 'FL §553.79',             why: 'FL requires a permit for all re-roofs; fee is a recoverable hard cost.' },
   { key: 'disposal',     item: 'Tear-off disposal / dumpster',          code: 'Std. line item',         why: 'Debris removal is a standard separately recoverable line item.' },
   { key: 'oh_profit',    item: 'Overhead & profit (10/10)',             code: 'Industry standard',      why: 'General-contractor O&P is recoverable on complex multi-trade jobs.' },
   { key: 'code_upgrade', item: 'Code-upgrade / law & ordinance',        code: 'FL §627.7011',           why: 'Brings roof to current code; SB 4-D / 25%-rule items belong here.' },
   { key: 'detach_reset', item: 'Detach & reset (solar, satellite, gutters)', code: 'Std. line item',   why: 'Roof-mounted items must be removed and reinstalled; recoverable when present.' },
 ];
+
+// ── Deterministic LF → supplement-flag grounding ──────────────────────────────
+// Maps the lead's HUMAN-traced linear footage (ProMeasure) to the checklist items
+// it directly evidences, with the measured quantity attached. Detected-only: a pure
+// derivation, no persistence, no autonomous assertion on any carrier-facing surface —
+// it surfaces a code-anchored reminder for the ROOFER to confirm against the carrier
+// estimate. Eave/rake-driven items (drip edge, starter) are intentionally NOT grounded
+// here: the line tool does not yet trace eaves/rakes, so their LF is unknown.
+
+export type SupplementFlagBasis = 'code' | 'standard';
+
+export interface GroundedSupplementFlag {
+  key:         string;              // checklist key
+  item:        string;              // human label (from checklist)
+  code:        string;              // FL citation (from checklist)
+  why:         string;              // justification (from checklist)
+  measured_lf: number;              // human-traced LF backing this flag
+  basis:       SupplementFlagBasis; // 'code' = FBC mandate · 'standard' = mfr/standard supplement
+}
+
+export interface MeasuredLinearFootage {
+  ridge_ft?:  number | null;
+  hip_ft?:    number | null;
+  valley_ft?: number | null;
+}
+
+const checklistByKey = (key: string): FLLineItem | undefined =>
+  FL_SUPPLEMENT_CHECKLIST.find(c => c.key === key);
+
+/**
+ * Ground supplement flags from human-traced linear footage.
+ * @param lf       measured linear footage (ProMeasure manual lines); DSM/area is NOT used here
+ * @param floorLF  noise floor — LF below this is treated as a stray trace and ignored (default 3)
+ */
+export function groundSupplementFlags(
+  lf: MeasuredLinearFootage | null | undefined,
+  floorLF = 3,
+): GroundedSupplementFlag[] {
+  if (!lf) return [];
+  const num = (v: unknown): number => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  const valley   = num(lf.valley_ft);
+  const ridgeHip = num(lf.ridge_ft) + num(lf.hip_ft);
+
+  const flags: GroundedSupplementFlag[] = [];
+
+  if (valley >= floorLF) {
+    const c = checklistByKey('valley_lining');
+    if (c) flags.push({ key: c.key, item: c.item, code: c.code, why: c.why, measured_lf: Math.round(valley), basis: 'code' });
+  }
+  if (ridgeHip >= floorLF) {
+    const c = checklistByKey('ridge_cap');
+    if (c) flags.push({ key: c.key, item: c.item, code: c.code, why: c.why, measured_lf: Math.round(ridgeHip), basis: 'standard' });
+  }
+
+  return flags;
+}
 
 export interface SupplementInput {
   scopeText:        string;

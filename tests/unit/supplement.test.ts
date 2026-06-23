@@ -5,6 +5,7 @@ import {
   buildItemsPrompt,
   buildLetterPrompt,
   parseSupplementResponse,
+  groundSupplementFlags,
   FL_SUPPLEMENT_CHECKLIST,
 } from '@/lib/fl/supplement';
 
@@ -12,6 +13,7 @@ describe('FL_SUPPLEMENT_CHECKLIST', () => {
   it('covers the core FL re-roof items', () => {
     const keys = FL_SUPPLEMENT_CHECKLIST.map(c => c.key);
     expect(keys).toContain('drip_edge');
+    expect(keys).toContain('valley_lining');
     expect(keys).toContain('permit');
     expect(keys).toContain('oh_profit');
     expect(keys).toContain('code_upgrade');
@@ -21,6 +23,51 @@ describe('FL_SUPPLEMENT_CHECKLIST', () => {
       expect(c.code.length).toBeGreaterThan(0);
       expect(c.why.length).toBeGreaterThan(10);
     }
+  });
+  it('cites the correct FBC drip-edge section (R905.2.8.5, not the underlayment cluster)', () => {
+    const drip = FL_SUPPLEMENT_CHECKLIST.find(c => c.key === 'drip_edge')!;
+    expect(drip.code).toContain('R905.2.8.5');
+    expect(drip.code).not.toContain('1507.2.8.3');
+  });
+  it('valley lining cites R905.2.8.2', () => {
+    const v = FL_SUPPLEMENT_CHECKLIST.find(c => c.key === 'valley_lining')!;
+    expect(v.code).toContain('R905.2.8.2');
+  });
+  it('does not assert an ice barrier (Reserved in FL)', () => {
+    const iw = FL_SUPPLEMENT_CHECKLIST.find(c => c.key === 'ice_water')!;
+    expect(iw.item).not.toMatch(/ice\s*&?\s*water/i);
+    expect(iw.why).toMatch(/no ice barrier|Reserved/i);
+  });
+});
+
+describe('groundSupplementFlags', () => {
+  it('returns nothing for empty/absent LF', () => {
+    expect(groundSupplementFlags(null)).toHaveLength(0);
+    expect(groundSupplementFlags({})).toHaveLength(0);
+    expect(groundSupplementFlags({ ridge_ft: 0, hip_ft: 0, valley_ft: 0 })).toHaveLength(0);
+  });
+  it('flags valley lining (code basis) from valley LF, with measured quantity', () => {
+    const flags = groundSupplementFlags({ valley_ft: 35 });
+    const v = flags.find(f => f.key === 'valley_lining')!;
+    expect(v).toBeDefined();
+    expect(v.basis).toBe('code');
+    expect(v.measured_lf).toBe(35);
+    expect(v.code).toContain('R905.2.8.2');
+  });
+  it('flags ridge cap (standard basis) summing ridge + hip LF', () => {
+    const flags = groundSupplementFlags({ ridge_ft: 20, hip_ft: 15 });
+    const r = flags.find(f => f.key === 'ridge_cap')!;
+    expect(r.basis).toBe('standard');
+    expect(r.measured_lf).toBe(35);
+  });
+  it('ignores stray traces below the noise floor', () => {
+    expect(groundSupplementFlags({ valley_ft: 2 })).toHaveLength(0);
+    expect(groundSupplementFlags({ valley_ft: 2 }, 1)).toHaveLength(1);
+  });
+  it('coerces string/garbage LF safely', () => {
+    const flags = groundSupplementFlags({ valley_ft: '40' as unknown as number, ridge_ft: NaN as unknown as number });
+    expect(flags.find(f => f.key === 'valley_lining')?.measured_lf).toBe(40);
+    expect(flags.find(f => f.key === 'ridge_cap')).toBeUndefined();
   });
 });
 
