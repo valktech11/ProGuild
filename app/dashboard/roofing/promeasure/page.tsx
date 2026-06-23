@@ -1091,7 +1091,7 @@ function ProMeasureInner() {
                 {lines.length>0 && (
                   <div style={{marginTop:8,marginBottom:8,display:'flex',flexDirection:'column',gap:3,maxHeight:120,overflowY:'auto'}}>
                     {lines.map((ln,i)=>(
-                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,color:T.text,background:T.surface,borderRadius:5,padding:'3px 7px'}}>
+                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,color:T.text,background:T.cardBg,borderRadius:5,padding:'3px 7px'}}>
                         <span><span style={{display:'inline-block',width:8,height:8,borderRadius:2,background:LINE_COLOR[ln.type],marginRight:6}}></span>{ln.type} · {ln.lf} LF</span>
                         <button onClick={()=>removeLine(i)} title="Delete this line" style={{color:'#DC2626',background:'transparent',border:'none',cursor:'pointer',fontSize:15,fontWeight:700,padding:'0 4px',lineHeight:1}}>✕</button>
                       </div>
