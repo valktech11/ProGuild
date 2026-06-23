@@ -93,15 +93,15 @@ function ProMeasureInner() {
     if (!polyRef.current) return
     try { polyRef.current.setOptions({ fillOpacity: drawMode==='line' ? 0.05 : settings.fillOpacity }) } catch {}
   },[drawMode])
-  // While drawing, committed lines must NOT intercept clicks — otherwise placing a
-  // hip start on a ridge endpoint clicks the ridge (and its editable handles/dblclick
-  // fire) instead of dropping a new point that snaps to that endpoint. Make them
-  // inert during line mode; clickable+editable again when idle (for dblclick-remove
-  // and drag-to-straighten).
+  // While drawing, committed lines must not catch the drawing click (their dblclick
+  // -remove would fire and delete a line when you place a new point on its endpoint).
+  // Toggle ONLY clickable — keep editable:true always so committed lines can always
+  // be dragged/straightened. The new point still snaps to the ridge endpoint via
+  // snapLatLng regardless of the editable handle being there.
   useEffect(()=>{
     const drawing = drawMode==='line'
     savedLineRefs.current.forEach((p:any)=>{
-      try { p.setOptions({ clickable: !drawing, editable: !drawing }) } catch {}
+      try { p.setOptions({ clickable: !drawing }) } catch {}
     })
   },[drawMode, lines])
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
