@@ -145,20 +145,16 @@ function ProMeasureInner() {
     if (!mapReady || !mapRef.current) return
     if (draggingRef.current) { console.log('[PM] overlay effect SKIPPED (dragging)'); return }
     const map = mapRef.current
-    // Lines are ALWAYS editable so a just-drawn line can be dragged/removed
-    // immediately, without needing to click "Done" first. (The earlier
-    // editable=false-while-drawing made committed lines inert the entire drawing
-    // session — drag/dblclick only worked after Done, which read as "broken".)
-    // Convergence still works: clicking near a ridge endpoint to start a hip snaps
-    // the new point to it via snapLatLng; committed lines are clickable:false during
-    // draw so their dblclick-remove can't fire on that placement click.
-    const drawing = drawMode === 'line'
-    console.log('[PM] rebuild overlays:', lines.length, 'lines, drawMode=', drawMode)
+    // editable tied to mode: NON-editable while drawing (so a committed line's vertex
+    // handle can't grab the click when you start a hip on a ridge endpoint —
+    // convergence), editable when idle (drag-to-straighten + dblclick-remove).
+    const editable = drawMode !== 'line'
+    console.log('[PM] rebuild overlays:', lines.length, 'lines, editable=', editable, 'drawMode=', drawMode)
     savedLineRefs.current.forEach((p:any)=>p.setMap(null))
     savedLineRefs.current = lines.map(ln => {
       const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
       const poly = new window.google.maps.Polyline({
-        path, map, editable:true, clickable:!drawing, zIndex:20, ...lineStyle(ln.type),
+        path, map, editable, clickable:editable, zIndex:20, ...lineStyle(ln.type),
       })
       attachLineHandlers(poly)
       return poly
@@ -599,7 +595,12 @@ function ProMeasureInner() {
     // Only update state — the single source-of-truth effect creates the overlay
     // (non-editable while drawing). No direct polyline creation here.
     setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs,user_adjusted:true,source:'manual'}])
-    clearActiveLine() // ready for the next segment, still in line mode
+    clearActiveLine()
+    // Auto-exit to idle after each committed segment. The line becomes editable
+    // immediately (drag/remove without a separate Done), and re-entering for the
+    // next segment (tap Add Hip) flips all lines non-editable again so convergence
+    // works for that segment's start point. One tap per segment, both behaviors intact.
+    setDrawMode('polygon'); drawModeRef.current='polygon'
   }
 
   function redrawLine(map: any) {
@@ -1092,7 +1093,7 @@ function ProMeasureInner() {
               <div style={{marginTop:10,padding:'8px 10px',background:T.cardBg,borderRadius:8,border:`1px solid ${LINE_COLOR[lineType]}`}}>
                 <div style={{fontSize:11,color:T.text,marginBottom:6}}>
                   {lineType==='hip'
-                    ? 'Each hip = 2 clicks: peak, then corner. Lines save as you go — keep clicking pairs for more hips.'
+                    ? 'Each hip = 2 clicks: peak, then corner. It saves and you can drag/remove it right away. Tap Add Hip again for the next.'
                     : `Each ${lineType} = 2 clicks: one end, then the other. Saves automatically — draw as many as you need.`}
                   <div style={{marginTop:4,color:T.textSubtle}}>Clicks snap to nearby corners/peaks · drag to fine-tune · remove a line with its ✕ in the list below.</div>
                   {(() => { const n = lines.filter(l=>l.type===lineType).length
@@ -1348,8 +1349,8 @@ function ProMeasureInner() {
               {mapReady&&drawMode==='line'&&(
                 <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:'rgba(13,148,136,0.96)',backdropFilter:'blur(8px)',color:'#fff',padding:'11px 22px',borderRadius:isWide?24:16,fontSize:13,fontWeight:700,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.35)',boxShadow:'0 6px 24px rgba(13,148,136,0.4)'}}>
                   {lineType==='hip'
-                    ? '2 clicks per hip: peak → corner · saves automatically · snaps to corners/peaks · double-click a line to remove'
-                    : `2 clicks per ${lineType}: end → end · saves automatically · snaps to corners/peaks · double-click a line to remove`}
+                    ? '2 clicks: peak → corner · saves, then drag/remove it · tap Add Hip again for the next · snaps to corners/peaks'
+                    : `2 clicks: end → end · saves, then drag/remove it · snaps to corners/peaks`}
                 </div>
               )}
 
