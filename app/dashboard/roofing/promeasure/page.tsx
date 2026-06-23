@@ -72,7 +72,7 @@ function ProMeasureInner() {
   const mapRef     = useRef<any>(null)
   const polyRef    = useRef<any>(null)
   // Line tool (ridge/hip/valley) — separate from polygon markers/refs.
-  const [drawMode, setDrawMode] = useState<'polygon'|'line'>('polygon')
+  const [drawMode, setDrawMode] = useState<'polygon'|'line'|'idle'>('polygon')
   const [lineType, setLineType] = useState<'ridge'|'hip'|'valley'>('ridge')
   type LineRec = {type:'ridge'|'hip'|'valley';lf:number;latlngs:{lat:number;lng:number}[];user_adjusted:boolean;source:'manual'|'gemini_adjusted'}
   const [lines, setLines] = useState<LineRec[]>(savedDraw?.lines || [])
@@ -143,13 +143,12 @@ function ProMeasureInner() {
   // not tear down the polyline being dragged.
   useEffect(()=>{
     if (!mapReady || !mapRef.current) return
-    if (draggingRef.current) { console.log('[PM] overlay effect SKIPPED (dragging)'); return }
+    if (draggingRef.current) return // don't tear down a polyline mid-drag
     const map = mapRef.current
     // editable tied to mode: NON-editable while drawing (so a committed line's vertex
     // handle can't grab the click when you start a hip on a ridge endpoint —
     // convergence), editable when idle (drag-to-straighten + dblclick-remove).
     const editable = drawMode !== 'line'
-    console.log('[PM] rebuild overlays:', lines.length, 'lines, editable=', editable, 'drawMode=', drawMode)
     savedLineRefs.current.forEach((p:any)=>p.setMap(null))
     savedLineRefs.current = lines.map(ln => {
       const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
@@ -159,7 +158,6 @@ function ProMeasureInner() {
       attachLineHandlers(poly)
       return poly
     })
-    console.log('[PM] overlays rebuilt, refs=', savedLineRefs.current.length)
   },[mapReady, lines, drawMode])
 
   // When launched for a specific lead, the lead's full address is authoritative.
@@ -342,17 +340,15 @@ function ProMeasureInner() {
         })
         if (near) return
       }
-      if (drawModeRef.current === 'line') addLinePoint(e.latLng, map)
-      else {
-        // A region is already saved → block new polygon pins. The only way to redraw
-        // the polygon is Start over. Lines (ridge/hip/valley) are drawn in line mode.
-        if (regionsRef.current.length > 0) {
-          setMapHint('Region already saved — use Start over to redraw the roof, or Add Ridge/Hip/Valley to measure lines.')
-          setTimeout(()=>setMapHint(null), 3500)
-          return
-        }
-        addPin(e.latLng, map)
+      if (drawModeRef.current === 'line') { addLinePoint(e.latLng, map); return }
+      if (drawModeRef.current === 'idle') return // not drawing anything — ignore stray clicks
+      // polygon mode → place pins, unless a region is already saved (redraw needs Start over).
+      if (regionsRef.current.length > 0) {
+        setMapHint('Region already saved — use Start over to redraw the roof, or Add Ridge/Hip/Valley to measure lines.')
+        setTimeout(()=>setMapHint(null), 3500)
+        return
       }
+      addPin(e.latLng, map)
     })
 
     // Auto-geocode: if address was passed via URL and no saved center exists, fly to it
@@ -561,13 +557,12 @@ function ProMeasureInner() {
     try { (window as any).google.maps.event.clearListeners(path, 'set_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'insert_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'remove_at') } catch {}
-    path.addListener('set_at', () => { console.log('[PM] set_at (drag)'); markDragging(); syncEditedLine(poly) })
+    path.addListener('set_at', () => { markDragging(); syncEditedLine(poly) })
     path.addListener('insert_at', (i:number) => {
       if (path.getLength() > 2) path.removeAt(i)
       markDragging(); syncEditedLine(poly)
     })
     path.addListener('remove_at', () => {
-      console.log('[PM] remove_at, len=', path.getLength())
       if (path.getLength() < 2) {
         const idx = savedLineRefs.current.indexOf(poly)
         if (idx >= 0) removeLine(idx)
@@ -578,7 +573,6 @@ function ProMeasureInner() {
   function attachLineHandlers(poly:any) {
     // Double-click to remove (same gesture as pins).
     poly.addListener('dblclick', () => {
-      console.log('[PM] line dblclick fired')
       const idx = savedLineRefs.current.indexOf(poly)
       if (idx >= 0) removeLine(idx)
     })
@@ -600,7 +594,7 @@ function ProMeasureInner() {
     // immediately (drag/remove without a separate Done), and re-entering for the
     // next segment (tap Add Hip) flips all lines non-editable again so convergence
     // works for that segment's start point. One tap per segment, both behaviors intact.
-    setDrawMode('polygon'); drawModeRef.current='polygon'
+    setDrawMode('idle'); drawModeRef.current='idle'
   }
 
   function redrawLine(map: any) {
@@ -702,7 +696,7 @@ function ProMeasureInner() {
     }
   }
 
-  function cancelLine() { clearActiveLine(); setDrawMode('polygon') }
+  function cancelLine() { clearActiveLine(); setDrawMode('idle'); drawModeRef.current='idle' }
 
   function removeLine(i:number) {
     // Just update state — the single source-of-truth effect rebuilds the overlays.
@@ -716,7 +710,7 @@ function ProMeasureInner() {
     savedLineRefs.current.forEach((p:any)=>p.setMap(null)); savedLineRefs.current=[]
     clearActiveLine()
     setLines([])
-    setDrawMode('polygon'); drawModeRef.current='polygon' // exit line mode to idle; pin placement stays blocked while a region exists
+    setDrawMode('idle'); drawModeRef.current='idle' // idle, not polygon — pin placement stays off while a region exists
     // Persist lines cleared but keep regions, so a refresh doesn't resurrect lines.
     try {
       const prev = JSON.parse(sessionStorage.getItem('pg_pm_draw') || '{}')
@@ -785,6 +779,7 @@ function ProMeasureInner() {
     if(!area) return
     setRegions(r=>[...r,{name:`Region ${r.length+1}`,sqFt:area!,perimLF:perim?+perim.toFixed(0):undefined,color:settings.fillColor}])
     clearAll()
+    setDrawMode('idle'); drawModeRef.current='idle'
   }
 
   function geocodeAddress(addr: string) {
