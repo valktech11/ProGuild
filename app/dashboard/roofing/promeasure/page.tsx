@@ -477,44 +477,44 @@ function ProMeasureInner() {
       })
       const cLat=(minLat+maxLat)/2, cLng=(minLng+maxLng)/2
       const SIZE = 640
-      // Pick zoom so the polygon fills ~60% of the tile (padding around roof).
-      // Web Mercator world px at zoom z = 256*2^z. Solve largest zoom whose
-      // tile (SIZE px) still contains the polygon span * 1.6 padding.
       const latRad = cLat * Math.PI/180
-      const worldFrac = SIZE / 256 // tiles across the image at scale 1
+      const worldFrac = SIZE / 256
       const lngFracNeeded = ((maxLng-minLng)/360) * 1.6
       const latFracNeeded = ((maxLat-minLat)/360) * 1.6 / Math.cos(latRad)
       const fracNeeded = Math.max(lngFracNeeded, latFracNeeded, 1e-6)
       let zoom = Math.floor(Math.log2(worldFrac / fracNeeded))
       zoom = Math.max(18, Math.min(21, zoom))
 
+      // Web Mercator project/unproject for this capture tile (used both to
+      // normalize the polygon for Gemini AND to LERP results back).
+      const scale = Math.pow(2, zoom)
+      const worldPx = 256 * scale
+      const project = (la:number, ln:number) => {
+        const sinY = Math.sin(la*Math.PI/180)
+        return { x:(ln+180)/360*worldPx, y:(0.5 - Math.log((1+sinY)/(1-sinY))/(4*Math.PI))*worldPx }
+      }
+      const unproject = (x:number, y:number) => {
+        const ln = x/worldPx*360 - 180
+        const n = Math.PI - 2*Math.PI*y/worldPx
+        return { lat:180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n))), lng:ln }
+      }
+      const ctr = project(cLat, cLng)
+      const x0 = ctr.x - SIZE/2, y0 = ctr.y - SIZE/2
+      // Polygon pins → normalized [0..1] within the capture tile.
+      const polygon = pins.map((p:any)=>{
+        const w = project(p.lat(), p.lng())
+        return { x:(w.x - x0)/SIZE, y:(w.y - y0)/SIZE }
+      })
+
       const res = await fetch('/api/promeasure/suggest-lines', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ center: { lat: cLat, lng: cLng }, zoom, width: SIZE, height: SIZE }),
+        body: JSON.stringify({ center: { lat: cLat, lng: cLng }, zoom, width: SIZE, height: SIZE, polygon }),
       })
       if (!res.ok) { setSuggesting(false); return }
       const data = await res.json()
       if (!Array.isArray(data?.lines)) { setSuggesting(false); return }
 
-      // Compute the CAPTURE tile's geographic bounds from center+zoom+size.
-      // Web Mercator: worldPx = 256*2^zoom. Tile covers SIZE px each axis.
-      const scale = Math.pow(2, zoom)
-      const worldPx = 256 * scale
-      const project = (lat:number, lng:number) => {
-        const sinY = Math.sin(lat*Math.PI/180)
-        const x = (lng+180)/360 * worldPx
-        const y = (0.5 - Math.log((1+sinY)/(1-sinY))/(4*Math.PI)) * worldPx
-        return {x,y}
-      }
-      const unproject = (x:number, y:number) => {
-        const lng = x/worldPx*360 - 180
-        const n = Math.PI - 2*Math.PI*y/worldPx
-        const lat = 180/Math.PI * Math.atan(0.5*(Math.exp(n)-Math.exp(-n)))
-        return {lat,lng}
-      }
-      const c = project(cLat, cLng)
-      const x0 = c.x - SIZE/2, y0 = c.y - SIZE/2 // top-left of tile in world px
-      // normalized (0..1) → tile px → world px → latlng
+      // LERP results back using the SAME tile transform.
       const toLatLng = (nx:number, ny:number) => unproject(x0 + nx*SIZE, y0 + ny*SIZE)
 
       const sugg: SuggLine[] = data.lines.map((l:any, i:number) => ({

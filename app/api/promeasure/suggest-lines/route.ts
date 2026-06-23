@@ -38,34 +38,35 @@ async function fetchJpegBase64(url: string): Promise<string | null> {
   }
 }
 
-const PROMPT = `You are analyzing a top-down satellite image of a single residential roof, centered in frame.
-Identify the roof's RIDGE, HIP, and VALLEY lines — the creases between roof planes. Ignore eaves, rakes, gutters, trees, driveways, neighbouring roofs, and shadows.
+const PROMPT_HEAD = `You are analyzing a top-down satellite image of ONE residential roof, centered in frame.`
 
-Definitions:
-- ridge: horizontal peak line where two opposing slopes meet at the top
-- hip: diagonal line running down from a ridge/peak to an outside corner (convex)
-- valley: diagonal channel where two slopes meet in an inward (concave) trough
+function buildPrompt(polyNorm: Pt[] | null): string {
+  const boundary = polyNorm && polyNorm.length >= 3
+    ? `\nThe roof's OUTER OUTLINE (eaves/rakes) is already known — these normalized vertices bound the roof:\n${JSON.stringify(polyNorm.map(p => ({ x: +p.x.toFixed(3), y: +p.y.toFixed(3) })))}\nIdentify ridge/hip/valley lines that lie INSIDE this outline only. Do NOT draw lines outside it. The outline edges themselves are eaves/rakes — do not return those.`
+    : ''
+  return `${PROMPT_HEAD}${boundary}
+Identify only the INTERIOR crease lines:
+- ridge: horizontal peak where two opposing slopes meet (near the roof's interior, not the outline)
+- hip: diagonal from a ridge end OUT to an outside corner of the outline (convex)
+- valley: diagonal where two slopes meet inward (concave), typically at L/T wing junctions
 
-Method: First locate the central peak(s) and ridge(s). Hips radiate DOWN-AND-OUT from ridge ends to the building's outer corners. Valleys form where two roof sections meet inward (often at L/T-shaped wings). Lines should CONVERGE at shared intersection points — a hip and ridge meeting at a peak share that endpoint.
+Geometry rules:
+- Every hip ends AT an outline corner and starts at a ridge end or peak.
+- Ridges run between two interior peak points.
+- Lines sharing a peak MUST share that exact endpoint (convergence).
+- Stay strictly inside the given outline.
 
-Use normalised coordinates: (0,0)=top-left, (1,1)=bottom-right of the image.
+Use normalised coords (0,0)=top-left, (1,1)=bottom-right.
+Respond ONLY with valid JSON, no markdown/prose:
+{"lines":[{"type":"ridge","x1":0.40,"y1":0.45,"x2":0.55,"y2":0.45,"confidence":0.9}]}
+Rules: only ridge/hip/valley; endpoints 3 decimals; confidence 0..1; omit unclear lines.`
+}
 
-Respond ONLY with valid JSON — no markdown, no code fences, no prose:
-{"lines":[{"type":"ridge","x1":0.40,"y1":0.45,"x2":0.55,"y2":0.45,"confidence":0.9},{"type":"hip","x1":0.55,"y1":0.45,"x2":0.70,"y2":0.25,"confidence":0.85}]}
-
-Rules:
-- Only ridge, hip, valley. No eave/rake/flat.
-- Endpoints to 3 decimals. confidence 0..1.
-- Lines sharing a peak/intersection must share that exact endpoint (convergence).
-- Omit lines you cannot see clearly rather than guessing.`
-
-async function callGemini(base64Jpeg: string): Promise<SuggestedLine[] | null> {
+async function callGemini(base64Jpeg: string, polyNorm: Pt[] | null): Promise<SuggestedLine[] | null> {
   if (!GEMINI_KEY || !base64Jpeg) return null
   const body = JSON.stringify({
-    contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: base64Jpeg } }] }],
+    contents: [{ parts: [{ text: buildPrompt(polyNorm) }, { inline_data: { mime_type: 'image/jpeg', data: base64Jpeg } }] }],
     generationConfig: {
-      // thinkingBudget consumes the output allowance — give response headroom
-      // above the 1024 thinking budget so the JSON is never truncated.
       maxOutputTokens: 4096,
       temperature: 0.1,
       thinkingConfig: { thinkingBudget: 1024 },
@@ -130,7 +131,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!GEMINI_KEY) return NextResponse.json({ error: 'Gemini not configured' }, { status: 503 })
   if (!MAPS_KEY)   return NextResponse.json({ error: 'Maps not configured' }, { status: 503 })
 
-  let body: { center?: { lat?: number; lng?: number }; zoom?: number; width?: number; height?: number }
+  let body: { center?: { lat?: number; lng?: number }; zoom?: number; width?: number; height?: number; polygon?: Pt[] }
   try { body = await req.json() } catch { return NextResponse.json({ error: 'invalid body' }, { status: 400 }) }
 
   const lat = Number(body.center?.lat), lng = Number(body.center?.lng)
@@ -139,18 +140,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'center{lat,lng}+zoom(18..22) required' }, { status: 400 })
   }
 
-  // Match capture dims to the live map container (clamped) so normalized coords
-  // map 1:1 back onto the map viewport. scale=1 — no Retina doubling.
   const w = clamp(Math.round(Number(body.width) || MAX_DIM), 200, MAX_DIM)
   const h = clamp(Math.round(Number(body.height) || MAX_DIM), 200, MAX_DIM)
 
-  const url = `${MAPS_STATIC}?center=${lat},${lng}&zoom=${zoom}&size=${w}x${h}&scale=1&maptype=satellite&format=jpg&key=${MAPS_KEY}`
+  // Normalized polygon (client maps its drawn pins to the same capture tile).
+  const polyNorm: Pt[] | null = Array.isArray(body.polygon)
+    ? body.polygon.map(p => ({ x: clamp(Number(p.x), 0, 1), y: clamp(Number(p.y), 0, 1) })).filter(p => !isNaN(p.x) && !isNaN(p.y))
+    : null
+
+  // scale=2 → 2x pixel density (sharper creases for Gemini; geometry unchanged).
+  const url = `${MAPS_STATIC}?center=${lat},${lng}&zoom=${zoom}&size=${w}x${h}&scale=2&maptype=satellite&format=jpg&key=${MAPS_KEY}`
   const base64 = await fetchJpegBase64(url)
   if (!base64) return NextResponse.json({ error: 'capture failed' }, { status: 502 })
 
-  const lines = await callGemini(base64)
+  const lines = await callGemini(base64, polyNorm)
   if (lines === null) return NextResponse.json({ error: 'suggestion failed' }, { status: 502 })
 
-  // Echo capture dims so the client LERPs against the exact aspect it requested.
   return NextResponse.json({ lines, capture: { width: w, height: h, zoom } })
 }
