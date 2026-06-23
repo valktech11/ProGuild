@@ -367,6 +367,7 @@ function ProMeasureInner() {
     if (pts.length < 2) { setArea(null); setPerim(null); return }
     polyRef.current = new window.google.maps.Polygon({
       paths:pts, map,
+      clickable:false, // never intercept map clicks — line points must reach the map handler
       strokeColor:settings.borderColor, strokeOpacity:0.95, strokeWeight:settings.borderWidth,
       fillColor:settings.fillColor, fillOpacity:settings.fillOpacity,
     })
