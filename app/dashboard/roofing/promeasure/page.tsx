@@ -458,6 +458,46 @@ function ProMeasureInner() {
   }
 
   // Commit the current 2-point segment to lines[] as a solid, removable polyline.
+  // Dashed stroke for hips (distinguishes from solid red ridge — orange/red read
+  // too similar otherwise). Ridge/valley stay solid.
+  function lineStyle(type:string) {
+    if (type === 'hip') return {
+      strokeOpacity: 0,
+      icons: [{ icon: { path:'M 0,-1 0,1', strokeColor:LINE_COLOR[type], strokeOpacity:1, strokeWeight:4, scale:3 }, offset:'0', repeat:'12px' }],
+    }
+    return { strokeColor: LINE_COLOR[type], strokeOpacity: 0.9, strokeWeight: 4 }
+  }
+
+  // Sync a committed editable polyline's geometry back into lines[] after a vertex
+  // drag (straighten/reposition without redrawing).
+  function syncEditedLine(poly:any) {
+    const idx = savedLineRefs.current.indexOf(poly)
+    if (idx < 0) return
+    const path = poly.getPath()
+    if (path.getLength() < 2) return
+    const a = path.getAt(0), b = path.getAt(1)
+    const lf = window.google.maps.geometry.spherical.computeDistanceBetween(a, b) * 3.28084
+    setLines(ls => ls.map((ln,i)=> i===idx
+      ? { ...ln, lf:+lf.toFixed(0), latlngs:[{lat:a.lat(),lng:a.lng()},{lat:b.lat(),lng:b.lng()}] }
+      : ln))
+  }
+
+  function attachLineHandlers(poly:any) {
+    // Double-click to remove (same gesture as pins).
+    poly.addListener('dblclick', () => {
+      const idx = savedLineRefs.current.indexOf(poly)
+      if (idx >= 0) removeLine(idx)
+    })
+    // Editable polyline: dragging either endpoint updates geometry + LF.
+    poly.getPath().addListener('set_at', () => syncEditedLine(poly))
+    // Prevent the editable midpoint ghost from turning a 2-point segment into 3 —
+    // remove any inserted vertex, keeping lines straight 2-point segments.
+    poly.getPath().addListener('insert_at', (i:number) => {
+      if (poly.getPath().getLength() > 2) poly.getPath().removeAt(i)
+      syncEditedLine(poly)
+    })
+  }
+
   function commitSegment(map: any) {
     const pts = lineMarkers.current.map(m=>m.getPosition()).filter(Boolean)
     if (pts.length < 2) return
@@ -466,14 +506,9 @@ function ProMeasureInner() {
     if (lf <= 0) { clearActiveLine(); return }
     const latlngs = [pts[0], pts[1]].map((p:any)=>({lat:p.lat(),lng:p.lng()}))
     const poly = new window.google.maps.Polyline({
-      path:[pts[0], pts[1]], map, strokeColor:LINE_COLOR[type], strokeOpacity:0.9, strokeWeight:4,
-      clickable:true, zIndex:20,
+      path:[pts[0], pts[1]], map, editable:true, clickable:true, zIndex:20, ...lineStyle(type),
     })
-    // Double-click a committed line to remove it (same gesture as pins).
-    poly.addListener('dblclick', () => {
-      const idx = savedLineRefs.current.indexOf(poly)
-      if (idx >= 0) removeLine(idx)
-    })
+    attachLineHandlers(poly)
     savedLineRefs.current.push(poly)
     setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs,user_adjusted:true,source:'manual'}])
     clearActiveLine() // ready for the next segment, still in line mode
@@ -484,7 +519,7 @@ function ProMeasureInner() {
     if (linePolyRef.current) { linePolyRef.current.setMap(null); linePolyRef.current=null }
     if (pts.length < 2) return
     linePolyRef.current = new window.google.maps.Polyline({
-      path:pts, map, strokeColor:LINE_COLOR[lineTypeRef.current], strokeOpacity:0.95, strokeWeight:4,
+      path:pts, map, ...lineStyle(lineTypeRef.current),
     })
   }
 
@@ -743,11 +778,8 @@ function ProMeasureInner() {
     for (const ln of lines) {
       const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
       const poly = new window.google.maps.Polyline({ path, map:mapRef.current,
-        strokeColor:LINE_COLOR[ln.type], strokeOpacity:0.9, strokeWeight:4, clickable:true, zIndex:20 })
-      poly.addListener('dblclick', () => {
-        const idx = savedLineRefs.current.indexOf(poly)
-        if (idx >= 0) removeLine(idx)
-      })
+        editable:true, clickable:true, zIndex:20, ...lineStyle(ln.type) })
+      attachLineHandlers(poly)
       savedLineRefs.current.push(poly)
     }
   }, [mapReady, lines])
