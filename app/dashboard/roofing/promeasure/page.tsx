@@ -75,6 +75,11 @@ function ProMeasureInner() {
   const [lineType, setLineType] = useState<'ridge'|'hip'|'valley'>('ridge')
   type LineRec = {type:'ridge'|'hip'|'valley';lf:number;latlngs:{lat:number;lng:number}[];user_adjusted:boolean;source:'manual'|'gemini_adjusted'}
   const [lines, setLines] = useState<LineRec[]>(savedDraw?.lines || [])
+  // Gemini-suggested guide lines awaiting human confirmation (Slice B/C).
+  // Separate from committed `lines` — these are proposals, not measurements.
+  type SuggLine = { id:string; type:'ridge'|'hip'|'valley'; latlngs:{lat:number;lng:number}[]; confidence:number }
+  const [suggestedLines, setSuggestedLines] = useState<SuggLine[]>([])
+  const [suggesting, setSuggesting] = useState(false)
   const lineMarkers = useRef<any[]>([])   // active in-progress line vertices
   const linePolyRef = useRef<any>(null)   // active in-progress polyline
   const savedLineRefs = useRef<any[]>([]) // committed polylines on map
@@ -451,6 +456,49 @@ function ProMeasureInner() {
     if(linePolyRef.current){linePolyRef.current.setMap(null);linePolyRef.current=null}
   }
 
+  // ── Gemini line suggestion (Slice B) ──────────────────────────────────────
+  // Capture current viewport center/zoom/dims, send to /api/promeasure/suggest-lines,
+  // LERP normalized coords back to latlng across live getBounds(). Proposals land
+  // in suggestedLines[] (rendered + Accept/Reject in Slice C).
+  async function suggestRoofLines() {
+    const map = mapRef.current
+    if (!map || suggesting) return
+    setSuggesting(true)
+    try {
+      const center = map.getCenter()
+      const zoom = Math.round(map.getZoom())
+      const div = mapDivRef.current
+      const width = div?.clientWidth || 640
+      const height = div?.clientHeight || 640
+      const res = await fetch('/api/promeasure/suggest-lines', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ center: { lat: center.lat(), lng: center.lng() }, zoom, width, height }),
+      })
+      if (!res.ok) { setSuggesting(false); return }
+      const data = await res.json()
+      const bounds = map.getBounds()
+      if (!bounds || !Array.isArray(data?.lines)) { setSuggesting(false); return }
+      const ne = bounds.getNorthEast(), sw = bounds.getSouthWest()
+      const latSpan = ne.lat() - sw.lat(), lngSpan = ne.lng() - sw.lng()
+      // Normalized (0,0=top-left) → latlng. y inverts (top = north = max lat).
+      const toLatLng = (x:number, y:number) => ({
+        lat: ne.lat() - y * latSpan,
+        lng: sw.lng() + x * lngSpan,
+      })
+      const sugg: SuggLine[] = data.lines.map((l:any, i:number) => ({
+        id: `g${Date.now()}_${i}`,
+        type: l.type,
+        latlngs: [toLatLng(l.x1, l.y1), toLatLng(l.x2, l.y2)],
+        confidence: Number(l.confidence) || 0.5,
+      }))
+      setSuggestedLines(sugg)
+    } catch {
+      // silent — button just re-enables
+    } finally {
+      setSuggesting(false)
+    }
+  }
+
   function saveLine() {
     const lf = lineLF()
     if (lf <= 0) { setDrawMode('polygon'); clearActiveLine(); return }
@@ -477,6 +525,30 @@ function ProMeasureInner() {
     savedLineRefs.current.splice(i,1)
     setLines(l=>l.filter((_,idx)=>idx!==i))
   }
+
+  // Render suggested guides as dashed polylines (Slice C adds drag + Accept/Reject).
+  const suggRefs = useRef<any[]>([])
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !(window as any).google?.maps) return
+    // Clear prior guide overlays
+    suggRefs.current.forEach(p => p.setMap(null)); suggRefs.current = []
+    const DASH = {
+      path: 'M 0,-1 0,1',
+      strokeOpacity: 1, strokeWeight: 3, scale: 3,
+    }
+    suggestedLines.forEach(s => {
+      const poly = new (window as any).google.maps.Polyline({
+        path: s.latlngs.map(ll => new (window as any).google.maps.LatLng(ll.lat, ll.lng)),
+        map,
+        strokeOpacity: 0, // dashed via icons only
+        icons: [{ icon: { ...DASH, strokeColor: LINE_COLOR[s.type] }, offset: '0', repeat: '14px' }],
+        zIndex: 50,
+      })
+      suggRefs.current.push(poly)
+    })
+    return () => { suggRefs.current.forEach(p => p.setMap(null)); suggRefs.current = [] }
+  }, [suggestedLines])
 
   function startLine(t:'ridge'|'hip'|'valley') {
     clearActiveLine()
@@ -763,6 +835,21 @@ function ProMeasureInner() {
         return (
           <div style={{background:T.panel,borderRadius:12,border:`1px solid ${T.divider}`,padding:'12px 14px',marginTop:4}}>
             {head('Materials')}
+            {/* Gemini line-suggestion trigger (Slice B/C) */}
+            <button onClick={suggestRoofLines} disabled={suggesting||drawMode==='line'}
+              style={{width:'100%',marginBottom:10,padding:'8px',borderRadius:8,border:`1px solid ${'#0F766E'}`,
+                background:suggesting?'transparent':('#0F766E'),color:suggesting?T.textMuted:'#fff',
+                fontSize:12,fontWeight:700,cursor:(suggesting||drawMode==='line')?'default':'pointer',
+                opacity:(drawMode==='line')?0.4:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+              {suggesting
+                ? 'Finding roof lines…'
+                : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg> Suggest roof lines</>}
+            </button>
+            {suggestedLines.length>0 && (
+              <div style={{marginBottom:10,padding:'8px 10px',borderRadius:8,background:T.cardBg,border:`1px solid ${T.cardBorder}`,fontSize:11,color:T.textMuted}}>
+                {suggestedLines.length} suggested line{suggestedLines.length>1?'s':''} shown as dashed guides — drag to the true crease, then Accept (coming next).
+              </div>
+            )}
             {row('Roof Area', `${fmtSq(totalSqFt/100)} sq`)}
             {row('Adjusted', `${fmtSq(grandAdj)} sq`, '(pitch+waste)')}
             {row('Underlayment', `${underlayQ} sq`)}
