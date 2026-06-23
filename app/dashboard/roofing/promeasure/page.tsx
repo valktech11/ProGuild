@@ -457,34 +457,66 @@ function ProMeasureInner() {
   }
 
   // ── Gemini line suggestion (Slice B) ──────────────────────────────────────
-  // Capture current viewport center/zoom/dims, send to /api/promeasure/suggest-lines,
-  // LERP normalized coords back to latlng across live getBounds(). Proposals land
-  // in suggestedLines[] (rendered + Accept/Reject in Slice C).
+  // Capture a square satellite tile CENTERED ON THE DRAWN POLYGON (not the live
+  // viewport — they differ), send to Gemini, then LERP normalized coords back
+  // using the CAPTURE's own geographic bounds (computed from center+zoom+size via
+  // Web Mercator) — NOT the live map getBounds(), which frames a different area.
   async function suggestRoofLines() {
     const map = mapRef.current
     if (!map || suggesting) return
+    const pins = markers.current.map(m=>m.getPosition()).filter(Boolean)
+    if (pins.length < 3) { return } // need a drawn polygon to target the roof
     setSuggesting(true)
     try {
-      const center = map.getCenter()
-      const zoom = Math.round(map.getZoom())
-      const div = mapDivRef.current
-      const width = div?.clientWidth || 640
-      const height = div?.clientHeight || 640
+      // Polygon centroid + span → capture center and a zoom that frames it.
+      let minLat=90,maxLat=-90,minLng=180,maxLng=-180
+      pins.forEach((p:any)=>{
+        const la=p.lat(), ln=p.lng()
+        minLat=Math.min(minLat,la); maxLat=Math.max(maxLat,la)
+        minLng=Math.min(minLng,ln); maxLng=Math.max(maxLng,ln)
+      })
+      const cLat=(minLat+maxLat)/2, cLng=(minLng+maxLng)/2
+      const SIZE = 640
+      // Pick zoom so the polygon fills ~60% of the tile (padding around roof).
+      // Web Mercator world px at zoom z = 256*2^z. Solve largest zoom whose
+      // tile (SIZE px) still contains the polygon span * 1.6 padding.
+      const latRad = cLat * Math.PI/180
+      const worldFrac = SIZE / 256 // tiles across the image at scale 1
+      const lngFracNeeded = ((maxLng-minLng)/360) * 1.6
+      const latFracNeeded = ((maxLat-minLat)/360) * 1.6 / Math.cos(latRad)
+      const fracNeeded = Math.max(lngFracNeeded, latFracNeeded, 1e-6)
+      let zoom = Math.floor(Math.log2(worldFrac / fracNeeded))
+      zoom = Math.max(18, Math.min(21, zoom))
+
       const res = await fetch('/api/promeasure/suggest-lines', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ center: { lat: center.lat(), lng: center.lng() }, zoom, width, height }),
+        body: JSON.stringify({ center: { lat: cLat, lng: cLng }, zoom, width: SIZE, height: SIZE }),
       })
       if (!res.ok) { setSuggesting(false); return }
       const data = await res.json()
-      const bounds = map.getBounds()
-      if (!bounds || !Array.isArray(data?.lines)) { setSuggesting(false); return }
-      const ne = bounds.getNorthEast(), sw = bounds.getSouthWest()
-      const latSpan = ne.lat() - sw.lat(), lngSpan = ne.lng() - sw.lng()
-      // Normalized (0,0=top-left) → latlng. y inverts (top = north = max lat).
-      const toLatLng = (x:number, y:number) => ({
-        lat: ne.lat() - y * latSpan,
-        lng: sw.lng() + x * lngSpan,
-      })
+      if (!Array.isArray(data?.lines)) { setSuggesting(false); return }
+
+      // Compute the CAPTURE tile's geographic bounds from center+zoom+size.
+      // Web Mercator: worldPx = 256*2^zoom. Tile covers SIZE px each axis.
+      const scale = Math.pow(2, zoom)
+      const worldPx = 256 * scale
+      const project = (lat:number, lng:number) => {
+        const sinY = Math.sin(lat*Math.PI/180)
+        const x = (lng+180)/360 * worldPx
+        const y = (0.5 - Math.log((1+sinY)/(1-sinY))/(4*Math.PI)) * worldPx
+        return {x,y}
+      }
+      const unproject = (x:number, y:number) => {
+        const lng = x/worldPx*360 - 180
+        const n = Math.PI - 2*Math.PI*y/worldPx
+        const lat = 180/Math.PI * Math.atan(0.5*(Math.exp(n)-Math.exp(-n)))
+        return {lat,lng}
+      }
+      const c = project(cLat, cLng)
+      const x0 = c.x - SIZE/2, y0 = c.y - SIZE/2 // top-left of tile in world px
+      // normalized (0..1) → tile px → world px → latlng
+      const toLatLng = (nx:number, ny:number) => unproject(x0 + nx*SIZE, y0 + ny*SIZE)
+
       const sugg: SuggLine[] = data.lines.map((l:any, i:number) => ({
         id: `g${Date.now()}_${i}`,
         type: l.type,
@@ -492,8 +524,10 @@ function ProMeasureInner() {
         confidence: Number(l.confidence) || 0.5,
       }))
       setSuggestedLines(sugg)
+      // Move the live map to match the capture tile so guides sit under the view.
+      try { map.setCenter({lat:cLat,lng:cLng}); map.setZoom(zoom) } catch {}
     } catch {
-      // silent — button just re-enables
+      // silent — button re-enables
     } finally {
       setSuggesting(false)
     }
@@ -835,16 +869,19 @@ function ProMeasureInner() {
         return (
           <div style={{background:T.panel,borderRadius:12,border:`1px solid ${T.divider}`,padding:'12px 14px',marginTop:4}}>
             {head('Materials')}
-            {/* Gemini line-suggestion trigger (Slice B/C) */}
-            <button onClick={suggestRoofLines} disabled={suggesting||drawMode==='line'}
+            {/* Gemini line-suggestion trigger (Slice B/C) — needs a drawn polygon to target the roof */}
+            <button onClick={suggestRoofLines} disabled={suggesting||drawMode==='line'||pins<3}
               style={{width:'100%',marginBottom:10,padding:'8px',borderRadius:8,border:`1px solid ${'#0F766E'}`,
-                background:suggesting?'transparent':('#0F766E'),color:suggesting?T.textMuted:'#fff',
-                fontSize:12,fontWeight:700,cursor:(suggesting||drawMode==='line')?'default':'pointer',
-                opacity:(drawMode==='line')?0.4:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                background:(suggesting||pins<3)?'transparent':('#0F766E'),color:(suggesting||pins<3)?T.textMuted:'#fff',
+                fontSize:12,fontWeight:700,cursor:(suggesting||drawMode==='line'||pins<3)?'default':'pointer',
+                opacity:(drawMode==='line'||pins<3)?0.4:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
               {suggesting
                 ? 'Finding roof lines…'
                 : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg> Suggest roof lines</>}
             </button>
+            {pins<3 && suggestedLines.length===0 && (
+              <div style={{marginBottom:10,fontSize:10.5,color:T.textSubtle}}>Draw the roof outline first — suggestions target the drawn roof.</div>
+            )}
             {suggestedLines.length>0 && (
               <div style={{marginBottom:10,padding:'8px 10px',borderRadius:8,background:T.cardBg,border:`1px solid ${T.cardBorder}`,fontSize:11,color:T.textMuted}}>
                 {suggestedLines.length} suggested line{suggestedLines.length>1?'s':''} shown as dashed guides — drag to the true crease, then Accept (coming next).
