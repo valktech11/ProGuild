@@ -257,6 +257,7 @@ function ProMeasureInner() {
       fullscreenControl:true, fullscreenControlOptions:{ position: 7 },
       zoomControl:true, zoomControlOptions:{ position: 7 },
       gestureHandling:'greedy',
+      disableDoubleClickZoom:true, // dblclick reserved for removing pins/lines
     })
     mapRef.current = map
     setMapReady(true)
@@ -443,12 +444,39 @@ function ProMeasureInner() {
   }
 
   function addLinePoint(latLng: any, map: any) {
-    // Simple per-click point with snapping — works for ridge, hip, valley alike.
-    // No hub: draw a hip as corner→peak→corner, or each hip separately; snapping
-    // to the polygon corners + shared peak makes them converge precisely.
+    // 2-click segment model: 1st click = start, 2nd click = end → auto-commit one
+    // independent segment (matches real roofs = many separate ridge/hip/valley
+    // segments). Stay in the same type to draw the next. Snapping makes endpoints
+    // land exactly on corners / ridge-ends.
     const snapped = snapLatLng(latLng, map)
     lineMarkers.current.push(placeMarker(snapped, map))
-    redrawLine(map)
+    if (lineMarkers.current.length >= 2) {
+      commitSegment(map)
+    } else {
+      redrawLine(map) // shows the single start dot
+    }
+  }
+
+  // Commit the current 2-point segment to lines[] as a solid, removable polyline.
+  function commitSegment(map: any) {
+    const pts = lineMarkers.current.map(m=>m.getPosition()).filter(Boolean)
+    if (pts.length < 2) return
+    const type = lineTypeRef.current
+    const lf = window.google.maps.geometry.spherical.computeDistanceBetween(pts[0], pts[1]) * 3.28084
+    if (lf <= 0) { clearActiveLine(); return }
+    const latlngs = [pts[0], pts[1]].map((p:any)=>({lat:p.lat(),lng:p.lng()}))
+    const poly = new window.google.maps.Polyline({
+      path:[pts[0], pts[1]], map, strokeColor:LINE_COLOR[type], strokeOpacity:0.9, strokeWeight:4,
+      clickable:true, zIndex:20,
+    })
+    // Double-click a committed line to remove it (same gesture as pins).
+    poly.addListener('dblclick', () => {
+      const idx = savedLineRefs.current.indexOf(poly)
+      if (idx >= 0) removeLine(idx)
+    })
+    savedLineRefs.current.push(poly)
+    setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs,user_adjusted:true,source:'manual'}])
+    clearActiveLine() // ready for the next segment, still in line mode
   }
 
   function redrawLine(map: any) {
@@ -548,24 +576,6 @@ function ProMeasureInner() {
     } finally {
       setSuggesting(false)
     }
-  }
-
-  function saveLine() {
-    const lf = lineLF()
-    if (lf <= 0) { setDrawMode('polygon'); clearActiveLine(); return }
-    const pts = lineMarkers.current.map(m=>m.getPosition())
-    const latlngs = pts.map((p:any)=>({lat:p.lat(),lng:p.lng()}))
-    const type = lineTypeRef.current
-    // Render committed polyline (stays on map)
-    if (mapRef.current) {
-      const poly = new window.google.maps.Polyline({
-        path:pts, map:mapRef.current, strokeColor:LINE_COLOR[type], strokeOpacity:0.9, strokeWeight:3.5,
-      })
-      savedLineRefs.current.push(poly)
-    }
-    setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs,user_adjusted:true,source:'manual'}])
-    clearActiveLine()
-    setDrawMode('polygon')
   }
 
   function cancelLine() { clearActiveLine(); setDrawMode('polygon') }
@@ -733,7 +743,11 @@ function ProMeasureInner() {
     for (const ln of lines) {
       const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
       const poly = new window.google.maps.Polyline({ path, map:mapRef.current,
-        strokeColor:LINE_COLOR[ln.type], strokeOpacity:0.9, strokeWeight:3.5 })
+        strokeColor:LINE_COLOR[ln.type], strokeOpacity:0.9, strokeWeight:4, clickable:true, zIndex:20 })
+      poly.addListener('dblclick', () => {
+        const idx = savedLineRefs.current.indexOf(poly)
+        if (idx >= 0) removeLine(idx)
+      })
       savedLineRefs.current.push(poly)
     }
   }, [mapReady, lines])
@@ -876,7 +890,11 @@ function ProMeasureInner() {
           <div key={label} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:`1px solid ${T.divider}`}}>
             <span style={{fontSize:12,color:T.textMuted}}>{label}</span>
             {ft>0
-              ? <span style={{fontSize:13,fontWeight:700,color:T.text}}>{ft} LF</span>
+              ? <span style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:13,fontWeight:700,color:T.text}}>{ft} LF</span>
+                  <button onClick={()=>startLine(t)} disabled={drawMode==='line'}
+                    style={{fontSize:11,fontWeight:600,color:LINE_COLOR[t],background:'transparent',border:`1px solid ${LINE_COLOR[t]}`,borderRadius:6,padding:'2px 8px',cursor:drawMode==='line'?'default':'pointer',opacity:drawMode==='line'?0.4:1}}>+ more</button>
+                </span>
               : <button onClick={()=>startLine(t)} disabled={drawMode==='line'}
                   style={{fontSize:11,fontWeight:600,color:LINE_COLOR[t],background:'transparent',border:`1px solid ${LINE_COLOR[t]}`,borderRadius:6,padding:'2px 8px',cursor:drawMode==='line'?'default':'pointer',opacity:drawMode==='line'?0.4:1}}>
                   + Add {label.split(' ')[0]}
@@ -934,15 +952,13 @@ function ProMeasureInner() {
               <div style={{marginTop:10,padding:'8px 10px',background:T.cardBg,borderRadius:8,border:`1px solid ${LINE_COLOR[lineType]}`}}>
                 <div style={{fontSize:11,color:T.text,marginBottom:6}}>
                   {lineType==='hip'
-                    ? 'Click the peak, then a corner — repeat for each hip. Click near roof corners/peaks to snap exactly.'
-                    : lineType==='valley'
-                      ? 'Click each end of the valley. Click near corners/peaks to snap exactly.'
-                      : 'Click each end of the ridge. Click near corners/peaks to snap exactly.'}
+                    ? 'Each hip = 2 clicks: peak, then corner. Lines save as you go — keep clicking pairs for more hips.'
+                    : `Each ${lineType} = 2 clicks: one end, then the other. Saves automatically — draw as many as you need.`}
+                  <div style={{marginTop:4,color:T.textSubtle}}>Clicks snap to nearby corners/peaks · drag to fine-tune · double-click a line to remove it.</div>
+                  {(() => { const n = lines.filter(l=>l.type===lineType).length
+                    return n>0 ? <div style={{marginTop:4,fontWeight:700,color:LINE_COLOR[lineType]}}>{n} {lineType}{n>1?'s':''} drawn</div> : null })()}
                 </div>
-                <div style={{display:'flex',gap:6}}>
-                  <button onClick={saveLine} style={{flex:1,fontSize:12,fontWeight:700,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:6,padding:'6px',cursor:'pointer'}}>Save {lineType}</button>
-                  <button onClick={cancelLine} style={{fontSize:12,fontWeight:600,color:T.textMuted,background:'transparent',border:`1px solid ${T.cardBorder}`,borderRadius:6,padding:'6px 12px',cursor:'pointer'}}>Cancel</button>
-                </div>
+                <button onClick={cancelLine} style={{width:'100%',fontSize:12,fontWeight:700,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:6,padding:'7px',cursor:'pointer'}}>Done with {lineType}s</button>
               </div>
             )}
             {(perimLF>0 && perimComplete) && (
@@ -1187,8 +1203,8 @@ function ProMeasureInner() {
               {mapReady&&drawMode==='line'&&(
                 <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:dk?'rgba(15,20,35,0.92)':'rgba(17,24,39,0.88)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 20px',borderRadius:isWide?24:16,fontSize:13,fontWeight:600,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:`1px solid ${LINE_COLOR[lineType]}`,boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
                   {lineType==='hip'
-                    ? 'Click a peak, then a corner · repeat per hip · clicks snap to nearby corners/peaks · drag to fine-tune'
-                    : `Click each end of the ${lineType} · clicks snap to nearby corners/peaks · drag to fine-tune`}
+                    ? '2 clicks per hip: peak → corner · saves automatically · snaps to corners/peaks · double-click a line to remove'
+                    : `2 clicks per ${lineType}: end → end · saves automatically · snaps to corners/peaks · double-click a line to remove`}
                 </div>
               )}
 
