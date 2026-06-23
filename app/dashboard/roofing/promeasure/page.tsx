@@ -149,6 +149,7 @@ function ProMeasureInner() {
     // handle can't grab the click when you start a hip on a ridge endpoint —
     // convergence), editable when idle (drag-to-straighten + dblclick-remove).
     const editable = drawMode !== 'line'
+    console.log('[PM] EFFECT run: drawMode=', drawMode, 'editable=', editable, 'lines=', lines.length, 'dragging=', draggingRef.current)
     savedLineRefs.current.forEach((p:any)=>p.setMap(null))
     savedLineRefs.current = lines.map(ln => {
       const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
@@ -557,7 +558,7 @@ function ProMeasureInner() {
     try { (window as any).google.maps.event.clearListeners(path, 'set_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'insert_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'remove_at') } catch {}
-    path.addListener('set_at', () => { markDragging(); syncEditedLine(poly) })
+    path.addListener('set_at', () => { console.log('[PM] SET_AT fired (drag working)'); markDragging(); syncEditedLine(poly) })
     path.addListener('insert_at', (i:number) => {
       if (path.getLength() > 2) path.removeAt(i)
       markDragging(); syncEditedLine(poly)
@@ -573,6 +574,7 @@ function ProMeasureInner() {
   function attachLineHandlers(poly:any) {
     // Double-click to remove (same gesture as pins).
     poly.addListener('dblclick', () => {
+      console.log('[PM] LINE DBLCLICK fired')
       const idx = savedLineRefs.current.indexOf(poly)
       if (idx >= 0) removeLine(idx)
     })
@@ -691,7 +693,7 @@ function ProMeasureInner() {
     }
   }
 
-  function cancelLine() { clearActiveLine(); setDrawMode('idle'); drawModeRef.current='idle' }
+  function cancelLine() { console.log('[PM] DONE clicked → idle'); clearActiveLine(); setDrawMode('idle'); drawModeRef.current='idle' }
 
   function removeLine(i:number) {
     // Just update state — the single source-of-truth effect rebuilds the overlays.
