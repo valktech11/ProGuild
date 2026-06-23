@@ -740,6 +740,7 @@ function ProMeasureInner() {
   }, [suggestedLines])
 
   function startLine(t:'ridge'|'hip'|'valley') {
+    console.log('[PM] startLine called with', t, '— entering line mode')
     clearActiveLine()
     hubRef.current = null
     setLineType(t); lineTypeRef.current=t
