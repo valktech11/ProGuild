@@ -88,6 +88,8 @@ function ProMeasureInner() {
   useEffect(()=>{ drawModeRef.current=drawMode },[drawMode])
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
   const LINE_COLOR: Record<string,string> = { ridge:'#DC2626', hip:'#EA580C', valley:'#2563EB' }
+  // Gemini line-suggestion shelved — see materials-panel comment. Flip to re-test.
+  const SHOW_SUGGEST_LINES = false
   const markers    = useRef<any[]>([])
   const inputRef   = useRef<HTMLInputElement>(null)
   const saveRecentRef = useRef<(addr: string) => void>(() => {})
@@ -869,7 +871,13 @@ function ProMeasureInner() {
         return (
           <div style={{background:T.panel,borderRadius:12,border:`1px solid ${T.divider}`,padding:'12px 14px',marginTop:4}}>
             {head('Materials')}
-            {/* Gemini line-suggestion trigger (Slice B/C) — needs a drawn polygon to target the roof */}
+            {/* Gemini line-suggestion (Slices A/B) — SHELVED. General vision LLMs
+                can't reliably trace roof crease geometry to estimation precision:
+                non-deterministic across runs, collapses to generic templates
+                (confirmed by independent Gemini assessment + real output). Code
+                retained (endpoint, capture, LERP, render); UI gated off. Re-enable
+                only with a dedicated CV pipeline (trained SAM2/edge detection). */}
+            {SHOW_SUGGEST_LINES && (<>
             <button onClick={suggestRoofLines} disabled={suggesting||drawMode==='line'||pins<3}
               style={{width:'100%',marginBottom:10,padding:'8px',borderRadius:8,border:`1px solid ${'#0F766E'}`,
                 background:(suggesting||pins<3)?'transparent':('#0F766E'),color:(suggesting||pins<3)?T.textMuted:'#fff',
@@ -887,6 +895,7 @@ function ProMeasureInner() {
                 {suggestedLines.length} suggested line{suggestedLines.length>1?'s':''} shown as dashed guides — drag to the true crease, then Accept (coming next).
               </div>
             )}
+            </>)}
             {row('Roof Area', `${fmtSq(totalSqFt/100)} sq`)}
             {row('Adjusted', `${fmtSq(grandAdj)} sq`, '(pitch+waste)')}
             {row('Underlayment', `${underlayQ} sq`)}
