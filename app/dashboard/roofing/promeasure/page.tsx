@@ -93,15 +93,21 @@ function ProMeasureInner() {
     if (!polyRef.current) return
     try { polyRef.current.setOptions({ fillOpacity: drawMode==='line' ? 0.05 : settings.fillOpacity }) } catch {}
   },[drawMode])
-  // While drawing, committed lines must not catch the drawing click (their dblclick
-  // -remove would fire and delete a line when you place a new point on its endpoint).
-  // Toggle ONLY clickable — keep editable:true always so committed lines can always
-  // be dragged/straightened. The new point still snaps to the ridge endpoint via
-  // snapLatLng regardless of the editable handle being there.
+  // Clean two-mode separation for committed lines:
+  //   drawing (drawMode==='line') → fully inert: clickable:false + editable:false.
+  //     No vertex handles to grab a convergence click; new points still snap to
+  //     endpoints via snapLatLng (reads lines[] coords, not map objects).
+  //   idle → editable:true + clickable:true for drag-to-straighten + dblclick-remove.
+  // Re-binding the path listeners on every editable re-enable is REQUIRED: Google
+  // rebuilds the editable handle layer, orphaning the original set_at/insert_at
+  // listeners — without re-binding, drag stops syncing LF (the prior regression).
   useEffect(()=>{
     const drawing = drawMode==='line'
     savedLineRefs.current.forEach((p:any)=>{
-      try { p.setOptions({ clickable: !drawing }) } catch {}
+      try {
+        p.setOptions({ clickable: !drawing, editable: !drawing })
+        if (!drawing) rebindEditListeners(p)
+      } catch {}
     })
   },[drawMode, lines])
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
@@ -175,6 +181,10 @@ function ProMeasureInner() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [colorTarget,  setColorTarget]  = useState<keyof Settings|null>(null)
   const [regions,      setRegions]      = useState<{name:string;sqFt:number;perimLF?:number;color:string}[]>(savedDraw?.regions || [])
+  const regionsRef = useRef(regions)
+  useEffect(()=>{ regionsRef.current = regions },[regions])
+  // Brief inline hint shown on the map when a blocked action is attempted.
+  const [mapHint, setMapHint] = useState<string|null>(null)
   const [showRecent,   setShowRecent]   = useState(false)
   const [recentAddrs,  setRecentAddrs]  = useState<string[]>([])
 
@@ -302,7 +312,16 @@ function ProMeasureInner() {
         if (near) return
       }
       if (drawModeRef.current === 'line') addLinePoint(e.latLng, map)
-      else addPin(e.latLng, map)
+      else {
+        // A region is already saved → block new polygon pins. The only way to redraw
+        // the polygon is Start over. Lines (ridge/hip/valley) are drawn in line mode.
+        if (regionsRef.current.length > 0) {
+          setMapHint('Region already saved — use Start over to redraw the roof, or Add Ridge/Hip/Valley to measure lines.')
+          setTimeout(()=>setMapHint(null), 3500)
+          return
+        }
+        addPin(e.latLng, map)
+      }
     })
 
     // Auto-geocode: if address was passed via URL and no saved center exists, fly to it
@@ -494,20 +513,27 @@ function ProMeasureInner() {
       : ln))
   }
 
+  // Re-bindable path listeners (set_at/insert_at) that sync edited geometry → LF.
+  // Re-run whenever editable is re-enabled, since Google rebuilds the handle layer.
+  function rebindEditListeners(poly:any) {
+    const path = poly.getPath()
+    // Clear any prior bindings on this path to avoid duplicates.
+    try { (window as any).google.maps.event.clearListeners(path, 'set_at') } catch {}
+    try { (window as any).google.maps.event.clearListeners(path, 'insert_at') } catch {}
+    path.addListener('set_at', () => syncEditedLine(poly))
+    path.addListener('insert_at', (i:number) => {
+      if (path.getLength() > 2) path.removeAt(i)  // keep strictly 2-point
+      syncEditedLine(poly)
+    })
+  }
+
   function attachLineHandlers(poly:any) {
     // Double-click to remove (same gesture as pins).
     poly.addListener('dblclick', () => {
       const idx = savedLineRefs.current.indexOf(poly)
       if (idx >= 0) removeLine(idx)
     })
-    // Editable polyline: dragging either endpoint updates geometry + LF.
-    poly.getPath().addListener('set_at', () => syncEditedLine(poly))
-    // Prevent the editable midpoint ghost from turning a 2-point segment into 3 —
-    // remove any inserted vertex, keeping lines straight 2-point segments.
-    poly.getPath().addListener('insert_at', (i:number) => {
-      if (poly.getPath().getLength() > 2) poly.getPath().removeAt(i)
-      syncEditedLine(poly)
-    })
+    rebindEditListeners(poly)
   }
 
   function commitSegment(map: any) {
@@ -517,8 +543,9 @@ function ProMeasureInner() {
     const lf = window.google.maps.geometry.spherical.computeDistanceBetween(pts[0], pts[1]) * 3.28084
     if (lf <= 0) { clearActiveLine(); return }
     const latlngs = [pts[0], pts[1]].map((p:any)=>({lat:p.lat(),lng:p.lng()}))
+    const drawing = drawModeRef.current === 'line'
     const poly = new window.google.maps.Polyline({
-      path:[pts[0], pts[1]], map, editable:true, clickable:true, zIndex:20, ...lineStyle(type),
+      path:[pts[0], pts[1]], map, editable:!drawing, clickable:!drawing, zIndex:20, ...lineStyle(type),
     })
     attachLineHandlers(poly)
     savedLineRefs.current.push(poly)
@@ -635,11 +662,13 @@ function ProMeasureInner() {
   }
 
   // Clear all committed ridge/hip/valley lines (like Start over clears the polygon).
+  // Clear ONLY the ridge/hip/valley lines. Region/polygon/pins/area untouched.
+  // Does NOT re-arm polygon drawing — to redraw the polygon, use Start over.
   function clearLines() {
     savedLineRefs.current.forEach((p:any)=>p.setMap(null)); savedLineRefs.current=[]
     clearActiveLine()
     setLines([])
-    setDrawMode('polygon')
+    setDrawMode('polygon'); drawModeRef.current='polygon' // exit line mode to idle; pin placement stays blocked while a region exists
   }
 
   // Render suggested guides as dashed polylines (Slice C adds drag + Accept/Reject).
@@ -1258,6 +1287,11 @@ function ProMeasureInner() {
                 </div>
               )}
 
+              {mapReady&&mapHint&&(
+                <div style={{position:'absolute',top:64,left:'50%',transform:'translateX(-50%)',background:'rgba(180,83,9,0.96)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 18px',borderRadius:isWide?20:14,fontSize:12.5,fontWeight:600,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.3)',boxShadow:'0 6px 24px rgba(180,83,9,0.35)',zIndex:5}}>
+                  {mapHint}
+                </div>
+              )}
               {mapReady&&drawMode==='line'&&(
                 <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:'rgba(13,148,136,0.96)',backdropFilter:'blur(8px)',color:'#fff',padding:'11px 22px',borderRadius:isWide?24:16,fontSize:13,fontWeight:700,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.35)',boxShadow:'0 6px 24px rgba(13,148,136,0.4)'}}>
                   {lineType==='hip'
