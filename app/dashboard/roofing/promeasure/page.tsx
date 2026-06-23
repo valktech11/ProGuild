@@ -143,9 +143,10 @@ function ProMeasureInner() {
   // not tear down the polyline being dragged.
   useEffect(()=>{
     if (!mapReady || !mapRef.current) return
-    if (draggingRef.current) return
+    if (draggingRef.current) { console.log('[PM] overlay effect SKIPPED (dragging)'); return }
     const map = mapRef.current
     const editable = drawMode !== 'line'
+    console.log('[PM] rebuild overlays:', lines.length, 'lines, editable=', editable, 'drawMode=', drawMode)
     savedLineRefs.current.forEach((p:any)=>p.setMap(null))
     savedLineRefs.current = lines.map(ln => {
       const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
@@ -155,6 +156,7 @@ function ProMeasureInner() {
       attachLineHandlers(poly)
       return poly
     })
+    console.log('[PM] overlays rebuilt, refs=', savedLineRefs.current.length)
   },[mapReady, lines, drawMode])
 
   // When launched for a specific lead, the lead's full address is authoritative.
@@ -556,14 +558,13 @@ function ProMeasureInner() {
     try { (window as any).google.maps.event.clearListeners(path, 'set_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'insert_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'remove_at') } catch {}
-    path.addListener('set_at', () => { markDragging(); syncEditedLine(poly) })
+    path.addListener('set_at', () => { console.log('[PM] set_at (drag)'); markDragging(); syncEditedLine(poly) })
     path.addListener('insert_at', (i:number) => {
-      if (path.getLength() > 2) path.removeAt(i)  // keep strictly 2-point
+      if (path.getLength() > 2) path.removeAt(i)
       markDragging(); syncEditedLine(poly)
     })
-    // Double-clicking an editable vertex fires Google's vertex-delete (remove_at);
-    // on a 2-point line that drops below 2 points → remove the whole line.
     path.addListener('remove_at', () => {
+      console.log('[PM] remove_at, len=', path.getLength())
       if (path.getLength() < 2) {
         const idx = savedLineRefs.current.indexOf(poly)
         if (idx >= 0) removeLine(idx)
@@ -574,6 +575,7 @@ function ProMeasureInner() {
   function attachLineHandlers(poly:any) {
     // Double-click to remove (same gesture as pins).
     poly.addListener('dblclick', () => {
+      console.log('[PM] line dblclick fired')
       const idx = savedLineRefs.current.indexOf(poly)
       if (idx >= 0) removeLine(idx)
     })
