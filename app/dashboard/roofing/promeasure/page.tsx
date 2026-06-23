@@ -27,6 +27,7 @@ function ProMeasureInner() {
   const searchParams = useSearchParams()
   const initAddress = searchParams.get('address') || ''
   const leadId      = searchParams.get('lead_id') || null
+  const fromParam   = searchParams.get('from') || null
 
   // Restore saved draw state if returning via back navigation
   const savedDraw = (() => {
@@ -622,6 +623,14 @@ function ProMeasureInner() {
     setLines(l=>l.filter((_,idx)=>idx!==i))
   }
 
+  // Clear all committed ridge/hip/valley lines (like Start over clears the polygon).
+  function clearLines() {
+    savedLineRefs.current.forEach((p:any)=>p.setMap(null)); savedLineRefs.current=[]
+    clearActiveLine()
+    setLines([])
+    setDrawMode('polygon')
+  }
+
   // Render suggested guides as dashed polylines (Slice C adds drag + Accept/Reject).
   const suggRefs = useRef<any[]>([])
   useEffect(() => {
@@ -723,12 +732,14 @@ function ProMeasureInner() {
       } catch (err) {
       }
 
-      // Lead flow: skip calculator entirely — go straight to estimate
-      // createEst() in pipeline/[id] re-fetches the lead (now with fresh roofing_job_data)
-      // and the estimate builder's PropertyCard recalc handles the rest
-      // Check if an estimate already exists for this lead via sessionStorage signal
-      // Navigate back to pipeline detail — the roofer clicks "Create Proposal" or it auto-opens
-      router.push(`/dashboard/pipeline/${leadId}?from=promeasure&applied=1`)
+      // Return routing: if ProMeasure was launched from the calculator (to fetch
+      // measurements), go back to the calculator so the LF is right there — no
+      // extra detail→Price-This-Job hop. Otherwise return to the lead detail page.
+      if (fromParam === 'calculator') {
+        router.push(`/dashboard/roofing/calculator?lead_id=${leadId}&from=promeasure`)
+      } else {
+        router.push(`/dashboard/pipeline/${leadId}?from=promeasure&applied=1`)
+      }
       return
     }
 
@@ -978,6 +989,10 @@ function ProMeasureInner() {
                     <button onClick={()=>removeLine(i)} style={{color:T.textSubtle,background:'transparent',border:'none',cursor:'pointer',fontSize:13,padding:'0 4px'}}>✕</button>
                   </div>
                 ))}
+                <button onClick={clearLines}
+                  style={{marginTop:6,alignSelf:'flex-start',fontSize:11,fontWeight:600,color:'#DC2626',background:'transparent',border:`1px solid ${T.cardBorder}`,borderRadius:6,padding:'3px 10px',cursor:'pointer'}}>
+                  ↺ Clear all lines
+                </button>
               </div>
             )}
             {drawMode==='line' && (

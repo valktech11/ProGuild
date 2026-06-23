@@ -496,7 +496,7 @@ function CalculatorInner() {
                     onClick={()=>{
                       // Pass lead_id only — ProMeasure fetches the lead's authoritative
                       // property_address itself, avoiding a stale address from reportData.
-                      router.push(`/dashboard/roofing/promeasure?lead_id=${leadId}`)
+                      router.push(`/dashboard/roofing/promeasure?lead_id=${leadId}&from=calculator`)
                     }}
                     style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:100, background:'#0F766E', border:'none', color:'#fff', fontSize:11, fontWeight:700, cursor:'pointer' }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
