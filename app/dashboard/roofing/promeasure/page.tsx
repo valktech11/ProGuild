@@ -93,14 +93,14 @@ function ProMeasureInner() {
     if (!polyRef.current) return
     try { polyRef.current.setOptions({ fillOpacity: drawMode==='line' ? 0.05 : settings.fillOpacity }) } catch {}
   },[drawMode])
-  // Clean two-mode separation for committed lines:
-  //   drawing (drawMode==='line') → fully inert: clickable:false + editable:false.
-  //     No vertex handles to grab a convergence click; new points still snap to
-  //     endpoints via snapLatLng (reads lines[] coords, not map objects).
-  //   idle → editable:true + clickable:true for drag-to-straighten + dblclick-remove.
-  // Re-binding the path listeners on every editable re-enable is REQUIRED: Google
-  // rebuilds the editable handle layer, orphaning the original set_at/insert_at
-  // listeners — without re-binding, drag stops syncing LF (the prior regression).
+  // Toggle committed-line interactivity ONLY when draw mode changes — NOT when
+  // lines[] content changes. Depending on `lines` created a vicious loop: dragging
+  // an endpoint fires set_at → syncEditedLine → setLines → this effect re-ran →
+  // setOptions rebuilt the handle you were dragging → drag cancelled. Newly
+  // committed lines already get their correct inert/editable state at creation in
+  // commitSegment, so the effect only needs to handle mode transitions.
+  //   drawing → fully inert (no handles intercept a convergence click).
+  //   idle → editable + clickable for drag-to-straighten + dblclick-remove.
   useEffect(()=>{
     const drawing = drawMode==='line'
     savedLineRefs.current.forEach((p:any)=>{
@@ -109,7 +109,7 @@ function ProMeasureInner() {
         if (!drawing) rebindEditListeners(p)
       } catch {}
     })
-  },[drawMode, lines])
+  },[drawMode])
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
   const LINE_COLOR: Record<string,string> = { ridge:'#DC2626', hip:'#EA580C', valley:'#2563EB' }
   // Gemini line-suggestion shelved — see materials-panel comment. Flip to re-test.
