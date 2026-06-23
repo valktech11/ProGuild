@@ -93,21 +93,17 @@ function ProMeasureInner() {
     if (!polyRef.current) return
     try { polyRef.current.setOptions({ fillOpacity: drawMode==='line' ? 0.05 : settings.fillOpacity }) } catch {}
   },[drawMode])
-  // Toggle committed-line interactivity ONLY when draw mode changes — NOT when
-  // lines[] content changes. Depending on `lines` created a vicious loop: dragging
-  // an endpoint fires set_at → syncEditedLine → setLines → this effect re-ran →
-  // setOptions rebuilt the handle you were dragging → drag cancelled. Newly
-  // committed lines already get their correct inert/editable state at creation in
-  // commitSegment, so the effect only needs to handle mode transitions.
-  //   drawing → fully inert (no handles intercept a convergence click).
-  //   idle → editable + clickable for drag-to-straighten + dblclick-remove.
+  // Committed lines are ALWAYS editable — toggling editable false→true via setOptions
+  // on an existing polyline is unreliable in Google Maps (handles don't reliably
+  // re-activate), which is why drag-to-straighten kept breaking. Instead keep
+  // editable:true always and only toggle CLICKABLE during draw: clickable:false
+  // stops the line body's dblclick-remove from firing when you place a new point on
+  // its endpoint. The editable vertex handle at a shared endpoint is the snap target
+  // you want anyway; snapLatLng locks the new point to it.
   useEffect(()=>{
     const drawing = drawMode==='line'
     savedLineRefs.current.forEach((p:any)=>{
-      try {
-        p.setOptions({ clickable: !drawing, editable: !drawing })
-        if (!drawing) rebindEditListeners(p)
-      } catch {}
+      try { p.setOptions({ clickable: !drawing }) } catch {}
     })
   },[drawMode])
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
@@ -545,7 +541,7 @@ function ProMeasureInner() {
     const latlngs = [pts[0], pts[1]].map((p:any)=>({lat:p.lat(),lng:p.lng()}))
     const drawing = drawModeRef.current === 'line'
     const poly = new window.google.maps.Polyline({
-      path:[pts[0], pts[1]], map, editable:!drawing, clickable:!drawing, zIndex:20, ...lineStyle(type),
+      path:[pts[0], pts[1]], map, editable:true, clickable:!drawing, zIndex:20, ...lineStyle(type),
     })
     attachLineHandlers(poly)
     savedLineRefs.current.push(poly)
