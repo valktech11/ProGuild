@@ -407,39 +407,47 @@ function ProMeasureInner() {
         fillColor:LINE_COLOR[lineTypeRef.current], fillOpacity:1, strokeColor:'#fff', strokeWeight:2 },
     })
     m.addListener('drag', () => redrawLine(map))
+    m.addListener('dragend', () => {
+      const snapped = snapLatLng(m.getPosition(), map)
+      if (snapped !== m.getPosition()) m.setPosition(snapped)
+      redrawLine(map)
+    })
     return m
   }
 
-  function addLinePoint(latLng: any, map: any) {
-    if (lineTypeRef.current === 'hip') {
-      if (!hubRef.current) {
-        // First click = hub (center peak) — larger white-fill marker, draggable.
-        const hub = new window.google.maps.Marker({
-          position:latLng, map, draggable:true,
-          icon:{ path:window.google.maps.SymbolPath.CIRCLE, scale:7,
-            fillColor:'#fff', fillOpacity:1,
-            strokeColor:LINE_COLOR['hip'], strokeWeight:3 },
-          title:'Hub — drag to center peak', zIndex:10,
-        })
-        hub.addListener('drag', () => { hubRef.current=hub; redrawLine(map) })
-        hubRef.current = hub
-        lineMarkers.current.push(hub)
-      } else {
-        // Corner click — push corner then invisible hub-clone so polyline
-        // returns to hub; next corner click auto-starts from hub (star pattern).
-        const corner = placeMarker(latLng, map)
-        lineMarkers.current.push(corner)
-        const hubPos = hubRef.current.getPosition?.() ?? hubRef.current
-        const clone = new window.google.maps.Marker({
-          position:hubPos, map, draggable:false,
-          icon:{ path:window.google.maps.SymbolPath.CIRCLE,
-            scale:0, fillOpacity:0, strokeOpacity:0 },
-        })
-        lineMarkers.current.push(clone)
-      }
-    } else {
-      lineMarkers.current.push(placeMarker(latLng, map))
+  // Snap a clicked latLng to a nearby existing point (polygon corner, committed
+  // line endpoint, or a point already placed in the current line) within ~16px.
+  // This makes far corners easy (click near, snaps exact) and makes lines
+  // converge naturally without a forced hub.
+  function snapLatLng(latLng: any, map: any): any {
+    const proj = map.getProjection?.()
+    if (!proj) return latLng
+    const z = Math.pow(2, map.getZoom())
+    const cp = proj.fromLatLngToPoint(latLng)
+    let best:any = null, bestD = 16 // px threshold
+    const consider = (pos:any) => {
+      if (!pos) return
+      const pp = proj.fromLatLngToPoint(pos)
+      const d = Math.hypot((cp.x-pp.x)*z, (cp.y-pp.y)*z)
+      if (d < bestD) { bestD = d; best = pos }
     }
+    // Polygon corner pins
+    markers.current.forEach((m:any)=>consider(m.getPosition?.()))
+    // Endpoints of already-committed lines
+    lines.forEach(ln => { const a=ln.latlngs[0], b=ln.latlngs[ln.latlngs.length-1]
+      if(a) consider(new window.google.maps.LatLng(a.lat,a.lng))
+      if(b) consider(new window.google.maps.LatLng(b.lat,b.lng)) })
+    // Points already placed in the current in-progress line
+    lineMarkers.current.forEach((m:any)=>consider(m.getPosition?.()))
+    return best || latLng
+  }
+
+  function addLinePoint(latLng: any, map: any) {
+    // Simple per-click point with snapping — works for ridge, hip, valley alike.
+    // No hub: draw a hip as corner→peak→corner, or each hip separately; snapping
+    // to the polygon corners + shared peak makes them converge precisely.
+    const snapped = snapLatLng(latLng, map)
+    lineMarkers.current.push(placeMarker(snapped, map))
     redrawLine(map)
   }
 
@@ -926,10 +934,10 @@ function ProMeasureInner() {
               <div style={{marginTop:10,padding:'8px 10px',background:T.cardBg,borderRadius:8,border:`1px solid ${LINE_COLOR[lineType]}`}}>
                 <div style={{fontSize:11,color:T.text,marginBottom:6}}>
                   {lineType==='hip'
-                    ? (lines.filter(l=>l.type==='hip').length===0 && lineMarkers.current.length===0)
-                      ? '① Click the center peak (hub). Then click each corner — lines auto-connect back to center.'
-                      : 'Click each corner — lines auto-connect to hub.'
-                    : `Click points along the ${lineType} on the map.`}
+                    ? 'Click the peak, then a corner — repeat for each hip. Click near roof corners/peaks to snap exactly.'
+                    : lineType==='valley'
+                      ? 'Click each end of the valley. Click near corners/peaks to snap exactly.'
+                      : 'Click each end of the ridge. Click near corners/peaks to snap exactly.'}
                 </div>
                 <div style={{display:'flex',gap:6}}>
                   <button onClick={saveLine} style={{flex:1,fontSize:12,fontWeight:700,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:6,padding:'6px',cursor:'pointer'}}>Save {lineType}</button>
@@ -1179,8 +1187,8 @@ function ProMeasureInner() {
               {mapReady&&drawMode==='line'&&(
                 <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:dk?'rgba(15,20,35,0.92)':'rgba(17,24,39,0.88)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 20px',borderRadius:isWide?24:16,fontSize:13,fontWeight:600,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:`1px solid ${LINE_COLOR[lineType]}`,boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
                   {lineType==='hip'
-                    ? 'Click the center peak, then each corner · Drag any point to the exact crease · Zoom in for far corners'
-                    : `Click each end of the ${lineType} · Drag any point to fine-tune · Zoom in for precision`}
+                    ? 'Click a peak, then a corner · repeat per hip · clicks snap to nearby corners/peaks · drag to fine-tune'
+                    : `Click each end of the ${lineType} · clicks snap to nearby corners/peaks · drag to fine-tune`}
                 </div>
               )}
 
