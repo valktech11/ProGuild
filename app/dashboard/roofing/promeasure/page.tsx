@@ -84,7 +84,7 @@ function ProMeasureInner() {
   const lineMarkers = useRef<any[]>([])   // active in-progress line vertices
   const linePolyRef = useRef<any>(null)   // active in-progress polyline
   const savedLineRefs = useRef<any[]>([]) // committed polylines on map
-  const drawModeRef = useRef<'polygon'|'line'>('polygon')
+  const drawModeRef = useRef<'polygon'|'line'|'idle'>('polygon')
   const lineTypeRef = useRef<'ridge'|'hip'|'valley'>('ridge')
   useEffect(()=>{ drawModeRef.current=drawMode },[drawMode])
   // Dim the polygon fill while drawing lines so the actual ridge/hip/valley creases
