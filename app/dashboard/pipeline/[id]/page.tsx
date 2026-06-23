@@ -1336,14 +1336,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               </div>
                             )}
 
-                            {/* FL Supplement Assistant — only for FL insurance claims */}
-                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(
-                              <div style={{marginTop:16}}>
-                                <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(lead as any).roofing_job_data?.insurance_claim} darkMode={dk} measuredLF={(lead as any).roofing_job_data?.linear_footage ?? null}/>
-                              </div>
-                            )}
-
-                            {/* Roofing measurement tools — 3-step flow */}
+                            {/* Roofing measurement tools — 2-step retail / 3-step insurance flow */}
                             {isRoofing&&(
                               <div style={{marginTop:16,borderRadius:12,background:'#fff',border:'1px solid #E2E8F0',borderLeft:'4px solid #0F766E',overflow:'hidden'}}>
                                 {(()=>{
@@ -1481,6 +1474,54 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         )}
                                       </div>
 
+                                      {/* Step LF — insurance jobs only: trace ridge/hip/valley */}
+                                      {rjd?.insurance_claim && (()=>{
+                                        const lf = rjd?.linear_footage
+                                        const hasLF = lf && (lf.ridge_ft > 0 || lf.hip_ft > 0 || lf.valley_ft > 0)
+                                        const fullAddr = [((lead as any).property_address||'').replace(/, USA$/,'').trim(), lead.contact_city||'', lead.contact_state||'', (lead as any).contact_zip||''].filter(Boolean).join(', ')
+                                        return (
+                                          <div style={{marginBottom:10,padding:'12px 14px',borderRadius:10,background:hasLF?'#F0FDF4':'#FFFBEB',border:`1.5px solid ${hasLF?'#BBF7D0':'#FDE68A'}`}}>
+                                            <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                              {hasLF
+                                                ? <div style={{width:24,height:24,borderRadius:'50%',background:'#059669',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                                                : <div style={{width:24,height:24,borderRadius:'50%',background:'#FEF3C7',border:'1.5px solid #F59E0B',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:13}}>⚠</div>
+                                              }
+                                              <div style={{flex:1}}>
+                                                <div style={{fontSize:14,fontWeight:700,color:'#0F172A'}}>
+                                                  {hasLF ? 'Ridge / Hip / Valley measured' : 'Trace ridge, hip & valley LF'}
+                                                </div>
+                                                <div style={{fontSize:12,color:'#64748B',marginTop:2}}>
+                                                  {hasLF
+                                                    ? `Ridge ${Math.round(lf.ridge_ft||0)} · Hip ${Math.round(lf.hip_ft||0)} · Valley ${Math.round(lf.valley_ft||0)} LF — needed for supplement recovery`
+                                                    : 'Needed for supplement recovery — use ProMeasure or enter manually in the calculator'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            {!hasLF && step1Done && (
+                                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:10}}>
+                                                <button
+                                                  onClick={()=>router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)}
+                                                  style={{padding:'8px',borderRadius:8,border:'1.5px solid #0F766E',background:'rgba(15,118,110,0.06)',color:'#0F766E',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                                  ProMeasure
+                                                </button>
+                                                <button
+                                                  onClick={()=>{
+                                                    try{const payload={squares:Number(sq)||0,pitch:pitch??'6/12',waste:Number(waste)||12,source:'roof_report',address:(lead as any).property_address||'',storedAt:Date.now(),leadId:lead.id};sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
+                                                    router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
+                                                  }}
+                                                  style={{padding:'8px',borderRadius:8,border:'1.5px solid #CBD5E1',background:'#F8FAFC',color:'#475569',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                                                  Enter manually →
+                                                </button>
+                                              </div>
+                                            )}
+                                            {!hasLF && !step1Done && (
+                                              <div style={{marginTop:8,fontSize:11,color:'#92400E'}}>Measure roof size first (Step 1), then trace LF.</div>
+                                            )}
+                                          </div>
+                                        )
+                                      })()}
+
                                       {/* Step 2 — Price This Job (squares is enough; LF entered in calculator or ProMeasure) */}
                                       <div style={{padding:'12px 14px',borderRadius:10,background:step1Done?`linear-gradient(135deg,#0F766E,#14B8A6)`:'#F8FAFC',border:`1.5px solid ${step1Done?'transparent':'#E2E8F0'}`,opacity:step1Done?1:0.5,cursor:step1Done?'pointer':'default'}}
                                         onClick={()=>{
@@ -1501,7 +1542,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           <div>
                                             <div style={{fontSize:14,fontWeight:700,color:step1Done?'#fff':'#0F172A'}}>Price This Job</div>
                                             <div style={{fontSize:12,color:step1Done?'rgba(255,255,255,0.8)':'#64748B',marginTop:2}}>
-                                              {step1Done?'Squares loaded — add ridge/hip/valley in the calculator or measure with ProMeasure':'Measure the roof first'}
+                                              {step1Done?'Build materials, labour & estimate':'Measure the roof first'}
                                             </div>
                                           </div>
                                           {step1Done && (
@@ -1566,10 +1607,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           {qbError} — check address or try again
                                         </div>
                                       )}
-                                      </div>{/* end inner padding div */}
+                              </div>{/* end inner padding div */}
                                     </div>
                                   )
                                 })()}
+                              </div>
+                            )}
+
+                            {/* FL Supplement Assistant — after step ladder so roofer measures first */}
+                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(
+                              <div style={{marginTop:16}}>
+                                <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(lead as any).roofing_job_data?.insurance_claim} darkMode={dk} measuredLF={(lead as any).roofing_job_data?.linear_footage ?? null}/>
                               </div>
                             )}
 

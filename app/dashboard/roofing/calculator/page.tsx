@@ -557,6 +557,33 @@ function CalculatorInner() {
           </Section>
         )}
 
+        {/* ── Supplement flags — directly below LF entry, before materials ── */}
+        {insurance?.isInsurance && supplementFlags.length > 0 && (
+          <div style={{ marginBottom:14, borderRadius:12, overflow:'hidden', border:'1px solid #99F6E4', background:'#F0FDFA' }}>
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid #99F6E4', display:'flex', alignItems:'center', gap:8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <span style={{ fontSize:13, fontWeight:800, color:'#065F46' }}>Supplement items from your measurements</span>
+            </div>
+            <div style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+              {supplementFlags.map(f => (
+                <div key={f.key} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:13.5, fontWeight:700, color:'#0F172A' }}>{f.item}</div>
+                    <div style={{ fontSize:12, color:'#475569', marginTop:2, lineHeight:1.45 }}>
+                      {f.basis === 'code' ? 'Code-required' : 'Standard supplement'} — confirm it is line-itemed in the carrier estimate.
+                    </div>
+                    <span style={{ display:'inline-block', marginTop:5, fontSize:11, fontWeight:600, color:'#0F766E', background:'rgba(15,118,110,0.08)', padding:'2px 7px', borderRadius:5 }}>{f.code}</span>
+                  </div>
+                  <div style={{ fontSize:13, fontWeight:800, color:'#0F766E', whiteSpace:'nowrap' }}>{f.measured_lf} LF</div>
+                </div>
+              ))}
+              <div style={{ fontSize:11, color:'#64748B', lineHeight:1.45 }}>
+                Based on your traced lines. Informational — verify against the carrier scope; not legal or public-adjuster advice.
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Section 3: Materials ── */}
         {lineItems.length > 0 && (
           <Section n="3" label="Material Quantities" sub="Quantities calculated from your measurements — tap Edit prices to adjust"
@@ -782,33 +809,6 @@ function CalculatorInner() {
             </div>
           )
         })()}
-
-        {/* ── Supplement flags — detected from human-traced LF (insurance jobs) ── */}
-        {insurance?.isInsurance && supplementFlags.length > 0 && (
-          <div style={{ marginBottom:14, borderRadius:12, overflow:'hidden', border:'1px solid #99F6E4', background:'#F0FDFA' }}>
-            <div style={{ padding:'12px 16px', borderBottom:'1px solid #99F6E4', display:'flex', alignItems:'center', gap:8 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-              <span style={{ fontSize:13, fontWeight:800, color:'#065F46' }}>Supplement items from your measurements</span>
-            </div>
-            <div style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
-              {supplementFlags.map(f => (
-                <div key={f.key} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
-                  <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:13.5, fontWeight:700, color:'#0F172A' }}>{f.item}</div>
-                    <div style={{ fontSize:12, color:'#475569', marginTop:2, lineHeight:1.45 }}>
-                      {f.basis === 'code' ? 'Code-required' : 'Standard supplement'} — confirm it is line-itemed in the carrier estimate.
-                    </div>
-                    <span style={{ display:'inline-block', marginTop:5, fontSize:11, fontWeight:600, color:'#0F766E', background:'rgba(15,118,110,0.08)', padding:'2px 7px', borderRadius:5 }}>{f.code}</span>
-                  </div>
-                  <div style={{ fontSize:13, fontWeight:800, color:'#0F766E', whiteSpace:'nowrap' }}>{f.measured_lf} LF</div>
-                </div>
-              ))}
-              <div style={{ fontSize:11, color:'#64748B', lineHeight:1.45 }}>
-                Based on your traced lines. Informational — verify against the carrier scope; not legal or public-adjuster advice.
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Error / success */}
         {existingEstimate && !success && (

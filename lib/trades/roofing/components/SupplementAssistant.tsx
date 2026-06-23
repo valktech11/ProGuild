@@ -165,6 +165,11 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
             <div style={{ fontSize: 11, color: sub, marginTop: 8, lineHeight: 1.4 }}>Measured by ProMeasure — check the pasted scope below covers these.</div>
           </div>
         )}
+        {grounded.length === 0 && (
+          <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 9, background: dk ? 'rgba(148,163,184,0.08)' : '#F8FAFC', border: `1px solid ${border}`, fontSize: 12, color: sub, lineHeight: 1.5 }}>
+            Once you trace ridge, hip &amp; valley via ProMeasure — or enter LF in the calculator — the items detected from your measurements appear here automatically.
+          </div>
+        )}
 
         <textarea
           value={scope}
