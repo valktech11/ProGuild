@@ -145,13 +145,20 @@ function ProMeasureInner() {
     if (!mapReady || !mapRef.current) return
     if (draggingRef.current) { console.log('[PM] overlay effect SKIPPED (dragging)'); return }
     const map = mapRef.current
-    const editable = drawMode !== 'line'
-    console.log('[PM] rebuild overlays:', lines.length, 'lines, editable=', editable, 'drawMode=', drawMode)
+    // Lines are ALWAYS editable so a just-drawn line can be dragged/removed
+    // immediately, without needing to click "Done" first. (The earlier
+    // editable=false-while-drawing made committed lines inert the entire drawing
+    // session — drag/dblclick only worked after Done, which read as "broken".)
+    // Convergence still works: clicking near a ridge endpoint to start a hip snaps
+    // the new point to it via snapLatLng; committed lines are clickable:false during
+    // draw so their dblclick-remove can't fire on that placement click.
+    const drawing = drawMode === 'line'
+    console.log('[PM] rebuild overlays:', lines.length, 'lines, drawMode=', drawMode)
     savedLineRefs.current.forEach((p:any)=>p.setMap(null))
     savedLineRefs.current = lines.map(ln => {
       const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
       const poly = new window.google.maps.Polyline({
-        path, map, editable, clickable:editable, zIndex:20, ...lineStyle(ln.type),
+        path, map, editable:true, clickable:!drawing, zIndex:20, ...lineStyle(ln.type),
       })
       attachLineHandlers(poly)
       return poly
