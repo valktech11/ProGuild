@@ -1253,13 +1253,13 @@ function ProMeasureInner() {
               )}
 
               {mapReady&&pins===0&&(
-                <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:dk?'rgba(15,20,35,0.88)':'rgba(17,24,39,0.82)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 20px',borderRadius:isWide?24:16,fontSize:13,fontWeight:600,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.1)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
+                <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:'rgba(13,148,136,0.96)',backdropFilter:'blur(8px)',color:'#fff',padding:'11px 22px',borderRadius:isWide?24:16,fontSize:13,fontWeight:700,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.35)',boxShadow:'0 6px 24px rgba(13,148,136,0.4)'}}>
                   Click to place pins around the roof perimeter · Double-click pin to remove
                 </div>
               )}
 
               {mapReady&&drawMode==='line'&&(
-                <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:dk?'rgba(15,20,35,0.92)':'rgba(17,24,39,0.88)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 20px',borderRadius:isWide?24:16,fontSize:13,fontWeight:600,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:`1px solid ${LINE_COLOR[lineType]}`,boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
+                <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:'rgba(13,148,136,0.96)',backdropFilter:'blur(8px)',color:'#fff',padding:'11px 22px',borderRadius:isWide?24:16,fontSize:13,fontWeight:700,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.35)',boxShadow:'0 6px 24px rgba(13,148,136,0.4)'}}>
                   {lineType==='hip'
                     ? '2 clicks per hip: peak → corner · saves automatically · snaps to corners/peaks · double-click a line to remove'
                     : `2 clicks per ${lineType}: end → end · saves automatically · snaps to corners/peaks · double-click a line to remove`}
@@ -1299,8 +1299,8 @@ function ProMeasureInner() {
         </div>
 
         {/* ── RIGHT PANEL — measurements always visible, settings appended below ── */}
-        <div style={{width:isWide?260:'100%',flexShrink:0,maxHeight:isWide?undefined:'38vh',background:T.panel,borderLeft:isWide?`1px solid ${T.panelBorder}`:'none',borderTop:isWide?'none':`1px solid ${T.panelBorder}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-          <div style={{flex:1,overflowY:'auto'}}>
+        <div style={{width:isWide?280:'100%',flexShrink:0,maxHeight:isWide?undefined:'55vh',background:T.panel,borderLeft:isWide?`1px solid ${T.panelBorder}`:'none',borderTop:isWide?'none':`1px solid ${T.panelBorder}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
             <MeasurementsPanel/>
             {settingsOpen&&<SettingsPanel/>}
           </div>
