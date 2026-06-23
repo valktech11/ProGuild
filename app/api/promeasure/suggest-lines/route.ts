@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 // ── ProMeasure Gemini line-suggestion (Slice A) ─────────────────────────────
 // Captures the current map viewport via Static Maps, asks Gemini 2.5-flash Vision
 // to locate ridge/hip/valley creases as normalized line segments. AI PROPOSES
@@ -61,10 +64,10 @@ async function callGemini(base64Jpeg: string): Promise<SuggestedLine[] | null> {
   const body = JSON.stringify({
     contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: base64Jpeg } }] }],
     generationConfig: {
-      maxOutputTokens: 2048,
+      // thinkingBudget consumes the output allowance — give response headroom
+      // above the 1024 thinking budget so the JSON is never truncated.
+      maxOutputTokens: 4096,
       temperature: 0.1,
-      // Spatial reasoning needs a thinking budget (project-wide default is 0 for
-      // text-only calls; this call is the documented exception for geometry).
       thinkingConfig: { thinkingBudget: 1024 },
     },
   })
@@ -78,14 +81,20 @@ async function callGemini(base64Jpeg: string): Promise<SuggestedLine[] | null> {
   } catch (err) {
     console.warn('[suggest-lines] gemini fetch error:', String(err).slice(0, 100)); return null
   }
-  if (!res.ok) { console.warn(`[suggest-lines] gemini HTTP ${res.status}`); return null }
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    console.error(`[suggest-lines] gemini HTTP ${res.status}:`, errText.slice(0, 300)); return null
+  }
 
   let json: unknown
   try { json = await res.json() } catch { console.warn('[suggest-lines] gemini JSON parse error'); return null }
 
-  const raw = json as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
+  const raw = json as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }> }
   const text = raw.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-  if (!text) { console.warn('[suggest-lines] gemini empty response'); return null }
+  if (!text) {
+    const fr = raw.candidates?.[0]?.finishReason
+    console.warn(`[suggest-lines] gemini empty response (finishReason=${fr ?? 'none'})`); return null
+  }
 
   const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
   let parsed: unknown
