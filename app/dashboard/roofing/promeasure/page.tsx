@@ -93,6 +93,17 @@ function ProMeasureInner() {
     if (!polyRef.current) return
     try { polyRef.current.setOptions({ fillOpacity: drawMode==='line' ? 0.05 : settings.fillOpacity }) } catch {}
   },[drawMode])
+  // While drawing, committed lines must NOT intercept clicks — otherwise placing a
+  // hip start on a ridge endpoint clicks the ridge (and its editable handles/dblclick
+  // fire) instead of dropping a new point that snaps to that endpoint. Make them
+  // inert during line mode; clickable+editable again when idle (for dblclick-remove
+  // and drag-to-straighten).
+  useEffect(()=>{
+    const drawing = drawMode==='line'
+    savedLineRefs.current.forEach((p:any)=>{
+      try { p.setOptions({ clickable: !drawing, editable: !drawing }) } catch {}
+    })
+  },[drawMode, lines])
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
   const LINE_COLOR: Record<string,string> = { ridge:'#DC2626', hip:'#EA580C', valley:'#2563EB' }
   // Gemini line-suggestion shelved — see materials-panel comment. Flip to re-test.
