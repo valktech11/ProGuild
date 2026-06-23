@@ -669,6 +669,11 @@ function ProMeasureInner() {
     clearActiveLine()
     setLines([])
     setDrawMode('polygon'); drawModeRef.current='polygon' // exit line mode to idle; pin placement stays blocked while a region exists
+    // Persist lines cleared but keep regions, so a refresh doesn't resurrect lines.
+    try {
+      const prev = JSON.parse(sessionStorage.getItem('pg_pm_draw') || '{}')
+      sessionStorage.setItem('pg_pm_draw', JSON.stringify({ ...prev, lines:[] }))
+    } catch {}
   }
 
   // Render suggested guides as dashed polylines (Slice C adds drag + Accept/Reject).
@@ -706,15 +711,26 @@ function ProMeasureInner() {
     markers.current.forEach(m=>m.setMap(null)); markers.current=[]
     if(polyRef.current){polyRef.current.setMap(null);polyRef.current=null}
     setPins(0);setArea(null);setPerim(null)
-    sessionStorage.removeItem('pg_pm_draw')
+    // Don't blindly removeItem — the persist effect would race and a refresh could
+    // resurrect stale geometry. Persist the current regions/lines snapshot instead.
+    try {
+      const prev = JSON.parse(sessionStorage.getItem('pg_pm_draw') || '{}')
+      const { latlngs, ...rest } = prev  // drop the working polygon geometry
+      sessionStorage.setItem('pg_pm_draw', JSON.stringify(rest))
+    } catch {}
   }
 
   function startOver() {
-    clearAll()
-    setRegions([])
-    clearActiveLine()
+    markers.current.forEach(m=>m.setMap(null)); markers.current=[]
+    if(polyRef.current){polyRef.current.setMap(null);polyRef.current=null}
     savedLineRefs.current.forEach(p=>p.setMap(null)); savedLineRefs.current=[]
-    setLines([]); setDrawMode('polygon')
+    clearActiveLine()
+    setPins(0); setArea(null); setPerim(null)
+    setRegions([]); setLines([]); setDrawMode('polygon'); drawModeRef.current='polygon'
+    // Authoritatively wipe persistence. removeItem alone loses the race with the
+    // persist effect (which re-writes on the lines/regions state change); writing
+    // the cleared shape ensures a refresh reads empty, not the old draw.
+    try { sessionStorage.setItem('pg_pm_draw', JSON.stringify({ lines:[], regions:[] })) } catch {}
   }
 
   function saveRegion() {
