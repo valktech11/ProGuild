@@ -1083,13 +1083,24 @@ function ProMeasureInner() {
               <div style={{marginTop:10,padding:'8px 10px',background:T.cardBg,borderRadius:8,border:`1px solid ${LINE_COLOR[lineType]}`}}>
                 <div style={{fontSize:11,color:T.text,marginBottom:6}}>
                   {lineType==='hip'
-                    ? 'Each hip = 2 clicks: peak, then corner. Keep clicking pairs to add more hips. Tap "Done" when finished, then you can drag or remove any line.'
-                    : `Each ${lineType} = 2 clicks: one end, then the other. Saves automatically — draw as many as you need.`}
-                  <div style={{marginTop:4,color:T.textSubtle}}>Clicks snap to nearby corners/peaks · drag to fine-tune · remove a line with its ✕ in the list below.</div>
-                  {(() => { const n = lines.filter(l=>l.type===lineType).length
-                    return n>0 ? <div style={{marginTop:4,fontWeight:700,color:LINE_COLOR[lineType]}}>{n} {lineType}{n>1?'s':''} drawn</div> : null })()}
+                    ? 'Each hip = 2 clicks: peak, then corner. Keep clicking pairs to add more.'
+                    : `Each ${lineType} = 2 clicks: one end, then the other. Draw as many as you need.`}
+                  <div style={{marginTop:4,color:T.textSubtle}}>Snaps to corners/peaks · tap ✕ below to delete a line anytime · drag to fine-tune after Done.</div>
                 </div>
-                <button onClick={cancelLine} style={{width:'100%',fontSize:13,fontWeight:800,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:8,padding:'10px',cursor:'pointer',boxShadow:`0 2px 8px ${LINE_COLOR[lineType]}55`}}>✓ Done — tap to drag/remove lines</button>
+                {/* Delete-anytime list: every committed line with a ✕, visible while drawing (Option B) */}
+                {lines.length>0 && (
+                  <div style={{marginTop:8,marginBottom:8,display:'flex',flexDirection:'column',gap:3,maxHeight:120,overflowY:'auto'}}>
+                    {lines.map((ln,i)=>(
+                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,color:T.text,background:T.surface,borderRadius:5,padding:'3px 7px'}}>
+                        <span><span style={{display:'inline-block',width:8,height:8,borderRadius:2,background:LINE_COLOR[ln.type],marginRight:6}}></span>{ln.type} · {ln.lf} LF</span>
+                        <button onClick={()=>removeLine(i)} title="Delete this line" style={{color:'#DC2626',background:'transparent',border:'none',cursor:'pointer',fontSize:15,fontWeight:700,padding:'0 4px',lineHeight:1}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(() => { const n = lines.filter(l=>l.type===lineType).length
+                  return n>0 ? <div style={{marginBottom:6,fontWeight:700,color:LINE_COLOR[lineType],fontSize:11}}>{n} {lineType}{n>1?'s':''} drawn</div> : null })()}
+                <button onClick={cancelLine} style={{width:'100%',fontSize:13,fontWeight:800,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:8,padding:'10px',cursor:'pointer',boxShadow:`0 2px 8px ${LINE_COLOR[lineType]}55`}}>✓ Done — finish & enable drag-to-straighten</button>
               </div>
             )}
             {(perimLF>0 && perimComplete) && (
