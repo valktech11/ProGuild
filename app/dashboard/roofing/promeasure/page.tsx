@@ -86,6 +86,12 @@ function ProMeasureInner() {
   const drawModeRef = useRef<'polygon'|'line'>('polygon')
   const lineTypeRef = useRef<'ridge'|'hip'|'valley'>('ridge')
   useEffect(()=>{ drawModeRef.current=drawMode },[drawMode])
+  // Dim the polygon fill while drawing lines so the actual ridge/hip/valley creases
+  // are visible underneath (far hip corners are obscured by the 0.20 tint otherwise).
+  useEffect(()=>{
+    if (!polyRef.current) return
+    try { polyRef.current.setOptions({ fillOpacity: drawMode==='line' ? 0.05 : settings.fillOpacity }) } catch {}
+  },[drawMode])
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
   const LINE_COLOR: Record<string,string> = { ridge:'#DC2626', hip:'#EA580C', valley:'#2563EB' }
   // Gemini line-suggestion shelved — see materials-panel comment. Flip to re-test.
@@ -393,7 +399,7 @@ function ProMeasureInner() {
   // ── Line tool ──────────────────────────────────────────────────────────────
   const hubRef = useRef<any>(null)
 
-  function placeMarker(latLng: any, map: any, scale=5): any {
+  function placeMarker(latLng: any, map: any, scale=6): any {
     const m = new window.google.maps.Marker({
       position:latLng, map, draggable:true,
       icon:{ path:window.google.maps.SymbolPath.CIRCLE, scale,
@@ -1166,6 +1172,14 @@ function ProMeasureInner() {
               {mapReady&&pins===0&&(
                 <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:dk?'rgba(15,20,35,0.88)':'rgba(17,24,39,0.82)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 20px',borderRadius:isWide?24:16,fontSize:13,fontWeight:600,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.1)',boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
                   Click to place pins around the roof perimeter · Double-click pin to remove
+                </div>
+              )}
+
+              {mapReady&&drawMode==='line'&&(
+                <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:dk?'rgba(15,20,35,0.92)':'rgba(17,24,39,0.88)',backdropFilter:'blur(8px)',color:'#fff',padding:'10px 20px',borderRadius:isWide?24:16,fontSize:13,fontWeight:600,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:`1px solid ${LINE_COLOR[lineType]}`,boxShadow:'0 4px 20px rgba(0,0,0,0.3)'}}>
+                  {lineType==='hip'
+                    ? 'Click the center peak, then each corner · Drag any point to the exact crease · Zoom in for far corners'
+                    : `Click each end of the ${lineType} · Drag any point to fine-tune · Zoom in for precision`}
                 </div>
               )}
 
