@@ -99,28 +99,17 @@ function ProMeasureInner() {
   // convergence click), and a fresh editable:true polyline has working handles +
   // freshly-bound sync listeners. Toggling editable on an existing polyline is the
   // unreliable Google path that broke drag repeatedly.
-  function rebuildCommittedLines(editable:boolean) {
-    const map = mapRef.current
-    if (!map) return
-    savedLineRefs.current.forEach((p:any)=>p.setMap(null))
-    savedLineRefs.current = lines.map(ln => {
-      const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
-      const poly = new window.google.maps.Polyline({
-        path, map, editable, clickable:editable, zIndex:20, ...lineStyle(ln.type),
-      })
-      attachLineHandlers(poly)
-      return poly
-    })
-  }
-
-  // On mode transitions only (deps [drawMode]): while drawing, committed lines are
-  // rebuilt non-editable + non-clickable (no handles to intercept a convergence
-  // click; snap still works off lines[] coords). When idle, rebuilt editable for
-  // drag-to-straighten + dblclick-remove. No setOptions toggle, no [lines] loop.
-  useEffect(()=>{
-    if (!mapReady) return
-    rebuildCommittedLines(drawMode!=='line')
-  },[drawMode])
+  // ── SINGLE SOURCE OF TRUTH for committed-line overlays ────────────────────
+  // All committed ridge/hip/valley polylines are owned here and ONLY here. They are
+  // destroyed + recreated from lines[] whenever lines or draw-mode change. This
+  // replaces three conflicting create/destroy sites (commitSegment, restore, rebuild)
+  // that fought over savedLineRefs and broke drag/dblclick.
+  //   drawing → editable:false (no handles to grab a convergence click; snap works
+  //             off lines[] coords).
+  //   idle    → editable:true (drag-to-straighten; vertex-dblclick → remove line).
+  // Guard: skip rebuild while a drag is in progress (draggingRef) so an in-flight
+  // drag's set_at → setLines doesn't destroy the polyline mid-drag.
+  const draggingRef = useRef(false)
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
   const LINE_COLOR: Record<string,string> = { ridge:'#DC2626', hip:'#EA580C', valley:'#2563EB' }
   // Gemini line-suggestion shelved — see materials-panel comment. Flip to re-test.
@@ -141,6 +130,32 @@ function ProMeasureInner() {
   const [area,         setArea]         = useState<number|null>(null)
   const [perim,        setPerim]        = useState<number|null>(null)
   const [mapReady,     setMapReady]     = useState(false)
+
+  // ── SINGLE SOURCE OF TRUTH for committed-line overlays ────────────────────
+  // All committed ridge/hip/valley polylines are owned here and ONLY here —
+  // destroyed + recreated from lines[] whenever lines or draw-mode change. This
+  // replaced three conflicting create/destroy sites (commitSegment, restore, rebuild)
+  // that fought over savedLineRefs and broke drag/dblclick.
+  //   drawing → editable:false (no handles to grab a convergence click; snap works
+  //             off lines[] coords).
+  //   idle    → editable:true (drag-to-straighten; vertex-dblclick → remove line).
+  // draggingRef guard: skip rebuild mid-drag so an in-flight set_at → setLines does
+  // not tear down the polyline being dragged.
+  useEffect(()=>{
+    if (!mapReady || !mapRef.current) return
+    if (draggingRef.current) return
+    const map = mapRef.current
+    const editable = drawMode !== 'line'
+    savedLineRefs.current.forEach((p:any)=>p.setMap(null))
+    savedLineRefs.current = lines.map(ln => {
+      const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
+      const poly = new window.google.maps.Polyline({
+        path, map, editable, clickable:editable, zIndex:20, ...lineStyle(ln.type),
+      })
+      attachLineHandlers(poly)
+      return poly
+    })
+  },[mapReady, lines, drawMode])
 
   // When launched for a specific lead, the lead's full address is authoritative.
   // A stale pg_pm_draw from a *different* property must not win — wipe drawn state
@@ -526,22 +541,28 @@ function ProMeasureInner() {
 
   // Re-bindable path listeners (set_at/insert_at) that sync edited geometry → LF.
   // Re-run whenever editable is re-enabled, since Google rebuilds the handle layer.
+  const dragReleaseTimer = useRef<any>(null)
+  function markDragging() {
+    draggingRef.current = true
+    if (dragReleaseTimer.current) clearTimeout(dragReleaseTimer.current)
+    // Release shortly after the last edit event — lets the final geometry settle,
+    // then allows the overlay effect to run once more (a no-op visually since geom
+    // already matches lines[], but keeps state consistent).
+    dragReleaseTimer.current = setTimeout(()=>{ draggingRef.current = false }, 250)
+  }
+
   function rebindEditListeners(poly:any) {
     const path = poly.getPath()
-    // Clear any prior bindings on this path to avoid duplicates.
     try { (window as any).google.maps.event.clearListeners(path, 'set_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'insert_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'remove_at') } catch {}
-    path.addListener('set_at', () => syncEditedLine(poly))
+    path.addListener('set_at', () => { markDragging(); syncEditedLine(poly) })
     path.addListener('insert_at', (i:number) => {
       if (path.getLength() > 2) path.removeAt(i)  // keep strictly 2-point
-      syncEditedLine(poly)
+      markDragging(); syncEditedLine(poly)
     })
-    // Double-clicking an editable vertex fires Google's vertex-delete (remove_at).
-    // On a 2-point line that drops it below 2 points — treat that as "remove the
-    // whole line", which is the dblclick-to-remove gesture (the line-body dblclick
-    // listener is unreliable on an editable 2-point line since the whole line is
-    // near a handle).
+    // Double-clicking an editable vertex fires Google's vertex-delete (remove_at);
+    // on a 2-point line that drops below 2 points → remove the whole line.
     path.addListener('remove_at', () => {
       if (path.getLength() < 2) {
         const idx = savedLineRefs.current.indexOf(poly)
@@ -566,12 +587,8 @@ function ProMeasureInner() {
     const lf = window.google.maps.geometry.spherical.computeDistanceBetween(pts[0], pts[1]) * 3.28084
     if (lf <= 0) { clearActiveLine(); return }
     const latlngs = [pts[0], pts[1]].map((p:any)=>({lat:p.lat(),lng:p.lng()}))
-    const drawing = drawModeRef.current === 'line'
-    const poly = new window.google.maps.Polyline({
-      path:[pts[0], pts[1]], map, editable:!drawing, clickable:!drawing, zIndex:20, ...lineStyle(type),
-    })
-    attachLineHandlers(poly)
-    savedLineRefs.current.push(poly)
+    // Only update state — the single source-of-truth effect creates the overlay
+    // (non-editable while drawing). No direct polyline creation here.
     setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs,user_adjusted:true,source:'manual'}])
     clearActiveLine() // ready for the next segment, still in line mode
   }
@@ -678,9 +695,7 @@ function ProMeasureInner() {
   function cancelLine() { clearActiveLine(); setDrawMode('polygon') }
 
   function removeLine(i:number) {
-    const poly = savedLineRefs.current[i]
-    if (poly) poly.setMap(null)
-    savedLineRefs.current.splice(i,1)
+    // Just update state — the single source-of-truth effect rebuilds the overlays.
     setLines(l=>l.filter((_,idx)=>idx!==i))
   }
 
@@ -861,18 +876,8 @@ function ProMeasureInner() {
 
   // Restore committed line polylines once the map is ready (state survives reload
   // via savedDraw; the map overlays must be re-instantiated against the new map).
-  const linesRestored = useRef(false)
-  useEffect(() => {
-    if (!mapReady || linesRestored.current || !mapRef.current || lines.length===0) return
-    linesRestored.current = true
-    for (const ln of lines) {
-      const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
-      const poly = new window.google.maps.Polyline({ path, map:mapRef.current,
-        editable:true, clickable:true, zIndex:20, ...lineStyle(ln.type) })
-      attachLineHandlers(poly)
-      savedLineRefs.current.push(poly)
-    }
-  }, [mapReady, lines])
+  // (Committed-line overlays are created by the single source-of-truth effect above,
+  // which also handles mount restore since it depends on [mapReady, lines, drawMode].)
 
   // Close recent dropdown on outside click
   useEffect(() => {
