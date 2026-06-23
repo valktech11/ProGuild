@@ -149,7 +149,6 @@ function ProMeasureInner() {
     // handle can't grab the click when you start a hip on a ridge endpoint —
     // convergence), editable when idle (drag-to-straighten + dblclick-remove).
     const editable = drawMode !== 'line'
-    console.log('[PM] EFFECT run: drawMode=', drawMode, 'editable=', editable, 'lines=', lines.length, 'dragging=', draggingRef.current)
     savedLineRefs.current.forEach((p:any)=>p.setMap(null))
     savedLineRefs.current = lines.map(ln => {
       const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
@@ -558,7 +557,7 @@ function ProMeasureInner() {
     try { (window as any).google.maps.event.clearListeners(path, 'set_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'insert_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'remove_at') } catch {}
-    path.addListener('set_at', () => { console.log('[PM] SET_AT fired (drag working)'); markDragging(); syncEditedLine(poly) })
+    path.addListener('set_at', () => { markDragging(); syncEditedLine(poly) })
     path.addListener('insert_at', (i:number) => {
       if (path.getLength() > 2) path.removeAt(i)
       markDragging(); syncEditedLine(poly)
@@ -574,7 +573,6 @@ function ProMeasureInner() {
   function attachLineHandlers(poly:any) {
     // Double-click to remove (same gesture as pins).
     poly.addListener('dblclick', () => {
-      console.log('[PM] LINE DBLCLICK fired')
       const idx = savedLineRefs.current.indexOf(poly)
       if (idx >= 0) removeLine(idx)
     })
@@ -693,7 +691,7 @@ function ProMeasureInner() {
     }
   }
 
-  function cancelLine() { console.log('[PM] DONE clicked → idle'); clearActiveLine(); setDrawMode('idle'); drawModeRef.current='idle' }
+  function cancelLine() { clearActiveLine(); setDrawMode('idle'); drawModeRef.current='idle' }
 
   function removeLine(i:number) {
     // Just update state — the single source-of-truth effect rebuilds the overlays.
@@ -740,7 +738,6 @@ function ProMeasureInner() {
   }, [suggestedLines])
 
   function startLine(t:'ridge'|'hip'|'valley') {
-    console.log('[PM] startLine called with', t, '— entering line mode')
     clearActiveLine()
     hubRef.current = null
     setLineType(t); lineTypeRef.current=t
@@ -1092,7 +1089,7 @@ function ProMeasureInner() {
                   {(() => { const n = lines.filter(l=>l.type===lineType).length
                     return n>0 ? <div style={{marginTop:4,fontWeight:700,color:LINE_COLOR[lineType]}}>{n} {lineType}{n>1?'s':''} drawn</div> : null })()}
                 </div>
-                <button onClick={cancelLine} style={{width:'100%',fontSize:12,fontWeight:700,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:6,padding:'7px',cursor:'pointer'}}>Done with {lineType}s</button>
+                <button onClick={cancelLine} style={{width:'100%',fontSize:13,fontWeight:800,color:'#fff',background:LINE_COLOR[lineType],border:'none',borderRadius:8,padding:'10px',cursor:'pointer',boxShadow:`0 2px 8px ${LINE_COLOR[lineType]}55`}}>✓ Done — tap to drag/remove lines</button>
               </div>
             )}
             {(perimLF>0 && perimComplete) && (
