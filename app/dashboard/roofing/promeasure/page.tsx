@@ -531,10 +531,22 @@ function ProMeasureInner() {
     // Clear any prior bindings on this path to avoid duplicates.
     try { (window as any).google.maps.event.clearListeners(path, 'set_at') } catch {}
     try { (window as any).google.maps.event.clearListeners(path, 'insert_at') } catch {}
+    try { (window as any).google.maps.event.clearListeners(path, 'remove_at') } catch {}
     path.addListener('set_at', () => syncEditedLine(poly))
     path.addListener('insert_at', (i:number) => {
       if (path.getLength() > 2) path.removeAt(i)  // keep strictly 2-point
       syncEditedLine(poly)
+    })
+    // Double-clicking an editable vertex fires Google's vertex-delete (remove_at).
+    // On a 2-point line that drops it below 2 points — treat that as "remove the
+    // whole line", which is the dblclick-to-remove gesture (the line-body dblclick
+    // listener is unreliable on an editable 2-point line since the whole line is
+    // near a handle).
+    path.addListener('remove_at', () => {
+      if (path.getLength() < 2) {
+        const idx = savedLineRefs.current.indexOf(poly)
+        if (idx >= 0) removeLine(idx)
+      }
     })
   }
 
@@ -1068,7 +1080,7 @@ function ProMeasureInner() {
                   {lineType==='hip'
                     ? 'Each hip = 2 clicks: peak, then corner. Lines save as you go — keep clicking pairs for more hips.'
                     : `Each ${lineType} = 2 clicks: one end, then the other. Saves automatically — draw as many as you need.`}
-                  <div style={{marginTop:4,color:T.textSubtle}}>Clicks snap to nearby corners/peaks · drag to fine-tune · double-click a line to remove it.</div>
+                  <div style={{marginTop:4,color:T.textSubtle}}>Clicks snap to nearby corners/peaks · drag to fine-tune · remove a line with its ✕ in the list below.</div>
                   {(() => { const n = lines.filter(l=>l.type===lineType).length
                     return n>0 ? <div style={{marginTop:4,fontWeight:700,color:LINE_COLOR[lineType]}}>{n} {lineType}{n>1?'s':''} drawn</div> : null })()}
                 </div>
