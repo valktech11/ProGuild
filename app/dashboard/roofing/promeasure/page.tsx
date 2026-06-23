@@ -93,18 +93,33 @@ function ProMeasureInner() {
     if (!polyRef.current) return
     try { polyRef.current.setOptions({ fillOpacity: drawMode==='line' ? 0.05 : settings.fillOpacity }) } catch {}
   },[drawMode])
-  // Committed lines are ALWAYS editable — toggling editable false→true via setOptions
-  // on an existing polyline is unreliable in Google Maps (handles don't reliably
-  // re-activate), which is why drag-to-straighten kept breaking. Instead keep
-  // editable:true always and only toggle CLICKABLE during draw: clickable:false
-  // stops the line body's dblclick-remove from firing when you place a new point on
-  // its endpoint. The editable vertex handle at a shared endpoint is the snap target
-  // you want anyway; snapLatLng locks the new point to it.
-  useEffect(()=>{
-    const drawing = drawMode==='line'
-    savedLineRefs.current.forEach((p:any)=>{
-      try { p.setOptions({ clickable: !drawing }) } catch {}
+  // Rebuild all committed line overlays fresh from lines[] with a given editable
+  // state. RECREATION (not setOptions toggle) is the reliable path: a fresh
+  // editable:false polyline has no vertex handles at all (so nothing grabs a
+  // convergence click), and a fresh editable:true polyline has working handles +
+  // freshly-bound sync listeners. Toggling editable on an existing polyline is the
+  // unreliable Google path that broke drag repeatedly.
+  function rebuildCommittedLines(editable:boolean) {
+    const map = mapRef.current
+    if (!map) return
+    savedLineRefs.current.forEach((p:any)=>p.setMap(null))
+    savedLineRefs.current = lines.map(ln => {
+      const path = ln.latlngs.map(p=>new window.google.maps.LatLng(p.lat,p.lng))
+      const poly = new window.google.maps.Polyline({
+        path, map, editable, clickable:editable, zIndex:20, ...lineStyle(ln.type),
+      })
+      attachLineHandlers(poly)
+      return poly
     })
+  }
+
+  // On mode transitions only (deps [drawMode]): while drawing, committed lines are
+  // rebuilt non-editable + non-clickable (no handles to intercept a convergence
+  // click; snap still works off lines[] coords). When idle, rebuilt editable for
+  // drag-to-straighten + dblclick-remove. No setOptions toggle, no [lines] loop.
+  useEffect(()=>{
+    if (!mapReady) return
+    rebuildCommittedLines(drawMode!=='line')
   },[drawMode])
   useEffect(()=>{ lineTypeRef.current=lineType },[lineType])
   const LINE_COLOR: Record<string,string> = { ridge:'#DC2626', hip:'#EA580C', valley:'#2563EB' }
@@ -541,7 +556,7 @@ function ProMeasureInner() {
     const latlngs = [pts[0], pts[1]].map((p:any)=>({lat:p.lat(),lng:p.lng()}))
     const drawing = drawModeRef.current === 'line'
     const poly = new window.google.maps.Polyline({
-      path:[pts[0], pts[1]], map, editable:true, clickable:!drawing, zIndex:20, ...lineStyle(type),
+      path:[pts[0], pts[1]], map, editable:!drawing, clickable:!drawing, zIndex:20, ...lineStyle(type),
     })
     attachLineHandlers(poly)
     savedLineRefs.current.push(poly)
