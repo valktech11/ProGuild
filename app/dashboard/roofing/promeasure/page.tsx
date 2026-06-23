@@ -589,12 +589,7 @@ function ProMeasureInner() {
     // Only update state — the single source-of-truth effect creates the overlay
     // (non-editable while drawing). No direct polyline creation here.
     setLines(l=>[...l,{type,lf:+lf.toFixed(0),latlngs,user_adjusted:true,source:'manual'}])
-    clearActiveLine()
-    // Auto-exit to idle after each committed segment. The line becomes editable
-    // immediately (drag/remove without a separate Done), and re-entering for the
-    // next segment (tap Add Hip) flips all lines non-editable again so convergence
-    // works for that segment's start point. One tap per segment, both behaviors intact.
-    setDrawMode('idle'); drawModeRef.current='idle'
+    clearActiveLine() // ready for the next segment, STAY in line mode (draw multiple freely)
   }
 
   function redrawLine(map: any) {
@@ -1088,7 +1083,7 @@ function ProMeasureInner() {
               <div style={{marginTop:10,padding:'8px 10px',background:T.cardBg,borderRadius:8,border:`1px solid ${LINE_COLOR[lineType]}`}}>
                 <div style={{fontSize:11,color:T.text,marginBottom:6}}>
                   {lineType==='hip'
-                    ? 'Each hip = 2 clicks: peak, then corner. It saves and you can drag/remove it right away. Tap Add Hip again for the next.'
+                    ? 'Each hip = 2 clicks: peak, then corner. Keep clicking pairs to add more hips. Tap "Done" when finished, then you can drag or remove any line.'
                     : `Each ${lineType} = 2 clicks: one end, then the other. Saves automatically — draw as many as you need.`}
                   <div style={{marginTop:4,color:T.textSubtle}}>Clicks snap to nearby corners/peaks · drag to fine-tune · remove a line with its ✕ in the list below.</div>
                   {(() => { const n = lines.filter(l=>l.type===lineType).length
@@ -1344,8 +1339,8 @@ function ProMeasureInner() {
               {mapReady&&drawMode==='line'&&(
                 <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',background:'rgba(13,148,136,0.96)',backdropFilter:'blur(8px)',color:'#fff',padding:'11px 22px',borderRadius:isWide?24:16,fontSize:13,fontWeight:700,pointerEvents:'none',whiteSpace:isWide?'nowrap':'normal',maxWidth:isWide?undefined:'calc(100% - 24px)',textAlign:'center',lineHeight:1.4,border:'1px solid rgba(255,255,255,0.35)',boxShadow:'0 6px 24px rgba(13,148,136,0.4)'}}>
                   {lineType==='hip'
-                    ? '2 clicks: peak → corner · saves, then drag/remove it · tap Add Hip again for the next · snaps to corners/peaks'
-                    : `2 clicks: end → end · saves, then drag/remove it · snaps to corners/peaks`}
+                    ? '2 clicks per hip: peak → corner · keep going for more · snaps to corners/peaks · tap Done to edit'
+                    : `2 clicks per ${lineType}: end → end · keep going for more · snaps to corners/peaks · tap Done to edit`}
                 </div>
               )}
 
