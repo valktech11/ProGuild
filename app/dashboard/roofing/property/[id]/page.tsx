@@ -10,6 +10,13 @@ import { capName, fmtCurrency, timeAgo } from '@/lib/utils'
 import { getPipelineStages } from '@/components/ui/LeadPipeline'
 
 const ROOF_TYPES   = ['Shingle', 'Metal', 'Tile', 'Flat/TPO', 'Modified Bitumen', 'EPDM', 'Built-Up', 'Other']
+
+// ── DSM linear-footage suppression (mirrors lib/roofing/premiumReportPdf.ts) ──
+// DSM segment-geometry LF proved badly inaccurate (hip +130%, valley −53% on real
+// FL roofs) and is non-authoritative per Bible §25. Suppressed from this property
+// readout so roofers never treat it as a measurement. Flip to true only once LF is
+// human-sourced (ProMeasure confirmed lines).
+const SHOW_DSM_LF = false
 const ROOF_MATS    = ['3-Tab Asphalt', 'Architectural/Dimensional', 'Designer/Premium', 'Metal Standing Seam', 'Metal Corrugated', 'Clay Tile', 'Concrete Tile', 'Slate', 'TPO Membrane', 'EPDM Rubber', 'Other']
 const STORIES_OPTS = [1, 2, 3, 4]
 
@@ -188,7 +195,8 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
             address:   geocodedAddress,
             storedAt:  Date.now(),
             propertyId: id,
-            // Linear footage — populated by DSM (async). Will be updated once DSM completes.
+            // Linear footage left blank — filled by ProMeasure or manual entry,
+            // never DSM (non-authoritative per §25).
             ridgeLF:  0, eaveLF: 0, perimLF: 0, hipLF: 0, valleyLF: 0, rakeLF: 0,
           }
           sessionStorage.setItem('pg_promeasure',   JSON.stringify(reportSessionData))
@@ -268,24 +276,11 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
       setReports(prev => prev.map(r =>
         r.id === report.id ? { ...r, linear_footage: freshLf } : r
       ))
-      // Update sessionStorage with linear footage so Calculator Section 2 auto-fills
-      try {
-        const existingRaw = sessionStorage.getItem('pg_report_data')
-        if (existingRaw) {
-          const existing = JSON.parse(existingRaw)
-          const updated = {
-            ...existing,
-            ridgeLF:   freshLf.ridge_ft   || 0,
-            eaveLF:    freshLf.eave_ft    || 0,
-            perimLF:   (freshLf.eave_ft || 0) + (freshLf.rake_ft || 0), // drip edge = eave + rake
-            hipLF:     freshLf.hip_ft     || 0,
-            valleyLF:  freshLf.valley_ft  || 0,
-            rakeLF:    freshLf.rake_ft    || 0,
-          }
-          sessionStorage.setItem('pg_report_data', JSON.stringify(updated))
-          sessionStorage.setItem('pg_promeasure',  JSON.stringify(updated))
-        }
-      } catch { /* non-fatal */ }
+      // §25: DSM linear footage is NON-AUTHORITATIVE and must never seed the
+      // calculator's LF fields (they drive the supplement code-required flags).
+      // Material Order still generates the PDF below; the roofer enters LF via
+      // ProMeasure or manually. Squares/pitch/waste remain pre-filled from the
+      // report — only DSM ridge/hip/valley LF is withheld.
 
       // Step 2: Generate Premium PDF
       setPremiumLoadingId(report.id)
@@ -628,7 +623,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                             <span style={{ fontSize: 11, color: t.textSubtle }}>{report.facet_count} facets</span>
                           </div>
                           {/* Linear footage breakdown — shown when DSM has run */}
-                          {report.linear_footage && (
+                          {SHOW_DSM_LF && report.linear_footage && (
                             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '4px 10px', marginTop: 5 }}>
                               {[
                                 { label: 'Ridge',  val: report.linear_footage.ridge_ft,  color: '#7C3AED' },
@@ -649,8 +644,8 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                           <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 3 }}>
                             {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             {' · '}{new Date(report.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                            {!report.linear_footage && (
-                              <span style={{ marginLeft: 6, color: '#7C3AED', fontWeight: 600 }}>· Tap Material Order for linear footage</span>
+                            {!SHOW_DSM_LF && (
+                              <span style={{ marginLeft: 6, color: t.textSubtle, fontWeight: 600 }}>· Trace linear footage with ProMeasure for supplements</span>
                             )}
                           </div>
                         </div>
