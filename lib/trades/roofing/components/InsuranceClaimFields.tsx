@@ -123,6 +123,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     return () => window.removeEventListener('resize', check)
   }, [])
   const [open,   setOpen]   = useState(initial.insurance_claim ?? false)
+  const [detailsOpen, setDetailsOpen] = useState(() => !(initial.insurance_company || initial.claim_number))  // fresh claim opens expanded; existing collapses to summary
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState<string | null>(null)
   const [saved,  setSaved]  = useState(false)
@@ -273,6 +274,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     if (initialised.current) return  // user has started editing — don't overwrite
     initialised.current = true
     setOpen(initial.insurance_claim ?? false)
+    if (initial.insurance_company || initial.claim_number) setDetailsOpen(false)  // existing claim → start collapsed
     setFields({
       insurance_claim:      initial.insurance_claim      ?? false,
       insurance_company:    initial.insurance_company    ?? '',
@@ -304,6 +306,17 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const isDenied     = fields.claim_status === 'Denied'
   const decided      = ['Approved','Denied','Supplement Filed','Supplement Approved','Closed'].includes(fields.claim_status)
   const phase        = derivePhase(fields.claim_status, !!fields.adjuster_appointment)
+  // Claim-details collapse: once core details exist, default to a compact summary
+  // line to keep the panel shallow. Empty claim → fields stay open so it's fillable.
+  const hasCoreDetails = !!(fields.insurance_company || fields.claim_number)
+  const showFields     = detailsOpen || !hasCoreDetails
+  const urgentDeadline = (() => {
+    if (!isFL || !fields.date_of_loss) return null
+    const dls = computeSB2ADeadlines(fields.date_of_loss)
+    if (!dls || !dls.length) return null
+    const d = dls[0]
+    return `${d.label}: ${Math.abs(d.daysLeft)}d ${d.status === 'expired' ? 'overdue' : 'left'}`
+  })()
 
   const activeStatus = CLAIM_STATUSES.find(s => s.value === fields.claim_status) ?? CLAIM_STATUSES[0]
 
@@ -372,6 +385,31 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
           <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr':'1fr', gap:14 }}>
 
+            {/* Claim details collapse to a summary line once filled — keeps the panel shallow */}
+            {!showFields && (
+              <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'11px 14px', borderRadius:10, background: dk?'rgba(255,255,255,0.03)':'#F8FAFC', border:`1px solid ${dk?'#334155':'#E2E8F0'}`, flexWrap:'wrap' as const }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:dk?'#F1F5F9':NAVY }}>
+                    {fields.insurance_company || 'Carrier'}{fields.claim_number ? ` · #${fields.claim_number}` : ''}
+                  </div>
+                  <div style={{ fontSize:11.5, color:'#94A3B8', marginTop:2 }}>
+                    {[fields.date_of_loss && `Loss ${fields.date_of_loss}`, fields.adjuster_name && `Adj. ${fields.adjuster_name}`, urgentDeadline].filter(Boolean).join('  ·  ') || 'Tap edit to add claim details'}
+                  </div>
+                </div>
+                {!locked && (
+                  <button onClick={()=>setDetailsOpen(true)} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer', whiteSpace:'nowrap' as const }}>Edit details</button>
+                )}
+              </div>
+            )}
+
+            {showFields && hasCoreDetails && !locked && (
+              <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk?'#94A3B8':'#64748B' }}>Claim details</span>
+                <button onClick={()=>setDetailsOpen(false)} style={{ fontSize:11.5, fontWeight:600, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer' }}>Collapse ▴</button>
+              </div>
+            )}
+
+            {showFields && (<>
             {/* Row 1: Insurer + Claim # */}
             <Field label="Insurance company">
               <div style={{ position:'relative' }}>
@@ -534,6 +572,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 You must be present at the property
               </div>
             </Field>
+            </>)}
 
             {/* ── Claim progress + carrier decision (phased) ── */}
             <div style={{ gridColumn:'1 / -1', display:'flex', flexDirection:'column', gap:14, marginTop:6, paddingTop:18, borderTop:`1px solid ${dk ? '#334155' : '#E2E8F0'}` }}>
