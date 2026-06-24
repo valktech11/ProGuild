@@ -4,7 +4,10 @@ import { apiError, isValidUuid } from '@/lib/api/utils'
 import { LeadStatus } from '@/types'
 import { getAllTradeStageKeys } from '@/lib/trades/_registry'
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+
 
 // Derived from registry — never hand-maintained.
 // Adding a new trade to the registry automatically includes its stages here.
