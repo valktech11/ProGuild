@@ -74,18 +74,19 @@ export async function GET(
     safe.items = safe.items.map(({ id, name, amount, description }: any) => ({ id, name, amount, description }))
   }
 
-  // Defensive: if stored totals are 0/missing (legacy bug where standard-estimate
-  // totals saved as 0 due to string-amount concat), recompute from line items so
-  // the homeowner email + public proposal never show $0.
+  // Line items are the source of truth for STANDARD estimates. Always derive the
+  // total from them so the homeowner's total matches the line items shown on the
+  // same page AND the roofer's live estimate view — never a stored estimates.total
+  // that drifted out of sync (e.g. after a re-apply or manual line edit). Tiered
+  // (Good/Better/Best) totals come from tiered_data and are left untouched.
+  const estType  = roofingEstData?.estimate_type ?? 'standard'
   const itemsSum = Array.isArray(safe.items)
     ? safe.items.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
     : 0
-  if ((Number(safe.total) || 0) === 0 && itemsSum > 0) {
+  if (estType !== 'tiered' && itemsSum > 0) {
     const rate = Number(safe.tax_rate) || 0
     safe.subtotal   = itemsSum
-    // Cents-accurate tax (same rule as the authoritative server derivation) —
-    // was Math.round(itemsSum * rate/100) which rounded tax to whole dollars and
-    // diverged from every other surface.
+    // Cents-accurate tax (same rule as the authoritative server derivation).
     safe.tax_amount = Math.round(itemsSum * (rate / 100) * 100) / 100
     safe.total      = safe.subtotal + safe.tax_amount
   }

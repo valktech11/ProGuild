@@ -127,8 +127,10 @@ export async function applyEstimateSignedEffects(
         const milestones = (roofingEst as any)?.payment_milestones ?? (fullEst.roofing as any)?.payment_milestones ?? null
         const depositPct = fullEst.deposit_percent ?? 30
 
-        // For GBB: use the selected tier's subtotal + recalculate tax
-        // For standard: use estimates.subtotal/total directly
+        // GBB: use the selected tier's subtotal + recalculated tax.
+        // Standard: derive from the LINE ITEMS + tax — the same source of truth the
+        // homeowner's approve page and email now use — so the invoice can never lock
+        // in a stale stored estimates.total that drifted from the line items.
         let invoiceSubtotal = fullEst.subtotal
         let invoiceTaxAmount = fullEst.tax_amount
         let invoiceTotal = fullEst.total
@@ -139,6 +141,11 @@ export async function applyEstimateSignedEffects(
             invoiceTaxAmount = Math.round(selTier.subtotal * ((fullEst.tax_rate ?? 0) / 100) * 100) / 100
             invoiceTotal     = invoiceSubtotal + invoiceTaxAmount
           }
+        } else if (Array.isArray(fullEst.items) && fullEst.items.length > 0) {
+          const itemsSum   = fullEst.items.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+          invoiceSubtotal  = itemsSum
+          invoiceTaxAmount = Math.round(itemsSum * ((fullEst.tax_rate ?? 0) / 100) * 100) / 100
+          invoiceTotal     = invoiceSubtotal + invoiceTaxAmount
         }
 
         const depositAmt = milestones?.[0]?.amount

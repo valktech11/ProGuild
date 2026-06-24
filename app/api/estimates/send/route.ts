@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const { data: est, error } = await sb
     .from('estimates')
     .select(`
-      id, estimate_number, total, status, contact_email, contact_phone,
+      id, estimate_number, total, status, contact_email, contact_phone, tax_rate,
       lead_name, valid_until, pro_id, lead_id,
       pro:pros(full_name, phone_cell, city, state, trade_slug),
       roofing:roofing_estimate_data(property_address, estimate_type, tiered_data),
@@ -70,12 +70,16 @@ export async function POST(req: NextRequest) {
     const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
     total = `${fmt(minT)} – ${fmt(maxT)}`
   } else {
-    // Standard estimate: stored total can be 0 (legacy string-amount save bug);
-    // fall back to summing line items so the email never shows $0.
+    // Standard estimate: derive the emailed total from line items + tax — the same
+    // source of truth the homeowner's approve page uses — so the email, the proposal
+    // page, and the roofer's live view always agree. Never trust a stored
+    // estimates.total that can drift out of sync after a re-apply or manual edit.
     const itemsSum = Array.isArray((est as any).items)
       ? (est as any).items.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
       : 0
-    const effectiveTotal = (Number(est.total) || 0) > 0 ? Number(est.total) : itemsSum
+    const rate   = Number((est as any).tax_rate) || 0
+    const taxAmt = Math.round(itemsSum * (rate / 100) * 100) / 100
+    const effectiveTotal = itemsSum > 0 ? itemsSum + taxAmt : (Number(est.total) || 0)
     total = effectiveTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
   const validUntil  = est.valid_until
