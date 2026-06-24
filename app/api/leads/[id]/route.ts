@@ -76,14 +76,15 @@ export async function GET(
     .eq('lead_id', id)
     .maybeSingle()
 
-  // Always read latest roof_report for this property to get measurements + LF
-  // roof_reports is the single source of truth for linear_footage
-  // roofing_job_data holds job-level data (insurance, labour etc) — not report data
+  // Always read latest roof_report for this property to get squares/pitch/waste.
+  // LF is NOT taken from roof_reports — human ProMeasure *_lf columns on
+  // roofing_job_data are the only authoritative linear-footage source (Bible §25).
+  // roofing_job_data holds job-level data (insurance, labour, human LF) too.
   let roofingJobData = rd ?? null
   if (data.property_id) {
     const { data: latestReport } = await getSupabaseAdmin()
       .from('roof_reports')
-      .select('total_squares_order, dominant_pitch, waste_factor, linear_footage, r2_url')
+      .select('total_squares_order, dominant_pitch, waste_factor, r2_url')
       .eq('pro_id', data.pro_id)
       .eq('property_id', data.property_id)
       .not('total_squares_order', 'is', null)
@@ -91,8 +92,8 @@ export async function GET(
       .limit(1)
       .maybeSingle()
     if (latestReport) {
-      // Human-traced ProMeasure lines on roofing_job_data are authoritative.
-      // DSM linear_footage from roof_reports is fallback only (and being retired).
+      // Human-traced ProMeasure lines on roofing_job_data are the only LF source.
+      // DSM linear_footage is never used (non-authoritative — Bible §25).
       const humanLines = Array.isArray(roofingJobData?.lines) ? roofingJobData!.lines : []
       const hasHumanLF = humanLines.length > 0 ||
         roofingJobData?.ridge_lf != null || roofingJobData?.hip_lf != null || roofingJobData?.valley_lf != null
@@ -109,8 +110,10 @@ export async function GET(
         square_count:   latestReport.total_squares_order ?? roofingJobData?.square_count ?? null,
         pitch:          latestReport.dominant_pitch      ?? roofingJobData?.pitch         ?? null,
         waste_pct:      latestReport.waste_factor        ?? roofingJobData?.waste_pct     ?? null,
-        // LF precedence: human ProMeasure lines > DSM roof_reports
-        linear_footage: humanLF ?? latestReport.linear_footage ?? null,
+        // LF precedence: human ProMeasure lines only. DSM linear_footage from
+        // roof_reports is NON-AUTHORITATIVE (Bible §25: Hip +130%, Valley −53%)
+        // and must never be served. No human LF → null → UI shows trace-LF prompt.
+        linear_footage: humanLF,
         report_url:     latestReport.r2_url              ?? null,
       }
     }
