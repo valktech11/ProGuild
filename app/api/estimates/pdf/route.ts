@@ -32,8 +32,21 @@ export async function GET(req: NextRequest) {
     .eq('estimate_id', id)
     .maybeSingle()
 
-  const pdfData = {
+  const pdfData = (() => {
+    // Standard estimates: derive totals from line items so the PDF never shows a
+    // stale stored total. Same source-of-truth rule as the public approve page + email.
+    const estType = roofingEst?.estimate_type ?? 'standard'
+    let { subtotal, tax_amount, total } = estimate as any
+    if (estType !== 'tiered' && Array.isArray(estimate.items) && estimate.items.length > 0) {
+      const itemsSum = estimate.items.reduce((s: number, it: any) => s + (Number(it.amount) || 0), 0)
+      const rate     = Number((estimate as any).tax_rate) || 0
+      subtotal   = itemsSum
+      tax_amount = Math.round(itemsSum * (rate / 100) * 100) / 100
+      total      = subtotal + tax_amount
+    }
+    return {
     ...estimate,
+    subtotal, tax_amount, total,  // override with line-item-derived values
     items:              estimate.items ?? [],
     // Roofing-specific fields from roofing_estimate_data
     estimate_type:      roofingEst?.estimate_type      ?? 'standard',
@@ -51,6 +64,7 @@ export async function GET(req: NextRequest) {
     pro_state: pro?.state      ?? '',
     pro_phone: pro?.phone      ?? '',
   }
+  })()
 
   try {
     // Dynamic import avoids SSR issues with canvas/pdf renderer
