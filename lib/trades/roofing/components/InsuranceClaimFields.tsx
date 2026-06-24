@@ -577,7 +577,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               <div style={{ padding:'12px 16px', borderRadius:10, background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', border:`1px solid ${dk ? '#334155' : '#E2E8F0'}`, fontSize:12, fontWeight:600, color: dk ? '#94A3B8' : '#64748B' }}>
                 {fields.claim_status === 'Denied'
                   ? 'Claim denied — insurance pays nothing. Homeowner pays the full job cost.'
-                  : 'Insurance reconciliation appears once the carrier marks the claim Approved.'}
+                  : 'Once the carrier responds, set status to Approved and enter the approved amount above — that unlocks reconciliation here and the supplement gap check further down.'}
               </div>
               )}
             </div>

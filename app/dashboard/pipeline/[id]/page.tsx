@@ -1498,21 +1498,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                               </div>
                                             </div>
                                             {!hasLF && step1Done && (
-                                              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:10}}>
+                                              <div style={{marginTop:10}}>
                                                 <button
                                                   onClick={()=>router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)}
-                                                  style={{padding:'8px',borderRadius:8,border:'1.5px solid #0F766E',background:'rgba(15,118,110,0.06)',color:'#0F766E',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                                                  style={{width:'100%',padding:'9px',borderRadius:8,border:'1.5px solid #0F766E',background:'rgba(15,118,110,0.06)',color:'#0F766E',fontSize:12.5,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
                                                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-                                                  ProMeasure
+                                                  Trace with ProMeasure
                                                 </button>
-                                                <button
-                                                  onClick={()=>{
-                                                    try{const payload={squares:Number(sq)||0,pitch:pitch??'6/12',waste:Number(waste)||12,source:'roof_report',address:(lead as any).property_address||'',storedAt:Date.now(),leadId:lead.id};sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
-                                                    router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
-                                                  }}
-                                                  style={{padding:'8px',borderRadius:8,border:'1.5px solid #CBD5E1',background:'#F8FAFC',color:'#475569',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                                                  Enter manually →
-                                                </button>
+                                                <div style={{marginTop:6,fontSize:11,color:'#94A3B8',textAlign:'center' as const}}>or type LF directly in the calculator (Price This Job)</div>
                                               </div>
                                             )}
                                             {!hasLF && !step1Done && (
@@ -1614,12 +1607,75 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               </div>
                             )}
 
-                            {/* FL Supplement Assistant — after step ladder so roofer measures first */}
-                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(
-                              <div style={{marginTop:16}}>
-                                <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(lead as any).roofing_job_data?.insurance_claim} darkMode={dk} measuredLF={(lead as any).roofing_job_data?.linear_footage ?? null}/>
-                              </div>
-                            )}
+                            {/* FL Supplement workflow — only once the carrier has actually responded.
+                                Trigger is the approved amount (the roofer enters it off the adjuster call)
+                                or an explicit post-decision claim status. Before that it's hidden — the
+                                step ladder owns this space and there is no carrier scope to reconcile yet. */}
+                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(()=>{
+                              const rjd = (lead as any).roofing_job_data
+                              const approvedAmt = Number(rjd?.approved_amount) || 0
+                              const supplementAmt = Number(rjd?.supplement_amount) || 0
+                              const claimStatus = rjd?.claim_status || 'Filed'
+                              const carrierResponded = approvedAmt > 0 ||
+                                ['Approved','Supplement Filed','Supplement Approved'].includes(claimStatus)
+                              const isDenied = claimStatus === 'Denied'
+                              const estTotal = est?.total || 0
+                              const carrierTotal = approvedAmt + supplementAmt
+                              const gap = (estTotal > 0 && carrierTotal > 0) ? estTotal - carrierTotal : null
+
+                              if (isDenied) return null  // denial has its own CTA above
+
+                              if (!carrierResponded) {
+                                return (
+                                  <div style={{marginTop:16,padding:'13px 16px',borderRadius:10,background:dk?'rgba(148,163,184,0.08)':'#F8FAFC',border:`1px dashed ${dk?'#334155':'#CBD5E1'}`,fontSize:12.5,color:dk?'#94A3B8':'#64748B',lineHeight:1.5}}>
+                                    <span style={{fontWeight:700,color:dk?'#CBD5E1':'#475569'}}>Supplement tools unlock once the carrier responds.</span>{' '}
+                                    Enter the carrier&rsquo;s approved amount in the claim panel above (and set status to Approved) — then the gap vs your estimate and the scope analyzer appear here.
+                                  </div>
+                                )
+                              }
+
+                              return (
+                                <div style={{marginTop:16}}>
+                                  {/* Gap summary — what the carrier paid vs the roofer's estimate */}
+                                  <div style={{marginBottom:14,borderRadius:12,overflow:'hidden',border:`1px solid ${gap && gap > 0 ? '#FED7AA' : '#BBF7D0'}`,background:gap && gap > 0 ? '#FFFBEB' : '#F0FDF4'}}>
+                                    <div style={{padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap' as const}}>
+                                      <div style={{display:'flex',gap:22}}>
+                                        <div>
+                                          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Carrier total</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#0F172A',letterSpacing:'-0.02em'}}>${carrierTotal.toLocaleString()}</div>
+                                        </div>
+                                        <div>
+                                          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Your estimate</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#0F172A',letterSpacing:'-0.02em'}}>{estTotal > 0 ? `$${estTotal.toLocaleString()}` : '—'}</div>
+                                        </div>
+                                      </div>
+                                      <div style={{textAlign:'right' as const}}>
+                                        {gap === null ? (
+                                          <div style={{fontSize:12,fontWeight:600,color:'#92400E',maxWidth:210,lineHeight:1.4}}>
+                                            {carrierTotal === 0
+                                              ? 'Enter the carrier\u2019s approved amount above to see your gap'
+                                              : 'Price this job to see your gap'}
+                                          </div>
+                                        ) : gap > 0 ? (
+                                          <>
+                                            <div style={{fontSize:10,fontWeight:700,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Potential gap</div>
+                                            <div style={{fontSize:22,fontWeight:900,color:'#B45309',letterSpacing:'-0.03em'}}>${gap.toLocaleString()}</div>
+                                          </>
+                                        ) : (
+                                          <div style={{fontSize:13,fontWeight:700,color:'#059669'}}>Carrier covers your estimate</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {gap !== null && gap > 0 && (
+                                      <div style={{padding:'9px 16px',borderTop:'1px solid #FED7AA',fontSize:11.5,color:'#92400E',lineHeight:1.45}}>
+                                        The carrier may have under-scoped. Paste their estimate below to see which FL code-required items they missed.
+                                      </div>
+                                    )}
+                                  </div>
+                                  <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null}/>
+                                </div>
+                              )
+                            })()}
 
                             {/* Notes */}
                             <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>

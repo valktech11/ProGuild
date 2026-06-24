@@ -570,7 +570,7 @@ function CalculatorInner() {
                   <div style={{ minWidth:0 }}>
                     <div style={{ fontSize:13.5, fontWeight:700, color:'#0F172A' }}>{f.item}</div>
                     <div style={{ fontSize:12, color:'#475569', marginTop:2, lineHeight:1.45 }}>
-                      {f.basis === 'code' ? 'Code-required' : 'Standard supplement'} — confirm it is line-itemed in the carrier estimate.
+                      {f.basis === 'code' ? 'Code-required' : 'Standard supplement'} — track for supplement recovery when the carrier responds.
                     </div>
                     <span style={{ display:'inline-block', marginTop:5, fontSize:11, fontWeight:600, color:'#0F766E', background:'rgba(15,118,110,0.08)', padding:'2px 7px', borderRadius:5 }}>{f.code}</span>
                   </div>
