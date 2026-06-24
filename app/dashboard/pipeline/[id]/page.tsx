@@ -13,6 +13,7 @@ import type { StagePlanEntry } from '@/lib/trades/roofing/stage-rules'
 // Roofing components accessed via trade module path — not components/roofing
 import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
 import SupplementAssistant from '@/lib/trades/roofing/components/SupplementAssistant'
+import { Card } from '@/components/ui/Card'
 import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
 import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
 
@@ -1637,7 +1638,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               return (
                                 <div style={{marginTop:16}}>
                                   {/* Gap summary — what the carrier paid vs the roofer's estimate */}
-                                  <div style={{marginBottom:14,borderRadius:12,overflow:'hidden',border:`1px solid ${gap && gap > 0 ? '#FED7AA' : '#BBF7D0'}`,background:gap && gap > 0 ? '#FFFBEB' : '#F0FDF4'}}>
+                                  <Card dk={false} variant={gap && gap > 0 ? 'warning' : 'success'} pad="none" style={{marginBottom:14}}>
                                     <div style={{padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap' as const}}>
                                       <div style={{display:'flex',gap:22}}>
                                         <div>
@@ -1671,7 +1672,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         The carrier may have under-scoped. Paste their estimate below to see which FL code-required items they missed.
                                       </div>
                                     )}
-                                  </div>
+                                  </Card>
                                   <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null}/>
                                 </div>
                               )

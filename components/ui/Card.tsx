@@ -10,7 +10,7 @@
 import React from 'react'
 import { theme, T } from '@/lib/tokens'
 
-type CardVariant = 'default' | 'teal' | 'warning' | 'danger' | 'purple'
+type CardVariant = 'default' | 'teal' | 'success' | 'warning' | 'danger' | 'purple'
 type CardPad     = 'none' | 'sm' | 'md' | 'lg'
 type CardRadius  = 'sm' | 'md' | 'lg' | 'xl'
 
@@ -21,6 +21,7 @@ interface CardProps {
   radius?:   CardRadius
   shadow?:   boolean
   hover?:    boolean          // adds hover background shift
+  accent?:   string          // optional left accent bar colour (e.g. brand teal)
   onClick?:  () => void
   style?:    React.CSSProperties
   className?: string
@@ -47,6 +48,7 @@ export function Card({
   radius = 'md',
   shadow = false,
   hover = false,
+  accent,
   onClick,
   style,
   className,
@@ -62,6 +64,10 @@ export function Card({
     teal: {
       background:  dk ? '#0D2820' : '#F0FDFA',
       border:      `1px solid ${dk ? '#0F4A3A' : '#99F6E4'}`,
+    },
+    success: {
+      background:  t.successBg,
+      border:      `1px solid ${t.successBorder}`,
     },
     warning: {
       background:  t.warningBg,
@@ -89,6 +95,7 @@ export function Card({
         transition:    hover || onClick ? 'background 0.12s' : 'none',
         overflow:      'hidden',
         ...variantStyles[variant],
+        ...(accent ? { borderLeft: `4px solid ${accent}` } : {}),
         ...style,
       }}
     >

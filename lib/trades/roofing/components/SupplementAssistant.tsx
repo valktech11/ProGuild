@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, type SupplementResult, type SupplementItem, type MeasuredLinearFootage } from '@/lib/fl/supplement'
+import { Card } from '@/components/ui/Card'
 
 interface Props {
   leadId:        string
@@ -98,7 +99,6 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
     }).catch(() => {})
   }, [result])
 
-  const card   = dk ? '#0F1B2D' : '#fff'
   const border = dk ? '#334155' : '#E2E8F0'
   const text   = dk ? '#E2E8F0' : '#0F172A'
   const sub    = dk ? '#94A3B8' : '#64748B'
@@ -106,33 +106,33 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   // Gate: roofing FL insurance claims only.
   if (restoring) {
     return (
-      <div style={{ borderRadius: 12, background: card, border: `1px solid ${border}`, borderLeft: `4px solid ${TEAL}`, padding: '14px 18px' }}>
+      <Card dk={dk} accent={TEAL} style={{ padding: '14px 18px' }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, marginBottom: 4 }}>Supplement Assistant</div>
         <div style={{ fontSize: 12, color: sub }}>Loading previous analysis…</div>
-      </div>
+      </Card>
     )
   }
 
   if (!isFL) {
     return (
-      <div style={{ borderRadius: 12, background: card, border: `1px solid ${border}`, borderLeft: `4px solid ${TEAL}`, padding: '14px 18px' }}>
+      <Card dk={dk} accent={TEAL} style={{ padding: '14px 18px' }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, marginBottom: 4 }}>Supplement Assistant</div>
         <div style={{ fontSize: 13, color: sub, lineHeight: 1.5 }}>
           The Supplement Assistant applies Florida building-code line items — it only works for FL properties. Set the lead&apos;s state to <strong style={{ color: text }}>FL</strong> in Edit (contact details) to enable it.
         </div>
-      </div>
+      </Card>
     )
   }
   if (!hasClaim) {
     return (
-      <div style={{ padding: '16px 18px', borderRadius: 12, background: card, border: `1px solid ${border}`, color: sub, fontSize: 13, lineHeight: 1.5 }}>
+      <Card dk={dk} style={{ padding: '16px 18px', color: sub, fontSize: 13, lineHeight: 1.5 }}>
         Turn on <strong style={{ color: text }}>Insurance claim</strong> above and fill in the claim details first — the Supplement Assistant uses the carrier, adjuster, and roof data to draft the request.
-      </div>
+      </Card>
     )
   }
 
   return (
-    <div style={{ borderRadius: 12, background: card, border: `1px solid ${border}`, borderLeft: `4px solid ${TEAL}`, overflow: 'hidden' }}>
+    <Card dk={dk} accent={TEAL} pad="none">
       <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, letterSpacing: '0.01em' }}>Supplement Assistant</div>
@@ -265,6 +265,6 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
           <div style={{ fontSize: 12, color: dk ? '#94A3B8' : '#475569', lineHeight: 1.5 }}>{SUPPLEMENT_DISCLAIMER}</div>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }

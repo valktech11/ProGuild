@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import DashboardShell from '@/components/layout/DashboardShell'
+import { Card } from '@/components/ui/Card'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme, T } from '@/lib/tokens'
 
@@ -561,7 +562,7 @@ function CalculatorInner() {
 
         {/* ── Supplement flags — directly below LF entry, before materials ── */}
         {insurance?.isInsurance && supplementFlags.length > 0 && (
-          <div style={{ marginBottom:14, borderRadius:12, overflow:'hidden', border:'1px solid #99F6E4', background:'#F0FDFA' }}>
+          <Card dk={false} variant="default" accent="#0F766E" pad="none" style={{ marginBottom:14 }}>
             <div style={{ padding:'12px 16px', borderBottom:'1px solid #99F6E4', display:'flex', alignItems:'center', gap:8 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               <span style={{ fontSize:13, fontWeight:800, color:'#065F46' }}>Supplement items from your measurements</span>
@@ -583,7 +584,7 @@ function CalculatorInner() {
                 Based on your traced lines. Informational — verify against the carrier scope; not legal or public-adjuster advice.
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* ── Section 3: Materials ── */}
