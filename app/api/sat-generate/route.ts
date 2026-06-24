@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
+// Debug / keep-alive — never cache.
+export const dynamic = 'force-dynamic'
+
 const sb = () => getSupabaseAdmin()
 
 async function getBestModel(apiKey: string): Promise<string> {

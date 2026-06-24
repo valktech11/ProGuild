@@ -6,6 +6,9 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 
+// Debug / keep-alive — never cache.
+export const dynamic = 'force-dynamic'
+
 const LAT = 30.25611
 const LNG = -81.572459
 

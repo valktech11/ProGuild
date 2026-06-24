@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
+// Public/static payload — safe to cache; revalidate hourly.
+export const revalidate = 3600
+
 const sb = () => getSupabaseAdmin()
 
 // SAT Math score conversion table (raw 0-44 → scaled 200-800)
