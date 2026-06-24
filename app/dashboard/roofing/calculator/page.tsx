@@ -335,13 +335,18 @@ function CalculatorInner() {
   // Labour is persisted server-side from the estimate's saved line on Apply
   // (lib/roofing/labour-cache.ts). The calculator no longer writes labour_amount.
 
-  const materialTotal = lineItems.reduce((s, i) => s + i.total, 0)
+  // Optional items (e.g. the full-deck SWB membrane, which is an *alternative* to
+  // synthetic underlayment, not an add-on) are shown for reference but excluded from
+  // the subtotal so they never double-count. The roofer adds them deliberately.
+  const materialTotal = lineItems.reduce((s, i) => i.optional ? s : s + i.total, 0)
+  const hasOptional   = lineItems.some(i => i.optional)
   // Items still missing their linear footage (shown in the LF nudge below the table).
-  // Optional items (e.g. eave membrane) are excluded — they're not required for a complete takeoff.
+  // Optional items (the full-deck SWB membrane, an alternative to synthetic underlayment)
+  // are excluded — they're method-dependent, not a missing-LF problem.
   const missingItems = lineItems.filter(i => i.isPlaceholder && !i.optional).map(i => i.description)
   const labourAmount  = parseFloat(labour) || 0
   const grandTotal    = materialTotal + labourAmount
-  const needsLF       = !parseFloat(ridgeLF) || !parseFloat(perimLF)  // eave is optional (eave membrane only); not required for a complete takeoff
+  const needsLF       = !parseFloat(ridgeLF) || !parseFloat(perimLF)  // ridge (caps) + perimeter (starter/drip) are the required LF; everything else derives from area
 
   // Deterministic supplement flags from human-traced LF. Detected-only (derived, no
   // persistence). Rendered only on insurance jobs, below the reconciliation panel.
@@ -550,10 +555,7 @@ function CalculatorInner() {
                 onChange={e => setValleyLF(e.target.value)} />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:14 }}>
-              <FInput label="Eave LF" hint="for starter strip + eave membrane"
-                type="number" min="0" step="1" value={eaveLF} placeholder="e.g. 120"
-                onChange={e => setEaveLF(e.target.value)} />
-              <FInput label="Perimeter LF" hint="for drip edge"
+              <FInput label="Perimeter LF" hint="for drip edge + starter strip"
                 type="number" min="0" step="1" value={perimLF} placeholder="e.g. 280"
                 onChange={e => setPerimLF(e.target.value)} />
             </div>
@@ -659,21 +661,19 @@ function CalculatorInner() {
                       background: item.isPlaceholder
                         ? (i%2===0 ? 'transparent' : 'rgba(15,118,110,0.012)')
                         : (i%2===0 ? 'transparent' : 'rgba(15,118,110,0.016)'),
-                      opacity: item.isPlaceholder ? 0.5 : 1,
+                      opacity: item.isPlaceholder ? 0.5 : (item.optional ? 0.7 : 1),
                     }}>
                     <td style={{ padding:'10px', fontSize:13, fontWeight:600, color:NAVY, minWidth:160 }}>
                       {item.description}
-                      {item.isPlaceholder && (
-                        item.optional ? (
-                          <span style={{ marginLeft:6, display:'inline-flex', alignItems:'center', fontSize:10, fontWeight:700, color:'#64748B', background:'#F1F5F9', border:'1px solid #E2E8F0', borderRadius:100, padding:'1px 8px' }}>
-                            optional
-                          </span>
-                        ) : (
-                          <span style={{ marginLeft:6, display:'inline-flex', alignItems:'center', gap:3, fontSize:10, fontWeight:700, color:'#B45309', background:'#FFFBEB', border:'1px solid rgba(180,83,9,0.2)', borderRadius:100, padding:'1px 6px' }}>
-                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                            needs LF
-                          </span>
-                        )
+                      {item.optional ? (
+                        <span style={{ marginLeft:6, display:'inline-flex', alignItems:'center', fontSize:10, fontWeight:700, color:'#64748B', background:'#F1F5F9', border:'1px solid #E2E8F0', borderRadius:100, padding:'1px 8px' }}>
+                          optional
+                        </span>
+                      ) : item.isPlaceholder && (
+                        <span style={{ marginLeft:6, display:'inline-flex', alignItems:'center', gap:3, fontSize:10, fontWeight:700, color:'#B45309', background:'#FFFBEB', border:'1px solid rgba(180,83,9,0.2)', borderRadius:100, padding:'1px 6px' }}>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          needs LF
+                        </span>
                       )}
                     </td>
                     <td style={{ padding:'10px', fontSize:12, color:'#64748B', maxWidth:200 }}>
@@ -697,8 +697,8 @@ function CalculatorInner() {
                         </div>
                       </td>
                     )}
-                    <td style={{ padding:'10px', textAlign:'right' as const, fontSize:13, fontWeight:700, color: item.isPlaceholder ? '#94A3B8' : TEAL }}>
-                      {item.isPlaceholder ? '—' : `$${item.total.toLocaleString()}`}
+                    <td style={{ padding:'10px', textAlign:'right' as const, fontSize:13, fontWeight:700, color: (item.isPlaceholder || item.optional) ? '#94A3B8' : TEAL }}>
+                      {item.isPlaceholder ? '—' : item.optional ? `($${item.total.toLocaleString()})` : `$${item.total.toLocaleString()}`}
                     </td>
                   </tr>
                 ))}
@@ -712,6 +712,13 @@ function CalculatorInner() {
                     ${materialTotal.toLocaleString()}
                   </td>
                 </tr>
+                {hasOptional && (
+                  <tr>
+                    <td colSpan={editPrices ? 6 : 5} style={{ padding:'4px 10px 10px', fontSize:11, color:'#94A3B8', fontWeight:400 }}>
+                      Optional items (shown in parentheses) aren't included in the subtotal — add them to your estimate if you're using that method.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
 

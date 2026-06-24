@@ -35,7 +35,7 @@ export const CALCULATOR_LINE_NAMES: readonly string[] = [
   'Starter strip',
   'Roofing nails',
   'Drip edge',
-  'Self-adhered underlayment (eave)',
+  'Self-adhered membrane (full deck)',
   'Pipe boots & vent covers',
   'Tear-off & disposal',
   LABOUR_LINE_NAME,
@@ -53,7 +53,8 @@ export const LINE_NAME_TO_PRICE_KEY: Record<string, string> = {
   'Starter strip':                        'starterStrip',
   'Roofing nails':                        'nails',
   'Drip edge':                            'dripEdge',
-  'Self-adhered underlayment (eave)':     'iceWater',
+  'Self-adhered membrane (full deck)':    'iceWater',
+  'Self-adhered underlayment (eave)':     'iceWater',  // prior name — keep so saved estimates restore prices
   'Ice & water shield (eave protection)': 'iceWater',  // legacy name — keep so saved estimates restore prices
   'Pipe boots & vent covers':             'pipeBoot',
   'Tear-off & disposal':                  'disposal',
@@ -124,7 +125,11 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
   const valleyRolls    = valleyLF  > 0 ? Math.ceil(valleyLF  / 33)  : null  // std 33 LF roll
   const starterBundles = perimLF   > 0 ? Math.ceil(perimLF   / 105) : null  // FL: starter runs full perimeter (eaves + rakes), same as drip edge
   const dripPieces     = perimLF   > 0 ? Math.ceil(perimLF   / 10)  : null
-  const iceSquares     = eaveLF    > 0 ? Math.ceil((eaveLF * 3) / 100) : null
+  // FL secondary water barrier = whole-deck self-adhered membrane (not a northern
+  // eave ice-dam strip). Same whole-deck basis as synthetic underlayment — it's the
+  // peel-and-stick alternative to it, not an add-on. Optional + excluded from the
+  // subtotal so it never double-counts the synthetic underlayment line.
+  const swbSquares     = Math.round(adjSqRounded * 1.1)
 
   // Underlayment is ordered in whole squares. Price AND store the rounded qty so
   // the calculator total (qty×price) matches what the estimate recomputes on save.
@@ -203,11 +208,11 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
     },
     {
       key: 'iceWater',
-      description: 'Self-adhered underlayment (eave)',
-      note: iceSquares ? `3 ft self-adhered eave strip · ${iceSquares} sq` : 'Optional — enter Eave LF if installing',
-      quantity: iceSquares ?? 0, unit: 'squares',
-      unitPrice: prices.iceWater, total: (iceSquares ?? 0) * prices.iceWater,
-      isPlaceholder: !iceSquares,
+      description: 'Self-adhered membrane (full deck)',
+      note: `Whole-deck secondary water barrier · ${swbSquares} sq · FL peel-and-stick alternative to synthetic underlayment`,
+      quantity: swbSquares, unit: 'squares',
+      unitPrice: prices.iceWater, total: swbSquares * prices.iceWater,
+      isPlaceholder: false,
       optional: true,
     },
   ]
