@@ -17,6 +17,7 @@ export interface CalcLineItem {
   unitPrice: number
   total: number
   isPlaceholder: boolean
+  optional?: boolean   // not part of the required takeoff — won't be flagged as 'missing LF'
 }
 
 // ── Canonical line-item names the calculator emits ───────────────────────────
@@ -121,7 +122,7 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
   const ridgeBundles   = ridgeLF   > 0 ? Math.ceil(ridgeLF   / 35)  : null
   const hipBundles     = hipLF     > 0 ? Math.ceil(hipLF     / 35)  : null  // same coverage as ridge cap
   const valleyRolls    = valleyLF  > 0 ? Math.ceil(valleyLF  / 33)  : null  // std 33 LF roll
-  const starterBundles = eaveLF    > 0 ? Math.ceil(eaveLF    / 105) : null
+  const starterBundles = perimLF   > 0 ? Math.ceil(perimLF   / 105) : null  // FL: starter runs full perimeter (eaves + rakes), same as drip edge
   const dripPieces     = perimLF   > 0 ? Math.ceil(perimLF   / 10)  : null
   const iceSquares     = eaveLF    > 0 ? Math.ceil((eaveLF * 3) / 100) : null
 
@@ -179,7 +180,7 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
     {
       key: 'starterStrip',
       description: 'Starter strip',
-      note: starterBundles ? `${eaveLF} LF ÷ 105 = ${starterBundles} bundles` : 'Enter Eave LF above',
+      note: starterBundles ? `${perimLF} LF ÷ 105 = ${starterBundles} bundles` : 'Enter Perimeter LF above',
       quantity: starterBundles ?? 0, unit: 'bundles',
       unitPrice: prices.starterStrip, total: (starterBundles ?? 0) * prices.starterStrip,
       isPlaceholder: !starterBundles,
@@ -203,10 +204,11 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
     {
       key: 'iceWater',
       description: 'Self-adhered underlayment (eave)',
-      note: iceSquares ? `3 ft self-adhered eave strip · ${iceSquares} sq` : 'Enter Eave LF above',
+      note: iceSquares ? `3 ft self-adhered eave strip · ${iceSquares} sq` : 'Optional — enter Eave LF if installing',
       quantity: iceSquares ?? 0, unit: 'squares',
       unitPrice: prices.iceWater, total: (iceSquares ?? 0) * prices.iceWater,
       isPlaceholder: !iceSquares,
+      optional: true,
     },
   ]
 

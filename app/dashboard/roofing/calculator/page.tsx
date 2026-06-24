@@ -337,10 +337,11 @@ function CalculatorInner() {
 
   const materialTotal = lineItems.reduce((s, i) => s + i.total, 0)
   // Items still missing their linear footage (shown in the LF nudge below the table).
-  const missingItems = lineItems.filter(i => i.isPlaceholder).map(i => i.description)
+  // Optional items (e.g. eave membrane) are excluded — they're not required for a complete takeoff.
+  const missingItems = lineItems.filter(i => i.isPlaceholder && !i.optional).map(i => i.description)
   const labourAmount  = parseFloat(labour) || 0
   const grandTotal    = materialTotal + labourAmount
-  const needsLF       = !parseFloat(ridgeLF) || !parseFloat(eaveLF) || !parseFloat(perimLF)
+  const needsLF       = !parseFloat(ridgeLF) || !parseFloat(perimLF)  // eave is optional (eave membrane only); not required for a complete takeoff
 
   // Deterministic supplement flags from human-traced LF. Detected-only (derived, no
   // persistence). Rendered only on insurance jobs, below the reconciliation panel.
@@ -653,10 +654,16 @@ function CalculatorInner() {
                     <td style={{ padding:'10px', fontSize:13, fontWeight:600, color:NAVY, minWidth:160 }}>
                       {item.description}
                       {item.isPlaceholder && (
-                        <span style={{ marginLeft:6, display:'inline-flex', alignItems:'center', gap:3, fontSize:10, fontWeight:700, color:'#B45309', background:'#FFFBEB', border:'1px solid rgba(180,83,9,0.2)', borderRadius:100, padding:'1px 6px' }}>
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                          needs LF
-                        </span>
+                        item.optional ? (
+                          <span style={{ marginLeft:6, display:'inline-flex', alignItems:'center', fontSize:10, fontWeight:700, color:'#64748B', background:'#F1F5F9', border:'1px solid #E2E8F0', borderRadius:100, padding:'1px 8px' }}>
+                            optional
+                          </span>
+                        ) : (
+                          <span style={{ marginLeft:6, display:'inline-flex', alignItems:'center', gap:3, fontSize:10, fontWeight:700, color:'#B45309', background:'#FFFBEB', border:'1px solid rgba(180,83,9,0.2)', borderRadius:100, padding:'1px 6px' }}>
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            needs LF
+                          </span>
+                        )
                       )}
                     </td>
                     <td style={{ padding:'10px', fontSize:12, color:'#64748B', maxWidth:200 }}>

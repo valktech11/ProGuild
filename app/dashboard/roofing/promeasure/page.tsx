@@ -794,7 +794,11 @@ function ProMeasureInner() {
   async function pushToCalc() {
     const totalSqFt = regions.reduce((s,r)=>s+r.sqFt,0)+(area||0)
     const squares   = +(totalSqFt/100).toFixed(2)
-    const measData  = { squares, pitch, waste, perimeter:perim?+perim.toFixed(1):null, address,
+    // Perimeter must include saved region boundaries + the active polygon — the
+    // earlier version only sent the active polygon, so a roof drawn as a saved
+    // region sent no perimeter (drip edge / starter stayed blank in the calculator).
+    const totalPerim = regions.reduce((s,r)=>s+(r.perimLF||0),0) + (perim || 0)
+    const measData  = { squares, pitch, waste, perimeter: totalPerim > 0 ? +totalPerim.toFixed(1) : null, address,
       ridge_lf: lines.filter(l=>l.type==='ridge').reduce((a,l)=>a+l.lf,0) || null,
       hip_lf:   lines.filter(l=>l.type==='hip').reduce((a,l)=>a+l.lf,0) || null,
       valley_lf:lines.filter(l=>l.type==='valley').reduce((a,l)=>a+l.lf,0) || null,
