@@ -575,9 +575,12 @@ function CalculatorInner() {
                     <div style={{ fontSize:12, color:'#475569', marginTop:2, lineHeight:1.45 }}>
                       {f.basis === 'code' ? 'Code-required' : 'Standard supplement'} — track for supplement recovery when the carrier responds.
                     </div>
-                    <span style={{ display:'inline-block', marginTop:5, fontSize:11, fontWeight:600, color:'#0F766E', background:'rgba(15,118,110,0.08)', padding:'2px 7px', borderRadius:5 }}>{f.code}</span>
+                    <span style={{ display:'inline-block', marginTop:5, fontSize:10.5, fontWeight:600, letterSpacing:'0.02em', color:'#94A3B8', fontFamily:'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{f.code}</span>
                   </div>
-                  <div style={{ fontSize:13, fontWeight:800, color:'#0F766E', whiteSpace:'nowrap' }}>{f.measured_lf} LF</div>
+                  <div style={{ whiteSpace:'nowrap', textAlign:'right' as const }}>
+                    <span style={{ fontSize:18, fontWeight:800, color:'#0F766E', letterSpacing:'-0.02em' }}>{f.measured_lf}</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:'#0F766E', opacity:0.6, marginLeft:3 }}>LF</span>
+                  </div>
                 </div>
               ))}
               <div style={{ fontSize:11, color:'#64748B', lineHeight:1.45 }}>

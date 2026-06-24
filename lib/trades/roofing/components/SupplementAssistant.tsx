@@ -156,9 +156,12 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
                     <div style={{ fontSize: 11.5, color: sub, marginTop: 2, lineHeight: 1.4 }}>
                       {f.basis === 'code' ? 'Code-required (FL)' : 'Standard supplement'}
                     </div>
-                    <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 600, color: TEAL, background: TEAL + '14', padding: '2px 7px', borderRadius: 5 }}>{f.code}</span>
+                    <span style={{ display: 'inline-block', marginTop: 4, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.02em', color: sub, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{f.code}</span>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: text, whiteSpace: 'nowrap' }}>{f.measured_lf} LF</div>
+                  <div style={{ whiteSpace: 'nowrap', textAlign: 'right' as const }}>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, letterSpacing: '-0.02em' }}>{f.measured_lf}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: dk ? '#5EEAD4' : TEAL, opacity: 0.6, marginLeft: 3 }}>LF</span>
+                  </div>
                 </div>
               ))}
             </div>
