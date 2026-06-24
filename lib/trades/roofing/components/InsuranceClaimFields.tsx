@@ -536,7 +536,9 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             </Field>
 
             {/* ── Claim progress + carrier decision (phased) ── */}
-            <div style={{ gridColumn:'1 / -1', display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ gridColumn:'1 / -1', display:'flex', flexDirection:'column', gap:14, marginTop:6, paddingTop:18, borderTop:`1px solid ${dk ? '#334155' : '#E2E8F0'}` }}>
+
+              <div style={{ fontSize:11, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk ? '#94A3B8' : '#64748B' }}>Claim progress</div>
 
               {/* Phase strip */}
               <div style={{ display:'flex', alignItems:'flex-start' }}>
@@ -549,8 +551,8 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   return (
                     <div key={label} style={{ display:'flex', alignItems:'flex-start', flex: i < PHASE_STEPS.length - 1 ? 1 : '0 0 auto' }}>
                       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, flexShrink:0 }}>
-                        <div style={{ width:11, height:11, borderRadius:'50%', background:dot, boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}25` : 'none' }}/>
-                        <span style={{ fontSize:10, fontWeight:700, color:txt, whiteSpace:'nowrap' as const }}>{deniedStep ? 'Denied' : label}</span>
+                        <div style={{ width:12, height:12, borderRadius:'50%', background:dot, boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}25` : 'none' }}/>
+                        <span style={{ fontSize:11, fontWeight:700, color:txt, whiteSpace:'nowrap' as const }}>{deniedStep ? 'Denied' : label}</span>
                       </div>
                       {i < PHASE_STEPS.length - 1 && (
                         <div style={{ flex:1, height:2, marginTop:5, background: done ? '#059669' : (dk ? '#334155' : '#E2E8F0') }}/>

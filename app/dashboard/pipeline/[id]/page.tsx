@@ -1625,15 +1625,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const gap = (estTotal > 0 && carrierTotal > 0) ? estTotal - carrierTotal : null
 
                               if (isDenied) return null  // denial has its own CTA above
-
-                              if (!carrierResponded) {
-                                return (
-                                  <div style={{marginTop:16,padding:'13px 16px',borderRadius:10,background:dk?'rgba(148,163,184,0.08)':'#F8FAFC',border:`1px dashed ${dk?'#334155':'#CBD5E1'}`,fontSize:12.5,color:dk?'#94A3B8':'#64748B',lineHeight:1.5}}>
-                                    <span style={{fontWeight:700,color:dk?'#CBD5E1':'#475569'}}>Supplement tools unlock once the carrier responds.</span>{' '}
-                                    Enter the carrier&rsquo;s approved amount in the claim panel above (and set status to Approved) — then the gap vs your estimate and the scope analyzer appear here.
-                                  </div>
-                                )
-                              }
+                              if (!carrierResponded) return null  // pre-decision: the claim panel's decision buttons own this
 
                               return (
                                 <div style={{marginTop:16}}>
@@ -1642,11 +1634,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     <div style={{padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap' as const}}>
                                       <div style={{display:'flex',gap:22}}>
                                         <div>
-                                          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Carrier total</div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#64748B',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Carrier total</div>
                                           <div style={{fontSize:17,fontWeight:800,color:'#0F172A',letterSpacing:'-0.02em'}}>${carrierTotal.toLocaleString()}</div>
                                         </div>
                                         <div>
-                                          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Your estimate</div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#64748B',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Your estimate</div>
                                           <div style={{fontSize:17,fontWeight:800,color:'#0F172A',letterSpacing:'-0.02em'}}>{estTotal > 0 ? `$${estTotal.toLocaleString()}` : '—'}</div>
                                         </div>
                                       </div>

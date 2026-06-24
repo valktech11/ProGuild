@@ -154,7 +154,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: text }}>{f.item}</div>
                     <div style={{ fontSize: 11.5, color: sub, marginTop: 2, lineHeight: 1.4 }}>
-                      {f.basis === 'code' ? 'Code-required' : 'Standard supplement'} — confirm it is in the carrier scope.
+                      {f.basis === 'code' ? 'Code-required (FL)' : 'Standard supplement'}
                     </div>
                     <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 600, color: TEAL, background: TEAL + '14', padding: '2px 7px', borderRadius: 5 }}>{f.code}</span>
                   </div>
@@ -175,7 +175,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
           value={scope}
           onChange={e => { setScope(e.target.value); setError(null) }}
           placeholder="Paste the adjuster's scope of loss here — line items, quantities, prices…"
-          rows={8}
+          rows={4}
           style={{
             width: '100%', boxSizing: 'border-box', resize: 'vertical',
             padding: '11px 13px', fontSize: 13, lineHeight: 1.5, fontFamily: 'inherit',

@@ -500,7 +500,7 @@ function CalculatorInner() {
 
         {/* ── Section 2: Linear footage ── */}
         {parseFloat(squares) > 0 && (
-          <Section n="2" label="Edge & Ridge Lengths" sub="Enter manually, or measure precisely with ProMeasure — needed for ridge cap, trim, starter strip and drip edge"
+          <Section n="2" label="Edge & Ridge Lengths" sub="For ridge cap, valley, starter strip & drip edge — type below or measure with ProMeasure"
             right={
               needsLF ? (
                 leadId ? (
@@ -534,12 +534,12 @@ function CalculatorInner() {
               <FInput label="Hip LF" hint="for hip cap bundles"
                 type="number" min="0" step="1" value={hipLF} placeholder="e.g. 60"
                 onChange={e => setHipLF(e.target.value)} />
-              <FInput label="Valley LF" hint="for valley metal / I&W"
+              <FInput label="Valley LF" hint="for valley lining"
                 type="number" min="0" step="1" value={valleyLF} placeholder="e.g. 24"
                 onChange={e => setValleyLF(e.target.value)} />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:14 }}>
-              <FInput label="Eave LF" hint="for starter strip + ice/water"
+              <FInput label="Eave LF" hint="for starter strip + eave membrane"
                 type="number" min="0" step="1" value={eaveLF} placeholder="e.g. 120"
                 onChange={e => setEaveLF(e.target.value)} />
               <FInput label="Perimeter LF" hint="for drip edge"
