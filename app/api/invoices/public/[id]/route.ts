@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
+// Always read fresh from the database — never serve a cached response.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // ── GET /api/invoices/public/[id] — client-facing, no auth ───────────────────
 export async function GET(
   req: NextRequest,

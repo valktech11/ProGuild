@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
+// Always read fresh from the database — never serve a cached response.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // GET /api/public/status/[token] — PUBLIC, unauthenticated, read-only.
 // Returns ONLY homeowner-safe fields. No dollar amounts, no claim internals,
 // no homeowner contact details, no other leads.

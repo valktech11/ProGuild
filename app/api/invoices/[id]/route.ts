@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
 
+// Always read fresh from the database — never serve a cached response.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // ── GET /api/invoices/[id] ───────────────────────────────────────────────
 export async function GET(
   _req: NextRequest,

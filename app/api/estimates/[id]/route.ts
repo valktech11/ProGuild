@@ -6,6 +6,10 @@ import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
 import { CALCULATOR_LINE_NAMES, LABOUR_LINE_NAME } from '@/lib/roofing/calculator'
 
+// Always read fresh from the database — never serve a cached response.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // ── GET /api/estimates/[id] ──────────────────────────────────────────────────
 export async function GET(
   _req: NextRequest,
