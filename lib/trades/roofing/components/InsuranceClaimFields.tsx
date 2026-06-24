@@ -36,16 +36,23 @@ const CLAIM_STATUSES = [
   { value: 'Approved',            color: '#059669', bg: '#ECFDF5', group: 'Decision',       effect: 'advance' },
   { value: 'Denied',              color: '#DC2626', bg: '#FEF2F2', group: 'Decision',       effect: 'denied' },
   { value: 'Supplement Filed',    color: '#D97706', bg: '#FFFBEB', group: 'Supplement',     effect: 'track' },
-  { value: 'Supplement Approved', color: '#0891B2', bg: '#ECFEFF', group: 'Supplement',     effect: 'advance' },
+  { value: 'Supplement Approved', color: '#0891B2', bg: '#ECFEFF', group: 'Supplement',     effect: 'track' },
   { value: 'Closed',              color: '#374151', bg: '#F3F4F6', group: 'Closed',         effect: 'track' },
 ] as const
 
-const STATUS_GROUPS = ['Claim progress', 'Decision', 'Supplement', 'Closed'] as const
-
-const EFFECT_HINT: Record<string, string> = {
-  advance: 'Unlocks advancing the lead to Insurance Approved.',
-  denied:  'Claim denied — convert to retail or mark lost below.',
-  track:   'Tracking only — no pipeline change.',
+// Phased claim progression — drives the panel layout. Most "statuses" are derived
+// from data the roofer already enters (adjuster date) rather than a manual dropdown.
+// claim_status remains the DB source of truth (and pipeline trigger on 'Approved').
+const PHASE_STEPS = ['Filed', 'Adjuster', 'Decision', 'Supplement', 'Closed'] as const
+function derivePhase(status: string, hasAppt: boolean): { index: number; denied: boolean } {
+  switch (status) {
+    case 'Denied':              return { index: 2, denied: true }
+    case 'Approved':            return { index: 2, denied: false }
+    case 'Supplement Filed':
+    case 'Supplement Approved': return { index: 3, denied: false }
+    case 'Closed':              return { index: 4, denied: false }
+    default:                    return { index: hasAppt ? 1 : 0, denied: false }  // Filed / legacy adjuster statuses
+  }
 }
 
 const TEAL   = '#0F766E'
@@ -154,6 +161,13 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     }
   }
 
+  // Decision/phase buttons set claim_status directly (replaces the old 8-option dropdown).
+  function setStatus(v: string) {
+    if (locked) return
+    setSaved(false)
+    setFields(f => ({ ...f, claim_status: v }))
+  }
+
   const handleToggle = useCallback(async () => {
     if (locked) return   // won/lost: insurance type is locked to protect claim/reporting history
     const next = !open
@@ -231,6 +245,19 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
         } catch { /* non-fatal */ }
       }
 
+      // ── Hook 3: Supplement Approved → log activity entry ──────────────────
+      if (fields.claim_status === 'Supplement Approved') {
+        try {
+          await fetch(`/api/leads/${leadId}/events`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pro_id: proId, event_type: 'supplement_approved',
+              note: parseCurrency(fields.supplement_amount) > 0
+                ? `Supplement approved — additional $${parseCurrency(fields.supplement_amount).toLocaleString()}`
+                : 'Supplement approved' }),
+          })
+        } catch { /* non-fatal */ }
+      }
+
       // Now that hooks (and their events) are committed, notify parent → triggers refresh.
       onSaved(fields)
     } catch (err: unknown) {
@@ -274,8 +301,9 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const supplement = parseCurrency(fields.supplement_amount)
   const deductible = parseCurrency(fields.deductible)
   const net        = approved + supplement - deductible
-  const claimPayable = fields.claim_status === 'Approved' || fields.claim_status === 'Supplement Approved'
   const isDenied     = fields.claim_status === 'Denied'
+  const decided      = ['Approved','Denied','Supplement Filed','Supplement Approved','Closed'].includes(fields.claim_status)
+  const phase        = derivePhase(fields.claim_status, !!fields.adjuster_appointment)
 
   const activeStatus = CLAIM_STATUSES.find(s => s.value === fields.claim_status) ?? CLAIM_STATUSES[0]
 
@@ -489,8 +517,8 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               />
             </Field>
 
-            {/* Row 3: Appointment + Status */}
-            <Field label="Adjuster appointment">
+            {/* Row 3: Appointment (full width — status is now the phased decision block below) */}
+            <Field label="Adjuster appointment" span>
               <div style={{ position:'relative' }}>
                 <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'#94A3B8' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -506,79 +534,116 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 You must be present at the property
               </div>
             </Field>
-            <Field label="Claim status">
-              <div style={{ position:'relative' }}>
-                <select value={fields.claim_status} onChange={set('claim_status')} disabled={locked}
-                  style={{ width:'100%', padding:'9px 32px 9px 12px', border:`1.5px solid ${activeStatus.color}40`, borderRadius:9, fontSize:13, outline:'none', background: activeStatus.bg, color: activeStatus.color, fontWeight:700, cursor:'pointer', appearance:'none' as const, transition:'all 0.15s' }}>
-                  {STATUS_GROUPS.map(g => (
-                    <optgroup key={g} label={g}>
-                      {CLAIM_STATUSES.filter(s => s.group === g).map(s => (
-                        <option key={s.value} value={s.value}>{s.value}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                <div style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-              </div>
-              <div style={{ marginTop:6, fontSize:11, fontWeight:600, color: activeStatus.effect==='advance' ? '#059669' : activeStatus.effect==='denied' ? '#DC2626' : (dk ? '#64748B' : '#94A3B8') }}>
-                {EFFECT_HINT[activeStatus.effect]}
-              </div>
-            </Field>
 
-            {/* Row 4: Financial — 3-col. Hidden on Denied (values preserved in DB for appeal). */}
-            {!isDenied && (
-            <div style={{ gridColumn:'1 / -1', display:'grid', gridTemplateColumns:isWide?'1fr 1fr 1fr':'1fr', gap:12 }}>
-              <Field label="Approved amount">
-                <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
-                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                />
-              </Field>
-              <Field label="Supplement amount">
-                <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} disabled={locked} placeholder="$0.00"
-                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                />
-              </Field>
-              <Field label="Deductible (homeowner)">
-                <FInput value={fields.deductible} onChange={set('deductible')} disabled={locked} placeholder="$0.00"
-                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                />
-              </Field>
-            </div>
-            )}
+            {/* ── Claim progress + carrier decision (phased) ── */}
+            <div style={{ gridColumn:'1 / -1', display:'flex', flexDirection:'column', gap:14 }}>
 
-            {/* Net calculation — only when the carrier has actually approved */}
-            <div style={{ gridColumn:'1 / -1' }}>
-              {claimPayable ? (
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderRadius:10, background: net > 0 ? (dk ? 'rgba(5,150,105,0.12)' : '#F0FDF4') : (dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC'), border:`1px solid ${net > 0 ? 'rgba(5,150,105,0.2)' : '#E2E8F0'}`, transition:'all 0.2s' }}>
-                <div style={{ display:'flex', gap:20 }}>
-                  <div>
-                    <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Approved</div>
-                    <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${approved.toLocaleString()}</div>
-                  </div>
-                  <div style={{ display:'flex', alignItems:'center', color:'#94A3B8', fontSize:16, fontWeight:300 }}>+</div>
-                  <div>
-                    <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Supplement</div>
-                    <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${supplement.toLocaleString()}</div>
-                  </div>
-                  <div style={{ display:'flex', alignItems:'center', color:'#94A3B8', fontSize:16, fontWeight:300 }}>−</div>
-                  <div>
-                    <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Deductible</div>
-                    <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${deductible.toLocaleString()}</div>
-                  </div>
-                </div>
-                <div style={{ textAlign:'right' as const }}>
-                  <div style={{ fontSize:10, fontWeight:700, color: net > 0 ? '#059669' : '#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Insurance pays homeowner</div>
-                  <div style={{ fontSize:20, fontWeight:900, color: net > 0 ? '#059669' : (dk ? '#475569' : '#94A3B8'), letterSpacing:'-0.03em' }}>${Math.max(net,0).toLocaleString()}</div>
-                </div>
+              {/* Phase strip */}
+              <div style={{ display:'flex', alignItems:'flex-start' }}>
+                {PHASE_STEPS.map((label, i) => {
+                  const done       = !phase.denied && i < phase.index
+                  const active     = !phase.denied && i === phase.index
+                  const deniedStep = phase.denied && i === 2
+                  const dot = deniedStep ? '#DC2626' : active ? TEAL : done ? '#059669' : (dk ? '#334155' : '#CBD5E1')
+                  const txt = deniedStep ? '#DC2626' : active ? (dk ? '#5EEAD4' : TEAL) : done ? '#059669' : '#94A3B8'
+                  return (
+                    <div key={label} style={{ display:'flex', alignItems:'flex-start', flex: i < PHASE_STEPS.length - 1 ? 1 : '0 0 auto' }}>
+                      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, flexShrink:0 }}>
+                        <div style={{ width:11, height:11, borderRadius:'50%', background:dot, boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}25` : 'none' }}/>
+                        <span style={{ fontSize:10, fontWeight:700, color:txt, whiteSpace:'nowrap' as const }}>{deniedStep ? 'Denied' : label}</span>
+                      </div>
+                      {i < PHASE_STEPS.length - 1 && (
+                        <div style={{ flex:1, height:2, marginTop:5, background: done ? '#059669' : (dk ? '#334155' : '#E2E8F0') }}/>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
+
+              {/* Contextual decision / financials */}
+              {isDenied ? (
+                <div style={{ padding:'12px 16px', borderRadius:10, background:'#FEF2F2', border:'1px solid #FECACA', fontSize:12.5, fontWeight:600, color:'#DC2626', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' as const }}>
+                  <span>Claim denied — insurance pays nothing. Convert to retail or mark the lead lost below.</span>
+                  {!locked && <button onClick={()=>setStatus('Filed')} style={{ fontSize:12, fontWeight:700, color:'#64748B', background:'transparent', border:'1px solid #CBD5E1', borderRadius:7, padding:'5px 11px', cursor:'pointer', whiteSpace:'nowrap' as const }}>Reopen claim</button>}
+                </div>
+              ) : !decided ? (
+                <div style={{ padding:'14px 16px', borderRadius:10, background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC', border:`1px dashed ${dk ? '#334155' : '#CBD5E1'}` }}>
+                  <div style={{ fontSize:13, fontWeight:700, color: dk ? '#F1F5F9' : NAVY, marginBottom:3 }}>Has the carrier issued their decision?</div>
+                  <div style={{ fontSize:12, color: dk ? '#94A3B8' : '#64748B', marginBottom:12, lineHeight:1.45 }}>Record this once you receive the carrier&rsquo;s decision. Approving advances the lead and opens the supplement gap check further down — and only then asks for the amounts.</div>
+                  <div style={{ display:'flex', gap:10 }}>
+                    <button onClick={()=>setStatus('Approved')} disabled={locked} style={{ flex:1, padding:'10px', borderRadius:9, border:'none', background:'linear-gradient(135deg,#059669,#10B981)', color:'#fff', fontSize:13, fontWeight:700, cursor: locked ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      Carrier approved
+                    </button>
+                    <button onClick={()=>setStatus('Denied')} disabled={locked} style={{ flex:1, padding:'10px', borderRadius:9, border:'1.5px solid #FECACA', background:'#fff', color:'#DC2626', fontSize:13, fontWeight:700, cursor: locked ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      Denied
+                    </button>
+                  </div>
+                </div>
               ) : (
-              <div style={{ padding:'12px 16px', borderRadius:10, background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', border:`1px solid ${dk ? '#334155' : '#E2E8F0'}`, fontSize:12, fontWeight:600, color: dk ? '#94A3B8' : '#64748B' }}>
-                {fields.claim_status === 'Denied'
-                  ? 'Claim denied — insurance pays nothing. Homeowner pays the full job cost.'
-                  : 'Once the carrier responds, set status to Approved and enter the approved amount above — that unlocks reconciliation here and the supplement gap check further down.'}
-              </div>
+                <>
+                  {/* Financial fields — only once a decision is recorded */}
+                  <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr 1fr':'1fr', gap:12 }}>
+                    <Field label="Approved amount">
+                      <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
+                        icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                      />
+                    </Field>
+                    <Field label="Supplement amount">
+                      <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} disabled={locked} placeholder="$0.00"
+                        icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                      />
+                    </Field>
+                    <Field label="Deductible (homeowner)">
+                      <FInput value={fields.deductible} onChange={set('deductible')} disabled={locked} placeholder="$0.00"
+                        icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                      />
+                    </Field>
+                  </div>
+
+                  {/* Net payout */}
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderRadius:10, background: net > 0 ? (dk ? 'rgba(5,150,105,0.12)' : '#F0FDF4') : (dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC'), border:`1px solid ${net > 0 ? 'rgba(5,150,105,0.2)' : '#E2E8F0'}`, flexWrap:'wrap' as const, gap:12 }}>
+                    <div style={{ display:'flex', gap:20 }}>
+                      <div>
+                        <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Approved</div>
+                        <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${approved.toLocaleString()}</div>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', color:'#94A3B8', fontSize:16, fontWeight:300 }}>+</div>
+                      <div>
+                        <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Supplement</div>
+                        <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${supplement.toLocaleString()}</div>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', color:'#94A3B8', fontSize:16, fontWeight:300 }}>−</div>
+                      <div>
+                        <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Deductible</div>
+                        <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${deductible.toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign:'right' as const }}>
+                      <div style={{ fontSize:10, fontWeight:700, color: net > 0 ? '#059669' : '#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Insurance pays homeowner</div>
+                      <div style={{ fontSize:20, fontWeight:900, color: net > 0 ? '#059669' : (dk ? '#475569' : '#94A3B8'), letterSpacing:'-0.03em' }}>${Math.max(net,0).toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  {/* Supplement progression + change decision */}
+                  {!locked && (
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' as const }}>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
+                        {fields.claim_status === 'Approved' && (
+                          <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:'#D97706', background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>File supplement →</button>
+                        )}
+                        {fields.claim_status === 'Supplement Filed' && (
+                          <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:'#0891B2', background:'#ECFEFF', border:'1px solid #A5F3FC', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Supplement approved →</button>
+                        )}
+                        {fields.claim_status !== 'Closed' && (
+                          <button onClick={()=>setStatus('Closed')} style={{ fontSize:12, fontWeight:700, color:'#374151', background:'#F3F4F6', border:'1px solid #D1D5DB', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
+                        )}
+                      </div>
+                      <button onClick={()=>setStatus('Filed')} style={{ fontSize:11.5, fontWeight:600, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer', textDecoration:'underline' }}>Change decision</button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
