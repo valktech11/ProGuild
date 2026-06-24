@@ -32,6 +32,8 @@ export const CALCULATOR_LINE_NAMES: readonly string[] = [
   'Architectural shingles',
   'Synthetic underlayment',
   'Ridge cap shingles',
+  'Hip cap shingles',
+  'Valley lining (metal)',
   'Starter strip',
   'Roofing nails',
   'Drip edge',
@@ -50,6 +52,8 @@ export const LINE_NAME_TO_PRICE_KEY: Record<string, string> = {
   'Architectural shingles':               'shingles',
   'Synthetic underlayment':               'underlayment',
   'Ridge cap shingles':                   'ridgeCap',
+  'Hip cap shingles':                     'ridgeCap',      // shares ridge cap price
+  'Valley lining (metal)':                'valleyMetal',
   'Starter strip':                        'starterStrip',
   'Roofing nails':                        'nails',
   'Drip edge':                            'dripEdge',
