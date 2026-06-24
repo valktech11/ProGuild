@@ -335,6 +335,8 @@ function CalculatorInner() {
   // (lib/roofing/labour-cache.ts). The calculator no longer writes labour_amount.
 
   const materialTotal = lineItems.reduce((s, i) => s + i.total, 0)
+  // Items still missing their linear footage (shown in the LF nudge below the table).
+  const missingItems = lineItems.filter(i => i.isPlaceholder).map(i => i.description)
   const labourAmount  = parseFloat(labour) || 0
   const grandTotal    = materialTotal + labourAmount
   const needsLF       = !parseFloat(ridgeLF) || !parseFloat(eaveLF) || !parseFloat(perimLF)
@@ -692,10 +694,10 @@ function CalculatorInner() {
               </tbody>
             </table>
 
-            {needsLF && (
+            {missingItems.length > 0 && (
               <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:12, padding:'10px 14px', borderRadius:9, background:'#FFFBEB', border:'1px solid rgba(245,158,11,0.25)' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span style={{ fontSize:12, color:'#B45309', fontWeight:500 }}>Ridge cap, starter strip, drip edge and ice/water shield need linear footage. Enter it in Section 2, or measure precisely with ProMeasure, for a complete total.</span>
+                <span style={{ fontSize:12, color:'#B45309', fontWeight:500 }}>{missingItems.join(', ')} {missingItems.length === 1 ? 'needs' : 'need'} linear footage. Enter it in Section 2, or measure precisely with ProMeasure, for a complete total.</span>
               </div>
             )}
           </Section>

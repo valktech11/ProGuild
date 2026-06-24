@@ -34,7 +34,7 @@ export const CALCULATOR_LINE_NAMES: readonly string[] = [
   'Starter strip',
   'Roofing nails',
   'Drip edge',
-  'Ice & water shield (eave protection)',
+  'Self-adhered underlayment (eave)',
   'Pipe boots & vent covers',
   'Tear-off & disposal',
   LABOUR_LINE_NAME,
@@ -52,7 +52,8 @@ export const LINE_NAME_TO_PRICE_KEY: Record<string, string> = {
   'Starter strip':                        'starterStrip',
   'Roofing nails':                        'nails',
   'Drip edge':                            'dripEdge',
-  'Ice & water shield (eave protection)': 'iceWater',
+  'Self-adhered underlayment (eave)':     'iceWater',
+  'Ice & water shield (eave protection)': 'iceWater',  // legacy name — keep so saved estimates restore prices
   'Pipe boots & vent covers':             'pipeBoot',
   'Tear-off & disposal':                  'disposal',
 }
@@ -168,7 +169,7 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
     },
     {
       key: 'valleyMetal',
-      description: 'Valley metal / ice & water',
+      description: 'Valley lining (metal)',
       note: valleyRolls ? `${valleyLF} LF ÷ 33 = ${valleyRolls} rolls` : 'Enter Valley LF above',
       quantity: valleyRolls ?? 0, unit: 'rolls',
       unitPrice: prices.valleyMetal ?? prices.iceWater ?? 85,
@@ -201,8 +202,8 @@ export function calculateMaterials(input: CalcInput): { items: CalcLineItem[]; a
     },
     {
       key: 'iceWater',
-      description: 'Ice & water shield (eave protection)',
-      note: iceSquares ? `3 ft eave strip (FL code) · ${iceSquares} sq` : 'Enter Eave LF above',
+      description: 'Self-adhered underlayment (eave)',
+      note: iceSquares ? `3 ft self-adhered eave strip · ${iceSquares} sq` : 'Enter Eave LF above',
       quantity: iceSquares ?? 0, unit: 'squares',
       unitPrice: prices.iceWater, total: (iceSquares ?? 0) * prices.iceWater,
       isPlaceholder: !iceSquares,
