@@ -384,7 +384,11 @@ function CalculatorInner() {
     setSaving(true); setError(null); setSuccess(null)
     try {
       const allItems = [
-        ...lineItems.filter(i => !i.isPlaceholder).map(i => ({
+        // Optional items (full-deck SWB membrane — an alternative to synthetic
+        // underlayment) are excluded here exactly as they're excluded from the
+        // subtotal, so applying never double-counts. The roofer adds the membrane
+        // deliberately on the estimate if they're using the peel-and-stick method.
+        ...lineItems.filter(i => !i.isPlaceholder && !i.optional).map(i => ({
           description: i.description,
           quantity:    i.quantity,
           unit_price:  i.unitPrice,
