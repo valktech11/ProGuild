@@ -68,7 +68,7 @@ export const DEFAULT_PRICES: Record<string, number> = {
   starterStrip: 50,   // per bundle (105 LF/bundle)
   nails:         8,   // per lb
   dripEdge:     12,   // per 10 ft piece
-  iceWater:     75,   // per square (3 ft eave strip, FL code)
+  iceWater:     75,   // per square — full-deck self-adhered (peel-and-stick) membrane
   pipeBoot:     35,   // per boot
   disposal:    375,   // dumpster flat — single layer
   labour:        0,   // roofer fills in separately
