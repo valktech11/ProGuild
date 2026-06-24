@@ -546,12 +546,16 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   const done       = !phase.denied && i < phase.index
                   const active     = !phase.denied && i === phase.index
                   const deniedStep = phase.denied && i === 2
-                  const dot = deniedStep ? '#DC2626' : active ? TEAL : done ? '#059669' : (dk ? '#334155' : '#CBD5E1')
-                  const txt = deniedStep ? '#DC2626' : active ? (dk ? '#5EEAD4' : TEAL) : done ? '#059669' : '#94A3B8'
+                  // Adjuster step is only truly "done" if an appointment was recorded;
+                  // otherwise it was bypassed (e.g. carrier approved without us logging it).
+                  const skipped    = i === 1 && done && !fields.adjuster_appointment
+                  const dot = deniedStep ? '#DC2626' : active ? TEAL : (done && !skipped) ? '#059669' : (dk ? '#334155' : '#CBD5E1')
+                  const txt = deniedStep ? '#DC2626' : active ? (dk ? '#5EEAD4' : TEAL) : skipped ? '#94A3B8' : done ? '#059669' : '#94A3B8'
                   return (
                     <div key={label} style={{ display:'flex', alignItems:'flex-start', flex: i < PHASE_STEPS.length - 1 ? 1 : '0 0 auto' }}>
                       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, flexShrink:0 }}>
-                        <div style={{ width:12, height:12, borderRadius:'50%', background:dot, boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}25` : 'none' }}/>
+                        <div style={{ width:12, height:12, borderRadius:'50%', boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}25` : 'none',
+                          ...(skipped ? { background: dk ? '#1E293B' : '#fff', border:`2px solid ${dk ? '#475569' : '#CBD5E1'}`, boxSizing:'border-box' as const } : { background: dot }) }}/>
                         <span style={{ fontSize:11, fontWeight:700, color:txt, whiteSpace:'nowrap' as const }}>{deniedStep ? 'Denied' : label}</span>
                       </div>
                       {i < PHASE_STEPS.length - 1 && (

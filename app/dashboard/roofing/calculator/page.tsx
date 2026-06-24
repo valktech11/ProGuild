@@ -765,7 +765,7 @@ function CalculatorInner() {
         {/* ── Insurance Reconciliation Panel ── */}
         {insurance?.isInsurance && (insurance.claimStatus === 'Approved' || insurance.claimStatus === 'Supplement Approved') && lineItems.length > 0 && (() => {
           const { insurancePays, outOfPocket, fullyCovered } = computeInsuranceReconciliation({
-            jobCost:        grandTotal,
+            jobCost:        estTotalWithCustom,
             approvedAmount: insurance.approvedAmount,
             supplement:     insurance.supplement,
             deductible:     insurance.deductible,
@@ -792,9 +792,9 @@ function CalculatorInner() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                   <div>
                     <div style={{ fontSize:13, color:'#64748B', fontWeight:600 }}>Full job cost</div>
-                    <div style={{ fontSize:12, color:'#64748B', marginTop:2 }}>excl. tax — see estimate for final total</div>
+                    <div style={{ fontSize:12, color:'#64748B', marginTop:2 }}>incl. tax &amp; all estimate lines</div>
                   </div>
-                  <span style={{ fontSize:14, fontWeight:700, color:'#0F172A' }}>${grandTotal.toLocaleString()}</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:'#0F172A' }}>${estTotalWithCustom.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                 </div>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                   <span style={{ fontSize:13, color:'#64748B', fontWeight:600 }}>Insurance pays homeowner</span>

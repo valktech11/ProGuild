@@ -1971,51 +1971,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                     </div>
 
-                    {/* Activity — timeline */}
-                    <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
-                      <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                        <span style={{fontSize:14,fontWeight:700,color:tp}}>Activity</span>
-                        {acts.length>3&&(
-                          <button onClick={()=>setTab('activity')} style={{fontSize:12,color:BRAND.teal,fontWeight:600,background:'none',border:'none',cursor:'pointer',padding:0}}>
-                            View all →
-                          </button>
-                        )}
-                      </div>
-                      <div style={{padding:'14px 16px'}}>
-                        {acts.length===0
-                          ?<div style={{fontSize:13,color:tsu,textAlign:'center',padding:'10px 0'}}>No activity yet</div>
-                          :<div style={{position:'relative'}}>
-                            {/* Timeline rail */}
-                            <div style={{position:'absolute',left:11,top:12,bottom:12,width:1,background:bdr,zIndex:0}}/>
-                            {acts.slice(0,5).map((item,i)=>{
-                              const ic=item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':BRAND.teal
-                              const ib=item.type==='stage'?'#F5F3FF':item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
-                              return (
-                                <div key={i} style={{display:'flex',gap:10,paddingBottom:i<Math.min(acts.length,5)-1?14:0,position:'relative',zIndex:1}}>
-                                  <div style={{width:22,height:22,borderRadius:'50%',background:ib,border:`1.5px solid ${ic}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
-                                    <Svg size={10} stroke={ic}>
-                                      {item.type==='stage'    &&<><polyline points="9 18 15 12 9 6"/></>}
-                                      {item.type==='created'  &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
-                                      {item.type==='note'     &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
-                                      {item.type==='quote'    &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
-                                      {item.type==='scheduled'&&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-                                    </Svg>
-                                  </div>
-                                  <div style={{flex:1,minWidth:0,paddingTop:1}}>
-                                    <div style={{fontSize:13,fontWeight:600,color:tp,lineHeight:1.3}}>{item.title}</div>
-                                    <div style={{fontSize:11,color:ts,marginTop:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.sub}</div>
-                                  </div>
-                                  <div style={{fontSize:10,color:tsu,flexShrink:0,textAlign:'right',paddingTop:1,lineHeight:1.5}}>
-                                    <div>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
-                                    <div>{new Date(item.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        }
-                      </div>
-                    </div>
 
                   </div>
                 </div>{/* end right col */}
