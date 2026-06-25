@@ -83,7 +83,21 @@ function RecordPaymentModal({ invoice, paidMs, onRecord, onClose, t }: {
   t: ReturnType<typeof theme>
 }) {
   const milestones: Milestone[] = (invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0)
-  const unpaidMs = milestones.filter(m => !paidMs.includes(m.name))
+
+  // Sum payments per milestone to detect fully-paid vs partial
+  const paidPerMs: Record<string, number> = {}
+  for (const p of paidMs) {
+    // paidMs here is the raw history entries (milestone_name strings)
+    // We rebuild from invoice.payment_history for amounts
+  }
+  const msPayments: Record<string, number> = {}
+  for (const p of (invoice.payment_history ?? [])) {
+    msPayments[p.milestone_name] = Math.round(((msPayments[p.milestone_name] ?? 0) + (Number(p.amount) || 0)) * 100) / 100
+  }
+  // Show milestones that are NOT fully paid (including partial ones — remaining amount)
+  const unpaidMs = milestones
+    .filter(m => (msPayments[m.name] ?? 0) < m.amount - 0.005)
+    .map(m => ({ ...m, amount: Math.max(0, Math.round((m.amount - (msPayments[m.name] ?? 0)) * 100) / 100) }))
   const defaultMs = unpaidMs[0] ?? null
 
   const [selectedMs, setSelectedMs] = useState<Milestone | null>(defaultMs)
@@ -571,33 +585,47 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {milestones.map((m, i) => {
-                      const paid = history.some(p => p.milestone_name === m.name)
+                      const paidAmt   = Math.round(history.filter(p => p.milestone_name === m.name).reduce((s, p) => s + (Number(p.amount) || 0), 0) * 100) / 100
+                      const paid      = paidAmt >= m.amount - 0.005
+                      const isPartial = !paid && paidAmt > 0
+                      const remaining = Math.max(0, Math.round((m.amount - paidAmt) * 100) / 100)
                       return (
                         <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 14,
                           padding: '12px 16px', borderRadius: 12,
-                          background: paid ? C.greenBg : t.cardBgAlt,
-                          border: `1px solid ${paid ? '#BBF7D0' : t.cardBorder}` }}>
+                          background: paid ? C.greenBg : isPartial ? '#FFFBEB' : t.cardBgAlt,
+                          border: `1px solid ${paid ? '#BBF7D0' : isPartial ? '#FDE68A' : t.cardBorder}` }}>
                           <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                            background: paid ? C.green : '#E2E8F0',
-                            color: paid ? '#fff' : t.textSubtle,
+                            background: paid ? C.green : isPartial ? '#F59E0B' : '#E2E8F0',
+                            color: paid || isPartial ? '#fff' : t.textSubtle,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 12, fontWeight: 700 }}>
-                            {paid ? '✓' : i + 1}
+                            {paid ? '✓' : isPartial ? '½' : i + 1}
                           </div>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri }}>{m.name}</div>
                             <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>
                               {m.pct}% · {m.due_when}
                             </div>
+                            {isPartial && (
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#B45309', marginTop: 3 }}>
+                                {fmt(paidAmt)} received · {fmt(remaining)} remaining
+                              </div>
+                            )}
                           </div>
                           <div style={{ fontSize: 16, fontWeight: 800,
-                            color: paid ? C.green : t.textPri }}>
-                            {fmt(m.amount)}
+                            color: paid ? C.green : isPartial ? '#B45309' : t.textPri }}>
+                            {isPartial ? fmt(remaining) : fmt(m.amount)}
                           </div>
                           {paid && (
                             <div style={{ fontSize: 11, fontWeight: 700, color: C.green,
                               padding: '2px 8px', borderRadius: 20, background: '#D1FAE5' }}>
                               Received
+                            </div>
+                          )}
+                          {isPartial && (
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#B45309',
+                              padding: '2px 8px', borderRadius: 20, background: '#FEF3C7' }}>
+                              Partial
                             </div>
                           )}
                         </div>

@@ -7,7 +7,7 @@ import { use, useEffect, useState } from 'react'
 type Milestone = { id: string; name: string; pct: number; amount: number; due_when: string }
 
 function MilestonePaySection({
-  invoiceId, milestones, paidMilestones, balanceDue, total, onPaid
+  invoiceId, milestones, paidMilestones, balanceDue, total, onPaid, paymentHistory
 }: {
   invoiceId: string
   milestones: Milestone[]
@@ -15,10 +15,19 @@ function MilestonePaySection({
   balanceDue: number
   total: number
   onPaid: (milestoneName: string, amount: number) => void
+  paymentHistory: Array<{ milestone_name: string; amount: number }> | null
 }) {
   const fmtLocal = (n: number | null | undefined) =>
     '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+  // Sum payments per milestone name — used for partial-payment progress display
+  const paidPerMs: Record<string, number> = {}
+  for (const p of paymentHistory ?? []) {
+    const name = p.milestone_name
+    paidPerMs[name] = Math.round(((paidPerMs[name] ?? 0) + (Number(p.amount) || 0)) * 100) / 100
+  }
+
+  // A milestone is selectable if it is NOT fully paid (amount-sum based)
   const unpaid = milestones.filter(m => !paidMilestones.includes(m.name))
   const nextDue = unpaid[0] ?? null
 
@@ -105,16 +114,19 @@ function MilestonePaySection({
           </p>
           <div className="space-y-3 mb-5">
             {milestones.map(m => {
-              const paid   = paidMilestones.includes(m.name)
-              const isSel  = selMilestone?.name === m.name
+              const paid      = paidMilestones.includes(m.name)
+              const partialAmt = paidPerMs[m.name] ?? 0
+              const isPartial = !paid && partialAmt > 0
+              const remaining = Math.max(0, Math.round((m.amount - partialAmt) * 100) / 100)
+              const isSel     = selMilestone?.name === m.name
               return (
                 <label key={m.name}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    paid    ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50' :
+                    paid    ? 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50' :
                     isSel   ? 'border-[#0F766E] bg-[#F0FDFA]' :
                               'border-gray-200 bg-white hover:border-[#0F766E]'
                   }`}
-                  onClick={() => !paid && setSel(m)}>
+                  onClick={() => !paid && setSel(isPartial ? { ...m, amount: remaining } : m)}>
                   {paid ? (
                     <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
                       <span className="text-white text-xs">✓</span>
@@ -133,14 +145,22 @@ function MilestonePaySection({
                       {m.name}
                     </div>
                     <div className="text-xs text-gray-500">{m.pct}% · {m.due_when}</div>
+                    {isPartial && (
+                      <div className="text-xs text-amber-600 font-semibold mt-0.5">
+                        {fmtLocal(partialAmt)} received · {fmtLocal(remaining)} remaining
+                      </div>
+                    )}
                   </div>
                   <div className={`text-base font-bold ${
                     paid ? 'text-gray-400 line-through' : isSel ? 'text-[#0F766E]' : 'text-gray-700'
                   }`}>
-                    {fmtLocal(m.amount)}
+                    {isPartial ? fmtLocal(remaining) : fmtLocal(m.amount)}
                   </div>
                   {paid && (
                     <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">Paid</span>
+                  )}
+                  {isPartial && (
+                    <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full">Partial</span>
                   )}
                 </label>
               )
@@ -300,12 +320,24 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
   const [notFound, setNotFound]     = useState(false)
   const [paidMilestones, setPaidMs] = useState<string[]>([])
 
-  // Derive paid milestones from payment_history on load
+  // Derive paid milestones from payment_history on load.
+  // A milestone is FULLY PAID when the sum of payments tagged to it >= its amount.
+  // Partial payments (e.g. $3k toward a $5,903.67 deposit) keep the milestone open
+  // so the homeowner can pay the remainder — they are NOT shown as "Paid".
   useEffect(() => {
-    if (invoice?.payment_history) {
-      setPaidMs(invoice.payment_history.map(p => p.milestone_name))
+    if (invoice?.payment_history && invoice?.payment_milestones) {
+      const msAmounts: Record<string, number> = {}
+      for (const m of invoice.payment_milestones) msAmounts[m.name] = m.amount
+      const paidTotals: Record<string, number> = {}
+      for (const p of invoice.payment_history) {
+        const name = p.milestone_name
+        paidTotals[name] = Math.round(((paidTotals[name] ?? 0) + (Number(p.amount) || 0)) * 100) / 100
+      }
+      setPaidMs(Object.keys(paidTotals).filter(name =>
+        msAmounts[name] !== undefined && paidTotals[name] >= msAmounts[name] - 0.005
+      ))
     }
-  }, [invoice?.payment_history])
+  }, [invoice?.payment_history, invoice?.payment_milestones])
 
   useEffect(() => {
     fetch(`/api/invoices/public/${id}`)
@@ -555,10 +587,24 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
               paidMilestones={paidMilestones}
               balanceDue={balanceDue}
               total={invoice.total}
+              paymentHistory={invoice.payment_history ?? []}
               onPaid={(name, amount) => {
-                setPaidMs(prev => [...prev, name])
+                // Update payment_history optimistically so the partial-payment
+                // progress recomputes immediately without a full refetch.
+                const newHistory = [...(invoice.payment_history ?? []), {
+                  id: `opt-${Date.now()}`, milestone_name: name, amount,
+                  method: 'offline', reference: '', date: new Date().toISOString().split('T')[0]
+                }]
+                const msAmounts: Record<string, number> = {}
+                for (const m of invoice.payment_milestones ?? []) msAmounts[m.name] = m.amount
+                const paidTotals: Record<string, number> = {}
+                for (const p of newHistory) {
+                  paidTotals[p.milestone_name] = Math.round(((paidTotals[p.milestone_name] ?? 0) + (Number(p.amount) || 0)) * 100) / 100
+                }
+                setPaidMs(Object.keys(paidTotals).filter(n => msAmounts[n] !== undefined && paidTotals[n] >= msAmounts[n] - 0.005))
                 setInvoice(prev => prev ? {
                   ...prev,
+                  payment_history: newHistory,
                   amount_paid: (prev.amount_paid ?? 0) + amount,
                   balance_due: Math.max(0, (prev.balance_due ?? 0) - amount),
                   status: Math.max(0, (prev.balance_due ?? 0) - amount) <= 0 ? 'paid' : 'partial_payment',
