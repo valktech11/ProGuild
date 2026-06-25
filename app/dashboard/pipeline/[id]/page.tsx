@@ -1576,26 +1576,58 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       </div>
 
                                       {step1Done ? (
-                                      /* ── MEASURED — stat hero ── */
-                                      <div style={{position:'relative',overflow:'hidden',borderRadius:T.radLg,border:'1px solid #D7E3E1',background:'linear-gradient(135deg,#FBFDFD 0%,#EFF9F7 100%)',padding:isWide?T.sp5:T.sp4,boxShadow:'0 6px 20px -8px rgba(15,118,110,0.20)'}}>
-                                        <div aria-hidden style={{position:'absolute',right:-22,top:-22,width:130,height:130,borderRadius:'50%',background:'radial-gradient(circle at 32% 32%, rgba(15,118,110,0.10), transparent 70%)',pointerEvents:'none'}}/>
-
-                                        {/* big stats */}
-                                        <div style={{position:'relative',display:'flex',gap:isWide?T.sp8:T.sp6,flexWrap:'wrap' as const,alignItems:'flex-end'}}>
-                                          <div>
-                                            <div style={{display:'flex',alignItems:'baseline',gap:5}}>
-                                              <span style={{fontSize:isWide?T.fontStatLg:T.fontStat,fontWeight:800,lineHeight:1,color:'#0F766E',letterSpacing:'-0.02em'}}>{sq}</span>
-                                              <span style={{fontSize:T.fontEmphasis,fontWeight:800,color:'#0F766E',letterSpacing:'0.04em'}}>SQ</span>
-                                            </div>
-                                            <div style={{fontSize:T.fontBadge,fontWeight:700,color:'#64748B',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginTop:6}}>Squares</div>
+                                      /* ── MEASURED — compact summary ── */
+                                      <div style={{borderRadius:T.radMd,border:'1px solid #E2E8F0',background:'#fff',padding:T.sp4}}>
+                                        {/* stats inline + primary CTA */}
+                                        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:T.sp4,flexWrap:'wrap' as const}}>
+                                          <div style={{display:'flex',alignItems:'baseline',gap:T.sp3,flexWrap:'wrap' as const}}>
+                                            <span style={{display:'inline-flex',alignItems:'baseline',gap:3}}>
+                                              <span style={{fontSize:T.fontTitle,fontWeight:800,lineHeight:1,color:'#0F766E',letterSpacing:'-0.01em'}}>{sq}</span>
+                                              <span style={{fontSize:T.fontSub,fontWeight:800,color:'#0F766E'}}>SQ</span>
+                                            </span>
+                                            <span style={{color:'#CBD5E1'}}>·</span>
+                                            <span style={{fontSize:T.fontEmphasis,fontWeight:700,color:'#0F172A'}}>{pitch||'—'}<span style={{fontSize:T.fontSub,fontWeight:600,color:'#94A3B8',marginLeft:4}}>pitch</span></span>
+                                            <span style={{color:'#CBD5E1'}}>·</span>
+                                            <span style={{fontSize:T.fontEmphasis,fontWeight:700,color:'#0F172A'}}>{waste!=null?`${waste}%`:'—'}<span style={{fontSize:T.fontSub,fontWeight:600,color:'#94A3B8',marginLeft:4}}>waste</span></span>
                                           </div>
-                                          <div>
-                                            <div style={{fontSize:isWide?T.fontStat:T.fontStatMobile,fontWeight:800,lineHeight:1,color:'#0F172A'}}>{pitch||'—'}</div>
-                                            <div style={{fontSize:T.fontBadge,fontWeight:700,color:'#64748B',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginTop:6}}>Pitch</div>
-                                          </div>
-                                          <div>
-                                            <div style={{fontSize:isWide?T.fontStat:T.fontStatMobile,fontWeight:800,lineHeight:1,color:'#0F172A'}}>{waste!=null?`${waste}%`:'—'}</div>
-                                            <div style={{fontSize:T.fontBadge,fontWeight:700,color:'#64748B',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginTop:6}}>Waste</div>
+                                          <div style={{display:'flex',alignItems:'center',gap:T.sp3,flexWrap:'wrap' as const}}>
+                                            {(lead as any)?.roofing_job_data?.report_url && (
+                                              <a href={(lead as any).roofing_job_data.report_url} target="_blank" rel="noopener noreferrer"
+                                                style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:T.fontSub,fontWeight:700,color:'#0F766E',textDecoration:'none'}}>
+                                                <Svg size={13} stroke="#0F766E" sw={2.4}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Svg>
+                                                View report
+                                              </a>
+                                            )}
+                                            {!rjd?.insurance_claim && (
+                                              <button
+                                                onClick={()=>{
+                                                  const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                                                  const params=new URLSearchParams()
+                                                  if(street) params.set('address', street)
+                                                  if(lead.contact_city)  params.set('city',  lead.contact_city)
+                                                  if(lead.contact_state)  params.set('state', lead.contact_state)
+                                                  if((lead as any).contact_zip) params.set('zip', (lead as any).contact_zip)
+                                                  if(lead.contact_name)  params.set('from',  lead.contact_name)
+                                                  if((lead as any).property_id) params.set('property_id', (lead as any).property_id)
+                                                  router.push(`/dashboard/roofing/quickbid?${params.toString()}`)
+                                                }}
+                                                style={{display:'inline-flex',alignItems:'center',gap:6,height:36,padding:'0 13px',borderRadius:T.radSm,border:'1.5px solid rgba(15,118,110,0.28)',background:'rgba(15,118,110,0.06)',color:'#0F766E',fontSize:T.fontSub,fontWeight:700,cursor:'pointer'}}>
+                                                <Svg size={13} stroke="#0F766E" sw={2.2}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></Svg>
+                                                Quick Bid
+                                              </button>
+                                            )}
+                                            <button
+                                              onClick={()=>{
+                                                try{
+                                                  const payload={squares:Number(sq)||0,pitch:pitch??'6/12',waste:Number(waste)||12,source:'roof_report',address:(lead as any).property_address||'',storedAt:Date.now(),leadId:lead.id}
+                                                  sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))
+                                                }catch{}
+                                                router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
+                                              }}
+                                              style={{display:'inline-flex',alignItems:'center',gap:6,height:36,padding:'0 16px',borderRadius:T.radSm,border:'none',background:'#0F766E',color:'#fff',fontSize:T.fontSub,fontWeight:800,cursor:'pointer'}}>
+                                              Build Estimate
+                                              <Svg size={15} stroke="#fff" sw={2.6}><polyline points="9 18 15 12 9 6"/></Svg>
+                                            </button>
                                           </div>
                                         </div>
 
@@ -1605,85 +1637,23 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           const pmLF = lf && lf.source === 'promeasure_manual' ? lf : null
                                           const hasLF = pmLF && ((pmLF.ridge_ft||0)>0 || (pmLF.hip_ft||0)>0 || (pmLF.valley_ft||0)>0)
                                           const fullAddr=[((lead as any).property_address||'').replace(/, USA$/,'').trim(),lead.contact_city||'',lead.contact_state||'',(lead as any).contact_zip||''].filter(Boolean).join(', ')
-                                          const chip=(label:string,ft:number)=>(
-                                            <div key={label} style={{flex:'1 1 0',minWidth:74,background:'rgba(255,255,255,0.75)',border:'1px solid #D7E3E1',borderRadius:T.radMd,padding:'9px 12px'}}>
-                                              <div style={{fontSize:isWide?T.fontEmphasis+3:T.fontEmphasis,fontWeight:800,color:'#0F172A',lineHeight:1.1}}>{Math.round(ft||0)}<span style={{fontSize:T.fontBadge,fontWeight:700,color:'#94A3B8',marginLeft:3}}>LF</span></div>
-                                              <div style={{fontSize:T.fontBadge,fontWeight:700,color:'#64748B',textTransform:'uppercase' as const,letterSpacing:'0.06em',marginTop:2}}>{label}</div>
-                                            </div>
-                                          )
                                           if (hasLF) return (
-                                            <div style={{position:'relative',marginTop:T.sp4,paddingTop:T.sp4,borderTop:'1px dashed #C5D6D3'}}>
-                                              <div style={{fontSize:T.fontBadge,fontWeight:800,color:'#0F766E',textTransform:'uppercase' as const,letterSpacing:'0.07em',marginBottom:8,display:'flex',alignItems:'center',gap:6}}>
-                                                <Svg size={13} stroke="#0F766E" sw={2.2}><polygon points="3 11 22 2 13 21 11 13 3 11"/></Svg>
-                                                Linear Footage <span style={{color:'#94A3B8',fontWeight:600,textTransform:'none' as const,letterSpacing:0}}>· ProMeasure traced</span>
-                                              </div>
-                                              <div style={{display:'flex',gap:8,flexWrap:'wrap' as const}}>
-                                                {chip('Ridge',pmLF.ridge_ft)}
-                                                {chip('Hip',pmLF.hip_ft)}
-                                                {chip('Valley',pmLF.valley_ft)}
-                                                {(pmLF.eave_ft||0)>0 && chip('Eave',pmLF.eave_ft)}
-                                              </div>
+                                            <div style={{marginTop:T.sp3,paddingTop:T.sp3,borderTop:'1px solid #F1F5F9',display:'flex',alignItems:'center',gap:7,flexWrap:'wrap' as const,fontSize:T.fontSub}}>
+                                              <span style={{fontWeight:800,color:'#0F766E',textTransform:'uppercase' as const,letterSpacing:'0.05em',fontSize:T.fontBadge}}>Linear Footage</span>
+                                              <span style={{color:'#0F172A',fontWeight:600}}>Ridge {Math.round(pmLF.ridge_ft||0)} · Hip {Math.round(pmLF.hip_ft||0)} · Valley {Math.round(pmLF.valley_ft||0)}{(pmLF.eave_ft||0)>0?` · Eave ${Math.round(pmLF.eave_ft)}`:''} LF</span>
+                                              <span style={{color:'#94A3B8'}}>· ProMeasure traced</span>
                                             </div>
                                           )
                                           return (
-                                            <div style={{position:'relative',marginTop:T.sp4,paddingTop:T.sp4,borderTop:'1px dashed #C5D6D3'}}>
-                                              <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderRadius:T.radMd,background:'#FFFBEB',border:'1px solid #FDE68A'}}>
-                                                <span style={{fontSize:14}}>⚠</span>
-                                                <div style={{flex:1,minWidth:0}}>
-                                                  <div style={{fontSize:T.fontEmphasis,fontWeight:700,color:'#92400E'}}>Linear footage not traced</div>
-                                                  <div style={{fontSize:T.fontSub,color:'#B45309',marginTop:1}}>Ridge / hip / valley needed for supplement recovery.</div>
-                                                </div>
-                                                <button onClick={()=>router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)}
-                                                  style={{flexShrink:0,height:34,padding:'0 14px',borderRadius:T.radSm,border:'1.5px solid #0F766E',background:'#fff',color:'#0F766E',fontSize:T.fontSub,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const}}>
-                                                  Trace LF →
-                                                </button>
-                                              </div>
+                                            <div style={{marginTop:T.sp3,paddingTop:T.sp3,borderTop:'1px solid #F1F5F9',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' as const}}>
+                                              <span style={{fontSize:T.fontSub,color:'#B45309',fontWeight:600}}>⚠ Linear footage not traced — needed for supplement recovery.</span>
+                                              <button onClick={()=>router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)}
+                                                style={{background:'none',border:'none',padding:0,color:'#0F766E',fontSize:T.fontSub,fontWeight:700,cursor:'pointer'}}>
+                                                Trace LF →
+                                              </button>
                                             </div>
                                           )
                                         })()}
-
-                                        {/* CTAs */}
-                                        <div style={{position:'relative',marginTop:T.sp5,display:'flex',gap:T.sp3,flexWrap:'wrap' as const,alignItems:'center'}}>
-                                          <button
-                                            onClick={()=>{
-                                              try{
-                                                const payload={squares:Number(sq)||0,pitch:pitch??'6/12',waste:Number(waste)||12,source:'roof_report',address:(lead as any).property_address||'',storedAt:Date.now(),leadId:lead.id}
-                                                sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))
-                                              }catch{}
-                                              router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
-                                            }}
-                                            onMouseEnter={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-1px)';b.style.boxShadow='0 12px 24px -8px rgba(15,118,110,0.55)'}}
-                                            onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 8px 18px -6px rgba(15,118,110,0.45)'}}
-                                            style={{display:'inline-flex',alignItems:'center',gap:8,height:44,padding:'0 22px',borderRadius:T.radMd,border:'none',background:'linear-gradient(135deg,#0F766E,#0C5F59)',color:'#fff',fontSize:T.fontEmphasis+1,fontWeight:800,cursor:'pointer',boxShadow:'0 8px 18px -6px rgba(15,118,110,0.45)',transition:'transform 0.15s, box-shadow 0.15s'}}>
-                                            Build Estimate
-                                            <Svg size={17} stroke="#fff" sw={2.6}><polyline points="9 18 15 12 9 6"/></Svg>
-                                          </button>
-                                          {!rjd?.insurance_claim && (
-                                            <button
-                                              onClick={()=>{
-                                                const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
-                                                const params=new URLSearchParams()
-                                                if(street) params.set('address', street)
-                                                if(lead.contact_city)  params.set('city',  lead.contact_city)
-                                                if(lead.contact_state)  params.set('state', lead.contact_state)
-                                                if((lead as any).contact_zip) params.set('zip', (lead as any).contact_zip)
-                                                if(lead.contact_name)  params.set('from',  lead.contact_name)
-                                                if((lead as any).property_id) params.set('property_id', (lead as any).property_id)
-                                                router.push(`/dashboard/roofing/quickbid?${params.toString()}`)
-                                              }}
-                                              style={{display:'inline-flex',alignItems:'center',gap:7,height:44,padding:'0 16px',borderRadius:T.radMd,border:'1.5px solid rgba(15,118,110,0.30)',background:'rgba(15,118,110,0.06)',color:'#0F766E',fontSize:T.fontSub,fontWeight:700,cursor:'pointer'}}>
-                                              <Svg size={14} stroke="#0F766E" sw={2.2}><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></Svg>
-                                              Quick Bid PDF
-                                            </button>
-                                          )}
-                                          {(lead as any)?.roofing_job_data?.report_url && (
-                                            <a href={(lead as any).roofing_job_data.report_url} target="_blank" rel="noopener noreferrer"
-                                              style={{display:'inline-flex',alignItems:'center',gap:5,height:44,padding:'0 4px',fontSize:T.fontSub,fontWeight:700,color:'#0F766E',textDecoration:'none'}}>
-                                              <Svg size={14} stroke="#0F766E" sw={2.4}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Svg>
-                                              View report
-                                            </a>
-                                          )}
-                                        </div>
                                       </div>
                                       ) : (<>
                                       {/* Retail fast-path — Quick Bid (only when not an insurance claim) */}
