@@ -39,8 +39,9 @@ export async function applyEstimateSignedEffects(
   const signer_name = signerName
   const tieredData = roofingEst?.tiered_data as any
 
-  // Update estimate status + sync total to selected tier (for GBB)
-  // This ensures estimates.total reflects what the homeowner actually agreed to pay
+  // Update estimate status + sync total to selected tier (for GBB).
+  // For standard estimates, stored total is synced after fullEst (with items)
+  // is fetched below — same values used for the invoice.
   const estUpdate: Record<string, unknown> = {
     status:      'approved',
     approved_at: new Date().toISOString(),
@@ -147,6 +148,15 @@ export async function applyEstimateSignedEffects(
           invoiceTaxAmount = Math.round(itemsSum * ((fullEst.tax_rate ?? 0) / 100) * 100) / 100
           invoiceTotal     = invoiceSubtotal + invoiceTaxAmount
         }
+
+        // Sync stored estimates.total/subtotal/tax_amount to the derived invoice values —
+        // locks in the correct amount at approval so the estimate card shows the right
+        // number and the stored total is never stale after signing.
+        await sb.from('estimates').update({
+          subtotal:   invoiceSubtotal,
+          tax_amount: invoiceTaxAmount,
+          total:      invoiceTotal,
+        }).eq('id', id)
 
         const depositAmt = milestones?.[0]?.amount
           ?? Math.round(invoiceTotal * (depositPct / 100) * 100) / 100
