@@ -257,7 +257,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   function addToast(msg:string, type:Toast['type']='success', prev?:LeadStatus) {
     const tid=toastSeq+1; setToastSeq(tid)
     setToasts(t=>[...t,{id:tid,msg,type,prev}])
-    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==tid)),5000)
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==tid)), prev ? 9000 : 5000)
   }
   function killToast(tid:number) { setToasts(t=>t.filter(x=>x.id!==tid)) }
 
@@ -756,6 +756,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         {/* ── Toasts — rendered via portal to escape any transform stacking context ── */}
         {typeof window !== 'undefined' && toasts.length > 0 && createPortal(
           <div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
+            <style>{`@keyframes pgToastCountdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }`}</style>
             {toasts.map(toast=>{
               const cfg = ({
                 success: { accent:'#059669', title:'Done',     icon:<path d="M20 6 9 17l-5-5"/> },
@@ -763,6 +764,24 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 warning: { accent:'#D97706', title:'Not yet',  icon:<><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></> },
                 info:    { accent:BRAND.teal, title:'Heads up', icon:<><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></> },
               } as const)[toast.type]
+              const isStage = !!toast.prev && toast.type==='success'
+              if (isStage) return (
+                <div key={toast.id} style={{pointerEvents:'all',position:'relative',background:card,border:`1px solid ${bdr}`,borderRadius:16,padding:'16px 18px',display:'flex',alignItems:'center',gap:14,minWidth:380,maxWidth:520,boxShadow:dk?'0 22px 55px rgba(0,0,0,0.6)':'0 22px 55px rgba(15,23,42,0.24)',overflow:'hidden'}}>
+                  <div style={{width:38,height:38,borderRadius:T.radMd,background:cfg.accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={cfg.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{cfg.icon}</svg>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:T.fontBadge,fontWeight:800,color:cfg.accent,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Stage Updated</div>
+                    <div style={{fontSize:T.fontBody,fontWeight:600,color:tp,lineHeight:1.35}}>{toast.msg}</div>
+                  </div>
+                  <button onClick={()=>undoMove(toast.id,toast.prev!)} style={{display:'inline-flex',alignItems:'center',gap:6,height:38,padding:'0 16px',borderRadius:T.radSm,border:`1px solid ${BRAND.teal}`,background:dk?'rgba(20,184,166,0.10)':'#F0FDFA',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
+                    <Svg size={15} stroke={BRAND.teal} sw={2.2}><path d="M9 14L4 9l5-5"/><path d="M4 9h11a4 4 0 010 8h-1"/></Svg>
+                    Undo
+                  </button>
+                  <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:20,lineHeight:1,padding:'0 2px',opacity:0.5,flexShrink:0}}>×</button>
+                  <div style={{position:'absolute',left:0,bottom:0,height:3,width:'100%',background:cfg.accent,transformOrigin:'left',animation:'pgToastCountdown 9000ms linear forwards'}}/>
+                </div>
+              )
               return (
                 <div key={toast.id} style={{pointerEvents:'all',background:card,border:`1px solid ${bdr}`,borderLeft:`4px solid ${cfg.accent}`,borderRadius:14,padding:'13px 14px',display:'flex',alignItems:'flex-start',gap:12,minWidth:300,maxWidth:440,boxShadow:dk?'0 16px 40px rgba(0,0,0,0.5)':'0 16px 40px rgba(15,23,42,0.18)'}}>
                   <div style={{width:28,height:28,borderRadius:9,background:cfg.accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
