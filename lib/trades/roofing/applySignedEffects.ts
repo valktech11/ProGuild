@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { notifyRoofer } from '@/lib/notifyRoofer'
+import { computeMilestones } from '@/lib/estimates/milestones'
 
 // ── Shared "estimate signed" side-effect engine ────────────────────────────────
 // This is the single source of truth for everything that must happen once an
@@ -125,7 +126,9 @@ export async function applyEstimateSignedEffects(
         const { data: numData } = await sb.rpc('next_invoice_number', { p_pro_id: fullEst.pro_id })
         const invoiceNumber = numData || `INV-${Date.now().toString().slice(-4)}`
 
-        const milestones = (roofingEst as any)?.payment_milestones ?? (fullEst.roofing as any)?.payment_milestones ?? null
+        // Always recompute milestones from the authoritative invoiceTotal — never copy
+        // the estimate's stored payment_milestones which may have been computed off a
+        // stale total. The estimate milestones are only used as a fallback for deposit %.
         const depositPct = fullEst.deposit_percent ?? 30
 
         // GBB: use the selected tier's subtotal + recalculated tax.
@@ -157,6 +160,10 @@ export async function applyEstimateSignedEffects(
           tax_amount: invoiceTaxAmount,
           total:      invoiceTotal,
         }).eq('id', id)
+
+        // Compute fresh milestones from the authoritative invoiceTotal so amounts
+        // always sum to what the homeowner is actually being charged.
+        const milestones = computeMilestones(invoiceTotal)
 
         const depositAmt = milestones?.[0]?.amount
           ?? Math.round(invoiceTotal * (depositPct / 100) * 100) / 100
