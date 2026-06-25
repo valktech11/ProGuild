@@ -246,6 +246,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // re-sync once the user starts editing, so a parent status change alone won't
   // propagate without a remount).
   const [claimRemountNonce, setClaimRemountNonce] = useState(0)
+  // Job Readiness collapse — null = use auto default (expanded while early, collapsed once an estimate exists)
+  const [readyOpen, setReadyOpen] = useState<boolean | null>(null)
 
   // ── Toasts ───────────────────────────────────────────────────────────────
   const [toasts,   setToasts]   = useState<Toast[]>([])
@@ -1076,48 +1078,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                     </div>
 
-                    {isRoofing && (() => {
-                      const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
-                      const activeIdx = wf.steps.findIndex(s => !s.done)
-                      const activeOrEnd = activeIdx === -1 ? wf.steps.length - 1 : activeIdx
-                      const anyDone = wf.steps.some(s => s.done)
-                      const fillPct = wf.steps.length > 1 ? (activeOrEnd / (wf.steps.length - 1)) * 100 * (1 - 1 / wf.steps.length) : 0
-                      return (
-                        <div style={{borderTop:`1px solid ${bdr}`,padding:`${T.sp4}px ${T.sp6}px`,overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch'}}>
-                          <div style={{minWidth:isWide?'auto':wf.steps.length*88}}>
-                            <div style={{position:'relative',display:'flex',alignItems:'center',height:24}}>
-                              <div style={{position:'absolute',top:'50%',left:`${100/wf.steps.length/2}%`,right:`${100/wf.steps.length/2}%`,height:2,background:dk?'#1E293B':'#E5E7EB',transform:'translateY(-50%)',borderRadius:2}}/>
-                              {anyDone && <div style={{position:'absolute',top:'50%',left:`${100/wf.steps.length/2}%`,width:`${fillPct}%`,height:2,background:BRAND.teal,transform:'translateY(-50%)',borderRadius:2,transition:'width 0.4s ease'}}/>}
-                              {wf.steps.map((s, i) => {
-                                const isAct = i === activeIdx
-                                const sz = isAct ? 22 : s.done ? 18 : 14
-                                const bg = s.done ? BRAND.teal : (dk ? '#181E2A' : '#fff')
-                                const bd = (s.done || isAct) ? BRAND.teal : (dk ? '#374151' : '#CBD5E1')
-                                return (
-                                  <div key={s.key} style={{flex:1,display:'flex',justifyContent:'center',position:'relative',zIndex:1}}>
-                                    <div style={{width:sz,height:sz,borderRadius:'50%',background:bg,border:`2px solid ${bd}`,boxShadow:isAct?`0 0 0 4px ${BRAND.teal}22`:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.2s'}}>
-                                      {s.done ? <Svg size={11} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg> : isAct ? <div style={{width:7,height:7,borderRadius:'50%',background:BRAND.teal}}/> : null}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                            <div style={{display:'flex',marginTop:8}}>
-                              {wf.steps.map((s, i) => {
-                                const isAct = i === activeIdx
-                                const lc = isAct ? BRAND.teal : s.done ? (dk ? '#94A3B8' : '#6B7280') : (dk ? '#4B5563' : '#9CA3AF')
-                                return (
-                                  <div key={s.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'0 4px'}}>
-                                    <span style={{fontSize:isAct?T.fontSub:T.fontBadge,fontWeight:isAct?800:s.done?600:500,color:lc,textAlign:'center',lineHeight:1.25}}>{s.label}</span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })()}
-                    {!isRoofing && (<>
                     {/* ─── Progress bar ───────────────────────────────── */}
                     <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 0px',overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch'}}>
                       <div style={{minWidth:isWide?'auto':active.length*72}}>
@@ -1169,7 +1129,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                       </div>{/* end min-width track */}
                     </div>
-                    </>)}
 
                     {/* ─── Status row ─────────────────────────────────── */}
                     <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px'}}>
@@ -1395,6 +1354,43 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             )}
                           </>)}
                         </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* ─── JOB READINESS (design pass §1c) — non-linear status, NOT a stepper ─── */}
+                  {isRoofing && (() => {
+                    const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
+                    const doneCount = wf.steps.filter(s => s.done).length
+                    const total = wf.steps.length
+                    const estStep = wf.steps.find(s => s.key === 'estimate')
+                    const autoOpen = !(estStep?.done)
+                    const open = readyOpen ?? autoOpen
+                    const allDone = doneCount === total
+                    return (
+                      <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                        <button onClick={()=>setReadyOpen(!open)} style={{width:'100%',display:'flex',alignItems:'center',gap:T.sp3,padding:`${T.sp4}px ${T.sp6}px`,background:'none',border:'none',cursor:'pointer',textAlign:'left'}}>
+                          <div style={{width:30,height:30,borderRadius:T.radSm,background:allDone?(dk?'#14321F':'#F0FDF4'):BRAND.tealAlpha,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                            <Svg size={16} stroke={allDone?BRAND.success:BRAND.teal} sw={2.5}>{allDone?<polyline points="20 6 9 17 4 12"/>:<><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></>}</Svg>
+                          </div>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:T.fontLabel,fontWeight:700,color:tp,lineHeight:1.2}}>Job Readiness</div>
+                            <div style={{fontSize:T.fontSub,color:tsu,marginTop:1}}>{doneCount} of {total} complete</div>
+                          </div>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={tsu} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transform:open?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s',flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        {open && (
+                          <div style={{padding:`0 ${T.sp6}px ${T.sp4}px`,display:'flex',flexDirection:'column',gap:T.sp2}}>
+                            {wf.steps.map(s => (
+                              <div key={s.key} style={{display:'flex',alignItems:'center',gap:T.sp3}}>
+                                <div style={{width:20,height:20,borderRadius:'50%',background:s.done?BRAND.teal:'transparent',border:s.done?'none':`1.5px solid ${dk?'#374151':'#CBD5E1'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                  {s.done && <Svg size={11} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
+                                </div>
+                                <span style={{fontSize:T.fontBody,fontWeight:s.done?600:500,color:s.done?tp:tsu}}>{s.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })()}
