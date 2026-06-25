@@ -24,6 +24,7 @@ export const T = {
   fontEmphasis: 15,   // input text, slightly elevated body, button labels
   fontLabel:    16,   // section labels, card titles, nav items, form labels
   fontHeading:  18,   // section headers (Action Center, Pipeline, Reviews…)
+  fontHero:     20,   // hero-card directive titles (Next Action, Measurements hero)
   fontTitle:    24,   // page h1 titles
   fontStat:     32,   // big numbers in stat cards
   fontStatLg:   40,   // hero numbers (pipeline value, star rating)
@@ -35,6 +36,7 @@ export const T = {
   fontEmphasisMobile: 14,
   fontLabelMobile:    15,
   fontHeadingMobile:  16,
+  fontHeroMobile:     18,
   fontTitleMobile:    22,
   fontStatMobile:     28,
   fontStatLgMobile:   32,

@@ -1303,7 +1303,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     </div>
                   </div>{/* end hero */}
 
-                  {/* ─── NEXT ACTION banner (design pass §1a) — derived from completeness flags ─── */}
+                  {/* ─── NEXT ACTION banner (wow redesign — dark teal hero) ─── */}
                   {isRoofing && (() => {
                     const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
                     const nextKey = wf.nextKey
@@ -1321,62 +1321,51 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       send:     {title:'Send to homeowner', sub:'Send the estimate for instant approve & pay.', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min', icon:<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>},
                     }
                     const na = nextKey ? NA[nextKey] : null
-                    const fieldBg = dk
-                      ? 'linear-gradient(135deg, #14302E 0%, #181E2A 58%)'
-                      : 'linear-gradient(135deg, #F0FDFA 0%, #FFFFFF 58%)'
-                    const fieldBorder = dk ? '#1F3D39' : '#CCFBF1'
-                    const fieldShadow = dk
-                      ? '0 10px 30px -10px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.3)'
-                      : '0 12px 30px -10px rgba(15,118,110,0.28), 0 2px 8px rgba(15,118,110,0.08)'
-                    const okBg = dk
-                      ? 'linear-gradient(135deg, #16301F 0%, #181E2A 58%)'
-                      : 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 58%)'
-                    const okBorder = dk ? '#1E3A2A' : '#BBF7D0'
-                    const okShadow = dk
-                      ? '0 10px 30px -10px rgba(0,0,0,0.55)'
-                      : '0 12px 30px -10px rgba(21,128,61,0.22), 0 2px 8px rgba(21,128,61,0.06)'
+                    const done = !na
+                    const fieldBg = done
+                      ? 'linear-gradient(135deg, #15803D 0%, #0F5C2E 55%, #0A3D20 100%)'
+                      : 'linear-gradient(135deg, #0F766E 0%, #0C544D 55%, #0A3A35 100%)'
+                    const fieldShadow = done
+                      ? '0 16px 40px -12px rgba(15,128,61,0.5), 0 4px 12px rgba(10,61,32,0.3)'
+                      : '0 16px 40px -12px rgba(15,118,110,0.5), 0 4px 12px rgba(10,58,53,0.3)'
+                    const glow = done ? 'rgba(74,222,128,0.22)' : 'rgba(45,212,191,0.25)'
+                    const eyebrowColor = done ? '#86EFAC' : '#5EEAD4'
+                    const wmIcon = na ? na.icon : (<polyline points="20 6 9 17 4 12"/>)
                     return (
-                      <div style={{position:'relative',background:na?fieldBg:okBg,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${na?fieldBorder:okBorder}`,boxShadow:na?fieldShadow:okShadow,overflow:'hidden'}}>
-                        <div style={{position:'absolute',top:-40,right:-30,width:200,height:200,borderRadius:'50%',background:na?'radial-gradient(circle, rgba(20,184,166,0.12), transparent 70%)':'radial-gradient(circle, rgba(34,197,94,0.12), transparent 70%)',pointerEvents:'none'}}/>
+                      <div style={{position:'relative',background:fieldBg,borderRadius:T.radLg,marginBottom:12,boxShadow:fieldShadow,overflow:'hidden'}}>
+                        <div style={{position:'absolute',top:-60,left:-20,width:260,height:260,borderRadius:'50%',background:`radial-gradient(circle, ${glow}, transparent 65%)`,pointerEvents:'none'}}/>
+                        <div style={{position:'absolute',right:-20,bottom:-30,opacity:0.07,pointerEvents:'none',transform:'rotate(-8deg)'}}>
+                          <Svg size={150} stroke="#fff" sw={1.5}>{wmIcon}</Svg>
+                        </div>
                         <div style={{position:'relative',display:'flex',alignItems:'center',gap:T.sp5,padding:T.sp6,flexWrap:'wrap'}}>
-                          {na ? (<>
-                            <div style={{width:52,height:52,borderRadius:T.radMd,background:'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',boxShadow:'0 6px 16px -2px rgba(15,118,110,0.5)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                              <Svg size={24} stroke="#fff" sw={2}>{na.icon}</Svg>
+                          <div style={{width:54,height:54,borderRadius:T.radMd,background:'rgba(255,255,255,0.14)',border:'1px solid rgba(255,255,255,0.22)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.18)'}}>
+                            <Svg size={26} stroke="#fff" sw={2}>{wmIcon}</Svg>
+                          </div>
+                          <div style={{flex:1,minWidth:220}}>
+                            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:6}}>
+                              <span style={{width:7,height:7,borderRadius:'50%',background:eyebrowColor,boxShadow:`0 0 8px ${eyebrowColor}`,flexShrink:0}}/>
+                              <span style={{fontSize:T.fontBadge,fontWeight:800,color:eyebrowColor,textTransform:'uppercase',letterSpacing:'0.12em'}}>{na?'Next Action':'On Track'}</span>
                             </div>
-                            <div style={{flex:1,minWidth:220}}>
-                              <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
-                                <span style={{width:7,height:7,borderRadius:'50%',background:BRAND.teal,boxShadow:`0 0 0 3px ${dk?'rgba(20,184,166,0.20)':'rgba(15,118,110,0.15)'}`,flexShrink:0}}/>
-                                <span style={{fontSize:T.fontBadge,fontWeight:800,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.1em'}}>Next Action</span>
-                              </div>
-                              <div style={{fontSize:T.fontHeading,fontWeight:800,color:tp,lineHeight:1.2,letterSpacing:'-0.01em',marginBottom:3}}>{na.title}</div>
-                              <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.5}}>{na.sub}</div>
-                            </div>
+                            <div style={{fontSize:T.fontHero,fontWeight:800,color:'#fff',lineHeight:1.2,letterSpacing:'-0.01em',marginBottom:4}}>{na?na.title:'You\u2019re all caught up'}</div>
+                            <div style={{fontSize:T.fontBody,color:'rgba(255,255,255,0.82)',lineHeight:1.5}}>{na?na.sub:'Every step for this job is done.'}</div>
+                          </div>
+                          {na ? (
                             <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:T.sp2,flexShrink:0}}>
                               <button onClick={na.onClick}
-                                onMouseEnter={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-1px)';b.style.boxShadow='0 10px 22px -4px rgba(15,118,110,0.55)'}}
-                                onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 6px 16px -3px rgba(15,118,110,0.45)'}}
-                                style={{display:'inline-flex',alignItems:'center',gap:8,height:44,padding:'0 20px',borderRadius:T.radSm,border:'none',background:'linear-gradient(135deg, #0F766E 0%, #0D5C55 100%)',color:'#fff',fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',boxShadow:'0 6px 16px -3px rgba(15,118,110,0.45)',transition:'transform 0.15s, box-shadow 0.15s'}}>
+                                onMouseEnter={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-2px)';b.style.boxShadow='0 14px 28px -6px rgba(0,0,0,0.35)'}}
+                                onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 8px 18px -4px rgba(0,0,0,0.28)'}}
+                                style={{display:'inline-flex',alignItems:'center',gap:8,height:46,padding:'0 22px',borderRadius:T.radSm,border:'none',background:'#fff',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:800,cursor:'pointer',whiteSpace:'nowrap',boxShadow:'0 8px 18px -4px rgba(0,0,0,0.28)',transition:'transform 0.15s, box-shadow 0.15s'}}>
                                 {na.cta}
-                                <Svg size={16} stroke="#fff" sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg>
+                                <Svg size={16} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg>
                               </button>
-                              <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:999,background:dk?'rgba(20,184,166,0.14)':'rgba(15,118,110,0.08)',color:BRAND.teal,fontSize:T.fontBadge,fontWeight:600}}>
-                                <Svg size={12} stroke={BRAND.teal} sw={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
+                              <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 11px',borderRadius:999,background:'rgba(255,255,255,0.15)',color:'#fff',fontSize:T.fontBadge,fontWeight:600}}>
+                                <Svg size={12} stroke="#fff" sw={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
                                 {na.mins}
                               </span>
                             </div>
-                          </>) : (<>
-                            <div style={{width:52,height:52,borderRadius:T.radMd,background:'linear-gradient(135deg, #22C55E 0%, #15803D 100%)',boxShadow:'0 6px 16px -2px rgba(21,128,61,0.5)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                              <Svg size={26} stroke="#fff" sw={2.5}><polyline points="20 6 9 17 4 12"/></Svg>
-                            </div>
-                            <div style={{flex:1,minWidth:220}}>
-                              <div style={{fontSize:T.fontBadge,fontWeight:800,color:BRAND.success,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:5}}>On Track</div>
-                              <div style={{fontSize:T.fontHeading,fontWeight:800,color:tp,lineHeight:1.2,letterSpacing:'-0.01em'}}>You&apos;re all caught up</div>
-                              <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.5,marginTop:3}}>Every step for this job is done.</div>
-                            </div>
-                            {est && (
-                              <button onClick={goEstimate} style={{display:'inline-flex',alignItems:'center',gap:8,height:44,padding:'0 18px',borderRadius:T.radSm,border:`1px solid ${dk?'#2D4A38':'#BBF7D0'}`,background:dk?'rgba(34,197,94,0.08)':'#FFFFFF',color:BRAND.success,fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>Open Estimate</button>
-                            )}
-                          </>)}
+                          ) : (est && (
+                            <button onClick={goEstimate} style={{display:'inline-flex',alignItems:'center',gap:8,height:46,padding:'0 20px',borderRadius:T.radSm,border:'1px solid rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.12)',color:'#fff',fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>Open Estimate</button>
+                          ))}
                         </div>
                       </div>
                     )
