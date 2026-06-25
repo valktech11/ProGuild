@@ -757,7 +757,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       {showPayModal && (
         <RecordPaymentModal
           invoice={invoice}
-          paidMs={paidMs}
+          paidMs={history.map(p => p.milestone_name)}
           onRecord={handleRecordPayment}
           onClose={() => setShowPayModal(false)}
           t={t}
