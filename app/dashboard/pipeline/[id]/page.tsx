@@ -518,6 +518,43 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     setENotes(lead.notes||'')
     setTab('details'); setIsEditing(true)
   }
+
+  // ── Satellite roof measure (~30s) — single shared handler used by the Next
+  //    Action hero and the Re-measure control. Posts to /api/roofing/report,
+  //    stores squares/pitch/waste, PATCHes the lead. LF is never seeded here (§25). ──
+  async function runSatelliteMeasure() {
+    if (!lead || !session) return
+    const street=(((lead as any).property_address)||'').replace(/, USA$/,'').trim()
+    const city=lead.contact_city||''; const st=lead.contact_state||''; const zip=(lead as any).contact_zip||''
+    const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')
+    if(!street){ addToast('Add a property address first','error'); return }
+    setQbGenerating(true); setQbDone(false); setQbError('')
+    try{
+      const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),90000)
+      let res:Response
+      try{
+        res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})
+      }finally{clearTimeout(timer)}
+      const d=await res.json().catch(()=>({}))
+      if(!res.ok){setQbError((d as any).error||'Report failed');return}
+      const meas=(d as any).measurements
+      const geocodedAddr=(d as any)?.debug?.formattedAddress?String((d as any).debug.formattedAddress).replace(', USA',''):fullAddr
+      if(meas){
+        const payload:Record<string,unknown>={squares:Number(meas.totalSquaresOrder)||0,pitch:meas.dominantPitch??'4/12',waste:Number(meas.wasteFactor)||12,source:'roof_report',address:geocodedAddr,storedAt:Date.now(),leadId:lead.id,ridgeLF:0,eaveLF:0,perimLF:0}
+        try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
+        const rowId=(d as any).reportRowId
+        if(rowId)setReportRowId(rowId)
+        fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
+          .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
+        const newSq=Number(meas?.totalSquaresOrder)
+        if(newSq>0)addToast(`Roof measured — ${newSq} sq`,'success')
+      }
+      setQbDone(true);setShowRemeasure(false)
+    }catch(err:unknown){
+      const isAbort=err instanceof Error&&err.name==='AbortError'
+      setQbError(isAbort?'Timed out — try again':'Network error')
+    }finally{setQbGenerating(false)}
+  }
   // ── Address autocomplete for edit form ──────────────────────────────────
   useEffect(() => {
     if (!eAddrLoading || eAddr.length < 3) { setEAddrPredictions([]); setEAddrShowPred(false); return }
@@ -1322,7 +1359,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                     const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string;icon:React.ReactNode}> = {
-                      measure:  {title:'Measure the roof', sub:'Pull roof size from satellite or enter it manually.', cta:'Measure Roof', onClick:goPromeasure, mins:'3 min', icon:<><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></>},
+                      measure:  {title:'Measure the roof', sub:'Pull roof size from satellite — about 30 seconds.', cta:'Measure Roof', onClick:runSatelliteMeasure, mins:'1 min', icon:<><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></>},
                       lf:       {title:'Capture linear footage', sub:'Trace ridge, hip & valley — drives materials and supplements.', cta:'Trace LF', onClick:goPromeasure, mins:'4 min', icon:<><rect x="2" y="9" width="20" height="6" rx="1.5"/><path d="M6 9v2.5M10 9v3M14 9v2.5M18 9v3"/></>},
                       carrier:  {title:'Review carrier scope', sub:'Record the carrier\u2019s decision to see whether a supplement is needed.', cta:'Record Decision', onClick:goCarrier, mins:'2 min', icon:<><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></>},
                       estimate: {title:'Build the estimate', sub:'Turn your measurements into a priced estimate.', cta:'Build Estimate', onClick:goEstimate, mins:'2 min', icon:<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></>},
@@ -1367,12 +1404,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </span>
                                 <span style={{color:'#fff',lineHeight:1}}><span style={{fontSize:T.fontHero,fontWeight:800}}>{na.mins.replace(' min','')}</span><span style={{fontSize:T.fontSub,fontWeight:600,marginLeft:3,color:'rgba(255,255,255,0.75)'}}>min</span></span>
                               </div>
-                              <button onClick={na.onClick}
-                                onMouseEnter={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-2px)';b.style.boxShadow='0 14px 28px -6px rgba(0,0,0,0.35)'}}
+                              <button onClick={na.onClick} disabled={nextKey==='measure'&&qbGenerating}
+                                onMouseEnter={e=>{if(nextKey==='measure'&&qbGenerating)return;const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-2px)';b.style.boxShadow='0 14px 28px -6px rgba(0,0,0,0.35)'}}
                                 onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 8px 18px -4px rgba(0,0,0,0.28)'}}
-                                style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 22px',borderRadius:T.radSm,border:'none',background:'#fff',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:800,cursor:'pointer',whiteSpace:'nowrap',boxShadow:'0 8px 18px -4px rgba(0,0,0,0.28)',transition:'transform 0.15s, box-shadow 0.15s'}}>
-                                {na.cta}
-                                <Svg size={16} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg>
+                                style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 22px',borderRadius:T.radSm,border:'none',background:'#fff',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:800,cursor:(nextKey==='measure'&&qbGenerating)?'wait':'pointer',whiteSpace:'nowrap',boxShadow:'0 8px 18px -4px rgba(0,0,0,0.28)',transition:'transform 0.15s, box-shadow 0.15s',opacity:(nextKey==='measure'&&qbGenerating)?0.9:1}}>
+                                {nextKey==='measure'&&qbGenerating
+                                  ? <><span style={{width:14,height:14,borderRadius:'50%',border:`2px solid ${BRAND.teal}40`,borderTopColor:BRAND.teal,animation:'pg-spin 0.7s linear infinite',display:'inline-block'}}/>Measuring…</>
+                                  : <>{na.cta}<Svg size={16} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg></>}
                               </button>
                             </div>
                           ) : (est && (
@@ -1637,9 +1675,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             if((lead as any).property_id) params.set('property_id', (lead as any).property_id)
                                             router.push(`/dashboard/roofing/quickbid?${params.toString()}`)
                                           }}
-                                          style={{width:'100%',marginBottom:12,padding:'11px',borderRadius:10,border:'1.5px solid #0F766E',background:'rgba(15,118,110,0.06)',color:'#0F766E',fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
-                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                                          Quick Bid PDF — instant satellite estimate
+                                          style={{display:'inline-flex',marginBottom:12,padding:'8px 14px',borderRadius:8,border:'1px solid rgba(15,118,110,0.25)',background:'transparent',color:'#0F766E',fontSize:12,fontWeight:700,cursor:'pointer',alignItems:'center',justifyContent:'center',gap:7}}>
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                          Quick Bid PDF
                                         </button>
                                       )}
 
@@ -1662,53 +1700,21 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                               </a>
                                             )}
                                           </div>
-                                          {!step1Done && !qbGenerating && !showRemeasure && (
-                                            <button
-                                              onClick={async ()=>{
-                                                const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
-                                                const city=lead.contact_city||''; const st=lead.contact_state||''; const zip=(lead as any).contact_zip||''
-                                                const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')
-                                                if(!street){addToast('Add a property address first','error');return}
-                                                if(!session)return
-                                                setQbGenerating(true);setQbDone(false);setQbError('')
-                                                try{
-                                                  const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),90000)
-                                                  let res:Response
-                                                  try{
-                                                    res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},
-                                                      body:JSON.stringify({address:fullAddr,pro_id:session.id,
-                                                        property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()
-                                                      }),signal:ctrl.signal})
-                                                  }finally{clearTimeout(timer)}
-                                                  const d=await res.json().catch(()=>({}))
-                                                  if(!res.ok){setQbError((d as any).error||'Report failed');return}
-                                                  const meas=(d as any).measurements
-                                                  const geocodedAddr=(d as any)?.debug?.formattedAddress?String((d as any).debug.formattedAddress).replace(', USA',''):fullAddr
-                                                  if(meas){
-                                                    const payload:Record<string,unknown>={squares:Number(meas.totalSquaresOrder)||0,pitch:meas.dominantPitch??'4/12',waste:Number(meas.wasteFactor)||12,source:'roof_report',address:geocodedAddr,storedAt:Date.now(),leadId:lead.id,ridgeLF:0,eaveLF:0,perimLF:0}
-                                                    try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
-                                                    const rowId=(d as any).reportRowId
-                                                    if(rowId)setReportRowId(rowId)
-                                                    fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
-                                                      .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
-                                                  }
-                                                  setQbDone(true);setShowRemeasure(false)
-                                                }catch(err:unknown){
-                                                  const isAbort=err instanceof Error&&err.name==='AbortError'
-                                                  setQbError(isAbort?'Timed out — try again':'Network error')
-                                                }finally{setQbGenerating(false)}
-                                              }}
-                                              style={{padding:'7px 14px',borderRadius:8,border:'none',background:'#0F766E',color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const,flexShrink:0}}>
-                                              Measure Roof
-                                            </button>
+                                          {!step1Done && qbGenerating && (
+                                            <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,fontWeight:700,color:'#0F766E',flexShrink:0}}>
+                                              <span style={{width:13,height:13,borderRadius:'50%',border:'2px solid #0F766E40',borderTopColor:'#0F766E',animation:'pg-spin 0.7s linear infinite',display:'inline-block'}}/>
+                                              Measuring…
+                                            </span>
                                           )}
                                         </div>
-                                        {/* ProMeasure alternative — shown when unmeasured */}
+                                        {/* Quiet fallbacks — primary 'Measure Roof' lives in the Next Action banner above */}
                                         {!step1Done && !qbGenerating && (
-                                          <div style={{marginTop:8,fontSize:11,color:'#94A3B8'}}>
-                                            Prefer to draw manually?{' '}
+                                          <div style={{marginTop:8,fontSize:11,color:'#94A3B8',display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' as const}}>
+                                            <span>Measure from the banner above, or</span>
+                                            <span onClick={runSatelliteMeasure} style={{color:'#0F766E',fontWeight:700,cursor:'pointer',textDecoration:'underline'}}>run satellite here</span>
+                                            <span>·</span>
                                             <span onClick={()=>{const street=((lead as any).property_address||'').replace(/, USA$/,'').trim();const city=lead.contact_city||'';const st=lead.contact_state||'';const zip=(lead as any).contact_zip||'';const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')||((lead as any).property_address||'');router.push(fullAddr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(fullAddr)}`:`/dashboard/roofing/promeasure?lead_id=${lead.id}`)}}
-                                              style={{color:'#0F766E',fontWeight:700,cursor:'pointer',textDecoration:'underline'}}>Use ProMeasure</span>
+                                              style={{color:'#0F766E',fontWeight:700,cursor:'pointer',textDecoration:'underline'}}>draw manually</span>
                                           </div>
                                         )}
                                       </div>
@@ -1796,36 +1802,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           </button>
                                           <button
                                             disabled={qbGenerating}
-                                            onClick={async ()=>{
-                                              const street=((lead as any).property_address||'').replace(/, USA$/,'').trim()
-                                              const city=lead.contact_city||'';const st=lead.contact_state||'';const zip=(lead as any).contact_zip||''
-                                              const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')
-                                              if(!street){addToast('Add a property address first','error');return}
-                                              if(!session)return
-                                              setQbGenerating(true);setQbDone(false);setQbError('')
-                                              try{
-                                                const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),90000)
-                                                let res:Response
-                                                try{res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})}finally{clearTimeout(timer)}
-                                                const d=await res.json().catch(()=>({}))
-                                                if(!res.ok){setQbError((d as any).error||'Report failed');return}
-                                                const meas=(d as any).measurements
-                                                if(meas){
-                                                  const payload:Record<string,unknown>={squares:Number(meas.totalSquaresOrder)||0,pitch:meas.dominantPitch??'4/12',waste:Number(meas.wasteFactor)||12,source:'roof_report',address:fullAddr,storedAt:Date.now(),leadId:lead.id,ridgeLF:0,eaveLF:0,perimLF:0}
-                                                  try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
-                                                  const rowId=(d as any).reportRowId
-                                                  if(rowId)setReportRowId(rowId)
-                                                  fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
-                                                    .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
-                                                }
-                                                setQbDone(true);setShowRemeasure(false)
-                                                const newSq=Number(meas?.totalSquaresOrder)
-                                                if(newSq>0)addToast(`Roof re-measured — ${newSq} sq updated`,'success')
-                                              }catch(err:unknown){
-                                                const isAbort=err instanceof Error&&err.name==='AbortError'
-                                                setQbError(isAbort?'Timed out — try again':'Network error')
-                                              }finally{setQbGenerating(false)}
-                                            }}
+                                            onClick={runSatelliteMeasure}
                                             style={{padding:'9px',borderRadius:8,border:`1.5px solid #0F766E`,background:qbGenerating?'#0F766E':'transparent',color:qbGenerating?'#fff':'#0F766E',fontSize:12,fontWeight:700,cursor:qbGenerating?'wait':'pointer',display:'flex',alignItems:'center',gap:5,justifyContent:'center',opacity:qbGenerating?0.8:1}}>
                                             {qbGenerating
                                               ?<><div style={{width:10,height:10,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',animation:'pg-spin 0.7s linear infinite'}}/>Measuring…</>
