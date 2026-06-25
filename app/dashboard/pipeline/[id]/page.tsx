@@ -1350,18 +1350,21 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             <div style={{fontSize:T.fontBody,color:'rgba(255,255,255,0.82)',lineHeight:1.5}}>{na?na.sub:'Every step for this job is done.'}</div>
                           </div>
                           {na ? (
-                            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:T.sp2,flexShrink:0}}>
+                            <div style={{display:'flex',alignItems:'stretch',gap:T.sp3,flexShrink:0}}>
+                              <div style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:3,padding:'8px 16px',borderRadius:T.radMd,background:'rgba(255,255,255,0.10)',border:'1px solid rgba(255,255,255,0.18)'}}>
+                                <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:T.fontBadge,fontWeight:700,color:'rgba(255,255,255,0.65)',textTransform:'uppercase',letterSpacing:'0.08em'}}>
+                                  <Svg size={11} stroke="rgba(255,255,255,0.65)" sw={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
+                                  Est. Time
+                                </span>
+                                <span style={{color:'#fff',lineHeight:1}}><span style={{fontSize:T.fontHero,fontWeight:800}}>{na.mins.replace(' min','')}</span><span style={{fontSize:T.fontSub,fontWeight:600,marginLeft:3,color:'rgba(255,255,255,0.75)'}}>min</span></span>
+                              </div>
                               <button onClick={na.onClick}
                                 onMouseEnter={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-2px)';b.style.boxShadow='0 14px 28px -6px rgba(0,0,0,0.35)'}}
                                 onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 8px 18px -4px rgba(0,0,0,0.28)'}}
-                                style={{display:'inline-flex',alignItems:'center',gap:8,height:46,padding:'0 22px',borderRadius:T.radSm,border:'none',background:'#fff',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:800,cursor:'pointer',whiteSpace:'nowrap',boxShadow:'0 8px 18px -4px rgba(0,0,0,0.28)',transition:'transform 0.15s, box-shadow 0.15s'}}>
+                                style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 22px',borderRadius:T.radSm,border:'none',background:'#fff',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:800,cursor:'pointer',whiteSpace:'nowrap',boxShadow:'0 8px 18px -4px rgba(0,0,0,0.28)',transition:'transform 0.15s, box-shadow 0.15s'}}>
                                 {na.cta}
                                 <Svg size={16} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg>
                               </button>
-                              <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 11px',borderRadius:999,background:'rgba(255,255,255,0.15)',color:'#fff',fontSize:T.fontBadge,fontWeight:600}}>
-                                <Svg size={12} stroke="#fff" sw={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
-                                {na.mins}
-                              </span>
                             </div>
                           ) : (est && (
                             <button onClick={goEstimate} style={{display:'inline-flex',alignItems:'center',gap:8,height:46,padding:'0 20px',borderRadius:T.radSm,border:'1px solid rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.12)',color:'#fff',fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>Open Estimate</button>
@@ -1393,15 +1396,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={tsu} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transform:open?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s',flexShrink:0}}><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         {open && (
-                          <div style={{padding:`0 ${T.sp6}px ${T.sp4}px`,display:'flex',flexDirection:'column',gap:T.sp2}}>
-                            {wf.steps.map(s => (
-                              <div key={s.key} style={{display:'flex',alignItems:'center',gap:T.sp3}}>
-                                <div style={{width:20,height:20,borderRadius:'50%',background:s.done?BRAND.teal:'transparent',border:s.done?'none':`1.5px solid ${dk?'#374151':'#CBD5E1'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                  {s.done && <Svg size={11} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
+                          <div style={{padding:`0 ${T.sp6}px ${T.sp4}px`}}>
+                            <div style={{display:'flex',flexDirection:isWide?'row':'column',alignItems:isWide?'center':'stretch',flexWrap:isWide?'wrap':'nowrap',rowGap:isWide?10:T.sp2,columnGap:0}}>
+                              {wf.steps.map((s,i) => (
+                                <div key={s.key} style={{display:'flex',alignItems:'center',gap:T.sp2,padding:isWide?`0 ${T.sp4}px`:0,borderLeft:isWide&&i>0?`1px solid ${bdr}`:'none'}}>
+                                  <div style={{width:20,height:20,borderRadius:'50%',background:s.done?BRAND.teal:'transparent',border:s.done?'none':`1.5px solid ${dk?'#374151':'#CBD5E1'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                    {s.done && <Svg size={11} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
+                                  </div>
+                                  <span style={{fontSize:T.fontBody,fontWeight:s.done?600:500,color:s.done?tp:tsu,whiteSpace:'nowrap'}}>{s.label}</span>
                                 </div>
-                                <span style={{fontSize:T.fontBody,fontWeight:s.done?600:500,color:s.done?tp:tsu}}>{s.label}</span>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
