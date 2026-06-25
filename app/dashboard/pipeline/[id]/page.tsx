@@ -188,6 +188,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   type Tab = 'details'|'photos'|'estimate'|'activity'
   const [tab,          setTab]          = useState<Tab>('details')
   const [isEditing,    setIsEditing]    = useState(false)
+  const [contactOpen,  setContactOpen]  = useState(false)
   const [showPicker,   setShowPicker]   = useState(false)
   // Persistent info/warning popover anchored under the status dropdown (replaces
   // the transient toast for blocked/locked stage taps — stays until dismissed).
@@ -1095,11 +1096,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               Call
                             </a>
                           )}
-                          <button onClick={startEdit}
-                            style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,fontSize:13,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                            <Svg size={13} stroke={ts}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
-                            Edit
-                          </button>
                           <button onClick={shareStatus} title="Email homeowner their project status link"
                             style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,fontSize:13,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                             <Svg size={13} stroke={ts}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></Svg>
@@ -1915,9 +1911,24 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             {/* Contact & details — reference, sits below the work */}
                             <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
-                              <div style={{fontSize:11,fontWeight:700,color:ts,textTransform:'uppercase' as const,letterSpacing:'0.07em',marginBottom:10}}>Contact &amp; Details</div>
-                              {/* Fields grid — teal icon circles */}
-                              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:1,background:bdr,border:`1px solid ${bdr}`,borderRadius:T.radMd,overflow:'hidden'}}>
+                              {/* collapsible header — title + glance summary + Edit + chevron */}
+                              <button onClick={()=>setContactOpen(o=>!o)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,background:'none',border:'none',padding:0,cursor:'pointer',textAlign:'left' as const}}>
+                                <span style={{fontSize:11,fontWeight:700,color:ts,textTransform:'uppercase' as const,letterSpacing:'0.07em',flexShrink:0}}>Contact &amp; Details</span>
+                                {!contactOpen && (
+                                  <span style={{flex:1,minWidth:0,fontSize:13,color:tsu,whiteSpace:'nowrap' as const,overflow:'hidden',textOverflow:'ellipsis'}}>
+                                    {[fmtPhone(lead.contact_phone),lead.contact_email,(lead.lead_source||'').replace(/_/g,' ')].filter(Boolean).join('  ·  ')}
+                                  </span>
+                                )}
+                                <span style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:8,flexShrink:0}}>
+                                  <span onClick={(e)=>{e.stopPropagation();startEdit()}} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:ts,fontSize:12.5,fontWeight:600}}>
+                                    <Svg size={12} stroke={ts}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
+                                    Edit
+                                  </span>
+                                  <Svg size={16} stroke={tsu}>{contactOpen?<polyline points="18 15 12 9 6 15"/>:<polyline points="6 9 12 15 18 9"/>}</Svg>
+                                </span>
+                              </button>
+                              {contactOpen && (
+                              <div style={{marginTop:10,display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:1,background:bdr,border:`1px solid ${bdr}`,borderRadius:T.radMd,overflow:'hidden'}}>
                                 {([
                                   {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
                                   {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
@@ -1944,6 +1955,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   </div>
                                 ))}
                               </div>
+                              )}
                             </div>
 
                             {/* Notes */}
