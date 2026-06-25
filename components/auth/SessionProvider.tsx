@@ -45,18 +45,40 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     setAuthEmail(authSession.user.email ?? null)
 
+    // Fetch /api/auth/me with a given token. Returns the Response, or null on a
+    // network throw.
+    const fetchMe = async (token: string): Promise<Response | null> => {
+      try {
+        return await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      } catch {
+        return null
+      }
+    }
+
     try {
-      const r = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${authSession.access_token}` },
-      })
-      const d = await r.json()
-      if (r.ok) {
+      let r = await fetchMe(authSession.access_token)
+
+      // 401 = the access token is expired/invalid. Before giving up and bouncing
+      // to /login, force a token refresh and retry once. This makes routine ~1hr
+      // token expiry self-heal invisibly instead of flashing the login screen
+      // during a long working session.
+      if (r && r.status === 401) {
+        const { data: refreshed } = await supabase.auth.refreshSession()
+        const newToken = refreshed?.session?.access_token
+        if (newToken) {
+          r = await fetchMe(newToken)
+        }
+      }
+
+      if (r && r.ok) {
+        const d = await r.json()
         setSession(d.session)
         setNeedsProfile(!!d.needsProfile)
       } else if (!opts?.silent) {
-        // Only downgrade to null on a NON-silent (initial) resolve. On a silent
-        // re-resolve (token refresh / tab refocus) a transient non-ok response must
-        // NOT wipe a session we already have — that caused the login flicker.
+        // Only downgrade to null on a NON-silent (initial) resolve, and only after
+        // the refresh-and-retry above also failed. On a silent re-resolve (token
+        // refresh / tab refocus) a transient non-ok response must NOT wipe a
+        // session we already have — that caused the login flicker.
         setSession(null)
         setNeedsProfile(false)
       }
