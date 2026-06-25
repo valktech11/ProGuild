@@ -27,9 +27,20 @@ function MilestonePaySection({
     paidPerMs[name] = Math.round(((paidPerMs[name] ?? 0) + (Number(p.amount) || 0)) * 100) / 100
   }
 
-  // A milestone is selectable if it is NOT fully paid (amount-sum based)
+  // A milestone is selectable if it is NOT fully paid (amount-sum based).
+  // For the default selection, carry the REMAINING amount on a partially-paid
+  // milestone — otherwise the auto-selected milestone (and the Continue button)
+  // would show the full original amount until the user re-clicks it.
   const unpaid = milestones.filter(m => !paidMilestones.includes(m.name))
-  const nextDue = unpaid[0] ?? null
+  const nextDueRaw = unpaid[0] ?? null
+  const nextDue = nextDueRaw
+    ? (() => {
+        const alreadyPaid = paidPerMs[nextDueRaw.name] ?? 0
+        return alreadyPaid > 0
+          ? { ...nextDueRaw, amount: Math.max(0, Math.round((nextDueRaw.amount - alreadyPaid) * 100) / 100) }
+          : nextDueRaw
+      })()
+    : null
 
   const [step, setStep]         = useState<'select' | 'confirm' | 'success'>('select')
   const [selMilestone, setSel]  = useState<Milestone | null>(nextDue)
