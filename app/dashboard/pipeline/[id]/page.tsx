@@ -36,6 +36,52 @@ interface LeadExt extends Lead {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+type WorkflowStep = { key: string; label: string; done: boolean }
+/**
+ * roofingWorkflow — single source of truth for the lead's task-completeness model.
+ * Consumed by BOTH the Next Action banner and the verb progress checklist so the
+ * two surfaces can never drift. Mirrors the on-page gap engine: the Supplement
+ * step only exists when gap = estTotal − (approved + supplement) is positive.
+ */
+function roofingWorkflow(
+  rjd: any,
+  est: { total?: number; status?: string; sent_at?: string | null } | null,
+  estCount: number,
+): { steps: WorkflowStep[]; nextKey: string | null; gap: number | null; hasGap: boolean } {
+  const isClaim = !!rjd?.insurance_claim
+  const lfd = rjd?.linear_footage || {}
+  const sqDone = !!rjd?.square_count
+  const lfDone = (lfd.ridge_ft > 0) || (lfd.hip_ft > 0) || (lfd.valley_ft > 0)
+  const approvedAmt = Number(rjd?.approved_amount) || 0
+  const supplementAmt = Number(rjd?.supplement_amount) || 0
+  const claimStatus = rjd?.claim_status || 'Filed'
+  const estTotal = Number(est?.total) || 0
+  const carrierTotal = approvedAmt + supplementAmt
+  const decisionRecorded = ['Approved','Decision','Denied','Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
+  const gap = (estTotal > 0 && carrierTotal > 0) ? estTotal - carrierTotal : null
+  const hasGap = gap !== null && gap > 0
+  const estDone = estCount > 0 || !!est
+  const supDone = supplementAmt > 0 || ['Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
+  const sentDone = !!(est && ((est.sent_at) || ['sent','viewed','approved'].includes(est.status || '')))
+  const steps: WorkflowStep[] = isClaim
+    ? [
+        { key: 'measure',  label: 'Measure Roof',         done: sqDone },
+        { key: 'lf',       label: 'Capture LF',           done: lfDone },
+        { key: 'carrier',  label: 'Review Carrier Scope', done: decisionRecorded },
+        { key: 'estimate', label: 'Build Estimate',       done: estDone },
+        ...(hasGap ? [{ key: 'supp', label: 'Review Supplement', done: supDone }] : []),
+        { key: 'send',     label: 'Send to Homeowner',    done: sentDone },
+      ]
+    : [
+        { key: 'measure',  label: 'Measure Roof',      done: sqDone },
+        { key: 'lf',       label: 'Capture LF',        done: lfDone },
+        { key: 'estimate', label: 'Build Estimate',    done: estDone },
+        { key: 'send',     label: 'Send to Homeowner', done: sentDone },
+      ]
+  const found = steps.find(s => !s.done)
+  return { steps, nextKey: found ? found.key : null, gap, hasGap }
+}
+
 function fmt(d: string | null): string {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
@@ -1030,6 +1076,48 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                     </div>
 
+                    {isRoofing && (() => {
+                      const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
+                      const activeIdx = wf.steps.findIndex(s => !s.done)
+                      const activeOrEnd = activeIdx === -1 ? wf.steps.length - 1 : activeIdx
+                      const anyDone = wf.steps.some(s => s.done)
+                      const fillPct = wf.steps.length > 1 ? (activeOrEnd / (wf.steps.length - 1)) * 100 * (1 - 1 / wf.steps.length) : 0
+                      return (
+                        <div style={{borderTop:`1px solid ${bdr}`,padding:`${T.sp4}px ${T.sp6}px`,overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch'}}>
+                          <div style={{minWidth:isWide?'auto':wf.steps.length*88}}>
+                            <div style={{position:'relative',display:'flex',alignItems:'center',height:24}}>
+                              <div style={{position:'absolute',top:'50%',left:`${100/wf.steps.length/2}%`,right:`${100/wf.steps.length/2}%`,height:2,background:dk?'#1E293B':'#E5E7EB',transform:'translateY(-50%)',borderRadius:2}}/>
+                              {anyDone && <div style={{position:'absolute',top:'50%',left:`${100/wf.steps.length/2}%`,width:`${fillPct}%`,height:2,background:BRAND.teal,transform:'translateY(-50%)',borderRadius:2,transition:'width 0.4s ease'}}/>}
+                              {wf.steps.map((s, i) => {
+                                const isAct = i === activeIdx
+                                const sz = isAct ? 22 : s.done ? 18 : 14
+                                const bg = s.done ? BRAND.teal : (dk ? '#181E2A' : '#fff')
+                                const bd = (s.done || isAct) ? BRAND.teal : (dk ? '#374151' : '#CBD5E1')
+                                return (
+                                  <div key={s.key} style={{flex:1,display:'flex',justifyContent:'center',position:'relative',zIndex:1}}>
+                                    <div style={{width:sz,height:sz,borderRadius:'50%',background:bg,border:`2px solid ${bd}`,boxShadow:isAct?`0 0 0 4px ${BRAND.teal}22`:'none',display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.2s'}}>
+                                      {s.done ? <Svg size={11} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg> : isAct ? <div style={{width:7,height:7,borderRadius:'50%',background:BRAND.teal}}/> : null}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            <div style={{display:'flex',marginTop:8}}>
+                              {wf.steps.map((s, i) => {
+                                const isAct = i === activeIdx
+                                const lc = isAct ? BRAND.teal : s.done ? (dk ? '#94A3B8' : '#6B7280') : (dk ? '#4B5563' : '#9CA3AF')
+                                return (
+                                  <div key={s.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',padding:'0 4px'}}>
+                                    <span style={{fontSize:isAct?T.fontSub:T.fontBadge,fontWeight:isAct?800:s.done?600:500,color:lc,textAlign:'center',lineHeight:1.25}}>{s.label}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                    {!isRoofing && (<>
                     {/* ─── Progress bar ───────────────────────────────── */}
                     <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 0px',overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch'}}>
                       <div style={{minWidth:isWide?'auto':active.length*72}}>
@@ -1081,6 +1169,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                       </div>{/* end min-width track */}
                     </div>
+                    </>)}
 
                     {/* ─── Status row ─────────────────────────────────── */}
                     <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px'}}>
@@ -1257,30 +1346,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                   {/* ─── NEXT ACTION banner (design pass §1a) — derived from completeness flags ─── */}
                   {isRoofing && (() => {
-                    const rjd:any = (lead as any).roofing_job_data || {}
-                    const isClaim = !!rjd.insurance_claim
-                    const lfd = rjd.linear_footage || {}
-                    const sqDone = !!rjd.square_count
-                    const lfDone = (lfd.ridge_ft>0)||(lfd.hip_ft>0)||(lfd.valley_ft>0)
-                    const approvedAmt = Number(rjd.approved_amount)||0
-                    const supplementAmt = Number(rjd.supplement_amount)||0
-                    const claimStatus = rjd.claim_status||'Filed'
-                    const estTotal = Number((est as any)?.total)||0
-                    const carrierTotal = approvedAmt + supplementAmt
-                    // "Carrier scope reviewed" = carrier's decision is RECORDED, not merely that an amount field is populated.
-                    const decisionRecorded = ['Approved','Decision','Denied','Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
-                    // Gap mirrors the on-page engine (line-items truth): estTotal − (approved + supplement). Null until carrier data exists.
-                    const gap = (estTotal>0 && carrierTotal>0) ? estTotal - carrierTotal : null
-                    const hasGap = gap !== null && gap > 0
-                    const estDone = estList.length>0 || !!est
-                    const supDone = supplementAmt>0 || ['Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
-                    const sentDone = !!(est && (((est as any).sent_at) || ['sent','viewed','approved'].includes(est.status)))
-                    // Supplement step only EXISTS when there is a positive gap to recover (carrier-covers ⇒ no supplement detour).
-                    const steps = isClaim
-                      ? ([['measure',sqDone],['lf',lfDone],['carrier',decisionRecorded],['estimate',estDone],...(hasGap?[['supp',supDone] as [string,boolean]]:[]),['send',sentDone]] as [string,boolean][])
-                      : ([['measure',sqDone],['lf',lfDone],['estimate',estDone],['send',sentDone]] as [string,boolean][])
-                    const found = steps.find(([,d])=>!d)
-                    const nextKey = found ? found[0] : null
+                    const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
+                    const nextKey = wf.nextKey
                     const addr = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
                     const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
                     const goSupplement = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
