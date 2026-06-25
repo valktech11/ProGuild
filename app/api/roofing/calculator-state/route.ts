@@ -42,6 +42,8 @@ interface EstimateMeasurements {
   pitch?:          string | null
   waste_pct?:      number | null
   ridge_lf?:       number | null
+  hip_lf?:         number | null
+  valley_lf?:      number | null
   eave_lf?:        number | null
   perimeter_lf?:   number | null
   pipe_boots?:     number | null
@@ -145,7 +147,7 @@ export async function GET(req: NextRequest) {
   // ── ESTIMATE branch ──────────────────────────────────────────────────────────
   const [redRes, itemsRes] = await Promise.all([
     sb.from('roofing_estimate_data')
-      .select('estimate_type, square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, pipe_boots, tearoff_layers')
+      .select('estimate_type, square_count, pitch, waste_pct, ridge_lf, hip_lf, valley_lf, eave_lf, perimeter_lf, pipe_boots, tearoff_layers')
       .eq('estimate_id', best.id)
       .maybeSingle(),
     sb.from('estimate_items').select('*').eq('estimate_id', best.id),
@@ -184,6 +186,12 @@ export async function GET(req: NextRequest) {
       pitch:          red.pitch          ?? rjd?.pitch        ?? null,
       waste_pct:      red.waste_pct      ?? rjd?.waste_pct    ?? null,
       ridge_lf:       red.ridge_lf       ?? freshLF.ridge,
+      // Hip/valley are NOT seeded from the roof report's DSM-derived LF: per Bible
+      // §25, DSM hip (+130%) and valley (−53%) error is too large to seed an
+      // authoritative surface. Only a human-entered saved estimate value is used;
+      // otherwise the field stays blank for the roofer to trace + enter.
+      hip_lf:         red.hip_lf         ?? null,
+      valley_lf:      red.valley_lf      ?? null,
       eave_lf:        red.eave_lf        ?? freshLF.eave,
       perimeter_lf:   red.perimeter_lf   ?? freshLF.perim,
       pipe_boots:     red.pipe_boots     ?? 3,

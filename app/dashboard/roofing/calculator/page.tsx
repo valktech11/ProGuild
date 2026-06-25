@@ -267,6 +267,8 @@ function CalculatorInner() {
         if (m.pitch          != null) setPitch(String(m.pitch))
         if (m.waste_pct      != null) setWaste(String(m.waste_pct))
         if (m.ridge_lf       != null) setRidgeLF(String(m.ridge_lf))
+        if (m.hip_lf         != null) setHipLF(String(m.hip_lf))
+        if (m.valley_lf      != null) setValleyLF(String(m.valley_lf))
         if (m.eave_lf        != null) setEaveLF(String(m.eave_lf))
         if (m.perimeter_lf   != null) setPerimLF(String(m.perimeter_lf))
         if (m.pipe_boots     != null) setPipeBoots(String(m.pipe_boots))
