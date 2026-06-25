@@ -24,6 +24,7 @@ export type EstimateItem = {
   qty: number
   unit_price: number
   amount: number
+  source?: string
 }
 
 export type Estimate = {

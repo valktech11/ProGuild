@@ -126,6 +126,9 @@ export async function POST(req: NextRequest) {
             name:        String(item.description ?? item.name ?? ''),
             description: String(item.description ?? item.name ?? ''),
             qty, unit_price: unitPrice, amount: itemTotal, sort_order: idx,
+            // Provenance: 'measurement' for LF-derived materials (badge shows
+            // "Detected from measurements"), else 'manual'. Defaults safe.
+            source:      item.source === 'measurement' ? 'measurement' : 'manual',
           }
         })
 
@@ -204,6 +207,7 @@ export async function POST(req: NextRequest) {
               unit_price:  Number(it.unit_price) || 0,
               amount:      Number(it.amount) || (Number(it.qty) * Number(it.unit_price)) || 0,
               sort_order:  calcItems.length + idx,
+              source:      it.source === 'measurement' ? 'measurement' : 'manual',
             })),
           ]
           await sb.from('estimate_items').insert(revItems)

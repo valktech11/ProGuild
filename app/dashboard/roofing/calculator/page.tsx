@@ -392,6 +392,12 @@ function CalculatorInner() {
     if (!session || lineItems.length === 0) return
     setSaving(true); setError(null); setSuccess(null)
     try {
+      // LF-derived materials — their quantity comes straight from the roofer's
+      // traced ProMeasure linear footage (ridge/hip/valley/perimeter). Tagging
+      // these 'measurement' lets the estimate show a "Detected from measurements"
+      // badge so the roofer sees WHY the line is there. Everything else (area-
+      // derived materials, counts, labour) is 'manual'.
+      const MEASUREMENT_KEYS = new Set(['ridgeCap', 'hipCap', 'valleyMetal', 'starterStrip', 'dripEdge'])
       const allItems = [
         // Optional items (full-deck SWB membrane — an alternative to synthetic
         // underlayment) are excluded here exactly as they're excluded from the
@@ -401,8 +407,9 @@ function CalculatorInner() {
           description: i.description,
           quantity:    i.quantity,
           unit_price:  i.unitPrice,
+          source:      MEASUREMENT_KEYS.has(i.key) ? 'measurement' : 'manual',
         })),
-        ...(labourAmount > 0 ? [{ description: 'Labour & installation', quantity: 1, unit_price: labourAmount }] : []),
+        ...(labourAmount > 0 ? [{ description: 'Labour & installation', quantity: 1, unit_price: labourAmount, source: 'manual' }] : []),
       ]
       const res = await fetch('/api/estimates', {
         method: 'POST',

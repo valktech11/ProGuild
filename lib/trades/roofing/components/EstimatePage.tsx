@@ -19,6 +19,7 @@ export interface TierLineItem {
   unit: string        // 'sq' | 'ea' | 'lf' | 'hr'
   unit_price: number
   amount: number
+  source?: string     // 'measurement' (LF-derived → "Detected" badge) | 'manual'
 }
 
 export interface Tier {
@@ -1805,11 +1806,21 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
           <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 90px 32px',
             gap: 10, alignItems: 'center', padding: '10px 14px', borderRadius: 10,
             background: '#F8FAFC', border: `1px solid ${border}` }}>
-            <input value={item.name} onChange={e => onUpdateItem?.(item.id, 'name', e.target.value)}
-              placeholder="Item name"
-              ref={el => { if (el && item.id === newItemId) { el.focus(); setNewItemId(null) } }}
-              style={{ border: 'none', background: 'transparent', fontSize: 14, fontWeight: 600,
-                color: textP, outline: 'none', width: '100%' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+              <input value={item.name} onChange={e => onUpdateItem?.(item.id, 'name', e.target.value)}
+                placeholder="Item name"
+                ref={el => { if (el && item.id === newItemId) { el.focus(); setNewItemId(null) } }}
+                style={{ border: 'none', background: 'transparent', fontSize: 14, fontWeight: 600,
+                  color: textP, outline: 'none', width: '100%' }} />
+              {item.source === 'measurement' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+                  fontSize: 10.5, fontWeight: 700, color: '#0F766E', background: '#F0FDFA',
+                  border: '1px solid #99F6E4', borderRadius: 5, padding: '1px 6px', whiteSpace: 'nowrap' }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Detected from measurements
+                </span>
+              )}
+            </div>
             <input value={item.qty} type="number" onChange={e => onUpdateItem?.(item.id, 'qty', Number(e.target.value))}
               style={{ background: '#fff', padding: '6px 8px', borderRadius: 6,
                 border: `1px solid ${border}`,

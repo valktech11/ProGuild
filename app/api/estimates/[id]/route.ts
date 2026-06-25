@@ -314,6 +314,11 @@ export async function PATCH(
         name: item.name, description: item.description,
         qty: item.qty, unit_price: item.unit_price,
         amount: Math.round(item.qty * item.unit_price * 100) / 100,
+        // Preserve provenance — upsert is a full-row replace on id conflict, so
+        // omitting source would reset it to the 'manual' default on every edit
+        // and wipe the "Detected from measurements" badge. New/manually-added
+        // lines (no source from client) correctly default to 'manual'.
+        source: item.source === 'measurement' ? 'measurement' : 'manual',
       }))
       const { error: itemsError } = await sb.from('estimate_items').upsert(upsertItems, { onConflict: 'id' })
       if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 })
