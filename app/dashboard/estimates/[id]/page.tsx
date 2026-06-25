@@ -59,6 +59,14 @@ export type Estimate = {
   revision_of?: string | null
   revision_number?: number
   timeline: { event: string; label: string; timestamp: string | null }[]
+  // Insurance claim context (from roofing_job_data via the estimate GET) — used to
+  // surface the carrier-vs-estimate supplement gap on insurance jobs.
+  insurance_claim?: boolean
+  approved_amount?: number | null
+  supplement_amount?: number | null
+  deductible?: number | null
+  insurance_company?: string | null
+  claim_number?: string | null
 }
 
 // Status styles: use estimateStatusStyle() from @/lib/design
@@ -825,6 +833,62 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   </div>
                 </div>
               </div>
+
+              {/* ── Supplement gap banner (insurance jobs) ──
+                  Option B: the estimate screen is the consistent destination after
+                  "Apply to Estimate". For an insurance lead with a carrier amount,
+                  surface the carrier-vs-estimate gap right here so the roofer sees
+                  the underpayment without navigating back to the detail page. The
+                  CTA links to the detail page's Supplement Assistant to file. */}
+              {(() => {
+                const approved   = Number(estimate.approved_amount) || 0
+                const supplement = Number(estimate.supplement_amount) || 0
+                const carrierTotal = approved + supplement
+                const isInsurance = !!estimate.insurance_claim || carrierTotal > 0 || !!estimate.claim_number
+                if (!isInsurance || carrierTotal <= 0) return null
+                const estTotal = estimate.total || 0
+                const gap = estTotal - carrierTotal
+                const hasGap = gap > 0
+                const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`
+                return (
+                  <div style={{ borderRadius: 14, border: `1px solid ${hasGap ? '#FED7AA' : '#A7F3D0'}`,
+                    background: hasGap ? (dk ? 'rgba(180,83,9,0.10)' : '#FFFBEB') : (dk ? 'rgba(5,150,105,0.10)' : '#F0FDF4'),
+                    overflow: 'hidden' }}>
+                    <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ fontSize: 10.5, fontWeight: 800, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Carrier total</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: t.textPri, letterSpacing: '-0.02em' }}>{fmt(carrierTotal)}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10.5, fontWeight: 800, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Your estimate</div>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: t.textPri, letterSpacing: '-0.02em' }}>{estTotal > 0 ? fmt(estTotal) : '—'}</div>
+                        </div>
+                        {hasGap && (
+                          <div>
+                            <div style={{ fontSize: 10.5, fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Potential gap</div>
+                            <div style={{ fontSize: 18, fontWeight: 900, color: '#B45309', letterSpacing: '-0.03em' }}>{fmt(gap)}</div>
+                          </div>
+                        )}
+                      </div>
+                      {estimate.lead_id && (
+                        <button onClick={() => router.push(`/dashboard/pipeline/${estimate.lead_id}?from=estimates&focus=supplement`)}
+                          style={{ padding: '9px 16px', borderRadius: 9, fontSize: 13, fontWeight: 700,
+                            border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                            background: hasGap ? '#B45309' : '#059669', color: '#fff' }}>
+                          {hasGap ? 'Review supplement items →' : 'View claim →'}
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ padding: '9px 20px', borderTop: `1px solid ${hasGap ? '#FED7AA' : '#A7F3D0'}`,
+                      fontSize: 11.5, color: hasGap ? (dk ? '#FCD9A8' : '#92400E') : (dk ? '#86EFAC' : '#065F46'), lineHeight: 1.45 }}>
+                      {hasGap
+                        ? 'The carrier may have under-scoped this claim. Review the FL code-required items they missed and file a supplement to recover the gap.'
+                        : 'Your estimate is within the carrier\u2019s approved amount — no supplement gap on this job.'}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* ── Status banners for terminal/declined states ── */}
               {estimate.status === 'void' && (

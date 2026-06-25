@@ -304,6 +304,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromParam])
 
+  // Arriving from the estimate-screen gap banner ("Review supplement items →")
+  // with ?focus=supplement: once the lead (and thus the supplement section) is
+  // rendered, scroll it into view so the roofer lands on the gap + assistant.
+  useEffect(() => {
+    if (sp.get('focus') !== 'supplement' || !lead) return
+    const t = setTimeout(() => {
+      document.getElementById('supplement-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [sp, lead])
+
   useEffect(() => {
     if (!session||!lead) return
     refreshEst()
@@ -1628,7 +1639,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               if (!carrierResponded) return null  // pre-decision: the claim panel's decision buttons own this
 
                               return (
-                                <div style={{marginTop:16}}>
+                                <div id="supplement-section" style={{marginTop:16}}>
                                   {/* Gap summary — what the carrier paid vs the roofer's estimate */}
                                   <Card dk={false} variant={gap && gap > 0 ? 'warning' : 'success'} pad="none" style={{marginBottom:14}}>
                                     <div style={{padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap' as const}}>
