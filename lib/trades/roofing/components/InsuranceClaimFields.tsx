@@ -607,9 +607,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
               {/* Contextual decision / financials */}
               {isDenied ? (
-                <div style={{ padding:'12px 16px', borderRadius:10, background:'#FEF2F2', border:'1px solid #FECACA', fontSize:12.5, fontWeight:600, color:'#DC2626' }}>
-                  Claim denied — insurance pays nothing. Use the options below to reopen, convert to retail, or mark the lead lost.
-                </div>
+                null
               ) : !decided ? (
                 <div style={{ padding:'14px 16px', borderRadius:10, background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC', border:`1px dashed ${dk ? '#334155' : '#CBD5E1'}` }}>
                   <div style={{ fontSize:13, fontWeight:700, color: dk ? '#F1F5F9' : NAVY, marginBottom:3 }}>Has the carrier issued their decision?</div>
