@@ -1022,7 +1022,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {initials(lead.contact_name)}
                           </div>
                           <div style={{minWidth:0,flex:1,paddingTop:2}}>
-                            <div style={{fontSize:24,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15,marginBottom:6}}>
+                            <div style={{fontSize:28,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15,marginBottom:6}}>
                               {heroLabel}
                             </div>
                             <div style={{fontSize:13,color:tsu,lineHeight:1.5}}>
@@ -1131,12 +1131,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     </div>
 
                     {/* ─── Status row ─────────────────────────────────── */}
-                    <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px'}}>
-                      <div style={{display:'grid',gridTemplateColumns:isWide?'auto 1fr auto':'1fr',gap:isWide?32:18,alignItems:'start'}}>
+                    <div style={{borderTop:`1px solid ${bdr}`,padding:'12px 24px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:T.sp3,flexWrap:'wrap'}}>
 
-                        {/* Left: status picker — compact inline pill */}
+                        {/* status picker pill (moveStage preserved) */}
                         <div>
-                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Change Stage</div>
                           <div style={{position:'relative',display:'inline-block'}}>
                             <button
                               onClick={()=>{setStageNotice(null);setShowPicker(v=>!v)}}
@@ -1249,37 +1248,20 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           </div>
                         </div>
 
-                        {/* Middle: time in stage — duration primary, entered date labeled */}
-                        <div>
-                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8}}>Time in Stage</div>
-                          <div style={{display:'flex',alignItems:'center',gap:10}}>
-                            <div style={{width:34,height:34,borderRadius:9,background:t.cardBgAlt,border:`1px solid ${bdr}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                              <Svg size={16} stroke={ts}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
-                            </div>
-                            <div>
-                              <div style={{fontSize:14,fontWeight:600,color:tp}}>
-                                {daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)===0?'Today':`${daysAgo((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at)} days`}
-                              </div>
-                              <div style={{fontSize:12,color:tsu,marginTop:1}}>
-                                {'Entered '}{new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        {/* Entered date — inline */}
+                        <span style={{width:1,height:22,background:bdr,flexShrink:0}}/>
+                        <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:T.fontSub,color:tsu,whiteSpace:'nowrap'}}>
+                          <Svg size={14} stroke={tsu}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                          Entered {new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                        </span>
 
-                        {/* Right: owner */}
-                        <div>
-                          <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:6}}>Owner</div>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <div style={{width:32,height:32,borderRadius:'50%',background:avBg,color:avFg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,flexShrink:0}}>
-                              {initials(session?.name||'SA')}
-                            </div>
-                            <div>
-                              <div style={{fontSize:13,fontWeight:600,color:tp}}>{session?.name||'Pro'}</div>
-                              <div style={{fontSize:11,color:tsu,marginTop:1,textTransform:'capitalize'}}>{session?.trade||'Roofer'}</div>
-                            </div>
-                          </div>
-                        </div>
+                        {/* Owner — inline */}
+                        <span style={{width:1,height:22,background:bdr,flexShrink:0}}/>
+                        <span style={{display:'inline-flex',alignItems:'center',gap:7,whiteSpace:'nowrap'}}>
+                          <span style={{width:24,height:24,borderRadius:'50%',background:avBg,color:avFg,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}}>{initials(session?.name||'SA')}</span>
+                          <span style={{fontSize:T.fontSub,fontWeight:600,color:tp}}>{session?.name||'Pro'}</span>
+                          <span style={{fontSize:T.fontBadge,fontWeight:700,color:tsu,background:t.cardBgAlt,border:`1px solid ${bdr}`,borderRadius:999,padding:'2px 8px'}}>Owner</span>
+                        </span>
                       </div>
 
                       {/* Stage tip — amber card */}
