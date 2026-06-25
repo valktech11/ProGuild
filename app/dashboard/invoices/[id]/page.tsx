@@ -77,23 +77,35 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }
 // ── Record Payment Modal ───────────────────────────────────────────────────────
 function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
   invoice: Invoice
+  paidMs: string[]
   onRecord: (data: { milestone_name: string; amount: number; method: string; reference: string; date: string }) => Promise<void>
   onClose: () => void
   t: ReturnType<typeof theme>
 }) {
-  const [amount,    setAmount]    = useState(String(invoice.balance_due))
+  const milestones: Milestone[] = (invoice.payment_milestones ?? []).filter(m => m.pct > 0 && m.amount > 0)
+  const unpaidMs = milestones.filter(m => !paidMs.includes(m.name))
+  const defaultMs = unpaidMs[0] ?? null
+
+  const [selectedMs, setSelectedMs] = useState<Milestone | null>(defaultMs)
+  const [amount,    setAmount]    = useState(defaultMs ? String(defaultMs.amount) : String(invoice.balance_due))
   const [method,    setMethod]    = useState('zelle')
   const [reference, setReference] = useState('')
   const [date,      setDate]      = useState(new Date().toISOString().split('T')[0])
   const [saving,    setSaving]    = useState(false)
   const [err,       setErr]       = useState<string | null>(null)
 
+  const handleMsSelect = (ms: Milestone | null) => {
+    setSelectedMs(ms)
+    setAmount(ms ? String(ms.amount) : String(invoice.balance_due))
+    if (err) setErr(null)
+  }
+
   const handle = async () => {
     const amt = parseFloat(amount) || 0
     if (amt <= 0) { setErr('Enter an amount greater than zero.'); return }
     if (amt > invoice.balance_due + 0.005) { setErr(`That's more than the ${fmt(invoice.balance_due)} balance due.`); return }
     setSaving(true)
-    await onRecord({ milestone_name: 'Payment', amount: amt, method, reference, date })
+    await onRecord({ milestone_name: selectedMs?.name ?? 'Payment', amount: amt, method, reference, date })
     setSaving(false)
   }
 
@@ -117,6 +129,38 @@ function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
             📋 This records a payment you already received (cash, check, Zelle etc).
             It does not charge the homeowner — money was collected outside the system.
           </div>
+          {/* Milestone selector — shown when milestones exist */}
+          {unpaidMs.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const,
+                letterSpacing: '0.08em', color: C.muted, marginBottom: 8 }}>Which milestone?</div>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                {unpaidMs.map(ms => (
+                  <button key={ms.name} onClick={() => handleMsSelect(ms)}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${selectedMs?.name === ms.name ? C.teal : C.border}`,
+                      background: selectedMs?.name === ms.name ? '#F0FDFA' : '#fff',
+                      cursor: 'pointer', textAlign: 'left' as const }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{ms.name}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{ms.pct}% · {ms.due_when}</div>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: selectedMs?.name === ms.name ? C.teal : C.text }}>
+                      {fmt(ms.amount)}
+                    </div>
+                  </button>
+                ))}
+                <button onClick={() => handleMsSelect(null)}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${selectedMs === null ? C.teal : C.border}`,
+                    background: selectedMs === null ? '#F0FDFA' : '#fff',
+                    cursor: 'pointer', textAlign: 'left' as const }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Other / partial payment</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>enter amount below</div>
+                </button>
+              </div>
+            </div>
+          )}
           {/* Amount */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
@@ -713,6 +757,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       {showPayModal && (
         <RecordPaymentModal
           invoice={invoice}
+          paidMs={paidMs}
           onRecord={handleRecordPayment}
           onClose={() => setShowPayModal(false)}
           t={t}
