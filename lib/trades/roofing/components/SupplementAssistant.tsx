@@ -135,7 +135,10 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
     <Card dk={dk} accent={TEAL} pad="none">
       <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, letterSpacing: '0.01em' }}>Supplement Assistant</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, letterSpacing: '0.01em' }}>Supplement Assistant</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: TEAL, marginTop: 1 }}>Recover money the carrier missed</div>
+          </div>
           {lastRun && <div style={{ fontSize: 11, color: sub }}>{new Date(lastRun).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
         </div>
         <div style={{ fontSize: 12, color: sub, marginTop: 3, lineHeight: 1.45 }}>
