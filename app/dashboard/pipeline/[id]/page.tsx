@@ -1142,10 +1142,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           const done  = i<curPos
                           const isAct = i===curPos
                           const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && (done || isAct)
-                          const lc    = skipped?(dk?'#475569':'#CBD5E1'):isAct?stg.color:done?(dk?'#4B5563':'#9CA3AF'):(dk?'#374151':'#CBD5E1')
+                          const lc    = skipped?(dk?'#475569':'#CBD5E1'):isAct?stg.color:done?(dk?'#94A3B8':'#475569'):(dk?'#475569':'#94A3B8')
                           return (
                             <div key={stg.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
-                              <span style={{fontSize:isAct?11:done?9:9,fontWeight:isAct?800:done?500:400,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 2px',textDecoration:skipped?'line-through':'none'}}>
+                              <span style={{fontSize:isAct?12.5:11,fontWeight:isAct?800:done?600:500,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 2px',letterSpacing:isAct?'0.01em':'normal',textDecoration:skipped?'line-through':'none'}}>
                                 {stg.label}
                               </span>
                               {/* Active stage: downward caret pointing to status row below */}
@@ -1427,29 +1427,29 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                   })()}
 
                   {/* ─── TABS CARD ───────────────────────────────────────── */}
-                  <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                  <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,overflow:'visible',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
 
-                    {/* Tab strip — underline style, clean */}
-                    <div style={{display:'flex',borderBottom:`1px solid ${bdr}`,paddingLeft:4,paddingRight:4,overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch'}}>
+                    {/* Tab strip — sticky underline bar */}
+                    <div style={{display:'flex',position:'sticky',top:0,zIndex:5,borderBottom:`1px solid ${bdr}`,paddingLeft:4,paddingRight:4,overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch',background:card,borderRadius:`${T.radLg}px ${T.radLg}px 0 0`,boxShadow:dk?'none':'0 1px 0 rgba(15,23,42,0.02)'}}>
                       {tabs.map(tb2=>{
                         const isAct=tab===tb2.key
                         return (
                           <button key={tb2.key}
                             onClick={()=>{setTab(tb2.key);if(isEditing&&tb2.key!=='details')setIsEditing(false)}}
                             style={{
-                              display:'flex',alignItems:'center',gap:6,
-                              padding:'11px 14px 10px',
+                              display:'flex',alignItems:'center',gap:7,
+                              padding:'13px 16px 12px',
                               border:'none',
                               borderBottom:isAct?`2.5px solid ${BRAND.teal}`:'2.5px solid transparent',
                               background:isAct?(dk?'rgba(20,184,166,0.08)':'rgba(15,118,110,0.05)'):'transparent',
                               cursor:'pointer',
                               color:isAct?BRAND.teal:ts,
-                              fontWeight:isAct?800:500,
-                              fontSize:13,whiteSpace:'nowrap',
+                              fontWeight:isAct?800:600,
+                              fontSize:14,whiteSpace:'nowrap',
                               marginBottom:-1,
                               transition:'all 0.15s',
                             }}>
-                            <Svg size={13} stroke={isAct?BRAND.teal:tsu}>{tb2.icon}</Svg>
+                            <Svg size={14} stroke={isAct?BRAND.teal:tsu}>{tb2.icon}</Svg>
                             {tb2.label}
                           </button>
                         )
@@ -2209,6 +2209,43 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 {/* ══ RIGHT COLUMN ══════════════════════════════════════ */}
                 <div style={{display:isWide?'block':'none'}}>
                   <div style={{position:'sticky',top:20,display:'flex',flexDirection:'column',gap:12}}>
+
+                    {/* Supplement gap — the wedge. Only once carrier responded AND estimate exceeds carrier scope. */}
+                    {(()=>{
+                      const rjd=(lead as any)?.roofing_job_data
+                      if(!isRoofing || !rjd?.insurance_claim) return null
+                      const approved=Number(rjd?.approved_amount)||0
+                      const supp=Number(rjd?.supplement_amount)||0
+                      const cs=rjd?.claim_status||'Filed'
+                      const responded = approved>0 || ['Approved','Supplement Filed','Supplement Approved'].includes(cs)
+                      const estTot=Number(est?.total)||0
+                      const carrierTot=approved+supp
+                      const gap=(estTot>0&&carrierTot>0)?estTot-carrierTot:null
+                      if(!responded || gap==null || gap<=0) return null
+                      return (
+                        <div style={{background:card,border:'1px solid #FDE68A',borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 2px 10px -3px rgba(180,83,9,0.18)'}}>
+                          <div style={{height:4,background:'linear-gradient(90deg,#D97706,#F59E0B)'}}/>
+                          <div style={{padding:'14px 16px 16px'}}>
+                            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+                              <div style={{width:30,height:30,borderRadius:8,background:'#FFFBEB',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                <Svg size={15} stroke="#B45309" sw={2.2}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></Svg>
+                              </div>
+                              <span style={{fontSize:T.fontBadge,fontWeight:800,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.06em'}}>Potential Supplement Gap</span>
+                            </div>
+                            <div style={{fontSize:T.fontStat,fontWeight:800,color:'#B45309',lineHeight:1,letterSpacing:'-0.02em'}}>${gap.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                            <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.45,marginTop:8}}>
+                              Your estimate (${estTot.toLocaleString(undefined,{maximumFractionDigits:0})}) is above the carrier&apos;s current scope (${carrierTot.toLocaleString(undefined,{maximumFractionDigits:0})}). The carrier may have under-scoped — review the line items.
+                            </div>
+                            <button onClick={()=>{setTab('details');setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60)}}
+                              style={{marginTop:12,width:'100%',height:38,borderRadius:T.radSm,border:'none',background:'#B45309',color:'#fff',fontSize:T.fontSub,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                              Open Supplement Assistant
+                              <Svg size={14} stroke="#fff" sw={2.4}><polyline points="9 18 15 12 9 6"/></Svg>
+                            </button>
+                            <div style={{fontSize:10,color:tsu,lineHeight:1.4,marginTop:8,opacity:0.85}}>Informational — not legal or public-adjuster advice.</div>
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* Insights — horizontal cards */}
                     <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
