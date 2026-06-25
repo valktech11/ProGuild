@@ -75,7 +75,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }
 }
 
 // ── Record Payment Modal ───────────────────────────────────────────────────────
-function RecordPaymentModal({ invoice, onRecord, onClose, t }: {
+function RecordPaymentModal({ invoice, paidMs, onRecord, onClose, t }: {
   invoice: Invoice
   paidMs: string[]
   onRecord: (data: { milestone_name: string; amount: number; method: string; reference: string; date: string }) => Promise<void>
