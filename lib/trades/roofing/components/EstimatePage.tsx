@@ -928,7 +928,7 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
 
           {/* Insurance claim — only when relevant */}
           {(estimate.insurance_claim || !!(estimate.approved_amount || estimate.claim_number)) && (
-            <InsuranceCard estimate={estimate} computedTotal={total} card={card} border={border} textP={textP} textS={textS} />
+            <InsuranceCard estimate={estimate} computedTotal={total} card={card} border={border} textP={textP} textS={textS} leadId={(estimate as any).lead_id} />
           )}
 
           {/* Terms */}
@@ -1928,9 +1928,10 @@ function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = fal
 }
 
 // ── InsuranceCard ──────────────────────────────────────────────────────────────
-function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: {
-  estimate: RoofingEstimate; computedTotal: number; card: string; border: string; textP: string; textS: string
+function InsuranceCard({ estimate, computedTotal, card, border, textP, textS, leadId }: {
+  estimate: RoofingEstimate; computedTotal: number; card: string; border: string; textP: string; textS: string; leadId?: string
 }) {
+  const router          = useRouter()
   const approved        = estimate.approved_amount   ?? 0
   const supplement      = estimate.supplement_amount ?? 0
   const deductible      = estimate.deductible        ?? 0
@@ -1941,6 +1942,10 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
   const cs              = estimate.claim_status ?? null
   const payable         = cs === 'Approved' || cs === 'Supplement Approved'
   const denied          = cs === 'Denied'
+  // Supplement gap = full job cost above what the carrier has put on the table
+  // (approved + any supplement already added). Positive = the carrier under-scoped.
+  const carrierTotal    = approved + supplement
+  const supplementGap   = (payable && carrierTotal > 0) ? fullCost - carrierTotal : 0
   const chipBg          = payable ? C.green : denied ? '#DC2626' : '#94A3B8'
   const chipLabel       = cs || 'Pending'
 
@@ -1993,6 +1998,33 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS }: 
           ? 'Claim denied — insurance pays nothing. Homeowner pays the full job cost.'
           : 'Insurance reconciliation appears once the carrier marks the claim Approved.'}
       </div>
+      )}
+
+      {/* Supplement gap — your estimate above what the carrier has approved.
+          Surfaces the underpayment-recovery opportunity right where the roofer
+          is reviewing the estimate, with a CTA back to the detail page's
+          Supplement Assistant (?focus=supplement scrolls it into view). */}
+      {supplementGap > 0 && (
+        <div style={{ borderRadius: 12, border: '1px solid #FED7AA', background: '#FFFBEB',
+          overflow: 'hidden', marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+            padding: '12px 16px' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#92400E', minWidth: 0 }}>Potential supplement gap</span>
+            <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em', color: '#B45309', flexShrink: 0 }}>
+              {fmtDec(supplementGap)}
+            </span>
+          </div>
+          <div style={{ padding: '0 16px 12px', fontSize: 11.5, color: '#92400E', lineHeight: 1.45 }}>
+            The carrier may have under-scoped this claim. Review the FL code-required items they missed and file a supplement to recover this gap.
+          </div>
+          {leadId && (
+            <button onClick={() => router.push(`/dashboard/pipeline/${leadId}?from=estimates&focus=supplement`)}
+              style={{ width: '100%', padding: '11px 16px', border: 'none', borderTop: '1px solid #FED7AA',
+                background: '#B45309', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              Review supplement items →
+            </button>
+          )}
+        </div>
       )}
 
 
