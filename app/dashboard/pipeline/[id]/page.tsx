@@ -1312,45 +1312,69 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const goSupplement = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
-                    const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string}> = {
-                      measure:  {title:'Measure the roof', sub:'Pull roof size from satellite or enter it manually.', cta:'Measure Roof', onClick:goPromeasure, mins:'3 min'},
-                      lf:       {title:'Capture linear footage', sub:'Trace ridge, hip & valley — drives materials and supplements.', cta:'Trace LF', onClick:goPromeasure, mins:'4 min'},
-                      carrier:  {title:'Review carrier scope', sub:'Record the carrier\u2019s decision to see whether a supplement is needed.', cta:'Record Decision', onClick:goCarrier, mins:'2 min'},
-                      estimate: {title:'Build the estimate', sub:'Turn your measurements into a priced estimate.', cta:'Build Estimate', onClick:goEstimate, mins:'2 min'},
-                      supp:     {title:'Review supplement items', sub:'Check which code-required items the carrier may have missed.', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'3 min'},
-                      send:     {title:'Send to homeowner', sub:'Send the estimate for instant approve & pay.', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min'},
+                    const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string;icon:React.ReactNode}> = {
+                      measure:  {title:'Measure the roof', sub:'Pull roof size from satellite or enter it manually.', cta:'Measure Roof', onClick:goPromeasure, mins:'3 min', icon:<><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></>},
+                      lf:       {title:'Capture linear footage', sub:'Trace ridge, hip & valley — drives materials and supplements.', cta:'Trace LF', onClick:goPromeasure, mins:'4 min', icon:<><rect x="2" y="9" width="20" height="6" rx="1.5"/><path d="M6 9v2.5M10 9v3M14 9v2.5M18 9v3"/></>},
+                      carrier:  {title:'Review carrier scope', sub:'Record the carrier\u2019s decision to see whether a supplement is needed.', cta:'Record Decision', onClick:goCarrier, mins:'2 min', icon:<><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></>},
+                      estimate: {title:'Build the estimate', sub:'Turn your measurements into a priced estimate.', cta:'Build Estimate', onClick:goEstimate, mins:'2 min', icon:<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></>},
+                      supp:     {title:'Review supplement items', sub:'Check which code-required items the carrier may have missed.', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'3 min', icon:<><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8.5" x2="11" y2="13.5"/><line x1="8.5" y1="11" x2="13.5" y2="11"/></>},
+                      send:     {title:'Send to homeowner', sub:'Send the estimate for instant approve & pay.', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min', icon:<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>},
                     }
                     const na = nextKey ? NA[nextKey] : null
+                    const fieldBg = dk
+                      ? 'linear-gradient(135deg, #14302E 0%, #181E2A 58%)'
+                      : 'linear-gradient(135deg, #F0FDFA 0%, #FFFFFF 58%)'
+                    const fieldBorder = dk ? '#1F3D39' : '#CCFBF1'
+                    const fieldShadow = dk
+                      ? '0 10px 30px -10px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.3)'
+                      : '0 12px 30px -10px rgba(15,118,110,0.28), 0 2px 8px rgba(15,118,110,0.08)'
+                    const okBg = dk
+                      ? 'linear-gradient(135deg, #16301F 0%, #181E2A 58%)'
+                      : 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 58%)'
+                    const okBorder = dk ? '#1E3A2A' : '#BBF7D0'
+                    const okShadow = dk
+                      ? '0 10px 30px -10px rgba(0,0,0,0.55)'
+                      : '0 12px 30px -10px rgba(21,128,61,0.22), 0 2px 8px rgba(21,128,61,0.06)'
                     return (
-                      <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',overflow:'hidden'}}>
-                        <div style={{display:'flex',alignItems:'center',gap:T.sp4,padding:`${T.sp5}px ${T.sp6}px`,flexWrap:'wrap'}}>
+                      <div style={{position:'relative',background:na?fieldBg:okBg,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${na?fieldBorder:okBorder}`,boxShadow:na?fieldShadow:okShadow,overflow:'hidden'}}>
+                        <div style={{position:'absolute',top:-40,right:-30,width:200,height:200,borderRadius:'50%',background:na?'radial-gradient(circle, rgba(20,184,166,0.12), transparent 70%)':'radial-gradient(circle, rgba(34,197,94,0.12), transparent 70%)',pointerEvents:'none'}}/>
+                        <div style={{position:'relative',display:'flex',alignItems:'center',gap:T.sp5,padding:T.sp6,flexWrap:'wrap'}}>
                           {na ? (<>
-                            <div style={{width:44,height:44,borderRadius:T.radMd,background:BRAND.tealAlpha,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                              <Svg size={T.iconLg} stroke={BRAND.teal}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></Svg>
+                            <div style={{width:52,height:52,borderRadius:T.radMd,background:'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',boxShadow:'0 6px 16px -2px rgba(15,118,110,0.5)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              <Svg size={24} stroke="#fff" sw={2}>{na.icon}</Svg>
                             </div>
-                            <div style={{flex:1,minWidth:200}}>
-                              <div style={{fontSize:T.fontBadge,fontWeight:800,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Next Action</div>
-                              <div style={{fontSize:T.fontHeading,fontWeight:800,color:tp,lineHeight:1.2,marginBottom:2}}>{na.title}</div>
-                              <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.45}}>{na.sub}</div>
+                            <div style={{flex:1,minWidth:220}}>
+                              <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
+                                <span style={{width:7,height:7,borderRadius:'50%',background:BRAND.teal,boxShadow:`0 0 0 3px ${dk?'rgba(20,184,166,0.20)':'rgba(15,118,110,0.15)'}`,flexShrink:0}}/>
+                                <span style={{fontSize:T.fontBadge,fontWeight:800,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.1em'}}>Next Action</span>
+                              </div>
+                              <div style={{fontSize:T.fontHeading,fontWeight:800,color:tp,lineHeight:1.2,letterSpacing:'-0.01em',marginBottom:3}}>{na.title}</div>
+                              <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.5}}>{na.sub}</div>
                             </div>
-                            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6,flexShrink:0}}>
-                              <button onClick={na.onClick} style={{display:'inline-flex',alignItems:'center',gap:7,padding:'10px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:T.sp2,flexShrink:0}}>
+                              <button onClick={na.onClick}
+                                onMouseEnter={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-1px)';b.style.boxShadow='0 10px 22px -4px rgba(15,118,110,0.55)'}}
+                                onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 6px 16px -3px rgba(15,118,110,0.45)'}}
+                                style={{display:'inline-flex',alignItems:'center',gap:8,height:44,padding:'0 20px',borderRadius:T.radSm,border:'none',background:'linear-gradient(135deg, #0F766E 0%, #0D5C55 100%)',color:'#fff',fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',boxShadow:'0 6px 16px -3px rgba(15,118,110,0.45)',transition:'transform 0.15s, box-shadow 0.15s'}}>
                                 {na.cta}
-                                <Svg size={15} stroke="#fff" sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg>
+                                <Svg size={16} stroke="#fff" sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg>
                               </button>
-                              <span style={{fontSize:T.fontBadge,color:tsu}}>Est. time: {na.mins}</span>
+                              <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:999,background:dk?'rgba(20,184,166,0.14)':'rgba(15,118,110,0.08)',color:BRAND.teal,fontSize:T.fontBadge,fontWeight:600}}>
+                                <Svg size={12} stroke={BRAND.teal} sw={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
+                                {na.mins}
+                              </span>
                             </div>
                           </>) : (<>
-                            <div style={{width:44,height:44,borderRadius:T.radMd,background:dk?'#14321F':'#F0FDF4',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                              <Svg size={T.iconLg} stroke={BRAND.success} sw={2.5}><polyline points="20 6 9 17 4 12"/></Svg>
+                            <div style={{width:52,height:52,borderRadius:T.radMd,background:'linear-gradient(135deg, #22C55E 0%, #15803D 100%)',boxShadow:'0 6px 16px -2px rgba(21,128,61,0.5)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              <Svg size={26} stroke="#fff" sw={2.5}><polyline points="20 6 9 17 4 12"/></Svg>
                             </div>
-                            <div style={{flex:1,minWidth:200}}>
-                              <div style={{fontSize:T.fontBadge,fontWeight:800,color:BRAND.success,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>On Track</div>
-                              <div style={{fontSize:T.fontHeading,fontWeight:800,color:tp,lineHeight:1.2}}>You&apos;re all caught up</div>
-                              <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.45}}>Every step for this job is done.</div>
+                            <div style={{flex:1,minWidth:220}}>
+                              <div style={{fontSize:T.fontBadge,fontWeight:800,color:BRAND.success,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:5}}>On Track</div>
+                              <div style={{fontSize:T.fontHeading,fontWeight:800,color:tp,lineHeight:1.2,letterSpacing:'-0.01em'}}>You&apos;re all caught up</div>
+                              <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.5,marginTop:3}}>Every step for this job is done.</div>
                             </div>
                             {est && (
-                              <button onClick={goEstimate} style={{padding:'10px 18px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:tp,fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>Open Estimate</button>
+                              <button onClick={goEstimate} style={{display:'inline-flex',alignItems:'center',gap:8,height:44,padding:'0 18px',borderRadius:T.radSm,border:`1px solid ${dk?'#2D4A38':'#BBF7D0'}`,background:dk?'rgba(34,197,94,0.08)':'#FFFFFF',color:BRAND.success,fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>Open Estimate</button>
                             )}
                           </>)}
                         </div>
