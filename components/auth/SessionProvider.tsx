@@ -9,7 +9,7 @@
 
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react'
 import { Session } from '@/types'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
@@ -30,17 +30,37 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [needsProfile, setNeedsProfile] = useState(false)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
 
+  // Mirror of `session` readable inside the []-deps resolve callback without a
+  // stale closure — lets a silent re-resolve know whether we already hold a
+  // session and must protect it from a transient mid-refresh null.
+  const sessionRef = useRef<Session | null>(null)
+  useEffect(() => { sessionRef.current = session }, [session])
+
   const resolve = useCallback(async (opts?: { silent?: boolean }) => {
     const supabase = getSupabaseBrowser()
-    const { data: { session: authSession } } = await supabase.auth.getSession()
+    let { data: { session: authSession } } = await supabase.auth.getSession()
 
     if (!authSession) {
-      // Genuinely signed out (no Supabase session at all) — clear everything.
-      setSession(null)
-      setNeedsProfile(false)
-      setAuthEmail(null)
-      setLoading(false)
-      return
+      // getSession() can transiently return null while Supabase is mid token-
+      // refresh. If this is a SILENT re-resolve (token refresh / tab refocus) and
+      // we already hold a session, do NOT wipe it — force a refresh and use that.
+      // This is the flash-and-return case: the local session blips null for a
+      // moment, the old code nulled it → flashed /login → recovered. Only treat
+      // the user as genuinely signed out if the refresh also yields nothing, or
+      // this is the initial (non-silent) resolve.
+      if (opts?.silent && sessionRef.current) {
+        const { data: refreshed } = await supabase.auth.refreshSession()
+        authSession = refreshed?.session ?? null
+      }
+      if (!authSession) {
+        if (!opts?.silent) {
+          setSession(null)
+          setNeedsProfile(false)
+          setAuthEmail(null)
+        }
+        setLoading(false)
+        return
+      }
     }
 
     setAuthEmail(authSession.user.email ?? null)
