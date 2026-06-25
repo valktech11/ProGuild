@@ -164,21 +164,16 @@ function RecordPaymentModal({ invoice, paidMs, onRecord, onClose, t }: {
                     </div>
                   </button>
                 ))}
-                <button onClick={() => handleMsSelect(null)}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${selectedMs === null ? C.teal : C.border}`,
-                    background: selectedMs === null ? '#F0FDFA' : '#fff',
-                    cursor: 'pointer', textAlign: 'left' as const }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Other / partial payment</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>enter amount below</div>
-                </button>
               </div>
             </div>
           )}
           {/* Amount */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-              letterSpacing: '0.08em', color: C.muted, marginBottom: 6 }}>Amount Received</div>
+              letterSpacing: '0.08em', color: C.muted, marginBottom: 2 }}>Amount Received</div>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>
+              Change the amount below to record a partial payment against the selected milestone.
+            </div>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
                 color: C.muted, fontSize: 15 }}>$</span>
@@ -756,6 +751,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                         </div>
                         <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
                           {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {p.recorded_at ? ` · ${new Date(p.recorded_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` : ''}
                           {' · '}{p.method.charAt(0).toUpperCase() + p.method.slice(1).replace('_', ' ')}
                           {p.reference ? ` · ${p.reference}` : ''}
                         </div>
