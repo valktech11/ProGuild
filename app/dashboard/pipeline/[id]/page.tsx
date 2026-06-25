@@ -1255,6 +1255,75 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     </div>
                   </div>{/* end hero */}
 
+                  {/* ─── NEXT ACTION banner (design pass §1a) — derived from completeness flags ─── */}
+                  {isRoofing && (() => {
+                    const rjd:any = (lead as any).roofing_job_data || {}
+                    const isClaim = !!rjd.insurance_claim
+                    const lfd = rjd.linear_footage || {}
+                    const sqDone = !!rjd.square_count
+                    const lfDone = (lfd.ridge_ft>0)||(lfd.hip_ft>0)||(lfd.valley_ft>0)
+                    const approvedAmt = Number(rjd.approved_amount)||0
+                    const supplementAmt = Number(rjd.supplement_amount)||0
+                    const claimStatus = rjd.claim_status||'Filed'
+                    const carrierDone = approvedAmt>0 || ['Decision','Supplement','Closed'].includes(claimStatus)
+                    const estDone = estList.length>0 || !!est
+                    const supDone = supplementAmt>0 || ['Supplement','Closed'].includes(claimStatus)
+                    const sentDone = !!(est && (((est as any).sent_at) || ['sent','viewed','approved'].includes(est.status)))
+                    const steps = isClaim
+                      ? [['measure',sqDone],['lf',lfDone],['carrier',carrierDone],['estimate',estDone],['supp',supDone],['send',sentDone]] as const
+                      : [['measure',sqDone],['lf',lfDone],['estimate',estDone],['send',sentDone]] as const
+                    const found = steps.find(([,d])=>!d)
+                    const nextKey = found ? found[0] : null
+                    const addr = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                    const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
+                    const goSupplement = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
+                    const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
+                    const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string}> = {
+                      measure:  {title:'Measure the roof', sub:'Pull roof size from satellite or enter it manually.', cta:'Measure Roof', onClick:goPromeasure, mins:'3 min'},
+                      lf:       {title:'Capture linear footage', sub:'Trace ridge, hip & valley — drives materials and supplements.', cta:'Trace LF', onClick:goPromeasure, mins:'4 min'},
+                      carrier:  {title:'Review carrier scope', sub:'Identify missing items and potential supplements.', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'2 min'},
+                      estimate: {title:'Build the estimate', sub:'Turn your measurements into a priced estimate.', cta:'Build Estimate', onClick:goEstimate, mins:'2 min'},
+                      supp:     {title:'Review supplement items', sub:'Check which code-required items the carrier may have missed.', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'3 min'},
+                      send:     {title:'Send to homeowner', sub:'Send the estimate for instant approve & pay.', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min'},
+                    }
+                    const na = nextKey ? NA[nextKey] : null
+                    return (
+                      <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',overflow:'hidden'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:T.sp4,padding:`${T.sp5}px ${T.sp6}px`,flexWrap:'wrap'}}>
+                          {na ? (<>
+                            <div style={{width:44,height:44,borderRadius:T.radMd,background:BRAND.tealAlpha,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              <Svg size={T.iconLg} stroke={BRAND.teal}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></Svg>
+                            </div>
+                            <div style={{flex:1,minWidth:200}}>
+                              <div style={{fontSize:T.fontBadge,fontWeight:800,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Next Action</div>
+                              <div style={{fontSize:T.fontHeading,fontWeight:800,color:tp,lineHeight:1.2,marginBottom:2}}>{na.title}</div>
+                              <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.45}}>{na.sub}</div>
+                            </div>
+                            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6,flexShrink:0}}>
+                              <button onClick={na.onClick} style={{display:'inline-flex',alignItems:'center',gap:7,padding:'10px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
+                                {na.cta}
+                                <Svg size={15} stroke="#fff" sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg>
+                              </button>
+                              <span style={{fontSize:T.fontBadge,color:tsu}}>Est. time: {na.mins}</span>
+                            </div>
+                          </>) : (<>
+                            <div style={{width:44,height:44,borderRadius:T.radMd,background:dk?'#14321F':'#F0FDF4',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              <Svg size={T.iconLg} stroke={BRAND.success} sw={2.5}><polyline points="20 6 9 17 4 12"/></Svg>
+                            </div>
+                            <div style={{flex:1,minWidth:200}}>
+                              <div style={{fontSize:T.fontBadge,fontWeight:800,color:BRAND.success,textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>On Track</div>
+                              <div style={{fontSize:T.fontHeading,fontWeight:800,color:tp,lineHeight:1.2}}>You&apos;re all caught up</div>
+                              <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.45}}>Every step for this job is done.</div>
+                            </div>
+                            {est && (
+                              <button onClick={goEstimate} style={{padding:'10px 18px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:tp,fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>Open Estimate</button>
+                            )}
+                          </>)}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* ─── TABS CARD ───────────────────────────────────────── */}
                   <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
 
