@@ -1265,23 +1265,31 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const approvedAmt = Number(rjd.approved_amount)||0
                     const supplementAmt = Number(rjd.supplement_amount)||0
                     const claimStatus = rjd.claim_status||'Filed'
-                    const carrierDone = approvedAmt>0 || ['Decision','Supplement','Closed'].includes(claimStatus)
+                    const estTotal = Number((est as any)?.total)||0
+                    const carrierTotal = approvedAmt + supplementAmt
+                    // "Carrier scope reviewed" = carrier's decision is RECORDED, not merely that an amount field is populated.
+                    const decisionRecorded = ['Approved','Decision','Denied','Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
+                    // Gap mirrors the on-page engine (line-items truth): estTotal − (approved + supplement). Null until carrier data exists.
+                    const gap = (estTotal>0 && carrierTotal>0) ? estTotal - carrierTotal : null
+                    const hasGap = gap !== null && gap > 0
                     const estDone = estList.length>0 || !!est
-                    const supDone = supplementAmt>0 || ['Supplement','Closed'].includes(claimStatus)
+                    const supDone = supplementAmt>0 || ['Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
                     const sentDone = !!(est && (((est as any).sent_at) || ['sent','viewed','approved'].includes(est.status)))
+                    // Supplement step only EXISTS when there is a positive gap to recover (carrier-covers ⇒ no supplement detour).
                     const steps = isClaim
-                      ? [['measure',sqDone],['lf',lfDone],['carrier',carrierDone],['estimate',estDone],['supp',supDone],['send',sentDone]] as const
-                      : [['measure',sqDone],['lf',lfDone],['estimate',estDone],['send',sentDone]] as const
+                      ? ([['measure',sqDone],['lf',lfDone],['carrier',decisionRecorded],['estimate',estDone],...(hasGap?[['supp',supDone] as [string,boolean]]:[]),['send',sentDone]] as [string,boolean][])
+                      : ([['measure',sqDone],['lf',lfDone],['estimate',estDone],['send',sentDone]] as [string,boolean][])
                     const found = steps.find(([,d])=>!d)
                     const nextKey = found ? found[0] : null
                     const addr = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
                     const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
                     const goSupplement = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
+                    const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                     const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string}> = {
                       measure:  {title:'Measure the roof', sub:'Pull roof size from satellite or enter it manually.', cta:'Measure Roof', onClick:goPromeasure, mins:'3 min'},
                       lf:       {title:'Capture linear footage', sub:'Trace ridge, hip & valley — drives materials and supplements.', cta:'Trace LF', onClick:goPromeasure, mins:'4 min'},
-                      carrier:  {title:'Review carrier scope', sub:'Identify missing items and potential supplements.', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'2 min'},
+                      carrier:  {title:'Review carrier scope', sub:'Record the carrier\u2019s decision to see whether a supplement is needed.', cta:'Record Decision', onClick:goCarrier, mins:'2 min'},
                       estimate: {title:'Build the estimate', sub:'Turn your measurements into a priced estimate.', cta:'Build Estimate', onClick:goEstimate, mins:'2 min'},
                       supp:     {title:'Review supplement items', sub:'Check which code-required items the carrier may have missed.', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'3 min'},
                       send:     {title:'Send to homeowner', sub:'Send the estimate for instant approve & pay.', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min'},
@@ -1388,6 +1396,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               ))}
                             </div>
 
+                            {isRoofing&&<div id="insurance-claim-section" style={{position:'relative',top:-12}}/>}
                             {isRoofing&&(
                               <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session!.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} locked={stage==='job_won'||stage==='lost'}
                                 onSaved={(data)=>{
