@@ -115,5 +115,25 @@ export async function POST(
     }
   }
 
+  // ── Write activity feed event — every roofer-recorded payment ────────────
+  // The homeowner pay-milestone route already does this; this path was missing
+  // it, so roofer/mobile offline payments never appeared in the activity feed.
+  if (inv.lead_id) {
+    await sb.from('pipeline_events').insert({
+      lead_id:    inv.lead_id,
+      pro_id:     inv.pro_id,
+      event_type: 'payment_received',
+      event_data: {
+        milestone:   body.milestone_name ?? 'Payment',
+        amount:      Math.round(amount * 100) / 100,
+        method:      body.method ?? 'other',
+        balance_due: balances.balance_due,
+        invoice_id:  id,
+      },
+      actor_type: 'pro',
+      created_at: now,
+    })
+  }
+
   return NextResponse.json({ invoice: updated })
 }
