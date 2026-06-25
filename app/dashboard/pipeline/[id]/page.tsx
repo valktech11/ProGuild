@@ -1323,8 +1323,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const na = nextKey ? NA[nextKey] : null
                     const done = !na
                     const fieldBg = done
-                      ? 'linear-gradient(135deg, #15803D 0%, #0F5C2E 55%, #0A3D20 100%)'
-                      : 'linear-gradient(135deg, #0F766E 0%, #0C544D 55%, #0A3A35 100%)'
+                      ? 'linear-gradient(135deg, #15803D 0%, #0F5C2E 100%)'
+                      : 'linear-gradient(135deg, #0F766E 0%, #0C5F59 100%)'
                     const fieldShadow = done
                       ? '0 16px 40px -12px rgba(15,128,61,0.5), 0 4px 12px rgba(10,61,32,0.3)'
                       : '0 16px 40px -12px rgba(15,118,110,0.5), 0 4px 12px rgba(10,58,53,0.3)'
@@ -1337,8 +1337,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <div style={{position:'absolute',right:-20,bottom:-30,opacity:0.07,pointerEvents:'none',transform:'rotate(-8deg)'}}>
                           <Svg size={150} stroke="#fff" sw={1.5}>{wmIcon}</Svg>
                         </div>
-                        <div style={{position:'relative',display:'flex',alignItems:'center',gap:T.sp5,padding:T.sp6,flexWrap:'wrap'}}>
-                          <div style={{width:54,height:54,borderRadius:T.radMd,background:'rgba(255,255,255,0.14)',border:'1px solid rgba(255,255,255,0.22)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.18)'}}>
+                        <div style={{position:'relative',display:'flex',alignItems:'center',gap:T.sp5,padding:'16px 24px',flexWrap:'wrap'}}>
+                          <div style={{width:54,height:54,borderRadius:T.radMd,background:'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.32), rgba(255,255,255,0.08) 65%)',border:'1px solid rgba(255,255,255,0.22)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.12)'}}>
                             <Svg size={26} stroke="#fff" sw={2}>{wmIcon}</Svg>
                           </div>
                           <div style={{flex:1,minWidth:220}}>
@@ -1350,7 +1350,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             <div style={{fontSize:T.fontBody,color:'rgba(255,255,255,0.82)',lineHeight:1.5}}>{na?na.sub:'Every step for this job is done.'}</div>
                           </div>
                           {na ? (
-                            <div style={{display:'flex',alignItems:'stretch',gap:T.sp3,flexShrink:0}}>
+                            <div style={{display:'flex',alignItems:'stretch',gap:T.sp4,flexShrink:0}}>
                               <div style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:3,padding:'8px 16px',borderRadius:T.radMd,background:'rgba(255,255,255,0.10)',border:'1px solid rgba(255,255,255,0.18)'}}>
                                 <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:T.fontBadge,fontWeight:700,color:'rgba(255,255,255,0.65)',textTransform:'uppercase',letterSpacing:'0.08em'}}>
                                   <Svg size={11} stroke="rgba(255,255,255,0.65)" sw={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
@@ -1397,13 +1397,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         </button>
                         {open && (
                           <div style={{padding:`0 ${T.sp6}px ${T.sp4}px`}}>
-                            <div style={{display:'flex',flexDirection:isWide?'row':'column',alignItems:isWide?'center':'stretch',flexWrap:isWide?'wrap':'nowrap',rowGap:isWide?10:T.sp2,columnGap:0}}>
-                              {wf.steps.map((s,i) => (
-                                <div key={s.key} style={{display:'flex',alignItems:'center',gap:T.sp2,padding:isWide?`0 ${T.sp4}px`:0,borderLeft:isWide&&i>0?`1px solid ${bdr}`:'none'}}>
-                                  <div style={{width:20,height:20,borderRadius:'50%',background:s.done?BRAND.teal:'transparent',border:s.done?'none':`1.5px solid ${dk?'#374151':'#CBD5E1'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                                    {s.done && <Svg size={11} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
+                            <div style={{display:'flex',flexDirection:isWide?'row':'column',alignItems:isWide?'center':'flex-start',flexWrap:'wrap',gap:T.sp2}}>
+                              {wf.steps.map((s) => (
+                                <div key={s.key} style={{display:'inline-flex',alignItems:'center',gap:8,padding:'6px 13px 6px 8px',borderRadius:999,background:s.done?(dk?'rgba(20,184,166,0.12)':'rgba(15,118,110,0.07)'):(dk?'rgba(255,255,255,0.03)':'#F8FAFC'),border:`1px solid ${s.done?(dk?'rgba(20,184,166,0.28)':'#CCFBF1'):bdr}`}}>
+                                  <div style={{width:18,height:18,borderRadius:'50%',background:s.done?BRAND.teal:'transparent',border:s.done?'none':`1.5px solid ${dk?'#475569':'#CBD5E1'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                    {s.done && <Svg size={10} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
                                   </div>
-                                  <span style={{fontSize:T.fontBody,fontWeight:s.done?600:500,color:s.done?tp:tsu,whiteSpace:'nowrap'}}>{s.label}</span>
+                                  <span style={{fontSize:T.fontSub,fontWeight:s.done?700:500,color:s.done?(dk?'#5EEAD4':BRAND.teal):tsu,whiteSpace:'nowrap'}}>{s.label}</span>
                                 </div>
                               ))}
                             </div>
