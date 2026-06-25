@@ -580,32 +580,69 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'sticky', top: 20 }}>
 
               {/* Balance due */}
-              <div style={{ background: isPaid ? C.greenBg : C.tealLight, borderRadius: 16,
-                padding: 20, border: `1px solid ${isPaid ? '#BBF7D0' : '#99F6E4'}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                  letterSpacing: '0.1em', color: isPaid ? C.green : C.teal, marginBottom: 8 }}>
-                  {isPaid ? 'Paid in Full ✓' : 'Balance Due'}
-                </div>
-                <div style={{ fontSize: 36, fontWeight: 900, color: isPaid ? C.green : C.teal,
-                  letterSpacing: '-1px', marginBottom: 4 }}>
-                  {fmt(invoice.balance_due)}
-                </div>
-                <div style={{ fontSize: 12, color: isPaid ? C.green : C.teal, opacity: 0.8 }}>
-                  of {fmt(invoice.total)} total
-                </div>
-                {/* Progress bar */}
-                {invoice.total > 0 && (
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ height: 6, borderRadius: 3, background: 'rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 3, width: `${pctPaid}%`,
-                        background: isPaid ? C.green : C.teal, transition: 'width 0.5s' }} />
+              {(() => {
+                const radius = 44
+                const circ   = 2 * Math.PI * radius
+                const filled = circ * (pctPaid / 100)
+                const gap    = circ - filled
+                const doneColor  = isPaid ? C.green : C.teal
+                const restColor  = '#E2E8F0'
+                return (
+                  <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`,
+                    borderRadius: 16, padding: 20 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const,
+                      letterSpacing: '0.1em', color: t.textSubtle, marginBottom: 16 }}>
+                      {isPaid ? 'Paid in Full ✓' : 'Balance Due'}
                     </div>
-                    <div style={{ fontSize: 11, color: isPaid ? C.green : C.teal, marginTop: 6, opacity: 0.8 }}>
-                      {pctPaid}% paid
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                      {/* Donut */}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <svg width={100} height={100} viewBox="0 0 100 100">
+                          <circle cx={50} cy={50} r={radius} fill="none"
+                            stroke={restColor} strokeWidth={10} />
+                          <circle cx={50} cy={50} r={radius} fill="none"
+                            stroke={doneColor} strokeWidth={10}
+                            strokeDasharray={`${filled} ${gap}`}
+                            strokeLinecap="round"
+                            transform="rotate(-90 50 50)" />
+                        </svg>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex',
+                          flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: 16, fontWeight: 800, color: doneColor, lineHeight: 1 }}>{pctPaid}%</span>
+                          <span style={{ fontSize: 9, fontWeight: 600, color: t.textSubtle, marginTop: 2 }}>paid</span>
+                        </div>
+                      </div>
+                      {/* Amounts */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {!isPaid && (
+                          <>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: t.textSubtle, marginBottom: 2 }}>Remaining</div>
+                            <div style={{ fontSize: 26, fontWeight: 900, color: '#0F172A',
+                              letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 8 }}>
+                              {fmt(invoice.balance_due)}
+                            </div>
+                          </>
+                        )}
+                        {invoice.amount_paid > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, color: t.textSubtle }}>Paid</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.green }}>{fmt(invoice.amount_paid)}</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 11, color: t.textSubtle }}>Total</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: t.textPri }}>{fmt(invoice.total)}</span>
+                        </div>
+                        {isPaid && (
+                          <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: C.green }}>
+                            Paid in Full ✓
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
+                )
+              })()}
 
               {/* Email status */}
               <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 18 }}>
