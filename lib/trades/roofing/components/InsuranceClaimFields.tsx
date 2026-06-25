@@ -607,9 +607,8 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
               {/* Contextual decision / financials */}
               {isDenied ? (
-                <div style={{ padding:'12px 16px', borderRadius:10, background:'#FEF2F2', border:'1px solid #FECACA', fontSize:12.5, fontWeight:600, color:'#DC2626', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' as const }}>
-                  <span>Claim denied — insurance pays nothing. Convert to retail or mark the lead lost below.</span>
-                  {!locked && <button onClick={()=>setStatus('Filed')} style={{ fontSize:12, fontWeight:700, color:'#64748B', background:'transparent', border:'1px solid #CBD5E1', borderRadius:7, padding:'5px 11px', cursor:'pointer', whiteSpace:'nowrap' as const }}>Reopen claim</button>}
+                <div style={{ padding:'12px 16px', borderRadius:10, background:'#FEF2F2', border:'1px solid #FECACA', fontSize:12.5, fontWeight:600, color:'#DC2626' }}>
+                  Claim denied — insurance pays nothing. Use the options below to reopen, convert to retail, or mark the lead lost.
                 </div>
               ) : !decided ? (
                 <div style={{ padding:'14px 16px', borderRadius:10, background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC', border:`1px dashed ${dk ? '#334155' : '#CBD5E1'}` }}>

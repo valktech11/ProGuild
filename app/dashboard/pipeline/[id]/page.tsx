@@ -195,6 +195,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number;total:number}|null>(null)
   const [creatingEst, setCreatingEst] = useState(false)
   const [photoCount, setPhotoCount]   = useState(0)
+  // Bumped on Reopen-claim to force the InsuranceClaimFields component to remount
+  // and re-read the now-reset status (its internal state is guarded against
+  // re-sync once the user starts editing, so a parent status change alone won't
+  // propagate without a remount).
+  const [claimRemountNonce, setClaimRemountNonce] = useState(0)
 
   // ── Toasts ───────────────────────────────────────────────────────────────
   const [toasts,   setToasts]   = useState<Toast[]>([])
@@ -1315,7 +1320,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             </div>
 
                             {isRoofing&&(
-                              <InsuranceClaimFields key={(lead as any).roofing_job_data?.claim_number ?? lead.id} leadId={lead.id} proId={session!.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} locked={stage==='job_won'||stage==='lost'}
+                              <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session!.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} locked={stage==='job_won'||stage==='lost'}
                                 onSaved={(data)=>{
                                   // Optimistic update first so UI feels instant
                                   setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
@@ -1338,8 +1343,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
                               <div style={{marginTop:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(220,38,38,0.10)':'#FEF2F2',border:'1px solid #FECACA'}}>
                                 <div style={{fontSize:13,fontWeight:800,color:'#DC2626',marginBottom:4}}>Insurance claim denied</div>
-                                <div style={{fontSize:12,color:dk?'#FCA5A5':'#991B1B',lineHeight:1.5,marginBottom:12}}>This claim can&apos;t proceed on the insurance track. Convert to a retail job so the homeowner pays the full cost{stage==='insurance_approved'?' — this moves the lead back to Inspection Scheduled':''}, or mark the lead lost. Claim details are preserved either way in case of an appeal.</div>
+                                <div style={{fontSize:12,color:dk?'#FCA5A5':'#991B1B',lineHeight:1.5,marginBottom:12}}>This claim can&apos;t proceed on the insurance track. Reopen it if the carrier reconsidered, convert to a retail job so the homeowner pays the full cost{stage==='insurance_approved'?' — this moves the lead back to Inspection Scheduled':''}, or mark the lead lost. Claim details are preserved either way in case of an appeal.</div>
                                 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                                  <button onClick={async()=>{const ok=await patch({claim_status:'Filed'});if(ok){setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),claim_status:'Filed'}} as any:l);setClaimRemountNonce(n=>n+1);addToast('Claim reopened','success')}else{addToast('Failed to reopen','error')}}}
+                                    style={{padding:'8px 14px',borderRadius:8,border:`1px solid ${dk?'#475569':'#CBD5E1'}`,background:'transparent',color:dk?'#E2E8F0':'#475569',fontSize:12,fontWeight:700,cursor:'pointer'}}>Reopen claim</button>
                                   <button onClick={async()=>{const inApproved=stage==='insurance_approved';const ok=await patch(inApproved?{insurance_claim:false,lead_status:'inspection_scheduled'}:{insurance_claim:false});if(ok){setLead(l=>l?{...l,lead_status:inApproved?('inspection_scheduled' as LeadStatus):l.lead_status,roofing_job_data:{...((l as any).roofing_job_data??{}),insurance_claim:false}} as any:l);if(inApproved)setStage('inspection_scheduled' as LeadStatus);addToast(inApproved?'Converted to retail — moved to Inspection Scheduled':'Converted to retail — homeowner pays full cost','success')}else{addToast('Failed to convert','error')}}}
                                     style={{padding:'8px 14px',borderRadius:8,border:'none',background:BRAND.teal,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>Convert to Retail</button>
                                   <button onClick={()=>moveStage('lost' as LeadStatus)}
