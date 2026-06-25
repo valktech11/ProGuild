@@ -27,13 +27,6 @@ import { resolveTaxRate } from '@/app/api/estimates/route'
 //
 // READ-ONLY. Nothing is written here. (Hydration on the clients is the next slice.)
 
-interface LinearFootage {
-  ridge_ft?: number
-  eave_ft?: number
-  rake_ft?: number
-  [k: string]: unknown
-}
-
 // Shape of the roofing_estimate_data row this endpoint reads (all nullable —
 // pre-v114 estimates won't have the LF/boots/tear-off columns populated).
 interface EstimateMeasurements {
@@ -48,25 +41,6 @@ interface EstimateMeasurements {
   perimeter_lf?:   number | null
   pipe_boots?:     number | null
   tearoff_layers?: number | null
-}
-
-// Derive ridge / eave / perimeter LF from the roof report's linear_footage blob.
-// Perimeter = eave + rake (matches the calculator's own fresh derivation).
-function deriveFreshLF(lf: LinearFootage | null | undefined): {
-  ridge: number | null
-  eave: number | null
-  perim: number | null
-} {
-  if (!lf || typeof lf !== 'object') return { ridge: null, eave: null, perim: null }
-  const eave  = Number(lf.eave_ft) || 0
-  const rake  = Number(lf.rake_ft) || 0
-  const ridge = Number(lf.ridge_ft) || 0
-  const perim = eave + rake
-  return {
-    ridge: ridge > 0 ? Math.round(ridge) : null,
-    eave:  eave  > 0 ? Math.round(eave)  : null,
-    perim: perim > 0 ? Math.round(perim) : null,
-  }
 }
 
 export async function GET(req: NextRequest) {
@@ -102,7 +76,17 @@ export async function GET(req: NextRequest) {
     .select('square_count, pitch, waste_pct, linear_footage')
     .eq('lead_id', leadId)
     .maybeSingle()
-  const freshLF = deriveFreshLF(rjd?.linear_footage as LinearFootage | null)
+  // Human-traced ProMeasure LF is the ONLY authoritative source (Bible §25).
+  // roofing_job_data.linear_footage is written by both ProMeasure (gated, carries
+  // source: 'promeasure_manual') and — historically — DSM. We only seed LF from it
+  // when the source marker proves it is ProMeasure-traced; DSM-derived footage is
+  // never served (eave −42%, hip +130%, valley −53%).
+  const rawLF = (rjd?.linear_footage ?? null) as Record<string, unknown> | null
+  const pmLF = rawLF && rawLF.source === 'promeasure_manual' ? rawLF : null
+  const numLF = (v: unknown): number | null => {
+    const n = Number(v)
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null
+  }
 
   // Is there a live estimate for this lead? (Same priority pick as POST /api/estimates.)
   const { data: existing } = await sb
@@ -131,9 +115,13 @@ export async function GET(req: NextRequest) {
         squares:        rjd?.square_count ?? null,
         pitch:          rjd?.pitch        ?? null,
         waste_pct:      rjd?.waste_pct    ?? null,
-        ridge_lf:       freshLF.ridge,
-        eave_lf:        freshLF.eave,
-        perimeter_lf:   freshLF.perim,
+        // LF seeds ONLY from human-traced ProMeasure (source-gated above); DSM
+        // satellite footage is never served (Bible §25). No ProMeasure → blank.
+        ridge_lf:       pmLF ? numLF(pmLF.ridge_ft)  : null,
+        hip_lf:         pmLF ? numLF(pmLF.hip_ft)    : null,
+        valley_lf:      pmLF ? numLF(pmLF.valley_ft) : null,
+        eave_lf:        pmLF ? numLF(pmLF.eave_ft)   : null,
+        perimeter_lf:   pmLF ? numLF(pmLF.perimeter_lf ?? pmLF.perimeter) : null,
         pipe_boots:     3,
         tearoff_layers: 1,
       },
@@ -185,15 +173,13 @@ export async function GET(req: NextRequest) {
       squares:        red.square_count   ?? rjd?.square_count ?? null,
       pitch:          red.pitch          ?? rjd?.pitch        ?? null,
       waste_pct:      red.waste_pct      ?? rjd?.waste_pct    ?? null,
-      ridge_lf:       red.ridge_lf       ?? freshLF.ridge,
-      // Hip/valley are NOT seeded from the roof report's DSM-derived LF: per Bible
-      // §25, DSM hip (+130%) and valley (−53%) error is too large to seed an
-      // authoritative surface. Only a human-entered saved estimate value is used;
-      // otherwise the field stays blank for the roofer to trace + enter.
-      hip_lf:         red.hip_lf         ?? null,
-      valley_lf:      red.valley_lf      ?? null,
-      eave_lf:        red.eave_lf        ?? freshLF.eave,
-      perimeter_lf:   red.perimeter_lf   ?? freshLF.perim,
+      // LF precedence: human-entered saved estimate value first, then human-traced
+      // ProMeasure (source-gated), never DSM (Bible §25). Blank → blank.
+      ridge_lf:       red.ridge_lf       ?? (pmLF ? numLF(pmLF.ridge_ft)  : null),
+      hip_lf:         red.hip_lf         ?? (pmLF ? numLF(pmLF.hip_ft)    : null),
+      valley_lf:      red.valley_lf      ?? (pmLF ? numLF(pmLF.valley_ft) : null),
+      eave_lf:        red.eave_lf        ?? (pmLF ? numLF(pmLF.eave_ft)   : null),
+      perimeter_lf:   red.perimeter_lf   ?? (pmLF ? numLF(pmLF.perimeter_lf ?? pmLF.perimeter) : null),
       pipe_boots:     red.pipe_boots     ?? 3,
       tearoff_layers: red.tearoff_layers ?? 1,
     },

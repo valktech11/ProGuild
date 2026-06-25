@@ -228,12 +228,16 @@ function CalculatorInner() {
             setSquares(String(Math.round(d.squares * 10) / 10))
             setPitch(normalizePitch(d.pitch))
             setWaste(String(Math.round(d.waste)))
-            // Normalize snake_case (ProMeasure) + camelCase (satellite report) keys
-            const ridgeLF = d.ridgeLF ?? (d as any).ridge_lf ?? 0
-            const hipLF   = (d as any).hip_lf ?? 0
-            const valleyLF= (d as any).valley_lf ?? 0
-            const eaveLF  = d.eaveLF  ?? (d as any).eave_lf  ?? 0
-            const perimLF = d.perimLF ?? (d as any).perimeter ?? 0
+            // Seed LF only from ProMeasure-traced data. Satellite/DSM report data
+            // carries source: 'roof_report' and is non-authoritative (Bible §25) —
+            // it already writes LF as 0, but we also gate on source so a future
+            // satellite writer can never leak DSM footage into the calculator.
+            const isSatelliteReport = (d as any).source === 'roof_report'
+            const ridgeLF = isSatelliteReport ? 0 : (d.ridgeLF ?? (d as any).ridge_lf ?? 0)
+            const hipLF   = isSatelliteReport ? 0 : ((d as any).hip_lf ?? 0)
+            const valleyLF= isSatelliteReport ? 0 : ((d as any).valley_lf ?? 0)
+            const eaveLF  = isSatelliteReport ? 0 : (d.eaveLF  ?? (d as any).eave_lf  ?? 0)
+            const perimLF = isSatelliteReport ? 0 : (d.perimLF ?? (d as any).perimeter ?? 0)
             if (ridgeLF  > 0) setRidgeLF(String(Math.round(ridgeLF)))
             if (hipLF    > 0) setHipLF(String(Math.round(hipLF)))
             if (valleyLF > 0) setValleyLF(String(Math.round(valleyLF)))
@@ -308,10 +312,13 @@ function CalculatorInner() {
             claimStatus:    String(rjd.claim_status ?? ''),
           })
         }
-        // Pre-fill LF from the lead's linear_footage (human ProMeasure lines win
-        // via GET precedence). Only set fields the user hasn't already typed.
+        // Pre-fill LF from the lead's linear_footage ONLY when it is human-traced
+        // ProMeasure data (source: 'promeasure_manual'). DSM-derived linear footage
+        // is non-authoritative (Bible §25: eave −42%, hip +130%, valley −53%) and
+        // must never seed the calculator. No ProMeasure LF → fields stay blank and
+        // the roofer traces or types them.
         const lf = rjd?.linear_footage
-        if (lf) {
+        if (lf && lf.source === 'promeasure_manual') {
           if (lf.ridge_ft  > 0) setRidgeLF(p => p || String(Math.round(lf.ridge_ft)))
           if (lf.hip_ft    > 0) setHipLF(p => p || String(Math.round(lf.hip_ft)))
           if (lf.valley_ft > 0) setValleyLF(p => p || String(Math.round(lf.valley_ft)))
