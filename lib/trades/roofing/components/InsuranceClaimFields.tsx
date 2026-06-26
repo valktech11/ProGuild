@@ -340,8 +340,8 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     }}>
 
       {/* ── Header row ── */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'13px 18px', cursor: locked ? 'default' : 'pointer', background:'transparent' }}
-        onClick={handleToggle}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'13px 18px', cursor: (!open && !locked) ? 'pointer' : 'default', background:'transparent' }}
+        onClick={(!open && !locked) ? handleToggle : undefined}>
         <div style={{ display:'flex', alignItems:'center', gap: open ? 0 : 12, minWidth:0 }}>
           {/* Shield only when off/collapsed — when on, the spine rail carries the identity */}
           {!open && (
@@ -376,21 +376,24 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
           </div>
         </div>
 
-        {/* Toggle alone on the right */}
+        {/* Enable switch — only shown when insurance is OFF. An active claim is changed via
+            'Convert to retail' inside Edit claim details (deliberate), not a header switch. */}
+        {!open && (
         <div style={{ flexShrink:0 }}>
           {locked ? (
             <div title="Insurance type is locked on completed jobs" style={{ display:'flex', alignItems:'center', gap:6, opacity:0.55 }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#64748B'} strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <div style={{ width:44, height:24, borderRadius:12, background: open ? TEAL : (dk ? '#334155' : '#CBD5E1'), position:'relative', flexShrink:0 }}>
-                <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: open ? 23 : 3, boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+              <div style={{ width:44, height:24, borderRadius:12, background: dk ? '#334155' : '#CBD5E1', position:'relative', flexShrink:0 }}>
+                <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: 3, boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
               </div>
             </div>
           ) : (
-            <div style={{ width:44, height:24, borderRadius:12, background: open ? TEAL : (dk ? '#334155' : '#CBD5E1'), position:'relative', transition:'background 0.2s', flexShrink:0 }}>
-              <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: open ? 23 : 3, transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+            <div style={{ width:44, height:24, borderRadius:12, background: dk ? '#334155' : '#CBD5E1', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
+              <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: 3, transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* ── Fields ── */}
@@ -423,14 +426,14 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   </div>
                 </div>
                 {!locked && (
-                  <button onClick={()=>setDetailsOpen(true)} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer', whiteSpace:'nowrap' as const }}>Edit details</button>
+                  <button onClick={()=>setDetailsOpen(true)} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer', whiteSpace:'nowrap' as const }}>Edit claim details</button>
                 )}
               </div>
             )}
 
             {showFields && hasCoreDetails && !locked && (
               <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk?'#94A3B8':'#64748B' }}>Claim details</span>
+                <span style={{ fontSize:11.5, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk?'#E2E8F0':NAVY }}>Claim details</span>
                 <button onClick={()=>setDetailsOpen(false)} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'5px 11px', cursor:'pointer' }}>
                   Collapse
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
@@ -601,6 +604,17 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 You must be present at the property
               </div>
             </Field>
+
+            {/* Convert to retail lives here now — a deliberate, confirmed action, not a header switch */}
+            {!locked && (
+              <div style={{ gridColumn:'1 / -1', marginTop:4, paddingTop:14, borderTop:`1px dashed ${dk ? '#334155' : '#E2E8F0'}`, display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' as const }}>
+                <span style={{ fontSize:12, color:'#94A3B8' }}>Not an insurance claim?</span>
+                <button onClick={()=>{ if (typeof window !== 'undefined' && window.confirm('Convert this to a retail job? The insurance workflow turns off and the homeowner pays the full cost. Claim details are preserved in case you switch back.')) handleToggle() }}
+                  style={{ fontSize:12, fontWeight:700, color: dk?'#FCA5A5':'#B91C1C', background:'transparent', border:`1px solid ${dk?'#7F1D1D':'#FECACA'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>
+                  Convert to retail
+                </button>
+              </div>
+            )}
             </>)}
 
             {/* ── Claim progress + carrier decision (phased) ── */}
@@ -697,10 +711,10 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   {!locked && fields.claim_status !== 'Closed' && (
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
                       {fields.claim_status === 'Approved' && (
-                        <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>File supplement</button>
+                        <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement filed</button>
                       )}
                       {fields.claim_status === 'Supplement Filed' && (
-                        <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Supplement approved</button>
+                        <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement approved</button>
                       )}
                       <button onClick={()=>setStatus('Closed')} style={{ fontSize:12, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
                     </div>
