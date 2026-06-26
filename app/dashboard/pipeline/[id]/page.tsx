@@ -792,6 +792,27 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const acts = activity()
   const [avBg, avFg] = lead ? avatarColor(lead.contact_name) : ['#E1F5EE','#0F6E56']
 
+  const isClaim = !!(lead as any)?.roofing_job_data?.insurance_claim
+  // Single source for the claim component — re-homed into the spine's carrier stage, or shown in the
+  // Details tab on the flag-off page / for retail leads (so the insurance on/off toggle stays reachable).
+  const claimFieldsEl = (isRoofing && lead && session) ? (
+    <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} locked={stage==='job_won'||stage==='lost'}
+      onSaved={(data)=>{
+        setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
+        setTimeout(()=>{
+          fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+            .then(r=>r.json())
+            .then(d=>{
+              if(d?.lead){
+                setLead(d.lead as LeadExt)
+                setStage((d.lead as LeadExt).lead_status as LeadStatus)
+              }
+            }).catch(()=>{})
+          refreshEvents()
+        }, 400)
+      }}/>
+  ) : null
+
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={()=>{}} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{background:pg,minHeight:'100vh',padding:'16px 20px 80px',boxSizing:'border-box'}}>
@@ -1501,6 +1522,26 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <div style={{ position: 'absolute', left: isWide ? 18 : 14, top: 28, bottom: 28, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'relative', zIndex: 1 }}>
                           {stages.map((s, i) => {
+                            // Carrier stage owns the claim form inline (re-homed InsuranceClaimFields, kept whole)
+                            if (s.key === 'carrier') {
+                              const cState = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
+                              return (
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
+                                  {gIcon(cState === 'done' ? '#15803D' : cState === 'active' ? 'linear-gradient(135deg,#0F766E,#0C5F59)' : (dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9'), <Svg size={isWide ? 17 : 15} stroke={cState === 'upcoming' ? tsu : '#fff'} sw={2}>{ICONS.carrier}</Svg>, cState === 'upcoming' ? bdr : undefined)}
+                                  <div id="insurance-claim-section" style={{ scrollMarginTop: 16 }}>
+                                    {cState === 'active' && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '8px 14px', borderRadius: T.radSm, background: 'linear-gradient(135deg,#0F766E,#0C5F59)', flexWrap: 'wrap' as const }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 6px #5EEAD4' }} />
+                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.14em' }}>Next Action</span>
+                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: '#fff' }}>{na?.title || 'Review carrier scope'}</span>
+                                        {na?.sub && <span style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.8)' }}>· {na.sub}</span>}
+                                      </div>
+                                    )}
+                                    {claimFieldsEl}
+                                  </div>
+                                </div>
+                              )
+                            }
                             const state = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
 
                             if (state === 'active') {
@@ -1694,27 +1735,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       <div style={{padding:'18px 20px'}}>
                         {!isEditing&&(
                           <>
-                            {isRoofing&&<div id="insurance-claim-section" style={{position:'relative',top:-12}}/>}
-                            {isRoofing&&(
-                              <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session!.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} locked={stage==='job_won'||stage==='lost'}
-                                onSaved={(data)=>{
-                                  // Optimistic update first so UI feels instant
-                                  setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
-                                  // Re-fetch after a short delay to pick up any hook side-effects
-                                  // (stage auto-advance, activity events) without requiring a manual refresh
-                                  setTimeout(()=>{
-                                    fetch(`/api/leads/${lead.id}?pro_id=${session!.id}`)
-                                      .then(r=>r.json())
-                                      .then(d=>{
-                                        if(d?.lead){
-                                          setLead(d.lead as LeadExt)
-                                          setStage((d.lead as LeadExt).lead_status as LeadStatus)
-                                        }
-                                      }).catch(()=>{})
-                                    refreshEvents()   // also refresh Activity tab
-                                  }, 400)
-                                }}/>
-                            )}
+                            {isRoofing&&(!useSpine||!isClaim)&&<div id="insurance-claim-section" style={{position:'relative',top:-12}}/>}
+                            {isRoofing&&(!useSpine||!isClaim)&&claimFieldsEl}
 
                             {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
                               <div style={{marginTop:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(220,38,38,0.10)':'#FEF2F2',border:'1px solid #FECACA'}}>
