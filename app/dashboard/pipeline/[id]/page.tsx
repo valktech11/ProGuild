@@ -1501,7 +1501,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: isWide ? 'center' : 'start' }}>
                                   {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 19 : 16} stroke="#fff" sw={2}>{ICONS[s.key] || ICONS.measure}</Svg>)}
-                                  <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '14px 18px' : '14px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 12, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
+                                  <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '12px 18px' : '12px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 12, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
                                     <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: '#5EEAD4', opacity: 0.9 }} />
                                     <div style={{ position: 'absolute', left: -30, top: -40, width: 170, height: 170, borderRadius: '50%', background: 'radial-gradient(circle, rgba(94,234,212,0.18), transparent 65%)', pointerEvents: 'none' }} />
                                     <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
@@ -1524,19 +1524,33 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             }
 
                             if (state === 'done') {
+                              const estInline = s.key === 'estimate'
+                              const sumInline = s.key === 'carrier' || s.key === 'supp'
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
                                   {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2.6}><polyline points="20 6 9 17 4 12" /></Svg>)}
-                                  <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '12px 16px' : '12px 14px', boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' as const }}>
-                                      <div style={{ fontSize: T.fontSub, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{s.label}</div>
-                                      <div style={{ display: 'flex', gap: 8 }}>
+                                  <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '11px 16px' : '11px 14px', boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const, minWidth: 0 }}>
+                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.05em', whiteSpace: 'nowrap' as const }}>{s.label}</span>
+                                        {estInline && (
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                                            <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{money(Number(est?.total) || 0)}</span>
+                                            {statusPill((est as any)?.status)}
+                                            <span style={{ fontSize: T.fontSub, color: tsu }}>{(est as any)?.estimate_number || 'Estimate'}</span>
+                                          </span>
+                                        )}
+                                        {sumInline && (
+                                          <span style={{ fontSize: T.fontBody, color: tp, fontWeight: 600 }}>{s.summary}</span>
+                                        )}
+                                      </div>
+                                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                                         {s.key === 'measure' && (lead as any)?.roofing_job_data?.report_url && sBtn('View report', () => window.open((lead as any).roofing_job_data.report_url, '_blank'))}
                                         {sBtn(s.key === 'measure' ? 'Re-measure' : s.key === 'estimate' ? 'Open' : 'View', () => { if (s.key === 'measure') runSatelliteMeasure(); else goStage(s.key) })}
                                       </div>
                                     </div>
                                     {s.key === 'measure' && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8, flexWrap: 'wrap' as const }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 7, flexWrap: 'wrap' as const }}>
                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                                           <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
                                           <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
@@ -1563,16 +1577,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           </>
                                         )}
                                       </div>
-                                    )}
-                                    {s.key === 'estimate' && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 7, flexWrap: 'wrap' as const }}>
-                                        <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{money(Number(est?.total) || 0)}</span>
-                                        {statusPill((est as any)?.status)}
-                                        <span style={{ fontSize: T.fontSub, color: tsu }}>{(est as any)?.estimate_number || 'Estimate'}</span>
-                                      </div>
-                                    )}
-                                    {(s.key === 'carrier' || s.key === 'supp') && (
-                                      <div style={{ fontSize: T.fontBody, color: tp, fontWeight: 600, marginTop: 5 }}>{s.summary}</div>
                                     )}
                                   </div>
                                 </div>
