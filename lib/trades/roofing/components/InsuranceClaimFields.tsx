@@ -97,7 +97,7 @@ function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { 
           padding: icon ? '9px 12px 9px 34px' : '9px 12px',
           border:`1.5px solid ${f ? TEAL : '#E2E8F0'}`,
           borderRadius:9, fontSize:13, outline:'none',
-          background: p.disabled ? '#F1F5F9' : (f ? '#fff' : '#F7F6F3'),
+          background: p.disabled ? '#F1F5F9' : (f ? '#fff' : '#F8FAFC'),
           color: p.disabled ? '#64748B' : NAVY,
           cursor: p.disabled ? 'not-allowed' : 'auto',
           boxShadow: f ? '0 0 0 3px rgba(15,118,110,0.1)' : 'none',
@@ -446,9 +446,9 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
                 <input list="pg-carriers" value={fields.insurance_company} onChange={set('insurance_company')} disabled={locked} placeholder="Start typing — pick from the list"
-                  style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
+                  style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F8FAFC', color:NAVY, transition:'all 0.15s' }}
                   onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
-                  onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
+                  onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F8FAFC'; e.target.style.boxShadow='none' }}
                 />
                 <datalist id="pg-carriers">
                   {FL_CARRIERS.map(c => <option key={c} value={c} />)}
@@ -470,9 +470,9 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   </div>
                   <input type="date" value={fields.date_of_loss} onChange={set('date_of_loss')} disabled={locked}
-                    style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
+                    style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F8FAFC', color:NAVY, transition:'all 0.15s' }}
                     onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
-                    onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
+                    onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F8FAFC'; e.target.style.boxShadow='none' }}
                   />
                 </div>
                 <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>
@@ -533,9 +533,9 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
                   </div>
                   <input type="date" value={fields.roof_install_date} onChange={set('roof_install_date')} disabled={locked}
-                    style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
+                    style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F8FAFC', color:NAVY, transition:'all 0.15s' }}
                     onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
-                    onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
+                    onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F8FAFC'; e.target.style.boxShadow='none' }}
                   />
                 </div>
                 <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>
@@ -591,9 +591,9 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
                 <input type="datetime-local" value={fields.adjuster_appointment} onChange={set('adjuster_appointment')} disabled={locked}
-                  style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F7F6F3', color:NAVY, transition:'all 0.15s' }}
+                  style={{ width:'100%', boxSizing:'border-box' as const, padding:'9px 12px 9px 34px', border:'1.5px solid #E2E8F0', borderRadius:9, fontSize:13, outline:'none', background:'#F8FAFC', color:NAVY, transition:'all 0.15s' }}
                   onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
-                  onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F7F6F3'; e.target.style.boxShadow='none' }}
+                  onBlur={e => { e.target.style.borderColor='#E2E8F0'; e.target.style.background='#F8FAFC'; e.target.style.boxShadow='none' }}
                 />
               </div>
               <div style={{ fontSize:11, color:'#94A3B8', marginTop:4, display:'flex', alignItems:'center', gap:4 }}>
