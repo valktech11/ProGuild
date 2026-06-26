@@ -756,16 +756,27 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       proposal_signed:'Proposal Signed', scheduled:'Scheduled',
       in_progress:'In Progress', job_won:'Job Won', lost:'Lost',
     }
+    // The insurance auto-approve writes BOTH a stage_changed→insurance_approved AND an
+    // insurance_auto_approved event at (near) the same instant. Collapse that pair to the
+    // single richer "Pipeline advanced…" row. (Display-side only — stored rows untouched.)
+    const autoApprovedTimes = pipelineEvents
+      .filter(ev => ev.event_type === 'insurance_auto_approved')
+      .map(ev => new Date(ev.created_at).getTime())
     for (const ev of pipelineEvents) {
       if (ev.event_type === 'stage_changed' && ev.event_data) {
-        const from = stageLabels[ev.event_data.from] || ev.event_data.from
-        const to   = stageLabels[ev.event_data.to]   || ev.event_data.to
-        items.push({
-          date:  ev.created_at,
-          title: `Stage moved to ${to}`,
-          sub:   `From ${from}`,
-          type:  'stage',
-        })
+        const toRaw = ev.event_data.to
+        const tms = new Date(ev.created_at).getTime()
+        const isAutoPair = toRaw === 'insurance_approved' && autoApprovedTimes.some(at => Math.abs(at - tms) < 3000)
+        if (!isAutoPair) {
+          const from = stageLabels[ev.event_data.from] || ev.event_data.from
+          const to   = stageLabels[toRaw] || toRaw
+          items.push({
+            date:  ev.created_at,
+            title: `Stage moved to ${to}`,
+            sub:   ev.event_data.from ? `From ${from}` : '',
+            type:  'stage',
+          })
+        }
       }
       if (ev.event_type === 'invoice_sent' && ev.event_data) {
         items.push({
@@ -2516,7 +2527,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   </div>
                                   <div style={{flex:1,paddingTop:3}}>
                                     <div style={{fontSize:14,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.3}}>{item.title}</div>
-                                    <div style={{fontSize:12,color:warn?'#EF4444':ts,marginTop:2,lineHeight:1.4}}>{item.sub}</div>
+                                    {item.sub && item.sub.trim() !== item.title.trim() && <div style={{fontSize:12,color:warn?'#EF4444':ts,marginTop:2,lineHeight:1.4}}>{item.sub}</div>}
                                   </div>
                                   <div style={{fontSize:11,color:tsu,flexShrink:0,paddingTop:4,textAlign:'right',lineHeight:1.4}}>
                                     <div>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
@@ -2644,7 +2655,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <div style={{width:9,height:9,borderRadius:'50%',background:ic,marginTop:5,flexShrink:0,boxShadow:`0 0 0 3px ${ic}1A`}}/>
                                 <div style={{flex:1,minWidth:0}}>
                                   <div style={{fontSize:12.5,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.35}}>{item.title}</div>
-                                  {item.sub && <div style={{fontSize:11,color:warn?'#EF4444':ts,marginTop:1,lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{item.sub}</div>}
+                                  {item.sub && item.sub.trim() !== item.title.trim() && <div style={{fontSize:11,color:warn?'#EF4444':ts,marginTop:1,lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{item.sub}</div>}
                                 </div>
                                 <div style={{fontSize:10,flexShrink:0,marginTop:2,textAlign:'right' as const,lineHeight:1.35}}>
                                   <div style={{fontWeight:700,color:ts}}>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
