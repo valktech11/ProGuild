@@ -124,6 +124,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   }, [])
   const [open,   setOpen]   = useState(initial.insurance_claim ?? false)
   const [detailsOpen, setDetailsOpen] = useState(() => !(initial.insurance_company || initial.claim_number))  // fresh claim opens expanded; existing collapses to summary
+  const [finEdit, setFinEdit] = useState(() => !(parseCurrency(initial.approved_amount ?? '') || parseCurrency(initial.supplement_amount ?? '') || parseCurrency(initial.deductible ?? '')))  // first entry → open; amounts present → collapsed summary
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState<string | null>(null)
   const [saved,  setSaved]  = useState(false)
@@ -308,6 +309,11 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const net        = approved + supplement - deductible
   const isDenied     = fields.claim_status === 'Denied'
   const decided      = ['Approved','Denied','Supplement Filed','Supplement Approved','Closed'].includes(fields.claim_status)
+  const decisionLabel = fields.claim_status === 'Denied' ? 'Denied'
+    : fields.claim_status === 'Supplement Filed' ? 'Supplement filed'
+    : fields.claim_status === 'Supplement Approved' ? 'Supplement approved'
+    : fields.claim_status === 'Closed' ? 'Closed'
+    : 'Approved'
   const phase        = derivePhase(fields.claim_status, !!fields.adjuster_appointment)
   // Claim-details collapse: once core details exist, default to a compact summary
   // line to keep the panel shallow. Empty claim → fields stay open so it's fillable.
@@ -358,12 +364,22 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
         </div>
 
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          {/* Status badge when collapsed */}
-          {!open && fields.insurance_company && (
+          {/* Decision status pill (+ change) — the decision lives here, top-right */}
+          {decided ? (
+            <div style={{ display:'flex', alignItems:'center', gap:8 }} onClick={e=>e.stopPropagation()}>
+              <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11.5, fontWeight:800, padding:'4px 11px', borderRadius:100, background:activeStatus.bg, color:activeStatus.color, border:`1px solid ${activeStatus.color}30`, textTransform:'uppercase' as const, letterSpacing:'0.03em' }}>
+                {fields.claim_status === 'Denied'
+                  ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                {decisionLabel}
+              </span>
+              {!locked && <button onClick={()=>setStatus('Filed')} style={{ fontSize:12, fontWeight:600, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer', textDecoration:'underline' }}>change</button>}
+            </div>
+          ) : (!open && fields.insurance_company && (
             <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:100, background:activeStatus.bg, color:activeStatus.color, border:`1px solid ${activeStatus.color}25` }}>
               {fields.claim_status}
             </span>
-          )}
+          ))}
           {/* Toggle (locked on won/lost jobs to protect claim history) */}
           {locked ? (
             <div title="Insurance type is locked on completed jobs"
@@ -392,7 +408,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
             {/* Claim details collapse to a summary line once filled — keeps the panel shallow */}
             {!showFields && (
-              <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'11px 14px', borderRadius:10, background: dk?'rgba(255,255,255,0.03)':'#F8FAFC', border:`1px solid ${dk?'#334155':'#E2E8F0'}`, flexWrap:'wrap' as const }}>
+              <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'10px 0', borderBottom:`1px solid ${dk?'#334155':'#EEF1F4'}`, flexWrap:'wrap' as const }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:13.5, fontWeight:700, color:dk?'#F1F5F9':NAVY }}>
                     {fields.date_of_loss ? <>Date of loss · {fields.date_of_loss}</> : 'Claim details'}
@@ -644,51 +660,44 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 </div>
               ) : (
                 <>
-                  {/* Decision recorded as a fact — not a lingering button bar */}
-                  {!locked && (
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' as const }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <span style={{ width:22, height:22, borderRadius:'50%', background:'#059669', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        </span>
-                        <span style={{ fontSize:13.5, fontWeight:700, color: dk?'#F1F5F9':NAVY }}>
-                          {fields.claim_status === 'Supplement Filed' ? 'Supplement filed'
-                            : fields.claim_status === 'Supplement Approved' ? 'Supplement approved'
-                            : fields.claim_status === 'Closed' ? 'Claim closed'
-                            : 'Carrier approved'}
-                        </span>
+                  {/* Financials — collapse to a one-line record once amounts exist; no grey panel */}
+                  {!finEdit ? (
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' as const, paddingTop:2 }}>
+                      <div style={{ fontSize:14, color: dk?'#F1F5F9':NAVY }}>
+                        <b>${approved.toLocaleString()}</b> approved <span style={{ color:'#94A3B8', margin:'0 4px' }}>→</span> homeowner pays <b style={{ color:'#059669' }}>${Math.max(net,0).toLocaleString()}</b>
                       </div>
-                      <button onClick={()=>setStatus('Filed')} style={{ fontSize:12, fontWeight:600, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer', textDecoration:'underline' }}>change</button>
+                      {!locked && <button onClick={()=>setFinEdit(true)} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'5px 11px', cursor:'pointer' }}>Edit amounts</button>}
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr 1fr':'1fr', gap:12 }}>
+                        <Field label="Approved amount">
+                          <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
+                            icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                          />
+                        </Field>
+                        <Field label="Supplement amount">
+                          <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} disabled={locked} placeholder="$0.00"
+                            icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                          />
+                        </Field>
+                        <Field label="Deductible (homeowner)">
+                          <FInput value={fields.deductible} onChange={set('deductible')} disabled={locked} placeholder="$0.00"
+                            icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                          />
+                        </Field>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginTop:12, flexWrap:'wrap' as const }}>
+                        <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
+                          <span style={{ fontSize:11, fontWeight:700, color: net>0?'#059669':'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Insurance pays homeowner</span>
+                          <span style={{ fontSize:22, fontWeight:900, color: net>0?'#059669':(dk?'#475569':'#94A3B8'), letterSpacing:'-0.03em' }}>${Math.max(net,0).toLocaleString()}</span>
+                        </div>
+                        {!locked && (approved > 0 || supplement > 0 || deductible > 0) && (
+                          <button onClick={()=>setFinEdit(false)} style={{ fontSize:12, fontWeight:700, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer', textDecoration:'underline' }}>Done</button>
+                        )}
+                      </div>
                     </div>
                   )}
-
-                  {/* Financials — the inputs ARE the summary; total computes live, no echo */}
-                  <div style={{ padding: isWide ? '14px 16px' : '14px', borderRadius:10, background: dk?'rgba(255,255,255,0.03)':'#F8FAFC', border:`1px solid ${dk?'#334155':'#E2E8F0'}` }}>
-                    <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr 1fr':'1fr', gap:12 }}>
-                      <Field label="Approved amount">
-                        <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
-                          icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                        />
-                      </Field>
-                      <Field label="Supplement amount">
-                        <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} disabled={locked} placeholder="$0.00"
-                          icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                        />
-                      </Field>
-                      <Field label="Deductible (homeowner)">
-                        <FInput value={fields.deductible} onChange={set('deductible')} disabled={locked} placeholder="$0.00"
-                          icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                        />
-                      </Field>
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginTop:12, paddingTop:12, borderTop:`1px solid ${dk?'#334155':'#E2E8F0'}`, flexWrap:'wrap' as const }}>
-                      <span style={{ fontSize:11.5, color: dk?'#94A3B8':'#94A3B8' }}>Approved + Supplement − Deductible</span>
-                      <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
-                        <span style={{ fontSize:11, fontWeight:700, color: net>0?'#059669':'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Insurance pays homeowner</span>
-                        <span style={{ fontSize:22, fontWeight:900, color: net>0?'#059669':(dk?'#475569':'#94A3B8'), letterSpacing:'-0.03em' }}>${Math.max(net,0).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
 
                   {/* Next-step status transitions */}
                   {!locked && fields.claim_status !== 'Closed' && (
@@ -721,12 +730,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               </div>
             </div>
           ) : (
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:18 }}>
-            <div style={{ fontSize:11, color:'#94A3B8', display:'flex', alignItems:'center', gap:4 }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              Saved to roofing job record
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:10, marginTop:18 }}>
               {saved && (
                 <span style={{ fontSize:12, color:'#059669', fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -745,7 +749,6 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Save claim details</>
                 }
               </button>
-            </div>
           </div>
           )}
         </div>
