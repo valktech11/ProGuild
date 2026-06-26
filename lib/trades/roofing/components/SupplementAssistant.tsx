@@ -149,7 +149,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
 
       <div style={{ padding: 18 }}>
         {grounded.length > 0 && (
-          <div style={{ marginBottom: 14, borderRadius: 10, border: `1px solid ${TEAL}44`, background: TEAL + (dk ? '18' : '0C'), padding: '11px 13px' }}>
+          <div style={{ marginBottom: 14, borderRadius: 10, border: `1px solid ${border}`, background: 'transparent', padding: '11px 13px' }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>From your measurements</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {grounded.map(f => (
@@ -159,7 +159,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
                       <span style={{ fontSize: 13, fontWeight: 700, color: text }}>{f.item}</span>
                       <span style={{ fontSize: 11, color: sub }}>· {f.basis === 'code' ? 'Code-required (FL)' : 'Standard supplement'}</span>
                     </div>
-                    <span style={{ display: 'inline-block', marginTop: 2, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.02em', color: sub, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{f.code}</span>
+                    <span style={{ display: 'inline-block', marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '0.01em', color: dk ? '#94A3B8' : '#475569', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{f.code}</span>
                   </div>
                   <div style={{ whiteSpace: 'nowrap', textAlign: 'right' as const, flexShrink: 0 }}>
                     <span style={{ fontSize: 18, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, letterSpacing: '-0.02em' }}>{f.measured_lf}</span>

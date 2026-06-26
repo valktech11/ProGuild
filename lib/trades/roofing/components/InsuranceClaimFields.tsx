@@ -353,7 +353,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' as const }}>
               <span style={{ fontSize:14, fontWeight:700, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.01em' }}>Insurance Claim</span>
               {decided && (
-                <span style={{ display:'inline-flex', alignItems:'center', gap:8 }} onClick={e=>e.stopPropagation()}>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:8, marginLeft:6 }} onClick={e=>e.stopPropagation()}>
                   <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11.5, fontWeight:800, padding:'4px 11px', borderRadius:100, background:activeStatus.bg, color:activeStatus.color, border:`1px solid ${activeStatus.color}30`, textTransform:'uppercase' as const, letterSpacing:'0.03em' }}>
                     {fields.claim_status === 'Denied'
                       ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
