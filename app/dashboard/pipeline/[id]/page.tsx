@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, use, useCallback, Suspense } from 'react'
+import { useState, useEffect, use, useCallback, useRef, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Lead, LeadStatus, isPaidPlan } from '@/types'
@@ -19,6 +19,32 @@ import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
 
 // Captures the last lead-PATCH error message so saveEdit can show it in the toast
 let _lastPatchError = ''
+
+// Animated count-up for a money figure — eases from the previous value to the new one.
+// First mount animates from 0; subsequent value changes animate from the prior value.
+function CountUpMoney({ value, fmt, style }: { value: number; fmt: (n: number) => string; style?: React.CSSProperties }) {
+  const [disp, setDisp] = useState(0)
+  const fromRef = useRef(0)
+  const rafRef = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    const from = fromRef.current
+    const to = value
+    if (from === to) { setDisp(to); return }
+    const dur = 700
+    const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur)
+      const eased = 1 - Math.pow(1 - p, 3) // ease-out cubic
+      setDisp(Math.round(from + (to - from) * eased))
+      if (p < 1) rafRef.current = requestAnimationFrame(tick)
+      else fromRef.current = to
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [value])
+  return <span style={style}>{fmt(disp)}</span>
+}
+
 
 // ─── Stage order map ──────────────────────────────────────────────────────────
 // STAGE_ORDER and SOURCE_OPTIONS are derived inside the component from the trade plugin.
@@ -1657,7 +1683,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         {!estInline && <span style={{ fontSize: T.fontSub, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.05em', whiteSpace: 'nowrap' as const }}>{s.label}</span>}
                                         {estInline && (
                                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
-                                            <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{money(Number(est?.total) || 0)}</span>
+                                            <CountUpMoney value={Number(est?.total) || 0} fmt={money} style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }} />
                                             {statusPill((est as any)?.status)}
                                             {estFresh && <span style={{ fontSize: T.fontSub, color: tsu }}>Updated {estFresh}</span>}
                                           </span>
