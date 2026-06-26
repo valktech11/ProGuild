@@ -35,7 +35,7 @@ const CLAIM_STATUSES = [
   { value: 'Adjuster Visited',    color: '#7C3AED', bg: '#F5F3FF', group: 'Claim progress', effect: 'track' },
   { value: 'Approved',            color: '#059669', bg: '#ECFDF5', group: 'Decision',       effect: 'advance' },
   { value: 'Denied',              color: '#DC2626', bg: '#FEF2F2', group: 'Decision',       effect: 'denied' },
-  { value: 'Supplement Filed',    color: '#D97706', bg: '#FFFBEB', group: 'Supplement',     effect: 'track' },
+  { value: 'Supplement Filed',    color: '#4F46E5', bg: '#EEF2FF', group: 'Supplement',     effect: 'track' },
   { value: 'Supplement Approved', color: '#0891B2', bg: '#ECFEFF', group: 'Supplement',     effect: 'track' },
   { value: 'Closed',              color: '#374151', bg: '#F3F4F6', group: 'Closed',         effect: 'track' },
 ] as const
@@ -618,30 +618,31 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             )}
             </>)}
 
-            {/* ── Claim progress (thin inline strip) + carrier decision ── */}
+            {/* ── Claim progress + carrier decision ── */}
             <div style={{ gridColumn:'1 / -1', display:'flex', flexDirection:'column', gap:14, marginTop:6, paddingTop:18, borderTop:`1px solid ${dk ? '#334155' : '#E2E8F0'}` }}>
 
-              {/* Compact progress strip: dots + connectors on one line, only the current phase named */}
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <span style={{ fontSize:10, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk ? '#94A3B8' : '#94A3B8', flexShrink:0 }}>Claim</span>
-                <div style={{ display:'flex', alignItems:'center', flex:1, minWidth:120 }}>
-                  {PHASE_STEPS.map((label, i) => {
-                    const done       = !phase.denied && i < phase.index
-                    const active     = !phase.denied && i === phase.index
-                    const deniedStep = phase.denied && i === 2
-                    // Adjuster only counts as done if an appointment was actually recorded (no fabricated progress)
-                    const skipped    = i === 1 && done && !fields.adjuster_appointment
-                    const dot = deniedStep ? '#DC2626' : active ? TEAL : (done && !skipped) ? '#059669' : (dk ? '#334155' : '#CBD5E1')
-                    return (
-                      <div key={label} style={{ display:'flex', alignItems:'center', flex: i < PHASE_STEPS.length - 1 ? 1 : '0 0 auto' }}>
-                        <div title={deniedStep ? 'Denied' : label} style={{ width:9, height:9, borderRadius:'50%', flexShrink:0, boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}25` : 'none',
+              {/* Progress strip with labels under each node */}
+              <div style={{ display:'flex', alignItems:'flex-start' }}>
+                {PHASE_STEPS.map((label, i) => {
+                  const done       = !phase.denied && i < phase.index
+                  const active     = !phase.denied && i === phase.index
+                  const deniedStep = phase.denied && i === 2
+                  const skipped    = i === 1 && done && !fields.adjuster_appointment
+                  const dot = deniedStep ? '#DC2626' : active ? TEAL : (done && !skipped) ? '#059669' : (dk ? '#334155' : '#CBD5E1')
+                  const txt = deniedStep ? '#DC2626' : active ? (dk ? '#5EEAD4' : TEAL) : skipped ? '#94A3B8' : done ? '#059669' : '#94A3B8'
+                  return (
+                    <div key={label} style={{ display:'flex', alignItems:'flex-start', flex: i < PHASE_STEPS.length - 1 ? 1 : '0 0 auto' }}>
+                      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, flexShrink:0 }}>
+                        <div style={{ width:11, height:11, borderRadius:'50%', boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}22` : 'none',
                           ...(skipped ? { background: dk ? '#1E293B' : '#fff', border:`2px solid ${dk ? '#475569' : '#CBD5E1'}`, boxSizing:'border-box' as const } : { background: dot }) }}/>
-                        {i < PHASE_STEPS.length - 1 && <div style={{ flex:1, height:2, background: done ? '#059669' : (dk ? '#334155' : '#E2E8F0') }}/>}
+                        <span style={{ fontSize:10, fontWeight:700, color:txt, whiteSpace:'nowrap' as const }}>{deniedStep ? 'Denied' : label}</span>
                       </div>
-                    )
-                  })}
-                </div>
-                <span style={{ fontSize:12, fontWeight:700, color: phase.denied ? '#DC2626' : (dk ? '#5EEAD4' : TEAL), flexShrink:0, whiteSpace:'nowrap' as const }}>{phase.denied ? 'Denied' : PHASE_STEPS[Math.min(phase.index, PHASE_STEPS.length - 1)]}</span>
+                      {i < PHASE_STEPS.length - 1 && (
+                        <div style={{ flex:1, height:2, marginTop:4, background: done ? '#059669' : (dk ? '#334155' : '#E2E8F0') }}/>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Contextual decision / financials */}

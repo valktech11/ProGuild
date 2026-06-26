@@ -1698,6 +1698,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         {!estInline && <span style={{ fontSize: T.fontSub, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.05em', whiteSpace: 'nowrap' as const }}>{s.label}</span>}
                                         {estInline && (
                                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                                            <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Estimate</span>
                                             <CountUpMoney value={Number(est?.total) || 0} fmt={money} style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }} />
                                             {statusPill((est as any)?.status)}
                                             {estFresh && <span style={{ fontSize: T.fontSub, color: tsu }}>Updated {estFresh}</span>}
