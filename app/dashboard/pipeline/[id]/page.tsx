@@ -1562,7 +1562,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     )
                     const GW = isWide ? 40 : 32
                     const gIcon = (bg: string, content: React.ReactNode, ring?: string) => (
-                      <div style={{ width: GW, height: GW, borderRadius: '50%', background: bg, border: ring ? `2px solid ${ring}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{content}</div>
+                      <div className={typeof bg === 'string' && bg.includes('0F766E') ? 'pg-pulse' : undefined} style={{ width: GW, height: GW, borderRadius: '50%', background: bg, border: ring ? `2px solid ${ring}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{content}</div>
                     )
                     const statusPill = (status?: string) => {
                       const st = (status || 'draft').toLowerCase()

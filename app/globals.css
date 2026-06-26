@@ -77,6 +77,15 @@ th, thead td { color: #374151; font-weight: 600; }
 /* Smooth reveal for expand/collapse panels (claim details, supplement assistant) */
 .pg-reveal { animation: fadeUp 0.2s ease-out both; }
 
+/* Soft pulse ring on the active workflow-stage circle — makes "you are here" feel alive */
+@keyframes pgPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(15,118,110,0.40); }
+  70%  { box-shadow: 0 0 0 7px rgba(15,118,110,0); }
+  100% { box-shadow: 0 0 0 0 rgba(15,118,110,0); }
+}
+.pg-pulse { animation: pgPulse 2.4s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pg-pulse { animation: none; } }
+
 /* ── Page transition ────────────────────────────────────────────────────── */
 /* Smooth fade-in on every page mount */
 main, [data-page] {
