@@ -1434,10 +1434,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const sqv = rjd2.square_count
                     const dn = (k: string) => !!wf.steps.find(s => s.key === k)?.done
                     const money = (n: number) => '$' + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                    const relTime = (iso?: string) => {
+                      if (!iso) return null
+                      const s = (Date.now() - new Date(iso).getTime()) / 1000
+                      if (s < 60) return 'just now'
+                      if (s < 3600) return `${Math.floor(s / 60)}m ago`
+                      if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+                      return `${Math.floor(s / 86400)}d ago`
+                    }
+                    const estFresh = relTime((est as any)?.updated_at || (est as any)?.created_at)
                     type SP = { key: string; label: string; done: boolean; summary: string }
                     const stages: SP[] = []
                     stages.push({
-                      key: 'measure', label: isClaim2 ? 'Measure + Linear Footage' : 'Measure',
+                      key: 'measure', label: 'Roof Measurements',
                       done: dn('measure') && (isClaim2 ? dn('lf') : true),
                       summary: dn('measure')
                         ? `${sqv} SQ · ${rjd2.pitch || '—'} · ${rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'} waste${isClaim2 && dn('lf') ? `   ·   Ridge ${Math.round(lfd2.ridge_ft || 0)} / Hip ${Math.round(lfd2.hip_ft || 0)} / Valley ${Math.round(lfd2.valley_ft || 0)} LF` : ''}`
@@ -1489,8 +1498,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     return (
                       <div style={{ position: 'relative', marginBottom: 12 }}>
                         {/* one continuous path — upcoming stages read as 'ahead', not shut */}
-                        <div style={{ position: 'absolute', left: isWide ? 18 : 14, top: 26, bottom: 26, width: 2, background: bdr, zIndex: 0 }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1 }}>
+                        <div style={{ position: 'absolute', left: isWide ? 18 : 14, top: 28, bottom: 28, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'relative', zIndex: 1 }}>
                           {stages.map((s, i) => {
                             const state = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
 
@@ -1509,7 +1518,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 8px #5EEAD4' }} />
                                         <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.16em' }}>Next Action</span>
                                       </div>
-                                      <div style={{ fontSize: isWide ? T.fontHero : T.fontHeroMobile, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{aTitle}</div>
+                                      <div style={{ fontSize: isWide ? 22 : T.fontHeroMobile, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{aTitle}</div>
                                       <div style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.82)', marginTop: 2 }}>{na?.sub}</div>
                                     </div>
                                     <button onClick={na?.onClick} disabled={isMeasuring}
@@ -1527,7 +1536,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const estInline = s.key === 'estimate'
                               const sumInline = s.key === 'carrier' || s.key === 'supp'
                               return (
-                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
                                   {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2.6}><polyline points="20 6 9 17 4 12" /></Svg>)}
                                   <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '11px 16px' : '11px 14px', boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
@@ -1537,7 +1546,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
                                             <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{money(Number(est?.total) || 0)}</span>
                                             {statusPill((est as any)?.status)}
-                                            <span style={{ fontSize: T.fontSub, color: tsu }}>{(est as any)?.estimate_number || 'Estimate'}</span>
+                                            {estFresh && <span style={{ fontSize: T.fontSub, color: tsu }}>Updated {estFresh}</span>}
                                           </span>
                                         )}
                                         {sumInline && (
@@ -1550,14 +1559,23 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       </div>
                                     </div>
                                     {s.key === 'measure' && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 7, flexWrap: 'wrap' as const }}>
-                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                                          <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
-                                          <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
-                                          <span style={{ color: bdr }}>·</span>
-                                          <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.pitch || '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>pitch</span></span>
-                                          <span style={{ color: bdr }}>·</span>
-                                          <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>waste</span></span>
+                                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, marginTop: 9, flexWrap: 'wrap' as const }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: isWide ? 22 : 16 }}>
+                                          <div>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                                              <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
+                                              <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
+                                            </div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Roof size</div>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: T.fontTitle, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.pitch || '—'}</div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Pitch</div>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: T.fontTitle, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}</div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Waste</div>
+                                          </div>
                                         </div>
                                         {isClaim2 && lfd2.source === 'promeasure_manual' && ((lfd2.ridge_ft || 0) > 0 || (lfd2.hip_ft || 0) > 0 || (lfd2.valley_ft || 0) > 0) && (
                                           <>
