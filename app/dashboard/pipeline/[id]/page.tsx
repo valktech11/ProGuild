@@ -1519,8 +1519,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     return (
                       <div style={{ position: 'relative', marginBottom: 12 }}>
                         {/* one continuous path — upcoming stages read as 'ahead', not shut */}
-                        <div style={{ position: 'absolute', left: isWide ? 18 : 14, top: 28, bottom: 28, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'relative', zIndex: 1 }}>
+                        <div style={{ position: 'absolute', left: isWide ? 18 : 14, top: 30, bottom: 30, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, position: 'relative', zIndex: 1 }}>
                           {stages.map((s, i) => {
                             // Carrier stage owns the claim form inline (re-homed InsuranceClaimFields, kept whole)
                             if (s.key === 'carrier') {
@@ -1530,7 +1530,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   {gIcon(cState === 'done' ? '#15803D' : cState === 'active' ? 'linear-gradient(135deg,#0F766E,#0C5F59)' : (dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9'), <Svg size={isWide ? 17 : 15} stroke={cState === 'upcoming' ? tsu : '#fff'} sw={2}>{ICONS.carrier}</Svg>, cState === 'upcoming' ? bdr : undefined)}
                                   <div id="insurance-claim-section" style={{ scrollMarginTop: 16 }}>
                                     {cState === 'active' && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '8px 14px', borderRadius: T.radSm, background: 'linear-gradient(135deg,#0F766E,#0C5F59)', flexWrap: 'wrap' as const }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, padding: '10px 16px', borderRadius: T.radSm, background: 'linear-gradient(135deg,#0F766E,#0C5F59)', flexWrap: 'wrap' as const }}>
                                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 6px #5EEAD4' }} />
                                         <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.14em' }}>Next Action</span>
                                         <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: '#fff' }}>{na?.title || 'Review carrier scope'}</span>

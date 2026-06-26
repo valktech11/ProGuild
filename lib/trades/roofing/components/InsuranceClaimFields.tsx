@@ -389,11 +389,11 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             {!showFields && (
               <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'11px 14px', borderRadius:10, background: dk?'rgba(255,255,255,0.03)':'#F8FAFC', border:`1px solid ${dk?'#334155':'#E2E8F0'}`, flexWrap:'wrap' as const }}>
                 <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:dk?'#F1F5F9':NAVY }}>
-                    {fields.insurance_company || 'Carrier'}{fields.claim_number ? ` · #${fields.claim_number}` : ''}
+                  <div style={{ fontSize:13.5, fontWeight:700, color:dk?'#F1F5F9':NAVY }}>
+                    {fields.date_of_loss ? <>Date of loss · {fields.date_of_loss}</> : 'Claim details'}
                   </div>
                   <div style={{ fontSize:11.5, color:'#94A3B8', marginTop:2 }}>
-                    {[fields.date_of_loss && `Loss ${fields.date_of_loss}`, fields.adjuster_name && `Adj. ${fields.adjuster_name}`, urgentDeadline].filter(Boolean).join('  ·  ') || 'Tap edit to add claim details'}
+                    {[fields.adjuster_name && `Adj. ${fields.adjuster_name}`, urgentDeadline].filter(Boolean).join('  ·  ') || 'Tap edit to add claim details'}
                   </div>
                 </div>
                 {!locked && (
@@ -405,7 +405,10 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             {showFields && hasCoreDetails && !locked && (
               <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk?'#94A3B8':'#64748B' }}>Claim details</span>
-                <button onClick={()=>setDetailsOpen(false)} style={{ fontSize:11.5, fontWeight:600, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer' }}>Collapse ▴</button>
+                <button onClick={()=>setDetailsOpen(false)} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'5px 11px', cursor:'pointer' }}>
+                  Collapse
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
               </div>
             )}
 
@@ -612,13 +615,13 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 <div style={{ padding:'14px 16px', borderRadius:10, background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC', border:`1px dashed ${dk ? '#334155' : '#CBD5E1'}` }}>
                   <div style={{ fontSize:13, fontWeight:700, color: dk ? '#F1F5F9' : NAVY, marginBottom:3 }}>Has the carrier issued their decision?</div>
                   <div style={{ fontSize:12, color: dk ? '#94A3B8' : '#64748B', marginBottom:12, lineHeight:1.45 }}>Record this once you receive the carrier&rsquo;s decision. Approving advances the lead and opens the supplement gap check further down — and only then asks for the amounts.</div>
-                  <div style={{ display:'flex', gap:10 }}>
-                    <button onClick={()=>setStatus('Approved')} disabled={locked} style={{ flex:1, padding:'10px', borderRadius:9, border:'none', background:'linear-gradient(135deg,#059669,#10B981)', color:'#fff', fontSize:13, fontWeight:700, cursor: locked ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  <div style={{ display:'flex', gap:10, flexWrap:'wrap' as const }}>
+                    <button onClick={()=>setStatus('Approved')} disabled={locked} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', gap:7, height:40, padding:'0 20px', borderRadius:9, border:'none', background:'#059669', color:'#fff', fontSize:13, fontWeight:700, cursor: locked ? 'not-allowed' : 'pointer', boxShadow:'0 2px 8px rgba(5,150,105,0.22)' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                       Carrier approved
                     </button>
-                    <button onClick={()=>setStatus('Denied')} disabled={locked} style={{ flex:1, padding:'10px', borderRadius:9, border:'1.5px solid #FECACA', background:'#fff', color:'#DC2626', fontSize:13, fontWeight:700, cursor: locked ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <button onClick={()=>setStatus('Denied')} disabled={locked} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', gap:7, height:40, padding:'0 18px', borderRadius:9, border:`1px solid ${dk ? '#475569' : '#E2E8F0'}`, background:'transparent', color: dk ? '#CBD5E1' : '#64748B', fontSize:13, fontWeight:700, cursor: locked ? 'not-allowed' : 'pointer' }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       Denied
                     </button>
                   </div>
