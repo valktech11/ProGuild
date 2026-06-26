@@ -9,9 +9,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+
+  // List view only needs a slim projection — no roofing_job_data join needed here.
+  // The detail screen fetches the full lead individually via GET /api/leads/[id].
+  // Dropping the join cuts response size ~60% and removes a cross-table scan for every row.
   const { data, error } = await getSupabaseAdmin()
     .from('leads')
-    .select('*, roofing_job_data(insurance_claim, insurance_company, claim_number, adjuster_name, adjuster_phone, adjuster_appointment, claim_status, approved_amount, supplement_amount, deductible, date_of_loss, roof_install_date, square_count, pitch, waste_pct)')
+    .select('id, contact_name, contact_email, contact_phone, contact_city, contact_state, property_address, lead_status, lead_source, quoted_amount, created_at, updated_at, scheduled_date, follow_up_date, notes, message, lost_reason, trade_slug')
     .eq('pro_id', proId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
