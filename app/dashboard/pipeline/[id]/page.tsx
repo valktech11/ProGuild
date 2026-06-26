@@ -1536,21 +1536,27 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       </div>
                                     </div>
                                     {s.key === 'measure' && (
-                                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 7, flexWrap: 'wrap' as const }}>
-                                        <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
-                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
-                                        <span style={{ color: bdr }}>·</span>
-                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.pitch || '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>pitch</span></span>
-                                        <span style={{ color: bdr }}>·</span>
-                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>waste</span></span>
-                                        {isClaim2 && dn('lf') && (
-                                          <>
-                                            {isWide && <span style={{ display: 'inline-block', width: 1, height: 16, background: bdr, margin: '0 5px', alignSelf: 'center' }} />}
-                                            <span style={{ fontSize: T.fontEmphasis, fontWeight: 600, color: tp }}>
-                                              <span style={{ fontSize: T.fontSub, fontWeight: 700, color: tsu, marginRight: 5 }}>LF</span>
-                                              Ridge <b>{Math.round(lfd2.ridge_ft || 0)}</b> · Hip <b>{Math.round(lfd2.hip_ft || 0)}</b> · Valley <b>{Math.round(lfd2.valley_ft || 0)}</b>{(lfd2.eave_ft || 0) > 0 ? <> · Eave <b>{Math.round(lfd2.eave_ft)}</b></> : null}
-                                            </span>
-                                          </>
+                                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginTop: 8, flexWrap: 'wrap' as const }}>
+                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' as const }}>
+                                          <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
+                                          <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
+                                          <span style={{ color: bdr }}>·</span>
+                                          <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.pitch || '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>pitch</span></span>
+                                          <span style={{ color: bdr }}>·</span>
+                                          <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>waste</span></span>
+                                        </div>
+                                        {isClaim2 && lfd2.source === 'promeasure_manual' && ((lfd2.ridge_ft || 0) > 0 || (lfd2.hip_ft || 0) > 0 || (lfd2.valley_ft || 0) > 0) && (
+                                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: isWide ? 'flex-end' : 'flex-start', gap: 6 }}>
+                                            <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: BRAND.teal, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>Linear Footage <span style={{ color: tsu, fontWeight: 600, textTransform: 'none' as const, letterSpacing: 0 }}>· ProMeasure traced</span></span>
+                                            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' as const }}>
+                                              {[['Ridge', lfd2.ridge_ft], ['Hip', lfd2.hip_ft], ['Valley', lfd2.valley_ft], ...((lfd2.eave_ft || 0) > 0 ? [['Eave', lfd2.eave_ft]] : [])].map(([lbl, v]) => (
+                                                <div key={lbl as string} style={{ minWidth: 56, padding: '6px 12px', borderRadius: T.radSm, background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', border: `1px solid ${bdr}`, textAlign: 'center' as const }}>
+                                                  <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: tp, lineHeight: 1.1 }}>{Math.round((v as number) || 0)}</div>
+                                                  <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 1 }}>{lbl}</div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
                                         )}
                                       </div>
                                     )}
