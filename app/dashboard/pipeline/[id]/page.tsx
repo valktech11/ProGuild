@@ -1350,13 +1350,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <Svg size={14} stroke={tsu}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
                           Entered {new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
                         </span>
-
-                        {/* Owner — inline */}
-                        <span style={{width:1,height:22,background:bdr,flexShrink:0}}/>
-                        <span style={{display:'inline-flex',alignItems:'center',gap:7,whiteSpace:'nowrap'}}>
-                          <span style={{width:24,height:24,borderRadius:'50%',background:avBg,color:avFg,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}}>{initials(session?.name||'SA')}</span>
-                          <span style={{fontSize:T.fontSub,fontWeight:600,color:tp}}>{session?.name||'Pro'}</span>
-                        </span>
                       </div>
 
                       {/* Stage tip — amber card */}
@@ -1669,7 +1662,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             </div>
                                             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' as const }}>
                                               {[['Ridge', lfd2.ridge_ft], ['Hip', lfd2.hip_ft], ['Valley', lfd2.valley_ft], ...((lfd2.eave_ft || 0) > 0 ? [['Eave', lfd2.eave_ft]] : [])].map(([lbl, v]) => (
-                                                <div key={lbl as string} style={{ minWidth: 52, padding: '5px 11px', borderRadius: T.radSm, background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', border: `1px solid ${bdr}`, textAlign: 'center' as const }}>
+                                                <div key={lbl as string} style={{ minWidth: 52, padding: '5px 11px', borderRadius: T.radSm, background: dk ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, textAlign: 'center' as const }}>
                                                   <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: tp, lineHeight: 1.1 }}>{Math.round((v as number) || 0)}</div>
                                                   <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 1 }}>{lbl}</div>
                                                 </div>
@@ -2174,7 +2167,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {/* Contact & details — reference, sits below the work */}
                             <div style={{marginTop:useSpine?0:16,paddingTop:useSpine?0:16,borderTop:useSpine?'none':`1px solid ${bdr}`}}>
                               <div style={{display:'flex',alignItems:'center',gap:10}}>
-                                <span style={{fontSize:11,fontWeight:700,color:ts,textTransform:'uppercase' as const,letterSpacing:'0.07em',flexShrink:0}}>Contact &amp; Details</span>
+                                <span style={{fontSize:11.5,fontWeight:800,color:tp,textTransform:'uppercase' as const,letterSpacing:'0.07em',flexShrink:0}}>Contact &amp; Details</span>
                                 <button onClick={()=>startEdit()} style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:7,border:`1px solid ${BRAND.teal}40`,background:'transparent',color:BRAND.teal,fontSize:12.5,fontWeight:700,cursor:'pointer',flexShrink:0}}>
                                   <Svg size={12} stroke={BRAND.teal}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
                                   Edit details
@@ -2214,7 +2207,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             {/* Notes */}
                             <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
-                              <div style={{fontSize:12,fontWeight:700,color:ts,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10}}>Notes</div>
+                              <div style={{fontSize:11.5,fontWeight:800,color:tp,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10}}>Notes</div>
                               {lead.notes&&(
                                 <div style={{fontSize:14,color:tb,lineHeight:1.65,whiteSpace:'pre-wrap',marginBottom:10,padding:'10px 12px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
                                   {lead.notes}
@@ -2532,11 +2525,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           const items=[
                             ...(mins<=30?[{color:'#059669',bg:'#ECFDF5',title:'High close probability',body:`Lead responded within ${mins<1?'1':mins} min`,icon:<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>}]:[]),
                             {color:'#1D4ED8',bg:'#EFF6FF',title:'Best callback window',body:hour<17?'5:00 PM – 7:00 PM':hour<20?'Right now':'10 AM – 12 PM',icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>},
-                            ...(isRoofing&&(lead as any)?.roofing_job_data?.square_count?[{color:'#B45309',bg:'#FFFBEB',title:'Roof size measured',body:(()=>{
-                              const sq=(lead as any).roofing_job_data.square_count
-                              const pitch=(lead as any).roofing_job_data.pitch
-                              return pitch ? `${sq} sq · ${pitch}` : `${sq} squares`
-                            })(),icon:<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>}]:[]),
                           ]
                           return items.map((ins,i)=>(
                             <div key={i} style={{flex:1,background:ins.bg,borderRadius:T.radMd,padding:'14px 12px',minWidth:0,border:`1px solid ${ins.color}22`}}>
@@ -2594,8 +2582,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   <div style={{fontSize:12.5,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.35}}>{item.title}</div>
                                   {item.sub && <div style={{fontSize:11,color:warn?'#EF4444':ts,marginTop:1,lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{item.sub}</div>}
                                 </div>
-                                <div style={{fontSize:10,color:tsu,flexShrink:0,marginTop:2,textAlign:'right' as const,lineHeight:1.3}}>
-                                  {new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                                <div style={{fontSize:10,flexShrink:0,marginTop:2,textAlign:'right' as const,lineHeight:1.35}}>
+                                  <div style={{fontWeight:700,color:ts}}>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+                                  <div style={{color:tsu,marginTop:1}}>{new Date(item.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
                                 </div>
                               </div>
                             )
