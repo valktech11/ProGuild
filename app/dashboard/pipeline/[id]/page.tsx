@@ -190,6 +190,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [isEditing,    setIsEditing]    = useState(false)
   const [contactOpen,  setContactOpen]  = useState(false)
   const [useSpine,     setUseSpine]     = useState(false)
+  const [suppOpen,     setSuppOpen]     = useState(false)  // expand the done Supplement stage back to the full assistant
   const [showPicker,   setShowPicker]   = useState(false)
   // Persistent info/warning popover anchored under the status dropdown (replaces
   // the transient toast for blocked/locked stage taps — stays until dismissed).
@@ -1546,10 +1547,33 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const gapVal = wf.gap || 0
                               const eTot = Number(est?.total) || 0
                               const cTot = Math.max(eTot - gapVal, 0)
+                              // Done + not expanded → one-line summary (like other done stages), re-openable
+                              if (cState === 'done' && !suppOpen) {
+                                const sLabel = rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'
+                                return (
+                                  <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
+                                    {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '12px 18px' : '11px 14px', flexWrap: 'wrap' as const }}>
+                                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' as const }}>
+                                        <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>Supplement</span>
+                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: tp }}>Supplement {sLabel}</span>
+                                        {gapVal > 0 && <span style={{ fontSize: T.fontSub, color: tsu }}>· potential gap {money(gapVal)}</span>}
+                                      </div>
+                                      <button onClick={() => setSuppOpen(true)} style={{ fontSize: T.fontSub, fontWeight: 700, color: BRAND.teal, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '5px 12px', cursor: 'pointer', flexShrink: 0 }}>Review</button>
+                                    </div>
+                                  </div>
+                                )
+                              }
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
                                   {gIcon(cState === 'done' ? '#15803D' : 'linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
                                   <div id="supplement-section" style={{ scrollMarginTop: 16 }}>
+                                    {cState === 'done' && (
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                                        <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#15803D', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>Supplement {rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'}</span>
+                                        <button onClick={() => setSuppOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: T.fontSub, fontWeight: 700, color: tsu, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '4px 11px', cursor: 'pointer' }}>Collapse <Svg size={12} stroke={tsu} sw={2.5}><polyline points="18 15 12 9 6 15" /></Svg></button>
+                                      </div>
+                                    )}
                                     {/* Gap payoff hero — the supplement intelligence (indigo = insight, distinct from approved-green) */}
                                     <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(129,140,248,0.28)' : '#C7D2FE'}`, background: dk ? 'rgba(79,70,229,0.10)' : '#EEF2FF', overflow: 'hidden', marginBottom: 12 }}>
                                       <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
