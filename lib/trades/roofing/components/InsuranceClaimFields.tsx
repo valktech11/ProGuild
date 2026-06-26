@@ -162,11 +162,13 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     }
   }
 
-  // Decision/phase buttons set claim_status directly (replaces the old 8-option dropdown).
+  // Decision/phase buttons set claim_status directly (replaces the old 8-option dropdown)
+  // and persist immediately — recording a decision IS the save, no separate click needed.
   function setStatus(v: string) {
     if (locked) return
     setSaved(false)
     setFields(f => ({ ...f, claim_status: v }))
+    void handleSave({ claim_status: v })
   }
 
   const handleToggle = useCallback(async () => {
@@ -184,9 +186,10 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     }).catch(() => {})
   }, [open, leadId, proId, onSaved, locked])
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (override?: Partial<InsuranceClaimData>) => {
+    const f = { ...fields, ...(override || {}) }
     setSaving(true); setError(null); setSaved(false)
-    const phone = fields.adjuster_phone.replace(/\D/g,'')
+    const phone = f.adjuster_phone.replace(/\D/g,'')
     if (phone.length > 0 && phone.length < 10) {
       setError('Adjuster phone must be 10 digits'); setSaving(false); return
     }
@@ -195,18 +198,18 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
         method:'PATCH', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           pro_id:               proId,
-          insurance_claim:      fields.insurance_claim,
-          insurance_company:    fields.insurance_company    || null,
-          claim_number:         fields.claim_number         || null,
-          adjuster_name:        fields.adjuster_name        || null,
-          adjuster_phone:       fields.adjuster_phone       || null,
-          adjuster_appointment: fields.adjuster_appointment || null,
-          claim_status:         fields.claim_status         || null,
-          approved_amount:      parseCurrency(fields.approved_amount) || null,
-          supplement_amount:    parseCurrency(fields.supplement_amount) || null,
-          deductible:           parseCurrency(fields.deductible) || null,
-          date_of_loss:         fields.date_of_loss         || null,
-          roof_install_date:    fields.roof_install_date    || null,
+          insurance_claim:      f.insurance_claim,
+          insurance_company:    f.insurance_company    || null,
+          claim_number:         f.claim_number         || null,
+          adjuster_name:        f.adjuster_name        || null,
+          adjuster_phone:       f.adjuster_phone       || null,
+          adjuster_appointment: f.adjuster_appointment || null,
+          claim_status:         f.claim_status         || null,
+          approved_amount:      parseCurrency(f.approved_amount) || null,
+          supplement_amount:    parseCurrency(f.supplement_amount) || null,
+          deductible:           parseCurrency(f.deductible) || null,
+          date_of_loss:         f.date_of_loss         || null,
+          roof_install_date:    f.roof_install_date    || null,
         }),
       })
       if (!res.ok) {
@@ -217,7 +220,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
       // ── Hook 1: Approved → auto-advance pipeline to insurance_approved ────
       // AWAIT these so onSaved (and its activity refresh) runs after events are written.
-      if (fields.claim_status === 'Approved') {
+      if (f.claim_status === 'Approved') {
         try {
           await fetch(`/api/leads/${leadId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -231,7 +234,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       }
 
       // ── Hook 2: Supplement Filed → log activity entry ─────────────────────
-      if (fields.claim_status === 'Supplement Filed') {
+      if (f.claim_status === 'Supplement Filed') {
         try {
           const sres = await fetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
           const d = await sres.json()
@@ -247,20 +250,20 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       }
 
       // ── Hook 3: Supplement Approved → log activity entry ──────────────────
-      if (fields.claim_status === 'Supplement Approved') {
+      if (f.claim_status === 'Supplement Approved') {
         try {
           await fetch(`/api/leads/${leadId}/events`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pro_id: proId, event_type: 'supplement_approved',
-              note: parseCurrency(fields.supplement_amount) > 0
-                ? `Supplement approved — additional $${parseCurrency(fields.supplement_amount).toLocaleString()}`
+              note: parseCurrency(f.supplement_amount) > 0
+                ? `Supplement approved — additional $${parseCurrency(f.supplement_amount).toLocaleString()}`
                 : 'Supplement approved' }),
           })
         } catch { /* non-fatal */ }
       }
 
       // Now that hooks (and their events) are committed, notify parent → triggers refresh.
-      onSaved(fields)
+      onSaved(f)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally { setSaving(false) }
@@ -343,12 +346,15 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
           </div>
           <div>
             <div style={{ fontSize:14, fontWeight:700, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.01em' }}>Insurance Claim</div>
-            <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>
-              {open && fields.insurance_company
-                ? `${fields.insurance_company}${fields.claim_number ? ` · #${fields.claim_number}` : ''}`
-                : open ? 'Fill in claim details below'
-                : 'Toggle to log insurance claim details'}
-            </div>
+            {open && fields.insurance_company ? (
+              <div style={{ fontSize:12.5, fontWeight:600, color: dk ? '#CBD5E1' : '#475569', marginTop:2 }}>
+                {fields.insurance_company}{fields.claim_number ? <> · <span style={{ fontWeight:800, color: dk ? '#F1F5F9' : NAVY }}>#{fields.claim_number}</span></> : null}
+              </div>
+            ) : (
+              <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>
+                {open ? 'Fill in claim details below' : 'Toggle to log insurance claim details'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -719,16 +725,16 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   Saved
                 </span>
               )}
-              <button onClick={handleSave} disabled={saving} style={{
+              <button onClick={()=>handleSave()} disabled={saving} style={{
                 padding:'9px 22px', borderRadius:9, border:'none', cursor: saving ? 'wait' : 'pointer',
-                background: saving ? '#94A3B8' : `linear-gradient(135deg,${TEAL},${TEAL_L})`,
+                background: saving ? '#94A3B8' : TEAL,
                 color:'#fff', fontSize:13, fontWeight:700,
-                boxShadow: saving ? 'none' : '0 4px 12px rgba(15,118,110,0.35)',
+                boxShadow: saving ? 'none' : '0 2px 8px rgba(15,118,110,0.25)',
                 display:'flex', alignItems:'center', gap:7, transition:'all 0.15s',
               }}>
                 {saving
                   ? <><div style={{ width:12, height:12, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.35)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> Saving…</>
-                  : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Save Insurance Fields</>
+                  : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Save claim details</>
                 }
               </button>
             </div>
