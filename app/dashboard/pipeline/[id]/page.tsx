@@ -244,6 +244,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number;total:number}|null>(null)
   const [creatingEst, setCreatingEst] = useState(false)
   const [photoCount, setPhotoCount]   = useState(0)
+  const [photos, setPhotos]           = useState<any[]>([])
+  const [photosModalOpen, setPhotosModalOpen] = useState(false)
   // Bumped on Reopen-claim to force the InsuranceClaimFields component to remount
   // and re-read the now-reset status (its internal state is guarded against
   // re-sync once the user starts editing, so a parent status change alone won't
@@ -282,6 +284,22 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   const tradePlugin = getTradeConfig(session?.trade_slug)
   const isRoofing = isRoofing_guard(tradePlugin)
+  const refetchPhotos = useCallback(() => {
+    if (!session || !lead || !isRoofing) return
+    fetch(`/api/leads/${lead.id}/photos?pro_id=${session.id}`).then(r=>r.json()).then(d => {
+      const arr = Array.isArray(d?.photos) ? d.photos : []
+      setPhotos(arr); setPhotoCount(arr.length)
+    }).catch(()=>{})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, lead, isRoofing])
+  useEffect(() => {
+    if (!photosModalOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPhotosModalOpen(false) }
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+  }, [photosModalOpen])
   // isPro: hardcoded true until Stripe plan enforcement goes live
   const isPro = true
 
@@ -377,12 +395,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     fetch(`/api/invoices?pro_id=${session.id}&lead_id=${lead.id}`).then(r=>r.json()).then(d => {
       const i=(d.invoices||[]).find((x:any)=>x.status!=='void'); if(i) setInv(i)
     }).catch(()=>{})
-    // Eagerly fetch photo count so Photos tab label shows correct number on first render
-    if (isRoofing) {
-      fetch(`/api/leads/${lead.id}/photos?pro_id=${session.id}`).then(r=>r.json()).then(d => {
-        if (d?.photos?.length) setPhotoCount(d.photos.length)
-      }).catch(()=>{})
-    }
+    // Eagerly fetch photos so the rail card thumbnails + count show on first render
+    if (isRoofing) refetchPhotos()
   }, [session, lead])
 
   // When returning from ProMeasure with measurements applied:
@@ -1067,7 +1081,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
           const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
             {key:'details', label: useSpine ? 'Contact' : 'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
-            ...(isRoofing?[{key:'photos' as Tab, label:photoCount>0?`Photos (${photoCount})`:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
+            ...((isRoofing && (!useSpine || !isWide))?[{key:'photos' as Tab, label:photoCount>0?`Photos (${photoCount})`:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
             {key:'estimate' as Tab,label:estList.length>0?`Estimate (${estList.length})`:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>},
             ...((!useSpine||!isWide)?[{key:'activity' as Tab,label:acts.length>0?`Activity (${acts.length})`:'Activity', icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>}]:[]),
           ]
@@ -2337,7 +2351,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     )}
 
                     {/* Photos tab */}
-                    {tab==='photos'&&isRoofing&&(
+                    {tab==='photos'&&isRoofing&&(!useSpine||!isWide)&&(
                       <div style={{padding:'18px 20px'}}>
                         <JobPhotoLog leadId={lead.id} proId={session!.id} isRoofing={isRoofing} darkMode={dk} onPhotosLoaded={(n:number)=>setPhotoCount(n)}/>
                       </div>
@@ -2564,6 +2578,31 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                     </div>
                     )}
+                    {/* Photos — glanceable thumbnails in the rail; tap opens the full modal */}
+                    {useSpine && isWide && isRoofing && (
+                      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                        <button onClick={()=>setPhotosModalOpen(true)} style={{width:'100%',padding:'14px 16px 10px',display:'flex',alignItems:'center',gap:7,background:'none',border:'none',borderBottom:`1px solid ${bdr}`,cursor:'pointer',textAlign:'left' as const}}>
+                          <Svg size={14} stroke={BRAND.teal}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Svg>
+                          <span style={{fontSize:14,fontWeight:700,color:tp}}>Photos{photoCount>0?` (${photoCount})`:''}</span>
+                          <span style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal}}>{photoCount>0?'View all':'+ Add'}</span>
+                        </button>
+                        <div onClick={()=>setPhotosModalOpen(true)} style={{padding:12,cursor:'pointer'}}>
+                          {photoCount>0 ? (
+                            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6}}>
+                              {photos.slice(0,4).map((ph,i)=>(
+                                <div key={i} style={{position:'relative',aspectRatio:'1 / 1',borderRadius:8,overflow:'hidden',background:dk?'#1E293B':'#F1F5F9',border:`1px solid ${bdr}`}}>
+                                  <img src={ph.url} alt="" loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover' as const,display:'block'}}/>
+                                  {i===3 && photoCount>4 && <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:14,fontWeight:800}}>+{photoCount-4}</div>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{padding:'16px 8px',textAlign:'center' as const,color:tsu,fontSize:12.5,border:`1px dashed ${bdr}`,borderRadius:8}}>No photos yet — tap to add</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Key Dates — pulled out of the buried Details tab into the rail (spine) */}
                     {useSpine && isWide && (
                       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
@@ -2630,6 +2669,28 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           )
         })()}
       </div>
+
+      {/* Photos modal — full grid + upload/delete over the page; reuses JobPhotoLog */}
+      {photosModalOpen && lead && session && (
+        <div onClick={()=>{setPhotosModalOpen(false);refetchPhotos()}}
+          style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(15,23,42,0.6)',backdropFilter:'blur(2px)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:isWide?'40px 24px':'16px',overflowY:'auto'}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{width:'100%',maxWidth:920,background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,boxShadow:'0 24px 60px -20px rgba(0,0,0,0.5)',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'14px 18px',borderBottom:`1px solid ${bdr}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:9}}>
+                <Svg size={16} stroke={BRAND.teal}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Svg>
+                <span style={{fontSize:16,fontWeight:800,color:tp}}>Photos{photoCount>0?` · ${photoCount}`:''}</span>
+              </div>
+              <button onClick={()=>{setPhotosModalOpen(false);refetchPhotos()}} style={{width:32,height:32,borderRadius:8,border:`1px solid ${bdr}`,background:'transparent',color:ts,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <Svg size={16} stroke={ts} sw={2.2}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Svg>
+              </button>
+            </div>
+            <div style={{padding:'18px 20px',maxHeight:'calc(100vh - 160px)',overflowY:'auto'}}>
+              <JobPhotoLog leadId={lead.id} proId={session.id} isRoofing={isRoofing} darkMode={dk} onPhotosLoaded={(n:number)=>setPhotoCount(n)}/>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reason sheet — Lost or Unqualified (target from the plan prompt) */}
       {showLostSheet && lead && (() => {
