@@ -1122,7 +1122,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <span style={{display:'inline-flex',alignItems:'center',gap:10,fontSize:13.5,color:tsu,fontWeight:600,flexWrap:'wrap' as const}}>
                                   {heroMeta.map((x,i)=>(
                                     <span key={i} style={{display:'inline-flex',alignItems:'center',gap:10}}>
-                                      {i>0 && <span style={{width:1,height:12,background:bdr,display:'inline-block'}}/>}
+                                      {i>0 && <span style={{width:1,height:13,background:dk?'#475569':'#94A3B8',display:'inline-block',borderRadius:1}}/>}
                                       {x}
                                     </span>
                                   ))}
@@ -1348,7 +1348,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <span style={{width:1,height:22,background:bdr,flexShrink:0}}/>
                         <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:T.fontSub,color:tsu,whiteSpace:'nowrap'}}>
                           <Svg size={14} stroke={tsu}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
-                          Entered {new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                          Entered <span style={{fontWeight:700,color:ts}}>{new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
                         </span>
                       </div>
 
@@ -2511,7 +2511,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       )
                     })()}
 
-                    {/* Insights — horizontal cards */}
+                    {/* Insights — retired under the spine (heuristic/duplicate cards); kept on flag-off */}
+                    {!useSpine && (
                     <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
                       <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
                         <Svg size={14} stroke="#1D4ED8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>
@@ -2538,6 +2539,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         })()}
                       </div>
                     </div>
+                    )}
                     {/* Key Dates — pulled out of the buried Details tab into the rail (spine) */}
                     {useSpine && isWide && (
                       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
@@ -2584,7 +2586,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                                 <div style={{fontSize:10,flexShrink:0,marginTop:2,textAlign:'right' as const,lineHeight:1.35}}>
                                   <div style={{fontWeight:700,color:ts}}>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
-                                  <div style={{color:tsu,marginTop:1}}>{new Date(item.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+                                  <div style={{color:ts,fontWeight:600,marginTop:1}}>{new Date(item.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
                                 </div>
                               </div>
                             )
