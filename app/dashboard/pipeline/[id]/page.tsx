@@ -215,8 +215,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [tab,          setTab]          = useState<Tab>('details')
   const [isEditing,    setIsEditing]    = useState(false)
   const [contactOpen,  setContactOpen]  = useState(false)
-  const [useSpine,     setUseSpine]     = useState(false)
+  const [useSpine,     setUseSpine]     = useState(true)
   const [suppOpen,     setSuppOpen]     = useState(false)  // expand the done Supplement stage back to the full assistant
+  const [tipDismissed, setTipDismissed] = useState<string | null>(null)  // stage whose coaching tip the user dismissed (session-scoped)
   const [showPicker,   setShowPicker]   = useState(false)
   // Persistent info/warning popover anchored under the status dropdown (replaces
   // the transient toast for blocked/locked stage taps — stays until dismissed).
@@ -597,9 +598,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       setQbError(isAbort?'Timed out — try again':'Network error')
     }finally{setQbGenerating(false)}
   }
-  // ── Stage-spine preview flag (?spine=1) — off by default, live page unchanged ──
+  // ── Stage-spine layout — now the default. ?spine=0 falls back to the old layout (rollback/compare) ──
   useEffect(() => {
-    if (typeof window !== 'undefined') setUseSpine(new URLSearchParams(window.location.search).get('spine') === '1')
+    if (typeof window !== 'undefined') setUseSpine(new URLSearchParams(window.location.search).get('spine') !== '0')
   }, [])
   // ── Address autocomplete for edit form ──────────────────────────────────
   useEffect(() => {
@@ -1404,14 +1405,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         </span>
                       </div>
 
-                      {/* Stage tip — amber card */}
-                      {TIPS[stage]&&(
+                      {/* Stage tip — amber card, dismissible per stage */}
+                      {TIPS[stage] && tipDismissed !== stage && (
                         <div style={{marginTop:14,padding:'10px 14px',borderRadius:T.radMd,background:'#FFFBEB',border:'1px solid #FDE68A',display:'flex',alignItems:'flex-start',gap:8}}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,marginTop:1}}>
                             <path d="M12 3a6 6 0 00-6 6c0 3 1.5 5 3 7h6c1.5-2 3-4 3-7a6 6 0 00-6-6z"/>
                             <line x1="8.5" y1="19" x2="15.5" y2="19"/><line x1="9" y1="22" x2="15" y2="22"/>
                           </svg>
-                          <span style={{fontSize:12,fontWeight:500,color:'#92400E',lineHeight:1.5}}>{TIPS[stage]}</span>
+                          <span style={{fontSize:12,fontWeight:500,color:'#92400E',lineHeight:1.5,flex:1}}>{TIPS[stage]}</span>
+                          <button onClick={()=>setTipDismissed(stage)} aria-label="Dismiss tip" style={{flexShrink:0,marginTop:-1,width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',background:'transparent',border:'none',cursor:'pointer',color:'#B45309',opacity:0.7,borderRadius:5}}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
                         </div>
                       )}
                       {isTerminal&&(
