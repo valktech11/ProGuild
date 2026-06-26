@@ -340,7 +340,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     }}>
 
       {/* ── Header row ── */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', cursor: locked ? 'default' : 'pointer', background: open ? (dk ? 'rgba(15,118,110,0.1)' : 'rgba(15,118,110,0.04)') : 'transparent' }}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', cursor: locked ? 'default' : 'pointer', background: open ? (dk ? 'rgba(15,118,110,0.14)' : 'rgba(15,118,110,0.06)') : 'transparent' }}
         onClick={handleToggle}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           {/* Icon box */}
@@ -373,7 +373,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
                 {decisionLabel}
               </span>
-              {!locked && <button onClick={()=>setStatus('Filed')} style={{ fontSize:12, fontWeight:600, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer', textDecoration:'underline' }}>change</button>}
+              {!locked && <button onClick={()=>setStatus('Filed')} style={{ display:'inline-flex', alignItems:'center', fontSize:11.5, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#CBD5E1'}`, borderRadius:7, padding:'4px 11px', cursor:'pointer' }}>change</button>}
             </div>
           ) : (!open && fields.insurance_company && (
             <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:100, background:activeStatus.bg, color:activeStatus.color, border:`1px solid ${activeStatus.color}25` }}>
@@ -408,7 +408,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
             {/* Claim details collapse to a summary line once filled — keeps the panel shallow */}
             {!showFields && (
-              <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'10px 0', borderBottom:`1px solid ${dk?'#334155':'#EEF1F4'}`, flexWrap:'wrap' as const }}>
+              <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'4px 0 2px', flexWrap:'wrap' as const }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:13.5, fontWeight:700, color:dk?'#F1F5F9':NAVY }}>
                     {fields.date_of_loss ? <>Date of loss · {fields.date_of_loss}</> : 'Claim details'}
@@ -703,12 +703,12 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   {!locked && fields.claim_status !== 'Closed' && (
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
                       {fields.claim_status === 'Approved' && (
-                        <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:'#D97706', background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>File supplement →</button>
+                        <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>File supplement →</button>
                       )}
                       {fields.claim_status === 'Supplement Filed' && (
-                        <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:'#0891B2', background:'#ECFEFF', border:'1px solid #A5F3FC', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Supplement approved →</button>
+                        <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Supplement approved →</button>
                       )}
-                      <button onClick={()=>setStatus('Closed')} style={{ fontSize:12, fontWeight:700, color:'#374151', background:'#F3F4F6', border:'1px solid #D1D5DB', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
+                      <button onClick={()=>setStatus('Closed')} style={{ fontSize:12, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
                     </div>
                   )}
                 </>
@@ -731,21 +731,17 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             </div>
           ) : (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:10, marginTop:18 }}>
-              {saved && (
-                <span style={{ fontSize:12, color:'#059669', fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Saved
-                </span>
-              )}
               <button onClick={()=>handleSave()} disabled={saving} style={{
                 padding:'9px 22px', borderRadius:9, border:'none', cursor: saving ? 'wait' : 'pointer',
-                background: saving ? '#94A3B8' : TEAL,
+                background: saving ? '#94A3B8' : (saved ? '#059669' : TEAL),
                 color:'#fff', fontSize:13, fontWeight:700,
-                boxShadow: saving ? 'none' : '0 2px 8px rgba(15,118,110,0.25)',
+                boxShadow: saving ? 'none' : `0 2px 8px ${saved ? 'rgba(5,150,105,0.25)' : 'rgba(15,118,110,0.25)'}`,
                 display:'flex', alignItems:'center', gap:7, transition:'all 0.15s',
               }}>
                 {saving
                   ? <><div style={{ width:12, height:12, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.35)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> Saving…</>
+                  : saved
+                  ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Saved</>
                   : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Save claim details</>
                 }
               </button>

@@ -1537,6 +1537,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         {na?.sub && <span style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.8)' }}>· {na.sub}</span>}
                                       </div>
                                     )}
+                                    {cState === 'done' && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6, paddingLeft: 2 }}>
+                                        <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#15803D', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Carrier Claim</span>
+                                        <span style={{ fontSize: T.fontSub, color: tsu }}>· decision recorded</span>
+                                      </div>
+                                    )}
                                     {claimFieldsEl}
                                   </div>
                                 </div>
