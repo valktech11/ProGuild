@@ -1633,7 +1633,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
                                         <div style={{ minWidth: 0 }}>
                                           <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: dk ? '#A5B4FC' : '#4338CA', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Potential supplement gap</div>
-                                          <div style={{ fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }}>${gapVal.toLocaleString()}</div>
+                                          <CountUpMoney value={gapVal} fmt={money} style={{ display: 'block', fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }} />
                                         </div>
                                         <div style={{ display: 'flex', gap: 22 }}>
                                           <div>
@@ -1774,7 +1774,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           {nextKey === 'send' && na && (
                             <div style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: isWide ? 'center' : 'start' }}>
                               {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 19 : 16} stroke="#fff" sw={2}>{na.icon}</Svg>)}
-                              <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '11px 18px' : '11px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 10, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
+                              <div className="pg-cta" style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '11px 18px' : '11px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 10, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
                                 <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: '#5EEAD4', opacity: 0.9 }} />
                                 <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
