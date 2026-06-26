@@ -218,6 +218,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [useSpine,     setUseSpine]     = useState(true)
   const [suppOpen,     setSuppOpen]     = useState(false)  // expand the done Supplement stage back to the full assistant
   const [tipDismissed, setTipDismissed] = useState<string | null>(null)  // stage whose coaching tip the user dismissed (session-scoped)
+  // Step-completion pop: track which stage keys were done on the previous render
+  // so we can detect the exact frame a key transitions done→newly-done.
+  const prevDoneKeysRef = useRef<Set<string>>(new Set())
+  const [poppedKeys,   setPoppedKeys]   = useState<Set<string>>(new Set())
   const [showPicker,   setShowPicker]   = useState(false)
   // Persistent info/warning popover anchored under the status dropdown (replaces
   // the transient toast for blocked/locked stage taps — stays until dismissed).
@@ -1540,6 +1544,15 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       summary: wf.gap != null ? `Potential gap ${money(wf.gap)} — review items` : 'Review supplement items',
                     })
                     const firstActive = stages.findIndex(s => !s.done)
+
+                    // Step-completion pop: compare current done keys to previous render
+                    const currentDoneKeys = new Set(stages.filter(s => s.done).map(s => s.key))
+                    const newlyDone = stages.filter(s => s.done && !prevDoneKeysRef.current.has(s.key)).map(s => s.key)
+                    if (newlyDone.length > 0) {
+                      setPoppedKeys(prev => { const n = new Set(prev); newlyDone.forEach(k => n.add(k)); return n })
+                      setTimeout(() => setPoppedKeys(prev => { const n = new Set(prev); newlyDone.forEach(k => n.delete(k)); return n }), 600)
+                    }
+                    prevDoneKeysRef.current = currentDoneKeys
                     const goStage = (k: string) => {
                       if (k === 'estimate') { goEstimate(); return }
                       setTab('details')
@@ -1561,8 +1574,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', borderRadius: T.radSm, border: `1px solid ${bdr}`, background: card, color: BRAND.teal, fontSize: T.fontSub, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{label}</button>
                     )
                     const GW = isWide ? 40 : 32
-                    const gIcon = (bg: string, content: React.ReactNode, ring?: string) => (
-                      <div className={typeof bg === 'string' && bg.includes('0F766E') ? 'pg-pulse' : undefined} style={{ width: GW, height: GW, borderRadius: '50%', background: bg, border: ring ? `2px solid ${ring}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{content}</div>
+                    const gIcon = (bg: string, content: React.ReactNode, ring?: string, stageKey?: string) => (
+                      <div className={[
+                        typeof bg === 'string' && bg.includes('0F766E') ? 'pg-pulse' : '',
+                        stageKey && poppedKeys.has(stageKey) ? 'pg-pop' : '',
+                      ].filter(Boolean).join(' ') || undefined}
+                      style={{ width: GW, height: GW, borderRadius: '50%', background: bg, border: ring ? `2px solid ${ring}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{content}</div>
                     )
                     const statusPill = (status?: string) => {
                       const st = (status || 'draft').toLowerCase()
@@ -1581,7 +1598,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const cState = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
-                                  {gIcon(cState === 'done' ? '#15803D' : cState === 'active' ? 'linear-gradient(135deg,#0F766E,#0C5F59)' : (dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9'), <Svg size={isWide ? 17 : 15} stroke={cState === 'upcoming' ? tsu : '#fff'} sw={2}>{ICONS.carrier}</Svg>, cState === 'upcoming' ? bdr : undefined)}
+                                  {gIcon(cState === 'done' ? '#15803D' : cState === 'active' ? 'linear-gradient(135deg,#0F766E,#0C5F59)' : (dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9'), <Svg size={isWide ? 17 : 15} stroke={cState === 'upcoming' ? tsu : '#fff'} sw={2}>{ICONS.carrier}</Svg>, cState === 'upcoming' ? bdr : undefined, 'carrier')}
                                   <div id="insurance-claim-section" style={{ scrollMarginTop: 16 }}>
                                     {cState === 'active' && (
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, padding: '10px 16px', borderRadius: T.radSm, background: 'linear-gradient(135deg,#0F766E,#0C5F59)', flexWrap: 'wrap' as const }}>
@@ -1607,7 +1624,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 const sLabel = rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'
                                 return (
                                   <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
-                                    {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
+                                    {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp')}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '13px 18px' : '11px 14px', flexWrap: 'wrap' as const }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
                                         <span style={{ fontSize: isWide ? T.fontHero : T.fontHeroMobile, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.01em' }}>Supplement {sLabel}</span>
@@ -1620,7 +1637,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               }
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
-                                  {gIcon(cState === 'done' ? '#15803D' : 'linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
+                                  {gIcon(cState === 'done' ? '#15803D' : 'linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp')}
                                   <div id="supplement-section" className={suppOpen ? 'pg-reveal' : undefined} style={{ scrollMarginTop: 16 }}>
                                     {cState === 'done' && (
                                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
@@ -1663,7 +1680,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const aCta = (s.key === 'estimate' && !isClaim2) ? 'Price the job' : (na?.cta || 'Open')
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: isWide ? 'center' : 'start' }}>
-                                  {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 19 : 16} stroke="#fff" sw={2}>{ICONS[s.key] || ICONS.measure}</Svg>)}
+                                  {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 19 : 16} stroke="#fff" sw={2}>{ICONS[s.key] || ICONS.measure}</Svg>, undefined, s.key)}
                                   <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '12px 18px' : '12px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 12, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
                                     <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: '#5EEAD4', opacity: 0.9 }} />
                                     <div style={{ position: 'absolute', left: -30, top: -40, width: 170, height: 170, borderRadius: '50%', background: 'radial-gradient(circle, rgba(94,234,212,0.18), transparent 65%)', pointerEvents: 'none' }} />
@@ -1691,7 +1708,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const sumInline = s.key === 'carrier' || s.key === 'supp'
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
-                                  {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2.6}><polyline points="20 6 9 17 4 12" /></Svg>)}
+                                  {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2.6}><polyline points="20 6 9 17 4 12" /></Svg>, undefined, s.key)}
                                   <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '11px 16px' : '11px 14px', boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const, minWidth: 0 }}>
