@@ -2167,35 +2167,28 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             })()}
 
                             {/* Contact & details — reference, sits below the work */}
-                            <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
-                              {/* collapsible header — title + glance summary + Edit + chevron */}
-                              <button onClick={()=>setContactOpen(o=>!o)} style={{width:'100%',display:'flex',alignItems:'center',gap:10,background:'none',border:'none',padding:0,cursor:'pointer',textAlign:'left' as const}}>
+                            <div style={{marginTop:useSpine?0:16,paddingTop:useSpine?0:16,borderTop:useSpine?'none':`1px solid ${bdr}`}}>
+                              <div style={{display:'flex',alignItems:'center',gap:10}}>
                                 <span style={{fontSize:11,fontWeight:700,color:ts,textTransform:'uppercase' as const,letterSpacing:'0.07em',flexShrink:0}}>Contact &amp; Details</span>
-                                {!contactOpen && (
-                                  <span style={{flex:1,minWidth:0,fontSize:13,color:tsu,whiteSpace:'nowrap' as const,overflow:'hidden',textOverflow:'ellipsis'}}>
-                                    {[fmtPhone(lead.contact_phone),lead.contact_email,(lead.lead_source||'').replace(/_/g,' ')].filter(Boolean).join('  ·  ')}
-                                  </span>
-                                )}
-                                <span style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:8,flexShrink:0}}>
-                                  <span onClick={(e)=>{e.stopPropagation();startEdit()}} style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:ts,fontSize:12.5,fontWeight:600}}>
-                                    <Svg size={12} stroke={ts}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
-                                    Edit
-                                  </span>
-                                  <Svg size={16} stroke={tsu}>{contactOpen?<polyline points="18 15 12 9 6 15"/>:<polyline points="6 9 12 15 18 9"/>}</Svg>
-                                </span>
-                              </button>
-                              {contactOpen && (
+                                <button onClick={()=>startEdit()} style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:7,border:`1px solid ${BRAND.teal}40`,background:'transparent',color:BRAND.teal,fontSize:12.5,fontWeight:700,cursor:'pointer',flexShrink:0}}>
+                                  <Svg size={12} stroke={BRAND.teal}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
+                                  Edit details
+                                </button>
+                              </div>
                               <div style={{marginTop:10,display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:1,background:bdr,border:`1px solid ${bdr}`,borderRadius:T.radMd,overflow:'hidden'}}>
                                 {([
                                   {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
                                   {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
                                   {label:'Address',  color:'#0F766E', icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:<span style={{display:'flex',flexDirection:'column',gap:3}}><span>{(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—'}</span>{!lead.client_id&&lead.contact_name&&<button onClick={async(e)=>{e.stopPropagation();if(!session)return;const r=await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,full_name:lead.contact_name,phone:lead.contact_phone||null,email:lead.contact_email||null,address_line1:((lead as any).property_address||'').split(',')[0]?.trim()||null,city:lead.contact_city||null,state:lead.contact_state||null})});const d=await r.json();if(d.client?.id){await fetch('/api/leads/'+lead.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,client_id:d.client.id})});setLead(l=>l?{...l,client_id:d.client.id}:l);addToast('Saved as property','success')}}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>+ Save as Property</button>}{lead.client_id&&<button onClick={e=>{e.stopPropagation();router.push('/dashboard/clients/'+lead.client_id)}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>View Property →</button>}</span>, copy:null},
                                   {label:'Source',   color:'#64748B', icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
+                                  // Inspection / Job date / Follow-up move to the rail's Key Dates card under the spine (kept here on flag-off or narrow)
+                                  ...(!(useSpine && isWide) ? [
                                   {label:'Inspection',color:'#4F46E5', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></>, val:fmt((lead as any).inspection_date), copy:null},
                                   {label:'Job Date', color:'#64748B', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>, val:fmt(lead.scheduled_date), copy:null},
                                   {label:'Follow-up',color:'#64748B', icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, val:lead.follow_up_date
                                     ?<span style={{display:'flex',alignItems:'center',gap:5}}>{fmt(lead.follow_up_date)}{isOverdue(lead.follow_up_date)&&<span style={{fontSize:11,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:600}}>Overdue</span>}</span>
                                     :'—', copy:null},
+                                  ] : []),
                                 ] as {label:string;color:string;icon:React.ReactNode;val:React.ReactNode;copy:string|null}[]).map((cell,ci)=>(
                                   <div key={cell.label} style={{padding:'10px 13px',background:card,display:'flex',alignItems:'center',gap:11}}>
                                     {/* Icon circle */}
@@ -2212,7 +2205,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   </div>
                                 ))}
                               </div>
-                              )}
                             </div>
 
                             {/* Notes */}
@@ -2553,6 +2545,32 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         })()}
                       </div>
                     </div>
+                    {/* Key Dates — pulled out of the buried Details tab into the rail (spine) */}
+                    {useSpine && isWide && (
+                      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                        <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
+                          <Svg size={14} stroke="#4F46E5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                          <span style={{fontSize:14,fontWeight:700,color:tp}}>Key Dates</span>
+                          <button onClick={()=>{setTab('details');startEdit()}} style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal,background:'transparent',border:'none',cursor:'pointer'}}>Edit</button>
+                        </div>
+                        <div style={{padding:'2px 16px 10px'}}>
+                          {([
+                            {label:'Inspection', val:fmt((lead as any).inspection_date), over:false},
+                            {label:'Job date',   val:fmt(lead.scheduled_date), over:false},
+                            {label:'Follow-up',  val:lead.follow_up_date?fmt(lead.follow_up_date):'—', over:!!(lead.follow_up_date&&isOverdue(lead.follow_up_date))},
+                          ]).map((d,i)=>(
+                            <div key={d.label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'10px 0',borderTop:i===0?'none':`1px solid ${bdr}`}}>
+                              <span style={{fontSize:12,fontWeight:600,color:ts}}>{d.label}</span>
+                              <span style={{display:'flex',alignItems:'center',gap:6}}>
+                                <span style={{fontSize:13,fontWeight:700,color: d.val==='—'?tsu:tp}}>{d.val}</span>
+                                {d.over && <span style={{fontSize:10,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:700}}>Overdue</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Recent Activity — relocated to the rail under the spine (replaces the Activity tab) */}
                     {useSpine && isWide && acts.length > 0 && (
                       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
