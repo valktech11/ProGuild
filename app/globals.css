@@ -74,6 +74,9 @@ th, thead td { color: #374151; font-weight: 600; }
   100% { background-position: -200% 0; }
 }
 
+/* Smooth reveal for expand/collapse panels (claim details, supplement assistant) */
+.pg-reveal { animation: fadeUp 0.2s ease-out both; }
+
 /* ── Page transition ────────────────────────────────────────────────────── */
 /* Smooth fade-in on every page mount */
 main, [data-page] {

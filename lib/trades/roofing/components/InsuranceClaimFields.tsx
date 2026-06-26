@@ -126,6 +126,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const [detailsOpen, setDetailsOpen] = useState(() => !(initial.insurance_company || initial.claim_number))  // fresh claim opens expanded; existing collapses to summary
   const [finEdit, setFinEdit] = useState(() => !(parseCurrency(initial.approved_amount ?? '') || parseCurrency(initial.supplement_amount ?? '') || parseCurrency(initial.deductible ?? '')))  // first entry → open; amounts present → collapsed summary
   const [saving, setSaving] = useState(false)
+  const [dirty,  setDirty]  = useState(false)   // gates the Save button — quiet until a field actually changes
   const [error,  setError]  = useState<string | null>(null)
   const [saved,  setSaved]  = useState(false)
 
@@ -156,6 +157,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       if (locked) return   // won/lost: claim record is frozen for audit
       setSaved(false)
+      setDirty(true)
       const val = key === 'adjuster_phone'
         ? formatPhone(e.target.value)
         : e.target.value
@@ -218,6 +220,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
         throw new Error((d as {error?: string}).error ?? `HTTP ${res.status}`)
       }
       setSaved(true)
+      setDirty(false)
 
       // ── Hook 1: Approved → auto-advance pipeline to insurance_approved ────
       // AWAIT these so onSaved (and its activity refresh) runs after events are written.
@@ -430,7 +433,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             )}
 
             {showFields && hasCoreDetails && !locked && (
-              <div style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div className="pg-reveal" style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <span style={{ fontSize:11.5, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk?'#E2E8F0':NAVY }}>Claim details</span>
                 <button onClick={()=>setDetailsOpen(false)} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'5px 11px', cursor:'pointer' }}>
                   Collapse
@@ -615,35 +618,30 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             )}
             </>)}
 
-            {/* ── Claim progress + carrier decision (phased) ── */}
+            {/* ── Claim progress (thin inline strip) + carrier decision ── */}
             <div style={{ gridColumn:'1 / -1', display:'flex', flexDirection:'column', gap:14, marginTop:6, paddingTop:18, borderTop:`1px solid ${dk ? '#334155' : '#E2E8F0'}` }}>
 
-              <div style={{ fontSize:11, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk ? '#94A3B8' : '#64748B' }}>Claim progress</div>
-
-              {/* Phase strip */}
-              <div style={{ display:'flex', alignItems:'flex-start' }}>
-                {PHASE_STEPS.map((label, i) => {
-                  const done       = !phase.denied && i < phase.index
-                  const active     = !phase.denied && i === phase.index
-                  const deniedStep = phase.denied && i === 2
-                  // Adjuster step is only truly "done" if an appointment was recorded;
-                  // otherwise it was bypassed (e.g. carrier approved without us logging it).
-                  const skipped    = i === 1 && done && !fields.adjuster_appointment
-                  const dot = deniedStep ? '#DC2626' : active ? TEAL : (done && !skipped) ? '#059669' : (dk ? '#334155' : '#CBD5E1')
-                  const txt = deniedStep ? '#DC2626' : active ? (dk ? '#5EEAD4' : TEAL) : skipped ? '#94A3B8' : done ? '#059669' : '#94A3B8'
-                  return (
-                    <div key={label} style={{ display:'flex', alignItems:'flex-start', flex: i < PHASE_STEPS.length - 1 ? 1 : '0 0 auto' }}>
-                      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, flexShrink:0 }}>
-                        <div style={{ width:12, height:12, borderRadius:'50%', boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}25` : 'none',
+              {/* Compact progress strip: dots + connectors on one line, only the current phase named */}
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <span style={{ fontSize:10, fontWeight:800, letterSpacing:'0.07em', textTransform:'uppercase' as const, color: dk ? '#94A3B8' : '#94A3B8', flexShrink:0 }}>Claim</span>
+                <div style={{ display:'flex', alignItems:'center', flex:1, minWidth:120 }}>
+                  {PHASE_STEPS.map((label, i) => {
+                    const done       = !phase.denied && i < phase.index
+                    const active     = !phase.denied && i === phase.index
+                    const deniedStep = phase.denied && i === 2
+                    // Adjuster only counts as done if an appointment was actually recorded (no fabricated progress)
+                    const skipped    = i === 1 && done && !fields.adjuster_appointment
+                    const dot = deniedStep ? '#DC2626' : active ? TEAL : (done && !skipped) ? '#059669' : (dk ? '#334155' : '#CBD5E1')
+                    return (
+                      <div key={label} style={{ display:'flex', alignItems:'center', flex: i < PHASE_STEPS.length - 1 ? 1 : '0 0 auto' }}>
+                        <div title={deniedStep ? 'Denied' : label} style={{ width:9, height:9, borderRadius:'50%', flexShrink:0, boxShadow: (active || deniedStep) ? `0 0 0 3px ${dot}25` : 'none',
                           ...(skipped ? { background: dk ? '#1E293B' : '#fff', border:`2px solid ${dk ? '#475569' : '#CBD5E1'}`, boxSizing:'border-box' as const } : { background: dot }) }}/>
-                        <span style={{ fontSize:11, fontWeight:700, color:txt, whiteSpace:'nowrap' as const }}>{deniedStep ? 'Denied' : label}</span>
+                        {i < PHASE_STEPS.length - 1 && <div style={{ flex:1, height:2, background: done ? '#059669' : (dk ? '#334155' : '#E2E8F0') }}/>}
                       </div>
-                      {i < PHASE_STEPS.length - 1 && (
-                        <div style={{ flex:1, height:2, marginTop:5, background: done ? '#059669' : (dk ? '#334155' : '#E2E8F0') }}/>
-                      )}
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+                <span style={{ fontSize:12, fontWeight:700, color: phase.denied ? '#DC2626' : (dk ? '#5EEAD4' : TEAL), flexShrink:0, whiteSpace:'nowrap' as const }}>{phase.denied ? 'Denied' : PHASE_STEPS[Math.min(phase.index, PHASE_STEPS.length - 1)]}</span>
               </div>
 
               {/* Contextual decision / financials */}
@@ -735,10 +733,10 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 Locked — this claim is part of the completed job record. Add a note for any updates.
               </div>
             </div>
-          ) : (
+          ) : (dirty || saved) ? (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:10, marginTop:12 }}>
-              <button onClick={()=>handleSave()} disabled={saving} style={{
-                padding:'9px 22px', borderRadius:9, border:'none', cursor: saving ? 'wait' : 'pointer',
+              <button onClick={()=>handleSave()} disabled={saving || !dirty} style={{
+                padding:'9px 22px', borderRadius:9, border:'none', cursor: saving ? 'wait' : (!dirty ? 'default' : 'pointer'),
                 background: saving ? '#94A3B8' : (saved ? '#059669' : TEAL),
                 color:'#fff', fontSize:13, fontWeight:700,
                 boxShadow: saving ? 'none' : `0 2px 8px ${saved ? 'rgba(5,150,105,0.25)' : 'rgba(15,118,110,0.25)'}`,
@@ -752,7 +750,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 }
               </button>
           </div>
-          )}
+          ) : null}
         </div>
       )}
       <style>{`@keyframes pg-spin{to{transform:rotate(360deg)}}`}</style>

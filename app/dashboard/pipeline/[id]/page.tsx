@@ -1617,7 +1617,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
                                   {gIcon(cState === 'done' ? '#15803D' : 'linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
-                                  <div id="supplement-section" style={{ scrollMarginTop: 16 }}>
+                                  <div id="supplement-section" className={suppOpen ? 'pg-reveal' : undefined} style={{ scrollMarginTop: 16 }}>
                                     {cState === 'done' && (
                                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
                                         <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#15803D', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>Supplement {rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'}</span>
