@@ -1061,14 +1061,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           // ── Identity ────────────────────────────────────────────────────
           const addr        = (lead as any).property_address as string|null|undefined
           const heroLabel   = addr ? addr.replace(/, USA$/,'') : capName(lead.contact_name)
-          const heroSub     = addr
-            ? [capName(lead.contact_name), lead.contact_phone?fmtPhone(lead.contact_phone):null].filter(Boolean).join(' · ')
-            : [lead.contact_phone?fmtPhone(lead.contact_phone):null, lead.contact_email||null].filter(Boolean).join(' · ')
+          const heroName    = addr ? capName(lead.contact_name) : ''
+          const heroSub     = [lead.contact_phone?fmtPhone(lead.contact_phone):null, lead.contact_email||null].filter(Boolean).join(' · ')
 
           const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
-            {key:'details', label: useSpine ? 'Details' : 'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
+            {key:'details', label: useSpine ? 'Contact' : 'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
             ...(isRoofing?[{key:'photos' as Tab, label:photoCount>0?`Photos (${photoCount})`:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
-            ...(!useSpine?[{key:'estimate' as Tab,label:estList.length>0?`Estimate (${estList.length})`:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>}]:[]),
+            {key:'estimate' as Tab,label:estList.length>0?`Estimate (${estList.length})`:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>},
             ...((!useSpine||!isWide)?[{key:'activity' as Tab,label:acts.length>0?`Activity (${acts.length})`:'Activity', icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>}]:[]),
           ]
 
@@ -1119,6 +1118,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <div style={{minWidth:0,flex:1,paddingTop:2}}>
                             <div style={{fontSize:28,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15,marginBottom:6}}>
                               {heroLabel}
+                              {heroName && <span style={{fontSize:17,fontWeight:600,color:tsu,marginLeft:11,letterSpacing:'-0.01em',whiteSpace:'nowrap'}}>· {heroName}</span>}
                             </div>
                             <div style={{fontSize:13,color:tsu,lineHeight:1.5}}>
                               {heroSub||'No contact info'}
@@ -1154,14 +1154,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0,flexWrap:'wrap',justifyContent:isWide?'flex-end':'flex-start',paddingLeft:isWide?0:66}}>
                           {lead.contact_phone&&(
                             <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
-                              style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:tp,fontSize:13,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap'}}>
-                              <Svg size={13} stroke={tp}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Svg>
+                              style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:BRAND.teal,fontSize:13,textDecoration:'none',fontWeight:700,whiteSpace:'nowrap'}}>
+                              <Svg size={13} stroke={BRAND.teal}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Svg>
                               Call
                             </a>
                           )}
                           <button onClick={shareStatus} title="Email homeowner their project status link"
-                            style={{display:'inline-flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,fontSize:13,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
-                            <Svg size={13} stroke={ts}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></Svg>
+                            style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            <Svg size={13} stroke={BRAND.teal}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></Svg>
                             Send Status
                           </button>
                         </div>
@@ -1552,12 +1552,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
                                   {gIcon(cState === 'done' ? '#15803D' : 'linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
                                   <div id="supplement-section" style={{ scrollMarginTop: 16 }}>
-                                    {/* Gap payoff hero — what the carrier paid vs the roofer's full scope */}
-                                    <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(252,211,77,0.25)' : '#FDE68A'}`, background: dk ? 'rgba(180,83,9,0.10)' : '#FFFBEB', overflow: 'hidden', marginBottom: 12 }}>
+                                    {/* Gap payoff hero — the supplement intelligence (indigo = insight, distinct from approved-green) */}
+                                    <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(129,140,248,0.28)' : '#C7D2FE'}`, background: dk ? 'rgba(79,70,229,0.10)' : '#EEF2FF', overflow: 'hidden', marginBottom: 12 }}>
                                       <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
                                         <div style={{ minWidth: 0 }}>
-                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#B45309', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Potential supplement gap</div>
-                                          <div style={{ fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: '#B45309', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }}>${gapVal.toLocaleString()}</div>
+                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: dk ? '#A5B4FC' : '#4338CA', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Potential supplement gap</div>
+                                          <div style={{ fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }}>${gapVal.toLocaleString()}</div>
                                         </div>
                                         <div style={{ display: 'flex', gap: 22 }}>
                                           <div>
@@ -1570,7 +1570,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           </div>
                                         </div>
                                       </div>
-                                      <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(252,211,77,0.2)' : '#FED7AA'}`, fontSize: T.fontSub, color: dk ? '#FBBF77' : '#92400E', lineHeight: 1.45 }}>
+                                      <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(129,140,248,0.22)' : '#C7D2FE'}`, fontSize: T.fontSub, color: dk ? '#C7D2FE' : '#4338CA', lineHeight: 1.45 }}>
                                         The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.
                                       </div>
                                     </div>
@@ -2330,7 +2330,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     )}
 
                     {/* Estimate tab */}
-                    {tab==='estimate'&&!useSpine&&(
+                    {tab==='estimate'&&(
                       <div style={{padding:'18px 20px'}}>
                         {estList.length>0?(
                           <div style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -2486,6 +2486,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     {/* Supplement gap — the wedge. Only once carrier responded AND estimate exceeds carrier scope. */}
                     {(()=>{
                       const rjd=(lead as any)?.roofing_job_data
+                      if(useSpine) return null  // spine's Supplement stage owns the gap inline — no rail duplicate
                       if(!isRoofing || !rjd?.insurance_claim) return null
                       const approved=Number(rjd?.approved_amount)||0
                       const supp=Number(rjd?.supplement_amount)||0
@@ -2559,8 +2560,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <Svg size={14} stroke={BRAND.teal}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></Svg>
                           <span style={{fontSize:14,fontWeight:700,color:tp}}>Recent Activity</span>
                         </div>
-                        <div style={{padding:'10px 16px 14px'}}>
-                          {acts.slice(0,7).map((item,i)=>{
+                        <div className="pg-actscroll" style={{padding:'10px 10px 12px 16px',maxHeight:380,overflowY:'auto'}}>
+                          {acts.map((item,i)=>{
                             const warn=(item as any).warn===true
                             const ic=warn?'#EF4444':item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='scheduled'?'#64748B':item.type==='payment_received'?'#16A34A':['quote','estimate','estimate_sent','estimate_viewed','estimate_approved','invoice_sent','invoice_viewed'].includes(item.type)?'#0F766E':BRAND.teal
                             return (
@@ -2576,10 +2577,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               </div>
                             )
                           })}
-                          {acts.length>7 && (
-                            <div style={{fontSize:11,color:tsu,marginTop:11,paddingTop:10,borderTop:`1px solid ${bdr}`}}>+{acts.length-7} earlier</div>
-                          )}
                         </div>
+                        <style>{`.pg-actscroll::-webkit-scrollbar{width:6px}.pg-actscroll::-webkit-scrollbar-thumb{background:${dk?'#334155':'#CBD5E1'};border-radius:3px}.pg-actscroll::-webkit-scrollbar-track{background:transparent}.pg-actscroll{scrollbar-width:thin;scrollbar-color:${dk?'#334155':'#CBD5E1'} transparent}`}</style>
                       </div>
                     )}
 
