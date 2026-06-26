@@ -340,17 +340,30 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     }}>
 
       {/* ── Header row ── */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', cursor: locked ? 'default' : 'pointer', background: open ? (dk ? 'rgba(15,118,110,0.14)' : 'rgba(15,118,110,0.06)') : 'transparent' }}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'13px 18px', cursor: locked ? 'default' : 'pointer', background:'transparent' }}
         onClick={handleToggle}>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          {/* Icon box */}
-          <div style={{ width:36, height:36, borderRadius:10, background: open ? `linear-gradient(135deg,${TEAL},${TEAL_L})` : (dk ? '#1E293B' : '#F0FDFA'), border: open ? 'none' : `1px solid ${dk ? '#334155' : 'rgba(15,118,110,0.2)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow: open ? '0 4px 12px rgba(15,118,110,0.35)' : 'none', transition:'all 0.2s' }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={open ? '#fff' : TEAL} strokeWidth="2" strokeLinecap="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-          </div>
-          <div>
-            <div style={{ fontSize:14, fontWeight:700, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.01em' }}>Insurance Claim</div>
+        <div style={{ display:'flex', alignItems:'center', gap: open ? 0 : 12, minWidth:0 }}>
+          {/* Shield only when off/collapsed — when on, the spine rail carries the identity */}
+          {!open && (
+            <div style={{ width:36, height:36, borderRadius:10, background: dk ? '#1E293B' : '#F0FDFA', border:`1px solid ${dk ? '#334155' : 'rgba(15,118,110,0.2)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+          )}
+          <div style={{ minWidth:0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' as const }}>
+              <span style={{ fontSize:14, fontWeight:700, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.01em' }}>Insurance Claim</span>
+              {decided && (
+                <span style={{ display:'inline-flex', alignItems:'center', gap:8 }} onClick={e=>e.stopPropagation()}>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11.5, fontWeight:800, padding:'4px 11px', borderRadius:100, background:activeStatus.bg, color:activeStatus.color, border:`1px solid ${activeStatus.color}30`, textTransform:'uppercase' as const, letterSpacing:'0.03em' }}>
+                    {fields.claim_status === 'Denied'
+                      ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    {decisionLabel}
+                  </span>
+                  {!locked && <button onClick={()=>setStatus('Filed')} style={{ display:'inline-flex', alignItems:'center', fontSize:11.5, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#CBD5E1'}`, borderRadius:7, padding:'4px 11px', cursor:'pointer' }}>change</button>}
+                </span>
+              )}
+            </div>
             {open && fields.insurance_company ? (
               <div style={{ fontSize:12.5, fontWeight:600, color: dk ? '#CBD5E1' : '#475569', marginTop:2 }}>
                 {fields.insurance_company}{fields.claim_number ? <> · <span style={{ fontWeight:800, color: dk ? '#F1F5F9' : NAVY }}>#{fields.claim_number}</span></> : null}
@@ -363,30 +376,11 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
           </div>
         </div>
 
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          {/* Decision status pill (+ change) — the decision lives here, top-right */}
-          {decided ? (
-            <div style={{ display:'flex', alignItems:'center', gap:8 }} onClick={e=>e.stopPropagation()}>
-              <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11.5, fontWeight:800, padding:'4px 11px', borderRadius:100, background:activeStatus.bg, color:activeStatus.color, border:`1px solid ${activeStatus.color}30`, textTransform:'uppercase' as const, letterSpacing:'0.03em' }}>
-                {fields.claim_status === 'Denied'
-                  ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={activeStatus.color} strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                {decisionLabel}
-              </span>
-              {!locked && <button onClick={()=>setStatus('Filed')} style={{ display:'inline-flex', alignItems:'center', fontSize:11.5, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#CBD5E1'}`, borderRadius:7, padding:'4px 11px', cursor:'pointer' }}>change</button>}
-            </div>
-          ) : (!open && fields.insurance_company && (
-            <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:100, background:activeStatus.bg, color:activeStatus.color, border:`1px solid ${activeStatus.color}25` }}>
-              {fields.claim_status}
-            </span>
-          ))}
-          {/* Toggle (locked on won/lost jobs to protect claim history) */}
+        {/* Toggle alone on the right */}
+        <div style={{ flexShrink:0 }}>
           {locked ? (
-            <div title="Insurance type is locked on completed jobs"
-              style={{ display:'flex', alignItems:'center', gap:6, opacity:0.55 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#64748B'} strokeWidth="2" strokeLinecap="round">
-                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
+            <div title="Insurance type is locked on completed jobs" style={{ display:'flex', alignItems:'center', gap:6, opacity:0.55 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={dk ? '#94A3B8' : '#64748B'} strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               <div style={{ width:44, height:24, borderRadius:12, background: open ? TEAL : (dk ? '#334155' : '#CBD5E1'), position:'relative', flexShrink:0 }}>
                 <div style={{ position:'absolute', width:18, height:18, borderRadius:'50%', background:'#fff', top:3, left: open ? 23 : 3, boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
               </div>
@@ -401,7 +395,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
       {/* ── Fields ── */}
       {open && (
-        <div style={{ padding:'0 20px 20px' }}>
+        <div style={{ padding:'0 18px 14px' }}>
           <div style={{ height:1, background: dk ? '#334155' : 'rgba(15,118,110,0.1)', marginBottom:20 }}/>
 
           <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr':'1fr', gap:14 }}>
@@ -703,10 +697,10 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   {!locked && fields.claim_status !== 'Closed' && (
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
                       {fields.claim_status === 'Approved' && (
-                        <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>File supplement →</button>
+                        <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>File supplement</button>
                       )}
                       {fields.claim_status === 'Supplement Filed' && (
-                        <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Supplement approved →</button>
+                        <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Supplement approved</button>
                       )}
                       <button onClick={()=>setStatus('Closed')} style={{ fontSize:12, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
                     </div>
@@ -730,7 +724,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
               </div>
             </div>
           ) : (
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:10, marginTop:18 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:10, marginTop:12 }}>
               <button onClick={()=>handleSave()} disabled={saving} style={{
                 padding:'9px 22px', borderRadius:9, border:'none', cursor: saving ? 'wait' : 'pointer',
                 background: saving ? '#94A3B8' : (saved ? '#059669' : TEAL),
