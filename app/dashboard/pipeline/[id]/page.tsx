@@ -1519,7 +1519,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const sBtn = (label: string, onClick: () => void) => (
                       <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', borderRadius: T.radSm, border: `1px solid ${bdr}`, background: card, color: BRAND.teal, fontSize: T.fontSub, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{label}</button>
                     )
-                    const GW = isWide ? 38 : 30
+                    const GW = isWide ? 40 : 32
                     const gIcon = (bg: string, content: React.ReactNode, ring?: string) => (
                       <div style={{ width: GW, height: GW, borderRadius: '50%', background: bg, border: ring ? `2px solid ${ring}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{content}</div>
                     )
@@ -1532,7 +1532,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     return (
                       <div style={{ position: 'relative', marginBottom: 12 }}>
                         {/* one continuous path — upcoming stages read as 'ahead', not shut */}
-                        <div style={{ position: 'absolute', left: isWide ? 18 : 14, top: 30, bottom: 30, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
+                        <div style={{ position: 'absolute', left: isWide ? 19 : 15, top: 30, bottom: 30, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, position: 'relative', zIndex: 1 }}>
                           {stages.map((s, i) => {
                             // Carrier stage owns the claim form inline (re-homed InsuranceClaimFields, kept whole)
@@ -1654,7 +1654,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '11px 16px' : '11px 14px', boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const, minWidth: 0 }}>
-                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.05em', whiteSpace: 'nowrap' as const }}>{s.label}</span>
+                                        {!estInline && <span style={{ fontSize: T.fontSub, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.05em', whiteSpace: 'nowrap' as const }}>{s.label}</span>}
                                         {estInline && (
                                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
                                             <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{money(Number(est?.total) || 0)}</span>
@@ -1682,11 +1682,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Roof size</div>
                                           </div>
                                           <div>
-                                            <div style={{ fontSize: T.fontTitle, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.pitch || '—'}</div>
+                                            <div style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.pitch || '—'}</div>
                                             <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Pitch</div>
                                           </div>
                                           <div>
-                                            <div style={{ fontSize: T.fontTitle, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}</div>
+                                            <div style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}</div>
                                             <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Waste</div>
                                           </div>
                                         </div>
@@ -2602,32 +2602,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       </div>
                     )}
 
-                    {/* Key Dates — pulled out of the buried Details tab into the rail (spine) */}
-                    {useSpine && isWide && (
-                      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
-                        <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
-                          <Svg size={14} stroke="#4F46E5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
-                          <span style={{fontSize:14,fontWeight:700,color:tp}}>Key Dates</span>
-                          <button onClick={()=>{startEdit();setTimeout(()=>document.getElementById('contact-edit-form')?.scrollIntoView({behavior:'smooth',block:'center'}),80)}} style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal,background:'transparent',border:'none',cursor:'pointer'}}>Edit</button>
-                        </div>
-                        <div style={{padding:'2px 16px 10px'}}>
-                          {([
-                            {label:'Inspection', val:fmt((lead as any).inspection_date), over:false},
-                            {label:'Job date',   val:fmt(lead.scheduled_date), over:false},
-                            {label:'Follow-up',  val:lead.follow_up_date?fmt(lead.follow_up_date):'—', over:!!(lead.follow_up_date&&isOverdue(lead.follow_up_date))},
-                          ]).map((d,i)=>(
-                            <div key={d.label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'10px 0',borderTop:i===0?'none':`1px solid ${bdr}`}}>
-                              <span style={{fontSize:12,fontWeight:600,color:ts}}>{d.label}</span>
-                              <span style={{display:'flex',alignItems:'center',gap:6}}>
-                                <span style={{fontSize:13,fontWeight:700,color: d.val==='—'?tsu:tp}}>{d.val}</span>
-                                {d.over && <span style={{fontSize:10,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:700}}>Overdue</span>}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     {/* Recent Activity — relocated to the rail under the spine (replaces the Activity tab) */}
                     {useSpine && isWide && acts.length > 0 && (
                       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
@@ -2655,6 +2629,32 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           })}
                         </div>
                         <style>{`.pg-actscroll::-webkit-scrollbar{width:6px}.pg-actscroll::-webkit-scrollbar-thumb{background:${dk?'#334155':'#CBD5E1'};border-radius:3px}.pg-actscroll::-webkit-scrollbar-track{background:transparent}.pg-actscroll{scrollbar-width:thin;scrollbar-color:${dk?'#334155':'#CBD5E1'} transparent}`}</style>
+                      </div>
+                    )}
+
+                    {/* Key Dates — pulled out of the buried Details tab into the rail (spine) */}
+                    {useSpine && isWide && (
+                      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                        <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
+                          <Svg size={14} stroke="#4F46E5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                          <span style={{fontSize:14,fontWeight:700,color:tp}}>Key Dates</span>
+                          <button onClick={()=>{startEdit();setTimeout(()=>document.getElementById('contact-edit-form')?.scrollIntoView({behavior:'smooth',block:'center'}),80)}} style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal,background:'transparent',border:'none',cursor:'pointer'}}>Edit</button>
+                        </div>
+                        <div style={{padding:'2px 16px 10px'}}>
+                          {([
+                            {label:'Inspection', val:fmt((lead as any).inspection_date), over:false},
+                            {label:'Job date',   val:fmt(lead.scheduled_date), over:false},
+                            {label:'Follow-up',  val:lead.follow_up_date?fmt(lead.follow_up_date):'—', over:!!(lead.follow_up_date&&isOverdue(lead.follow_up_date))},
+                          ]).map((d,i)=>(
+                            <div key={d.label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'10px 0',borderTop:i===0?'none':`1px solid ${bdr}`}}>
+                              <span style={{fontSize:12,fontWeight:600,color:ts}}>{d.label}</span>
+                              <span style={{display:'flex',alignItems:'center',gap:6}}>
+                                <span style={{fontSize:13,fontWeight:700,color: d.val==='—'?tsu:tp}}>{d.val}</span>
+                                {d.over && <span style={{fontSize:10,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:700}}>Overdue</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 
