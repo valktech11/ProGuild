@@ -313,12 +313,11 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   // line to keep the panel shallow. Empty claim → fields stay open so it's fillable.
   const hasCoreDetails = !!(fields.insurance_company || fields.claim_number)
   const showFields     = detailsOpen || !hasCoreDetails
-  const urgentDeadline = (() => {
+  const urgentDl = (() => {
     if (!isFL || !fields.date_of_loss) return null
     const dls = computeSB2ADeadlines(fields.date_of_loss)
     if (!dls || !dls.length) return null
-    const d = dls[0]
-    return `${d.label}: ${Math.abs(d.daysLeft)}d ${d.status === 'expired' ? 'overdue' : 'left'}`
+    return dls[0]   // { label, daysLeft, status, dueDate }
   })()
 
   const activeStatus = CLAIM_STATUSES.find(s => s.value === fields.claim_status) ?? CLAIM_STATUSES[0]
@@ -398,8 +397,19 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   <div style={{ fontSize:13.5, fontWeight:700, color:dk?'#F1F5F9':NAVY }}>
                     {fields.date_of_loss ? <>Date of loss · {fields.date_of_loss}</> : 'Claim details'}
                   </div>
-                  <div style={{ fontSize:11.5, color:'#94A3B8', marginTop:2 }}>
-                    {[fields.adjuster_name && `Adj. ${fields.adjuster_name}`, urgentDeadline].filter(Boolean).join('  ·  ') || 'Tap edit to add claim details'}
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5, flexWrap:'wrap' as const }}>
+                    {fields.adjuster_name && <span style={{ fontSize:12.5, fontWeight:600, color:dk?'#CBD5E1':'#475569' }}>Adj. {fields.adjuster_name}</span>}
+                    {urgentDl && (() => {
+                      const tone: Record<string,[string,string]> = { expired:['#FEF2F2','#DC2626'], urgent:['#FFF7ED','#EA580C'], approaching:['#FFFBEB','#D97706'], ok:['#ECFDF5','#059669'] }
+                      const [bg,fg] = tone[urgentDl.status] || tone.approaching
+                      return (
+                        <span title={urgentDl.label} style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, fontWeight:800, color:fg, background:bg, border:`1px solid ${fg}33`, borderRadius:100, padding:'3px 10px' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          {Math.abs(urgentDl.daysLeft)}d {urgentDl.status === 'expired' ? 'overdue' : 'left'}
+                        </span>
+                      )
+                    })()}
+                    {!fields.adjuster_name && !urgentDl && <span style={{ fontSize:11.5, color:'#94A3B8' }}>Tap edit to add claim details</span>}
                   </div>
                 </div>
                 {!locked && (
@@ -634,64 +644,62 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 </div>
               ) : (
                 <>
-                  {/* Financial fields — only once a decision is recorded */}
-                  <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr 1fr':'1fr', gap:12 }}>
-                    <Field label="Approved amount">
-                      <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
-                        icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                      />
-                    </Field>
-                    <Field label="Supplement amount">
-                      <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} disabled={locked} placeholder="$0.00"
-                        icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                      />
-                    </Field>
-                    <Field label="Deductible (homeowner)">
-                      <FInput value={fields.deductible} onChange={set('deductible')} disabled={locked} placeholder="$0.00"
-                        icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
-                      />
-                    </Field>
-                  </div>
-
-                  {/* Net payout */}
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderRadius:10, background: net > 0 ? (dk ? 'rgba(5,150,105,0.12)' : '#F0FDF4') : (dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC'), border:`1px solid ${net > 0 ? 'rgba(5,150,105,0.2)' : '#E2E8F0'}`, flexWrap:'wrap' as const, gap:12 }}>
-                    <div style={{ display:'flex', gap:20 }}>
-                      <div>
-                        <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Approved</div>
-                        <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${approved.toLocaleString()}</div>
-                      </div>
-                      <div style={{ display:'flex', alignItems:'center', color:'#94A3B8', fontSize:16, fontWeight:300 }}>+</div>
-                      <div>
-                        <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Supplement</div>
-                        <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${supplement.toLocaleString()}</div>
-                      </div>
-                      <div style={{ display:'flex', alignItems:'center', color:'#94A3B8', fontSize:16, fontWeight:300 }}>−</div>
-                      <div>
-                        <div style={{ fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Deductible</div>
-                        <div style={{ fontSize:15, fontWeight:800, color: dk ? '#F1F5F9' : NAVY, letterSpacing:'-0.02em' }}>${deductible.toLocaleString()}</div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign:'right' as const }}>
-                      <div style={{ fontSize:10, fontWeight:700, color: net > 0 ? '#059669' : '#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Insurance pays homeowner</div>
-                      <div style={{ fontSize:20, fontWeight:900, color: net > 0 ? '#059669' : (dk ? '#475569' : '#94A3B8'), letterSpacing:'-0.03em' }}>${Math.max(net,0).toLocaleString()}</div>
-                    </div>
-                  </div>
-
-                  {/* Supplement progression + change decision */}
+                  {/* Decision recorded as a fact — not a lingering button bar */}
                   {!locked && (
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' as const }}>
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
-                        {fields.claim_status === 'Approved' && (
-                          <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:'#D97706', background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>File supplement →</button>
-                        )}
-                        {fields.claim_status === 'Supplement Filed' && (
-                          <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:'#0891B2', background:'#ECFEFF', border:'1px solid #A5F3FC', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Supplement approved →</button>
-                        )}
-                        {fields.claim_status !== 'Closed' && (
-                          <button onClick={()=>setStatus('Closed')} style={{ fontSize:12, fontWeight:700, color:'#374151', background:'#F3F4F6', border:'1px solid #D1D5DB', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
-                        )}
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ width:22, height:22, borderRadius:'50%', background:'#059669', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </span>
+                        <span style={{ fontSize:13.5, fontWeight:700, color: dk?'#F1F5F9':NAVY }}>
+                          {fields.claim_status === 'Supplement Filed' ? 'Supplement filed'
+                            : fields.claim_status === 'Supplement Approved' ? 'Supplement approved'
+                            : fields.claim_status === 'Closed' ? 'Claim closed'
+                            : 'Carrier approved'}
+                        </span>
                       </div>
-                      <button onClick={()=>setStatus('Filed')} style={{ fontSize:11.5, fontWeight:600, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer', textDecoration:'underline' }}>Change decision</button>
+                      <button onClick={()=>setStatus('Filed')} style={{ fontSize:12, fontWeight:600, color:'#94A3B8', background:'transparent', border:'none', cursor:'pointer', textDecoration:'underline' }}>change</button>
+                    </div>
+                  )}
+
+                  {/* Financials — the inputs ARE the summary; total computes live, no echo */}
+                  <div style={{ padding: isWide ? '14px 16px' : '14px', borderRadius:10, background: dk?'rgba(255,255,255,0.03)':'#F8FAFC', border:`1px solid ${dk?'#334155':'#E2E8F0'}` }}>
+                    <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr 1fr':'1fr', gap:12 }}>
+                      <Field label="Approved amount">
+                        <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
+                          icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                        />
+                      </Field>
+                      <Field label="Supplement amount">
+                        <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} disabled={locked} placeholder="$0.00"
+                          icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                        />
+                      </Field>
+                      <Field label="Deductible (homeowner)">
+                        <FInput value={fields.deductible} onChange={set('deductible')} disabled={locked} placeholder="$0.00"
+                          icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+                        />
+                      </Field>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginTop:12, paddingTop:12, borderTop:`1px solid ${dk?'#334155':'#E2E8F0'}`, flexWrap:'wrap' as const }}>
+                      <span style={{ fontSize:11.5, color: dk?'#94A3B8':'#94A3B8' }}>Approved + Supplement − Deductible</span>
+                      <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
+                        <span style={{ fontSize:11, fontWeight:700, color: net>0?'#059669':'#94A3B8', textTransform:'uppercase' as const, letterSpacing:'0.07em' }}>Insurance pays homeowner</span>
+                        <span style={{ fontSize:22, fontWeight:900, color: net>0?'#059669':(dk?'#475569':'#94A3B8'), letterSpacing:'-0.03em' }}>${Math.max(net,0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Next-step status transitions */}
+                  {!locked && fields.claim_status !== 'Closed' && (
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
+                      {fields.claim_status === 'Approved' && (
+                        <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:'#D97706', background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>File supplement →</button>
+                      )}
+                      {fields.claim_status === 'Supplement Filed' && (
+                        <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:'#0891B2', background:'#ECFEFF', border:'1px solid #A5F3FC', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Supplement approved →</button>
+                      )}
+                      <button onClick={()=>setStatus('Closed')} style={{ fontSize:12, fontWeight:700, color:'#374151', background:'#F3F4F6', border:'1px solid #D1D5DB', borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
                     </div>
                   )}
                 </>
