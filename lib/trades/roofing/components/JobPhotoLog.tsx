@@ -62,7 +62,9 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
   const [filterPhase,  setFilterPhase]  = useState<PhotoPhase | 'All'>('All')
   const [error,        setError]        = useState<string | null>(null)
   const [zipping,      setZipping]      = useState(false)
+  const [lightboxIdx,  setLightboxIdx]  = useState<number | null>(null)  // index into `visible` for the fullscreen viewer
   const fileRef = useRef<HTMLInputElement>(null)
+  const folderRef = useRef<HTMLInputElement>(null)
 
   const phases = isRoofing ? PHASES : PHASES.filter(p => p !== 'Insurance' && p !== 'Decking')
 
@@ -86,15 +88,16 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
 
   // ── Upload ─────────────────────────────────────────────────────────────
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
-    if (files.length === 0) return
+    const all = Array.from(e.target.files ?? [])
+    if (all.length === 0) return
 
-    // Validate each file
+    // Folder picks include non-image files — filter them out rather than failing the whole batch
+    const files = all.filter(file => file.type.startsWith('image/'))
+    if (files.length === 0) {
+      setError('No image files found in that selection')
+      return
+    }
     for (const file of files) {
-      if (!file.type.startsWith('image/')) {
-        setError(`${file.name} is not an image file`)
-        return
-      }
       if (file.size > MAX_BYTES) {
         setError(`${file.name} exceeds 10MB limit`)
         return
@@ -205,6 +208,22 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
   // ── Filtered photos ────────────────────────────────────────────────────
   const visible = filterPhase === 'All' ? photos : photos.filter(p => p.phase === filterPhase)
 
+  // Lightbox keyboard navigation (←/→/Esc)
+  useEffect(() => {
+    if (lightboxIdx === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIdx(null)
+      else if (e.key === 'ArrowRight') setLightboxIdx(i => (i === null ? i : Math.min(i + 1, visible.length - 1)))
+      else if (e.key === 'ArrowLeft') setLightboxIdx(i => (i === null ? i : Math.max(i - 1, 0)))
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [lightboxIdx, visible.length])
+  // Close the lightbox if the visible set shrinks past the current index (e.g. filter change / delete)
+  useEffect(() => {
+    if (lightboxIdx !== null && lightboxIdx >= visible.length) setLightboxIdx(visible.length > 0 ? visible.length - 1 : null)
+  }, [visible.length, lightboxIdx])
+
   return (
     <div style={{
       background: cardBg,
@@ -256,6 +275,24 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
           {uploading ? 'Uploading…' : '+ Add photos'}
         </button>
 
+        {/* Folder upload — bulk import every image in a folder (desktop) */}
+        <button
+          onClick={() => folderRef.current?.click()}
+          disabled={uploading}
+          style={{
+            padding: '8px 14px',
+            borderRadius: 8,
+            background: 'transparent',
+            color: teal,
+            fontWeight: 600,
+            fontSize: 14,
+            border: `1.5px solid ${teal}`,
+            cursor: uploading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Upload folder
+        </button>
+
         {/* Hidden file input — multiple, images only */}
         <input
           ref={fileRef}
@@ -263,6 +300,18 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
           accept="image/*"
           multiple
           capture="environment"   // prefer camera on mobile
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+        {/* Hidden folder input — picks an entire directory of images */}
+        <input
+          ref={folderRef}
+          type="file"
+          accept="image/*"
+          multiple
+          // @ts-expect-error non-standard but widely supported directory picker
+          webkitdirectory=""
+          directory=""
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
@@ -356,17 +405,18 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 8,
         }}>
-          {visible.map(photo => {
+          {visible.map((photo, idx) => {
             const colors = PHASE_COLORS[photo.phase]
             return (
               <div key={photo.id} style={{ position: 'relative' }}>
                 {/* Photo */}
-                <div style={{
+                <div onClick={() => setLightboxIdx(idx)} style={{
                   paddingTop: '75%',   // 4:3 aspect ratio
                   position: 'relative',
                   borderRadius: 8,
                   overflow: 'hidden',
                   background: darkMode ? '#0F172A' : '#F1F5F9',
+                  cursor: 'zoom-in',
                 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -426,6 +476,48 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
           })}
         </div>
       )}
+
+      {/* Lightbox — fullscreen viewer with prev/next, for flipping through many photos */}
+      {lightboxIdx !== null && visible[lightboxIdx] && (() => {
+        const photo = visible[lightboxIdx]
+        const colors = PHASE_COLORS[photo.phase]
+        const atStart = lightboxIdx <= 0
+        const atEnd = lightboxIdx >= visible.length - 1
+        return (
+          <div
+            onClick={() => setLightboxIdx(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {/* Top bar: counter + phase + close */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'linear-gradient(180deg,rgba(0,0,0,0.55),transparent)' }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{lightboxIdx + 1} / {visible.length}</span>
+                <span style={{ padding: '3px 9px', borderRadius: 5, fontSize: 11, fontWeight: 700, background: colors.bg, color: colors.text }}>{photo.phase}</span>
+              </div>
+              <button onClick={() => setLightboxIdx(null)} aria-label="Close" style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+
+            {/* Prev */}
+            {!atStart && (
+              <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => (i === null ? i : i - 1)) }} aria-label="Previous"
+                style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+              </button>
+            )}
+            {/* Next */}
+            {!atEnd && (
+              <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => (i === null ? i : i + 1)) }} aria-label="Next"
+                style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+              </button>
+            )}
+
+            {/* Image */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img onClick={e => e.stopPropagation()} src={photo.url} alt={`${photo.phase} photo`} style={{ maxWidth: '90vw', maxHeight: '84vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }} />
+          </div>
+        )
+      })()}
     </div>
   )
 }
