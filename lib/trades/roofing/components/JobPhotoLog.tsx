@@ -232,12 +232,13 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
       padding: 16,
       marginBottom: 16,
     }}>
-      <h3 style={{ fontSize: 15, fontWeight: 600, color: textPrimary, marginBottom: 16 }}>
-        📷 Job photos ({photos.length})
+      <style>{`.pg-del{opacity:1;transition:opacity .15s ease}@media (hover:hover){.pg-photo-cell .pg-del{opacity:0}.pg-photo-cell:hover .pg-del{opacity:1}}`}</style>
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: textPrimary, marginBottom: 18, letterSpacing: '-0.01em' }}>
+        Job photos ({photos.length})
       </h3>
 
       {/* Upload row */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
 
         {/* Phase selector */}
         <select
@@ -338,30 +339,31 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
         )}
       </div>
 
-      {/* Phase filter tabs */}
+      {/* Phase filter — iOS-style segmented control */}
       {photos.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', gap: 2, padding: 3, marginBottom: 16, background: darkMode ? 'rgba(255,255,255,0.06)' : '#F1F5F9', borderRadius: 10, flexWrap: 'wrap' }}>
           {(['All', ...phases] as const).map(phase => {
             const count = phase === 'All' ? photos.length : photos.filter(p => p.phase === phase).length
             if (phase !== 'All' && count === 0) return null
-            const colors = phase === 'All' ? null : PHASE_COLORS[phase as PhotoPhase]
             const active = filterPhase === phase
             return (
               <button
                 key={phase}
                 onClick={() => setFilterPhase(phase)}
                 style={{
-                  padding: '4px 10px',
-                  borderRadius: 20,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  border: active ? `1.5px solid ${colors?.text ?? teal}` : `1px solid ${cardBorder}`,
-                  background: active ? (colors?.bg ?? '#F0FDFA') : 'transparent',
-                  color: active ? (colors?.text ?? teal) : textMuted,
+                  padding: '5px 13px',
+                  borderRadius: 7,
+                  fontSize: 12.5,
+                  fontWeight: active ? 700 : 500,
+                  border: 'none',
+                  background: active ? (darkMode ? '#0F172A' : '#fff') : 'transparent',
+                  color: active ? textPrimary : textMuted,
+                  boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
                   cursor: 'pointer',
+                  transition: 'background 0.12s, color 0.12s',
                 }}
               >
-                {phase} {count > 0 && `(${count})`}
+                {phase}{count > 0 && <span style={{ opacity: 0.6, marginLeft: 4, fontWeight: 600 }}>{count}</span>}
               </button>
             )
           })}
@@ -408,7 +410,7 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
           {visible.map((photo, idx) => {
             const colors = PHASE_COLORS[photo.phase]
             return (
-              <div key={photo.id} style={{ position: 'relative' }}>
+              <div key={photo.id} className="pg-photo-cell" style={{ position: 'relative' }}>
                 {/* Photo */}
                 <div onClick={() => setLightboxIdx(idx)} style={{
                   paddingTop: '75%',   // 4:3 aspect ratio
@@ -450,6 +452,7 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
 
                 {/* Delete button */}
                 <button
+                  className="pg-del"
                   onClick={() => handleDelete(photo)}
                   style={{
                     position: 'absolute',
