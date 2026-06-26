@@ -1066,10 +1066,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
             : [lead.contact_phone?fmtPhone(lead.contact_phone):null, lead.contact_email||null].filter(Boolean).join(' · ')
 
           const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
-            {key:'details', label:'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
+            {key:'details', label: useSpine ? 'Details' : 'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
             ...(isRoofing?[{key:'photos' as Tab, label:photoCount>0?`Photos (${photoCount})`:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
-            {key:'estimate',label:estList.length>0?`Estimate (${estList.length})`:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>},
-            {key:'activity',label:acts.length>0?`Activity (${acts.length})`:'Activity', icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>},
+            ...(!useSpine?[{key:'estimate' as Tab,label:estList.length>0?`Estimate (${estList.length})`:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>}]:[]),
+            ...((!useSpine||!isWide)?[{key:'activity' as Tab,label:acts.length>0?`Activity (${acts.length})`:'Activity', icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>}]:[]),
           ]
 
           return (
@@ -2330,7 +2330,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     )}
 
                     {/* Estimate tab */}
-                    {tab==='estimate'&&(
+                    {tab==='estimate'&&!useSpine&&(
                       <div style={{padding:'18px 20px'}}>
                         {estList.length>0?(
                           <div style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -2434,7 +2434,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     )}
 
                     {/* Activity tab — full timeline */}
-                    {tab==='activity'&&(
+                    {tab==='activity'&&(!useSpine||!isWide)&&(
                       <div style={{padding:'18px 20px'}}>
                         {acts.length===0
                           ?<div style={{textAlign:'center',padding:'40px 0',color:ts,fontSize:14}}>No activity yet.</div>
@@ -2552,6 +2552,36 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         })()}
                       </div>
                     </div>
+                    {/* Recent Activity — relocated to the rail under the spine (replaces the Activity tab) */}
+                    {useSpine && isWide && acts.length > 0 && (
+                      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                        <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
+                          <Svg size={14} stroke={BRAND.teal}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></Svg>
+                          <span style={{fontSize:14,fontWeight:700,color:tp}}>Recent Activity</span>
+                        </div>
+                        <div style={{padding:'10px 16px 14px'}}>
+                          {acts.slice(0,7).map((item,i)=>{
+                            const warn=(item as any).warn===true
+                            const ic=warn?'#EF4444':item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='scheduled'?'#64748B':item.type==='payment_received'?'#16A34A':['quote','estimate','estimate_sent','estimate_viewed','estimate_approved','invoice_sent','invoice_viewed'].includes(item.type)?'#0F766E':BRAND.teal
+                            return (
+                              <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,paddingTop:i===0?0:11}}>
+                                <div style={{width:9,height:9,borderRadius:'50%',background:ic,marginTop:5,flexShrink:0,boxShadow:`0 0 0 3px ${ic}1A`}}/>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{fontSize:12.5,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.35}}>{item.title}</div>
+                                  {item.sub && <div style={{fontSize:11,color:warn?'#EF4444':ts,marginTop:1,lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{item.sub}</div>}
+                                </div>
+                                <div style={{fontSize:10,color:tsu,flexShrink:0,marginTop:2,textAlign:'right' as const,lineHeight:1.3}}>
+                                  {new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                                </div>
+                              </div>
+                            )
+                          })}
+                          {acts.length>7 && (
+                            <div style={{fontSize:11,color:tsu,marginTop:11,paddingTop:10,borderTop:`1px solid ${bdr}`}}>+{acts.length-7} earlier</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
 
                   </div>
