@@ -1062,7 +1062,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           const addr        = (lead as any).property_address as string|null|undefined
           const heroLabel   = addr ? addr.replace(/, USA$/,'') : capName(lead.contact_name)
           const heroName    = addr ? capName(lead.contact_name) : ''
-          const heroSub     = [lead.contact_phone?fmtPhone(lead.contact_phone):null, lead.contact_email||null].filter(Boolean).join(' · ')
+          const heroMeta    = [heroName, lead.contact_phone?fmtPhone(lead.contact_phone):null, lead.contact_email||null].filter(Boolean) as string[]
 
           const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
             {key:'details', label: useSpine ? 'Contact' : 'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
@@ -1104,7 +1104,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                 <div style={{minWidth:0}}>
 
                   {/* ─── HERO CARD ─────────────────────────────────────── */}
-                  <div style={{background:card,borderRadius:T.radLg,marginBottom:12,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',position:'relative'}}>
+                  <div style={{background:card,borderRadius:T.radLg,marginBottom:18,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',position:'relative'}}>
                     {/* Teal accent bar — stage color top strip, uses borderRadius to match card */}
                     <div style={{height:4,background:`linear-gradient(90deg,${stgObj?.color??BRAND.teal},${stgObj?.color??BRAND.teal}66)`,borderRadius:`${T.radLg} ${T.radLg} 0 0`}}/>
 
@@ -1116,12 +1116,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {initials(lead.contact_name)}
                           </div>
                           <div style={{minWidth:0,flex:1,paddingTop:2}}>
-                            <div style={{fontSize:28,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15,marginBottom:6}}>
-                              {heroLabel}
-                              {heroName && <span style={{fontSize:17,fontWeight:600,color:tsu,marginLeft:11,letterSpacing:'-0.01em',whiteSpace:'nowrap'}}>· {heroName}</span>}
-                            </div>
-                            <div style={{fontSize:13,color:tsu,lineHeight:1.5}}>
-                              {heroSub||'No contact info'}
+                            <div style={{display:'flex',alignItems:'baseline',flexWrap:'wrap' as const,gap:'2px 12px',marginBottom:heroMeta.length?5:0}}>
+                              <span style={{fontSize:28,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15}}>{heroLabel}</span>
+                              {heroMeta.length>0 && (
+                                <span style={{display:'inline-flex',alignItems:'center',gap:10,fontSize:13.5,color:tsu,fontWeight:600,flexWrap:'wrap' as const}}>
+                                  {heroMeta.map((x,i)=>(
+                                    <span key={i} style={{display:'inline-flex',alignItems:'center',gap:10}}>
+                                      {i>0 && <span style={{width:1,height:12,background:bdr,display:'inline-block'}}/>}
+                                      {x}
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
                             </div>
                             {/* Appointment line — the stepper owns the stage; this carries
                                 only the booked date (labeled). Aging lives in Time in Stage. */}
@@ -1350,7 +1356,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <span style={{display:'inline-flex',alignItems:'center',gap:7,whiteSpace:'nowrap'}}>
                           <span style={{width:24,height:24,borderRadius:'50%',background:avBg,color:avFg,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}}>{initials(session?.name||'SA')}</span>
                           <span style={{fontSize:T.fontSub,fontWeight:600,color:tp}}>{session?.name||'Pro'}</span>
-                          <span style={{fontSize:T.fontBadge,fontWeight:700,color:tsu,background:t.cardBgAlt,border:`1px solid ${bdr}`,borderRadius:999,padding:'2px 8px'}}>Owner</span>
                         </span>
                       </div>
 
@@ -2229,7 +2234,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             {lead.message&&(
                               <div style={{marginTop:10,padding:'11px 14px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
-                                <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:5}}>Original Message</div>
+                                <div style={{fontSize:11,fontWeight:800,color:ts,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:5}}>Original Message</div>
                                 <div style={{fontSize:14,color:tb,lineHeight:1.65,fontStyle:'italic'}}>"{lead.message}"</div>
                               </div>
                             )}
@@ -2239,7 +2244,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         {/* Edit mode */}
                         {isEditing&&(
                           <>
-                            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                            <div id="contact-edit-form" style={{display:'flex',flexDirection:'column',gap:14,scrollMarginTop:80}}>
                               <div style={{position:'relative'}}>
                                 <label style={labelCls}>Property Address</label>
                                 <input
@@ -2551,7 +2556,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
                           <Svg size={14} stroke="#4F46E5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
                           <span style={{fontSize:14,fontWeight:700,color:tp}}>Key Dates</span>
-                          <button onClick={()=>{setTab('details');startEdit()}} style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal,background:'transparent',border:'none',cursor:'pointer'}}>Edit</button>
+                          <button onClick={()=>{startEdit();setTimeout(()=>document.getElementById('contact-edit-form')?.scrollIntoView({behavior:'smooth',block:'center'}),80)}} style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal,background:'transparent',border:'none',cursor:'pointer'}}>Edit</button>
                         </div>
                         <div style={{padding:'2px 16px 10px'}}>
                           {([
@@ -2578,7 +2583,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <Svg size={14} stroke={BRAND.teal}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></Svg>
                           <span style={{fontSize:14,fontWeight:700,color:tp}}>Recent Activity</span>
                         </div>
-                        <div className="pg-actscroll" style={{padding:'10px 10px 12px 16px',maxHeight:380,overflowY:'auto'}}>
+                        <div className="pg-actscroll" style={{padding:'10px 10px 12px 16px',maxHeight:560,overflowY:'auto'}}>
                           {acts.map((item,i)=>{
                             const warn=(item as any).warn===true
                             const ic=warn?'#EF4444':item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='scheduled'?'#64748B':item.type==='payment_received'?'#16A34A':['quote','estimate','estimate_sent','estimate_viewed','estimate_approved','invoice_sent','invoice_viewed'].includes(item.type)?'#0F766E':BRAND.teal
