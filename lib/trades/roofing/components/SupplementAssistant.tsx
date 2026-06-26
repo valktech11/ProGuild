@@ -135,9 +135,9 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
     <Card dk={dk} accent={TEAL} pad="none">
       <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' as const, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: dk ? '#5EEAD4' : NAVY, letterSpacing: '0.01em' }}>Supplement Assistant</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: TEAL, marginTop: 1 }}>Recover money the carrier missed</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: TEAL }}>Recover money the carrier missed</div>
           </div>
           {lastRun && <div style={{ fontSize: 11, color: sub }}>{new Date(lastRun).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
         </div>
@@ -149,26 +149,26 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
 
       <div style={{ padding: 18 }}>
         {grounded.length > 0 && (
-          <div style={{ marginBottom: 14, borderRadius: 10, border: `1px solid ${TEAL}44`, background: TEAL + (dk ? '18' : '0C'), padding: '12px 14px' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>From your measurements</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ marginBottom: 14, borderRadius: 10, border: `1px solid ${TEAL}44`, background: TEAL + (dk ? '18' : '0C'), padding: '11px 13px' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>From your measurements</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {grounded.map(f => (
-                <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: text }}>{f.item}</div>
-                    <div style={{ fontSize: 11.5, color: sub, marginTop: 2, lineHeight: 1.4 }}>
-                      {f.basis === 'code' ? 'Code-required (FL)' : 'Standard supplement'}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' as const }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: text }}>{f.item}</span>
+                      <span style={{ fontSize: 11, color: sub }}>· {f.basis === 'code' ? 'Code-required (FL)' : 'Standard supplement'}</span>
                     </div>
-                    <span style={{ display: 'inline-block', marginTop: 4, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.02em', color: sub, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{f.code}</span>
+                    <span style={{ display: 'inline-block', marginTop: 2, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.02em', color: sub, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{f.code}</span>
                   </div>
-                  <div style={{ whiteSpace: 'nowrap', textAlign: 'right' as const }}>
+                  <div style={{ whiteSpace: 'nowrap', textAlign: 'right' as const, flexShrink: 0 }}>
                     <span style={{ fontSize: 18, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, letterSpacing: '-0.02em' }}>{f.measured_lf}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: dk ? '#5EEAD4' : TEAL, opacity: 0.6, marginLeft: 3 }}>LF</span>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: sub, marginTop: 8, lineHeight: 1.4 }}>Measured by ProMeasure — check the pasted scope below covers these.</div>
+            <div style={{ fontSize: 11, color: sub, marginTop: 7, lineHeight: 1.4 }}>Measured by ProMeasure — check the pasted scope below covers these.</div>
           </div>
         )}
         {grounded.length === 0 && (
