@@ -1476,19 +1476,20 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const sBtn = (label: string, onClick: () => void) => (
                       <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', borderRadius: T.radSm, border: `1px solid ${bdr}`, background: card, color: BRAND.teal, fontSize: T.fontSub, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{label}</button>
                     )
-                    const chip = (k: string, v: number) => (
-                      <span key={k} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, padding: '5px 10px', borderRadius: T.radSm, background: dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9', border: `1px solid ${bdr}` }}>
-                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: tp }}>{Math.round(v || 0)}</span>
-                        <span style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu }}>LF {k}</span>
-                      </span>
-                    )
+                    const GW = isWide ? 38 : 30
                     const gIcon = (bg: string, content: React.ReactNode, ring?: string) => (
-                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: bg, border: ring ? `2px solid ${ring}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{content}</div>
+                      <div style={{ width: GW, height: GW, borderRadius: '50%', background: bg, border: ring ? `2px solid ${ring}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{content}</div>
                     )
+                    const statusPill = (status?: string) => {
+                      const st = (status || 'draft').toLowerCase()
+                      const map: Record<string, [string, string]> = { draft: ['#B45309', '#FFFBEB'], sent: ['#0F766E', '#F0FDFA'], viewed: ['#2563EB', '#EFF4FF'], approved: ['#15803D', '#F0FDF4'], paid: ['#15803D', '#F0FDF4'], declined: ['#DC2626', '#FEF2F2'] }
+                      const [c, bg] = map[st] || map.draft
+                      return <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: c, background: bg, border: `1px solid ${c}33`, borderRadius: T.radSm, padding: '3px 9px', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{st}</span>
+                    }
                     return (
                       <div style={{ position: 'relative', marginBottom: 12 }}>
                         {/* one continuous path — upcoming stages read as 'ahead', not shut */}
-                        <div style={{ position: 'absolute', left: 18, top: 26, bottom: 26, width: 2, background: bdr, zIndex: 0 }} />
+                        <div style={{ position: 'absolute', left: isWide ? 18 : 14, top: 26, bottom: 26, width: 2, background: bdr, zIndex: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1 }}>
                           {stages.map((s, i) => {
                             const state = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
@@ -1498,26 +1499,25 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const aTitle = (s.key === 'estimate' && !isClaim2) ? 'Price the job' : (na?.title || s.label)
                               const aCta = (s.key === 'estimate' && !isClaim2) ? 'Price the job' : (na?.cta || 'Open')
                               return (
-                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center' }}>
-                                  {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={19} stroke="#fff" sw={2}>{ICONS[s.key] || ICONS.measure}</Svg>)}
-                                  <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: T.sp4, flexWrap: 'wrap' as const, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
-                                    <div style={{ flex: 1, minWidth: 190 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 6px #5EEAD4' }} />
-                                        <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Next Action</span>
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: isWide ? 'center' : 'start' }}>
+                                  {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 19 : 16} stroke="#fff" sw={2}>{ICONS[s.key] || ICONS.measure}</Svg>)}
+                                  <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '14px 18px' : '14px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 12, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
+                                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: '#5EEAD4', opacity: 0.9 }} />
+                                    <div style={{ position: 'absolute', left: -30, top: -40, width: 170, height: 170, borderRadius: '50%', background: 'radial-gradient(circle, rgba(94,234,212,0.18), transparent 65%)', pointerEvents: 'none' }} />
+                                    <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 8px #5EEAD4' }} />
+                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.16em' }}>Next Action</span>
                                       </div>
-                                      <div style={{ fontSize: T.fontHero, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{aTitle}</div>
-                                      <div style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.82)', marginTop: 1 }}>{na?.sub}</div>
+                                      <div style={{ fontSize: isWide ? T.fontHero : T.fontHeroMobile, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{aTitle}</div>
+                                      <div style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.82)', marginTop: 2 }}>{na?.sub}</div>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: T.sp3, flexShrink: 0 }}>
-                                      {na && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: T.fontSub, fontWeight: 700, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: T.radSm, padding: '6px 10px' }}><Svg size={12} stroke="rgba(255,255,255,0.85)" sw={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Svg>{na.mins}</span>}
-                                      <button onClick={na?.onClick} disabled={isMeasuring}
-                                        style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 40, padding: '0 18px', borderRadius: T.radSm, border: 'none', background: '#fff', color: BRAND.teal, fontSize: T.fontEmphasis, fontWeight: 800, cursor: isMeasuring ? 'wait' : 'pointer', whiteSpace: 'nowrap' as const, boxShadow: '0 6px 16px -6px rgba(0,0,0,0.3)' }}>
-                                        {isMeasuring
-                                          ? <><span style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${BRAND.teal}40`, borderTopColor: BRAND.teal, animation: 'pg-spin 0.7s linear infinite', display: 'inline-block' }} />Measuring…</>
-                                          : <>{aCta}<Svg size={15} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></Svg></>}
-                                      </button>
-                                    </div>
+                                    <button onClick={na?.onClick} disabled={isMeasuring}
+                                      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, height: 42, padding: '0 20px', width: isWide ? 'auto' : '100%', borderRadius: T.radSm, border: 'none', background: '#fff', color: BRAND.teal, fontSize: T.fontEmphasis, fontWeight: 800, cursor: isMeasuring ? 'wait' : 'pointer', whiteSpace: 'nowrap' as const, boxShadow: '0 6px 16px -6px rgba(0,0,0,0.3)', flexShrink: 0 }}>
+                                      {isMeasuring
+                                        ? <><span style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${BRAND.teal}40`, borderTopColor: BRAND.teal, animation: 'pg-spin 0.7s linear infinite', display: 'inline-block' }} />Measuring…</>
+                                        : <>{aCta}<Svg size={15} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></Svg></>}
+                                    </button>
                                   </div>
                                 </div>
                               )
@@ -1525,37 +1525,40 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             if (state === 'done') {
                               return (
-                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'start' }}>
-                                  {gIcon('#15803D', <Svg size={17} stroke="#fff" sw={2.6}><polyline points="20 6 9 17 4 12" /></Svg>)}
-                                  <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: '13px 16px', boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
-                                      <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{s.label}</div>
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
+                                  {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2.6}><polyline points="20 6 9 17 4 12" /></Svg>)}
+                                  <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '12px 16px' : '12px 14px', boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' as const }}>
+                                      <div style={{ fontSize: T.fontSub, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{s.label}</div>
                                       <div style={{ display: 'flex', gap: 8 }}>
                                         {s.key === 'measure' && (lead as any)?.roofing_job_data?.report_url && sBtn('View report', () => window.open((lead as any).roofing_job_data.report_url, '_blank'))}
                                         {sBtn(s.key === 'measure' ? 'Re-measure' : s.key === 'estimate' ? 'Open' : 'View', () => { if (s.key === 'measure') runSatelliteMeasure(); else goStage(s.key) })}
                                       </div>
                                     </div>
                                     {s.key === 'measure' && (
-                                      <>
-                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6, flexWrap: 'wrap' as const }}>
-                                          <span style={{ fontSize: T.fontStat, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
-                                          <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
-                                          <span style={{ color: bdr }}>·</span>
-                                          <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.pitch || '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>pitch</span></span>
-                                          <span style={{ color: bdr }}>·</span>
-                                          <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>waste</span></span>
-                                        </div>
+                                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 7, flexWrap: 'wrap' as const }}>
+                                        <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
+                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
+                                        <span style={{ color: bdr }}>·</span>
+                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.pitch || '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>pitch</span></span>
+                                        <span style={{ color: bdr }}>·</span>
+                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 700, color: tp }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}<span style={{ fontSize: T.fontSub, color: tsu, marginLeft: 3 }}>waste</span></span>
                                         {isClaim2 && dn('lf') && (
-                                          <div style={{ display: 'flex', gap: 7, marginTop: 9, flexWrap: 'wrap' as const }}>
-                                            {chip('Ridge', lfd2.ridge_ft)}{chip('Hip', lfd2.hip_ft)}{chip('Valley', lfd2.valley_ft)}{(lfd2.eave_ft || 0) > 0 && chip('Eave', lfd2.eave_ft)}
-                                          </div>
+                                          <>
+                                            {isWide && <span style={{ display: 'inline-block', width: 1, height: 16, background: bdr, margin: '0 5px', alignSelf: 'center' }} />}
+                                            <span style={{ fontSize: T.fontEmphasis, fontWeight: 600, color: tp }}>
+                                              <span style={{ fontSize: T.fontSub, fontWeight: 700, color: tsu, marginRight: 5 }}>LF</span>
+                                              Ridge <b>{Math.round(lfd2.ridge_ft || 0)}</b> · Hip <b>{Math.round(lfd2.hip_ft || 0)}</b> · Valley <b>{Math.round(lfd2.valley_ft || 0)}</b>{(lfd2.eave_ft || 0) > 0 ? <> · Eave <b>{Math.round(lfd2.eave_ft)}</b></> : null}
+                                            </span>
+                                          </>
                                         )}
-                                      </>
+                                      </div>
                                     )}
                                     {s.key === 'estimate' && (
-                                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6, flexWrap: 'wrap' as const }}>
-                                        <span style={{ fontSize: T.fontStat, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{money(Number(est?.total) || 0)}</span>
-                                        <span style={{ fontSize: T.fontSub, color: tsu }}>{(est as any)?.estimate_number || 'Estimate'}{(est as any)?.status ? ` · ${(est as any).status}` : ''}</span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 7, flexWrap: 'wrap' as const }}>
+                                        <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{money(Number(est?.total) || 0)}</span>
+                                        {statusPill((est as any)?.status)}
+                                        <span style={{ fontSize: T.fontSub, color: tsu }}>{(est as any)?.estimate_number || 'Estimate'}</span>
                                       </div>
                                     )}
                                     {(s.key === 'carrier' || s.key === 'supp') && (
@@ -1568,14 +1571,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                             // upcoming — calm, on the path, not blocked
                             return (
-                              <div key={s.key} style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center', opacity: 0.72 }}>
-                                {gIcon(dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9', <Svg size={18} stroke={tsu} sw={2}>{ICONS[s.key] || ICONS.estimate}</Svg>, bdr)}
-                                <div style={{ background: dk ? 'transparent' : '#FCFDFD', border: `1px dashed ${bdr}`, borderRadius: T.radLg, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center', opacity: 0.82 }}>
+                                {gIcon(dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9', <Svg size={isWide ? 18 : 15} stroke={tsu} sw={2}>{ICONS[s.key] || ICONS.estimate}</Svg>, bdr)}
+                                <div style={{ background: dk ? 'transparent' : '#FCFDFD', border: `1px dashed ${bdr}`, borderRadius: T.radLg, padding: '12px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'flex-start', gap: isWide ? 12 : 5 }}>
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ fontWeight: 700, fontSize: T.fontEmphasis, color: ts }}>{s.label}</div>
                                     <div style={{ fontSize: T.fontSub, color: tsu, marginTop: 2 }}>{s.summary}</div>
                                   </div>
-                                  <span style={{ fontSize: T.fontSub, color: tsu, flexShrink: 0, fontStyle: 'italic' as const }}>{CUES[s.key] || 'Coming up'}</span>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: ts, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Svg size={12} stroke={ts} sw={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Svg>{CUES[s.key] || 'Coming up'}</span>
                                 </div>
                               </div>
                             )
