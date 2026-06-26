@@ -1595,8 +1595,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '13px 18px' : '11px 14px', flexWrap: 'wrap' as const }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
-                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: tp }}>Supplement {sLabel}</span>
-                                        {gapVal > 0 && <span style={{ fontSize: T.fontSub, color: tsu }}>· potential gap <span style={{ fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5' }}>{money(gapVal)}</span></span>}
+                                        <span style={{ fontSize: isWide ? T.fontHero : T.fontHeroMobile, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.01em' }}>Supplement {sLabel}</span>
+                                        {gapVal > 0 && <span style={{ fontSize: T.fontBody, color: tsu }}>· potential gap <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5' }}>{money(gapVal)}</span></span>}
                                       </div>
                                       <button onClick={() => setSuppOpen(true)} style={{ fontSize: T.fontSub, fontWeight: 700, color: BRAND.teal, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '5px 12px', cursor: 'pointer', flexShrink: 0 }}>Review</button>
                                     </div>
@@ -1702,17 +1702,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <div style={{ display: 'flex', alignItems: 'flex-end', gap: isWide ? 22 : 16 }}>
                                           <div>
                                             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                                              <span style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
+                                              <span style={{ fontSize: isWide ? T.fontTitle : T.fontTitleMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
                                               <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
                                             </div>
                                             <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Roof size</div>
                                           </div>
                                           <div>
-                                            <div style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.pitch || '—'}</div>
+                                            <div style={{ fontSize: isWide ? T.fontTitle : T.fontTitleMobile, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.pitch || '—'}</div>
                                             <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Pitch</div>
                                           </div>
                                           <div>
-                                            <div style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}</div>
+                                            <div style={{ fontSize: isWide ? T.fontTitle : T.fontTitleMobile, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}</div>
                                             <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Waste</div>
                                           </div>
                                         </div>
