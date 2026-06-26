@@ -1567,11 +1567,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 return (
                                   <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
                                     {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '12px 18px' : '11px 14px', flexWrap: 'wrap' as const }}>
-                                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' as const }}>
-                                        <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>Supplement</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '13px 18px' : '11px 14px', flexWrap: 'wrap' as const }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
                                         <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: tp }}>Supplement {sLabel}</span>
-                                        {gapVal > 0 && <span style={{ fontSize: T.fontSub, color: tsu }}>· potential gap {money(gapVal)}</span>}
+                                        {gapVal > 0 && <span style={{ fontSize: T.fontSub, color: tsu }}>· potential gap <span style={{ fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5' }}>{money(gapVal)}</span></span>}
                                       </div>
                                       <button onClick={() => setSuppOpen(true)} style={{ fontSize: T.fontSub, fontWeight: 700, color: BRAND.teal, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '5px 12px', cursor: 'pointer', flexShrink: 0 }}>Review</button>
                                     </div>
@@ -1734,15 +1733,15 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           {nextKey === 'send' && na && (
                             <div style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: isWide ? 'center' : 'start' }}>
                               {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 19 : 16} stroke="#fff" sw={2}>{na.icon}</Svg>)}
-                              <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '12px 18px' : '12px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 12, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
+                              <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '11px 18px' : '11px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 10, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
                                 <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: '#5EEAD4', opacity: 0.9 }} />
                                 <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
                                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 8px #5EEAD4' }} />
                                     <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.16em' }}>Next Action</span>
                                   </div>
-                                  <div style={{ fontSize: isWide ? 22 : T.fontHeroMobile, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{na.title}</div>
-                                  <div style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.82)', marginTop: 2 }}>{na.sub}</div>
+                                  <div style={{ fontSize: isWide ? 19 : T.fontHeroMobile, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{na.title}</div>
+                                  <div style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.82)', marginTop: 1 }}>{na.sub}</div>
                                 </div>
                                 <button onClick={na.onClick} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, height: 42, padding: '0 20px', width: isWide ? 'auto' : '100%', borderRadius: T.radSm, border: 'none', background: '#fff', color: BRAND.teal, fontSize: T.fontEmphasis, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' as const, boxShadow: '0 6px 16px -6px rgba(0,0,0,0.3)', flexShrink: 0 }}>
                                   {na.cta}<Svg size={15} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></Svg>
