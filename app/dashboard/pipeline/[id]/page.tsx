@@ -1731,8 +1731,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               </div>
                             )}
 
-                            {/* Roofing measurement tools — 2-step retail / 3-step insurance flow */}
-                            {isRoofing&&(
+                            {/* Roofing measurement tools — 2-step retail / 3-step insurance flow. Hidden when spine on (the Roof Measurements stage owns this). */}
+                            {isRoofing&&!useSpine&&(
                               <div style={{marginTop:16,borderRadius:12,background:'#fff',border:'1px solid #E2E8F0',overflow:'hidden',boxShadow:'0 1px 4px rgba(0,0,0,0.05)'}}>
                                 {(()=>{
                                   const rjd  = (lead as any)?.roofing_job_data
