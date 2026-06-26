@@ -1542,6 +1542,43 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               )
                             }
+                            // Supplement stage owns the gap payoff + Supplement Assistant inline (Build B)
+                            if (s.key === 'supp' && (s.done || i === firstActive)) {
+                              const cState = s.done ? 'done' : 'active'
+                              const gapVal = wf.gap || 0
+                              const eTot = Number(est?.total) || 0
+                              const cTot = Math.max(eTot - gapVal, 0)
+                              return (
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
+                                  {gIcon(cState === 'done' ? '#15803D' : 'linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>)}
+                                  <div id="supplement-section" style={{ scrollMarginTop: 16 }}>
+                                    {/* Gap payoff hero — what the carrier paid vs the roofer's full scope */}
+                                    <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(252,211,77,0.25)' : '#FDE68A'}`, background: dk ? 'rgba(180,83,9,0.10)' : '#FFFBEB', overflow: 'hidden', marginBottom: 12 }}>
+                                      <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
+                                        <div style={{ minWidth: 0 }}>
+                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#B45309', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Potential supplement gap</div>
+                                          <div style={{ fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: '#B45309', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }}>${gapVal.toLocaleString()}</div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 22 }}>
+                                          <div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Carrier total</div>
+                                            <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>${cTot.toLocaleString()}</div>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Your estimate</div>
+                                            <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{eTot > 0 ? `$${eTot.toLocaleString()}` : '—'}</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(252,211,77,0.2)' : '#FED7AA'}`, fontSize: T.fontSub, color: dk ? '#FBBF77' : '#92400E', lineHeight: 1.45 }}>
+                                        The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.
+                                      </div>
+                                    </div>
+                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} />
+                                  </div>
+                                </div>
+                              )
+                            }
                             const state = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
 
                             if (state === 'active') {
@@ -2084,6 +2121,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                               if (isDenied) return null  // denial has its own CTA above
                               if (!carrierResponded) return null  // pre-decision: the claim panel's decision buttons own this
+                              if (useSpine) return null  // spine renders the supplement payoff inline in its own stage
 
                               return (
                                 <div id="supplement-section" style={{marginTop:16}}>

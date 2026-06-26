@@ -333,7 +333,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
   return (
     <div style={{
-      background: cardBg, borderRadius: 14, marginBottom: 16,
+      background: cardBg, borderRadius: 14,
       border: `1px solid ${open ? 'rgba(15,118,110,0.25)' : cardBdr}`,
       boxShadow: open ? '0 4px 20px rgba(15,118,110,0.08)' : '0 1px 4px rgba(10,22,40,0.05)',
       overflow: 'hidden', transition: 'all 0.2s',
