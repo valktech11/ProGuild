@@ -67,8 +67,8 @@ function roofingWorkflow(
     ? [
         { key: 'measure',  label: 'Measure Roof',         done: sqDone },
         { key: 'lf',       label: 'Capture LF',           done: lfDone },
-        { key: 'carrier',  label: 'Review Carrier Scope', done: decisionRecorded },
         { key: 'estimate', label: 'Build Estimate',       done: estDone },
+        { key: 'carrier',  label: 'Review Carrier Scope', done: decisionRecorded },
         ...(hasGap ? [{ key: 'supp', label: 'Review Supplement', done: supDone }] : []),
         { key: 'send',     label: 'Send to Homeowner',    done: sentDone },
       ]
@@ -1452,13 +1452,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         ? `${sqv} SQ · ${rjd2.pitch || '—'} · ${rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'} waste${isClaim2 && dn('lf') ? `   ·   Ridge ${Math.round(lfd2.ridge_ft || 0)} / Hip ${Math.round(lfd2.hip_ft || 0)} / Valley ${Math.round(lfd2.valley_ft || 0)} LF` : ''}`
                         : 'Not measured yet',
                     })
-                    if (isClaim2) stages.push({
-                      key: 'carrier', label: 'Carrier Claim', done: dn('carrier'),
-                      summary: dn('carrier') ? `${rjd2.carrier_name || 'Carrier'} · decision recorded` : `${rjd2.carrier_name || 'Carrier'} · awaiting decision`,
-                    })
                     stages.push({
                       key: 'estimate', label: isClaim2 ? 'Estimate' : 'Price the job', done: dn('estimate'),
                       summary: est ? `${(est as any).estimate_number || 'Estimate'} · ${money(Number(est.total) || 0)}${(est as any).status ? ` · ${(est as any).status}` : ''}` : 'Price the job in the calculator',
+                    })
+                    if (isClaim2) stages.push({
+                      key: 'carrier', label: 'Carrier Claim', done: dn('carrier'),
+                      summary: dn('carrier') ? `${rjd2.carrier_name || 'Carrier'} · decision recorded` : `${rjd2.carrier_name || 'Carrier'} · awaiting decision`,
                     })
                     if (isClaim2 && wf.hasGap) stages.push({
                       key: 'supp', label: 'Supplement', done: dn('supp'),
@@ -1478,8 +1478,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       supp: <><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8.4" x2="11" y2="13.6" /><line x1="8.4" y1="11" x2="13.6" y2="11" /></>,
                     }
                     const CUES: Record<string, string> = {
-                      carrier: 'After measuring',
-                      estimate: isClaim2 ? 'After the carrier decision' : 'After measuring',
+                      estimate: 'After measuring',
+                      carrier: 'After your estimate',
                       supp: 'When your scope exceeds the carrier\u2019s',
                     }
                     const sBtn = (label: string, onClick: () => void) => (
