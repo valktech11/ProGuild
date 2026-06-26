@@ -189,6 +189,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [tab,          setTab]          = useState<Tab>('details')
   const [isEditing,    setIsEditing]    = useState(false)
   const [contactOpen,  setContactOpen]  = useState(false)
+  const [useSpine,     setUseSpine]     = useState(false)
   const [showPicker,   setShowPicker]   = useState(false)
   // Persistent info/warning popover anchored under the status dropdown (replaces
   // the transient toast for blocked/locked stage taps — stays until dismissed).
@@ -555,6 +556,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       setQbError(isAbort?'Timed out — try again':'Network error')
     }finally{setQbGenerating(false)}
   }
+  // ── Stage-spine preview flag (?spine=1) — off by default, live page unchanged ──
+  useEffect(() => {
+    if (typeof window !== 'undefined') setUseSpine(new URLSearchParams(window.location.search).get('spine') === '1')
+  }, [])
   // ── Address autocomplete for edit form ──────────────────────────────────
   useEffect(() => {
     if (!eAddrLoading || eAddr.length < 3) { setEAddrPredictions([]); setEAddrShowPred(false); return }
@@ -1377,7 +1382,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const glow = done ? 'rgba(74,222,128,0.22)' : 'rgba(45,212,191,0.25)'
                     const eyebrowColor = done ? '#86EFAC' : '#5EEAD4'
                     const wmIcon = na ? na.icon : (<polyline points="20 6 9 17 4 12"/>)
-                    return (
+                    const heroEl = (
                       <div style={{position:'relative',background:fieldBg,borderRadius:T.radLg,marginBottom:12,boxShadow:fieldShadow,overflow:'hidden'}}>
                         <div style={{position:'absolute',top:-60,left:-20,width:260,height:260,borderRadius:'50%',background:`radial-gradient(circle, ${glow}, transparent 65%)`,pointerEvents:'none'}}/>
                         <div style={{position:'absolute',right:-20,bottom:-30,opacity:0.07,pointerEvents:'none',transform:'rotate(-8deg)'}}>
@@ -1419,10 +1424,70 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         </div>
                       </div>
                     )
+
+                    if (!useSpine) return heroEl
+
+                    // ── Stage spine (preview, ?spine=1) — derived from the same workflow source of truth ──
+                    const rjd2 = (lead as any).roofing_job_data || {}
+                    const isClaim2 = !!rjd2.insurance_claim
+                    const lfd2 = rjd2.linear_footage || {}
+                    const sqv = rjd2.square_count
+                    const dn = (k: string) => !!wf.steps.find(s => s.key === k)?.done
+                    const money = (n: number) => '$' + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                    type SP = { key: string; label: string; done: boolean; summary: string }
+                    const stages: SP[] = []
+                    stages.push({
+                      key: 'measure', label: isClaim2 ? 'Measure + LF' : 'Measure',
+                      done: dn('measure') && (isClaim2 ? dn('lf') : true),
+                      summary: dn('measure')
+                        ? `${sqv} SQ · ${rjd2.pitch || '—'} · ${rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'} waste${isClaim2 && dn('lf') ? `   ·   Ridge ${Math.round(lfd2.ridge_ft || 0)} / Hip ${Math.round(lfd2.hip_ft || 0)} / Valley ${Math.round(lfd2.valley_ft || 0)} LF` : ''}`
+                        : 'Not measured yet',
+                    })
+                    if (isClaim2) stages.push({
+                      key: 'carrier', label: 'Carrier Claim', done: dn('carrier'),
+                      summary: dn('carrier') ? `${rjd2.carrier_name || 'Carrier'} · decision recorded` : `${rjd2.carrier_name || 'Carrier'} · awaiting decision`,
+                    })
+                    stages.push({
+                      key: 'estimate', label: 'Estimate', done: dn('estimate'),
+                      summary: est ? `${(est as any).estimate_number || 'Estimate'} · ${money(Number(est.total) || 0)}${(est as any).status ? ` · ${(est as any).status}` : ''}` : 'Price the job in the calculator',
+                    })
+                    if (isClaim2 && wf.hasGap) stages.push({
+                      key: 'supp', label: 'Supplement', done: dn('supp'),
+                      summary: wf.gap != null ? `Potential gap ${money(wf.gap)} — review items` : 'Review supplement items',
+                    })
+                    const firstActive = stages.findIndex(s => !s.done)
+                    const goStage = (k: string) => {
+                      if (k === 'estimate') { goEstimate(); return }
+                      setTab('details')
+                      const id = k === 'carrier' ? 'insurance-claim-section' : k === 'supp' ? 'supplement-section' : null
+                      if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+                    }
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+                        {stages.map((s, i) => {
+                          const state = s.done ? 'done' : (i === firstActive ? 'active' : 'locked')
+                          if (state === 'active') return <div key={s.key}>{heroEl}</div>
+                          if (state === 'done') return (
+                            <div key={s.key} style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13 }}>
+                              <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#15803D', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Svg size={14} stroke="#fff" sw={2.6}><polyline points="20 6 9 17 4 12" /></Svg></span>
+                              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: T.fontEmphasis, color: tp }}>{s.label}</div><div style={{ fontSize: T.fontSub, color: ts, marginTop: 2 }}>{s.summary}</div></div>
+                              <span onClick={() => goStage(s.key)} style={{ fontSize: T.fontSub, fontWeight: 700, color: BRAND.teal, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>{s.key === 'measure' ? 'Re-measure' : s.key === 'estimate' ? 'Open →' : 'View →'}</span>
+                            </div>
+                          )
+                          return (
+                            <div key={s.key} style={{ background: dk ? t.cardBgAlt : '#FAFBFC', border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13 }}>
+                              <span style={{ width: 26, height: 26, borderRadius: '50%', background: dk ? 'rgba(255,255,255,0.04)' : '#EEF2F6', color: ts, border: `1.5px solid ${bdr}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 800 }}>{i + 1}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: T.fontEmphasis, color: ts }}>{s.label}</div><div style={{ fontSize: T.fontSub, color: tsu, marginTop: 2 }}>{s.summary}</div></div>
+                              <span style={{ fontSize: T.fontSub, color: tsu, flexShrink: 0 }}>🔒 Locked</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
                   })()}
 
                   {/* ─── JOB READINESS (design pass §1c) — non-linear status, NOT a stepper ─── */}
-                  {isRoofing && (() => {
+                  {isRoofing && !useSpine && (() => {
                     const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
                     const doneCount = wf.steps.filter(s => s.done).length
                     const total = wf.steps.length
