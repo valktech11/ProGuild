@@ -1173,19 +1173,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             {initials(lead.contact_name)}
                           </div>
                           <div style={{minWidth:0,flex:1,paddingTop:2}}>
-                            <div style={{display:'flex',alignItems:'baseline',flexWrap:'wrap' as const,gap:'2px 12px',marginBottom:heroMeta.length?5:0}}>
+                            <div style={{marginBottom:heroMeta.length?4:0}}>
                               <span style={{fontSize:28,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15}}>{heroLabel}</span>
-                              {heroMeta.length>0 && (
-                                <span style={{display:'inline-flex',alignItems:'center',gap:10,fontSize:13.5,color:tsu,fontWeight:600,flexWrap:'wrap' as const}}>
-                                  {heroMeta.map((x,i)=>(
-                                    <span key={i} style={{display:'inline-flex',alignItems:'center',gap:10}}>
-                                      {i>0 && <span style={{width:1,height:13,background:dk?'#475569':'#94A3B8',display:'inline-block',borderRadius:1}}/>}
-                                      {x}
-                                    </span>
-                                  ))}
-                                </span>
-                              )}
                             </div>
+                            {heroMeta.length>0 && (
+                              <div style={{display:'flex',alignItems:'center',gap:10,fontSize:13.5,color:tsu,fontWeight:600,flexWrap:'wrap' as const,marginBottom:0}}>
+                                {heroMeta.map((x,i)=>(
+                                  <span key={i} style={{display:'inline-flex',alignItems:'center',gap:10}}>
+                                    {i>0 && <span style={{width:1,height:13,background:dk?'#475569':'#94A3B8',display:'inline-block',borderRadius:1}}/>}
+                                    {x}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             {/* Appointment line — the stepper owns the stage; this carries
                                 only the booked date (labeled). Aging lives in Time in Stage. */}
                             {(() => {
