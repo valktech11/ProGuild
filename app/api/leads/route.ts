@@ -17,7 +17,35 @@ export async function GET(req: NextRequest) {
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ leads: data || [] })
+
+  const leads = data || []
+
+  // For leads with no committed quoted_amount, fetch the most recent draft
+  // estimate total so clients can show "Draft $X" without an N+1 per-lead fetch.
+  // Display-only: draft_total never writes to quoted_amount.
+  const unpriced = leads.filter((l: any) => l.quoted_amount == null).map((l: any) => l.id)
+  if (unpriced.length > 0) {
+    const { data: drafts } = await getSupabaseAdmin()
+      .from('estimates')
+      .select('lead_id, total')
+      .in('lead_id', unpriced)
+      .eq('pro_id', proId)
+      .eq('status', 'draft')
+      .order('created_at', { ascending: false })
+    if (drafts && drafts.length > 0) {
+      const draftMap = new Map<string, number>()
+      for (const d of drafts) {
+        if (!draftMap.has(d.lead_id) && d.total > 0) draftMap.set(d.lead_id, d.total)
+      }
+      for (const l of leads as any[]) {
+        if (l.quoted_amount == null && draftMap.has(l.id)) {
+          l.draft_total = draftMap.get(l.id)
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({ leads })
 }
 
 export async function POST(req: NextRequest) {
