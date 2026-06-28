@@ -563,16 +563,18 @@ function CalculatorInner() {
                   </div>
                 )
               ) : (
-                <div style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
-                  <div style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'#F0FDF4', border:'1px solid rgba(5,150,105,0.2)' }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span style={{ fontSize:10, fontWeight:700, color:'#059669' }}>Complete</span>
+                <div style={{ display:'inline-flex', alignItems:'center', gap:10 }}>
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span style={{ fontSize:11, fontWeight:700, color:'#059669' }}>Complete</span>
                   </div>
                   {leadId && (
                     <button
                       onClick={()=>router.push(`/dashboard/roofing/promeasure?lead_id=${leadId}&from=calculator`)}
-                      style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:100, background:'transparent', border:'1px solid rgba(15,118,110,0.3)', color:'#0F766E', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                      onMouseEnter={e=>{e.currentTarget.style.background='#0E6B63'}}
+                      onMouseLeave={e=>{e.currentTarget.style.background='#0F766E'}}
+                      style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, background:'#0F766E', border:'none', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', transition:'background 0.15s' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                       Re-measure
                     </button>
                   )}
