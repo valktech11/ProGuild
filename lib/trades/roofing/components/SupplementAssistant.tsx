@@ -1,6 +1,6 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
-import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, type SupplementResult, type SupplementItem, type MeasuredLinearFootage } from '@/lib/fl/supplement'
+import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, type SupplementResult, type SupplementItem, type MeasuredLinearFootage, type GroundedSupplementFlag } from '@/lib/fl/supplement'
 import { Card } from '@/components/ui/Card'
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
   hasClaim:       boolean   // roofing_job_data.insurance_claim
   darkMode:       boolean
   measuredLF?:    MeasuredLinearFootage | null  // synthesized linear_footage from the lead (human ProMeasure LF)
+  groundedFlags?: GroundedSupplementFlag[] | null  // server-computed (Bible §28); falls back to local compute if absent
 }
 
 const TEAL = '#0F766E'
@@ -47,7 +48,7 @@ function ItemTable({ items, dk, accent }: { items: SupplementItem[]; dk: boolean
   )
 }
 
-export default function SupplementAssistant({ leadId, proId, propertyState, hasClaim, darkMode: dk, measuredLF }: Props) {
+export default function SupplementAssistant({ leadId, proId, propertyState, hasClaim, darkMode: dk, measuredLF, groundedFlags }: Props) {
   const [scope,   setScope]   = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -57,7 +58,8 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   const [restoring, setRestoring] = useState(true)
 
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
-  const grounded = groundSupplementFlags(measuredLF)
+  // Bible §28: prefer the server-computed flags; local compute is a rollout fallback only.
+  const grounded = groundedFlags ?? groundSupplementFlags(measuredLF)
 
   // Load the most recent session for this lead on mount
   useEffect(() => {
