@@ -20,24 +20,34 @@ export async function GET(req: NextRequest) {
 
   const leads = data || []
 
-  // For leads with no committed quoted_amount, fetch the most recent draft
-  // estimate total so clients can show "Draft $X" without an N+1 per-lead fetch.
-  // Display-only: draft_total never writes to quoted_amount.
-  const unpriced = leads.filter((l: any) => l.quoted_amount == null).map((l: any) => l.id)
-  if (unpriced.length > 0) {
-    const { data: drafts } = await getSupabaseAdmin()
+  // Per-lead estimate signal so clients can render the stage directive ("Send to
+  // homeowner" vs "Write the estimate") INSTANTLY from the list, without a
+  // per-lead estimate fetch on open. We attach:
+  //   - draft_total: newest draft total for unpriced leads (display "Draft $X")
+  //   - estimate_status: status of the newest estimate (any status), so the hero
+  //     knows whether an estimate exists and if it's draft/sent.
+  // Both come from ONE estimates query over all visible leads (indexed on
+  // lead_id) — no N+1. ADDITIVE: consumers read named fields; extras ignored.
+  const allLeadIds = leads.map((l: any) => l.id)
+  if (allLeadIds.length > 0) {
+    const { data: ests } = await getSupabaseAdmin()
       .from('estimates')
-      .select('lead_id, total')
-      .in('lead_id', unpriced)
+      .select('lead_id, total, status, created_at')
+      .in('lead_id', allLeadIds)
       .eq('pro_id', proId)
-      .eq('status', 'draft')
       .order('created_at', { ascending: false })
-    if (drafts && drafts.length > 0) {
+    if (ests && ests.length > 0) {
+      const statusMap = new Map<string, string>()
       const draftMap = new Map<string, number>()
-      for (const d of drafts) {
-        if (!draftMap.has(d.lead_id) && d.total > 0) draftMap.set(d.lead_id, d.total)
+      for (const e of ests) {
+        // First seen per lead = newest (ordered desc).
+        if (!statusMap.has(e.lead_id)) statusMap.set(e.lead_id, e.status)
+        if (!draftMap.has(e.lead_id) && e.status === 'draft' && e.total > 0) {
+          draftMap.set(e.lead_id, e.total)
+        }
       }
       for (const l of leads as any[]) {
+        if (statusMap.has(l.id)) l.estimate_status = statusMap.get(l.id)
         if (l.quoted_amount == null && draftMap.has(l.id)) {
           l.draft_total = draftMap.get(l.id)
         }
@@ -62,14 +72,21 @@ export async function GET(req: NextRequest) {
   const leadIds = leads.map((l: any) => l.id)
   const propertyIds = leads.map((l: any) => l.property_id).filter(Boolean)
   if (leadIds.length > 0) {
-    // Job-data fallback values, keyed by lead_id.
+    // Job-data fallback values, keyed by lead_id. We also carry insurance_claim +
+    // claim_status here (same query, no extra round-trip) so the hero's
+    // claim-aware directives render from the list seed without a per-lead join.
     const { data: jobData } = await getSupabaseAdmin()
       .from('roofing_job_data')
-      .select('lead_id, square_count, pitch')
+      .select('lead_id, square_count, pitch, insurance_claim, claim_status')
       .in('lead_id', leadIds)
-    const jdMap = new Map<string, { square_count: number | null; pitch: string | null }>()
+    const jdMap = new Map<string, { square_count: number | null; pitch: string | null; insurance_claim: boolean | null; claim_status: string | null }>()
     for (const jd of jobData || []) {
-      jdMap.set(jd.lead_id, { square_count: jd.square_count ?? null, pitch: jd.pitch ?? null })
+      jdMap.set(jd.lead_id, {
+        square_count: jd.square_count ?? null,
+        pitch: jd.pitch ?? null,
+        insurance_claim: jd.insurance_claim ?? null,
+        claim_status: jd.claim_status ?? null,
+      })
     }
 
     // Authoritative report values, keyed by property_id (newest non-null first).
@@ -98,10 +115,15 @@ export async function GET(req: NextRequest) {
       const jd = jdMap.get(l.id)
       const square_count = rep?.square_count ?? jd?.square_count ?? null
       const pitch = rep?.pitch ?? jd?.pitch ?? null
-      // Only attach when there's something to show, so unmeasured leads stay
-      // genuinely empty (the card shows its measure-this-roof prompt correctly).
-      if (square_count != null || pitch != null) {
-        l.roofing_job_data = { square_count, pitch }
+      // Attach when there's roof size OR claim info to carry. Claim fields let the
+      // hero render its claim-aware directive instantly from the list seed.
+      const hasClaim = jd?.insurance_claim != null || jd?.claim_status != null
+      if (square_count != null || pitch != null || hasClaim) {
+        l.roofing_job_data = {
+          square_count, pitch,
+          insurance_claim: jd?.insurance_claim ?? null,
+          claim_status: jd?.claim_status ?? null,
+        }
       }
     }
   }
