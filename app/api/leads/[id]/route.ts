@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { apiError, isValidUuid } from '@/lib/api/utils'
 import { LeadStatus } from '@/types'
 import { getAllTradeStageKeys } from '@/lib/trades/_registry'
+import { groundSupplementFlags } from '@/lib/fl/supplement'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -135,6 +136,15 @@ export async function GET(
         source:    'promeasure_manual',
       }
     }
+  }
+
+  // Supplement grounding — code-anchored flags derived from human-traced LF.
+  // Computed server-side once (Bible §28: derived logic lives in one place; web
+  // and mobile both render this — no formula ported into a second place).
+  // Additive: consumers that ignore supplement_flags are unaffected.
+  if (roofingJobData) {
+    ;(roofingJobData as any).supplement_flags =
+      groundSupplementFlags((roofingJobData as any).linear_footage ?? null)
   }
 
   return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData } })
