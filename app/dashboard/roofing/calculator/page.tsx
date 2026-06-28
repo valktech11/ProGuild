@@ -312,6 +312,22 @@ function CalculatorInner() {
             claimStatus:    String(rjd.claim_status ?? ''),
           })
         }
+        // Seed squares/pitch/waste from the lead's own saved measurements when
+        // the calculator is reached DIRECTLY (e.g. 'Price the job' now routes
+        // here instead of through measure/ProMeasure, so there's no session
+        // report to seed from). Fill only blank fields so an estimate's values
+        // or a just-generated session report still win. square_count/pitch/
+        // waste_pct already carry the report-over-jobdata precedence (Bible §25)
+        // from the single-lead API.
+        if (rjd?.square_count != null) {
+          setSquares(p => p || String(Math.round(Number(rjd.square_count) * 10) / 10))
+        }
+        if (rjd?.pitch != null) {
+          setPitch(p => (p && p !== '6/12') ? p : normalizePitch(rjd.pitch))
+        }
+        if (rjd?.waste_pct != null) {
+          setWaste(p => (p && p !== '10') ? p : String(Math.round(Number(rjd.waste_pct))))
+        }
         // Pre-fill LF from the lead's linear_footage ONLY when it is human-traced
         // ProMeasure data (source: 'promeasure_manual'). DSM-derived linear footage
         // is non-authoritative (Bible §25: eave −42%, hip +130%, valley −53%) and
