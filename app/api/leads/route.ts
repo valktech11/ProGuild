@@ -45,6 +45,67 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Attach lightweight roof size (square_count + pitch) per lead so clients can
+  // show it immediately on lead open WITHOUT a per-lead fetch (mobile) and
+  // without a flicker. We deliberately fetch only these two fields — NOT the
+  // heavy roofing_job_data join — to keep the list lean.
+  //
+  // Precedence MUST match the single-lead GET (app/api/leads/[id]/route.ts) and
+  // Bible §25: the newest roof_reports row (with a non-null total_squares_order)
+  // wins; otherwise fall back to roofing_job_data. If list and detail disagreed,
+  // the size would visibly change when opening a lead.
+  //
+  // CROSS-PLATFORM CONTRACT: this is ADDITIVE. Web list consumers read named
+  // fields and ignore extras. Mobile's RoofingJobData.fromJson is fully
+  // null-tolerant, so the partial { square_count, pitch } object parses cleanly.
+  // Do NOT remove these fields without checking BOTH web and mobile consumers.
+  const leadIds = leads.map((l: any) => l.id)
+  const propertyIds = leads.map((l: any) => l.property_id).filter(Boolean)
+  if (leadIds.length > 0) {
+    // Job-data fallback values, keyed by lead_id.
+    const { data: jobData } = await getSupabaseAdmin()
+      .from('roofing_job_data')
+      .select('lead_id, square_count, pitch')
+      .in('lead_id', leadIds)
+    const jdMap = new Map<string, { square_count: number | null; pitch: string | null }>()
+    for (const jd of jobData || []) {
+      jdMap.set(jd.lead_id, { square_count: jd.square_count ?? null, pitch: jd.pitch ?? null })
+    }
+
+    // Authoritative report values, keyed by property_id (newest non-null first).
+    const reportMap = new Map<string, { square_count: number | null; pitch: string | null }>()
+    if (propertyIds.length > 0) {
+      const { data: reports } = await getSupabaseAdmin()
+        .from('roof_reports')
+        .select('property_id, total_squares_order, dominant_pitch, created_at')
+        .eq('pro_id', proId)
+        .in('property_id', propertyIds)
+        .not('total_squares_order', 'is', null)
+        .order('created_at', { ascending: false })
+      for (const r of reports || []) {
+        // First seen = newest (ordered desc), so don't overwrite.
+        if (!reportMap.has(r.property_id)) {
+          reportMap.set(r.property_id, {
+            square_count: r.total_squares_order ?? null,
+            pitch: r.dominant_pitch ?? null,
+          })
+        }
+      }
+    }
+
+    for (const l of leads as any[]) {
+      const rep = l.property_id ? reportMap.get(l.property_id) : undefined
+      const jd = jdMap.get(l.id)
+      const square_count = rep?.square_count ?? jd?.square_count ?? null
+      const pitch = rep?.pitch ?? jd?.pitch ?? null
+      // Only attach when there's something to show, so unmeasured leads stay
+      // genuinely empty (the card shows its measure-this-roof prompt correctly).
+      if (square_count != null || pitch != null) {
+        l.roofing_job_data = { square_count, pitch }
+      }
+    }
+  }
+
   return NextResponse.json({ leads })
 }
 
