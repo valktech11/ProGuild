@@ -1437,13 +1437,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
                     const nextKey = wf.nextKey
                     const addr = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                    // ProMeasure is now OPTIONAL, never a forced step. The LF
+                    // workflow step routes to the calculator (goEstimate) where LF
+                    // can be typed directly or traced via ProMeasure. Kept here so
+                    // the lead page can still offer a direct trace entry if needed.
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
                     const goSupplement = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                     const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string;icon:React.ReactNode}> = {
                       measure:  {title:'Measure the roof', sub:'Pull roof size from satellite — about 30 seconds.', cta:'Measure Roof', onClick:runSatelliteMeasure, mins:'1 min', icon:<><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></>},
-                      lf:       {title:'Capture linear footage', sub:'Trace ridge, hip & valley — drives materials and supplements.', cta:'Trace LF', onClick:goPromeasure, mins:'4 min', icon:<><rect x="2" y="9" width="20" height="6" rx="1.5"/><path d="M6 9v2.5M10 9v3M14 9v2.5M18 9v3"/></>},
+                      lf:       {title:'Capture linear footage', sub:'Add ridge, hip & valley — type them or trace with ProMeasure. Drives materials and supplements.', cta:'Add LF', onClick:goEstimate, mins:'2 min', icon:<><rect x="2" y="9" width="20" height="6" rx="1.5"/><path d="M6 9v2.5M10 9v3M14 9v2.5M18 9v3"/></>},
                       carrier:  {title:'Review carrier scope', sub:'Record the carrier\u2019s decision to see whether a supplement is needed.', cta:'Record Decision', onClick:goCarrier, mins:'2 min', icon:<><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></>},
                       estimate: {title:'Build the estimate', sub:'Turn your measurements into a priced estimate.', cta:'Build Estimate', onClick:goEstimate, mins:'2 min', icon:<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></>},
                       supp:     {title:'Review supplement items', sub:'Check which code-required items the carrier may have missed.', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'3 min', icon:<><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8.5" x2="11" y2="13.5"/><line x1="8.5" y1="11" x2="13.5" y2="11"/></>},
