@@ -183,6 +183,18 @@ function ProMeasureInner() {
         if (!leadAddr) return
         // Already on this exact lead address with a draw in progress → leave it alone.
         if (address.trim() && leadAddr.toLowerCase() === address.trim().toLowerCase()) return
+        // Same lead, re-entering (e.g. back from calculator to reapply): the address
+        // state may not have hydrated yet, so the check above misses. Before wiping,
+        // see if the SAVED draw belongs to this same lead — if so, keep it. Only a
+        // draw from a genuinely different property should be reset.
+        const savedAddr = String(savedDraw?.address || '').trim().toLowerCase()
+        const savedHasDrawing = (Array.isArray(savedDraw?.lines) && savedDraw.lines.length > 0) ||
+          (Array.isArray(savedDraw?.regions) && savedDraw.regions.length > 0)
+        if (savedHasDrawing && savedAddr && savedAddr === leadAddr.toLowerCase()) {
+          // Same property — adopt the lead address but preserve the drawing.
+          if (!address.trim()) setAddress(leadAddr)
+          return
+        }
         // Fresh lead measure → hard-reset any stale drawn state from another property.
         try {
           markers.current.forEach((m:any)=>m.setMap(null)); markers.current=[]

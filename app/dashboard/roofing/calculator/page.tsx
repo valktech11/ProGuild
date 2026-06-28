@@ -591,7 +591,7 @@ function CalculatorInner() {
                 onChange={e => setValleyLF(e.target.value)} />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:14 }}>
-              <FInput label="Perimeter LF" hint="for drip edge + starter strip"
+              <FInput label="Perimeter LF" hint="drip edge + starter — type it, or draw the roof outline in ProMeasure"
                 type="number" min="0" step="1" value={perimLF} placeholder="e.g. 280"
                 onChange={e => setPerimLF(e.target.value)} />
             </div>
