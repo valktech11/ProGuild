@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await getSupabaseAdmin()
     .from('leads')
-    .select('lead_status, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount, insurance_company)')
+    .select('contact_name, property_address, contact_city, contact_state, lead_status, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount, insurance_company)')
     .eq('pro_id', proId)
     .eq('lead_status', WON)
 
@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
       date: new Date((l.lead_status_changed_at || l.updated_at || 0) as string),
       amount: leadRevenue(l as never),
       carrier: (rjd?.insurance_company || 'No carrier / retail') as string,
+      name: (l.contact_name || 'Unknown') as string,
+      city: [l.contact_city, l.contact_state].filter(Boolean).join(', '),
     }
   })
 
@@ -71,6 +73,12 @@ export async function GET(req: NextRequest) {
     ? Math.round(((sum(thisMonth) - sum(lastMonth)) / sum(lastMonth)) * 100)
     : null
 
+  // Top 5 biggest won jobs (all-time) — owners want to see their wins.
+  const biggestJobs = [...won]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5)
+    .map(w => ({ name: w.name, city: w.city, amount: w.amount, date: w.date.toISOString() }))
+
   return NextResponse.json({
     thisMonth: { revenue: sum(thisMonth), jobs: thisMonth.length },
     lastMonth: { revenue: sum(lastMonth), jobs: lastMonth.length },
@@ -80,6 +88,7 @@ export async function GET(req: NextRequest) {
     periodTotal,
     periodJobs,
     momChangePct,
+    biggestJobs,
     totalYTD: sum(won.filter(w => w.date.getFullYear() === now.getFullYear())),
     totalAll: sum(won),
   })

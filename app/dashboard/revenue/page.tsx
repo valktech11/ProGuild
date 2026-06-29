@@ -16,6 +16,7 @@ interface RevenueData {
   momChangePct?: number | null
   totalYTD: number
   totalAll: number
+  biggestJobs?: { name: string; city: string; amount: number; date: string }[]
 }
 
 const fmt = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `$${n.toLocaleString()}`)
@@ -75,24 +76,24 @@ export default function RevenuePage() {
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 20 }}>
                 <div style={card}>
-                  <div style={cardLabel}>This month</div>
+                  <div style={cardLabel}>Revenue this month</div>
                   <div style={cardValue}>{fmt(data.thisMonth.revenue)}</div>
                   <div style={{ fontSize: 12, color: delta == null ? t.textMuted : delta >= 0 ? '#059669' : '#DC2626', marginTop: 2 }}>
                     {data.thisMonth.jobs} job{data.thisMonth.jobs !== 1 ? 's' : ''}{delta != null ? ` · ${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)}% vs last mo` : ''}
                   </div>
                 </div>
                 <div style={card}>
-                  <div style={cardLabel}>Last month</div>
+                  <div style={cardLabel}>Revenue last month</div>
                   <div style={cardValue}>{fmt(data.lastMonth.revenue)}</div>
                   <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{data.lastMonth.jobs} job{data.lastMonth.jobs !== 1 ? 's' : ''}</div>
                 </div>
                 <div style={card}>
-                  <div style={cardLabel}>This year</div>
+                  <div style={cardLabel}>YTD revenue</div>
                   <div style={cardValue}>{fmt(data.totalYTD)}</div>
                   <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>year to date</div>
                 </div>
                 <div style={card}>
-                  <div style={cardLabel}>Total won</div>
+                  <div style={cardLabel}>Lifetime revenue</div>
                   <div style={cardValue}>{fmt(data.totalAll)}</div>
                   <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>all time</div>
                 </div>
@@ -100,11 +101,11 @@ export default function RevenuePage() {
 
               <div style={{ ...card, marginBottom: 20 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri, marginBottom: 16 }}>Monthly won revenue · last 6 months</div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 170 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 128 }}>
                   {data.monthly.map(m => (
                     <div key={m.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: t.textPri, minHeight: 14 }}>{m.revenue > 0 ? fmt(m.revenue) : ''}</div>
-                      <div style={{ width: '100%', maxWidth: 56, background: m.revenue > 0 ? '#0F766E' : (dk ? '#1E293B' : '#F1F5F9'), borderRadius: '6px 6px 0 0', height: `${Math.max((m.revenue / maxRev) * 120, m.revenue > 0 ? 4 : 2)}px`, transition: 'height .3s' }} />
+                      <div style={{ width: '100%', maxWidth: 56, background: m.revenue > 0 ? '#0F766E' : (dk ? '#1E293B' : '#F1F5F9'), borderRadius: '6px 6px 0 0', height: `${Math.max((m.revenue / maxRev) * 88, m.revenue > 0 ? 4 : 2)}px`, transition: 'height .3s' }} />
                       <div style={{ fontSize: 11, color: t.textMuted }}>{m.label}</div>
                     </div>
                   ))}
@@ -137,7 +138,7 @@ export default function RevenuePage() {
                       <div>Carrier</div>
                       <div style={{ textAlign: 'right' }}>Jobs</div>
                       <div style={{ textAlign: 'right' }}>Revenue</div>
-                      <div style={{ textAlign: 'right' }}>Avg</div>
+                      <div style={{ textAlign: 'right' }}>Avg job</div>
                     </div>
                     {data.byCarrier.map(c => (
                       <div key={c.carrier} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr 1fr', fontSize: 13, color: t.textPri, padding: '10px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
@@ -150,6 +151,26 @@ export default function RevenuePage() {
                   </div>
                 )}
               </div>
+
+              {(data.biggestJobs?.length ?? 0) > 0 && (
+                <div style={{ ...card, marginTop: 20 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri, marginBottom: 4 }}>Top 5 biggest jobs</div>
+                  <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14 }}>Your largest won jobs, all time.</div>
+                  {data.biggestJobs!.map((j, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < data.biggestJobs!.length - 1 ? `1px solid ${t.cardBorder}` : 'none' }}>
+                      <div style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, background: dk ? '#0D2820' : '#F0FDFA', color: '#0F766E' }}>{i + 1}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: t.textPri, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.name}</div>
+                        {j.city && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>{j.city}</div>}
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#0F766E' }}>{fmt(j.amount)}</div>
+                        <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 1 }}>Won {new Date(j.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>

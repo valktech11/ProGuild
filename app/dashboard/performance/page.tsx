@@ -12,8 +12,10 @@ interface PerfData {
   wonAll: number
   lostAll: number
   avgCycle: number | null
-  funnel: { stage: string; count: number; conversion: number }[]
-  bySource: { source: string; leads: number; won: number; winRate: number; revenue: number }[]
+  funnel: { stage: string; count: number; conversion: number; drop: number | null }[]
+  biggestDropIndex: number
+  bySource: { source: string; leads: number; won: number; winRate: number; revenue: number; perLead: number }[]
+  staleProposals: number
   totalLeads: number
 }
 
@@ -85,16 +87,30 @@ export default function PerformancePage() {
                 </div>
               </div>
 
+              {data.staleProposals > 0 && (
+                <a href="/dashboard/pipeline?stage=proposal_sent" style={{ textDecoration: 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 12, marginBottom: 20, background: dk ? 'rgba(234,88,12,0.12)' : '#FFF7ED', border: `1px solid ${dk ? '#7C2D12' : '#FED7AA'}` }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: dk ? 'rgba(234,88,12,0.2)' : '#FFEDD5' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C2410C" strokeWidth="2.2" strokeLinecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri }}>Needs attention</div>
+                      <div style={{ fontSize: 13, color: t.textMuted, marginTop: 1 }}>{data.staleProposals} proposal{data.staleProposals === 1 ? '' : 's'} sent over 7 days ago with no movement — follow up to close.</div>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={t.textSubtle} strokeWidth="1.5" strokeLinecap="round"><path d="M6 4l4 4-4 4"/></svg>
+                  </div>
+                </a>
+              )}
+
               <div style={{ ...card, marginBottom: 20 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri, marginBottom: 4 }}>Conversion funnel</div>
                 <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 16 }}>How far your leads get. The biggest drop between two stages is where you&apos;re losing deals.</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {data.funnel.map((f, i) => {
-                    const prev = i > 0 ? data.funnel[i - 1].count : f.count
-                    const stepDrop = prev > 0 ? Math.round((1 - f.count / prev) * 100) : 0
+                    const isBiggest = i === data.biggestDropIndex
                     return (
                       <div key={f.stage} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 150, flexShrink: 0, fontSize: 13, fontWeight: 600, color: t.textPri }}>{f.stage}</div>
+                        <div style={{ width: 150, flexShrink: 0, fontSize: 13, fontWeight: isBiggest ? 700 : 600, color: t.textPri }}>{f.stage}</div>
                         <div style={{ flex: 1, height: 22, borderRadius: 6, background: dk ? '#1E293B' : '#F1F5F9', overflow: 'hidden', position: 'relative' }}>
                           <div style={{ height: '100%', width: `${f.conversion}%`, background: '#0F766E', borderRadius: 6, minWidth: f.count > 0 ? 2 : 0, transition: 'width .4s' }} />
                         </div>
@@ -102,8 +118,13 @@ export default function PerformancePage() {
                           <span style={{ fontWeight: 700, color: t.textPri }}>{f.count}</span>
                           <span style={{ color: t.textMuted }}> · {f.conversion}%</span>
                         </div>
-                        <div style={{ width: 56, textAlign: 'right', flexShrink: 0, fontSize: 12, fontWeight: 600, color: i > 0 && stepDrop >= 50 ? '#DC2626' : t.textSubtle }}>
-                          {i > 0 ? `−${stepDrop}%` : ''}
+                        <div style={{ width: 124, textAlign: 'right', flexShrink: 0, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                          {isBiggest && (
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#C2410C', background: dk ? 'rgba(234,88,12,0.18)' : '#FFF7ED', border: `1px solid ${dk ? '#7C2D12' : '#FED7AA'}`, borderRadius: 6, padding: '1px 6px' }}>Biggest drop</span>
+                          )}
+                          <span style={{ color: f.drop != null && isBiggest ? '#C2410C' : (f.drop != null && f.drop >= 50 ? '#DC2626' : t.textSubtle) }}>
+                            {f.drop != null ? `−${f.drop}%` : ''}
+                          </span>
                         </div>
                       </div>
                     )
@@ -118,20 +139,22 @@ export default function PerformancePage() {
                   <div style={{ color: t.textMuted, fontSize: 13 }}>No leads yet.</div>
                 ) : (
                   <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: t.textSubtle, padding: '6px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.2fr', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: t.textSubtle, padding: '6px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
                       <div>Source</div>
                       <div style={{ textAlign: 'right' }}>Leads</div>
                       <div style={{ textAlign: 'right' }}>Won</div>
                       <div style={{ textAlign: 'right' }}>Win %</div>
                       <div style={{ textAlign: 'right' }}>Revenue</div>
+                      <div style={{ textAlign: 'right' }}>$ / Lead</div>
                     </div>
                     {data.bySource.map(s => (
-                      <div key={s.source} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr', fontSize: 13, color: t.textPri, padding: '10px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
+                      <div key={s.source} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.2fr', fontSize: 13, color: t.textPri, padding: '10px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
                         <div style={{ fontWeight: 600 }}>{s.source}</div>
                         <div style={{ textAlign: 'right' }}>{s.leads}</div>
                         <div style={{ textAlign: 'right' }}>{s.won}</div>
                         <div style={{ textAlign: 'right', color: s.winRate >= 50 ? '#059669' : t.textMuted }}>{s.winRate}%</div>
                         <div style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(s.revenue)}</div>
+                        <div style={{ textAlign: 'right', color: t.textMuted }}>{s.perLead > 0 ? fmt(s.perLead) : '—'}</div>
                       </div>
                     ))}
                   </div>

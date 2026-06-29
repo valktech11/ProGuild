@@ -67,11 +67,20 @@ export async function GET(req: NextRequest) {
     for (let i = 0; i <= maxIdx; i++) funnelCounts[i]++
   }
   const base = funnelCounts[0] || 0
+  // drop = relative % lost from the previous stage; biggest drop = where to look first.
   const funnel = FUNNEL.map((s, i) => ({
     stage: s.label,
     count: funnelCounts[i],
     conversion: i === 0 ? 100 : base ? Math.round((funnelCounts[i] / base) * 100) : 0,
+    drop: i === 0 || funnelCounts[i - 1] === 0
+      ? null
+      : Math.round(((funnelCounts[i - 1] - funnelCounts[i]) / funnelCounts[i - 1]) * 100),
   }))
+  let biggestDropIndex = -1, biggestDrop = 0
+  for (let i = 1; i < funnel.length; i++) {
+    const d = funnel[i].drop ?? 0
+    if (d > biggestDrop) { biggestDrop = d; biggestDropIndex = i }
+  }
 
   // ── Lead-source effectiveness ─────────────────────────────────────────────
   const srcMap = new Map<string, { leads: number; won: number; revenue: number }>()
@@ -83,11 +92,19 @@ export async function GET(req: NextRequest) {
     srcMap.set(k, e)
   }
   const bySource = [...srcMap.entries()]
-    .map(([source, v]) => ({ source: pretty(source), leads: v.leads, won: v.won, winRate: v.leads ? Math.round((v.won / v.leads) * 100) : 0, revenue: v.revenue }))
+    .map(([source, v]) => ({ source: pretty(source), leads: v.leads, won: v.won, winRate: v.leads ? Math.round((v.won / v.leads) * 100) : 0, revenue: v.revenue, perLead: v.leads ? Math.round(v.revenue / v.leads) : 0 }))
     .sort((a, b) => b.revenue - a.revenue || b.leads - a.leads)
+
+  // ── Needs attention: proposals stuck in 'proposal_sent' 7+ days ───────────────
+  const staleCutoff = Date.now() - 7 * 86400000
+  const staleProposals = leads.filter(l => {
+    if (l.lead_status !== 'proposal_sent') return false
+    const ts = new Date((l.lead_status_changed_at || l.updated_at || l.created_at) as string).getTime()
+    return ts < staleCutoff
+  }).length
 
   return NextResponse.json({
     winRate, winRateMo, wonAll: wonAll.length, lostAll: lostAll.length,
-    avgCycle, funnel, bySource, totalLeads: leads.length,
+    avgCycle, funnel, biggestDropIndex, bySource, staleProposals, totalLeads: leads.length,
   })
 }
