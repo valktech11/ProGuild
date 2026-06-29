@@ -23,6 +23,10 @@ interface Property {
   city: string | null; state: string | null; zip_code: string | null
   roof_type: string | null; sq_footage: number | null; created_at: string
   roof_reports?: ReportSummary[]
+  report_count?: number
+  latest_sq?: number | null
+  latest_pitch?: string | null
+  last_report_at?: string | null
 }
 
 const HouseIcon = ({ color = BRAND.teal }: { color?: string }) => (
@@ -218,8 +222,12 @@ export default function PropertyListPage() {
           }}>
             {filtered.map(p => {
               const reports = p.roof_reports ?? []
-              const latest  = reports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-              const hasReport = !!latest
+              const latest  = reports.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+              // Prefer the server-derived summary; fall back to client derivation.
+              const reportCount = p.report_count ?? reports.length
+              const sq    = p.latest_sq    ?? latest?.total_squares_order ?? null
+              const pitch = p.latest_pitch ?? latest?.dominant_pitch ?? null
+              const hasReport = sq != null
               return (
                 <Card key={p.id} dk={dk} pad="md" shadow hover
                   onClick={() => router.push('/dashboard/roofing/property/' + p.id)}
@@ -249,11 +257,11 @@ export default function PropertyListPage() {
                           <span style={{ fontSize: T.fontBadge, fontWeight: 700, color: BRAND.teal,
                             background: dk ? '#0D2820' : '#F0FDFA', border: `1px solid ${dk ? '#0F4A3A' : '#99F6E4'}`,
                             borderRadius: T.radXs, padding: '2px 8px' }}>
-                            {latest.total_squares_order.toFixed(1)} sq
+                            {sq!.toFixed(1)} sq
                           </span>
                           <span style={{ fontSize: T.fontBadge, fontWeight: 600, color: t.textMuted,
                             background: t.cardBgAlt, borderRadius: T.radXs, padding: '2px 8px' }}>
-                            {latest.dominant_pitch}
+                            {pitch}
                           </span>
                           {p.roof_type && (
                             <span style={{ fontSize: T.fontBadge, color: t.textSubtle }}>
@@ -270,9 +278,9 @@ export default function PropertyListPage() {
                     {/* Meta */}
                     <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: T.sp1, flexShrink: 0 }}>
                       <span style={{ fontSize: T.fontBadge, color: t.textSubtle }}>{timeAgo(p.created_at)}</span>
-                      {reports.length > 0 && (
+                      {reportCount > 0 && (
                         <span style={{ fontSize: T.fontBadge, color: t.textMuted }}>
-                          {reports.length} report{reports.length !== 1 ? 's' : ''}
+                          {reportCount} report{reportCount !== 1 ? 's' : ''}
                         </span>
                       )}
                       <svg width={14} height={14} viewBox="0 0 24 24" fill="none"

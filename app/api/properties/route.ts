@@ -17,7 +17,21 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await q
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ properties: data || [] })
+
+  // Derive the per-property report summary server-side (latest report's squares /
+  // pitch + count) so web and mobile both paint the same values (§28).
+  const properties = (data || []).map((p: any) => {
+    const reports = (p.roof_reports ?? []) as { total_squares_order: number; dominant_pitch: string; created_at: string }[]
+    const latest = [...reports].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+    return {
+      ...p,
+      report_count:  reports.length,
+      latest_sq:     latest ? latest.total_squares_order : null,
+      latest_pitch:  latest ? latest.dominant_pitch : null,
+      last_report_at: latest ? latest.created_at : null,
+    }
+  })
+  return NextResponse.json({ properties })
 }
 
 export async function POST(req: NextRequest) {
