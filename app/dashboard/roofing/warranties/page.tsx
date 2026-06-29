@@ -19,6 +19,8 @@ type Warranty = {
   property_address: string | null
   property_city: string | null
   property_state: string | null
+  status_key?: string
+  status_label?: string
 }
 
 // Status derived from expiry_date. Dates from the DB arrive as strings; parse defensively.
@@ -31,6 +33,21 @@ function warrantyStatus(expiry: string | null): { label: string; bg: string; tex
   if (days < 0)    return { label: 'Expired',       bg: '#FEF2F2', text: '#DC2626', dot: '#DC2626' }
   if (days <= 365) return { label: 'Expiring soon', bg: '#FFFBEB', text: '#B45309', dot: '#D97706' }
   return { label: 'Active', bg: '#F0FDF4', text: '#15803D', dot: '#16A34A' }
+}
+
+// Colors are presentation; the status itself is derived once server-side
+// (computeWarrantyStatus) and arrives as status_key/status_label.
+const WARRANTY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  none:     { bg: '#F1F5F9', text: '#64748B', dot: '#94A3B8' },
+  expired:  { bg: '#FEF2F2', text: '#DC2626', dot: '#DC2626' },
+  expiring: { bg: '#FFFBEB', text: '#B45309', dot: '#D97706' },
+  active:   { bg: '#F0FDF4', text: '#15803D', dot: '#16A34A' },
+}
+function statusStyle(w: Warranty): { label: string; bg: string; text: string; dot: string } {
+  if (w.status_key && WARRANTY_COLORS[w.status_key]) {
+    return { label: w.status_label ?? '', ...WARRANTY_COLORS[w.status_key] }
+  }
+  return warrantyStatus(w.expiry_date) // fallback if the field isn't present yet
 }
 
 function fmtDate(d: string | null): string {
@@ -127,7 +144,7 @@ export default function WarrantiesPage() {
                 </p>
               </div>
             ) : filtered.map((w, i) => {
-              const st = warrantyStatus(w.expiry_date)
+              const st = statusStyle(w)
               const addr = [w.property_address, w.property_city, w.property_state].filter(Boolean).join(', ')
               const shingle = [w.shingle_brand, w.shingle_model].filter(Boolean).join(' · ')
               const row = (

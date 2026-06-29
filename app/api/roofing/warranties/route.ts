@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { computeWarrantyStatus } from '@/lib/roofing/warranty'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -101,8 +102,11 @@ export async function GET(req: NextRequest) {
   const warranties = (data ?? []).map((w: any) => {
     const lead = w.lead ?? {}
     const { lead: _drop, ...rest } = w
+    const st = computeWarrantyStatus(w.expiry_date)
     return {
       ...rest,
+      status_key:       st.key,
+      status_label:     st.label,
       homeowner_name:   lead.contact_name ?? null,
       property_address: lead.property_address ?? null,
       property_city:    lead.contact_city ?? null,
