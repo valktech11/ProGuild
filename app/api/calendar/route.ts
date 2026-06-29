@@ -83,8 +83,60 @@ export async function GET(req: NextRequest) {
     if (!seen.has(key)) { seen.add(key); events.push({ ...lead, scheduled_time: null, _type: 'inspection' }) }
   }
 
+  // ── Server-derived stats (single source; mobile paints, no client math) ──────
+  // Per-period buckets keyed so the client can look up the active view+date with
+  // zero arithmetic. Value basis = Σ quoted_amount over jobs+inspections,
+  // toggle-independent (matches the web financial metric). Each event is also
+  // tagged is_overdue so the chip accent + banner are a paint, not a derivation.
+  const DONE = new Set(['Completed', 'Paid', 'job_won', 'Converted'])
+  const eventDate = (ev: any): string | null => {
+    const t = ev._type
+    const ds = t === 'followup' ? (ev.follow_up_date ?? ev.scheduled_date)
+      : t === 'inspection' ? ev.inspection_date
+      : (ev.scheduled_date ?? ev.follow_up_date)
+    return ds ? String(ds).slice(0, 10) : null
+  }
+  // Sunday-start week key. A calendar date's weekday is tz-invariant, so UTC math
+  // here yields the same Sunday the client's local _startOfWeek does.
+  const weekKeyOf = (ymd: string): string => {
+    const [y, m, d] = ymd.split('-').map(Number)
+    const dt = new Date(Date.UTC(y, m - 1, d))
+    dt.setUTCDate(dt.getUTCDate() - dt.getUTCDay())
+    return dt.toISOString().slice(0, 10)
+  }
+  const todayKey = new Date().toISOString().slice(0, 10)
+
+  type Bucket = { jobs: number; inspections: number; value: number; done: number }
+  const mk = (): Bucket => ({ jobs: 0, inspections: 0, value: 0, done: 0 })
+  const dayStats: Record<string, Bucket> = {}
+  const weekStats: Record<string, Bucket> = {}
+  const monthStats: Record<string, Bucket> = {}
+  const overdue: { id: string; contact_name: string | null }[] = []
+
+  for (const ev of events) {
+    const dk = eventDate(ev)
+    const isDone = DONE.has(ev.lead_status)
+    ev.is_overdue = ev._type === 'followup' && !isDone && !!dk && dk < todayKey
+    if (ev.is_overdue) overdue.push({ id: ev.id, contact_name: ev.contact_name ?? null })
+
+    if (!dk || (ev._type !== 'job' && ev._type !== 'inspection')) continue
+    const amt = Number(ev.quoted_amount) || 0
+    const targets: [Record<string, Bucket>, string][] = [
+      [dayStats, dk], [weekStats, weekKeyOf(dk)], [monthStats, dk.slice(0, 7)],
+    ]
+    for (const [map, key] of targets) {
+      const b = (map[key] ??= mk())
+      if (ev._type === 'job') { b.jobs++; if (isDone) b.done++ }
+      else b.inspections++
+      b.value += amt
+    }
+  }
+
   return NextResponse.json({
     events,
     unscheduled: unscheduledRes.data || [],
+    stats: { day: dayStats, week: weekStats, month: monthStats },
+    overdue,
+    overdueCount: overdue.length,
   })
 }
