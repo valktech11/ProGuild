@@ -1936,7 +1936,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             })()}
 
                             {/* Contact & details — reference, sits below the work */}
-                            <div style={{marginTop:useSpine?0:16,paddingTop:useSpine?0:16,borderTop:useSpine?'none':`1px solid ${bdr}`}}>
+                            <div style={{marginTop:(useSpine&&(!isRoofing||isClaim))?0:16,paddingTop:(useSpine&&(!isRoofing||isClaim))?0:16,borderTop:(useSpine&&(!isRoofing||isClaim))?'none':`1px solid ${bdr}`}}>
                               <div style={{display:'flex',alignItems:'center',gap:10}}>
                                 <span style={{fontSize:11.5,fontWeight:800,color:tp,textTransform:'uppercase' as const,letterSpacing:'0.07em',flexShrink:0}}>Contact &amp; Details</span>
                                 <button onClick={()=>startEdit()} style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:7,border:`1px solid ${BRAND.teal}40`,background:'transparent',color:BRAND.teal,fontSize:12.5,fontWeight:700,cursor:'pointer',flexShrink:0}}>
