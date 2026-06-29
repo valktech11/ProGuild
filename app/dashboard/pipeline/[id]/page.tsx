@@ -13,6 +13,7 @@ import type { StagePlanEntry } from '@/lib/trades/roofing/stage-rules'
 // Roofing components accessed via trade module path — not components/roofing
 import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
 import SupplementAssistant from '@/lib/trades/roofing/components/SupplementAssistant'
+import { computeSupplementGap } from '@/lib/fl/supplement'
 import { Card } from '@/components/ui/Card'
 import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
 import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
@@ -82,10 +83,11 @@ function roofingWorkflow(
   const supplementAmt = Number(rjd?.supplement_amount) || 0
   const claimStatus = rjd?.claim_status || 'Filed'
   const estTotal = Number(est?.total) || 0
-  const carrierTotal = approvedAmt + supplementAmt
+  const _gap = computeSupplementGap(estTotal, approvedAmt, supplementAmt)
+  const carrierTotal = _gap.carrier_total
   const decisionRecorded = ['Approved','Decision','Denied','Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
-  const gap = (estTotal > 0 && carrierTotal > 0) ? estTotal - carrierTotal : null
-  const hasGap = gap !== null && gap > 0
+  const gap = _gap.gap
+  const hasGap = _gap.has_gap
   const estDone = estCount > 0 || !!est
   const supDone = supplementAmt > 0 || ['Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
   const sentDone = !!(est && ((est.sent_at) || ['sent','viewed','approved'].includes(est.status || '')))

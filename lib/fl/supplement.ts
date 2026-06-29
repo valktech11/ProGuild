@@ -247,3 +247,25 @@ export function parseSupplementResponse(raw: string): SupplementResult {
     supplement_letter:         String(obj.supplement_letter ?? '').trim(),
   };
 }
+
+// ── Supplement gap (single source — Bible §28) ───────────────────────────────
+// Canonical: carrier_total = approved + supplement; gap = your_estimate − carrier_total.
+// Web page (roofingWorkflow), the /api/leads/[id] route, and mobile all render this —
+// the formula must never be re-derived in a second place.
+export interface SupplementGap {
+  your_estimate: number;
+  carrier_total: number;        // approved + supplement
+  gap: number | null;           // your_estimate − carrier_total; null if either side missing
+  has_gap: boolean;
+}
+
+export function computeSupplementGap(
+  estTotal: number,
+  approved: number,
+  supplement: number,
+): SupplementGap {
+  const your_estimate = estTotal > 0 ? estTotal : 0;
+  const carrier_total = (approved > 0 ? approved : 0) + (supplement > 0 ? supplement : 0);
+  const gap = your_estimate > 0 && carrier_total > 0 ? your_estimate - carrier_total : null;
+  return { your_estimate, carrier_total, gap, has_gap: gap !== null && gap > 0 };
+}

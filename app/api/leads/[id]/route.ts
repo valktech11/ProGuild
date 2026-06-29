@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { apiError, isValidUuid } from '@/lib/api/utils'
 import { LeadStatus } from '@/types'
 import { getAllTradeStageKeys } from '@/lib/trades/_registry'
-import { groundSupplementFlags } from '@/lib/fl/supplement'
+import { groundSupplementFlags, computeSupplementGap } from '@/lib/fl/supplement'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -145,6 +145,22 @@ export async function GET(
   if (roofingJobData) {
     ;(roofingJobData as any).supplement_flags =
       groundSupplementFlags((roofingJobData as any).linear_footage ?? null)
+
+    // Supplement gap — derived once on the server (Bible §28). your_estimate =
+    // newest estimate total for this lead; carrier_total = approved + supplement.
+    const { data: estRow } = await getSupabaseAdmin()
+      .from('estimates')
+      .select('total')
+      .eq('lead_id', id)
+      .eq('pro_id', data.pro_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    ;(roofingJobData as any).supplement_gap = computeSupplementGap(
+      (estRow?.total as number) ?? 0,
+      (roofingJobData as any).approved_amount   ?? 0,
+      (roofingJobData as any).supplement_amount ?? 0,
+    )
   }
 
   return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData } })
