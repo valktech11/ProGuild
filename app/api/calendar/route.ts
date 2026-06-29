@@ -105,19 +105,21 @@ export async function GET(req: NextRequest) {
     return dt.toISOString().slice(0, 10)
   }
   const todayKey = new Date().toISOString().slice(0, 10)
+  const daysBetween = (a: string, b: string) =>
+    Math.floor((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 86400000)
 
   type Bucket = { jobs: number; inspections: number; value: number; done: number }
   const mk = (): Bucket => ({ jobs: 0, inspections: 0, value: 0, done: 0 })
   const dayStats: Record<string, Bucket> = {}
   const weekStats: Record<string, Bucket> = {}
   const monthStats: Record<string, Bucket> = {}
-  const overdue: { id: string; contact_name: string | null }[] = []
+  const overdue: { id: string; contact_name: string | null; days_overdue: number }[] = []
 
   for (const ev of events) {
     const dk = eventDate(ev)
     const isDone = DONE.has(ev.lead_status)
     ev.is_overdue = ev._type === 'followup' && !isDone && !!dk && dk < todayKey
-    if (ev.is_overdue) overdue.push({ id: ev.id, contact_name: ev.contact_name ?? null })
+    if (ev.is_overdue) overdue.push({ id: ev.id, contact_name: ev.contact_name ?? null, days_overdue: daysBetween(todayKey, dk!) })
 
     if (!dk || (ev._type !== 'job' && ev._type !== 'inspection')) continue
     const amt = Number(ev.quoted_amount) || 0
