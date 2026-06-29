@@ -65,6 +65,11 @@ export async function GET(req: NextRequest) {
     .map(v => ({ carrier: v.display, jobs: v.jobs, revenue: v.revenue, avg: v.jobs ? Math.round(v.revenue / v.jobs) : 0 }))
     .sort((a, b) => b.revenue - a.revenue)
   const periodTotal = byCarrier.reduce((s, c) => s + c.revenue, 0)
+  const periodJobs  = byCarrier.reduce((s, c) => s + c.jobs, 0)
+  // Month-over-month change %, derived once server-side (was computed inline on web).
+  const momChangePct = sum(lastMonth) > 0
+    ? Math.round(((sum(thisMonth) - sum(lastMonth)) / sum(lastMonth)) * 100)
+    : null
 
   return NextResponse.json({
     thisMonth: { revenue: sum(thisMonth), jobs: thisMonth.length },
@@ -73,6 +78,8 @@ export async function GET(req: NextRequest) {
     byCarrier,
     period,
     periodTotal,
+    periodJobs,
+    momChangePct,
     totalYTD: sum(won.filter(w => w.date.getFullYear() === now.getFullYear())),
     totalAll: sum(won),
   })

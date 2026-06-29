@@ -12,6 +12,8 @@ interface RevenueData {
   monthly: { label: string; revenue: number; jobs: number }[]
   byCarrier: { carrier: string; jobs: number; revenue: number; avg: number }[]
   periodTotal: number
+  periodJobs?: number
+  momChangePct?: number | null
   totalYTD: number
   totalAll: number
 }
@@ -39,8 +41,11 @@ export default function RevenuePage() {
 
   const t = theme(dk)
   const maxRev = data ? Math.max(...data.monthly.map(m => m.revenue), 1) : 1
-  const delta = data && data.lastMonth.revenue > 0
-    ? Math.round(((data.thisMonth.revenue - data.lastMonth.revenue) / data.lastMonth.revenue) * 100) : null
+  // MoM % is derived once server-side (momChangePct); fall back to inline calc.
+  const delta = data
+    ? (data.momChangePct ?? (data.lastMonth.revenue > 0
+        ? Math.round(((data.thisMonth.revenue - data.lastMonth.revenue) / data.lastMonth.revenue) * 100) : null))
+    : null
 
   const card: React.CSSProperties = { background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: '16px 18px' }
   const cardLabel: React.CSSProperties = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: t.textSubtle }
@@ -122,7 +127,7 @@ export default function RevenuePage() {
                   </div>
                 </div>
                 <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14 }}>
-                  Where your won revenue comes from — {fmt(data.periodTotal)} across {data.byCarrier.reduce((s,c)=>s+c.jobs,0)} job{data.byCarrier.reduce((s,c)=>s+c.jobs,0)!==1?'s':''} in this period.
+                  Where your won revenue comes from — {fmt(data.periodTotal)} across {data.periodJobs ?? data.byCarrier.reduce((s,c)=>s+c.jobs,0)} job{(data.periodJobs ?? data.byCarrier.reduce((s,c)=>s+c.jobs,0))!==1?'s':''} in this period.
                 </div>
                 {data.byCarrier.length === 0 ? (
                   <div style={{ color: t.textMuted, fontSize: 13 }}>No won jobs yet.</div>
