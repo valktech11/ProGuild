@@ -484,7 +484,7 @@ function MoreDrawer({ open, onClose, session, nl, dk, onToggleDark }: { open: bo
                   style={{ left: dk ? '22px' : '3px', transition: 'left 0.2s' }} />
               </div>
             </button>
-            <DrawerNavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings, soon: true }} active={false} onNav={handleClose} />
+            <DrawerNavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings }} active={p === '/dashboard/settings'} onNav={handleClose} />
           </div>
         </div>
       </div>
@@ -807,7 +807,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
                   <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(45,212,191,0.35),rgba(45,212,191,0.04))' }} />
                 </div>
                 <div className="mb-0.5"><NavLink item={{ label: 'Profile', href: '/edit-profile', icon: icon.profile }} active={p === '/edit-profile'} /></div>
-                <div className="mb-0.5"><NavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings, soon: true }} active={false} /></div>
+                <div className="mb-0.5"><NavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings }} active={p === '/dashboard/settings'} /></div>
               </div>
             </div>
 
