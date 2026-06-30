@@ -699,15 +699,6 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
                 ))}
               </div>
 
-              {/* Profile link */}
-              <a href="/edit-profile"
-                className="w-full flex items-center gap-2.5 px-4 py-3 hover:opacity-70 transition-opacity">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8" />
-                </svg>
-                <span className="text-[14px] font-medium" style={{ color: txt }}>Profile</span>
-              </a>
-
               {/* Logout */}
               <button onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-4 py-3 hover:opacity-70 transition-opacity border-t"
