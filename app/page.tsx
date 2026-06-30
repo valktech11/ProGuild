@@ -116,7 +116,13 @@ export default function ComingSoonPage() {
         ))}
       </div>
 
-      <p style={{ fontSize: 12, color: '#475569' }}>&copy; 2026 ProGuild.ai &mdash; Your Craft. Your Guild.</p>
+      <div style={{ textAlign: 'center', lineHeight: 1.7 }}>
+        <p style={{ fontSize: 12, color: '#475569', margin: 0 }}>&copy; 2026 ProGuild LLC &mdash; Your Craft. Your Guild.</p>
+        <p style={{ fontSize: 12, color: '#475569', margin: '4px 0 0' }}>
+          ProGuild.ai is operated by ProGuild LLC.{' '}
+          <a href="mailto:contact@proguild.ai" style={{ color: '#5EEAD4', textDecoration: 'none' }}>contact@proguild.ai</a>
+        </p>
+      </div>
     </div>
   )
 }
