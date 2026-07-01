@@ -160,7 +160,7 @@ export default function SettingsPage() {
         </div>
 
         <div style={{ ...card, marginBottom: 18, borderColor: '#FECACA' }}>
-          <div style={{ ...sectionLabel, color: '#DC2626' }}>DANGER ZONE</div>
+          <div style={sectionLabel}>ACCOUNT</div>
           {delDone ? (
             <p style={{ fontSize: 13.5, color: t.textSubtle }}>
               Request sent. We&apos;ll follow up by email once it&apos;s processed.
