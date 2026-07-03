@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { requirePro } from '@/lib/pro-auth'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -80,4 +80,55 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true, photoId })
+}
+
+
+// PATCH /api/leads/[id]/photos/[photoId] — attach annotated variant to an
+// existing photo. Multipart field 'annotated_file'. Server-derived pro scope.
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; photoId: string }> },
+) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
+  const { id: leadId, photoId } = await params
+  if (!UUID_RE.test(leadId) || !UUID_RE.test(photoId)) {
+    return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+  }
+
+  const sb = getSupabaseAdmin()
+  // Ownership: photo must belong to this pro + lead
+  const { data: photo, error: findErr } = await sb
+    .from('lead_photos')
+    .select('id, r2_key')
+    .eq('id', photoId)
+    .eq('lead_id', leadId)
+    .eq('pro_id', __auth.proId)
+    .maybeSingle()
+  if (findErr) return NextResponse.json({ error: 'Lookup failed' }, { status: 500 })
+  if (!photo) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const form = await req.formData()
+  const annotatedFile = form.get('annotated_file') as File | null
+  if (!annotatedFile || annotatedFile.size === 0) {
+    return NextResponse.json({ error: 'annotated_file required' }, { status: 400 })
+  }
+
+  const aKey = `photos/${__auth.proId}/${leadId}/${photoId}_annotated.jpg`
+  const aBytes = await annotatedFile.arrayBuffer()
+  await r2Client().send(new PutObjectCommand({
+    Bucket: process.env.R2_BUCKET_NAME!,
+    Key: aKey,
+    Body: Buffer.from(aBytes),
+    ContentType: 'image/jpeg',
+  }))
+  const annotatedUrl = `${process.env.R2_PUBLIC_BUCKET_URL}/${aKey}`
+
+  const { error: upErr } = await sb
+    .from('lead_photos')
+    .update({ annotated_url: annotatedUrl, has_annotation: true })
+    .eq('id', photoId)
+  if (upErr) return NextResponse.json({ error: 'Update failed' }, { status: 500 })
+
+  return NextResponse.json({ id: photoId, annotated_url: annotatedUrl, has_annotation: true })
 }
