@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { collectedFromInvoices } from '@/lib/metrics/won'
+import { requirePro } from '@/lib/pro-auth'
 
 // ── /api/invoices/summary ─────────────────────────────────────────────────────
 // Single source of truth for invoice aggregates. Web (invoices/page.tsx) and
@@ -17,6 +18,8 @@ const OPEN_STATUSES = ['sent', 'viewed', 'partial_payment'] // owing + chaseable
 const CLOSED = ['paid', 'void']
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const proId = new URL(req.url).searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 // GET /api/clients?pro_id=xxx — list all clients for a pro
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const proId = req.nextUrl.searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
@@ -48,6 +51,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/clients — create a new client
 export async function POST(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const body = await req.json()
   const { pro_id, full_name, phone, email, address_line1, city, state, zip, preferred_contact, notes, tags } = body
 
@@ -95,6 +100,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/clients — update a client
 export async function PATCH(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const body = await req.json()
   const { id, ...fields } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -112,6 +119,8 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/clients — delete a client
 export async function DELETE(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 

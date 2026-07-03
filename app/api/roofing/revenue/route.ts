@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { leadRevenue } from '@/lib/metrics/won'
+import { requirePro } from '@/lib/pro-auth'
 
 const WON = 'job_won'
 
 // Server-side revenue aggregation for the Revenue report page.
 // Won date = lead_status_changed_at (real won date). Amount = approved-else-quoted.
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const proId = new URL(req.url).searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 

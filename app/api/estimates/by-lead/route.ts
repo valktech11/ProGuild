@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 // GET /api/estimates/by-lead?lead_id=<uuid>&pro_id=<uuid>
 // Returns the most recent non-void estimate for a lead.
@@ -7,6 +8,8 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 // Response: { estimate: { id, status, total, public_url } | null }
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const leadId = searchParams.get('lead_id')
   const proId  = searchParams.get('pro_id')

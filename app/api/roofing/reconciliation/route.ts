@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { computeInsuranceReconciliation } from '@/lib/insurance/reconciliation'
+import { requirePro } from '@/lib/pro-auth'
 
 // Same gating as the web calculator panel: only meaningful for an approved
 // insurance claim with a job cost.
@@ -10,6 +11,8 @@ const APPROVED_STATUSES = ['Approved', 'Supplement Approved']
 // Server-authoritative insurance reconciliation for a lead. Mobile renders the
 // returned 3 lines verbatim; it never re-derives the formula.
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const leadId = searchParams.get('lead_id')
   const proId  = searchParams.get('pro_id')

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const proId     = searchParams.get('pro_id')
   const invoiceId = searchParams.get('invoice_id')
@@ -21,6 +24,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const body = await req.json()
   const { pro_id, refrigerant_type, ...rest } = body
   if (!pro_id || !refrigerant_type) {
@@ -38,6 +43,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const body = await req.json()
   const { pro_id, id } = body
   if (!pro_id || !id) return NextResponse.json({ error: 'pro_id and id required' }, { status: 400 })

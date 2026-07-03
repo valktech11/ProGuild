@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { requirePro } from '@/lib/pro-auth'
 
 function getR2Client() {
   return new S3Client({
@@ -22,6 +23,8 @@ function getR2Client() {
 const R2_BUCKET = process.env.R2_BUCKET_NAME || 'proguild-media-staging'
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const proId      = searchParams.get('pro_id')
   const propertyId = searchParams.get('property_id')
@@ -73,6 +76,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const id    = searchParams.get('id')
   const proId = searchParams.get('pro_id')
@@ -108,6 +113,8 @@ export async function DELETE(req: NextRequest) {
 
 // ── PATCH /api/roofing/reports — backfill property_id on orphaned reports ──
 export async function PATCH(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id, pro_id, property_id } = await req.json().catch(() => ({}))
   if (!id || !pro_id || !property_id) {
     return NextResponse.json({ error: 'id, pro_id, property_id required' }, { status: 400 })

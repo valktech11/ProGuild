@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id } = await params
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
@@ -39,6 +42,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id } = await params
   const body = await req.json()
   const { pro_id, ...fields } = body
@@ -57,6 +62,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id } = await params
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')

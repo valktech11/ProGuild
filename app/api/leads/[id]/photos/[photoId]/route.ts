@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { requirePro } from '@/lib/pro-auth'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -23,6 +24,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; photoId: string }> }
 ) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id: leadId, photoId } = await params
   const proId = req.nextUrl.searchParams.get('pro_id')
 

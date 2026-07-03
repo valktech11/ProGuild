@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 // GET /api/activity/recent?pro_id=&limit=
 // Single source of truth for the "Recent Activity" feed shown on web + mobile home.
@@ -50,6 +51,8 @@ function describe(eventType: string, data: Record<string, unknown>): { label: st
 }
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const pro_id = searchParams.get('pro_id')
   const limit  = Math.min(Number(searchParams.get('limit')) || 15, 50)

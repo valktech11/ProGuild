@@ -9,12 +9,15 @@ const FROZEN_STATUSES = ['approved', 'invoiced', 'paid']
 
 // Sales-tax table + resolver now live in one place (lib/estimates/tax.ts).
 import { resolveTaxRate } from '@/lib/estimates/tax'
+import { requirePro } from '@/lib/pro-auth'
 // Re-exported here so existing importers (calculator-state, calculator page)
 // that import STATE_TAX_RATES from this route keep resolving unchanged.
 export { STATE_TAX_RATES, resolveTaxRate } from '@/lib/estimates/tax'
 
 // ── GET /api/estimates?pro_id=xxx ─────────────────────────────────────────
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
@@ -35,6 +38,8 @@ export async function GET(req: NextRequest) {
 // ── POST /api/estimates ───────────────────────────────────────────────────
 // Creates a blank draft estimate and returns it so the UI can redirect to /[id]
 export async function POST(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const body = await req.json()
   const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source, square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, hip_lf, valley_lf, lines, pipe_boots, tearoff_layers } = body
   const linesJson = Array.isArray(lines)

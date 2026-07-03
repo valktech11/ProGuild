@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { getR2Client, getR2Bucket } from '@/lib/api/utils'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import crypto from 'crypto'
+import { requirePro } from '@/lib/pro-auth'
 
 type RouteParams = { params: Promise<{ id: string }> }
 
@@ -15,6 +16,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // ── GET — list photos ──────────────────────────────────────────────────────
 export async function GET(req: Request, { params }: RouteParams) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   try {
     const { id: leadId } = await params
     const { searchParams } = new URL(req.url)
@@ -68,6 +71,8 @@ export async function GET(req: Request, { params }: RouteParams) {
 
 // ── POST — upload photo ────────────────────────────────────────────────────
 export async function POST(req: Request, { params }: RouteParams) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   try {
     const { id: leadId } = await params
 
@@ -78,7 +83,11 @@ export async function POST(req: Request, { params }: RouteParams) {
     const form = await req.formData()
     const file    = form.get('file')    as File | null
     const phase   = (form.get('phase')   as string | null) ?? 'Before'
-    const proId   = (form.get('pro_id')  as string | null) ?? ''
+    const formProId = (form.get('pro_id') as string | null) ?? ''
+    if (formProId && formProId !== __auth.proId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const proId = __auth.proId // server-derived (IDOR)
     const caption = (form.get('caption') as string | null) ?? ''
     // Optional geo/time proof metadata (insurance-grade). All nullable.
     const latRaw    = form.get('lat')      as string | null

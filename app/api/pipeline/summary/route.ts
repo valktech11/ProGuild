@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
 import { wonInMonth, closedPipelineKeys } from '@/lib/metrics/won'
 import { daysInStage, isStalled } from '@/lib/metrics/sla'
+import { requirePro } from '@/lib/pro-auth'
 
 // ── /api/pipeline/summary ─────────────────────────────────────────────────────
 // Two jobs:
@@ -25,6 +26,8 @@ import { daysInStage, isStalled } from '@/lib/metrics/sla'
 const DAY = 86400000
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const proId = new URL(req.url).searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 

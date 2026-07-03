@@ -6,10 +6,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { computeWarrantyStatus } from '@/lib/roofing/warranty'
+import { requirePro } from '@/lib/pro-auth'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function POST(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   let body: Record<string, unknown>
   try {
     body = await req.json()
@@ -77,6 +80,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const proId  = req.nextUrl.searchParams.get('pro_id')
   const leadId = req.nextUrl.searchParams.get('lead_id')
 

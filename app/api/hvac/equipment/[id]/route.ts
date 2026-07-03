@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id } = await params
   const body = await req.json()
-  const { pro_id, ...fields } = body
-  if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const { pro_id: _claimedProId, ...fields } = body
+  const pro_id = __auth.proId // server-derived (IDOR); body value ignored
 
   const updateFields = { ...fields, updated_at: new Date().toISOString() }
 
@@ -41,10 +44,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id } = await params
   const { searchParams } = new URL(req.url)
-  const proId = searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const proId = __auth.proId // server-derived (IDOR)
 
   const { error } = await getSupabaseAdmin()
     .from('hvac_equipment')

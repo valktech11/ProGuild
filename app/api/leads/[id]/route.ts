@@ -4,6 +4,7 @@ import { apiError, isValidUuid } from '@/lib/api/utils'
 import { LeadStatus } from '@/types'
 import { getAllTradeStageKeys } from '@/lib/trades/_registry'
 import { groundSupplementFlags, computeSupplementGap } from '@/lib/fl/supplement'
+import { requirePro } from '@/lib/pro-auth'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -58,13 +59,15 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id } = await params
   if (!isValidUuid(id)) return apiError('id must be a valid UUID', 400)
 
-  const proId = new URL(req.url).searchParams.get('pro_id')
+  // Server-derived pro scope — mandatory (was optional client filter: IDOR).
+  const proId = __auth.proId
 
-  const query = getSupabaseAdmin().from('leads').select('*').eq('id', id)
-  if (isValidUuid(proId)) query.eq('pro_id', proId)
+  const query = getSupabaseAdmin().from('leads').select('*').eq('id', id).eq('pro_id', proId)
 
   const { data, error } = await query.single()
 
@@ -172,6 +175,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id } = await params
   if (!isValidUuid(id)) return apiError('id must be a valid UUID', 400)
 
@@ -185,8 +190,8 @@ export async function PATCH(
   if (!body || typeof body !== 'object') return apiError('Request body must be a JSON object', 400)
 
   // Ownership: pro_id accepted from body OR query param — frontend sends in body
-  const proId = (body.pro_id as string) || new URL(req.url).searchParams.get('pro_id')
-  if (!isValidUuid(proId)) return apiError('pro_id required', 401)
+  // Server-derived — body/URL pro_id no longer trusted (IDOR).
+  const proId = __auth.proId
 
   // ── Build lead update fields (whitelisted) ──────────────────────────────
   const updateFields: Partial<LeadUpdateFields> = {}
@@ -305,11 +310,13 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { id } = await params
   if (!isValidUuid(id)) return apiError('id must be a valid UUID', 400)
 
   // Ownership required on DELETE too
-  const proId = new URL(req.url).searchParams.get('pro_id')
+  const proId = __auth.proId // server-derived (IDOR)
   if (!isValidUuid(proId)) return apiError('pro_id query param required', 401)
 
   const { error } = await getSupabaseAdmin()

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { wonInMonth, leadRevenue } from '@/lib/metrics/won'
+import { requirePro } from '@/lib/pro-auth'
 
 // Ordered roofing funnel stages (matches lib/trades/roofing/config.ts).
 const FUNNEL = [
@@ -16,6 +17,8 @@ const FUNNEL = [
 const pretty = (s: string) => s.replace(/_/g, ' ').trim().replace(/\b\w/g, c => c.toUpperCase())
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const proId = new URL(req.url).searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 

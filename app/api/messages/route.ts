@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { moderateContent } from '@/lib/moderation'
+import { requirePro } from '@/lib/pro-auth'
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const proId  = searchParams.get('pro_id')
   const withId = searchParams.get('with_id')
@@ -64,6 +67,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { sender_id, receiver_id, content } = await req.json()
   if (!sender_id || !receiver_id || !content?.trim()) {
     return NextResponse.json({ error: 'sender_id, receiver_id and content required' }, { status: 400 })
