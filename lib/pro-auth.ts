@@ -31,41 +31,78 @@ function getUrl() {
 }
 
 // ── Local JWT verification ───────────────────────────────────────────────────
-// Supabase access tokens are HS256-signed with the project JWT secret.
-// Verifying locally removes a network round-trip to the Supabase auth API on
-// EVERY guarded request (~200-600ms). Tradeoff: revocation honors token TTL
-// (1h) instead of being instant — signOut kills the refresh token, so a
-// signed-out access token ages out within the hour. Acceptable.
-//
-// SUPABASE_JWT_SECRET must be set in Vercel env (Supabase dashboard →
-// Settings → API → JWT Secret). If absent, falls back to network getUser —
-// correct but slow; a startup log makes the misconfig visible.
+// Supabase projects may use ES256 (ECC P-256, the new default) or HS256
+// (legacy shared secret). We try both locally before falling back to the
+// network auth.getUser call. Priority:
+//   1. ES256 via JWKS (fetched once, cached in module scope, auto-rotating)
+//   2. HS256 via SUPABASE_JWT_SECRET env var (legacy / still-valid tokens)
+//   3. Network auth.getUser (correct but adds ~400-600ms RTT)
 
-const _jwtSecret = process.env.SUPABASE_JWT_SECRET
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const JWKS_URL = `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`
+
+// Module-level JWKS cache — refreshed every 6h max (Supabase rotates rarely).
+let _jwksCache: { keys: any[]; fetchedAt: number } | null = null
+
+async function getJwks(): Promise<any[]> {
+  const now = Date.now()
+  if (_jwksCache && now - _jwksCache.fetchedAt < 6 * 60 * 60 * 1000) {
+    return _jwksCache.keys
+  }
+  try {
+    const res = await fetch(JWKS_URL)
+    if (!res.ok) return _jwksCache?.keys ?? []
+    const { keys } = await res.json()
+    _jwksCache = { keys, fetchedAt: now }
+    return keys
+  } catch {
+    return _jwksCache?.keys ?? []
+  }
+}
+
+const _hs256Secret = process.env.SUPABASE_JWT_SECRET
   ? new TextEncoder().encode(process.env.SUPABASE_JWT_SECRET)
   : null
-
-if (!_jwtSecret) {
-  console.warn('[pro-auth] SUPABASE_JWT_SECRET not set — falling back to network token verification (slow path)')
-}
 
 /** Verified token identity: auth user id (JWT sub) + email claim. */
 export async function verifySupabaseToken(
   token: string,
 ): Promise<{ userId: string; email: string | null } | null> {
-  if (_jwtSecret) {
+  // Peek at header to route correctly without trying all keys.
+  let alg = 'ES256'
+  try {
+    const header = JSON.parse(
+      Buffer.from(token.split('.')[0], 'base64url').toString()
+    )
+    alg = header.alg ?? 'ES256'
+  } catch { /* malformed */ return null }
+
+  // Path 1: ES256 via JWKS (current Supabase default)
+  if (alg === 'ES256') {
+    const keys = await getJwks()
+    for (const key of keys.filter((k: any) => k.alg === 'ES256' || k.kty === 'EC')) {
+      try {
+        const { importJWK } = await import('jose')
+        const pubKey = await importJWK(key, 'ES256')
+        const { jwtVerify: jv } = await import('jose')
+        const { payload } = await jv(token, pubKey, { audience: 'authenticated' })
+        if (!payload.sub) continue
+        return { userId: payload.sub as string, email: (payload.email as string) ?? null }
+      } catch { continue }
+    }
+    // JWKS miss — fall through to network
+  }
+
+  // Path 2: HS256 legacy shared secret
+  if (alg === 'HS256' && _hs256Secret) {
     try {
-      const { payload } = await jwtVerify(token, _jwtSecret, {
-        // Supabase sets aud to 'authenticated' for signed-in users.
-        audience: 'authenticated',
-      })
+      const { payload } = await jwtVerify(token, _hs256Secret, { audience: 'authenticated' })
       if (!payload.sub) return null
       return { userId: payload.sub as string, email: (payload.email as string) ?? null }
-    } catch {
-      return null
-    }
+    } catch { /* invalid */ return null }
   }
-  // Fallback: network verification via Supabase auth API.
+
+  // Path 3: Network fallback (always correct, always slow)
   const authClient = createClient(getUrl(), process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   const { data, error } = await authClient.auth.getUser(token)
   if (error || !data?.user) return null
