@@ -23,10 +23,53 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { jwtVerify } from 'jose'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
 function getUrl() {
   return process.env.NEXT_PUBLIC_SUPABASE_URL!
+}
+
+// ── Local JWT verification ───────────────────────────────────────────────────
+// Supabase access tokens are HS256-signed with the project JWT secret.
+// Verifying locally removes a network round-trip to the Supabase auth API on
+// EVERY guarded request (~200-600ms). Tradeoff: revocation honors token TTL
+// (1h) instead of being instant — signOut kills the refresh token, so a
+// signed-out access token ages out within the hour. Acceptable.
+//
+// SUPABASE_JWT_SECRET must be set in Vercel env (Supabase dashboard →
+// Settings → API → JWT Secret). If absent, falls back to network getUser —
+// correct but slow; a startup log makes the misconfig visible.
+
+const _jwtSecret = process.env.SUPABASE_JWT_SECRET
+  ? new TextEncoder().encode(process.env.SUPABASE_JWT_SECRET)
+  : null
+
+if (!_jwtSecret) {
+  console.warn('[pro-auth] SUPABASE_JWT_SECRET not set — falling back to network token verification (slow path)')
+}
+
+/** Verified token identity: auth user id (JWT sub) + email claim. */
+export async function verifySupabaseToken(
+  token: string,
+): Promise<{ userId: string; email: string | null } | null> {
+  if (_jwtSecret) {
+    try {
+      const { payload } = await jwtVerify(token, _jwtSecret, {
+        // Supabase sets aud to 'authenticated' for signed-in users.
+        audience: 'authenticated',
+      })
+      if (!payload.sub) return null
+      return { userId: payload.sub as string, email: (payload.email as string) ?? null }
+    } catch {
+      return null
+    }
+  }
+  // Fallback: network verification via Supabase auth API.
+  const authClient = createClient(getUrl(), process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const { data, error } = await authClient.auth.getUser(token)
+  if (error || !data?.user) return null
+  return { userId: data.user.id, email: data.user.email ?? null }
 }
 
 export type ProAuthResult =
@@ -44,17 +87,17 @@ export async function requirePro(
     return { error: NextResponse.json({ error: 'Not authenticated' }, { status: 401 }) }
   }
 
-  const authClient = createClient(getUrl(), process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  const { data: userData, error: userErr } = await authClient.auth.getUser(token)
-  if (userErr || !userData?.user) {
+  const verified = await verifySupabaseToken(token)
+  if (!verified) {
     return { error: NextResponse.json({ error: 'Invalid session' }, { status: 401 }) }
   }
+  const authUserId = verified.userId
 
   const admin = getSupabaseAdmin()
   const { data: pro, error: proErr } = await admin
     .from('pros')
     .select('id')
-    .eq('auth_user_id', userData.user.id)
+    .eq('auth_user_id', authUserId)
     .maybeSingle()
 
   if (proErr) {
@@ -68,5 +111,5 @@ export async function requirePro(
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
-  return { proId: pro.id as string, authUserId: userData.user.id }
+  return { proId: pro.id as string, authUserId }
 }

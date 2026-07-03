@@ -12,8 +12,8 @@
 //   4. Return it as a Session (same shape as the old fake auth)
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { verifySupabaseToken } from '@/lib/pro-auth'
 
 function getUrl() {
   return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -28,15 +28,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // Verify the token → get the auth user
-  const authClient = createClient(getUrl(), process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  const { data: userData, error: userErr } = await authClient.auth.getUser(token)
-
-  if (userErr || !userData?.user) {
+  // Verify the token locally (HS256, SUPABASE_JWT_SECRET) — no auth-API RTT.
+  const verified = await verifySupabaseToken(token)
+  if (!verified) {
     return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
   }
-
-  const authUser = userData.user
+  const authUser = { id: verified.userId, email: verified.email }
 
   // Look up the pro linked to this auth user
   const admin = getSupabaseAdmin()
