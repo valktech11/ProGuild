@@ -154,21 +154,42 @@ export async function POST(req: Request, { params }: RouteParams) {
     // Public URL — R2 bucket must have public access configured
     const publicUrl = `${process.env.R2_PUBLIC_BUCKET_URL}/${r2Key}`
 
+    // Annotated version (optional) — same bucket, _annotated suffix key
+    const annotatedFile = form.get('annotated_file') as File | null
+    let annotatedUrl: string | null = null
+    if (annotatedFile && annotatedFile.size > 0) {
+      const aKey = `photos/${proId}/${leadId}/${photoId}_annotated.jpg`
+      const aBytes = await annotatedFile.arrayBuffer()
+      await r2.send(new PutObjectCommand({
+        Bucket:      bucket,
+        Key:         aKey,
+        Body:        Buffer.from(aBytes),
+        ContentType: 'image/jpeg',
+        Metadata: { lead_id: leadId, pro_id: proId, phase },
+      }))
+      annotatedUrl = `${process.env.R2_PUBLIC_BUCKET_URL}/${aKey}`
+    }
+
+    const hasAnnotation = form.get('has_annotation') === 'true' && annotatedUrl !== null
+
     // Save to DB
     const { data: photo, error: insertError } = await sb
       .from('lead_photos')
       .insert({
-        id:        photoId,
-        lead_id:   leadId,
-        pro_id:    proId,
-        r2_key:    r2Key,
-        url:       publicUrl,
+        id:            photoId,
+        lead_id:       leadId,
+        pro_id:        proId,
+        r2_key:        r2Key,
+        url:           publicUrl,
+        original_url:  publicUrl,
+        annotated_url: annotatedUrl,
+        has_annotation: hasAnnotation,
         phase,
-        caption:   caption || null,
-        filename:  file.name,
+        caption:       caption || null,
+        filename:      file.name,
         lat,
         lng,
-        taken_at:  takenAt,
+        taken_at:      takenAt,
       })
       .select()
       .single()
@@ -176,13 +197,16 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (insertError) throw insertError
 
     return NextResponse.json({
-      id:         photo.id,
-      url:        photo.url,
-      phase:      photo.phase,
-      caption:    photo.caption ?? '',
-      filename:   photo.filename,
-      uploadedAt: photo.created_at,
-      lat:        photo.lat ?? null,
+      id:             photo.id,
+      url:            photo.url,
+      original_url:   photo.original_url ?? photo.url,
+      annotated_url:  photo.annotated_url ?? null,
+      has_annotation: photo.has_annotation ?? false,
+      phase:          photo.phase,
+      caption:        photo.caption ?? '',
+      filename:       photo.filename,
+      uploadedAt:     photo.created_at,
+      lat:            photo.lat ?? null,
       lng:        photo.lng ?? null,
       takenAt:    photo.taken_at ?? null,
     })
