@@ -43,7 +43,7 @@ export async function GET(req: Request, { params }: RouteParams) {
 
     const { data: photos, error: photosError } = await sb
       .from('lead_photos')
-      .select('id, url, phase, caption, filename, created_at, lat, lng, taken_at')
+      .select('id, url, annotated_url, has_annotation, phase, caption, filename, created_at, lat, lng, taken_at')
       .eq('lead_id', leadId)
       .order('created_at', { ascending: true })
 
@@ -51,9 +51,11 @@ export async function GET(req: Request, { params }: RouteParams) {
 
     return NextResponse.json({
       photos: (photos ?? []).map(p => ({
-        id:         p.id,
-        url:        p.url,
-        phase:      p.phase,
+        id:            p.id,
+        url:           p.url,
+        annotated_url: p.annotated_url ?? null,
+        has_annotation: p.has_annotation ?? false,
+        phase:         p.phase,
         caption:    p.caption ?? '',
         filename:   p.filename,
         uploadedAt: p.created_at,
