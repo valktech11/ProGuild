@@ -131,11 +131,21 @@ export async function requirePro(
   const authUserId = verified.userId
 
   const admin = getSupabaseAdmin()
-  const { data: pro, error: proErr } = await admin
-    .from('pros')
-    .select('id')
-    .eq('auth_user_id', authUserId)
-    .maybeSingle()
+  // One retry on transient lookup failure (cold-start / pooler hiccup surfaces
+  // as an error here and previously 500'd the whole request).
+  let pro: { id: string } | null = null
+  let proErr: unknown = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await admin
+      .from('pros')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle()
+    pro = res.data as { id: string } | null
+    proErr = res.error
+    if (!proErr) break
+    if (attempt === 0) await new Promise(r => setTimeout(r, 250))
+  }
 
   if (proErr) {
     return { error: NextResponse.json({ error: 'Lookup failed' }, { status: 500 }) }
