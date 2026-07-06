@@ -119,6 +119,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const [stormScanning, setStormScanning] = React.useState(false)
   const [stormDates, setStormDates] = React.useState<{date:string;score:number;max_hail_in:number|null;max_wind_mph:number|null;event_count:number}[]>([])
   const [stormErr, setStormErr] = React.useState<string|null>(null)
+  const [pdfDownloading, setPdfDownloading] = React.useState(false)
 
   const scanStormDates = React.useCallback(async () => {
     if (!isFL) return
@@ -142,19 +143,25 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   }, [isFL, propertyLat, propertyLon, propertyAddress])
 
   const downloadEvidencePdf = React.useCallback(async () => {
+    if (pdfDownloading) return
     if (!propertyLat && !propertyLon && !(propertyAddress ?? '').trim()) return
-    const res = await apiFetch('/api/roofing/storm-evidence-pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat: propertyLat ?? undefined, lon: propertyLon ?? undefined, address: propertyAddress ?? '' })
-    })
-    if (!res.ok) return
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url
-    a.download = `storm-evidence-${new Date().toISOString().slice(0,10)}.pdf`
-    a.click(); URL.revokeObjectURL(url)
-  }, [propertyLat, propertyLon, propertyAddress])
+    setPdfDownloading(true)
+    try {
+      const res = await apiFetch('/api/roofing/storm-evidence-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: propertyLat ?? undefined, lon: propertyLon ?? undefined, address: propertyAddress ?? '' })
+      })
+      if (!res.ok) return
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url
+      a.download = `storm-evidence-${new Date().toISOString().slice(0,10)}.pdf`
+      a.click(); URL.revokeObjectURL(url)
+    } finally {
+      setPdfDownloading(false)
+    }
+  }, [propertyLat, propertyLon, propertyAddress, pdfDownloading])
   // Responsive: collapse internal 2-col / 3-col grids to single column on narrow
   // screens so the FL deadline + 25%-rule callout cards stop clipping. Matches
   // the parent page >=900px breakpoint. Desktop (isWide) is unchanged.
@@ -588,10 +595,11 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                         </div>
                         {/* Sticky download footer — always visible */}
                         <div style={{ padding:'10px 14px', borderTop:`1px solid ${dk?'#334155':'#F1F5F9'}`, background:dk?'#1E293B':'#F8FAFC' }}>
-                          <button onClick={downloadEvidencePdf}
-                            style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7, width:'100%', fontSize:12.5, fontWeight:700, color:'#fff', background:TEAL, border:'none', borderRadius:8, padding:'10px', cursor:'pointer', boxShadow:'0 1px 2px rgba(15,118,110,0.3)' }}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Download Court-Ready Evidence PDF
+                          <button onClick={downloadEvidencePdf} disabled={pdfDownloading}
+                            style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7, width:'100%', fontSize:12.5, fontWeight:700, color:'#fff', background:TEAL, border:'none', borderRadius:8, padding:'10px', cursor:pdfDownloading?'default':'pointer', opacity:pdfDownloading?0.8:1, transition:'opacity 0.15s', boxShadow:'0 1px 2px rgba(15,118,110,0.3)' }}>
+                            {pdfDownloading
+                              ? <><span style={{ display:'inline-block', width:13, height:13, border:'2px solid rgba(255,255,255,0.35)', borderTopColor:'#fff', borderRadius:'50%', animation:'pgspin 0.6s linear infinite' }}/> Generating PDF…</>
+                              : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Court-Ready Evidence PDF</>}
                           </button>
                         </div>
                       </div>
