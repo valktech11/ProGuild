@@ -1,17 +1,18 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import { apiFetch } from '@/lib/api-fetch'
-import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, type SupplementResult, type SupplementItem, type MeasuredLinearFootage, type GroundedSupplementFlag } from '@/lib/fl/supplement'
+import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, type SupplementResult, type SupplementItem, type MeasuredLinearFootage, type GroundedSupplementFlag, type DBLineItem } from '@/lib/fl/supplement'
 import { Card } from '@/components/ui/Card'
 
 interface Props {
-  leadId:        string
-  proId:         string
+  leadId:         string
+  proId:          string
   propertyState?: string | null
   hasClaim:       boolean   // roofing_job_data.insurance_claim
   darkMode:       boolean
   measuredLF?:    MeasuredLinearFootage | null  // synthesized linear_footage from the lead (human ProMeasure LF)
   groundedFlags?: GroundedSupplementFlag[] | null  // server-computed (Bible §28); falls back to local compute if absent
+  checklistItems?: DBLineItem[] | null             // Phase A: DB-driven checklist (fetched by parent or page)
 }
 
 const TEAL = '#0F766E'
@@ -49,7 +50,53 @@ function ItemTable({ items, dk, accent }: { items: SupplementItem[]; dk: boolean
   )
 }
 
-export default function SupplementAssistant({ leadId, proId, propertyState, hasClaim, darkMode: dk, measuredLF, groundedFlags }: Props) {
+// ── Phase A: Deterministic checklist (DB-driven, no AI call) ─────────────────
+function SupplementChecklist({ items, dk }: { items: DBLineItem[]; dk: boolean }) {
+  const border = dk ? '#334155' : '#E2E8F0'
+  const text   = dk ? '#E2E8F0' : '#0F172A'
+  const sub    = dk ? '#94A3B8' : '#64748B'
+  if (!items || items.length === 0) return null
+  return (
+    <div style={{ marginBottom: 16, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+      <div style={{ padding: '10px 14px', background: dk ? 'rgba(15,118,110,0.12)' : '#F0FDF9', borderBottom: `1px solid ${border}` }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+          FL Supplement Checklist — {items.length} items
+        </div>
+        <div style={{ fontSize: 11, color: sub, marginTop: 2 }}>Paste the adjuster scope below to scan against these.</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' as const }}>
+        {items.map((item, i) => (
+          <div key={item.key} style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
+            borderBottom: i < items.length - 1 ? `1px solid ${border}` : 'none',
+            background: i % 2 === 0 ? 'transparent' : (dk ? 'rgba(255,255,255,0.01)' : '#FAFAFA'),
+          }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+              background: item.is_deterministic ? '#10B981' : '#F59E0B' }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: text }}>{item.name}</span>
+              {item.is_condition_based && (
+                <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 700, color: '#F59E0B', background: '#FEF3C7', padding: '1px 6px', borderRadius: 4 }}>FIELD EVIDENCE</span>
+              )}
+            </div>
+            <span style={{ fontSize: 10, color: sub, flexShrink: 0 }}>
+              {item.category === 'condition_based' ? 'Condition' : 'Code'}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: '7px 14px', borderTop: `1px solid ${border}`, background: dk ? 'rgba(255,255,255,0.02)' : '#F8FAFC' }}>
+        <span style={{ fontSize: 10, color: sub }}>
+          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#10B981', marginRight: 5 }} />Validated argument
+          <span style={{ marginLeft: 12, display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', marginRight: 5 }} />Provisional
+        </span>
+      </div>
+    </div>
+  )
+}
+
+
+export default function SupplementAssistant({ leadId, proId, propertyState, hasClaim, darkMode: dk, measuredLF, groundedFlags, checklistItems }: Props) {
   const [scope,   setScope]   = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -57,14 +104,20 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   const [copied,  setCopied]  = useState(false)
   const [lastRun, setLastRun] = useState<string | null>(null)   // ISO timestamp of last saved run
   const [restoring, setRestoring] = useState(true)
+  const [dbChecklist, setDbChecklist] = useState<DBLineItem[]>([])
 
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
   // Bible §28: prefer the server-computed flags; local compute is a rollout fallback only.
   const grounded = groundedFlags ?? groundSupplementFlags(measuredLF)
 
-  // Load the most recent session for this lead on mount
+  // Load the most recent session + DB checklist on mount
   useEffect(() => {
     if (!isFL || !hasClaim) { setRestoring(false); return }
+    // Fetch DB checklist for Phase A display (non-fatal — falls back to empty)
+    apiFetch(`/api/roofing/supplement/checklist?pro_id=${proId}`)
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.items)) setDbChecklist(d.items) })
+      .catch(() => {})
     apiFetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
       .then(r => r.json())
       .then(d => {
@@ -178,6 +231,10 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
           <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 9, background: dk ? 'rgba(148,163,184,0.08)' : '#F8FAFC', border: `1px solid ${border}`, fontSize: 12, color: sub, lineHeight: 1.5 }}>
             Once you trace ridge, hip &amp; valley via ProMeasure — or enter LF in the calculator — the items detected from your measurements appear here automatically.
           </div>
+        )}
+
+        {dbChecklist.length > 0 && (
+          <SupplementChecklist items={dbChecklist} dk={dk} />
         )}
 
         <textarea

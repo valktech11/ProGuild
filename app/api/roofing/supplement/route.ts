@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { requirePro } from '@/lib/pro-auth'
 import {
-  buildItemsPrompt,
+  buildItemsPromptFromDB,
   buildLetterPrompt,
   parseSupplementResponse,
   type SupplementInput,
   type SupplementItem,
+  type DBLineItem,
 } from '@/lib/fl/supplement'
 
 export const runtime = 'nodejs'
@@ -102,10 +103,57 @@ export async function POST(req: NextRequest) {
 
   const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
 
+  // ── Fetch DB checklist (falls back to hardcoded if unavailable) ──────────
+  let dbItems: DBLineItem[] = []
+  try {
+    const { data: liRows } = await sb
+      .from('supplement_line_items')
+      .select('key, name, category, is_deterministic, is_condition_based, sort_order')
+      .eq('phase', 1)
+      .order('sort_order', { ascending: true })
+    if (liRows && liRows.length > 0) {
+      const ids = liRows.map((r: any) => r.id).filter(Boolean)
+      // Fetch policy + code arguments for prompt injection
+      const { data: argRows } = await sb
+        .from('supplement_arguments')
+        .select('line_item_id, layer, argument_text, sub_type')
+        .in('layer', ['policy', 'code'])
+        .is('sub_type', null)  // skip underlayment sub-types for prompt — use main layer
+      const argMap: Record<string, { policy?: string; code?: string }> = {}
+      if (argRows) {
+        for (const row of argRows as any[]) {
+          if (!argMap[row.line_item_id]) argMap[row.line_item_id] = {}
+          if (row.layer === 'policy') argMap[row.line_item_id].policy = row.argument_text
+          if (row.layer === 'code')   argMap[row.line_item_id].code   = row.argument_text
+        }
+      }
+      // Re-fetch with id included
+      const { data: liRowsFull } = await sb
+        .from('supplement_line_items')
+        .select('id, key, name, category, is_deterministic, is_condition_based, sort_order')
+        .eq('phase', 1)
+        .order('sort_order', { ascending: true })
+      if (liRowsFull) {
+        dbItems = (liRowsFull as any[]).map(r => ({
+          key:               r.key,
+          name:              r.name,
+          category:          r.category,
+          is_deterministic:  r.is_deterministic,
+          is_condition_based:r.is_condition_based,
+          sort_order:        r.sort_order,
+          policy_argument:   argMap[r.id]?.policy ?? null,
+          code_argument:     argMap[r.id]?.code   ?? null,
+        }))
+      }
+    }
+  } catch (e) {
+    console.warn('[supplement] DB checklist fetch failed, falling back to hardcoded:', e)
+  }
+
   // ── Call 1: find items (JSON only, small output) ───────────────────────────
   let itemsRaw = ''
   try {
-    itemsRaw = await callGemini(apiKey, model, buildItemsPrompt(input), 4096)
+    itemsRaw = await callGemini(apiKey, model, buildItemsPromptFromDB(input, dbItems), 4096)
   } catch (e) {
     console.error('[supplement] items call failed:', e)
     return NextResponse.json({ error: 'AI request failed. Try again.' }, { status: 502 })

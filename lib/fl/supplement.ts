@@ -269,3 +269,70 @@ export function computeSupplementGap(
   const gap = your_estimate > 0 && carrier_total > 0 ? your_estimate - carrier_total : null;
   return { your_estimate, carrier_total, gap, has_gap: gap !== null && gap > 0 };
 }
+
+// ── DB-driven checklist types (from supplement_line_items + supplement_arguments) ──
+export interface DBLineItem {
+  key:               string;
+  name:              string;
+  category:          'code_based' | 'condition_based';
+  is_deterministic:  boolean;
+  is_condition_based:boolean;
+  policy_argument?:  string | null;
+  code_argument?:    string | null;
+  sort_order:        number;
+}
+
+/** Build Gemini items prompt from DB-driven line items. Falls back to hardcoded checklist if dbItems empty. */
+export function buildItemsPromptFromDB(input: SupplementInput, dbItems: DBLineItem[]): string {
+  const useDB = dbItems.length > 0;
+
+  const checklist = useDB
+    ? dbItems
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(c => {
+          const why = c.policy_argument
+            ? c.policy_argument.slice(0, 200)
+            : c.code_argument
+            ? c.code_argument.slice(0, 200)
+            : c.name;
+          const tag = c.category === 'condition_based'
+            ? 'CONDITION-BASED — document field evidence only, do not flag from inference'
+            : 'CODE-BASED';
+          return `- ${c.name} [${tag}]: ${why}`;
+        })
+        .join('\n')
+    : FL_SUPPLEMENT_CHECKLIST
+        .map(c => `- ${c.item} (${c.code}): ${c.why}`)
+        .join('\n');
+
+  const ctx: string[] = [];
+  if (input.propertyAddress)  ctx.push(`Property: ${input.propertyAddress}`);
+  if (input.insuranceCompany) ctx.push(`Carrier: ${input.insuranceCompany}`);
+  if (input.claimNumber)      ctx.push(`Claim #: ${input.claimNumber}`);
+  if (input.adjusterName)     ctx.push(`Adjuster: ${input.adjusterName}`);
+  if (input.dateOfLoss)       ctx.push(`Date of loss: ${input.dateOfLoss}`);
+  if (input.roofSquares)      ctx.push(`Roof size: ${input.roofSquares} squares`);
+  if (input.roofPitch)        ctx.push(`Pitch: ${input.roofPitch}`);
+  if (input.roofInstallDate)  ctx.push(`Roof built: ${input.roofInstallDate}`);
+  if (typeof input.approvedAmount === 'number') ctx.push(`Approved: $${input.approvedAmount}`);
+  const context = ctx.length ? ctx.join('\n') : '(none)';
+
+  return `FL roofing supplement specialist. Find line items the adjuster OMITTED or UNDERPAID vs FL code and standard re-roof practice.
+
+CONTEXT:
+${context}
+
+CHECKLIST (flag only if missing or underpriced in the scope below):
+${checklist}
+
+ADJUSTER SCOPE:
+${input.scopeText}
+
+Rules:
+- Only flag items justifiable from the scope. Do NOT invent damage.
+- CONDITION-BASED items: only flag if scope text explicitly references that condition. Never infer.
+- Keep reason to 1 sentence. Use realistic FL 2026 unit prices.
+
+Return ONLY this JSON (no markdown, no extra text):
+{"missing_items":[{"item":"","reason":"","fl_code":"","suggested_quantity":"","suggested_unit_price":0,"suggested_total":0}],"underpaid_items":[{"item":"","reason":"","fl_code":"","suggested_quantity":"","suggested_unit_price":0,"suggested_total":0}],"total_supplement_estimate":0}`;
+}
