@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   try {
     const result = await getStormEvidence(lat, lon, address, yearsBack, radiusMi)
     return NextResponse.json(result, {
-      headers: { 'Cache-Control': 's-maxage=86400, stale-while-revalidate=3600' }
+      headers: { 'Cache-Control': 's-maxage=3600, stale-while-revalidate=600' }
     })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'

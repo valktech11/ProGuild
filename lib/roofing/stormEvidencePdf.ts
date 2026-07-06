@@ -44,6 +44,7 @@ const S = StyleSheet.create({
   score:      { fontSize: 7, color: '#FFFFFF', backgroundColor: TEAL, borderRadius: 3, padding: '1 4' },
   evRow:      { flexDirection: 'row', marginBottom: 4, alignItems: 'flex-start' },
   tagHail:    { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', backgroundColor: '#2563EB', borderRadius: 2, padding: '1 4', marginRight: 6, marginTop: 1, width: 30, textAlign: 'center' },
+  tagDmge:    { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', backgroundColor: '#6B7280', borderRadius: 2, padding: '1 4', marginRight: 6, marginTop: 1, width: 30, textAlign: 'center' },
   tagWind:    { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', backgroundColor: '#0891B2', borderRadius: 2, padding: '1 4', marginRight: 6, marginTop: 1, width: 30, textAlign: 'center' },
   dateSummary:{ fontSize: 9, color: NAVY, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
   evMag:      { fontSize: 8, color: NAVY, fontFamily: 'Helvetica-Bold', lineHeight: 1.3 },
@@ -60,13 +61,14 @@ const S = StyleSheet.create({
 
 function eventLine(ev: StormDate['hail_events'][0], i: number) {
   const isHail = ev.event_type.includes('HAIL')
-  const tag = isHail ? 'HAIL' : 'WIND'
+  const tag = isHail ? 'HAIL' : (ev.magnitude > 0 ? 'WIND' : 'DMGE')
+  const magStyle = tag === 'DMGE' ? S.tagDmge : (isHail ? S.tagHail : S.tagWind)
   const mag = isHail
     ? `${ev.magnitude}"`
-    : ev.magnitude > 0 ? `${ev.magnitude} mph` : '—'
+    : ev.magnitude > 0 ? `${ev.magnitude} mph` : 'Storm damage'
   const dist = ev.distance_miles < 0.5 ? 'on-property' : `${ev.distance_miles} mi`
   return h(View, { key: i, style: S.evRow },
-    h(Text, { style: isHail ? S.tagHail : S.tagWind }, tag),
+    h(Text, { style: magStyle }, tag),
     h(View, { style: { flex: 1 } },
       h(Text, { style: S.evMag }, `${mag} · ${ev.county} Co · ${dist} away`),
       ev.remark ? h(Text, { style: S.evRemark }, ev.remark.slice(0, 110)) : null,
@@ -80,7 +82,7 @@ function dateBlock(sd: StormDate, idx: number) {
   const summary = [
     hailStr && `Hail ${hailStr}`,
     windStr && `Wind ${windStr}`,
-    sd.has_tornado && 'Tornado',
+    // has_tornado omitted from summary — prone to false-positive on 'overturned' remarks
   ].filter(Boolean).join(' · ')
 
   return h(View, { key: sd.date, style: S.dateBlock, wrap: false },
