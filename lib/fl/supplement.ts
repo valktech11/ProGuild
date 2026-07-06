@@ -226,8 +226,18 @@ export function parseSupplementResponse(raw: string): SupplementResult {
     const total = item.suggested_total > 0 ? item.suggested_total : item.suggested_unit_price
     return { ...item, suggested_quantity: '10/10 O&P', suggested_unit_price: total, suggested_total: total }
   }
-  const normMissing   = missing.map(normalizeOP)
-  const normUnderpaid = underpaid.map(normalizeOP)
+  // Perimeter-LF items (drip edge, starter strip): when qty not field-traced, Gemini
+  // is instructed to emit the verify-sentinel with zero pricing. Enforce zeroing so a
+  // fabricated dollar figure never reaches the letter/total.
+  const normalizeUnverifiedLF = (item: SupplementItem): SupplementItem => {
+    const q = item.suggested_quantity.toLowerCase()
+    if (q.includes('verify') && q.includes('perimeter')) {
+      return { ...item, suggested_quantity: 'Verify perimeter LF', suggested_unit_price: 0, suggested_total: 0 }
+    }
+    return item
+  }
+  const normMissing   = missing.map(normalizeOP).map(normalizeUnverifiedLF)
+  const normUnderpaid = underpaid.map(normalizeOP).map(normalizeUnverifiedLF)
 
   // Authoritative total = sum of item totals (don't trust the model's arithmetic).
   const computed = [...normMissing, ...normUnderpaid].reduce((s, i) => s + i.suggested_total, 0);
@@ -324,7 +334,26 @@ export function buildItemsPromptFromDB(input: SupplementInput, dbItems: DBLineIt
           const tag = c.category === 'condition_based'
             ? 'CONDITION-BASED — document field evidence only, do not flag from inference'
             : 'CODE-BASED';
-          return `- ${c.name} [${tag}]: ${why}`;
+          // Per-item authoritative quantity binding — prevents Gemini from computing its own SQ/LF.
+          const sqQty = input.roofSquares ? `${input.roofSquares}` : null;
+          const valleyLF = (input.measuredLF?.valley_ft ?? 0) > 0 ? input.measuredLF!.valley_ft : null;
+          let qtyDirective = '';
+          switch (c.key) {
+            case 'underlayment':
+              if (sqQty) qtyDirective = ` [QTY: use exactly ${sqQty} SQ — do not compute]`;
+              break;
+            case 'valley_metal':
+              if (valleyLF) qtyDirective = ` [QTY: use exactly ${valleyLF} LF — field-confirmed]`;
+              break;
+            case 'drip_edge':
+            case 'starter_strip':
+              qtyDirective = ` [QTY: perimeter LF not yet field-traced — set suggested_quantity="verify perimeter LF", suggested_unit_price and suggested_total to 0]`;
+              break;
+            case 'steep_high':
+              if (sqQty) qtyDirective = ` [QTY: use ${sqQty} SQ if flagged]`;
+              break;
+          }
+          return `- ${c.name} [${tag}]: ${why}${qtyDirective}`;
         })
         .join('\n')
     : FL_SUPPLEMENT_CHECKLIST
