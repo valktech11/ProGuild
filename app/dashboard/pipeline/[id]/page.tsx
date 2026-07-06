@@ -1675,6 +1675,25 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       </div>
                                     </div>
                                     <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} />
+                                    {/* Supplement lifecycle transitions — single source of truth (spine owns Supplement->Closed) */}
+                                    {!(stage==='job_won'||stage==='lost') && rjd2.claim_status !== 'Closed' && (()=>{
+                                      const advance = async (next:string, toast:string)=>{
+                                        const ok = await patch({claim_status:next})
+                                        if (ok) { setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),claim_status:next}} as any:l); setClaimRemountNonce(n=>n+1); addToast(toast,'success') }
+                                        else addToast('Update failed','error')
+                                      }
+                                      return (
+                                        <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const, marginTop:12 }}>
+                                          {rjd2.claim_status === 'Approved' && (
+                                            <button onClick={()=>advance('Supplement Filed','Supplement filed')} style={{ fontSize:12, fontWeight:700, color:BRAND.teal, background:'transparent', border:`1px solid ${BRAND.teal}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement filed</button>
+                                          )}
+                                          {rjd2.claim_status === 'Supplement Filed' && (
+                                            <button onClick={()=>advance('Supplement Approved','Supplement approved')} style={{ fontSize:12, fontWeight:700, color:BRAND.teal, background:'transparent', border:`1px solid ${BRAND.teal}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement approved</button>
+                                          )}
+                                          <button onClick={()=>advance('Closed','Claim closed')} style={{ fontSize:12, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
+                                        </div>
+                                      )
+                                    })()}
                                   </div>
                                 </div>
                               )

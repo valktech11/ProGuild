@@ -47,14 +47,14 @@ const CLAIM_STATUSES = [
 // Phased claim progression — drives the panel layout. Most "statuses" are derived
 // from data the roofer already enters (adjuster date) rather than a manual dropdown.
 // claim_status remains the DB source of truth (and pipeline trigger on 'Approved').
-const PHASE_STEPS = ['Filed', 'Adjuster', 'Decision', 'Supplement', 'Closed'] as const
+const PHASE_STEPS = ['Filed', 'Adjuster', 'Decision'] as const
 function derivePhase(status: string, hasAppt: boolean): { index: number; denied: boolean } {
   switch (status) {
     case 'Denied':              return { index: 2, denied: true }
-    case 'Approved':            return { index: 2, denied: false }
+    case 'Approved':
     case 'Supplement Filed':
-    case 'Supplement Approved': return { index: 3, denied: false }
-    case 'Closed':              return { index: 4, denied: false }
+    case 'Supplement Approved':
+    case 'Closed':              return { index: 2, denied: false }  // Decision reached; supplement/closed lifecycle owned by spine supp-stage
     default:                    return { index: hasAppt ? 1 : 0, denied: false }  // Filed / legacy adjuster statuses
   }
 }
@@ -832,12 +832,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   {/* Next-step status transitions */}
                   {!locked && fields.claim_status !== 'Closed' && (
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
-                      {fields.claim_status === 'Approved' && (
-                        <button onClick={()=>setStatus('Supplement Filed')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement filed</button>
-                      )}
-                      {fields.claim_status === 'Supplement Filed' && (
-                        <button onClick={()=>setStatus('Supplement Approved')} style={{ fontSize:12, fontWeight:700, color:TEAL, background:'transparent', border:`1px solid ${TEAL}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement approved</button>
-                      )}
+                      {/* Supplement lifecycle (Mark filed/approved) owned by spine supp-stage; card retains terminal close only */}
                       <button onClick={()=>setStatus('Closed')} style={{ fontSize:12, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
                     </div>
                   )}
