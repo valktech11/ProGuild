@@ -75,7 +75,7 @@ function roofingWorkflow(
   rjd: any,
   est: { total?: number; status?: string; sent_at?: string | null } | null,
   estCount: number,
-): { steps: WorkflowStep[]; nextKey: string | null; gap: number | null; hasGap: boolean } {
+): { steps: WorkflowStep[]; nextKey: string | null; gap: number | null; hasGap: boolean; decisionRecorded: boolean } {
   const isClaim = !!rjd?.insurance_claim
   const lfd = rjd?.linear_footage || {}
   const sqDone = !!rjd?.square_count
@@ -98,7 +98,7 @@ function roofingWorkflow(
         { key: 'lf',       label: 'Capture LF',           done: lfDone },
         { key: 'estimate', label: 'Build Estimate',       done: estDone },
         { key: 'carrier',  label: 'Review Carrier Scope', done: decisionRecorded },
-        ...(hasGap ? [{ key: 'supp', label: 'Review Supplement', done: supDone }] : []),
+        ...(decisionRecorded ? [{ key: 'supp', label: 'Review Supplement', done: supDone }] : []),
         { key: 'send',     label: 'Send to Homeowner',    done: sentDone },
       ]
     : [
@@ -108,7 +108,7 @@ function roofingWorkflow(
         { key: 'send',     label: 'Send to Homeowner', done: sentDone },
       ]
   const found = steps.find(s => !s.done)
-  return { steps, nextKey: found ? found.key : null, gap, hasGap }
+  return { steps, nextKey: found ? found.key : null, gap, hasGap, decisionRecorded }
 }
 
 function fmt(d: string | null): string {
@@ -1544,7 +1544,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       key: 'carrier', label: 'Carrier Claim', done: dn('carrier'),
                       summary: dn('carrier') ? `${rjd2.carrier_name || 'Carrier'} · decision recorded` : `${rjd2.carrier_name || 'Carrier'} · awaiting decision`,
                     })
-                    if (isClaim2 && wf.hasGap) stages.push({
+                    if (isClaim2 && wf.decisionRecorded) stages.push({
                       key: 'supp', label: 'Supplement', done: dn('supp'),
                       summary: wf.gap != null ? `Potential gap ${money(wf.gap)} — review items` : 'Review supplement items',
                     })
@@ -1654,8 +1654,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(129,140,248,0.28)' : '#C7D2FE'}`, background: dk ? 'rgba(79,70,229,0.10)' : '#EEF2FF', overflow: 'hidden', marginBottom: 12 }}>
                                       <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
                                         <div style={{ minWidth: 0 }}>
-                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: dk ? '#A5B4FC' : '#4338CA', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>Potential supplement gap</div>
-                                          <CountUpMoney value={gapVal} fmt={money} style={{ display: 'block', fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }} />
+                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: dk ? '#A5B4FC' : '#4338CA', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>{eTot > 0 ? 'Potential supplement gap' : 'Supplement review'}</div>
+                                          {eTot > 0
+                                            ? <CountUpMoney value={gapVal} fmt={money} style={{ display: 'block', fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }} />
+                                            : <div style={{ fontSize: isWide ? 20 : T.fontHeroMobile, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.01em', lineHeight: 1.2, marginTop: 2 }}>Scan carrier scope</div>}
                                         </div>
                                         <div style={{ display: 'flex', gap: 22 }}>
                                           <div>
@@ -1669,7 +1671,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         </div>
                                       </div>
                                       <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(129,140,248,0.22)' : '#C7D2FE'}`, fontSize: T.fontSub, color: dk ? '#C7D2FE' : '#4338CA', lineHeight: 1.45 }}>
-                                        The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.
+                                        {eTot > 0 ? 'The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.' : 'Paste the carrier scope below to flag FL code-required items they missed — no estimate needed to start.'}
                                       </div>
                                     </div>
                                     <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} />
