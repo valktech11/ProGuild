@@ -1289,11 +1289,11 @@ function PropertyCard({ estimate, card, border, textP, textS,
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <label style={{ fontSize: 12, fontWeight: 700, color: textS }}>Linear Footage (ridge / hip / valley)</label>
                 {leadId && (
-                  <a href={`/dashboard/roofing/promeasure?lead_id=${leadId}&from=estimate`}
-                    style={{ fontSize: 11, fontWeight: 700, color: C.teal, textDecoration: 'none',
+                  <button onClick={() => router.push(`/dashboard/roofing/promeasure?lead_id=${leadId}&from=estimate`)}
+                    style={{ fontSize: 11, fontWeight: 700, color: C.teal, cursor: 'pointer',
                       background: C.tealLight, padding: '2px 8px', borderRadius: 5, border: `1px solid ${C.teal}40` }}>
                     Trace in ProMeasure →
-                  </a>
+                  </button>
                 )}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
