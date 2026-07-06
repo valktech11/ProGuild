@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { computeSB2ADeadlines, SB2A_DISCLAIMER } from '@/lib/fl/sb2a'
 import { FL_CARRIERS } from '@/lib/roofing/carriers'
 import { computeRoofRuleEligibility, ROOF_RULE_DISCLAIMER } from '@/lib/fl/roofAge'
@@ -25,6 +25,9 @@ interface Props {
   initial:  Partial<InsuranceClaimData>
   darkMode: boolean
   propertyState?: string | null   // gate FL-only intelligence to FL properties
+  propertyAddress?: string | null  // for NOAA storm scan
+  propertyLat?: number | null
+  propertyLon?: number | null
   locked?: boolean                // hard-disable the claim-type toggle (won/lost jobs)
   onSaved:  (data: InsuranceClaimData) => void
 }
@@ -109,9 +112,45 @@ function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { 
   )
 }
 
-export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, locked = false, onSaved }: Props) {
+export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, propertyAddress, propertyLat, propertyLon, locked = false, onSaved }: Props) {
   // FL claims-intelligence (SB 2-A, 25% rule) is Florida-specific by design — gate it.
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
+  const [stormScanning, setStormScanning] = React.useState(false)
+  const [stormDates, setStormDates] = React.useState<{date:string;score:number;max_hail_in:number|null;max_wind_mph:number|null;event_count:number}[]>([])
+  const [stormErr, setStormErr] = React.useState<string|null>(null)
+
+  const scanStormDates = React.useCallback(async () => {
+    if (!isFL) return
+    const lat = propertyLat
+    const lon = propertyLon
+    if (!lat || !lon) { setStormErr('Property coordinates not available. Save the lead address first.'); return }
+    setStormScanning(true); setStormErr(null); setStormDates([])
+    try {
+      const res = await fetch(`/api/roofing/storm-evidence?lat=${lat}&lon=${lon}&address=${encodeURIComponent(propertyAddress??'')}`, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (!res.ok) { setStormErr(data.error ?? 'Storm scan failed'); return }
+      setStormDates(data.storm_dates ?? [])
+    } catch { setStormErr('Network error. Try again.') }
+    finally { setStormScanning(false) }
+  }, [isFL, propertyLat, propertyLon, propertyAddress])
+
+  const downloadEvidencePdf = React.useCallback(async () => {
+    const lat = propertyLat; const lon = propertyLon
+    if (!lat || !lon) return
+    const res = await fetch('/api/roofing/storm-evidence-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lon, address: propertyAddress ?? '' })
+    })
+    if (!res.ok) return
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url
+    a.download = `storm-evidence-${new Date().toISOString().slice(0,10)}.pdf`
+    a.click(); URL.revokeObjectURL(url)
+  }, [propertyLat, propertyLon, propertyAddress])
   // Responsive: collapse internal 2-col / 3-col grids to single column on narrow
   // screens so the FL deadline + 25%-rule callout cards stop clipping. Matches
   // the parent page >=900px breakpoint. Desktop (isWide) is unchanged.
@@ -482,6 +521,37 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>
                   Storm claims: hurricane landfall / NOAA date &#8212; not the discovery date.
                 </div>
+                {isFL && !locked && (
+                  <div style={{ marginTop:8 }}>
+                    <button onClick={scanStormDates} disabled={stormScanning}
+                      style={{ fontSize:11, fontWeight:600, color:'#fff', background:TEAL, border:'none', borderRadius:7, padding:'5px 12px', cursor:'pointer', opacity:stormScanning?0.7:1 }}>
+                      {stormScanning ? 'Scanning NOAA...' : '⚡ Find Best Date of Loss'}
+                    </button>
+                    {stormErr && <div style={{ fontSize:11, color:'#DC2626', marginTop:4 }}>{stormErr}</div>}
+                    {stormDates.length > 0 && (
+                      <div style={{ marginTop:8, background: dk?'#1E293B':'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'8 10', maxHeight:180, overflowY:'auto' as const }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:TEAL, marginBottom:6 }}>NOAA Storm Dates — tap to set</div>
+                        {stormDates.slice(0,8).map((sd,i) => (
+                          <div key={sd.date} onClick={() => { set('date_of_loss')({ target: { value: sd.date } } as any); }}
+                            style={{ display:'flex', alignItems:'center', gap:8, padding:'4 6', borderRadius:6, cursor:'pointer', background: i===0?(dk?'#0F2D2A':'#F0FDFA'):'transparent', marginBottom:2 }}>
+                            <span style={{ fontSize:11, fontWeight:700, color: i===0?TEAL:'#374151', minWidth:90 }}>{sd.date}</span>
+                            <span style={{ fontSize:10, color:'#64748B' }}>
+                              {sd.max_hail_in!=null?`${sd.max_hail_in}" hail`:''}
+                              {sd.max_hail_in!=null&&sd.max_wind_mph!=null?' · ':''}
+                              {sd.max_wind_mph!=null?`${sd.max_wind_mph}mph wind`:''}
+                              {' · '}{sd.event_count} report{sd.event_count!==1?'s':''}
+                            </span>
+                            {i===0&&<span style={{ fontSize:9, background:TEAL, color:'#fff', borderRadius:4, padding:'1 5', marginLeft:'auto' }}>Best</span>}
+                          </div>
+                        ))}
+                        <button onClick={downloadEvidencePdf}
+                          style={{ marginTop:6, fontSize:10, fontWeight:600, color:TEAL, background:'transparent', border:`1px solid ${TEAL}`, borderRadius:6, padding:'4 10', cursor:'pointer', width:'100%' }}>
+                          Download Evidence PDF
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </Field>
               <div>
                 {(() => {

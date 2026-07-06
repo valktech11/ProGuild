@@ -854,7 +854,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // Single source for the claim component — re-homed into the spine's carrier stage, or shown in the
   // Details tab on the flag-off page / for retail leads (so the insurance on/off toggle stays reachable).
   const claimFieldsEl = (isRoofing && lead && session) ? (
-    <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} locked={stage==='job_won'||stage==='lost'}
+    <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} propertyAddress={([(lead as any).property_address, lead.contact_city, lead.contact_state, (lead as any).contact_zip].filter(Boolean).join(', '))} propertyLat={(lead as any).contact_lat ?? null} propertyLon={(lead as any).contact_lng ?? null} locked={stage==='job_won'||stage==='lost'}
       onSaved={(data)=>{
         setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
         setTimeout(()=>{
