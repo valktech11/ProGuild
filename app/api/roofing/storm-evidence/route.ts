@@ -14,23 +14,33 @@ export const maxDuration = 30
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePro } from '@/lib/pro-auth'
 import { getStormEvidence } from '@/lib/roofing/stormEvidence'
+import { geocodeAddress } from '@/lib/geocode'
 
 export async function GET(req: NextRequest) {
   const auth = await requirePro(req)
   if (auth.error) return auth.error
 
   const { searchParams } = new URL(req.url)
-  const lat  = parseFloat(searchParams.get('lat')  ?? '')
-  const lon  = parseFloat(searchParams.get('lon')  ?? '')
-  const address    = searchParams.get('address')    ?? ''
-  const yearsBack  = Math.min(parseInt(searchParams.get('years_back') ?? '3', 10), 5)
-  const radiusMi   = Math.min(parseFloat(searchParams.get('radius_mi') ?? '10'), 25)
+  let lat = parseFloat(searchParams.get('lat') ?? '')
+  let lon = parseFloat(searchParams.get('lon') ?? '')
+  const address   = searchParams.get('address') ?? ''
+  const yearsBack = Math.min(parseInt(searchParams.get('years_back') ?? '3', 10), 5)
+  const radiusMi  = Math.min(parseFloat(searchParams.get('radius_mi') ?? '10'), 25)
+
+  // Coordinate fallback: many leads predate the Places picker and store no
+  // contact_lat/lng. Geocode the address string server-side.
+  if ((isNaN(lat) || isNaN(lon)) && address.trim()) {
+    const geo = await geocodeAddress(address)
+    if (geo) { lat = geo.lat; lon = geo.lng }
+  }
 
   if (isNaN(lat) || isNaN(lon)) {
-    return NextResponse.json({ error: 'lat and lon required' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Could not resolve property coordinates. Check the address.' },
+      { status: 400 }
+    )
   }
   if (lat < 24 || lat > 31 || lon < -88 || lon > -79) {
-    // Outside FL bounding box — WFO routing is FL-specific in this version.
     return NextResponse.json(
       { error: 'Storm evidence is currently available for Florida properties only.' },
       { status: 400 }

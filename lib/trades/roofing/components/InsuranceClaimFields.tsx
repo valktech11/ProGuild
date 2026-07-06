@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { computeSB2ADeadlines, SB2A_DISCLAIMER } from '@/lib/fl/sb2a'
 import { FL_CARRIERS } from '@/lib/roofing/carriers'
 import { computeRoofRuleEligibility, ROOF_RULE_DISCLAIMER } from '@/lib/fl/roofAge'
+import { apiFetch } from '@/lib/api-fetch'
 
 export interface InsuranceClaimData {
   insurance_claim:        boolean
@@ -121,12 +122,16 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
 
   const scanStormDates = React.useCallback(async () => {
     if (!isFL) return
-    const lat = propertyLat
-    const lon = propertyLon
-    if (!lat || !lon) { setStormErr('Property coordinates not available. Save the lead address first.'); return }
+    if (!propertyLat && !propertyLon && !(propertyAddress ?? '').trim()) {
+      setStormErr('No property address on this lead.'); return
+    }
     setStormScanning(true); setStormErr(null); setStormDates([])
     try {
-      const res = await fetch(`/api/roofing/storm-evidence?lat=${lat}&lon=${lon}&address=${encodeURIComponent(propertyAddress??'')}`, {
+      const q = new URLSearchParams()
+      if (propertyLat) q.set('lat', String(propertyLat))
+      if (propertyLon) q.set('lon', String(propertyLon))
+      if (propertyAddress) q.set('address', propertyAddress)
+      const res = await apiFetch(`/api/roofing/storm-evidence?${q.toString()}`, {
         headers: { 'Content-Type': 'application/json' }
       })
       const data = await res.json()
@@ -137,12 +142,11 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   }, [isFL, propertyLat, propertyLon, propertyAddress])
 
   const downloadEvidencePdf = React.useCallback(async () => {
-    const lat = propertyLat; const lon = propertyLon
-    if (!lat || !lon) return
-    const res = await fetch('/api/roofing/storm-evidence-pdf', {
+    if (!propertyLat && !propertyLon && !(propertyAddress ?? '').trim()) return
+    const res = await apiFetch('/api/roofing/storm-evidence-pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat, lon, address: propertyAddress ?? '' })
+      body: JSON.stringify({ lat: propertyLat ?? undefined, lon: propertyLon ?? undefined, address: propertyAddress ?? '' })
     })
     if (!res.ok) return
     const blob = await res.blob()

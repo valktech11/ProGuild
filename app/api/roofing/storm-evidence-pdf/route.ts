@@ -12,16 +12,22 @@ import { requirePro } from '@/lib/pro-auth'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStormEvidence } from '@/lib/roofing/stormEvidence'
 import { renderStormEvidencePdf } from '@/lib/roofing/stormEvidencePdf'
+import { geocodeAddress } from '@/lib/geocode'
 
 export async function POST(req: NextRequest) {
   const auth = await requirePro(req)
   if (auth.error) return auth.error
 
   const body = await req.json()
-  const { lat, lon, address, years_back = 3, radius_mi = 10 } = body
+  let { lat, lon } = body
+  const { address, years_back = 3, radius_mi = 10 } = body
 
+  if ((typeof lat !== 'number' || typeof lon !== 'number') && address) {
+    const geo = await geocodeAddress(address)
+    if (geo) { lat = geo.lat; lon = geo.lng }
+  }
   if (typeof lat !== 'number' || typeof lon !== 'number') {
-    return NextResponse.json({ error: 'lat and lon required as numbers' }, { status: 400 })
+    return NextResponse.json({ error: 'Could not resolve property coordinates.' }, { status: 400 })
   }
   if (lat < 24 || lat > 31 || lon < -88 || lon > -79) {
     return NextResponse.json(
