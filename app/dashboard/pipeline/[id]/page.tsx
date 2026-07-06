@@ -1891,6 +1891,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                               if (isDenied) return null  // denial has its own CTA above
                               if (!carrierResponded) return null  // pre-decision: the claim panel's decision buttons own this
+                              if (useSpine) return null  // spine renders the supplement payoff inline in its own stage
 
                               return (
                                 <div id="supplement-section" style={{marginTop:16}}>
