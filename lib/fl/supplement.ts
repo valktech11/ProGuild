@@ -103,6 +103,7 @@ export interface SupplementInput {
   approvedAmount?:  number | null;
   propertyAddress?: string | null;
   proCompany?:      string | null;   // roofer's business name (letter signature)
+  measuredLF?:      { ridge_ft?: number; hip_ft?: number; valley_ft?: number } | null;
 }
 
 export interface SupplementItem {
@@ -125,38 +126,9 @@ export const SUPPLEMENT_DISCLAIMER =
   'Informational only — not legal or public-adjuster advice. Suggested items and prices are AI-generated; verify line items, quantities, and pricing, and review with a licensed public adjuster or attorney before filing. Final scope is the carrier\u2019s determination.';
 
 /** Build the Gemini prompt. The checklist is injected so the model anchors on FL items. */
-/** Prompt 1 of 2: find missing/underpaid items only — no letter, keeps output small. */
+/** @deprecated Use buildItemsPromptFromDB instead — delegates there with empty dbItems (falls back to hardcoded checklist). */
 export function buildItemsPrompt(input: SupplementInput): string {
-  const checklist = FL_SUPPLEMENT_CHECKLIST
-    .map(c => `- ${c.item} (${c.code}): ${c.why}`)
-    .join('\n');
-
-  const ctx: string[] = [];
-  if (input.propertyAddress)  ctx.push(`Property: ${input.propertyAddress}`);
-  if (input.insuranceCompany) ctx.push(`Carrier: ${input.insuranceCompany}`);
-  if (input.claimNumber)      ctx.push(`Claim #: ${input.claimNumber}`);
-  if (input.adjusterName)     ctx.push(`Adjuster: ${input.adjusterName}`);
-  if (input.dateOfLoss)       ctx.push(`Date of loss: ${input.dateOfLoss}`);
-  if (input.roofSquares)      ctx.push(`Roof size: ${input.roofSquares} squares`);
-  if (input.roofPitch)        ctx.push(`Pitch: ${input.roofPitch}`);
-  if (input.roofInstallDate)  ctx.push(`Roof built: ${input.roofInstallDate}`);
-  if (typeof input.approvedAmount === 'number') ctx.push(`Approved: $${input.approvedAmount}`);
-  const context = ctx.length ? ctx.join('\n') : '(none)';
-
-  return `FL roofing supplement specialist. Find line items the adjuster OMITTED or UNDERPAID vs FL code.
-
-CONTEXT: ${context}
-
-CHECKLIST (flag only if missing or underpriced in the scope below):
-${checklist}
-
-ADJUSTER SCOPE:
-${input.scopeText}
-
-Rules: only flag items justifiable from the scope. Do NOT invent damage. Keep reason to 1 sentence. Use realistic FL 2026 unit prices.
-
-Return ONLY this JSON (no markdown, no extra text):
-{"missing_items":[{"item":"","reason":"","fl_code":"","suggested_quantity":"","suggested_unit_price":0,"suggested_total":0}],"underpaid_items":[{"item":"","reason":"","fl_code":"","suggested_quantity":"","suggested_unit_price":0,"suggested_total":0}],"total_supplement_estimate":0}`;
+  return buildItemsPromptFromDB(input, []);
 }
 
 /** Prompt 2 of 2: draft the supplement letter given the items already found. */
@@ -236,13 +208,25 @@ export function parseSupplementResponse(raw: string): SupplementResult {
   const missing   = Array.isArray(obj.missing_items)   ? obj.missing_items.map(coerceItem).filter((i: SupplementItem) => i.item)   : [];
   const underpaid = Array.isArray(obj.underpaid_items) ? obj.underpaid_items.map(coerceItem).filter((i: SupplementItem) => i.item) : [];
 
+  // Post-process O&P: normalize display regardless of how Gemini computed it.
+  // Gemini sometimes returns qty=20 @ $0 or qty=1 @ wrong_rate. Standardize to
+  // suggested_quantity='10/10 O&P' and collapse unit_price into total only.
+  const normalizeOP = (item: SupplementItem): SupplementItem => {
+    const nm = item.item.toLowerCase()
+    if (!nm.includes('overhead') && !nm.includes('profit') && !nm.includes('o&p')) return item
+    const total = item.suggested_total > 0 ? item.suggested_total : item.suggested_unit_price
+    return { ...item, suggested_quantity: '10/10 O&P', suggested_unit_price: total, suggested_total: total }
+  }
+  const normMissing   = missing.map(normalizeOP)
+  const normUnderpaid = underpaid.map(normalizeOP)
+
   // Authoritative total = sum of item totals (don't trust the model's arithmetic).
-  const computed = [...missing, ...underpaid].reduce((s, i) => s + i.suggested_total, 0);
+  const computed = [...normMissing, ...normUnderpaid].reduce((s, i) => s + i.suggested_total, 0);
   const total = computed > 0 ? computed : num(obj.total_supplement_estimate);
 
   return {
-    missing_items:             missing,
-    underpaid_items:           underpaid,
+    missing_items:             normMissing,
+    underpaid_items:           normUnderpaid,
     total_supplement_estimate: Math.round(total * 100) / 100,
     supplement_letter:         String(obj.supplement_letter ?? '').trim(),
   };
@@ -285,6 +269,34 @@ export interface DBLineItem {
 /** Build Gemini items prompt from DB-driven line items. Falls back to hardcoded checklist if dbItems empty. */
 export function buildItemsPromptFromDB(input: SupplementInput, dbItems: DBLineItem[]): string {
   const useDB = dbItems.length > 0;
+  const sqLabel = input.roofSquares ? `${input.roofSquares}` : 'unknown';
+
+  // Pitch parsing for steep-charge tier injection
+  const pitchNum = (() => {
+    if (!input.roofPitch) return 0;
+    const m = input.roofPitch.match(/(\d+)\s*[:\/]\s*(\d+)/);
+    if (!m) return 0;
+    return parseInt(m[1]) / parseInt(m[2]);
+  })();
+  const steepRule = pitchNum >= 7/12 && pitchNum < 10/12
+    ? `Pitch is ${input.roofPitch} (>=7/12) — flag RFG STEP1 steep surcharge as missing if no steep charge appears in scope.`
+    : pitchNum >= 10/12 && pitchNum < 1
+    ? `Pitch is ${input.roofPitch} (>=10/12) — flag RFG STEP2 steep surcharge as missing if no steep charge appears in scope.`
+    : pitchNum >= 1
+    ? `Pitch is ${input.roofPitch} (>12/12) — flag RFG STEP3 steep surcharge as missing if no steep charge appears in scope.`
+    : 'No steep surcharge threshold met at this pitch.';
+
+  // Field measurements block from ProMeasure-traced LF
+  const lf = input.measuredLF;
+  const lfLines: string[] = [];
+  if (lf) {
+    if ((lf.ridge_ft ?? 0) > 0) lfLines.push(`Ridge: ${lf.ridge_ft} LF`);
+    if ((lf.hip_ft ?? 0) > 0)   lfLines.push(`Hip: ${lf.hip_ft} LF`);
+    if ((lf.valley_ft ?? 0) > 0) lfLines.push(`Valley: ${lf.valley_ft} LF — flag valley metal/liner as missing if absent from scope`);
+  }
+  const lfBlock = lfLines.length > 0
+    ? `\nFIELD MEASUREMENTS (ProMeasure-traced, authoritative — use these, do not recompute):\n${lfLines.join('\n')}`
+    : '';
 
   const checklist = useDB
     ? dbItems
@@ -311,7 +323,7 @@ export function buildItemsPromptFromDB(input: SupplementInput, dbItems: DBLineIt
   if (input.claimNumber)      ctx.push(`Claim #: ${input.claimNumber}`);
   if (input.adjusterName)     ctx.push(`Adjuster: ${input.adjusterName}`);
   if (input.dateOfLoss)       ctx.push(`Date of loss: ${input.dateOfLoss}`);
-  if (input.roofSquares)      ctx.push(`Roof size: ${input.roofSquares} squares`);
+  if (input.roofSquares)      ctx.push(`Roof size: ${input.roofSquares} SQ (field-measured, authoritative — do not dispute or recompute)`);
   if (input.roofPitch)        ctx.push(`Pitch: ${input.roofPitch}`);
   if (input.roofInstallDate)  ctx.push(`Roof built: ${input.roofInstallDate}`);
   if (typeof input.approvedAmount === 'number') ctx.push(`Approved: $${input.approvedAmount}`);
@@ -320,7 +332,7 @@ export function buildItemsPromptFromDB(input: SupplementInput, dbItems: DBLineIt
   return `FL roofing supplement specialist. Find line items the adjuster OMITTED or UNDERPAID vs FL code and standard re-roof practice.
 
 CONTEXT:
-${context}
+${context}${lfBlock}
 
 CHECKLIST (flag only if missing or underpriced in the scope below):
 ${checklist}
@@ -329,8 +341,12 @@ ADJUSTER SCOPE:
 ${input.scopeText}
 
 Rules:
-- Only flag items justifiable from the scope. Do NOT invent damage.
+- Only flag items from the CHECKLIST that are absent or underpriced in the scope. Never add items not on the checklist.
 - CONDITION-BASED items: only flag if scope text explicitly references that condition. Never infer.
+- SQUARE COUNT: The roof is ${sqLabel} SQ (authoritative). Never recompute square counts. Never flag underpaid based on a different quantity you calculated. Only flag underpaid if unit price is materially below FL 2026 market rate.
+- O&P: If missing, return suggested_quantity="10/10 O&P", suggested_unit_price=<20pct_of_scope_subtotal>, suggested_total=<same>.
+- VALLEY: If field measurements above show valley LF, flag valley metal/liner as missing if no valley line item in scope.
+- STEEP: ${steepRule}
 - Keep reason to 1 sentence. Use realistic FL 2026 unit prices.
 
 Return ONLY this JSON (no markdown, no extra text):
