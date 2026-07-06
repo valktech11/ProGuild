@@ -39,12 +39,12 @@ export async function POST(req: NextRequest) {
   const sb = getSupabaseAdmin()
   const { data: pro } = await sb
     .from('pros')
-    .select('full_name, company_name')
+    .select('full_name, business_name')
     .eq('id', auth.proId)
     .maybeSingle()
 
   const proName    = pro?.full_name    ?? 'ProGuild Pro'
-  const proCompany = pro?.company_name ?? ''
+  const proCompany = pro?.business_name ?? ''
 
   try {
     const evidence = await getStormEvidence(

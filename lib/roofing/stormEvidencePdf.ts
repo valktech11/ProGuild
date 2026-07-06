@@ -42,9 +42,12 @@ const S = StyleSheet.create({
   dateHdr:    { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   dateLabel:  { fontSize: 9, fontFamily: 'Helvetica-Bold', color: NAVY, marginRight: 8 },
   score:      { fontSize: 7, color: '#FFFFFF', backgroundColor: TEAL, borderRadius: 3, padding: '1 4' },
-  evRow:      { flexDirection: 'row', marginBottom: 2, alignItems: 'flex-start' },
-  evBullet:   { fontSize: 8, color: RED, marginRight: 4, marginTop: 1 },
-  evText:     { fontSize: 8, color: NAVY, flex: 1, lineHeight: 1.4 },
+  evRow:      { flexDirection: 'row', marginBottom: 4, alignItems: 'flex-start' },
+  tagHail:    { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', backgroundColor: '#2563EB', borderRadius: 2, padding: '1 4', marginRight: 6, marginTop: 1, width: 30, textAlign: 'center' },
+  tagWind:    { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: '#FFFFFF', backgroundColor: '#0891B2', borderRadius: 2, padding: '1 4', marginRight: 6, marginTop: 1, width: 30, textAlign: 'center' },
+  dateSummary:{ fontSize: 9, color: NAVY, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
+  evMag:      { fontSize: 8, color: NAVY, fontFamily: 'Helvetica-Bold', lineHeight: 1.3 },
+  evRemark:   { fontSize: 7, color: GRAY, lineHeight: 1.3, marginTop: 1 },
   warnPill:   { fontSize: 7, backgroundColor: '#FEF3C7', color: AMBER, borderRadius: 3, padding: '1 5', marginRight: 4, marginBottom: 2 },
   // Footer
   footer:     { position: 'absolute', bottom: 28, left: 48, right: 48, borderTop: `1 solid ${LIGHT}`, paddingTop: 6, flexDirection: 'row' },
@@ -57,16 +60,17 @@ const S = StyleSheet.create({
 
 function eventLine(ev: StormDate['hail_events'][0], i: number) {
   const isHail = ev.event_type.includes('HAIL')
+  const tag = isHail ? 'HAIL' : 'WIND'
   const mag = isHail
-    ? `${ev.magnitude}" hail`
-    : ev.magnitude > 0 ? `${ev.magnitude} mph` : ''
-  const dist = ev.distance_miles < 0.5 ? 'on-property' : `${ev.distance_miles} mi away`
+    ? `${ev.magnitude}"`
+    : ev.magnitude > 0 ? `${ev.magnitude} mph` : '—'
+  const dist = ev.distance_miles < 0.5 ? 'on-property' : `${ev.distance_miles} mi`
   return h(View, { key: i, style: S.evRow },
-    h(Text, { style: S.evBullet }, isHail ? '⬡' : '≈'),
-    h(Text, { style: S.evText },
-      `${mag}${mag ? ' · ' : ''}${ev.county} Co · ${dist}`
-      + (ev.remark ? ` — ${ev.remark.slice(0, 80)}` : '')
-    )
+    h(Text, { style: isHail ? S.tagHail : S.tagWind }, tag),
+    h(View, { style: { flex: 1 } },
+      h(Text, { style: S.evMag }, `${mag} · ${ev.county} Co · ${dist} away`),
+      ev.remark ? h(Text, { style: S.evRemark }, ev.remark.slice(0, 110)) : null,
+    ),
   )
 }
 
@@ -84,7 +88,7 @@ function dateBlock(sd: StormDate, idx: number) {
       h(Text, { style: S.dateLabel }, `${idx + 1}. ${sd.date}`),
       h(Text, { style: S.score }, `Score ${sd.score}`),
     ),
-    summary ? h(Text, { style: { ...S.evText, marginBottom: 4 } }, summary) : null,
+    summary ? h(Text, { style: S.dateSummary }, summary) : null,
     // NWS warnings
     sd.nws_warnings.length > 0 && h(View, { style: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 } },
       ...sd.nws_warnings.map((w, i) => h(Text, { key: i, style: S.warnPill }, w.event))

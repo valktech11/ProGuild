@@ -526,34 +526,77 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   Storm claims: hurricane landfall / NOAA date &#8212; not the discovery date.
                 </div>
                 {isFL && !locked && (
-                  <div style={{ marginTop:8 }}>
+                  <div style={{ marginTop:10 }}>
+                    <style>{`@keyframes pgspin{to{transform:rotate(360deg)}}`}</style>
                     <button onClick={scanStormDates} disabled={stormScanning}
-                      style={{ fontSize:11, fontWeight:600, color:'#fff', background:TEAL, border:'none', borderRadius:7, padding:'5px 12px', cursor:'pointer', opacity:stormScanning?0.7:1 }}>
-                      {stormScanning ? 'Scanning NOAA...' : '⚡ Find Best Date of Loss'}
+                      style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, color:'#fff', background:stormScanning?'#0D9488':TEAL, border:'none', borderRadius:8, padding:'8px 14px', cursor:stormScanning?'default':'pointer', boxShadow:'0 1px 2px rgba(0,0,0,0.08)', transition:'all 0.15s' }}>
+                      {stormScanning
+                        ? <><span style={{ display:'inline-block', width:12, height:12, border:'2px solid rgba(255,255,255,0.4)', borderTopColor:'#fff', borderRadius:'50%', animation:'pgspin 0.6s linear infinite' }}/> Scanning NOAA archive…</>
+                        : <>⚡ Find Best Date of Loss</>}
                     </button>
-                    {stormErr && <div style={{ fontSize:11, color:'#DC2626', marginTop:4 }}>{stormErr}</div>}
-                    {stormDates.length > 0 && (
-                      <div style={{ marginTop:8, background: dk?'#1E293B':'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'8 10', maxHeight:180, overflowY:'auto' as const }}>
-                        <div style={{ fontSize:10, fontWeight:700, color:TEAL, marginBottom:6 }}>NOAA Storm Dates — tap to set</div>
-                        {stormDates.slice(0,8).map((sd,i) => (
-                          <div key={sd.date} onClick={() => { set('date_of_loss')({ target: { value: sd.date } } as any); }}
-                            style={{ display:'flex', alignItems:'center', gap:8, padding:'4 6', borderRadius:6, cursor:'pointer', background: i===0?(dk?'#0F2D2A':'#F0FDFA'):'transparent', marginBottom:2 }}>
-                            <span style={{ fontSize:11, fontWeight:700, color: i===0?TEAL:'#374151', minWidth:90 }}>{sd.date}</span>
-                            <span style={{ fontSize:10, color:'#64748B' }}>
-                              {sd.max_hail_in!=null?`${sd.max_hail_in}" hail`:''}
-                              {sd.max_hail_in!=null&&sd.max_wind_mph!=null?' · ':''}
-                              {sd.max_wind_mph!=null?`${sd.max_wind_mph}mph wind`:''}
-                              {' · '}{sd.event_count} report{sd.event_count!==1?'s':''}
-                            </span>
-                            {i===0&&<span style={{ fontSize:9, background:TEAL, color:'#fff', borderRadius:4, padding:'1 5', marginLeft:'auto' }}>Best</span>}
-                          </div>
-                        ))}
-                        <button onClick={downloadEvidencePdf}
-                          style={{ marginTop:6, fontSize:10, fontWeight:600, color:TEAL, background:'transparent', border:`1px solid ${TEAL}`, borderRadius:6, padding:'4 10', cursor:'pointer', width:'100%' }}>
-                          Download Evidence PDF
-                        </button>
+                    {stormErr && <div style={{ fontSize:12, color:'#DC2626', marginTop:6, padding:'6px 10px', background:'#FEF2F2', borderRadius:6, border:'1px solid #FECACA' }}>{stormErr}</div>}
+
+                    {stormDates.length > 0 && (() => {
+                      const chosen = fields.date_of_loss
+                      const sev = (sd:typeof stormDates[0]) => {
+                        const hail = sd.max_hail_in ?? 0
+                        const wind = sd.max_wind_mph ?? 0
+                        if (hail >= 1 || wind >= 58) return { c:'#DC2626', bg:'#FEF2F2', label:'Strong' }
+                        if (hail >= 0.75 || wind >= 45) return { c:'#D97706', bg:'#FFFBEB', label:'Moderate' }
+                        return { c:'#0891B2', bg:'#ECFEFF', label:'Minor' }
+                      }
+                      return (
+                      <div style={{ marginTop:12, border:`1px solid ${dk?'#334155':'#E2E8F0'}`, borderRadius:12, overflow:'hidden', background:dk?'#0F172A':'#fff', boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+                        {/* Header */}
+                        <div style={{ padding:'10px 14px', borderBottom:`1px solid ${dk?'#334155':'#F1F5F9'}`, background:dk?'#1E293B':'#F8FAFC' }}>
+                          <div style={{ fontSize:12, fontWeight:700, color:dk?'#E2E8F0':NAVY }}>{stormDates.length} storm date{stormDates.length!==1?'s':''} found nearby</div>
+                          <div style={{ fontSize:10.5, color:'#94A3B8', marginTop:1 }}>Tap a date to set it as your date of loss</div>
+                        </div>
+                        {/* Scrollable date list */}
+                        <div style={{ maxHeight:236, overflowY:'auto' as const }}>
+                          {stormDates.slice(0,10).map((sd,i) => {
+                            const s = sev(sd)
+                            const isChosen = chosen === sd.date
+                            const dObj = new Date(sd.date+'T00:00:00')
+                            const nice = dObj.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+                            return (
+                              <div key={sd.date} onClick={() => { set('date_of_loss')({ target: { value: sd.date } } as any); }}
+                                style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', cursor:'pointer',
+                                  borderBottom:`1px solid ${dk?'#1E293B':'#F1F5F9'}`,
+                                  background: isChosen ? (dk?'#0F2D2A':'#F0FDFA') : 'transparent',
+                                  borderLeft: isChosen ? `3px solid ${TEAL}` : '3px solid transparent',
+                                  transition:'background 0.12s' }}
+                                onMouseEnter={e=>{ if(!isChosen) e.currentTarget.style.background = dk?'#1E293B':'#F8FAFC' }}
+                                onMouseLeave={e=>{ if(!isChosen) e.currentTarget.style.background = 'transparent' }}>
+                                {/* Date */}
+                                <div style={{ minWidth:78 }}>
+                                  <div style={{ fontSize:12.5, fontWeight:700, color: isChosen?TEAL:(dk?'#E2E8F0':NAVY) }}>{nice}</div>
+                                </div>
+                                {/* Severity chips */}
+                                <div style={{ display:'flex', gap:5, flexWrap:'wrap', flex:1 }}>
+                                  {sd.max_hail_in!=null && <span style={{ fontSize:10, fontWeight:700, color:'#1D4ED8', background:'#DBEAFE', borderRadius:4, padding:'2px 7px' }}>{sd.max_hail_in}&quot; hail</span>}
+                                  {sd.max_wind_mph!=null && <span style={{ fontSize:10, fontWeight:700, color:'#0E7490', background:'#CFFAFE', borderRadius:4, padding:'2px 7px' }}>{sd.max_wind_mph} mph</span>}
+                                  <span style={{ fontSize:10, color:'#94A3B8', alignSelf:'center' }}>{sd.event_count} report{sd.event_count!==1?'s':''}</span>
+                                </div>
+                                {/* Best / severity badge */}
+                                {i===0
+                                  ? <span style={{ fontSize:9, fontWeight:800, letterSpacing:0.3, background:TEAL, color:'#fff', borderRadius:5, padding:'3px 8px', whiteSpace:'nowrap' as const }}>★ BEST</span>
+                                  : <span style={{ fontSize:9, fontWeight:700, color:s.c, background:s.bg, borderRadius:5, padding:'3px 8px', whiteSpace:'nowrap' as const }}>{s.label}</span>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {/* Sticky download footer — always visible */}
+                        <div style={{ padding:'10px 14px', borderTop:`1px solid ${dk?'#334155':'#F1F5F9'}`, background:dk?'#1E293B':'#F8FAFC' }}>
+                          <button onClick={downloadEvidencePdf}
+                            style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7, width:'100%', fontSize:12.5, fontWeight:700, color:'#fff', background:TEAL, border:'none', borderRadius:8, padding:'10px', cursor:'pointer', boxShadow:'0 1px 2px rgba(15,118,110,0.3)' }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download Court-Ready Evidence PDF
+                          </button>
+                        </div>
                       </div>
-                    )}
+                      )
+                    })()}
                   </div>
                 )}
               </Field>

@@ -263,7 +263,7 @@ export async function getStormEvidence(
       max_hail_in: maxHail,
       max_wind_mph: maxWind,
       event_count: events.length,
-      has_tornado: events.some(e => e.event_type.includes('TORNADO')),
+      has_tornado: events.some(e => e.event_type.trim() === 'TORNADO'),
       nws_warnings: [],
     })
   }
