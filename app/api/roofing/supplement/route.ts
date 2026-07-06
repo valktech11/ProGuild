@@ -100,8 +100,8 @@ export async function POST(req: NextRequest) {
     approvedAmount:   toNum(rjd?.approved_amount),
     propertyAddress:  lead.property_address ?? null,
     proCompany:       pro?.business_name || pro?.full_name || null,
-    measuredLF: (rjd?.ridge_lf > 0 || rjd?.hip_lf > 0 || rjd?.valley_lf > 0)
-      ? { ridge_ft: rjd.ridge_lf ?? 0, hip_ft: rjd.hip_lf ?? 0, valley_ft: rjd.valley_lf ?? 0 }
+    measuredLF: rjd && (Number(rjd.ridge_lf) > 0 || Number(rjd.hip_lf) > 0 || Number(rjd.valley_lf) > 0)
+      ? { ridge_ft: Number(rjd.ridge_lf) || 0, hip_ft: Number(rjd.hip_lf) || 0, valley_ft: Number(rjd.valley_lf) || 0 }
       : null,
   }
 
