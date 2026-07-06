@@ -105,7 +105,7 @@ interface Props {
   backLabel?: string
   darkMode?: boolean
   // Called when roofer edits address/measurements — updates lead + roofing_estimate_data
-  onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number }) => Promise<void>
+  onMeasurementsUpdate?: (fields: { property_address?: string; square_count?: number; pitch?: string; waste_pct?: number; linear_footage?: { ridge_ft: number; hip_ft: number; valley_ft: number } }) => Promise<void>
   materialPrices?: Record<string, number> | null
   onDirty?: () => void
   // Lock all editing when estimate is approved/void/declined/paid
@@ -247,6 +247,10 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
   const [sqCount,   setSqCount]   = useState<string>(String(estimate.square_count ?? ''))
   const [pitchVal,  setPitchVal]  = useState<string>(estimate.pitch ?? '6/12')
   const [wastePct,  setWastePct]  = useState<string>(String(estimate.waste_pct ?? 10))
+  const initLF = (estimate as any).linear_footage || {}
+  const [ridgeFt,   setRidgeFt]   = useState<string>(String(initLF.ridge_ft  || ''))
+  const [hipFt,     setHipFt]     = useState<string>(String(initLF.hip_ft    || ''))
+  const [valleyFt,  setValleyFt]  = useState<string>(String(initLF.valley_ft || ''))
   const [perimLF,   setPerimLF]   = useState<number | undefined>((estimate as any).perimeter ?? undefined)
   const [editMeas,  setEditMeas]  = useState(false)
   const [savingMeas,setSavingMeas]= useState(false)
@@ -405,18 +409,22 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
     try {
       await onSave({ square_count: sq, pitch: pitchVal, waste_pct: wp } as any)
       if (onMeasurementsUpdate) {
+        const lfPayload = (parseFloat(ridgeFt) > 0 || parseFloat(hipFt) > 0 || parseFloat(valleyFt) > 0)
+          ? { ridge_ft: parseFloat(ridgeFt) || 0, hip_ft: parseFloat(hipFt) || 0, valley_ft: parseFloat(valleyFt) || 0 }
+          : undefined
         await onMeasurementsUpdate({
           property_address: addrVal || undefined,
           square_count: sq,
           pitch: pitchVal,
           waste_pct: wp,
+          ...(lfPayload ? { linear_footage: lfPayload } : {}),
         })
       }
     } finally {
       setSavingMeas(false)
       setEditMeas(false)
     }
-  }, [addrVal, sqCount, pitchVal, wastePct, selectedTier, recalcTiersFromSq, recalcMilestones, onSave, onMeasurementsUpdate, estimate.tax_rate])
+  }, [addrVal, sqCount, pitchVal, wastePct, ridgeFt, hipFt, valleyFt, selectedTier, recalcTiersFromSq, recalcMilestones, onSave, onMeasurementsUpdate, estimate.tax_rate])
 
   // ── Tier item editing ────────────────────────────────────────────────────────
 
@@ -759,6 +767,9 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
             sqCount={sqCount} setSqCount={setSqCount}
             pitchVal={pitchVal} setPitchVal={setPitchVal}
             wastePct={wastePct} setWastePct={setWastePct}
+            ridgeFt={ridgeFt} setRidgeFt={setRidgeFt}
+            hipFt={hipFt} setHipFt={setHipFt}
+            valleyFt={valleyFt} setValleyFt={setValleyFt}
             editMeas={editMeas} setEditMeas={setEditMeas}
             savingMeas={savingMeas} onSaveMeas={saveMeasurements}
             isLocked={isLocked}
@@ -1117,12 +1128,16 @@ const PITCH_OPTIONS = ['3/12','4/12','5/12','6/12','7/12','8/12','9/12','10/12',
 
 function PropertyCard({ estimate, card, border, textP, textS,
   addrVal, setAddrVal, sqCount, setSqCount, pitchVal, setPitchVal, wastePct, setWastePct,
+  ridgeFt, setRidgeFt, hipFt, setHipFt, valleyFt, setValleyFt,
   editMeas, setEditMeas, savingMeas, onSaveMeas, isLocked = false, estType, leadId }: {
   estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
   addrVal: string; setAddrVal: (v: string) => void
   sqCount: string; setSqCount: (v: string) => void
   pitchVal: string; setPitchVal: (v: string) => void
   wastePct: string; setWastePct: (v: string) => void
+  ridgeFt: string; setRidgeFt: (v: string) => void
+  hipFt: string; setHipFt: (v: string) => void
+  valleyFt: string; setValleyFt: (v: string) => void
   editMeas: boolean; setEditMeas: (v: boolean) => void
   savingMeas: boolean; onSaveMeas: () => Promise<void>
   isLocked?: boolean
@@ -1268,6 +1283,39 @@ function PropertyCard({ estimate, card, border, textP, textS,
               </select>
             </div>
           </div>
+          {/* Linear footage — insurance claims only; drives supplement checklist */}
+          {(estimate as any).insurance_claim && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: textS }}>Linear Footage (ridge / hip / valley)</label>
+                {leadId && (
+                  <a href={`/dashboard/roofing/promeasure?lead_id=${leadId}&from=estimate`}
+                    style={{ fontSize: 11, fontWeight: 700, color: C.teal, textDecoration: 'none',
+                      background: C.tealLight, padding: '2px 8px', borderRadius: 5, border: `1px solid ${C.teal}40` }}>
+                    Trace in ProMeasure →
+                  </a>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                {([['Ridge', ridgeFt, setRidgeFt], ['Hip', hipFt, setHipFt], ['Valley', valleyFt, setValleyFt]] as const).map(([label, val, setter]) => (
+                  <div key={label as string}>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: textS, display: 'block', marginBottom: 4 }}>{label as string} LF</label>
+                    <input type="number" min="0" step="1"
+                      value={val as string}
+                      onChange={e => (setter as (v:string)=>void)(e.target.value)}
+                      placeholder="0"
+                      style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 8,
+                        padding: '9px 11px', fontSize: 15, fontWeight: 600,
+                        outline: 'none', boxSizing: 'border-box', background: '#F8FAFC', color: textP }}
+                      onFocus={e => e.target.style.borderColor = C.teal}
+                      onBlur={e => e.target.style.borderColor = border}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: textS, marginTop: 5 }}>Optional — drives supplement checklist. Type manually or trace via ProMeasure.</div>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button onClick={onSaveMeas} disabled={savingMeas || !parseFloat(sqCount)}
               style={{ padding: '11px 28px', borderRadius: 10, border: 'none',

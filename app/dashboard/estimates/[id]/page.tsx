@@ -406,6 +406,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   square_count: fields.square_count,
                   pitch:        fields.pitch,
                   waste_pct:    fields.waste_pct,
+                  ...(fields.linear_footage ? {
+                    linear_footage: { ...fields.linear_footage, source: 'manual' }
+                  } : {}),
                 }),
               })
             }
