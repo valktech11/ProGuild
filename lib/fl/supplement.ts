@@ -131,40 +131,49 @@ export function buildItemsPrompt(input: SupplementInput): string {
   return buildItemsPromptFromDB(input, []);
 }
 
-/** Prompt 2 of 2: draft the supplement letter given the items already found. */
+/** Prompt 2 of 2: body-only letter prompt — header/footer pre-filled to prevent Gemini placeholder hallucination. */
 export function buildLetterPrompt(input: SupplementInput, items: Array<{item:string;reason:string;fl_code:string;suggested_quantity:string;suggested_total:number}>): string {
-  const adjuster  = input.adjusterName || null;
-  const company   = input.proCompany || null;
-  const carrier   = input.insuranceCompany || null;
-  const claimNo   = input.claimNumber || null;
-  const property  = input.propertyAddress || null;
-  const today     = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const itemList  = items.map(i => `- ${i.item} (${i.fl_code}): ${i.suggested_quantity}, $${i.suggested_total} — ${i.reason}`).join('\n');
+  const adjuster = input.adjusterName     || null;
+  const company  = input.proCompany       || null;
+  const carrier  = input.insuranceCompany || null;
+  const claimNo  = input.claimNumber      || null;
+  const property = input.propertyAddress  || null;
+  const itemList = items.map(i => `- ${i.item} (${i.fl_code}): ${i.suggested_quantity}, $${i.suggested_total} — ${i.reason}`).join('\n');
 
-  // Build the known facts; the prompt forbids inventing placeholders for anything missing.
-  const facts: string[] = [`Date: ${today}`];
-  if (adjuster) facts.push(`Adjuster name: ${adjuster}`);
-  if (carrier)  facts.push(`Insurance carrier: ${carrier}`);
-  if (claimNo)  facts.push(`Claim number: ${claimNo}`);
-  if (property) facts.push(`Property address: ${property}`);
-  if (company)  facts.push(`Contractor (signs the letter): ${company}`);
+  const subjectLine = ['Subject: Supplement Request', claimNo ? `— Claim #${claimNo}` : '', property ? `— ${property}` : ''].filter(Boolean).join(' ');
 
-  return `Write a professional roofing insurance supplement request letter as plain text.
+  return `Write ONLY the body paragraphs of a professional roofing insurance supplement request letter. Do NOT write the date, salutation, subject line, or closing — those are pre-filled separately.
 
-KNOWN FACTS (use these exact values — do NOT invent or bracket-placeholder any of them):
-${facts.join('\n')}
+CONTEXT:
+${carrier  ? `Carrier: ${carrier}` : ''}
+${claimNo  ? `Claim: ${claimNo}`   : ''}
+${property ? `Property: ${property}` : ''}
+${adjuster ? `Adjuster: ${adjuster}` : ''}
+Subject line that will appear above your text: ${subjectLine}
 
-ITEMS to request (omitted or underpaid vs FL code / standard re-roof practice):
+ITEMS REQUESTED (output this list verbatim in the body — do not reformat):
 ${itemList}
 
-STRICT RULES:
-- Do NOT use ANY bracketed placeholders like [Date], [Your Company], [Adjuster's Title], [Address], etc. If a detail is not in the KNOWN FACTS above, simply omit that line entirely — never write a blank or a placeholder.
-- Use the date, carrier, claim number, property, and contractor name from KNOWN FACTS directly.
-- Open the date line with the date provided. Address it to the adjuster${adjuster ? '' : ' generically as "Dear Insurance Adjuster"'}.
-- Reference the claim number and property in the subject/opening.
-- Body: 3-4 short paragraphs — (1) introduce the supplement request, (2) the itemized list with FL code basis, (3) request prompt review and offer documentation, (4) brief closing.
-- Sign off with "Sincerely," then the contractor name${company ? '' : ' (or "The Contractor" if none)'} on the next line. Do not add title/phone/email placeholder lines.
-- Factual, non-adversarial tone. Plain text only — no markdown, no letterhead block, no bracketed fields.`;
+INSTRUCTIONS:
+- Paragraph 1: One sentence — introduce this as a supplement request for the roofing scope at the property under this claim.
+- Paragraph 2: State items were omitted/underpaid and required for FL Building Code compliance. Then paste the item list exactly as provided above.
+- Paragraph 3: One sentence — request prompt review and offer to provide documentation.
+- Plain text only. No markdown. No brackets. No placeholders. No invented names, numbers, or addresses not provided above.`;
+}
+
+/** Assemble full letter from pre-filled header/footer + Gemini-generated body. Eliminates Gemini placeholder hallucination. */
+export function assembleLetter(input: SupplementInput, body: string): string {
+  const adjuster = input.adjusterName    || null;
+  const company  = input.proCompany      || null;
+  const claimNo  = input.claimNumber     || null;
+  const property = input.propertyAddress || null;
+  const today    = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const salutation  = adjuster ? `Dear ${adjuster},` : 'Dear Insurance Adjuster,';
+  const subjectLine = ['Subject: Supplement Request', claimNo ? `— Claim #${claimNo}` : '', property ? `— ${property}` : ''].filter(Boolean).join(' ');
+  const closing     = company  ? `Sincerely,\n${company}` : 'Sincerely,';
+
+  return [today, salutation, subjectLine, '', body.trim(), '', closing].join('\n');
 }
 
 // Keep buildSupplementPrompt as an alias so existing tests still pass

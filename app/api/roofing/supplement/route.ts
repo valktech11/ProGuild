@@ -4,6 +4,7 @@ import { requirePro } from '@/lib/pro-auth'
 import {
   buildItemsPromptFromDB,
   buildLetterPrompt,
+  assembleLetter,
   parseSupplementResponse,
   type SupplementInput,
   type SupplementItem,
@@ -21,7 +22,7 @@ async function callGemini(apiKey: string, model: string, prompt: string, maxToke
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: maxTokens, temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } },
+        generationConfig: { maxOutputTokens: maxTokens, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
       }),
     },
   )
@@ -178,6 +179,7 @@ export async function POST(req: NextRequest) {
       letter = await callGemini(apiKey, model, buildLetterPrompt(input, allItems), 2048)
       // Letter is plain text — strip any accidental markdown fences
       letter = letter.replace(/```[a-z]*/g, '').replace(/```/g, '').trim()
+      letter = assembleLetter(input, letter)
     } catch (e) {
       console.error('[supplement] letter call failed (non-fatal):', e)
       letter = '(Letter generation failed — use the item list above to draft manually.)'
