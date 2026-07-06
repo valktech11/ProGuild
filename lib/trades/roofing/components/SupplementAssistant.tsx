@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
+import { apiFetch } from '@/lib/api-fetch'
 import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, type SupplementResult, type SupplementItem, type MeasuredLinearFootage, type GroundedSupplementFlag } from '@/lib/fl/supplement'
 import { Card } from '@/components/ui/Card'
 
@@ -64,7 +65,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   // Load the most recent session for this lead on mount
   useEffect(() => {
     if (!isFL || !hasClaim) { setRestoring(false); return }
-    fetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
+    apiFetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
       .then(r => r.json())
       .then(d => {
         if (d.session) {
@@ -81,7 +82,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
     if (scope.trim().length < 20) { setError('Paste the adjuster\u2019s scope of loss first (a few lines).'); return }
     setLoading(true); setError(null); setResult(null)
     try {
-      const res = await fetch('/api/roofing/supplement', {
+      const res = await apiFetch('/api/roofing/supplement', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lead_id: leadId, pro_id: proId, scope_text: scope }),
       })
