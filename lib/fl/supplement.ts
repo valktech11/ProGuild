@@ -357,7 +357,7 @@ ${input.scopeText}
 Rules:
 - Only flag items from the CHECKLIST that are absent or underpriced in the scope. Never add items not on the checklist.
 - CONDITION-BASED items: only flag if scope text explicitly references that condition. Never infer.
-- SQUARE COUNT: The roof is ${sqLabel} SQ (authoritative). Never recompute square counts. For ALL area-based (SQ) line items — whether missing or underpaid — always use ${sqLabel} SQ as the quantity. Never compute your own square count.
+- SQUARE COUNT: The roof is ${sqLabel} SQ (field-measured, authoritative). For missing items that are area-based (SQ), use ${sqLabel} SQ as the quantity. Never flag any item as underpaid based on square count — the scope quantities are correct as written. Only flag underpaid if unit price is materially below FL 2026 market rate. If you find yourself wanting to flag laminated shingles, felt, labor, disposal, or similar items as underpaid — do not. Those scope quantities are correct.
 - O&P: If missing, return suggested_quantity="10/10 O&P", suggested_unit_price=<20pct_of_scope_subtotal>, suggested_total=<same>.
 - VALLEY: If field measurements above show valley LF, flag valley metal/liner as missing if no valley line item in scope.
 - STEEP: ${steepRule}
