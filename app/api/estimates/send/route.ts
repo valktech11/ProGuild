@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: NextRequest) {
   const { estimateId, pro_id } = await req.json()
+  const __auth = await requirePro(req, pro_id)
+  if (__auth.error) return __auth.error
   if (!estimateId) return NextResponse.json({ error: 'estimateId required' }, { status: 400 })
 
   const sb = getSupabaseAdmin()

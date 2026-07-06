@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 // POST /api/estimates/duplicate — duplicates an estimate as a new draft
 export async function POST(req: NextRequest) {
   const { estimate_id, pro_id } = await req.json()
+  const __auth = await requirePro(req, pro_id)
+  if (__auth.error) return __auth.error
   if (!estimate_id || !pro_id) return NextResponse.json({ error: 'estimate_id and pro_id required' }, { status: 400 })
 
   const sb = getSupabaseAdmin()

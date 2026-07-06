@@ -129,7 +129,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const body = editingEquip
       ? { pro_id: session.id, ...equipForm }
       : { pro_id: session.id, client_id: id, ...equipForm }
-    const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const r = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     const d = await r.json()
     setEquipSaving(false)
     if (!r.ok) { setEquipErr(d.error || 'Save failed'); return }

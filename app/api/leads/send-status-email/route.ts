@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import crypto from 'crypto'
+import { requirePro } from '@/lib/pro-auth'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const SITE   = process.env.NEXT_PUBLIC_SITE_URL || 'https://proguild.ai'
@@ -13,6 +14,8 @@ const SITE   = process.env.NEXT_PUBLIC_SITE_URL || 'https://proguild.ai'
 export async function POST(req: NextRequest) {
   try {
     const { lead_id, pro_id } = await req.json()
+  const __auth = await requirePro(req, pro_id)
+  if (__auth.error) return __auth.error
     if (!lead_id || !pro_id) return NextResponse.json({ error: 'lead_id and pro_id required' }, { status: 400 })
 
     const sb = getSupabaseAdmin()
