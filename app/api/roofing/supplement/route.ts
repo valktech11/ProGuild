@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
   const { data: rjd } = await sb
     .from('roofing_job_data')
-    .select('insurance_company, claim_number, adjuster_name, date_of_loss, roof_install_date, approved_amount, square_count, pitch, linear_footage')
+    .select('insurance_company, claim_number, adjuster_name, date_of_loss, roof_install_date, approved_amount, square_count, pitch, ridge_lf, hip_lf, valley_lf')
     .eq('lead_id', lead_id)
     .maybeSingle()
 
@@ -99,7 +99,9 @@ export async function POST(req: NextRequest) {
     approvedAmount:   toNum(rjd?.approved_amount),
     propertyAddress:  lead.property_address ?? null,
     proCompany:       pro?.business_name || pro?.full_name || null,
-    measuredLF:       rjd?.linear_footage ?? null,
+    measuredLF: (rjd?.ridge_lf > 0 || rjd?.hip_lf > 0 || rjd?.valley_lf > 0)
+      ? { ridge_ft: rjd.ridge_lf ?? 0, hip_ft: rjd.hip_lf ?? 0, valley_ft: rjd.valley_lf ?? 0 }
+      : null,
   }
 
   const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
