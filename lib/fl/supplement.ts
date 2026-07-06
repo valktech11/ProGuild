@@ -294,6 +294,11 @@ export function buildItemsPromptFromDB(input: SupplementInput, dbItems: DBLineIt
     if ((lf.hip_ft ?? 0) > 0)   lfLines.push(`Hip: ${lf.hip_ft} LF`);
     if ((lf.valley_ft ?? 0) > 0) lfLines.push(`Valley: ${lf.valley_ft} LF — flag valley metal/liner as missing if absent from scope`);
   }
+  // When valley LF is confirmed, inject valley metal as an explicit REQUIRED item
+  // so Gemini doesn't suppress it due to checklist-only rule
+  if (lf && (lf.valley_ft ?? 0) > 0) {
+    lfLines.push(`REQUIRED: Flag "Valley Metal / Valley Liner" as MISSING — ${lf.valley_ft} LF confirmed by field measurement, IRC R905.2.8.2 requires valley lining, none present in scope.`);
+  }
   const lfBlock = lfLines.length > 0
     ? `\nFIELD MEASUREMENTS (ProMeasure-traced, authoritative — use these, do not recompute):\n${lfLines.join('\n')}`
     : '';
