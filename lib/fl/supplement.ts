@@ -357,7 +357,7 @@ ${input.scopeText}
 Rules:
 - Only flag items from the CHECKLIST that are absent or underpriced in the scope. Never add items not on the checklist.
 - CONDITION-BASED items: only flag if scope text explicitly references that condition. Never infer.
-- SQUARE COUNT: The roof is ${sqLabel} SQ (authoritative). Never recompute square counts. Never flag underpaid based on a different quantity you calculated. Only flag underpaid if unit price is materially below FL 2026 market rate.
+- SQUARE COUNT: The roof is ${sqLabel} SQ (authoritative). Never recompute square counts. For ALL area-based (SQ) line items — whether missing or underpaid — always use ${sqLabel} SQ as the quantity. Never compute your own square count.
 - O&P: If missing, return suggested_quantity="10/10 O&P", suggested_unit_price=<20pct_of_scope_subtotal>, suggested_total=<same>.
 - VALLEY: If field measurements above show valley LF, flag valley metal/liner as missing if no valley line item in scope.
 - STEEP: ${steepRule}
