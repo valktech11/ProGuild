@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
+import { apiFetch } from '@/lib/api-fetch'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type InvoiceItem = { id: string; name: string; description?: string; qty: number; unit_price: number; amount: number }
@@ -262,14 +263,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
-    fetch(`/api/invoices/${id}`)
+    apiFetch(`/api/invoices/${id}`)
       .then(r => r.json())
       .then(d => { if (d.invoice) setInvoice(d.invoice) })
       .finally(() => setLoading(false))
   }, [id, session, router])
 
   const patch = async (fields: Record<string, unknown>) => {
-    const r = await fetch(`/api/invoices/${id}`, {
+    const r = await apiFetch(`/api/invoices/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),
     })
@@ -281,14 +282,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const handleSend = async () => {
     if (!invoice) return
     setSending(true)
-    const r = await fetch('/api/invoices/send', {
+    const r = await apiFetch('/api/invoices/send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ invoice_id: invoice.id, pro_id: session?.id }),
     })
     setSending(false)
     if (r.ok) {
       // Refresh full invoice state so button label updates correctly
-      fetch(`/api/invoices/${id}`)
+      apiFetch(`/api/invoices/${id}`)
         .then(r => r.json())
         .then(d => { if (d.invoice) setInvoice(d.invoice) })
       showToast('Invoice sent to homeowner ✓')
@@ -301,13 +302,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     if (!invoice) return
     // Client sends only the payment; the server appends it and derives
     // amount_paid / balance_due / status / paid_at (lib/invoices/balances).
-    const r = await fetch(`/api/invoices/${id}/record-payment`, {
+    const r = await apiFetch(`/api/invoices/${id}/record-payment`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pro_id: session?.id, ...data }),
     })
     if (!r.ok) { showToast('Failed to record payment', false); return }
     // Re-pull the full invoice so items/timeline stay intact; balances are server-truth.
-    const fd = await (await fetch(`/api/invoices/${id}`)).json()
+    const fd = await (await apiFetch(`/api/invoices/${id}`)).json()
     if (fd.invoice) setInvoice(fd.invoice)
     setShowPayModal(false)
     const paidInFull = (fd.invoice?.balance_due ?? 1) <= 0

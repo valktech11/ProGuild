@@ -17,6 +17,7 @@ import { computeSupplementGap } from '@/lib/fl/supplement'
 import { Card } from '@/components/ui/Card'
 import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
 import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
+import { apiFetch } from '@/lib/api-fetch'
 
 // Captures the last lead-PATCH error message so saveEdit can show it in the toast
 let _lastPatchError = ''
@@ -304,7 +305,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       return
     }
     try {
-      const r = await fetch('/api/leads/send-status-email', {
+      const r = await apiFetch('/api/leads/send-status-email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lead_id: id, pro_id: session.id }),
       })
@@ -318,7 +319,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const isRoofing = isRoofing_guard(tradePlugin)
   const refetchPhotos = useCallback(() => {
     if (!session || !lead || !isRoofing) return
-    fetch(`/api/leads/${lead.id}/photos?pro_id=${session.id}`).then(r=>r.json()).then(d => {
+    apiFetch(`/api/leads/${lead.id}/photos?pro_id=${session.id}`).then(r=>r.json()).then(d => {
       const arr = Array.isArray(d?.photos) ? d.photos : []
       setPhotos(arr); setPhotoCount(arr.length)
     }).catch(()=>{})
@@ -347,12 +348,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
-    fetch(`/api/leads/${id}?pro_id=${session.id}`)
+    apiFetch(`/api/leads/${id}?pro_id=${session.id}`)
       .then(r => { if(r.status===404){setMissing(true);setLoading(false);return null}; return r.json() })
       .then(d => { if(!d) return; const l=d.lead as LeadExt; setLead(l); setStage(l.lead_status as LeadStatus); setLoading(false) })
       .catch(()=>setLoading(false))
     // Fetch stage transition history
-    fetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
+    apiFetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
       .then(r => r.ok ? r.json() : { events: [] })
       .then(d => setPipelineEvents(d.events || []))
       .catch(() => {})
@@ -361,7 +362,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // Re-fetch pipeline events (Activity tab) on demand — used after saves that write events
   const refreshEvents = useCallback(() => {
     if (!session) return
-    fetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
+    apiFetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
       .then(r => r.ok ? r.json() : { events: [] })
       .then(d => setPipelineEvents(d.events || []))
       .catch(() => {})
@@ -369,7 +370,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   const refreshEst = useCallback(() => {
     if (!session||!lead) return
-    fetch(`/api/estimates?pro_id=${session.id}`).then(r=>r.json()).then(d => {
+    apiFetch(`/api/estimates?pro_id=${session.id}`).then(r=>r.json()).then(d => {
       const arr=(d.estimates||[]).filter((e:any)=>e.lead_id===lead.id&&!['void','declined'].includes(e.status))
       if (!arr.length) { setEst(null); setEstList([]); return }
       const pri=['invoiced','approved','paid','sent','viewed','draft']
@@ -424,7 +425,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   useEffect(() => {
     if (!session||!lead) return
     refreshEst()
-    fetch(`/api/invoices?pro_id=${session.id}&lead_id=${lead.id}`).then(r=>r.json()).then(d => {
+    apiFetch(`/api/invoices?pro_id=${session.id}&lead_id=${lead.id}`).then(r=>r.json()).then(d => {
       const i=(d.invoices||[]).find((x:any)=>x.status!=='void'); if(i) setInv(i)
     }).catch(()=>{})
     // Eagerly fetch photos so the rail card thumbnails + count show on first render
@@ -435,7 +436,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // re-fetch the lead so roofing_job_data is fresh in state before UI renders pills
   useEffect(() => {
     if (!appliedFromProMeasure || !session || !lead) return
-    fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+    apiFetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d?.lead) {
@@ -455,7 +456,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     if (!session) return false
     // Route lead_status changes through /stage endpoint so pipeline_events are written
     if ('lead_status' in fields) {
-      const r = await fetch(`/api/leads/${id}/stage`, {
+      const r = await apiFetch(`/api/leads/${id}/stage`, {
         method: 'PATCH',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -467,7 +468,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       // If stage route succeeds, also patch any other fields in the payload
       const otherFields = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'lead_status'))
       if (Object.keys(otherFields).length > 0 && r.ok) {
-        await fetch(`/api/leads/${id}`, {
+        await apiFetch(`/api/leads/${id}`, {
           method: 'PATCH',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ pro_id: session.id, ...otherFields }),
@@ -475,7 +476,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       }
       return r.ok
     }
-    const r = await fetch(`/api/leads/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,...fields})})
+    const r = await apiFetch(`/api/leads/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,...fields})})
     if (!r.ok) {
       try {
         const body = await r.json()
@@ -581,7 +582,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),90000)
       let res:Response
       try{
-        res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})
+        res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await apiFetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})
       }finally{clearTimeout(timer)}
       const d=await res.json().catch(()=>({}))
       if(!res.ok){setQbError((d as any).error||'Report failed');return}
@@ -592,7 +593,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
         const rowId=(d as any).reportRowId
         if(rowId)setReportRowId(rowId)
-        fetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
+        apiFetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
           .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
         const newSq=Number(meas?.totalSquaresOrder)
         if(newSq>0)addToast(`Roof measured — ${newSq} sq`,'success')
@@ -691,14 +692,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     try {
       // Re-fetch lead to get the latest contact_name + roofing_job_data
       // (measurements may have just been applied from Quick Bid Report or ProMeasure)
-      const freshRes = await fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+      const freshRes = await apiFetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
       const freshData = freshRes.ok ? await freshRes.json() : null
       const freshLead = freshData?.lead ?? lead
       // Update local state so UI also reflects fresh data
       setLead(freshLead)
       const rjd = (freshLead as any)?.roofing_job_data
 
-      const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      const r=await apiFetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         pro_id:           session.id,
         lead_id:          freshLead.id,
         lead_name:        freshLead.contact_name,
@@ -858,7 +859,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       onSaved={(data)=>{
         setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
         setTimeout(()=>{
-          fetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+          apiFetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
             .then(r=>r.json())
             .then(d=>{
               if(d?.lead){
@@ -1948,7 +1949,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 {([
                                   {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
                                   {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
-                                  {label:'Address',  color:'#0F766E', icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:<span style={{display:'flex',flexDirection:'column',gap:3}}><span>{(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—'}</span>{!lead.client_id&&lead.contact_name&&<button onClick={async(e)=>{e.stopPropagation();if(!session)return;const r=await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,full_name:lead.contact_name,phone:lead.contact_phone||null,email:lead.contact_email||null,address_line1:((lead as any).property_address||'').split(',')[0]?.trim()||null,city:lead.contact_city||null,state:lead.contact_state||null})});const d=await r.json();if(d.client?.id){await fetch('/api/leads/'+lead.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,client_id:d.client.id})});setLead(l=>l?{...l,client_id:d.client.id}:l);addToast('Saved as property','success')}}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>+ Save as Property</button>}{lead.client_id&&<button onClick={e=>{e.stopPropagation();router.push('/dashboard/clients/'+lead.client_id)}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>View Property →</button>}</span>, copy:null},
+                                  {label:'Address',  color:'#0F766E', icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:<span style={{display:'flex',flexDirection:'column',gap:3}}><span>{(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—'}</span>{!lead.client_id&&lead.contact_name&&<button onClick={async(e)=>{e.stopPropagation();if(!session)return;const r=await apiFetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,full_name:lead.contact_name,phone:lead.contact_phone||null,email:lead.contact_email||null,address_line1:((lead as any).property_address||'').split(',')[0]?.trim()||null,city:lead.contact_city||null,state:lead.contact_state||null})});const d=await r.json();if(d.client?.id){await apiFetch('/api/leads/'+lead.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,client_id:d.client.id})});setLead(l=>l?{...l,client_id:d.client.id}:l);addToast('Saved as property','success')}}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>+ Save as Property</button>}{lead.client_id&&<button onClick={e=>{e.stopPropagation();router.push('/dashboard/clients/'+lead.client_id)}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>View Property →</button>}</span>, copy:null},
                                   {label:'Source',   color:'#64748B', icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
                                   // Inspection / Job date / Follow-up move to the rail's Key Dates card under the spine (kept here on flag-off or narrow)
                                   ...(!(useSpine && isWide) ? [

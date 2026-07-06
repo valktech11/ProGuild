@@ -16,6 +16,7 @@ import { estimateStatusStyle } from '@/lib/design'
 import { isRoofing, getTradeConfig } from '@/lib/trades/_registry'
 import RoofingEstimatePage from '@/lib/trades/roofing/components/EstimatePage'
 import { timeAgo } from '@/lib/utils'
+import { apiFetch } from '@/lib/api-fetch'
 
 export type EstimateItem = {
   id: string
@@ -146,12 +147,12 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     if (!session) { router.replace('/login'); return }
     // Fetch material prices for this pro so EstimatePage uses real costs
     if (session) {
-      fetch(`/api/roofing/settings?pro_id=${session.id}`)
+      apiFetch(`/api/roofing/settings?pro_id=${session.id}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d?.material_prices) setMaterialPrices(d.material_prices) })
         .catch(() => null)
     }
-    fetch(`/api/estimates/${id}`)
+    apiFetch(`/api/estimates/${id}`)
       .then(r => {
         if (!r.ok) { setNotFound(true); setLoading(false); return null }
         return r.json()
@@ -194,7 +195,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     setCreatingInvoice(true)
     setShowInvoiceModal(false)
     try {
-      const r = await fetch('/api/invoices', {
+      const r = await apiFetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -228,7 +229,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     if (!estimate || voiding) return
     setVoiding(true)
     try {
-      await fetch(`/api/estimates/${id}`, {
+      await apiFetch(`/api/estimates/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -251,7 +252,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     if (!estimate || !session || duplicating) return
     setDuplicating(true)
     try {
-      const r = await fetch('/api/estimates/duplicate', {
+      const r = await apiFetch('/api/estimates/duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estimate_id: estimate.id, pro_id: session.id }),
@@ -272,7 +273,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     }
     setSaving(true)
     try {
-      const r = await fetch(`/api/estimates/${id}`, {
+      const r = await apiFetch(`/api/estimates/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(estimate),
@@ -305,7 +306,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     setShowTemplatePicker(true)
     setLoadingTemplates(true)
     try {
-      const r = await fetch(`/api/estimate-templates?pro_id=${session!.id}`)
+      const r = await apiFetch(`/api/estimate-templates?pro_id=${session!.id}`)
       const d = await r.json()
       setTemplates(d.templates || [])
     } catch { setTemplates([]) }
@@ -328,7 +329,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     if (!estimate || !templateName.trim()) return
     setSavingTemplate(true)
     try {
-      await fetch('/api/estimate-templates', {
+      await apiFetch('/api/estimate-templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pro_id: session!.id, name: templateName.trim(), items: estimate.items }),
@@ -397,7 +398,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             if (leadId) {
               // Write measurements to roofing_job_data (via leads PATCH ROOFING_JOB_FIELDS handler)
               // Write property_address to leads.property_address (via leads STRING_FIELDS)
-              await fetch(`/api/leads/${leadId}`, {
+              await apiFetch(`/api/leads/${leadId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -441,7 +442,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 pitch:              (updates as any).pitch              ?? (estimate as any).pitch,
                 waste_pct:          (updates as any).waste_pct          ?? (estimate as any).waste_pct,
               }
-              const r = await fetch(`/api/estimates/${id}`, {
+              const r = await apiFetch(`/api/estimates/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -463,13 +464,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             try {
               const sentAt = new Date().toISOString()
               // 1. Mark as sent
-              const patchR = await fetch(`/api/estimates/${id}`, {
+              const patchR = await apiFetch(`/api/estimates/${id}`, {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'sent', sent_at: sentAt }),
               })
               if (!patchR.ok) throw new Error('Failed to update estimate status')
               // 2. Send email
-              const sendR = await fetch('/api/estimates/send', {
+              const sendR = await apiFetch('/api/estimates/send', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ estimateId: id, pro_id: session?.id }),
               })
@@ -693,7 +694,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                                   if (!estimate) return
                                   setSaveMsg('Generating PDF...')
                                   try {
-                                    const r = await fetch(`/api/estimates/pdf?id=${id}&pro_id=${session?.id}`)
+                                    const r = await apiFetch(`/api/estimates/pdf?id=${id}&pro_id=${session?.id}`)
                                     if (!r.ok) throw new Error('fail')
                                     const blob = await r.blob()
                                     const url = URL.createObjectURL(blob)
@@ -764,8 +765,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
                           // Call proper initial-send route (not reminder)
                           const [, sendResult] = await Promise.all([
-                            fetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }) }),
-                            fetch('/api/estimates/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estimateId: id, pro_id: session?.id }) }),
+                            apiFetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }) }),
+                            apiFetch('/api/estimates/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estimateId: id, pro_id: session?.id }) }),
                           ])
 
                           const sendOk = sendResult.ok
@@ -781,7 +782,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       {(estimate.status === 'sent' || estimate.status === 'viewed') && (
                         <button onClick={async () => {
                           // Email resolved server-side from lead — no client-side gate needed
-                          const r = await fetch('/api/estimates/send-reminder', {
+                          const r = await apiFetch('/api/estimates/send-reminder', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ estimateId: id, contactEmail: estimate.contact_email, pro_id: session?.id }),
@@ -991,7 +992,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                             // Discard — reload estimate from server
                             setIsDirty(false)
                             setSaveMsg(null)
-                            fetch(`/api/estimates/${id}`)
+                            apiFetch(`/api/estimates/${id}`)
                               .then(r => r.json())
                               .then(d => { if (d.estimate) setEstimate(d.estimate) })
                               .catch(() => null)
@@ -1084,7 +1085,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         if (!estimate) return
                         setSaveMsg('Generating PDF...')
                         try {
-                          const r = await fetch(`/api/estimates/pdf?id=${id}`)
+                          const r = await apiFetch(`/api/estimates/pdf?id=${id}`)
                           if (!r.ok) throw new Error('PDF failed')
                           const blob = await r.blob()
                           const url = URL.createObjectURL(blob)
@@ -1111,7 +1112,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         onClick={async () => {
                           if (!estimate) return
                           const sentAt = new Date().toISOString()
-                          await fetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }) })
+                          await apiFetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }) })
                           setEstimate(prev => {
                             if (!prev) return prev
                             return { ...prev, status: 'sent', timeline: prev.timeline.map(tl => tl.event === 'sent' ? { ...tl, timestamp: sentAt } : tl) }
@@ -1165,7 +1166,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               </button>
               <button onClick={async () => {
                 setShowDeleteConfirm(false)
-                await fetch(`/api/estimates/${id}`, { method: 'DELETE' })
+                await apiFetch(`/api/estimates/${id}`, { method: 'DELETE' })
                 router.push('/dashboard/estimates')
               }}
                 style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: '#EF4444', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
@@ -1317,7 +1318,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 Cancel
               </button>
               <button onClick={async () => {
-                await fetch(`/api/estimate-templates?id=${confirmDeleteTpl.id}`, { method: 'DELETE' })
+                await apiFetch(`/api/estimate-templates?id=${confirmDeleteTpl.id}`, { method: 'DELETE' })
                 setTemplates(prev => prev.filter(t => t.id !== confirmDeleteTpl!.id))
                 setConfirmDeleteTpl(null)
               }} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#DC2626' }}>
@@ -1342,8 +1343,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 const sentAt = new Date().toISOString()
                 await handleSave()
                 const [, sendResult] = await Promise.all([
-                  fetch(`/api/estimates/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...estimate, status:'sent', sent_at: sentAt }) }),
-                  fetch('/api/estimates/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estimateId: id, pro_id: session?.id }) }),
+                  apiFetch(`/api/estimates/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...estimate, status:'sent', sent_at: sentAt }) }),
+                  apiFetch('/api/estimates/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estimateId: id, pro_id: session?.id }) }),
                 ])
                 setEstimate(prev => prev ? { ...prev, status:'sent', timeline: prev.timeline.map(tl => tl.event === 'sent' ? { ...tl, timestamp: sentAt } : tl) } : prev)
                 setSaveMsg(sendResult.ok ? 'Estimate sent ✓' : 'Status updated — email failed')
@@ -1363,7 +1364,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           {(estimate.status === 'sent' || estimate.status === 'viewed') && (
             <button onClick={async () => {
               // Email resolved server-side from lead — no client-side gate needed
-              const r = await fetch('/api/estimates/send-reminder', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estimateId: id, contactEmail: estimate.contact_email, pro_id: session?.id }) })
+              const r = await apiFetch('/api/estimates/send-reminder', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estimateId: id, contactEmail: estimate.contact_email, pro_id: session?.id }) })
               setSaveMsg(r.ok ? 'Reminder sent ✓' : 'Failed to send reminder')
               setTimeout(() => setSaveMsg(null), 3000)
             }}
@@ -1390,7 +1391,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         onClose={() => setShowSign(false)}
         onSigned={() => {
           setShowSign(false)
-          fetch(`/api/estimates/${id}`).then(r => r.json()).then(d => { if (d.estimate) setEstimate(d.estimate) }).catch(() => {})
+          apiFetch(`/api/estimates/${id}`).then(r => r.json()).then(d => { if (d.estimate) setEstimate(d.estimate) }).catch(() => {})
           setSaveMsg('Signed — invoice created ✓')
           setTimeout(() => setSaveMsg(null), 4000)
         }}
@@ -1421,7 +1422,7 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
   const saveNote = async () => {
     setSaving(true)
     try {
-      await fetch(`/api/estimates/${estimate.id}`, {
+      await apiFetch(`/api/estimates/${estimate.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: note }),

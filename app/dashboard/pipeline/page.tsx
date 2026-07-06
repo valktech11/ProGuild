@@ -11,6 +11,7 @@ import AddLeadModal from '@/components/ui/AddLeadModal'
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig, getStageAnchors, isRoofing } from '@/lib/trades/_registry'
+import { apiFetch } from '@/lib/api-fetch'
 
 export default function PipelinePage() {
   const router = useRouter()
@@ -72,8 +73,8 @@ export default function PipelinePage() {
   const fetchLeads = useCallback(async () => {
     if (!session) return
     const [r, sr] = await Promise.all([
-      fetch(`/api/leads?pro_id=${session.id}`),
-      fetch(`/api/pipeline/summary?pro_id=${session.id}`),
+      apiFetch(`/api/leads?pro_id=${session.id}`),
+      apiFetch(`/api/pipeline/summary?pro_id=${session.id}`),
     ])
     if (r.ok)  setLeads(((await r.json()).leads) || [])
     if (sr.ok) setSummary(await sr.json())
@@ -108,7 +109,7 @@ export default function PipelinePage() {
   async function handleStatusChange(leadId: string, status: string) {
     if (!session) return
     setSaveError(null)
-    const r = await fetch(`/api/leads/${leadId}/stage`, {
+    const r = await apiFetch(`/api/leads/${leadId}/stage`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stage: status, pro_id: session.id }),
@@ -127,7 +128,7 @@ export default function PipelinePage() {
   async function handleUpdate(leadId: string, fields: Partial<Lead>) {
     if (!session) return
     setSaveError(null)
-    const r = await fetch(`/api/leads/${leadId}?pro_id=${session.id}`, {
+    const r = await apiFetch(`/api/leads/${leadId}?pro_id=${session.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),

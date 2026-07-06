@@ -5,6 +5,7 @@ import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
+import { apiFetch } from '@/lib/api-fetch'
 
 type Warranty = {
   id: string
@@ -79,7 +80,7 @@ export default function WarrantiesPage() {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
     const s = session
-    fetch(`/api/roofing/warranties?pro_id=${s.id}`)
+    apiFetch(`/api/roofing/warranties?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => { setWarranties(d.warranties || []); setLoading(false) })
       .catch(() => setLoading(false))

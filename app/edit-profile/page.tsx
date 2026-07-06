@@ -6,6 +6,7 @@ import { avatarColor, initials } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { Session } from '@/types'
 import { useProSession } from '@/lib/hooks/useProSession'
+import { apiFetch } from '@/lib/api-fetch'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type TradeCategory = { id: string; category_name: string; slug: string }
@@ -184,10 +185,10 @@ export default function EditProfilePage() {
     Promise.all([
       fetch(`/api/pros/${session.id}`).then(r => r.json()),
       fetch('/api/categories').then(r => r.json()),
-      fetch(`/api/equipment?pro_id=${session.id}`).then(r => r.json()),
+      apiFetch(`/api/equipment?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/pro-licenses?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/memberships?pro_id=${session.id}`).then(r => r.json()),
-      fetch(`/api/insurance?pro_id=${session.id}`).then(r => r.json()),
+      apiFetch(`/api/insurance?pro_id=${session.id}`).then(r => r.json()),
     ]).then(([proData, catData, eqData, licData, memData, insData]) => {
       const p = proData.pro
       if (p) {
@@ -572,9 +573,9 @@ export default function EditProfilePage() {
           <SectionHead title="Equipment & tools" dk={dk} />
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             <input type="text" value={newEquip} onChange={e => setNewEquip(e.target.value)}
-              onKeyDown={async e => { if (e.key !== 'Enter' || !newEquip.trim() || !session) return; e.preventDefault(); setAddingEquip(true); const r = await fetch('/api/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newEquip.trim(), certified: false }) }); const d = await r.json(); if (r.ok) { setEquipment(eq => [...eq, d.item]); setNewEquip('') } setAddingEquip(false) }}
+              onKeyDown={async e => { if (e.key !== 'Enter' || !newEquip.trim() || !session) return; e.preventDefault(); setAddingEquip(true); const r = await apiFetch('/api/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newEquip.trim(), certified: false }) }); const d = await r.json(); if (r.ok) { setEquipment(eq => [...eq, d.item]); setNewEquip('') } setAddingEquip(false) }}
               placeholder="e.g. Nail gun, Laser level..." style={{ ...inp(), flex: 1 }} />
-            <button onClick={async () => { if (!newEquip.trim() || !session) return; setAddingEquip(true); const r = await fetch('/api/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newEquip.trim(), certified: false }) }); const d = await r.json(); if (r.ok) { setEquipment(eq => [...eq, d.item]); setNewEquip('') } setAddingEquip(false) }}
+            <button onClick={async () => { if (!newEquip.trim() || !session) return; setAddingEquip(true); const r = await apiFetch('/api/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, name: newEquip.trim(), certified: false }) }); const d = await r.json(); if (r.ok) { setEquipment(eq => [...eq, d.item]); setNewEquip('') } setAddingEquip(false) }}
               disabled={addingEquip || !newEquip.trim()} style={{ ...tealBtnSt, opacity: (addingEquip || !newEquip.trim()) ? 0.45 : 1 }}>Add</button>
           </div>
           {equipment.length > 0
@@ -582,7 +583,7 @@ export default function EditProfilePage() {
                 {equipment.map(eq => (
                   <span key={eq.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '5px 12px', borderRadius: 20, background: dk ? '#1E293B' : '#F3F0EC', color: t.textBody, border: `1px solid ${dk ? '#334155' : '#E5E0D9'}` }}>
                     {eq.name}
-                    <button onClick={async () => { if (!session) return; await fetch('/api/equipment', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: eq.id }) }); setEquipment(prev => prev.filter(e => e.id !== eq.id)) }}
+                    <button onClick={async () => { if (!session) return; await apiFetch('/api/equipment', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: eq.id }) }); setEquipment(prev => prev.filter(e => e.id !== eq.id)) }}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textSubtle, fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>
                   </span>
                 ))}
@@ -629,7 +630,7 @@ export default function EditProfilePage() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: t.textPri }}>{ins.insurer_name || 'Insurance document'}</div>
                       <div style={{ fontSize: 12, color: t.textSubtle, marginTop: 2 }}>{ins.coverage_type && `${ins.coverage_type} · `}{expStr ? `Expires ${expStr}` : 'Expiry unknown'}</div>
                     </div>
-                    <button onClick={async () => { if (!session) return; await fetch('/api/insurance', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: ins.id }) }); setInsurance(prev => prev.filter(x => x.id !== ins.id)) }}
+                    <button onClick={async () => { if (!session) return; await apiFetch('/api/insurance', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id: ins.id }) }); setInsurance(prev => prev.filter(x => x.id !== ins.id)) }}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textSubtle, fontSize: 18, lineHeight: 1, padding: '0 4px', marginLeft: 8 }}>×</button>
                   </div>
                 )
@@ -643,7 +644,7 @@ export default function EditProfilePage() {
               const form = new FormData(); form.append('file', file); form.append('pro_id', session.id); form.append('bucket', 'insurance')
               const upRes = await fetch('/api/upload', { method: 'POST', body: form }); const upData = await upRes.json()
               if (!upRes.ok) { setCOIError(upData.error || 'Upload failed'); setUploadingCOI(false); return }
-              const insRes = await fetch('/api/insurance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, file_url: upData.url }) }); const insData = await insRes.json()
+              const insRes = await apiFetch('/api/insurance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, file_url: upData.url }) }); const insData = await insRes.json()
               if (insRes.ok) setInsurance(prev => [insData.insurance, ...prev]); else setCOIError(insData.error || 'Could not process document')
               setUploadingCOI(false)
             }} />

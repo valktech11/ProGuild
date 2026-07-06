@@ -10,6 +10,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { estimateStatusStyle, stageStyle } from '@/lib/design'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig } from '@/lib/trades/_registry'
+import { apiFetch } from '@/lib/api-fetch'
 
 // Separated out because useSearchParams() requires Suspense boundary in App Router
 function VoidedToast({ onToast }: { onToast: (msg: string) => void }) {
@@ -119,7 +120,7 @@ function NewEstimateModal({ open, dk, session, noun, onClose, onLeadSelected, on
       setNewPhone(''); setNewEmail('')
       setAddrPredictions([]); setShowPred(false)
       setLoadingLeads(true)
-      fetch(`/api/leads?pro_id=${session.id}`)
+      apiFetch(`/api/leads?pro_id=${session.id}`)
         .then(r => r.json())
         .then(d => setLeads(d.leads || []))
         .catch(() => setLeads([]))
@@ -202,7 +203,7 @@ function NewEstimateModal({ open, dk, session, noun, onClose, onLeadSelected, on
     if (Object.keys(errs).length) { setErrors(errs); return }
     setCreating(true)
     try {
-      const r = await fetch('/api/leads', {
+      const r = await apiFetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -743,8 +744,8 @@ export default function EstimatesPage() {
     // Raw list powers the table (filter/sort/search — UI state).
     // Summary powers the KPI cards (derived metrics — single source for web + mobile).
     Promise.all([
-      fetch(`/api/estimates?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ estimates: [] })),
-      fetch(`/api/estimates/summary?pro_id=${session.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
+      apiFetch(`/api/estimates?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ estimates: [] })),
+      apiFetch(`/api/estimates/summary?pro_id=${session.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
     ])
       .then(([list, sum]) => {
         setEstimates(list.estimates || [])
@@ -765,7 +766,7 @@ export default function EstimatesPage() {
     setShowNewEstimateModal(false)
     setCreating(true)
     try {
-      const r = await fetch('/api/estimates', {
+      const r = await apiFetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -808,7 +809,7 @@ export default function EstimatesPage() {
     setShowNewEstimateModal(false)
     setCreating(true)
     try {
-      const r = await fetch('/api/estimates', {
+      const r = await apiFetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -846,7 +847,7 @@ export default function EstimatesPage() {
     setCreating(true)
     setExistingEst(null)
     try {
-      const r = await fetch('/api/estimates', {
+      const r = await apiFetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -875,7 +876,7 @@ export default function EstimatesPage() {
 
   const doDelete = async (estId: string) => {
     try {
-      await fetch(`/api/estimates/${estId}`, { method: 'DELETE' })
+      await apiFetch(`/api/estimates/${estId}`, { method: 'DELETE' })
       setEstimates(prev => prev.filter(est => est.id !== estId))
     } catch { /* silent */ }
     setConfirmDelete(null)

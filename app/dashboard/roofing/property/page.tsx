@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme, T, BRAND } from '@/lib/tokens'
 import { timeAgo }   from '@/lib/utils'
+import { apiFetch } from '@/lib/api-fetch'
 
 interface ReportSummary {
   id: string; total_squares_order: number; dominant_pitch: string
@@ -81,7 +82,7 @@ export default function PropertyListPage() {
 
   const fetchProperties = useCallback(async () => {
     if (!session) return
-    const r = await fetch(`/api/properties?pro_id=${session.id}${search ? '&search=' + encodeURIComponent(search) : ''}`)
+    const r = await apiFetch(`/api/properties?pro_id=${session.id}${search ? '&search=' + encodeURIComponent(search) : ''}`)
     const d = await r.json()
     setProperties(d.properties || [])
   }, [session, search])
@@ -148,7 +149,7 @@ export default function PropertyListPage() {
     const addr = newAddr.trim()
     if (!session || !addr) return
     setAdding(true)
-    const r = await fetch('/api/properties', {
+    const r = await apiFetch('/api/properties', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -7,6 +7,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { capName, timeAgo, avatarColor, initials } from '@/lib/utils'
 import { theme } from '@/lib/theme'
 import { getTradeConfig, isHVAC, getTradeLabels, getStageAnchors } from '@/lib/trades/_registry'
+import { apiFetch } from '@/lib/api-fetch'
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   Residential: { bg: '#EFF6FF', text: '#1D4ED8' },
@@ -64,7 +65,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
   const loadEquipment = useCallback(async () => {
     if (!session || !hvac) return
-    const r = await fetch(`/api/hvac/equipment?pro_id=${session.id}&client_id=${id}`)
+    const r = await apiFetch(`/api/hvac/equipment?pro_id=${session.id}&client_id=${id}`)
     const d = await r.json()
     setEquipment(d.equipment || [])
   }, [session, id, hvac])
@@ -73,8 +74,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
     Promise.all([
-      fetch(`/api/clients?pro_id=${session.id}`).then(r => r.json()),
-      fetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
+      apiFetch(`/api/clients?pro_id=${session.id}`).then(r => r.json()),
+      apiFetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
     ]).then(([clientsData, leadsData]) => {
       const found = (clientsData.clients || []).find((c: any) => c.id === id)
       if (!found) { router.push('/dashboard/clients'); return }
@@ -89,7 +90,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   async function saveEdit() {
     if (!session) return
     setSaving(true)
-    const r = await fetch(`/api/clients/${id}`, {
+    const r = await apiFetch(`/api/clients/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, pro_id: session.id }),
@@ -139,7 +140,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   async function deleteEquipment(eqId: string) {
     if (!session) return
     setDeletingEquip(eqId)
-    await fetch(`/api/hvac/equipment/${eqId}?pro_id=${session.id}`, { method: 'DELETE' })
+    await apiFetch(`/api/hvac/equipment/${eqId}?pro_id=${session.id}`, { method: 'DELETE' })
     setDeletingEquip(null)
     loadEquipment()
   }

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme, T, BRAND } from '@/lib/tokens'
+import { apiFetch } from '@/lib/api-fetch'
 
 // Default FL market prices — used when pro hasn't set their own
 const DEFAULTS = {
@@ -82,7 +83,7 @@ export default function MaterialPricesPage() {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
     setDk(localStorage.getItem('pg_darkmode') === '1')
-    fetch(`/api/roofing/settings?pro_id=${session.id}`)
+    apiFetch(`/api/roofing/settings?pro_id=${session.id}`)
       .then(r => r.json())
       .then(d => {
         if (d.material_prices) {
@@ -98,7 +99,7 @@ export default function MaterialPricesPage() {
     if (!session) return
     setSaving(true)
     try {
-      await fetch('/api/roofing/settings', {
+      await apiFetch('/api/roofing/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pro_id: session.id, material_prices: prices }),

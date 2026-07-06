@@ -5,6 +5,7 @@ import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
+import { apiFetch } from '@/lib/api-fetch'
 
 interface RevenueData {
   thisMonth: { revenue: number; jobs: number }
@@ -34,7 +35,7 @@ export default function RevenuePage() {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
     const s = session
-    fetch(`/api/roofing/revenue?pro_id=${s.id}&period=${period}`)
+    apiFetch(`/api/roofing/revenue?pro_id=${s.id}&period=${period}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))

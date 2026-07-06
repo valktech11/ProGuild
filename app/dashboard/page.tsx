@@ -12,6 +12,7 @@ import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import { theme, T, BRAND } from '@/lib/tokens'
 import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
 import { getTradeConfig, isHVAC, isRoofing, isPlumbing, isElectrician, isGC, getStageAnchors } from '@/lib/trades/_registry'
+import { apiFetch } from '@/lib/api-fetch'
 
 // ── Pending Review Banner ──────────────────────────────────────────────────────
 // Shown when profile_status === 'Pending_Review'. Lets the contractor self-serve
@@ -361,12 +362,12 @@ export default function OverviewPage() {
   function fetchData(s: typeof session) {
     if (!s) return
     Promise.all([
-      fetch(`/api/leads?pro_id=${s.id}`).then(r => r.json()),
+      apiFetch(`/api/leads?pro_id=${s.id}`).then(r => r.json()),
       fetch(`/api/reviews?pro_id=${s.id}`).then(r => r.json()),
-      fetch(`/api/estimates?pro_id=${s.id}`).then(r => r.json()),
-      isHVACTrade ? fetch(`/api/hvac/maintenance-reminders?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
-      fetch(`/api/overview?pro_id=${s.id}`).then(r => r.json()).catch(() => null),
-      fetch(`/api/activity/recent?pro_id=${s.id}&limit=6`).then(r => r.json()).catch(() => ({ activity: [] })),
+      apiFetch(`/api/estimates?pro_id=${s.id}`).then(r => r.json()),
+      isHVACTrade ? apiFetch(`/api/hvac/maintenance-reminders?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
+      apiFetch(`/api/overview?pro_id=${s.id}`).then(r => r.json()).catch(() => null),
+      apiFetch(`/api/activity/recent?pro_id=${s.id}&limit=6`).then(r => r.json()).catch(() => ({ activity: [] })),
     ]).then(([leadsData, reviewsData, estimatesData, remindersData, overviewData, activityData]) => {
       setLeads(leadsData.leads || [])
       setReviews((reviewsData.reviews || []).filter((r: Review) => r.is_approved))

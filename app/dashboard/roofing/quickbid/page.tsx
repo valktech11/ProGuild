@@ -11,6 +11,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
 import { initials, avatarColor, capName } from '@/lib/utils'
+import { apiFetch } from '@/lib/api-fetch'
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const TEAL   = '#0F766E'
@@ -138,8 +139,8 @@ function QuickBidInner() {
     const tid = setTimeout(async () => {
       setSearching(true)
       const [cr, pr] = await Promise.all([
-        fetch(`/api/clients?pro_id=${session.id}`).then(r => r.json()),
-        fetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(query)}`).then(r => r.json()),
+        apiFetch(`/api/clients?pro_id=${session.id}`).then(r => r.json()),
+        apiFetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(query)}`).then(r => r.json()),
       ])
       const q = query.toLowerCase()
       const filteredClients: Client[] = (cr.clients || []).filter((c: Client) =>
@@ -183,7 +184,7 @@ function QuickBidInner() {
 
   async function loadPrevReports(propertyId: string) {
     if (!session) return
-    const r = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${propertyId}`)
+    const r = await apiFetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${propertyId}`)
     const d = await r.json()
     setPrevReports(d.reports || [])
   }
@@ -286,7 +287,7 @@ function QuickBidInner() {
       const pid = matchedPropertyId || (d as any).property_id || null
       if (pid) {
         try {
-          const rr = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${pid}`)
+          const rr = await apiFetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${pid}`)
           const rd = await rr.json()
           const latest = (rd.reports || [])[0]
           if (latest) setReport(latest)   // prefer the persisted row if available

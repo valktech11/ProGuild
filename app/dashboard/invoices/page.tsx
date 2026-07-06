@@ -7,6 +7,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { theme, T } from '@/lib/tokens'
 import { invoiceStatusStyle } from '@/lib/design'
 import { timeAgo, capName, fmtCurrency } from '@/lib/utils'
+import { apiFetch } from '@/lib/api-fetch'
 
 type InvoiceSummary = {
   id: string
@@ -58,8 +59,8 @@ export default function InvoicesPage() {
     // Raw list powers the table (search/filter — UI state). Summary powers the
     // KPI cards (derived metrics — single source for web + mobile).
     Promise.all([
-      fetch(`/api/invoices?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ invoices: [] })),
-      fetch(`/api/invoices/summary?pro_id=${session.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
+      apiFetch(`/api/invoices?pro_id=${session.id}`).then(r => r.json()).catch(() => ({ invoices: [] })),
+      apiFetch(`/api/invoices/summary?pro_id=${session.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
     ])
       .then(([d, sum]) => {
         const raw: InvoiceSummary[] = d.invoices || []

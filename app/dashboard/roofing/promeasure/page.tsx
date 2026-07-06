@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useProSession } from '@/lib/hooks/useProSession'
 
 import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitchFactors'
+import { apiFetch } from '@/lib/api-fetch'
 
 const DEFAULT_SETTINGS = {
   markerColor:'#14B8A6', fillColor:'#14B8A6', borderColor:'#0F766E',
@@ -170,7 +171,7 @@ function ProMeasureInner() {
     ;(async () => {
       try {
         const proId = session?.id
-        const res = await fetch(`/api/leads/${leadId}${proId ? `?pro_id=${proId}` : ''}`)
+        const res = await apiFetch(`/api/leads/${leadId}${proId ? `?pro_id=${proId}` : ''}`)
         const d = res.ok ? await res.json() : null
         const L = d?.lead
         if (!L) return
@@ -833,7 +834,7 @@ function ProMeasureInner() {
           perimeter_lf: measData.perimeter ?? null,
           lines:        measData.lines     ?? [],
         }
-        const patchRes = await fetch(`/api/leads/${leadId}`, {
+        const patchRes = await apiFetch(`/api/leads/${leadId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patchBody),

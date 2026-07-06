@@ -9,6 +9,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { capName } from '@/lib/utils'
 import { theme, T, BRAND } from '@/lib/tokens'
 import { ICON_PATH } from '@/lib/design'
+import { apiFetch } from '@/lib/api-fetch'
 const CALENDAR_DONE_STATUSES = new Set(['Completed','Paid','job_won','Converted'])
 
 
@@ -463,7 +464,7 @@ function CalendarInner() {
     setLoading(true)
     const win = fetchWindow(center)
     try {
-      const r = await fetch(`/api/calendar?pro_id=${s.id}&from=${win.from}&to=${win.to}`)
+      const r = await apiFetch(`/api/calendar?pro_id=${s.id}&from=${win.from}&to=${win.to}`)
       const d = await r.json()
       setEvents(d.events||[])
       setUnscheduled(d.unscheduled||[])
@@ -582,7 +583,7 @@ function CalendarInner() {
     const anchors = getStageAnchors(session.trade_slug)
     const wonStage = anchors.won ?? 'job_won'
     try {
-      await fetch(`/api/leads/${ev.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ pro_id:session.id, lead_status: wonStage }) })
+      await apiFetch(`/api/leads/${ev.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ pro_id:session.id, lead_status: wonStage }) })
       setEvents(prev => prev.map(e => e.id===ev.id ? {...e, lead_status: wonStage} : e))
       setSelectedEvent(null)
     } finally { setCompleting(null) }

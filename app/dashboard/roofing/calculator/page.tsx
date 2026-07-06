@@ -44,6 +44,7 @@ import { PITCH_FACTORS, PITCH_OPTIONS, getPitchFactor } from '@/lib/roofing/pitc
 import { calculateMaterials, DEFAULT_PRICES, settingsToCalculatorPrices, type CalcLineItem as LineItem } from '@/lib/roofing/calculator'
 import { computeInsuranceReconciliation } from '@/lib/insurance/reconciliation'
 import { groundSupplementFlags } from '@/lib/fl/supplement'
+import { apiFetch } from '@/lib/api-fetch'
 
 function normalizePitch(raw: string | number): string {
   if (typeof raw === 'number') return '6/12'
@@ -195,7 +196,7 @@ function CalculatorInner() {
     // Only used when there's NO lead to ask the librarian about; with a lead the
     // calculator-state endpoint already returns the right prices.
     const loadSettingsPrices = () => {
-      fetch(`/api/roofing/settings?pro_id=${proId}`)
+      apiFetch(`/api/roofing/settings?pro_id=${proId}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           const sp = d?.material_prices
@@ -299,7 +300,7 @@ function CalculatorInner() {
     // Insurance reconciliation panel — read live from the lead. Not a calculator
     // pricing input, so it stays a separate read; touches different rjd fields, no
     // overlap with anything the librarian sets.
-    fetch(`/api/leads/${leadId}?pro_id=${proId}`)
+    apiFetch(`/api/leads/${leadId}?pro_id=${proId}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         const rjd = d?.lead?.roofing_job_data
@@ -427,7 +428,7 @@ function CalculatorInner() {
         })),
         ...(labourAmount > 0 ? [{ description: 'Labour & installation', quantity: 1, unit_price: labourAmount, source: 'manual' }] : []),
       ]
-      const res = await fetch('/api/estimates', {
+      const res = await apiFetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -658,7 +659,7 @@ function CalculatorInner() {
                         starter_strip:     +(prices.starterStrip / 105).toFixed(2),
                         drip_edge:         +(prices.dripEdge     / 10).toFixed(2),
                       }
-                      await fetch('/api/roofing/settings', {
+                      await apiFetch('/api/roofing/settings', {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ pro_id: session.id, material_prices: toSave }),

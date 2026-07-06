@@ -7,6 +7,7 @@ import { Session } from '@/types'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { initials, avatarColor, timeAgo } from '@/lib/utils'
 import { theme } from '@/lib/theme'
+import { apiFetch } from '@/lib/api-fetch'
 
 function Avatar({ name, photo, size = 10 }: { name: string; photo?: string | null; size?: number }) {
   const [bg, fg] = avatarColor(name)
@@ -56,7 +57,7 @@ export default function MessagesContent() {
     if (!_real) { router.replace('/login'); return }
     const s = _real
     setSession(s)
-    fetch(`/api/messages?pro_id=${s.id}`)
+    apiFetch(`/api/messages?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => { setThreads(d.threads || []); setLoading(false) })
   }, [_real, _authLoading])
@@ -65,7 +66,7 @@ export default function MessagesContent() {
     if (!withId || !session) return
     // When a thread is selected on mobile, switch to conversation view
     setMobileView('conversation')
-    fetch(`/api/messages?pro_id=${session.id}&with_id=${withId}`)
+    apiFetch(`/api/messages?pro_id=${session.id}&with_id=${withId}`)
       .then(r => r.json())
       .then(d => {
         setMessages(d.messages || [])
@@ -79,7 +80,7 @@ export default function MessagesContent() {
   async function sendMessage() {
     if (!text.trim() || !session || !withId || sending) return
     setSending(true)
-    const r = await fetch('/api/messages', {
+    const r = await apiFetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender_id: session.id, receiver_id: withId, content: text.trim() }),

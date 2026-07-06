@@ -5,6 +5,7 @@ import Link from 'next/link'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
+import { apiFetch } from '@/lib/api-fetch'
 
 interface PerfData {
   winRate: number | null
@@ -33,7 +34,7 @@ export default function PerformancePage() {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
     const s = session
-    fetch(`/api/roofing/performance?pro_id=${s.id}`)
+    apiFetch(`/api/roofing/performance?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))

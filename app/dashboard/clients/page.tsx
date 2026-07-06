@@ -7,6 +7,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { initials, avatarColor, timeAgo, fmtCurrency } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { apiFetch } from '@/lib/api-fetch'
 
 function TAG_COLORS(dk: boolean): Record<string, { bg: string; text: string }> {
   return {
@@ -57,8 +58,8 @@ export default function ClientsPage() {
     // Raw list powers the rows (search/sort — UI state). Summary powers the
     // header totals (derived metrics — single source for web + mobile).
     Promise.all([
-      fetch(`/api/clients?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ clients: [] })),
-      fetch(`/api/clients/summary?pro_id=${s.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
+      apiFetch(`/api/clients?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ clients: [] })),
+      apiFetch(`/api/clients/summary?pro_id=${s.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
     ])
       .then(([d, sum]) => { setClients(d.clients || []); setSummary(sum); setLoading(false) })
   }, [router])
@@ -67,7 +68,7 @@ export default function ClientsPage() {
     if (!newName.trim()) { setErr('Name is required'); return }
     if (!session) return
     setSaving(true); setErr('')
-    const r = await fetch('/api/clients', {
+    const r = await apiFetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -94,7 +95,7 @@ export default function ClientsPage() {
 
   async function deleteClient() {
     if (!deleteTarget) return
-    await fetch(`/api/clients?id=${deleteTarget.id}`, { method: 'DELETE' })
+    await apiFetch(`/api/clients?id=${deleteTarget.id}`, { method: 'DELETE' })
     setClients(prev => prev.filter(c => c.id !== deleteTarget.id))
     setDeleteTarget(null)
   }
@@ -327,7 +328,7 @@ function AddClientModal({ dk, proId, onClose, onSaved }: AddClientModalProps) {
     if (!name.trim()) { setErr('Name is required'); return }
     if (!proId)       { setErr('Session expired — please refresh'); return }
     setSaving(true); setErr('')
-    const r = await fetch('/api/clients', {
+    const r = await apiFetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

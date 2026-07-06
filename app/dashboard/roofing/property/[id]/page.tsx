@@ -8,6 +8,7 @@ import { theme } from '@/lib/tokens'
 import { stageStyle } from '@/lib/design'
 import { capName, fmtCurrency, timeAgo } from '@/lib/utils'
 import { getPipelineStages } from '@/components/ui/LeadPipeline'
+import { apiFetch } from '@/lib/api-fetch'
 
 const ROOF_TYPES   = ['Shingle', 'Metal', 'Tile', 'Flat/TPO', 'Modified Bitumen', 'EPDM', 'Built-Up', 'Other']
 
@@ -108,7 +109,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
 
   useEffect(() => {
     if (!session) return
-    fetch(`/api/properties/${id}?pro_id=${session.id}`)
+    apiFetch(`/api/properties/${id}?pro_id=${session.id}`)
       .then(r => r.json())
       .then(d => {
         if (d.property) { setProperty(d.property); setForm(d.property) }
@@ -124,7 +125,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
     setReportsLoading(true)
     // ONLY show reports explicitly linked to this property_id
     // Never fall back to all-pro reports — that causes cross-property contamination
-    fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
+    apiFetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
       .then(r => r.json())
       .then(d => { setReports(d.reports || []) })
       .catch(() => setReportErr('Failed to load reports — please refresh'))
@@ -175,7 +176,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
       }
 
       // Refresh report list (PDF available via Download button in row)
-      const refreshed = await fetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
+      const refreshed = await apiFetch(`/api/roofing/reports?pro_id=${session.id}&property_id=${id}`)
       const rd = await refreshed.json()
       setReports(rd.reports || [])
       // Push measurements to Calculator via sessionStorage (pg_promeasure = key calculator reads)
@@ -225,7 +226,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
     setDeletingReportId(idToDelete)
     setDeleteConfirmId(null)
     try {
-      await fetch(`/api/roofing/reports?id=${idToDelete}&pro_id=${session.id}`, { method: 'DELETE' })
+      await apiFetch(`/api/roofing/reports?id=${idToDelete}&pro_id=${session.id}`, { method: 'DELETE' })
       setReports(prev => prev.filter(r => r.id !== idToDelete))
     } catch { /* silently ignore -- row already gone */ }
     finally { setDeletingReportId(null) }
@@ -309,7 +310,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
       if (typeof pdfData.url === 'string' && pdfData.url) window.open(pdfData.url, '_blank')
 
       // Refresh list to show Linear Footage PDF download button
-      const refreshed = await fetch(`/api/roofing/reports?pro_id=${session?.id}&property_id=${id}`)
+      const refreshed = await apiFetch(`/api/roofing/reports?pro_id=${session?.id}&property_id=${id}`)
       const rd = await refreshed.json()
       setReports(rd.reports || [])
 
@@ -326,7 +327,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
   async function handleSave() {
     if (!session || !property) return
     setSaving(true); setSaveErr(null)
-    const r = await fetch(`/api/properties/${id}`, {
+    const r = await apiFetch(`/api/properties/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pro_id: session.id, ...form }),
@@ -512,7 +513,7 @@ function PropertyProfilePageInner({ params }: { params: Promise<{ id: string }> 
                       if (!session || !leadId) return
                       setApplyingToLead(true)
                       try {
-                        await fetch(`/api/leads/${leadId}`, {
+                        await apiFetch(`/api/leads/${leadId}`, {
                           method: 'PATCH',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({

@@ -135,14 +135,23 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
-  if (__auth.error) return __auth.error
   const body = await req.json()
   const {
     pro_id, job_id, contact_name, contact_email, contact_phone,
     message, lead_source, client_id, is_manual,
     property_address, contact_city, contact_state, contact_zip,
   } = body
+
+  // Two distinct flows share this endpoint:
+  //   • Manual (is_manual): a signed-in pro creates a lead from the dashboard.
+  //     Requires bearer auth; pro_id must equal the caller's own pros.id.
+  //   • Public: a prospect submits a contractor's public contact form. No
+  //     session — pro_id is supplied by the public page. We validate it names
+  //     a real pro (below) but do not require a bearer.
+  if (is_manual) {
+    const __auth = await requirePro(req, pro_id)
+    if (__auth.error) return __auth.error
+  }
 
   if (!pro_id || !contact_name || !message)
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })

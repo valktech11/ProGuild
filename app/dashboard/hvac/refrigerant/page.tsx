@@ -6,6 +6,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/theme'
 import { timeAgo } from '@/lib/utils'
+import { apiFetch } from '@/lib/api-fetch'
 
 const REFRIGERANT_TYPES = ['R-22','R-410A','R-32','R-454B','R-407C','Other']
 
@@ -40,7 +41,7 @@ export default function RefrigerantLogPage() {
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
-    fetch(`/api/hvac/refrigerant-log?pro_id=${session.id}`)
+    apiFetch(`/api/hvac/refrigerant-log?pro_id=${session.id}`)
       .then(r => r.json())
       .then(d => { setLogs(d.logs || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -49,7 +50,7 @@ export default function RefrigerantLogPage() {
   async function saveLog() {
     if (!session) return
     setSaving(true); setErr('')
-    const r = await fetch('/api/hvac/refrigerant-log', {
+    const r = await apiFetch('/api/hvac/refrigerant-log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -73,7 +74,7 @@ export default function RefrigerantLogPage() {
 
   async function deleteLog(id: string) {
     if (!session) return
-    await fetch('/api/hvac/refrigerant-log', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id }) })
+    await apiFetch('/api/hvac/refrigerant-log', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pro_id: session.id, id }) })
     setLogs(prev => prev.filter(l => l.id !== id))
   }
 
