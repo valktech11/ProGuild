@@ -90,7 +90,8 @@ function roofingWorkflow(
   const gap = _gap.gap
   const hasGap = _gap.has_gap
   const estDone = estCount > 0 || !!est
-  const supDone = supplementAmt > 0 || ['Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
+  // Lifecycle status is the sole authority for supp-stage done-state; supplement_amount can be entered pre-filing (Approved) and must not force 'filed' label.
+  const supDone = ['Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
   const sentDone = !!(est && ((est.sent_at) || ['sent','viewed','approved'].includes(est.status || '')))
   const steps: WorkflowStep[] = isClaim
     ? [
@@ -1621,6 +1622,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             // Supplement stage owns the gap payoff + Supplement Assistant inline (Build B)
                             if (s.key === 'supp' && (s.done || i === firstActive)) {
                               const cState = s.done ? 'done' : 'active'
+                              const isFLLead = ((lead.contact_state ?? '').trim().toUpperCase() === 'FL')
                               const gapVal = wf.gap || 0
                               const eTot = Number(est?.total) || 0
                               const cTot = Math.max(eTot - gapVal, 0)
@@ -1650,8 +1652,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <button onClick={() => setSuppOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: T.fontSub, fontWeight: 700, color: tsu, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '4px 11px', cursor: 'pointer' }}>Collapse <Svg size={12} stroke={tsu} sw={2.5}><polyline points="18 15 12 9 6 15" /></Svg></button>
                                       </div>
                                     )}
-                                    {/* Gap payoff hero — the supplement intelligence (indigo = insight, distinct from approved-green) */}
-                                    <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(129,140,248,0.28)' : '#C7D2FE'}`, background: dk ? 'rgba(79,70,229,0.10)' : '#EEF2FF', overflow: 'hidden', marginBottom: 12 }}>
+                                    {/* Gap payoff hero — FL-only; non-FL falls through to assistant's single FL-gate message */}
+                                    {isFLLead && <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(129,140,248,0.28)' : '#C7D2FE'}`, background: dk ? 'rgba(79,70,229,0.10)' : '#EEF2FF', overflow: 'hidden', marginBottom: 12 }}>
                                       <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
                                         <div style={{ minWidth: 0 }}>
                                           <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: dk ? '#A5B4FC' : '#4338CA', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>{eTot > 0 ? 'Potential supplement gap' : 'Supplement review'}</div>
@@ -1673,7 +1675,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(129,140,248,0.22)' : '#C7D2FE'}`, fontSize: T.fontSub, color: dk ? '#C7D2FE' : '#4338CA', lineHeight: 1.45 }}>
                                         {eTot > 0 ? 'The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.' : 'Paste the carrier scope below to flag FL code-required items they missed — no estimate needed to start.'}
                                       </div>
-                                    </div>
+                                    </div>}
                                     <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} />
                                     {/* Supplement lifecycle transitions — single source of truth (spine owns Supplement->Closed) */}
                                     {!(stage==='job_won'||stage==='lost') && rjd2.claim_status !== 'Closed' && (()=>{
