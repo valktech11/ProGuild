@@ -205,7 +205,14 @@ function coerceItem(raw: any): SupplementItem {
  * so a model arithmetic slip can't show a wrong headline number.
  * @throws if no JSON object can be recovered at all.
  */
-export function parseSupplementResponse(raw: string): SupplementResult {
+export interface SupplementPricing {
+  roofSquares?: number | null;
+  valleyLF?:    number | null;
+  swbRate?:     number | null;   // $/SQ secondary water barrier
+  valleyRate?:  number | null;   // $/LF valley metal
+}
+
+export function parseSupplementResponse(raw: string, pricing: SupplementPricing = {}): SupplementResult {
   if (!raw || !raw.trim()) throw new Error('Empty supplement response');
   // Strip ```json fences if present, then grab the outermost {...}.
   const cleaned = raw.replace(/```json|```/g, '').trim();
@@ -236,8 +243,24 @@ export function parseSupplementResponse(raw: string): SupplementResult {
     }
     return item
   }
-  const normMissing   = missing.map(normalizeOP).map(normalizeUnverifiedLF)
-  const normUnderpaid = underpaid.map(normalizeOP).map(normalizeUnverifiedLF)
+  // Field-bound items: force qty+price+total from authoritative field data + DB rates.
+  // Removes Gemini from the numeric path for SWB and valley (eliminates temp:0 drift).
+  const bindField = (item: SupplementItem): SupplementItem => {
+    const nm = item.item.toLowerCase()
+    const sq = pricing.roofSquares ?? 0
+    const vLF = pricing.valleyLF ?? 0
+    if ((nm.includes('secondary water') || nm.includes('water barrier') || nm.includes('underlayment')) && sq > 0 && pricing.swbRate) {
+      const total = Math.round(sq * pricing.swbRate)
+      return { ...item, suggested_quantity: `${sq} SQ`, suggested_unit_price: pricing.swbRate, suggested_total: total }
+    }
+    if (nm.includes('valley') && vLF > 0 && pricing.valleyRate) {
+      const total = Math.round(vLF * pricing.valleyRate)
+      return { ...item, suggested_quantity: `${vLF} LF`, suggested_unit_price: pricing.valleyRate, suggested_total: total }
+    }
+    return item
+  }
+  const normMissing   = missing.map(normalizeOP).map(normalizeUnverifiedLF).map(bindField)
+  const normUnderpaid = underpaid.map(normalizeOP).map(normalizeUnverifiedLF).map(bindField)
 
   // Authoritative total = sum of item totals (don't trust the model's arithmetic).
   const computed = [...normMissing, ...normUnderpaid].reduce((s, i) => s + i.suggested_total, 0);

@@ -9,6 +9,7 @@ import {
   type SupplementInput,
   type SupplementItem,
   type DBLineItem,
+  type SupplementPricing,
 } from '@/lib/fl/supplement'
 
 export const runtime = 'nodejs'
@@ -107,6 +108,24 @@ export async function POST(req: NextRequest) {
 
   const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
 
+  // ── Field-bound unit rates (deterministic post-fill; removes Gemini from numeric path) ──
+  const pricing: SupplementPricing = {
+    roofSquares: toNum(rjd?.square_count),
+    valleyLF:    (input.measuredLF?.valley_ft ?? null),
+  }
+  try {
+    const { data: rateRows } = await sb
+      .from('supplement_xactimate_codes')
+      .select('code, default_unit_price')
+      .in('code', ['RFG SWB', 'RFG VALM'])
+    for (const r of (rateRows ?? []) as any[]) {
+      if (r.code === 'RFG SWB'  && r.default_unit_price != null) pricing.swbRate    = Number(r.default_unit_price)
+      if (r.code === 'RFG VALM' && r.default_unit_price != null) pricing.valleyRate = Number(r.default_unit_price)
+    }
+  } catch (e) {
+    console.warn('[supplement] rate fetch failed, Gemini pricing retained:', e)
+  }
+
   // ── Fetch DB checklist (falls back to hardcoded if unavailable) ──────────
   let dbItems: DBLineItem[] = []
   try {
@@ -165,7 +184,7 @@ export async function POST(req: NextRequest) {
 
   let partialResult: any
   try {
-    partialResult = parseSupplementResponse(itemsRaw)
+    partialResult = parseSupplementResponse(itemsRaw, pricing)
   } catch (e) {
     console.error('[supplement] items parse failed:', e, 'raw:', itemsRaw.slice(0, 300))
     return NextResponse.json({ error: 'Could not read the AI response. Try again.' }, { status: 502 })
