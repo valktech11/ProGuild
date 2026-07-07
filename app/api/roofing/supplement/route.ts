@@ -123,8 +123,12 @@ export async function POST(req: NextRequest) {
       if (r.code === 'RFG VALM' && r.default_unit_price != null) { pricing.valleyRate = Number(r.default_unit_price); console.log('[supplement] valleyRate', pricing.valleyRate) }
     }
   } catch (e) {
-    console.warn('[supplement] rate fetch failed, Gemini pricing retained:', e)
+    console.warn('[supplement] rate fetch failed, using hardcoded fallback:', e)
   }
+  // Hardcoded fallback rates — used if DB fetch fails or returns null.
+  // Update supplement_xactimate_codes.default_unit_price to override.
+  if (!pricing.swbRate)    pricing.swbRate    = 120
+  if (!pricing.valleyRate) pricing.valleyRate = 12
 
   // ── Fetch DB checklist (falls back to hardcoded if unavailable) ──────────
   let dbItems: DBLineItem[] = []
