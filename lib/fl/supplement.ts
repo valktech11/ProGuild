@@ -104,6 +104,7 @@ export interface SupplementInput {
   propertyAddress?: string | null;
   proCompany?:      string | null;   // roofer's business name (letter signature)
   measuredLF?:      { ridge_ft?: number; hip_ft?: number; valley_ft?: number } | null;
+  perimeterLF?:     number | null;  // eave+rake — drip edge / starter strip
 }
 
 export interface SupplementItem {
@@ -206,10 +207,13 @@ function coerceItem(raw: any): SupplementItem {
  * @throws if no JSON object can be recovered at all.
  */
 export interface SupplementPricing {
-  roofSquares?: number | null;
-  valleyLF?:    number | null;
-  swbRate?:     number | null;   // $/SQ secondary water barrier
-  valleyRate?:  number | null;   // $/LF valley metal
+  roofSquares?:  number | null;
+  valleyLF?:     number | null;
+  perimeterLF?:  number | null;  // eave+rake LF — drip edge / starter strip
+  swbRate?:      number | null;  // $/SQ secondary water barrier
+  valleyRate?:   number | null;  // $/LF valley metal
+  dripRate?:     number | null;  // $/LF drip edge
+  starterRate?:  number | null;  // $/LF starter strip
 }
 
 export function parseSupplementResponse(raw: string, pricing: SupplementPricing = {}): SupplementResult {
@@ -251,6 +255,20 @@ export function parseSupplementResponse(raw: string, pricing: SupplementPricing 
     const vLF = typeof pricing.valleyLF === 'number' ? pricing.valleyLF : 0
     const swbRate = typeof pricing.swbRate === 'number' ? pricing.swbRate : 0
     const valleyRate = typeof pricing.valleyRate === 'number' ? pricing.valleyRate : 0
+    const pLF      = typeof pricing.perimeterLF === 'number' ? pricing.perimeterLF : 0
+    const dripRate = typeof pricing.dripRate    === 'number' ? pricing.dripRate    : 0
+    const strtRate = typeof pricing.starterRate === 'number' ? pricing.starterRate : 0
+    // Drip edge / starter strip — bind to perimeter LF when field-traced
+    if (pLF > 0 && nm.includes('drip')) {
+      const rate  = dripRate > 0 ? dripRate : 3.50
+      const total = Math.round(pLF * rate)
+      return { ...item, suggested_quantity: `${pLF} LF`, suggested_unit_price: rate, suggested_total: total }
+    }
+    if (pLF > 0 && nm.includes('starter')) {
+      const rate  = strtRate > 0 ? strtRate : 3.00
+      const total = Math.round(pLF * rate)
+      return { ...item, suggested_quantity: `${pLF} LF`, suggested_unit_price: rate, suggested_total: total }
+    }
     // SWB: match on 'water barrier' OR 'underlayment' — broad to catch Gemini name variations
     if (sq > 0 && swbRate > 0 && (nm.includes('water') || nm.includes('underlayment') || nm.includes('barrier'))) {
       const total = Math.round(sq * swbRate)
@@ -372,8 +390,15 @@ export function buildItemsPromptFromDB(input: SupplementInput, dbItems: DBLineIt
               if (valleyLF) qtyDirective = ` [QTY: use exactly ${valleyLF} LF — field-confirmed]`;
               break;
             case 'drip_edge':
-            case 'starter_strip':
-              qtyDirective = ` [QTY: perimeter LF not yet field-traced — set suggested_quantity="verify perimeter LF", suggested_unit_price and suggested_total to 0]`;
+            case 'starter_strip': {
+              const pLF = input.perimeterLF
+              if (pLF && pLF > 0) {
+                qtyDirective = ` [QTY: use exactly ${pLF} LF (field-traced perimeter) — do not compute]`
+              } else {
+                qtyDirective = ` [QTY: perimeter LF not yet field-traced — set suggested_quantity="verify perimeter LF", suggested_unit_price and suggested_total to 0]`
+              }
+              break
+            }
               break;
             case 'steep_high':
               if (sqQty) qtyDirective = ` [QTY: use ${sqQty} SQ if flagged]`;

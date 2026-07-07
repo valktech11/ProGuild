@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   const { data: rjd } = await sb
     .from('roofing_job_data')
-    .select('insurance_company, claim_number, adjuster_name, date_of_loss, roof_install_date, approved_amount, square_count, pitch, ridge_lf, hip_lf, valley_lf')
+    .select('insurance_company, claim_number, adjuster_name, date_of_loss, roof_install_date, approved_amount, square_count, pitch, ridge_lf, hip_lf, valley_lf, eave_lf')
     .eq('lead_id', lead_id)
     .maybeSingle()
 
@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
     measuredLF: rjd && (Number(rjd.ridge_lf) > 0 || Number(rjd.hip_lf) > 0 || Number(rjd.valley_lf) > 0)
       ? { ridge_ft: Number(rjd.ridge_lf) || 0, hip_ft: Number(rjd.hip_lf) || 0, valley_ft: Number(rjd.valley_lf) || 0 }
       : null,
+    perimeterLF: rjd && Number(rjd.eave_lf) > 0 ? Number(rjd.eave_lf) : null,
   }
 
   const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
@@ -112,23 +113,26 @@ export async function POST(req: NextRequest) {
   const pricing: SupplementPricing = {
     roofSquares: toNum(rjd?.square_count),
     valleyLF:    (input.measuredLF?.valley_ft ?? null),
+    perimeterLF: input.perimeterLF ?? null,
   }
   try {
     const { data: rateRows } = await sb
       .from('supplement_xactimate_codes')
       .select('code, default_unit_price')
-      .in('code', ['RFG SWB', 'RFG VALM'])
+      .in('code', ['RFG SWB', 'RFG VALM', 'RFG DRIP', 'RFG STRT'])
     for (const r of (rateRows ?? []) as any[]) {
-      if (r.code === 'RFG SWB'  && r.default_unit_price != null) { pricing.swbRate    = Number(r.default_unit_price) }
-      if (r.code === 'RFG VALM' && r.default_unit_price != null) { pricing.valleyRate = Number(r.default_unit_price) }
+      if (r.code === 'RFG SWB'  && r.default_unit_price != null) pricing.swbRate    = Number(r.default_unit_price)
+      if (r.code === 'RFG VALM' && r.default_unit_price != null) pricing.valleyRate = Number(r.default_unit_price)
+      if (r.code === 'RFG DRIP' && r.default_unit_price != null) pricing.dripRate   = Number(r.default_unit_price)
+      if (r.code === 'RFG STRT' && r.default_unit_price != null) pricing.starterRate = Number(r.default_unit_price)
     }
   } catch (e) {
     console.warn('[supplement] rate fetch failed, using hardcoded fallback:', e)
   }
-  // Hardcoded fallback rates — used if DB fetch fails or returns null.
-  // Update supplement_xactimate_codes.default_unit_price to override.
   if (!pricing.swbRate)    pricing.swbRate    = 120
   if (!pricing.valleyRate) pricing.valleyRate = 12
+  if (!pricing.dripRate)   pricing.dripRate   = 3.50
+  if (!pricing.starterRate) pricing.starterRate = 3.00
 
   // ── Fetch DB checklist (falls back to hardcoded if unavailable) ──────────
   let dbItems: DBLineItem[] = []

@@ -830,7 +830,7 @@ function ProMeasureInner() {
           ridge_lf:     measData.ridge_lf  ?? null,
           hip_lf:       measData.hip_lf    ?? null,
           valley_lf:    measData.valley_lf ?? null,
-          eave_lf:      null,
+          eave_lf:      measData.perimeter ?? null,  // eave_lf = perimeter (eave+rake) — used for drip edge / starter strip
           perimeter_lf: measData.perimeter ?? null,
           lines:        measData.lines     ?? [],
         }

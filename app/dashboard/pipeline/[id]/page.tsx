@@ -594,7 +594,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
         const rowId=(d as any).reportRowId
         if(rowId)setReportRowId(rowId)
-        apiFetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,square_count:Number(meas.totalSquaresOrder)||null,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
+        // square_count intentionally omitted — DSM/aerial SQ is non-authoritative (Bible §25). User enters SQ in calculator.
+        apiFetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
           .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
         const newSq=Number(meas?.totalSquaresOrder)
         if(newSq>0)addToast(`Roof measured — ${newSq} sq`,'success')
