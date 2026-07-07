@@ -119,8 +119,8 @@ export async function POST(req: NextRequest) {
       .select('code, default_unit_price')
       .in('code', ['RFG SWB', 'RFG VALM'])
     for (const r of (rateRows ?? []) as any[]) {
-      if (r.code === 'RFG SWB'  && r.default_unit_price != null) pricing.swbRate    = Number(r.default_unit_price)
-      if (r.code === 'RFG VALM' && r.default_unit_price != null) pricing.valleyRate = Number(r.default_unit_price)
+      if (r.code === 'RFG SWB'  && r.default_unit_price != null) { pricing.swbRate    = Number(r.default_unit_price); console.log('[supplement] swbRate', pricing.swbRate) }
+      if (r.code === 'RFG VALM' && r.default_unit_price != null) { pricing.valleyRate = Number(r.default_unit_price); console.log('[supplement] valleyRate', pricing.valleyRate) }
     }
   } catch (e) {
     console.warn('[supplement] rate fetch failed, Gemini pricing retained:', e)
@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
 
   let partialResult: any
   try {
-    partialResult = parseSupplementResponse(itemsRaw, pricing)
+    console.log('[supplement] pricing at parse:', JSON.stringify(pricing)); partialResult = parseSupplementResponse(itemsRaw, pricing)
   } catch (e) {
     console.error('[supplement] items parse failed:', e, 'raw:', itemsRaw.slice(0, 300))
     return NextResponse.json({ error: 'Could not read the AI response. Try again.' }, { status: 502 })
