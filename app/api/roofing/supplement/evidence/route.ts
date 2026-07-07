@@ -26,10 +26,22 @@ export async function GET(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
+  // Two-query pattern — avoids PostgREST !inner join filter issues
+  const { data: liRows } = await sb
+    .from('supplement_line_items')
+    .select('id, key')
+    .in('key', keys)
+
+  if (!liRows || liRows.length === 0) return NextResponse.json({ evidence: {} })
+
+  const idToKey: Record<string, string> = {}
+  for (const r of liRows as any[]) idToKey[r.id] = r.key
+  const lineItemIds = Object.keys(idToKey)
+
   const { data, error } = await sb
     .from('supplement_evidence_requirements')
-    .select('evidence_type, description, is_required, sort_order, supplement_line_items!inner(key)')
-    .in('supplement_line_items.key', keys)
+    .select('line_item_id, evidence_type, description, is_required, sort_order')
+    .in('line_item_id', lineItemIds)
     .order('sort_order', { ascending: true })
 
   if (error) {
@@ -39,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   const evidence: EvidenceMap = {}
   for (const row of (data ?? []) as any[]) {
-    const key = row.supplement_line_items?.key
+    const key = idToKey[row.line_item_id]
     if (!key) continue
     if (!evidence[key]) evidence[key] = []
     evidence[key].push({
