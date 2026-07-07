@@ -247,15 +247,19 @@ export function parseSupplementResponse(raw: string, pricing: SupplementPricing 
   // Removes Gemini from the numeric path for SWB and valley (eliminates temp:0 drift).
   const bindField = (item: SupplementItem): SupplementItem => {
     const nm = item.item.toLowerCase()
-    const sq = pricing.roofSquares ?? 0
-    const vLF = pricing.valleyLF ?? 0
-    if ((nm.includes('secondary water') || nm.includes('water barrier') || nm.includes('underlayment')) && sq > 0 && pricing.swbRate) {
-      const total = Math.round(sq * pricing.swbRate)
-      return { ...item, suggested_quantity: `${sq} SQ`, suggested_unit_price: pricing.swbRate, suggested_total: total }
+    const sq = typeof pricing.roofSquares === 'number' ? pricing.roofSquares : 0
+    const vLF = typeof pricing.valleyLF === 'number' ? pricing.valleyLF : 0
+    const swbRate = typeof pricing.swbRate === 'number' ? pricing.swbRate : 0
+    const valleyRate = typeof pricing.valleyRate === 'number' ? pricing.valleyRate : 0
+    console.log('[bindField]', nm, '| sq:', sq, 'swbRate:', swbRate, 'vLF:', vLF, 'valleyRate:', valleyRate)
+    // SWB: match on 'water barrier' OR 'underlayment' — broad to catch Gemini name variations
+    if (sq > 0 && swbRate > 0 && (nm.includes('water') || nm.includes('underlayment') || nm.includes('barrier'))) {
+      const total = Math.round(sq * swbRate)
+      return { ...item, suggested_quantity: `${sq} SQ`, suggested_unit_price: swbRate, suggested_total: total }
     }
-    if (nm.includes('valley') && vLF > 0 && pricing.valleyRate) {
-      const total = Math.round(vLF * pricing.valleyRate)
-      return { ...item, suggested_quantity: `${vLF} LF`, suggested_unit_price: pricing.valleyRate, suggested_total: total }
+    if (vLF > 0 && valleyRate > 0 && nm.includes('valley')) {
+      const total = Math.round(vLF * valleyRate)
+      return { ...item, suggested_quantity: `${vLF} LF`, suggested_unit_price: valleyRate, suggested_total: total }
     }
     return item
   }
