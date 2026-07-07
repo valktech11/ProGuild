@@ -1,7 +1,8 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import { apiFetch } from '@/lib/api-fetch'
-import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, type SupplementResult, type SupplementItem, type MeasuredLinearFootage, type GroundedSupplementFlag, type DBLineItem } from '@/lib/fl/supplement'
+import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, itemNameToCorpusKey, type SupplementResult, type SupplementItem, type MeasuredLinearFootage, type GroundedSupplementFlag, type DBLineItem } from '@/lib/fl/supplement'
+import type { EvidenceMap } from '@/app/api/roofing/supplement/evidence/route'
 import { Card } from '@/components/ui/Card'
 
 interface Props {
@@ -23,29 +24,56 @@ function money(n: number): string {
 }
 
 // ── Item table ────────────────────────────────────────────────────────────────
-function ItemTable({ items, dk, accent }: { items: SupplementItem[]; dk: boolean; accent: string }) {
+function ItemTable({ items, dk, accent, evidence }: { items: SupplementItem[]; dk: boolean; accent: string; evidence: EvidenceMap }) {
   if (items.length === 0) return null
-  const border = dk ? '#334155' : '#E2E8F0'
-  const sub    = dk ? '#94A3B8' : '#64748B'
-  const text   = dk ? '#E2E8F0' : '#0F172A'
+  const border   = dk ? '#334155' : '#E2E8F0'
+  const sub      = dk ? '#94A3B8' : '#64748B'
+  const text     = dk ? '#E2E8F0' : '#0F172A'
+  const evBg     = dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC'
+  const reqColor = '#DC2626'
+  const optColor = sub
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {items.map((it, i) => (
-        <div key={i} style={{ borderRadius: 10, border: `1px solid ${border}`, borderLeft: `4px solid ${accent}`, padding: '12px 14px', background: dk ? 'rgba(255,255,255,0.02)' : '#fff' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: text }}>{it.item}</div>
-              <div style={{ fontSize: 12, color: sub, marginTop: 3, lineHeight: 1.45 }}>{it.reason}</div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6 }}>
-                {it.fl_code && <span style={{ fontSize: 11, fontWeight: 600, color: accent, background: accent + '14', padding: '2px 7px', borderRadius: 5 }}>{it.fl_code}</span>}
-                {it.suggested_quantity && <span style={{ fontSize: 11, color: sub }}>Qty: {it.suggested_quantity}</span>}
-                {it.suggested_unit_price > 0 && <span style={{ fontSize: 11, color: sub }}>@ {money(it.suggested_unit_price)}</span>}
+      {items.map((it, i) => {
+        const corpusKey = itemNameToCorpusKey(it.item)
+        const evItems   = corpusKey ? (evidence[corpusKey] ?? []) : []
+        const isCondition = evItems.length > 0 && evItems.every(e => e.evidence_type === 'photo' || e.evidence_type === 'video')
+        return (
+          <div key={i} style={{ borderRadius: 10, border: `1px solid ${border}`, borderLeft: `4px solid ${accent}`, background: dk ? 'rgba(255,255,255,0.02)' : '#fff', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: text }}>{it.item}</div>
+                  <div style={{ fontSize: 12, color: sub, marginTop: 3, lineHeight: 1.45 }}>{it.reason}</div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginTop: 6 }}>
+                    {it.fl_code && <span style={{ fontSize: 11, fontWeight: 600, color: accent, background: accent + '14', padding: '2px 7px', borderRadius: 5 }}>{it.fl_code}</span>}
+                    {it.suggested_quantity && <span style={{ fontSize: 11, color: sub }}>Qty: {it.suggested_quantity}</span>}
+                    {it.suggested_unit_price > 0 && <span style={{ fontSize: 11, color: sub }}>@ {money(it.suggested_unit_price)}</span>}
+                  </div>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: text, whiteSpace: 'nowrap' as const }}>{money(it.suggested_total)}</div>
               </div>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: text, whiteSpace: 'nowrap' }}>{money(it.suggested_total)}</div>
+            {evItems.length > 0 && (
+              <div style={{ borderTop: `1px solid ${border}`, background: evBg, padding: '10px 14px' }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: isCondition ? '#D97706' : sub, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 6 }}>
+                  {isCondition ? 'Field evidence required' : 'Documentation checklist'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+                  {evItems.map((ev, j) => (
+                    <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: ev.is_required ? reqColor : optColor, flexShrink: 0, marginTop: 1 }}>
+                        {ev.is_required ? '●' : '○'}
+                      </span>
+                      <span style={{ fontSize: 11, color: ev.is_required ? text : sub, lineHeight: 1.45 }}>{ev.description}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -105,6 +133,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   const [lastRun, setLastRun] = useState<string | null>(null)   // ISO timestamp of last saved run
   const [restoring, setRestoring] = useState(true)
   const [dbChecklist, setDbChecklist] = useState<DBLineItem[]>([])
+  const [evidence,    setEvidence]    = useState<EvidenceMap>({})
 
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
   // Bible §28: prefer the server-computed flags; local compute is a rollout fallback only.
@@ -123,7 +152,13 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
       .then(d => {
         if (d.session) {
           setScope(d.session.scope_text || '')
-          setResult(d.session.result_json as SupplementResult)
+          const restoredResult = d.session.result_json as SupplementResult
+          setResult(restoredResult)
+          if (restoredResult) {
+            const items = [...(restoredResult.missing_items||[]), ...(restoredResult.underpaid_items||[])]
+            const keys = [...new Set(items.map((i: SupplementItem) => itemNameToCorpusKey(i.item)).filter(Boolean))] as string[]
+            if (keys.length > 0) apiFetch(`/api/roofing/supplement/evidence?pro_id=${proId}&keys=${keys.join(',')}`).then(r=>r.json()).then(d=>{if(d.evidence)setEvidence(d.evidence)}).catch(()=>{})
+          }
           setLastRun(d.session.created_at)
         }
       })
@@ -141,7 +176,13 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`)
-      setResult((data as { result: SupplementResult }).result)
+      const newResult = (data as { result: SupplementResult }).result
+      setResult(newResult)
+      if (newResult) {
+        const items = [...(newResult.missing_items||[]), ...(newResult.underpaid_items||[])]
+        const keys = [...new Set(items.map((i: SupplementItem) => itemNameToCorpusKey(i.item)).filter(Boolean))] as string[]
+        if (keys.length > 0) apiFetch(`/api/roofing/supplement/evidence?pro_id=${proId}&keys=${keys.join(',')}`).then(r=>r.json()).then(d=>{if(d.evidence)setEvidence(d.evidence)}).catch(()=>{})
+      }
       setLastRun(new Date().toISOString())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.')
@@ -288,14 +329,14 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
             {result.missing_items.length > 0 && (
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Missing items</div>
-                <ItemTable items={result.missing_items} dk={dk} accent="#DC2626" />
+                <ItemTable items={result.missing_items} dk={dk} accent="#DC2626" evidence={evidence} />
               </div>
             )}
 
             {result.underpaid_items.length > 0 && (
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Underpaid items</div>
-                <ItemTable items={result.underpaid_items} dk={dk} accent="#D97706" />
+                <ItemTable items={result.underpaid_items} dk={dk} accent="#D97706" evidence={evidence} />
               </div>
             )}
 

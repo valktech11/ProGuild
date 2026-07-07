@@ -251,7 +251,6 @@ export function parseSupplementResponse(raw: string, pricing: SupplementPricing 
     const vLF = typeof pricing.valleyLF === 'number' ? pricing.valleyLF : 0
     const swbRate = typeof pricing.swbRate === 'number' ? pricing.swbRate : 0
     const valleyRate = typeof pricing.valleyRate === 'number' ? pricing.valleyRate : 0
-    console.log('[bindField]', nm, '| sq:', sq, 'swbRate:', swbRate, 'vLF:', vLF, 'valleyRate:', valleyRate)
     // SWB: match on 'water barrier' OR 'underlayment' — broad to catch Gemini name variations
     if (sq > 0 && swbRate > 0 && (nm.includes('water') || nm.includes('underlayment') || nm.includes('barrier'))) {
       const total = Math.round(sq * swbRate)
@@ -421,4 +420,23 @@ Rules:
 
 Return ONLY this JSON (no markdown, no extra text):
 {"missing_items":[{"item":"","reason":"","fl_code":"","suggested_quantity":"","suggested_unit_price":0,"suggested_total":0}],"underpaid_items":[{"item":"","reason":"","fl_code":"","suggested_quantity":"","suggested_unit_price":0,"suggested_total":0}],"total_supplement_estimate":0}`;
+}
+
+// ── Name→corpus key mapping (Phase B evidence organizer) ────────────────────
+// Maps Gemini-returned item names to supplement_line_items.key for evidence lookup.
+const NAME_KEY_MAP: Array<[RegExp, string]> = [
+  [/drip\s*edge/i,                         'drip_edge'],
+  [/starter\s*strip/i,                     'starter_strip'],
+  [/underlayment|secondary\s*water|water\s*barrier/i, 'underlayment'],
+  [/overhead|profit|o\s*&\s*p/i,           'op'],
+  [/steep|high\s*roof|step\d/i,            'steep_high'],
+  [/valley/i,                              'valley_metal'],
+  [/rot|deck(ing)?/i,                      'rotted_decking'],
+]
+
+export function itemNameToCorpusKey(itemName: string): string | null {
+  for (const [re, key] of NAME_KEY_MAP) {
+    if (re.test(itemName)) return key
+  }
+  return null
 }
