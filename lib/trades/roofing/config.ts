@@ -181,6 +181,7 @@ export const roofingConfig: RoofingConfig = {
         { label: 'Clients',    href: '/dashboard/clients',              icon: '👤', description: 'Homeowner contacts and job history' },
         { label: 'Properties', href: '/dashboard/roofing/property',     icon: '🏠', description: 'Property records, roof data, satellite reports' },
         { label: 'Warranties', href: '/dashboard/roofing/warranties',   icon: '🛡️', description: 'Shingle warranty records' },
+        { label: 'Price Book',  href: '/dashboard/settings/price-book',  icon: '📋', description: 'Your products and prices for estimates' },
       ],
     },
     {
