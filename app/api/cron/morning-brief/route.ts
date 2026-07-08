@@ -175,8 +175,8 @@ function buildBriefHtml({ name, date, events, overdue, estimates, invoices }: {
     <!-- Footer -->
     <div style="padding:16px 32px;border-top:1px solid #F1F5F9;background:#F8FAFC">
       <div style="font-size:11px;color:#94A3B8;text-align:center">
-        ProGuild &middot; <a href="https://staging.proguild.ai/dashboard" style="color:#0F766E;text-decoration:none">Open dashboard</a>
-        &middot; <a href="https://staging.proguild.ai/dashboard/settings" style="color:#94A3B8;text-decoration:none">Manage notifications</a>
+        ProGuild &middot; <a href="https://proguild.ai/dashboard" style="color:#0F766E;text-decoration:none">Open dashboard</a>
+        &middot; <a href="https://proguild.ai/dashboard/settings" style="color:#94A3B8;text-decoration:none">Manage notifications</a>
       </div>
     </div>
   </div>
