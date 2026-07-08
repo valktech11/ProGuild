@@ -154,7 +154,7 @@ function buildBriefHtml({ name, date, events, overdue, estimates, invoices }: {
     `<b>${fmtDate(e.follow_up_date)}</b> Follow-up &mdash; <b>${e.contact_name || 'Lead'}</b>`)
 
   const overdueRows = overdue.map(l =>
-    `<b>${l.contact_name || 'Lead'}</b> &mdash; follow-up was due <b>${fmtDate(l.follow_up_date)}</b> &middot; ${l.lead_status}`)
+    `<b>${l.contact_name || 'Lead'}</b> &mdash; follow-up was due <b>${fmtDate(l.follow_up_date)}</b> &middot; ${STAGE_LABELS[l.lead_status]||l.lead_status}`)
 
   const estRows = (estimates ?? []).map((e: any) =>
     `<b>${e.lead_name || 'Homeowner'}</b> &mdash; ${fmtMoney(e.total || 0)} estimate waiting for signature`)
