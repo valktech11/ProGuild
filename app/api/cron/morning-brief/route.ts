@@ -26,26 +26,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const sb   = getSupabaseAdmin()
-  const today = new Date()
+  const sb      = getSupabaseAdmin()
+  const previewProId = new URL(req.url).searchParams.get('pro_id')
+  const today   = new Date()
   today.setUTCHours(0, 0, 0, 0)
   const todayISO  = today.toISOString().slice(0, 10)
   const tomorrow  = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1)
 
-  // Active pros with email
-  const { data: pros } = await sb
-    .from('pros')
-    .select('id, full_name, email')
-    .eq('profile_status', 'Active')
-    .not('email', 'is', null)
+  // Active pros with email; preview can filter to one pro
+  let query = sb.from('pros').select('id, full_name, email')
+    .eq('profile_status', 'Active').not('email', 'is', null)
+  if (previewProId) query = query.eq('id', previewProId)
+  const { data: pros } = await query.limit(preview ? 1 : 500)
 
   if (!pros?.length) return NextResponse.json({ sent: 0 })
 
   let sent = 0, skipped = 0
   const errors: string[] = []
 
-  for (const pro of pros) {
-    try {
+  // Process in parallel batches of 5 to stay within timeout
+  const BATCH = 5
+  for (let b = 0; b < pros.length; b += BATCH) {
+    await Promise.all(pros.slice(b, b + BATCH).map(async (pro) => {
+  try {
       // 1. Today's calendar events
       const { data: events } = await sb
         .from('calendar_events')
@@ -108,6 +111,7 @@ export async function GET(req: NextRequest) {
     } catch (e: unknown) {
       errors.push(`${pro.id}: ${e instanceof Error ? e.message : String(e)}`)
     }
+    }))
   }
 
   return NextResponse.json({ sent, skipped, errors: errors.length ? errors : undefined })
