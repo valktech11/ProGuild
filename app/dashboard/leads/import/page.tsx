@@ -5,8 +5,8 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api-fetch'
 
-const TEMPLATE_HEADERS = 'contact_name,contact_email,contact_phone,property_address,contact_city,contact_state,contact_zip,lead_source,notes'
-const TEMPLATE_ROW     = 'John Smith,john@example.com,555-0100,123 Oak St,Tampa,FL,33601,Door Knock,'
+const TEMPLATE_HEADERS = 'contact_name,contact_email,contact_phone,property_address,contact_city,contact_state,contact_zip,lead_source,lead_status,follow_up_date,notes,insurance_claim,insurance_company,claim_number,claim_status,date_of_loss,approved_amount,deductible,supplement_amount,adjuster_name,adjuster_phone,roof_install_date'
+const TEMPLATE_ROW     = 'John Smith,john@example.com,555-0100,123 Oak St,Tampa,FL,33601,Door Knock,insurance_approved,2026-08-01,,yes,Allstate,ALL-2026-001,approved,2025-10-15,18500,2500,,Jane Adjuster,407-555-0100,2007-03-01'
 
 function downloadTemplate() {
   const csv = [TEMPLATE_HEADERS, TEMPLATE_ROW].join('\n')
@@ -53,13 +53,13 @@ export default function ImportPage() {
         {/* Header */}
         <button onClick={()=>router.back()} style={{ background:'none', border:'none', color:T.sub, fontSize:13, cursor:'pointer', marginBottom:16, padding:0 }}>← Back</button>
         <h1 style={{ fontSize:24, fontWeight:800, color:T.navy, margin:'0 0 4px', letterSpacing:'-0.02em' }}>Import Leads</h1>
-        <p style={{ fontSize:13.5, color:T.sub, marginBottom:28 }}>Upload a CSV from JobNimbus, Roofr, or any spreadsheet. Up to 500 leads per file.</p>
+        <p style={{ fontSize:13.5, color:T.sub, marginBottom:28 }}>Upload a CSV from JobNimbus, Roofr, AccuLynx, or any spreadsheet. Supports contact, property, job stage, and insurance/claim fields. Up to 500 leads per file.</p>
 
         {/* Template download */}
         <div style={{ background:T.card, border:`1px solid ${T.border}`, borderRadius:12, padding:'14px 18px', marginBottom:20, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div>
             <div style={{ fontSize:13.5, fontWeight:700, color:T.navy }}>Need a template?</div>
-            <div style={{ fontSize:12, color:T.sub, marginTop:2 }}>Download our CSV format with all supported columns</div>
+            <div style={{ fontSize:12, color:T.sub, marginTop:2 }}>Includes all fields: contact, property, job stage, insurance &amp; claim data</div>
           </div>
           <button onClick={downloadTemplate}
             style={{ background:T.teal, color:'#fff', border:'none', borderRadius:8, padding:'9px 16px', fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' as const }}>
