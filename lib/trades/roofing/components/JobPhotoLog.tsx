@@ -3,6 +3,7 @@
 // Used on lead detail page for all trades (roofing has insurance-specific phases).
 // Uploads to Cloudflare R2 via /api/leads/[id]/photos
 'use client'
+import { apiFetch } from '@/lib/api-fetch'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 
@@ -73,7 +74,7 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
     let cancelled = false
     setLoading(true)
 
-    fetch(`/api/leads/${leadId}/photos?pro_id=${proId}`)
+    apiFetch(`/api/leads/${leadId}/photos?pro_id=${proId}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then((data: { photos: JobPhoto[] }) => {
         if (!cancelled) { const photos_ = data.photos ?? []; setPhotos(photos_); onPhotosLoaded?.(photos_.length) }
@@ -116,7 +117,7 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
           fd.append('pro_id',  proId)
           fd.append('caption', '')
 
-          const res = await fetch(`/api/leads/${leadId}/photos`, {
+          const res = await apiFetch(`/api/leads/${leadId}/photos`, {
             method: 'POST',
             body:   fd,
           })
@@ -154,7 +155,7 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
     // Optimistic update
     setPhotos(prev => prev.filter(p => p.id !== photoId))
 
-    const res = await fetch(`/api/leads/${leadId}/photos/${photoId}?pro_id=${proId}`, {
+    const res = await apiFetch(`/api/leads/${leadId}/photos/${photoId}?pro_id=${proId}`, {
       method: 'DELETE',
     })
 
@@ -162,7 +163,7 @@ export default function JobPhotoLog({ leadId, proId, isRoofing, darkMode, onPhot
       // Revert on failure
       setError('Failed to delete photo — please try again')
       // Re-fetch to get accurate state
-      fetch(`/api/leads/${leadId}/photos?pro_id=${proId}`)
+      apiFetch(`/api/leads/${leadId}/photos?pro_id=${proId}`)
         .then(r => r.json())
         .then((d: { photos: JobPhoto[] }) => setPhotos(d.photos ?? []))
         .catch(() => {/* silent */})
