@@ -49,14 +49,12 @@ export async function GET(req: NextRequest) {
   for (let b = 0; b < pros.length; b += BATCH) {
     await Promise.all(pros.slice(b, b + BATCH).map(async (pro) => {
   try {
-      // 1. Today's calendar events
+      // 1. Today's scheduled leads (no calendar_events table — use leads)
       const { data: events } = await sb
-        .from('calendar_events')
-        .select('title, start_time, end_time, lead_id')
+        .from('leads')
+        .select('id, contact_name, lead_status, follow_up_date')
         .eq('pro_id', pro.id)
-        .gte('start_time', today.toISOString())
-        .lt('start_time', tomorrow.toISOString())
-        .order('start_time')
+        .eq('follow_up_date', todayISO)
 
       // 2. Overdue follow-ups
       const { data: overdue } = await sb
@@ -69,10 +67,10 @@ export async function GET(req: NextRequest) {
         .order('follow_up_date')
         .limit(10)
 
-      // 3. Unsigned estimates (sent = awaiting homeowner signature)
+      // 3. Sent estimates awaiting signature
       const { data: estimates } = await sb
         .from('estimates')
-        .select('id, estimate_type, total_price, created_at, lead_id, leads(contact_name)')
+        .select('id, total, created_at, lead_id, lead_name')
         .eq('pro_id', pro.id)
         .eq('status', 'sent')
         .order('created_at', { ascending: false })
@@ -81,7 +79,7 @@ export async function GET(req: NextRequest) {
       // 4. Unpaid invoices
       const { data: invoices } = await sb
         .from('invoices')
-        .select('id, total_amount, amount_paid, status, leads(contact_name)')
+        .select('id, total, balance_due, status, lead_name')
         .eq('pro_id', pro.id)
         .in('status', ['sent', 'partial'])
         .order('created_at', { ascending: false })
@@ -146,19 +144,17 @@ function buildBriefHtml({ name, date, events, overdue, estimates, invoices }: {
   events:    any[]; overdue: any[]
   estimates: any[]; invoices: any[]
 }) {
-  const calRows = events.map(e =>
-    `<b>${fmtTime(e.start_time)}</b> &mdash; ${e.title || 'Event'}`)
+  const calRows = (events ?? []).map((e: any) =>
+    `<b>${fmtDate(e.follow_up_date)}</b> Follow-up &mdash; <b>${e.contact_name || 'Lead'}</b>`)
 
   const overdueRows = overdue.map(l =>
     `<b>${l.contact_name || 'Lead'}</b> &mdash; follow-up was due <b>${fmtDate(l.follow_up_date)}</b> &middot; ${l.lead_status}`)
 
-  const estRows = estimates.map((e: any) =>
-    `<b>${(e.leads as any)?.contact_name || 'Homeowner'}</b> &mdash; ${fmtMoney(e.total_price || 0)} estimate waiting for signature`)
+  const estRows = (estimates ?? []).map((e: any) =>
+    `<b>${e.lead_name || 'Homeowner'}</b> &mdash; ${fmtMoney(e.total || 0)} estimate waiting for signature`)
 
-  const invRows = invoices.map((i: any) => {
-    const owed = (i.total_amount || 0) - (i.amount_paid || 0)
-    return `<b>${(i.leads as any)?.contact_name || 'Client'}</b> &mdash; ${fmtMoney(owed)} outstanding`
-  })
+  const invRows = (invoices ?? []).map((i: any) =>
+    `<b>${i.lead_name || 'Client'}</b> &mdash; ${fmtMoney(i.balance_due || 0)} outstanding`)
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
