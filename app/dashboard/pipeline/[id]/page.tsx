@@ -1960,6 +1960,20 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               )
                             })()}
 
+
+                            {/* ── Homeowner Portal card ──────────────────── */}
+                            {lead.contact_email && (
+                              <HomeownerPortalCard
+                                leadId={lead.id}
+                                proId={session!.id}
+                                contactName={lead.contact_name || ''}
+                                contactEmail={lead.contact_email}
+                                card={card} bdr={bdr} tp={tp} sub={ts} dk={dk}
+                                onSent={(email) => addToast(`Portal link sent to ${email}`, 'success')}
+                                onError={(msg) => addToast(msg, 'error')}
+                              />
+                            )}
+
                             {/* Contact & details — reference, sits below the work */}
                             <div style={{marginTop:(useSpine&&(!isRoofing||isClaim))?0:16,paddingTop:(useSpine&&(!isRoofing||isClaim))?0:16,borderTop:(useSpine&&(!isRoofing||isClaim))?'none':`1px solid ${bdr}`}}>
                               <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -2470,5 +2484,84 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id:string
     <Suspense fallback={null}>
       <LeadDetailInner params={params}/>
     </Suspense>
+  )
+}
+
+// ── Homeowner Portal Card ─────────────────────────────────────────────────────
+function HomeownerPortalCard({ leadId, proId, contactName, contactEmail, card, bdr, tp, sub, dk, onSent, onError }: {
+  leadId: string; proId: string; contactName: string; contactEmail: string
+  card: string; bdr: string; tp: string; sub: string; dk: boolean
+  onSent: (email: string) => void; onError: (msg: string) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [copied,  setCopied]  = useState(false)
+  const [url,     setUrl]     = useState<string|null>(null)
+
+  const TEAL = '#0F766E'
+
+  async function getUrl() {
+    if (url) return url
+    const r = await apiFetch(`/api/leads/${leadId}/public-link`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pro_id: proId }),
+    })
+    const d = await r.json()
+    const full = `${window.location.origin}${d.path}`
+    setUrl(full); return full
+  }
+
+  async function copyLink() {
+    const u = await getUrl()
+    await navigator.clipboard.writeText(u)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function sendEmail() {
+    setLoading(true)
+    try {
+      const r = await apiFetch('/api/leads/send-status-email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: leadId, pro_id: proId }),
+      })
+      const d = await r.json()
+      if (!r.ok) onError(d.error || 'Failed to send')
+      else onSent(contactEmail)
+    } finally { setLoading(false) }
+  }
+
+  const iconCopy = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+  const iconMail = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+
+  return (
+    <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: 12,
+      padding: '16px 20px', marginBottom: 14,
+      boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span style={{ fontSize: 18 }}>🏠</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: tp }}>Homeowner Portal</div>
+          <div style={{ fontSize: 12, color: sub, marginTop: 1 }}>
+            {contactName}{contactName && ' · '}{contactEmail}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={copyLink}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '9px 0', borderRadius: 9, border: `1px solid ${bdr}`,
+            background: 'transparent', color: TEAL, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          {iconCopy}
+          {copied ? 'Copied!' : 'Copy Link'}
+        </button>
+        <button onClick={sendEmail} disabled={loading}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '9px 0', borderRadius: 9, border: 'none',
+            background: TEAL, color: '#fff', fontSize: 13, fontWeight: 700,
+            cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {iconMail}
+          {loading ? 'Sending…' : 'Send via Email'}
+        </button>
+      </div>
+    </div>
   )
 }
