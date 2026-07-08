@@ -1,6 +1,7 @@
 'use client'
 
-import { Dispatch, SetStateAction, useState } from 'react'
+import { Dispatch, SetStateAction, useState, useEffect } from 'react'
+import { apiFetch } from '@/lib/api-fetch'
 import { theme, T } from '@/lib/tokens'
 import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import { Estimate, EstimateItem } from '@/app/dashboard/estimates/[id]/page'
@@ -45,6 +46,14 @@ export default function EstimateItems({
     }
     return estimate.discount || 0
   })
+
+  // ── Price book ───────────────────────────────────────────────────────────
+  const [pbItems, setPbItems] = useState<{id:string;name:string;description:string;unit:string;unit_price:number}[]>([])
+  useEffect(() => {
+    apiFetch('/api/price-book').then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.items) setPbItems(d.items) })
+      .catch(() => null)
+  }, [])
 
   // ── Design tokens ────────────────────────────────────────────────────────
   const t        = theme(dk)
@@ -178,6 +187,23 @@ export default function EstimateItems({
                 {/* Edit panel — same as desktop */}
                 {isEditing && (
                   <div style={{ padding: '12px 14px 16px', borderTop: `1px solid ${dk ? '#1e3a5f' : '#ccfbf1'}` }}>
+                    {pbItems.length > 0 && (
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={labelStyle}>From price book <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0, color:'#0F766E' }}>(optional)</span></label>
+                        <select
+                          defaultValue=""
+                          onChange={e => {
+                            const item = pbItems.find(i => i.id === e.target.value)
+                            if (item) setDraft(d => ({ ...d, name: item.name, description: item.description, unit_price: item.unit_price }))
+                          }}
+                          style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:`1.5px solid ${border}`, background: bgInput, color: colBody, fontSize:14, outline:'none', cursor:'pointer' }}>
+                          <option value="">Select item…</option>
+                          {pbItems.map(i => (
+                            <option key={i.id} value={i.id}>{i.name} — ${i.unit_price.toLocaleString('en-US',{minimumFractionDigits:2})}/{i.unit}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                       <div>
                         <label style={labelStyle}>Item Name</label>

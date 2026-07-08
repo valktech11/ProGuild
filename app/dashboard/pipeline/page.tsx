@@ -255,6 +255,14 @@ export default function PipelinePage() {
               )}
             </button>
 
+            {/* Import from CSV */}
+            <a href="/dashboard/leads/import"
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px', borderRadius:8,
+                fontSize:13, fontWeight:600, color:'#0F766E', border:'1.5px solid #0F766E',
+                background:'transparent', textDecoration:'none', whiteSpace:'nowrap' as const }}>
+              ↑ Import
+            </a>
+
           </div>
         </div>
 
