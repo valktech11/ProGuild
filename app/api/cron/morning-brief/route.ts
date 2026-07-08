@@ -90,6 +90,7 @@ export async function GET(req: NextRequest) {
       // Skip if nothing actionable
       const hasContent = (events?.length || 0) + (overdue?.length || 0) +
                          (estimates?.length || 0) + (invoices?.length || 0) > 0
+      console.log('[brief]', pro.id, {events: events?.length, overdue: overdue?.length, estimates: estimates?.length, invoices: invoices?.length})
       if (!hasContent) { skipped++; return }
 
       const html = buildBriefHtml({
