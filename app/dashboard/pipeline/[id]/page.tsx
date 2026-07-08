@@ -2310,11 +2310,21 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     {/* Photos — glanceable thumbnails in the rail; tap opens the full modal */}
                     {useSpine && isWide && isRoofing && (
                       <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
-                        <button onClick={()=>setPhotosModalOpen(true)} style={{width:'100%',padding:'14px 16px 10px',display:'flex',alignItems:'center',gap:7,background:'none',border:'none',borderBottom:`1px solid ${bdr}`,cursor:'pointer',textAlign:'left' as const}}>
-                          <Svg size={14} stroke={BRAND.teal}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Svg>
-                          <span style={{fontSize:14,fontWeight:700,color:tp}}>Photos{photoCount>0?` (${photoCount})`:''}</span>
-                          <span style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal}}>{photoCount>0?'View all':'+ Add'}</span>
-                        </button>
+                        <div style={{display:'flex',alignItems:'center',gap:0,borderBottom:`1px solid ${bdr}`}}>
+                          <button onClick={()=>setPhotosModalOpen(true)} style={{flex:1,padding:'14px 16px 10px',display:'flex',alignItems:'center',gap:7,background:'none',border:'none',cursor:'pointer',textAlign:'left' as const}}>
+                            <Svg size={14} stroke={BRAND.teal}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Svg>
+                            <span style={{fontSize:14,fontWeight:700,color:tp}}>Photos{photoCount>0?` (${photoCount})`:''}</span>
+                            <span style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal}}>{photoCount>0?'View all':'+ Add'}</span>
+                          </button>
+                          {photoCount>0&&<button title="Download photo report PDF" onClick={async()=>{
+                            const r=await apiFetch(`/api/leads/${lead.id}/photos/report`,{method:'POST'})
+                            if(!r.ok)return
+                            const b=await r.blob();const u=URL.createObjectURL(b)
+                            const a=document.createElement('a');a.href=u;a.download=`photo-report-${lead.id.slice(0,8)}.pdf`;a.click();URL.revokeObjectURL(u)
+                          }} style={{padding:'10px 12px',background:'none',border:'none',cursor:'pointer',color:BRAND.teal,fontSize:12,fontWeight:700}}>
+                            ↓ PDF
+                          </button>}
+                        </div>
                         <div onClick={()=>setPhotosModalOpen(true)} style={{padding:12,cursor:'pointer'}}>
                           {photoCount>0 ? (
                             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6}}>

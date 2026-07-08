@@ -89,6 +89,17 @@ export default function SettingsPage() {
         <p style={{ fontSize: 13.5, color: t.textSubtle, marginBottom: 28 }}>About ProGuild and how to reach support.</p>
 
         <div style={{ ...card, marginBottom: 18 }}>
+          <div style={sectionLabel}>TOOLS</div>
+          <Link href="/dashboard/settings/price-book" style={{ ...linkRow, textDecoration: 'none' }}>
+            <div>
+              <div style={rowLabel}>Price Book</div>
+              <div style={rowSub}>Your products and prices, applied to every estimate</div>
+            </div>
+            <span style={{ fontSize: 13.5, color: '#2DD4BF', fontWeight: 600 }}>Manage →</span>
+          </Link>
+        </div>
+
+        <div style={{ ...card, marginBottom: 18 }}>
           <div style={sectionLabel}>ABOUT</div>
           <div style={linkRow}>
             <div>
