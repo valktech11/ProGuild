@@ -118,6 +118,12 @@ export async function GET(req: NextRequest) {
 
 // ── Email template ────────────────────────────────────────────────────────────
 
+const STAGE_LABELS: Record<string,string> = {
+  lead_in:'Lead In',inspection:'Inspection',insurance_approved:'Ins. Approved',
+  proposal_sent:'Proposal Sent',proposal_signed:'Proposal Signed',
+  scheduled:'Scheduled',in_progress:'In Progress',job_won:'Job Won',lost:'Lost'
+}
+
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 }
