@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
         .eq('pro_id', pro.id)
         .not('follow_up_date', 'is', null)
         .lt('follow_up_date', todayISO)
-        .not('lead_status', 'in', '("job_won","lost")')
+        .not('lead_status', 'in', '(job_won,lost)')
         .order('follow_up_date')
         .limit(10)
 
