@@ -15,6 +15,7 @@ export const maxDuration = 45
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePro } from '@/lib/pro-auth'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
 
 // ── CSV parse ────────────────────────────────────────────────────────────────
 function parseCsv(text: string): Record<string, string>[] {
@@ -127,7 +128,7 @@ export async function POST(req: NextRequest) {
   const rawRows = parseCsv(text)
   if (!rawRows.length) return NextResponse.json({ error: 'No rows found in CSV' }, { status: 400 })
 
-  const sb = getSupabaseAdmin()
+  const sb = auditedAdmin(req, { actorId: auth.proId!, actorType: 'pro' })
 
   // Pro trade for initial stage
   const { data: pro } = await sb.from('pros').select('trade_slug').eq('id', auth.proId).maybeSingle()

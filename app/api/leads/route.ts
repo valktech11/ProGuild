@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
 import { leadNotificationEmail } from '@/lib/email'
 import { Resend } from 'resend'
 import { moderateContent } from '@/lib/moderation'
@@ -166,7 +167,12 @@ export async function POST(req: NextRequest) {
     }, { status: 422 })
   }
 
-  const supabase = getSupabaseAdmin()
+  // Actor context: manual flow = the signed-in pro; public form = the prospect
+  // (homeowner). Either way the write is audited with the right source/actor_type.
+  const supabase = auditedAdmin(req, {
+    actorId: is_manual ? pro_id : pro_id, // pro_id owns the record in both flows
+    actorType: is_manual ? 'pro' : 'homeowner',
+  })
 
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase

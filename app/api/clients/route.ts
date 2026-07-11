@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
 import { requirePro } from '@/lib/pro-auth'
 
 // GET /api/clients?pro_id=xxx — list all clients for a pro
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'pro_id and full_name required' }, { status: 400 })
   }
 
-  const db = getSupabaseAdmin()
+  const db = auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
 
   // ── Dedup guard: match existing client by phone → email → name+address ──
   // Prevents duplicate client rows from repeated "Save as Property" clicks,
@@ -110,8 +111,8 @@ export async function PATCH(req: NextRequest) {
   const updates: Record<string, any> = { updated_at: new Date().toISOString() }
   for (const key of allowed) { if (key in fields) updates[key] = fields[key] }
 
-  const { data, error } = await getSupabaseAdmin()
-    .from('clients').update(updates).eq('id', id).select().single()
+  const { data, error } = await auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
+    .from('clients').update(updates).eq('id', id).eq('pro_id', __auth.proId!).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ client: data })

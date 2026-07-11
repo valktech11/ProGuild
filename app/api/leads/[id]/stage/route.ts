@@ -9,8 +9,10 @@
 //      directly and never pass through here, so they are unaffected.
 // Writes to pipeline_events on every successful transition.
 
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
+import { requirePro } from '@/lib/pro-auth'
 import { getTradeConfig, isRoofing } from '@/lib/trades/_registry'
 import { validateUserMove } from '@/lib/trades/roofing/stage-rules'
 import { gatherRoofingStageContext } from '@/lib/trades/roofing/stage-context'
@@ -44,7 +46,11 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     if (!UUID_RE.test(pro_id))
       return NextResponse.json({ error: 'Invalid pro_id' }, { status: 400 })
 
-    const sb = getSupabaseAdmin()
+    // Verify the caller owns this pro_id (defense beyond the query-scope below).
+    const __auth = await requirePro(req as NextRequest, pro_id)
+    if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+    const sb = auditedAdmin(req, { actorId: __auth.proId, actorType: 'pro' })
 
     // ── Fetch lead — ownership enforced ──────────────────────────────────
     const { data: lead, error: fetchError } = await sb
