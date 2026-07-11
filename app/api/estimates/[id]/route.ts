@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
+import { requirePro } from '@/lib/pro-auth'
 import { getStageAnchors } from '@/lib/trades/_registry'
 import { computeMilestones } from '@/lib/estimates/milestones'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
@@ -168,8 +170,19 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  // IDOR fix: this route previously had no auth guard and updated estimates by
+  // id alone. Now server-derives proId and scopes all writes to the owning pro.
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
+  const proId = __auth.proId
   const body = await req.json()
-  const sb = getSupabaseAdmin()
+  const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
+
+  // Ownership check: confirm the estimate belongs to this pro before any write.
+  const { data: ownerRow, error: ownerErr } = await sb
+    .from('estimates').select('pro_id').eq('id', id).single()
+  if (ownerErr || !ownerRow) return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
+  if (ownerRow.pro_id !== proId) return NextResponse.json({ error: 'Access denied' }, { status: 403 })
 
   const {
     items, subtotal, discount, discount_type, tax_rate, tax_amount, total,
@@ -219,7 +232,7 @@ export async function PATCH(
   if (declined_at     !== undefined) updatePayload.declined_at     = declined_at
   if (decline_reason  !== undefined) updatePayload.decline_reason  = decline_reason
 
-  const { error: estError } = await sb.from('estimates').update(updatePayload).eq('id', id)
+  const { error: estError } = await sb.from('estimates').update(updatePayload).eq('id', id).eq('pro_id', proId)
   if (estError) return NextResponse.json({ error: estError.message }, { status: 500 })
 
   // ── Roofing-specific fields → roofing_estimate_data ──────────────────────
@@ -458,14 +471,21 @@ function buildTimeline(estimate: any) {
 
 // ── DELETE /api/estimates/[id] ───────────────────────────────────────────────
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { error } = await getSupabaseAdmin()
+  // IDOR fix: was an unguarded delete-by-id. Now auth-scoped + audited.
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
+  const proId = __auth.proId
+  const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
+
+  const { error } = await sb
     .from('estimates')
     .delete()
     .eq('id', id)
+    .eq('pro_id', proId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
