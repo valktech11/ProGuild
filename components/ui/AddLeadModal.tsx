@@ -3,6 +3,7 @@ import { theme } from '@/lib/tokens'
 import { capName } from '@/lib/utils'
 import { useState, useRef } from 'react'
 import { getTradeLabels } from '@/lib/trades/_registry'
+import { apiFetch } from '@/lib/api-fetch'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
 import { LEAD_SOURCES } from '@/lib/trades/roofing/leadSources'
 
@@ -132,7 +133,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk=fa
     if (!phone.trim()&&!email.trim())   { setErr('Phone or email is required'); return }
     if (!need.trim())                   { setErr('Describe what they need'); return }
     setSaving(true); setErr('')
-    const r = await fetch('/api/leads', {
+    const r = await apiFetch('/api/leads', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         pro_id: proId, contact_name: name.trim(),
