@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
 import { apiError, isValidUuid } from '@/lib/api/utils'
 import { LeadStatus } from '@/types'
 import { getAllTradeStageKeys } from '@/lib/trades/_registry'
@@ -244,7 +245,7 @@ export async function PATCH(
   let leadData: Record<string, unknown> | null = null
   if (Object.keys(updateFields).length > 0) {
     updateFields.updated_at = new Date().toISOString()
-    const { data, error } = await getSupabaseAdmin()
+    const { data, error } = await auditedAdmin(req, { actorId: proId, actorType: 'pro' })
       .from('leads')
       .update(updateFields)
       .eq('id', id)
