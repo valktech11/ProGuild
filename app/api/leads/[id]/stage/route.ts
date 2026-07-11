@@ -42,7 +42,8 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       )
     }
 
-    const { stage: newStage, pro_id, lost_reason } = body as { stage: string; pro_id: string; lost_reason?: string }
+    const { stage: newStage, pro_id, lost_reason, inspection_date, scheduled_date, scheduled_time } =
+      body as { stage: string; pro_id: string; lost_reason?: string; inspection_date?: string; scheduled_date?: string; scheduled_time?: string }
     if (!UUID_RE.test(pro_id))
       return NextResponse.json({ error: 'Invalid pro_id' }, { status: 400 })
 
@@ -160,6 +161,11 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       updatePayload.lost_reason = lost_reason
     }
     if (resolvedClientId) updatePayload.client_id = resolvedClientId
+    // Date fields from the stage prompt (inspection_date, scheduled_date) fold
+    // into the single leads UPDATE — no separate patchLead call needed from mobile.
+    if (inspection_date !== undefined) updatePayload.inspection_date = inspection_date
+    if (scheduled_date  !== undefined) updatePayload.scheduled_date  = scheduled_date
+    if (scheduled_time  !== undefined) updatePayload.scheduled_time  = scheduled_time
 
     const { error: updateError } = await sb
       .from('leads')
