@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
+import { requirePro } from '@/lib/pro-auth'
 import { getStageAnchors } from '@/lib/trades/_registry'
 import { computeInvoiceBalances } from '@/lib/invoices/balances'
 
@@ -17,7 +19,12 @@ export async function POST(
 ) {
   const { id } = await params
   const body = await req.json()
-  const sb = getSupabaseAdmin()
+
+  // IDOR fix: payment recording was unguarded. Now auth-scoped + audited.
+  const __auth = await requirePro(req, body.pro_id ?? new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const proId = __auth.proId
+  const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
 
   const amount = Number(body.amount)
   if (!isFinite(amount) || amount <= 0) {
@@ -28,16 +35,11 @@ export async function POST(
     .from('invoices')
     .select('id, pro_id, lead_id, estimate_id, total, payment_history, status, paid_at')
     .eq('id', id)
+    .eq('pro_id', proId)
     .single()
   if (loadErr || !inv) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
   }
-
-  // Optional ownership guard (web passes pro_id; if present it must match)
-  if (body.pro_id && inv.pro_id && body.pro_id !== inv.pro_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
   const total = Number(inv.total) || 0
   const existing = (inv.payment_history as Array<{ amount?: number | null }> | null) ?? []
   const currentPaid = Math.round(existing.reduce((s, p) => s + (Number(p?.amount) || 0), 0) * 100) / 100
