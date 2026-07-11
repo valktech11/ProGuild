@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
 import { requirePro } from '@/lib/pro-auth'
 
 export const runtime = 'nodejs'
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invoice_id and pro_id are required' }, { status: 400 })
   }
 
-  const sb = getSupabaseAdmin()
+  const sb = auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
 
   // Fetch invoice
   const { data: inv, error: invErr } = await sb

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
+import { requirePro } from '@/lib/pro-auth'
 import { getStageAnchors } from '@/lib/trades/_registry'
 
 // Always read fresh from the database — never serve a cached response.
@@ -63,8 +65,18 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  // IDOR fix: was unguarded update-by-id. Now auth-scoped + audited.
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const proId = __auth.proId
   const body   = await req.json()
-  const sb     = getSupabaseAdmin()
+  const sb     = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
+
+  // Ownership: confirm the invoice belongs to this pro before any write.
+  const { data: ownerRow, error: ownerErr } = await sb
+    .from('invoices').select('pro_id').eq('id', id).single()
+  if (ownerErr || !ownerRow) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+  if (ownerRow.pro_id !== proId) return NextResponse.json({ error: 'Access denied' }, { status: 403 })
 
   const allowed = [
     'status', 'payment_terms', 'due_date', 'notes', 'terms',
@@ -79,7 +91,7 @@ export async function PATCH(
     if (key in body) payload[key] = body[key]
   }
 
-  const { data, error } = await sb.from('invoices').update(payload).eq('id', id).select().single()
+  const { data, error } = await sb.from('invoices').update(payload).eq('id', id).eq('pro_id', proId).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // ── Invoice paid → auto-advance lead to job_won ──────────────────────────
@@ -137,12 +149,17 @@ export async function PATCH(
 
 // ── DELETE /api/invoices/[id] (void) ────────────────────────────────────
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { error } = await getSupabaseAdmin()
-    .from('invoices').update({ status: 'void' }).eq('id', id)
+  // IDOR fix: was unguarded void-by-id. Now auth-scoped + audited.
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const proId = __auth.proId
+  const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
+  const { error } = await sb
+    .from('invoices').update({ status: 'void' }).eq('id', id).eq('pro_id', proId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
