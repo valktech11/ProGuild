@@ -1,5 +1,6 @@
 'use client'
 import React, { useRef, useState, useEffect } from 'react'
+import { apiFetch } from '@/lib/api-fetch'
 
 type Tier = { key: string; subtotal: number }
 
@@ -75,7 +76,7 @@ export default function InPersonSignModal({ estimateId, proId, tiers, onClose, o
     setErr(null)
     const dataUrl = canvasRef.current!.toDataURL('image/png')
     try {
-      const r = await fetch(`/api/estimates/${estimateId}/sign-offline`, {
+      const r = await apiFetch(`/api/estimates/${estimateId}/sign-offline`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pro_id: proId, signer_name: signerName.trim(), sig_data_url: dataUrl, selected_tier: selectedTier }),

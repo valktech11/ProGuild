@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { apiFetch } from '@/lib/api-fetch'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Lead } from '@/types'
@@ -307,7 +308,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
     try {
       const session = _pgSession
       if (!session) { setCreatingEst(false); return }
-      const r = await fetch('/api/estimates', {
+      const r = await apiFetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -338,7 +339,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
     try {
       const session = _pgSession
       if (!session) { setCreatingEst(false); return }
-      const r = await fetch('/api/estimates', {
+      const r = await apiFetch('/api/estimates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -901,7 +902,7 @@ function LeadQuickView({ leadId, onClose, onFullDetail, stages = getPipelineStag
     if (!session) return
     setSavingNote(true)
     try {
-      await fetch(`/api/leads/${leadId}`, {
+      await apiFetch(`/api/leads/${leadId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pro_id: session.id, notes: (lead?.notes ? lead.notes + '\n' : '') + note }),
@@ -1743,7 +1744,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
             const { lead, targetStage } = pendingLostLead
             setPendingLostLead(null)
             // Fire stage change with reason — the stage route saves it
-            await fetch(`/api/leads/${lead.id}/stage`, {
+            await apiFetch(`/api/leads/${lead.id}/stage`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

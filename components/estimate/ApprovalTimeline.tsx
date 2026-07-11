@@ -1,6 +1,7 @@
 'use client'
 
 import { Send, Eye, CheckCircle2, CreditCard, Phone } from 'lucide-react'
+import { apiFetch } from '@/lib/api-fetch'
 import { theme } from '@/lib/tokens'
 
 type TimelineEvent = { event: string; label: string; timestamp: string | null }
@@ -25,7 +26,7 @@ export default function ApprovalTimeline({ timeline, darkMode, estimateId, conta
   const sendReminder = async () => {
     if (!contactEmail) { onAction?.('No email on file for this lead'); return }
     try {
-      const r = await fetch('/api/estimates/send-reminder', {
+      const r = await apiFetch('/api/estimates/send-reminder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estimateId, contactEmail }),

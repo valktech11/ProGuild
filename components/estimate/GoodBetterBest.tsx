@@ -5,6 +5,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { apiFetch } from '@/lib/api-fetch'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export interface TierLineItem {
@@ -96,7 +97,7 @@ export default function GoodBetterBest({ estimateId, proId, initial, darkMode, o
     setSaved(false)
 
     try {
-      const res = await fetch(`/api/estimates/${estimateId}`, {
+      const res = await apiFetch(`/api/estimates/${estimateId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pro_id: proId, tiered_data: tiers }),

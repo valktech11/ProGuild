@@ -5,6 +5,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { apiFetch } from '@/lib/api-fetch'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export interface InsuranceClaimData {
@@ -71,7 +72,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode,
     setFields(f => ({ ...f, insurance_claim: newOpen }))
 
     // Persist toggle state immediately — no full form save needed
-    await fetch(`/api/leads/${leadId}`, {
+    await apiFetch(`/api/leads/${leadId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pro_id: proId, insurance_claim: newOpen }),
@@ -98,7 +99,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode,
     }
 
     try {
-      const res = await fetch(`/api/leads/${leadId}`, {
+      const res = await apiFetch(`/api/leads/${leadId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

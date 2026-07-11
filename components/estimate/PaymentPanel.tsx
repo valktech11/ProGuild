@@ -1,6 +1,7 @@
 'use client'
 
 import { Dispatch, SetStateAction } from 'react'
+import { apiFetch } from '@/lib/api-fetch'
 import { CreditCard, Link2 } from 'lucide-react'
 import { Estimate } from '@/app/dashboard/estimates/[id]/page'
 import { theme } from '@/lib/tokens'
@@ -18,7 +19,7 @@ export default function PaymentPanel({ estimate, setEstimate, darkMode, onAction
   const requestDeposit = async () => {
     if (!estimate.contact_email) { onAction?.('No email on file — add email to this lead first'); return }
     try {
-      const r = await fetch('/api/estimates/request-deposit', {
+      const r = await apiFetch('/api/estimates/request-deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estimateId: estimate.id, estimateNumber: estimate.estimate_number, contactEmail: estimate.contact_email, leadName: estimate.lead_name, depositAmount, total: estimate.total }),
