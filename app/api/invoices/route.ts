@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
 import { requirePro } from '@/lib/pro-auth'
 
 // ── GET /api/invoices?pro_id=xxx ──────────────────────────────────────────
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
-  const sb = getSupabaseAdmin()
+  const sb = auditedAdmin(req, { actorId: __auth.proId, actorType: 'pro' })
   let invoiceData: Record<string, unknown> = { pro_id, lead_id, lead_name, trade, contact_name, contact_email, contact_phone }
 
   if (estimate_id) {

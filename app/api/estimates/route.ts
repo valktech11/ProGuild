@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
 import { CALCULATOR_LINE_NAMES } from '@/lib/roofing/calculator'
 import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
 
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'lead_id required — estimates must be linked to a lead' }, { status: 400 })
   }
 
-  const sb = getSupabaseAdmin()
+  const sb = auditedAdmin(req, { actorId: __auth.proId, actorType: 'pro' })
 
   // Tax follows the JOB location, not the client-passed session snapshot.
   // Resolve once here so every branch (create / revision / re-price) keys tax

@@ -34,7 +34,7 @@ function requestContext(req: Request): { source: string; device: string; ip: str
     : /dart|proguild_mobile|okhttp/i.test(ua) ? 'mobile'
     : 'web'
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim()
-    || h.get('x-real-ip')
+    || h.get('x-real-ip')?.trim()
     || ''
   // Keep device descriptor compact — trim UA to 250 chars.
   const device = ua.slice(0, 250)
