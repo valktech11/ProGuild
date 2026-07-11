@@ -192,24 +192,82 @@ export async function POST(req: NextRequest) {
       : property_address.trim()
     : null
 
-  // ── Insert lead ───────────────────────────────────────────────────────────
+  // ── Pre-resolve client_id and property_id before INSERT ──────────────────
+  // Resolving first guarantees the lead is created once with all FKs already
+  // set — no follow-up leads UPDATEs for client_id/property_id (one audit row).
+  let clientId: string | null = client_id || null
+  try {
+    if (!clientId && contact_phone) {
+      const { data: byPhone } = await supabase.from('clients').select('id')
+        .eq('pro_id', pro_id).eq('phone', contact_phone.trim()).maybeSingle()
+      if (byPhone) clientId = byPhone.id
+    }
+    if (!clientId && contact_email) {
+      const { data: byEmail } = await supabase.from('clients').select('id')
+        .eq('pro_id', pro_id).eq('email', contact_email.toLowerCase().trim()).maybeSingle()
+      if (byEmail) clientId = byEmail.id
+    }
+    if (!clientId && contact_name && streetOnly) {
+      const { data: byNameAddr } = await supabase.from('clients').select('id')
+        .eq('pro_id', pro_id).ilike('full_name', contact_name.trim())
+        .eq('address_line1', streetOnly).maybeSingle()
+      if (byNameAddr) clientId = byNameAddr.id
+    }
+    if (!clientId) {
+      const { data: newClient } = await supabase.from('clients').insert({
+        pro_id,
+        full_name:     contact_name.trim(),
+        phone:         contact_phone?.trim()               || null,
+        email:         contact_email?.toLowerCase().trim() || null,
+        address_line1: streetOnly                          || null,
+        city:          contact_city?.trim()                || null,
+        state:         contact_state?.trim()               || null,
+        zip_code:      contact_zip?.trim()                 || null,
+      }).select('id').single()
+      if (newClient) clientId = newClient.id
+    }
+  } catch (e) { console.error('Client pre-resolve failed:', e) }
+
+  let propertyId: string | null = null
+  if (streetOnly) {
+    try {
+      const { data: existingProp } = await supabase.from('properties').select('id')
+        .eq('pro_id', pro_id).eq('address_line1', streetOnly).maybeSingle()
+      propertyId = existingProp?.id ?? null
+      if (!propertyId) {
+        const { data: newProp } = await supabase.from('properties').insert({
+          pro_id,
+          address_line1: streetOnly,
+          city:          contact_city?.trim()  || null,
+          state:         contact_state?.trim() || null,
+          zip_code:      contact_zip?.trim()   || null,
+          client_id:     clientId              || null,
+          property_type: 'residential',
+        }).select('id').single()
+        if (newProp) propertyId = newProp.id
+      }
+    } catch (e) { console.error('Property pre-resolve failed:', e) }
+  }
+
+  // ── Insert lead (single write — client_id + property_id already resolved) ─
   const { data: lead, error } = await supabase
     .from('leads')
     .insert({
       pro_id,
-      job_id:          job_id || null,
-      trade_slug:      tradeSlug,                // ✅ Phase 2: write trade_slug to lead
+      job_id:           job_id || null,
+      trade_slug:       tradeSlug,
       contact_name,
-      contact_email:   contact_email ? contact_email.toLowerCase().trim() : null,
-      contact_phone:   contact_phone || null,
+      contact_email:    contact_email ? contact_email.toLowerCase().trim() : null,
+      contact_phone:    contact_phone || null,
       message,
-      lead_status:     initialStage,
-      lead_source:     lead_source || 'Profile_Page',
-      client_id:       client_id || null,
+      lead_status:      initialStage,
+      lead_source:      lead_source || 'Profile_Page',
+      client_id:        clientId    || null,
+      property_id:      propertyId  || null,
       property_address: streetOnly,
-      contact_city:    contact_city?.trim() || null,
-      contact_state:   contact_state?.trim() || null,
-      contact_zip:     contact_zip?.trim() || null,
+      contact_city:     contact_city?.trim()  || null,
+      contact_state:    contact_state?.trim() || null,
+      contact_zip:      contact_zip?.trim()   || null,
     })
     .select()
     .single()
@@ -245,82 +303,8 @@ export async function POST(req: NextRequest) {
     } catch (e) { console.error('Email failed:', e) }
   }
 
-  // ── Auto-link client ──────────────────────────────────────────────────────
-  // Match existing client by phone → email → create new
-  let clientId: string | null = null
-  try {
-    if (contact_phone) {
-      const { data: byPhone } = await supabase.from('clients').select('id')
-        .eq('pro_id', pro_id).eq('phone', contact_phone.trim()).maybeSingle()
-      if (byPhone) clientId = byPhone.id
-    }
-    if (!clientId && contact_email) {
-      const { data: byEmail } = await supabase.from('clients').select('id')
-        .eq('pro_id', pro_id).eq('email', contact_email.toLowerCase().trim()).maybeSingle()
-      if (byEmail) clientId = byEmail.id
-    }
-    // Third fallback: match by name + address (catches leads created without phone/email)
-    if (!clientId && contact_name && streetOnly) {
-      const { data: byNameAddr } = await supabase.from('clients').select('id')
-        .eq('pro_id', pro_id)
-        .ilike('full_name', contact_name.trim())
-        .eq('address_line1', streetOnly)
-        .maybeSingle()
-      if (byNameAddr) clientId = byNameAddr.id
-    }
-    if (!clientId) {
-      const { data: newClient } = await supabase.from('clients').insert({
-        pro_id,
-        full_name:    contact_name.trim(),
-        phone:        contact_phone?.trim()              || null,
-        email:        contact_email?.toLowerCase().trim() || null,
-        address_line1: streetOnly                        || null,
-        city:         contact_city?.trim()               || null,
-        state:        contact_state?.trim()              || null,
-        zip_code:     contact_zip?.trim()                || null,
-      }).select('id').single()
-      if (newClient) clientId = newClient.id
-    }
-    if (clientId) {
-      await supabase.from('leads').update({ client_id: clientId }).eq('id', lead.id)
-      lead.client_id = clientId
-    }
-  } catch (e) { console.error('Client auto-link failed:', e) }
-
-  // ── Auto-create / match property and set property_id ─────────────────────
-  // Only if the lead has an address
-  if (streetOnly) {
-    try {
-      // Try to match existing property by address + pro
-      const { data: existingProp } = await supabase
-        .from('properties')
-        .select('id')
-        .eq('pro_id', pro_id)
-        .eq('address_line1', streetOnly)
-        .maybeSingle()
-
-      let propertyId: string | null = existingProp?.id ?? null
-
-      if (!propertyId) {
-        // Create new property record
-        const { data: newProp } = await supabase.from('properties').insert({
-          pro_id,
-          address_line1: streetOnly,
-          city:          contact_city?.trim()  || null,
-          state:         contact_state?.trim() || null,
-          zip_code:      contact_zip?.trim()   || null,
-          client_id:     clientId              || null,
-          property_type: 'residential',
-        }).select('id').single()
-        if (newProp) propertyId = newProp.id
-      }
-
-      if (propertyId) {
-        await supabase.from('leads').update({ property_id: propertyId }).eq('id', lead.id)
-        lead.property_id = propertyId
-      }
-    } catch (e) { console.error('Property auto-link failed:', e) }
-  }
+  // Client and property were resolved before INSERT — no follow-up writes needed.
+  // lead.client_id and lead.property_id are already set in the INSERT above.
 
   // ── Create roofing_job_data row for roofing pros ─────────────────────────
   // Ensures the row always exists so insurance/measurement PATCHes upsert cleanly
