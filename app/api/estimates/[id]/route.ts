@@ -173,7 +173,7 @@ export async function PATCH(
   // IDOR fix: this route previously had no auth guard and updated estimates by
   // id alone. Now server-derives proId and scopes all writes to the owning pro.
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
-  if (__auth.error) return __auth.error
+  if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const proId = __auth.proId
   const body = await req.json()
   const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
@@ -232,8 +232,10 @@ export async function PATCH(
   if (declined_at     !== undefined) updatePayload.declined_at     = declined_at
   if (decline_reason  !== undefined) updatePayload.decline_reason  = decline_reason
 
-  const { error: estError } = await sb.from('estimates').update(updatePayload).eq('id', id).eq('pro_id', proId)
-  if (estError) return NextResponse.json({ error: estError.message }, { status: 500 })
+  // NOTE: estimates UPDATE is deferred to a single write at the end of this
+  // handler so one logical save produces exactly one estimates audit row.
+  // The authoritative total (tiered or standard) is folded into updatePayload
+  // before that single write, replacing any client-sent total.
 
   // ── Roofing-specific fields → roofing_estimate_data ──────────────────────
   // Only upsert if any roofing field is present in the payload
@@ -260,40 +262,28 @@ export async function PATCH(
       if (pitch              !== undefined) roofingPayload.pitch              = pitch
       if (waste_pct          !== undefined) roofingPayload.waste_pct          = waste_pct
 
-      await sb.from('roofing_estimate_data')
-        .upsert(roofingPayload, { onConflict: 'estimate_id' })
-
-      // Sync estimates.total when GBB tiered_data is saved
-      // Use selected_tier subtotal if set, otherwise use the upgraded (middle) tier
-      if (tiered_data?.tiers?.length > 0 && estRow?.pro_id) {
+      // Compute the authoritative tier total and milestones BEFORE writing, so
+      // both fold into single writes (no second estimates update, no separate
+      // roofing_estimate_data milestone update).
+      let tierMilestones: unknown = undefined
+      if (tiered_data?.tiers?.length > 0) {
         const tiers = tiered_data.tiers as any[]
         const selKey = tiered_data.selected_tier
         const selTier = selKey
           ? tiers.find((t: any) => t.key === selKey)
           : tiers.find((t: any) => t.key === 'upgraded') ?? tiers[Math.floor(tiers.length / 2)]
         if (selTier?.subtotal !== undefined) {
-          // Same calculator the detail GET uses — guarantees the stored total and
-          // the rendered total are identical.
           const { subtotal: newSub, tax_amount: newTax, total: newTotal } =
             computeEstimateTotals({
               estimate_type: 'tiered',
               tiered_data,
               tax_rate: estRow.tax_rate,
             })
-          // The selected tier's subtotal is AUTHORITATIVE for a GBB estimate, so
-          // always persist the tier-derived total — never defer to a client-sent
-          // `total`, which can be stale (e.g. a Standard total left over from the
-          // calculator after a Standard→GBB flip). Mirrors the "do NOT trust
-          // client-sent total" rule the standard path uses below. Previously this
-          // was guarded by `if (total === undefined)`, which let the stale client
-          // total win and desynced the lead's estimate card from the real total.
-          await sb.from('estimates').update({
-            subtotal:   newSub,
-            tax_amount: newTax,
-            total:      newTotal,
-            updated_at: new Date().toISOString(),
-          }).eq('id', id)
-          // Record authoritative values for the response (Slice 1)
+          // The selected tier's subtotal is AUTHORITATIVE — fold into the single
+          // estimates update, overriding any stale client-sent total.
+          updatePayload.subtotal   = newSub
+          updatePayload.tax_amount = newTax
+          updatePayload.total      = newTotal
           computed.subtotal = newSub
           computed.tax_amount = newTax
           computed.total = newTotal
@@ -308,14 +298,16 @@ export async function PATCH(
               subtotal_cents: toCents(Number(t.subtotal) || 0),
             })),
           }
-          // Milestones derived from the authoritative total (single source). Store
-          // fresh (for the PDF/send path) and return them.
           const freshMs = computeMilestones(newTotal)
-          await sb.from('roofing_estimate_data')
-            .update({ payment_milestones: freshMs }).eq('estimate_id', id)
+          tierMilestones = freshMs
           computed.payment_milestones = freshMs
         }
       }
+      // Fold milestones into the roofing payload so it's one upsert, not two.
+      if (tierMilestones !== undefined) roofingPayload.payment_milestones = tierMilestones
+
+      await sb.from('roofing_estimate_data')
+        .upsert(roofingPayload, { onConflict: 'estimate_id' })
     }
   }
 
@@ -379,12 +371,11 @@ export async function PATCH(
       const discountedSub = Math.max(0, Math.round((itemsSubtotal - discAmt) * 100) / 100)
       const derivedTax   = Math.round(discountedSub * (txRate / 100) * 100) / 100
       const derivedTotal = discountedSub + derivedTax
-      await sb.from('estimates').update({
-        subtotal:   itemsSubtotal,
-        tax_amount: derivedTax,
-        total:      derivedTotal,
-        updated_at: new Date().toISOString(),
-      }).eq('id', id)
+      // Fold the authoritative total into updatePayload for the single deferred
+      // estimates write at the end — no second estimates update.
+      updatePayload.subtotal   = itemsSubtotal
+      updatePayload.tax_amount = derivedTax
+      updatePayload.total      = derivedTotal
       // Record authoritative values for the response (Slice 1).
       computed.subtotal = itemsSubtotal
       computed.tax_amount = derivedTax
@@ -392,14 +383,24 @@ export async function PATCH(
       computed.subtotal_cents = toCents(itemsSubtotal)
       computed.tax_amount_cents = toCents(derivedTax)
       computed.total_cents = toCents(derivedTotal)
-      // Milestones derived from the authoritative total (single source). Store
-      // fresh (for the PDF/send path) and return them.
+      // Milestones derived from the authoritative total (single source).
+      // For standard estimates hasRoofingFields is typically false, so the
+      // upsert above did not run and this is the only roofing write. When both
+      // do run (standard estimate carrying roofing fields — rare), the earlier
+      // upsert wrote structure and this writes the item-derived milestones.
       const freshMs = computeMilestones(derivedTotal)
       await sb.from('roofing_estimate_data')
-        .update({ payment_milestones: freshMs }).eq('estimate_id', id)
+        .upsert({ estimate_id: id, payment_milestones: freshMs }, { onConflict: 'estimate_id' })
       computed.payment_milestones = freshMs
     }
   }
+
+  // ── Single authoritative estimates write ─────────────────────────────────
+  // Deferred to here so the general fields AND the computed total land in one
+  // UPDATE — one logical save = one estimates audit row (no intermediate rows).
+  const { error: estError } = await sb
+    .from('estimates').update(updatePayload).eq('id', id).eq('pro_id', proId)
+  if (estError) return NextResponse.json({ error: estError.message }, { status: 500 })
 
   // ── Auto-stage lead based on estimate status ────────────────────────────────
   // Reads stageAnchors so logic never hardcodes stage key strings.
@@ -477,7 +478,7 @@ export async function DELETE(
   const { id } = await params
   // IDOR fix: was an unguarded delete-by-id. Now auth-scoped + audited.
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
-  if (__auth.error) return __auth.error
+  if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const proId = __auth.proId
   const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
 
