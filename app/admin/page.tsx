@@ -1,11 +1,11 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { Fragment, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Session } from '@/types'
 import { timeAgo } from '@/lib/utils'
 
-type Section = 'dashboard' | 'pros' | 'leads' | 'moderation' | 'config' | 'emails' | 'categories' | 'cron' | 'claims'
+type Section = 'dashboard' | 'pros' | 'leads' | 'moderation' | 'config' | 'emails' | 'categories' | 'cron' | 'claims' | 'activity'
 
 function StatCard({ label, value, sub, color = 'teal' }: { label: string; value: any; sub?: string; color?: string }) {
   const colors: Record<string, string> = {
@@ -48,6 +48,11 @@ export default function AdminPage() {
 
   // Pros filter state
   const [proSearch, setProSearch] = useState('')
+
+  // Activity (audit) state
+  const [actView, setActView]   = useState<'changes' | 'sessions'>('changes')
+  const [actTable, setActTable] = useState('')
+  const [actExpanded, setActExpanded] = useState<string | null>(null)
   const [proClaimed, setProClaimed] = useState('')
 
   // Email campaign state
@@ -80,11 +85,19 @@ export default function AdminPage() {
   }, [session])
 
   useEffect(() => {
-    if (session && section !== 'emails' && section !== 'categories' && section !== 'cron') loadSection(section)
+    if (session && section !== 'emails' && section !== 'categories' && section !== 'cron' && section !== 'activity') loadSection(section)
     if (session && section === 'categories') {
       fetch('/api/categories').then(r => r.json()).then(d => setCats(d.categories || []))
     }
   }, [section, session])
+
+  // Activity section reloads on view / table-filter change
+  useEffect(() => {
+    if (session && section === 'activity') {
+      const params = `&view=${actView}${actTable ? `&table=${actTable}` : ''}`
+      loadSection('activity', params)
+    }
+  }, [section, session, actView, actTable, loadSection])
 
   async function updateConfig(key: string, value: string) {
     if (!session) return
@@ -145,6 +158,7 @@ export default function AdminPage() {
     { id: 'pros',       icon: '👥', label: 'Pros'       },
     { id: 'leads',      icon: '📥', label: 'Leads'      },
     { id: 'moderation', icon: '🛡',  label: 'Moderation' },
+    { id: 'activity',   icon: '📜', label: 'Activity'   },
     { id: 'config',     icon: '⚙️',  label: 'Config'    },
     { id: 'emails',     icon: '📧', label: 'Emails'     },
     { id: 'categories', icon: '🏷',  label: 'Categories' },
@@ -673,6 +687,172 @@ export default function AdminPage() {
           )}
 
           {/* ── CONFIG ── */}
+          {/* ── Activity: audit trail + session history ─────────────────── */}
+          {section === 'activity' && (
+            <div>
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                <h2 className="text-xl font-semibold text-white">Activity</h2>
+                <div className="flex items-center gap-2">
+                  {/* View toggle */}
+                  <div className="inline-flex rounded-lg bg-gray-800 p-1">
+                    {(['changes', 'sessions'] as const).map(v => (
+                      <button key={v}
+                        onClick={() => { setActView(v); setActExpanded(null) }}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                          actView === v ? 'bg-teal-600 text-white' : 'text-gray-400 hover:text-white'
+                        }`}>
+                        {v === 'changes' ? 'Changes' : 'Logins & sessions'}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Table filter (changes view only) */}
+                  {actView === 'changes' && (
+                    <select
+                      value={actTable}
+                      onChange={e => setActTable(e.target.value)}
+                      className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-1.5">
+                      <option value="">All tables</option>
+                      {(data?.tables ?? []).map((t: string) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Changes (audit_log) ── */}
+              {actView === 'changes' && (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-800/60 text-gray-400 text-xs uppercase">
+                      <tr>
+                        <th className="text-left px-4 py-3">When</th>
+                        <th className="text-left px-4 py-3">Who</th>
+                        <th className="text-left px-4 py-3">Action</th>
+                        <th className="text-left px-4 py-3">Record</th>
+                        <th className="text-left px-4 py-3">From</th>
+                        <th className="text-left px-4 py-3">Changed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data?.entries ?? []).map((e: any) => (
+                        <Fragment key={e.id}>
+                          <tr
+                            onClick={() => setActExpanded(actExpanded === e.id ? null : e.id)}
+                            className="border-t border-gray-800 hover:bg-gray-800/40 cursor-pointer">
+                            <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                              {new Date(e.created_at).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-gray-200">{e.actor_name}</div>
+                              {e.actor_email && <div className="text-xs text-gray-500">{e.actor_email}</div>}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                e.action === 'INSERT' ? 'bg-green-900/50 text-green-400' :
+                                e.action === 'DELETE' ? 'bg-red-900/50 text-red-400' :
+                                                        'bg-blue-900/50 text-blue-400'
+                              }`}>{e.action}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-gray-300">{e.table_name}</div>
+                              <div className="text-xs text-gray-600 font-mono">{String(e.record_id).slice(0, 8)}…</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-xs ${
+                                e.source === 'mobile' ? 'bg-purple-900/50 text-purple-300' :
+                                e.source === 'web'    ? 'bg-teal-900/50 text-teal-300'     :
+                                                        'bg-gray-800 text-gray-500'
+                              }`}>{e.source ?? 'system'}</span>
+                              {e.ip_address && <div className="text-xs text-gray-600 mt-0.5">{e.ip_address}</div>}
+                            </td>
+                            <td className="px-4 py-3 text-gray-400">
+                              {e.action === 'UPDATE'
+                                ? (e.field_count > 0 ? `${e.field_count} field${e.field_count === 1 ? '' : 's'}` : '—')
+                                : '—'}
+                            </td>
+                          </tr>
+                          {actExpanded === e.id && e.changed_fields && Object.keys(e.changed_fields).length > 0 && (
+                            <tr className="bg-gray-950">
+                              <td colSpan={6} className="px-4 py-3">
+                                <div className="space-y-1.5">
+                                  {Object.entries(e.changed_fields as Record<string, { from: unknown; to: unknown }>).map(([field, v]) => (
+                                    <div key={field} className="flex items-start gap-3 text-xs">
+                                      <span className="text-gray-500 font-mono w-48 shrink-0">{field}</span>
+                                      <span className="text-red-400/80 line-through break-all">{JSON.stringify(v.from)}</span>
+                                      <span className="text-gray-600">→</span>
+                                      <span className="text-green-400 break-all">{JSON.stringify(v.to)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                  {(data?.entries ?? []).length === 0 && !loading && (
+                    <div className="px-4 py-10 text-center text-gray-500">No activity recorded yet.</div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Logins & sessions (pro_sessions) ── */}
+              {actView === 'sessions' && (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-800/60 text-gray-400 text-xs uppercase">
+                      <tr>
+                        <th className="text-left px-4 py-3">Who</th>
+                        <th className="text-left px-4 py-3">Device</th>
+                        <th className="text-left px-4 py-3">IP</th>
+                        <th className="text-left px-4 py-3">Started</th>
+                        <th className="text-left px-4 py-3">Last active</th>
+                        <th className="text-left px-4 py-3">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data?.sessions ?? []).map((s: any) => {
+                        const mins = Math.round((s.duration_seconds ?? 0) / 60)
+                        const dur = mins < 1 ? '<1 min'
+                          : mins < 60 ? `${mins} min`
+                          : `${Math.floor(mins / 60)}h ${mins % 60}m`
+                        return (
+                          <tr key={s.id} className="border-t border-gray-800 hover:bg-gray-800/40">
+                            <td className="px-4 py-3">
+                              <div className="text-gray-200">{s.pro_name}</div>
+                              <div className="text-xs text-gray-500">{s.pro_email}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-xs ${
+                                s.is_mobile_app ? 'bg-purple-900/50 text-purple-300' : 'bg-teal-900/50 text-teal-300'
+                              }`}>{s.is_mobile_app ? 'Mobile app' : (s.device_type ?? 'unknown')}</span>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {[s.browser, s.os].filter(Boolean).join(' · ') || '—'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-400 font-mono text-xs">{s.ip_address ?? '—'}</td>
+                            <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                              {new Date(s.created_at).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                              {s.last_active_at ? new Date(s.last_active_at).toLocaleString() : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300">{dur}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  {(data?.sessions ?? []).length === 0 && !loading && (
+                    <div className="px-4 py-10 text-center text-gray-500">No sessions recorded yet.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {section === 'config' && (
             <div>
               <h1 className="font-serif text-2xl text-white mb-6">Site Configuration</h1>
