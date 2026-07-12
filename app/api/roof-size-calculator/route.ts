@@ -119,12 +119,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Could not save your request. Please try again.' }, { status: 500 })
   }
 
-  // Roofing job data (pre-fill the roof size from the calculator)
+  // Pre-fill roof size from calculator — non-fatal if it fails
   await sb.from('roofing_job_data').insert({
     lead_id:      lead.id,
     pro_id:       ORG_PRO_ID,
     square_count: squares,
-  }).catch(() => {})  // non-fatal
+  })
 
   return NextResponse.json({ ok: true, leadId: lead.id })
 }
