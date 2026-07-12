@@ -210,11 +210,20 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    // Distinct tables for the filter dropdown
-    const { data: tblData } = await sb
-      .from('audit_log').select('table_name').limit(1000)
-    const tblRows = (tblData ?? []) as { table_name: string }[]
-    const tables = [...new Set(tblRows.map((t: { table_name: string }) => t.table_name))].sort()
+    // Distinct tables for the filter dropdown.
+    // The audit_log is large, so sampling recent rows would only surface the
+    // most recently-written tables. Use the known audited set from the trigger
+    // catalogue instead — always complete, no scan.
+    const { data: tblData } = await sb.rpc('audited_table_names')
+    let tables: string[] = Array.isArray(tblData)
+      ? (tblData as { table_name: string }[]).map(t => t.table_name)
+      : []
+    if (tables.length === 0) {
+      // Fallback: sample the log if the helper function isn't present
+      const { data: sample } = await sb.from('audit_log').select('table_name').limit(2000)
+      tables = [...new Set(((sample ?? []) as { table_name: string }[]).map(t => t.table_name))]
+    }
+    tables.sort()
 
     return NextResponse.json({ entries: rows, tables })
   }

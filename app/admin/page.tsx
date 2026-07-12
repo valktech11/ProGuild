@@ -711,9 +711,9 @@ export default function AdminPage() {
                       value={actTable}
                       onChange={e => setActTable(e.target.value)}
                       className="bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-1.5">
-                      <option value="">All tables</option>
+                      <option value="" style={{ background: '#1f2937', color: '#e5e7eb' }}>All tables</option>
                       {(data?.tables ?? []).map((t: string) => (
-                        <option key={t} value={t}>{t}</option>
+                        <option key={t} value={t} style={{ background: '#1f2937', color: '#e5e7eb' }}>{t}</option>
                       ))}
                     </select>
                   )}
