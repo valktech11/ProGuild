@@ -11,6 +11,8 @@ interface RoofResult {
   lat: number
   lng: number
   formattedAddress: string
+  state: string | null
+  serviced: boolean          // true when we have contractors in this state
 }
 
 const TEAL  = '#0F766E'
@@ -24,6 +26,7 @@ export default function RoofCalculatorClient() {
   const [error,   setError]   = useState('')
   const [form,    setForm]    = useState({ name: '', email: '', phone: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [servicedOnSubmit, setServicedOnSubmit] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Google Places autocomplete
@@ -74,7 +77,11 @@ export default function RoofCalculatorClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, address: result.formattedAddress, sqft: result.sqft, squares: result.squares, pitch: result.pitch }),
       })
-      if (r.ok) setStep('captured')
+      if (r.ok) {
+        const d = await r.json().catch(() => ({ serviced: true }))
+        setServicedOnSubmit(d.serviced !== false)
+        setStep('captured')
+      }
       else setError('Could not submit. Please try again.')
     } catch {
       setError('Could not submit. Please try again.')
@@ -83,10 +90,12 @@ export default function RoofCalculatorClient() {
     }
   }, [form, result])
 
-  // Estimated replacement cost (Florida avg: $350–$500/square for asphalt shingle)
+  // Estimated replacement cost — US national range for architectural asphalt
+  // shingle, including tear-off, underlayment, disposal and labour. Regional
+  // pricing varies significantly; the subtitle says so.
   function costRange(squares: number) {
-    const low  = Math.round(squares * 350 / 100) * 100
-    const high = Math.round(squares * 500 / 100) * 100
+    const low  = Math.round(squares * 400 / 100) * 100
+    const high = Math.round(squares * 550 / 100) * 100
     return `$${low.toLocaleString()}–$${high.toLocaleString()}`
   }
 
@@ -135,7 +144,7 @@ export default function RoofCalculatorClient() {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="123 Main St, Orlando, FL 32801"
+                placeholder="123 Main St, Springfield, IL 62704"
                 value={address}
                 onChange={e => setAddress(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && calculate()}
@@ -201,7 +210,7 @@ export default function RoofCalculatorClient() {
                 <strong style={{ color: NAVY }}>{result.squares} roofing squares</strong>. The dominant pitch is{' '}
                 <strong style={{ color: NAVY }}>{result.pitch}</strong>. A roof this size typically needs around{' '}
                 <strong style={{ color: NAVY }}>{Math.ceil(result.squares * 3 * 1.1)} bundles</strong> of asphalt shingles
-                (including a 10% waste factor) and most Florida crews complete a replacement in{' '}
+                (including a 10% waste factor) and most crews complete a replacement in{' '}
                 <strong style={{ color: NAVY }}>{result.squares <= 20 ? '1–2 days' : result.squares <= 35 ? '2–3 days' : '3–5 days'}</strong>.
               </p>
             </div>
@@ -224,7 +233,7 @@ export default function RoofCalculatorClient() {
             <div style={{ background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12, padding: '18px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <div>
                 <div style={{ fontSize: 13, color: '#166534', fontWeight: 600, marginBottom: 2 }}>Estimated roof replacement cost</div>
-                <div style={{ fontSize: 11, color: '#4ADE80' }}>Typical Florida asphalt shingle replacement</div>
+                <div style={{ fontSize: 11, color: '#4ADE80' }}>Typical architectural asphalt shingle · varies by region</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: '#15803D', letterSpacing: '-0.02em' }}>{costRange(result.squares)}</div>
@@ -240,7 +249,7 @@ export default function RoofCalculatorClient() {
             {/* CTA — get quotes */}
             <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
               <h2 style={{ fontSize: 20, fontWeight: 700, color: NAVY, margin: '0 0 4px' }}>
-                Get up to 3 free quotes from licensed Florida roofers
+                Get up to 3 free quotes from licensed roofers
               </h2>
               <p style={{ color: '#64748B', fontSize: 14, margin: '0 0 20px' }}>
                 Compare estimates from verified local contractors. No obligation, no spam.
@@ -287,9 +296,15 @@ export default function RoofCalculatorClient() {
             <div style={{ width: 56, height: 56, background: '#F0FDF4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h2 style={{ fontSize: 24, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>You're all set!</h2>
+            <h2 style={{ fontSize: 24, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
+              {servicedOnSubmit ? "You're all set!" : "Thanks — you're on the list"}
+            </h2>
             <p style={{ color: '#475569', fontSize: 16, margin: '0 0 24px', lineHeight: 1.5 }}>
-              A licensed Florida roofer will reach out to you shortly with a free quote based on your <strong>{result?.sqft.toLocaleString()} sq ft</strong> roof.
+              {servicedOnSubmit ? (
+                <>A licensed roofer will reach out to you shortly with a free quote based on your <strong>{result?.sqft.toLocaleString()} sq ft</strong> roof.</>
+              ) : (
+                <>We don&apos;t have contractors in your area just yet — we&apos;re expanding fast. We&apos;ve saved your roof measurement and will notify you the moment licensed roofers are available near you.</>
+              )}
             </p>
             {result && (
               <div style={{ background: LIGHT, borderRadius: 10, padding: '14px 20px', display: 'inline-block', marginBottom: 24, textAlign: 'left' }}>
@@ -330,7 +345,7 @@ export default function RoofCalculatorClient() {
                 Understanding your roof size
               </h2>
               <p style={{ color: '#64748B', fontSize: 14, margin: '0 0 24px' }}>
-                Everything a Florida homeowner needs to know before getting a roof replacement quote.
+                Everything a homeowner needs to know before getting a roof replacement quote.
               </p>
 
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
@@ -354,7 +369,7 @@ export default function RoofCalculatorClient() {
                 feet of roof area, and every quote, material order, and labour estimate in the industry is priced per square.
                 If your roof measures 2,200 square feet, a contractor will call that a 22-square roof. Knowing your square
                 count before you call anyone is genuinely useful: it lets you sanity-check a quote instantly. If a contractor
-                tells you your roof is 40 squares and this tool says 22, that discrepancy is worth a conversation. Most Florida
+                tells you your roof is 40 squares and this tool says 22, that discrepancy is worth a conversation. Most
                 single-family homes fall between 15 and 40 squares.
               </p>
 
@@ -383,16 +398,17 @@ export default function RoofCalculatorClient() {
               </p>
 
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
-                Roof replacement costs in Florida
+                What a roof replacement typically costs
               </h3>
               <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
-                Florida roof replacement typically runs $350 to $500 per square for architectural asphalt shingle, including
-                tear-off, disposal, underlayment, and labour. Concrete or clay tile — common across much of the state — runs
-                considerably higher, often $700 to $1,200 per square. Metal falls in between at roughly $600 to $900. Florida
-                building code also imposes requirements that push costs above the national average: secondary water barriers,
-                enhanced fastening schedules, and wind-uplift ratings designed for hurricane exposure. Permit fees and, in
-                coastal counties, stricter inspection regimes add further cost. A cheap quote that skips these requirements is
-                not a bargain — it is a failed inspection waiting to happen.
+                Architectural asphalt shingle replacement generally runs $400 to $550 per square nationally, including tear-off,
+                disposal, underlayment, and labour. Metal roofing runs roughly $600 to $900 per square, and concrete or clay
+                tile higher still, often $700 to $1,200. Regional variation is significant and driven by three things: local
+                labour rates, disposal costs, and building code. Coastal and high-wind regions require enhanced fastening
+                schedules, secondary water barriers, and wind-uplift ratings that push material and labour costs well above the
+                national average. Cold-climate regions add ice-and-water shield requirements along eaves and valleys. Permit
+                fees and inspection regimes vary by municipality. A quote that comes in far below these ranges is worth
+                scrutinising — it often means a code requirement is being skipped, which becomes a failed inspection later.
               </p>
 
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
@@ -403,8 +419,8 @@ export default function RoofCalculatorClient() {
                 adjuster measures the roof, applies unit pricing per square, and produces a scope of work. If their measurement
                 is low, every downstream number is low too. Homeowners who know their own square count going into an inspection
                 are in a much stronger position — and if the adjuster's figure is materially below an independent measurement,
-                that is grounds for a supplement request. Under Florida law, you are entitled to a settlement that restores the
-                roof to code-compliant condition, which frequently costs more than the initial estimate assumes.
+                that is grounds for a supplement request. In most states, your policy entitles you to a settlement that restores
+                the roof to code-compliant condition, which frequently costs more than the initial estimate assumes.
               </p>
 
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
@@ -416,8 +432,8 @@ export default function RoofCalculatorClient() {
                 or understand the scale of the job. What it cannot do is assess condition. It cannot see whether your shingles
                 are curling, whether the decking beneath is rotted, whether flashing has failed around a chimney, or whether a
                 prior repair was done badly. It also cannot see damage that occurred after the imagery was captured — the
-                imagery date is shown with your results. For a claim, a permit, or a final contract, a licensed Florida
-                contractor still needs to inspect the roof in person.
+                imagery date is shown with your results. For a claim, a permit, or a final contract, a licensed contractor
+                still needs to inspect the roof in person.
               </p>
             </div>
 
@@ -431,11 +447,11 @@ export default function RoofCalculatorClient() {
                 { q: 'Does this work for all roof types?', a: 'Yes — the calculator works for gable, hip, flat, and most other residential roof types. Complex roofs with many facets, dormers, or additions may have slightly lower accuracy.' },
                 { q: 'Is this tool free?', a: 'Yes, completely free. No sign-up or account required. Just enter your address and get your results instantly.' },
                 { q: 'Can I measure my roof without climbing it?', a: 'Yes — that is exactly what this tool does. Using satellite imagery, we calculate your roof size from above. No ladder, no drone, no contractor visit required to get an estimate.' },
-                { q: 'How many roofing squares does my house have?', a: 'One roofing square equals 100 square feet of roof area. Enter your address above and we will calculate your exact square count instantly. A typical Florida home has between 15 and 40 squares.' },
+                { q: 'How many roofing squares does my house have?', a: 'One roofing square equals 100 square feet of roof area. Enter your address above and we will calculate your square count instantly. Most single-family homes fall between 15 and 40 squares.' },
                 { q: 'Can insurance companies use satellite roof measurements?', a: 'Many insurance companies and adjusters use satellite measurement tools for initial estimates. However, for final claims settlements, a licensed contractor or adjuster will typically verify measurements on-site.' },
-                { q: 'Does this work for tile roofs common in Florida?', a: 'Yes. The calculator measures roof area regardless of roofing material — asphalt shingle, concrete tile, clay tile, or metal. Note that tile roofs cost more to replace per square than asphalt, so the cost estimate on this page reflects asphalt shingle pricing.' },
+                { q: 'Does this work for tile or metal roofs?', a: 'Yes. The calculator measures roof area regardless of roofing material — asphalt shingle, concrete tile, clay tile, or metal. Note that tile and metal cost more per square to replace than asphalt, so the cost estimate shown reflects architectural asphalt shingle pricing.' },
                 { q: 'Does this work after a hurricane or storm?', a: 'Yes, though accuracy may be slightly lower if the satellite imagery predates recent storm damage. The imagery date is shown with your results. For post-storm damage assessments, a licensed roofing contractor or public adjuster should inspect in person.' },
-                { q: 'Is my address or personal information stored?', a: 'Your address is used only to retrieve roof measurements from satellite imagery. If you choose to request quotes, your contact information is shared only with licensed Florida roofing contractors through ProGuild. We do not sell your data.' },
+                { q: 'Is my address or personal information stored?', a: 'Your address is used only to retrieve roof measurements from satellite imagery. If you choose to request quotes, your contact information is shared only with licensed roofing contractors through ProGuild. We do not sell your data.' },
               ].map(({ q, a }) => (
                 <details key={q} style={{ borderBottom: '1px solid #E2E8F0', padding: '16px 0' }}>
                   <summary style={{ fontWeight: 600, color: NAVY, cursor: 'pointer', fontSize: 15, listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -453,7 +469,7 @@ export default function RoofCalculatorClient() {
       {/* Contractor CTA footer */}
       <div style={{ background: '#0F172A', borderTop: '1px solid #1E293B', padding: '32px 24px', textAlign: 'center' }}>
         <p style={{ color: '#94A3B8', fontSize: 15, margin: '0 0 12px', fontWeight: 500 }}>
-          Are you a licensed Florida roofing contractor?
+          Are you a licensed roofing contractor?
         </p>
         <p style={{ color: '#64748B', fontSize: 13, margin: '0 0 16px' }}>
           Join ProGuild and receive homeowner leads directly. No per-lead fees.

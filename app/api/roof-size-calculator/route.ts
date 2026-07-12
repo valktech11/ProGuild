@@ -30,6 +30,17 @@ async function fetchSolarData(lat: number, lng: number) {
 function sqftFromM2(m2: number) { return m2 * 10.7639 }
 function toSquares(sqft: number) { return Math.round(sqft / 100) }
 
+// Pull the 2-letter state code out of a Google formatted address.
+// Format is reliably "..., City, ST 12345, USA".
+function stateFromAddress(formatted: string): string | null {
+  const m = formatted.match(/,\s*([A-Z]{2})\s+\d{5}(?:-\d{4})?,?\s*USA?$/)
+  return m ? m[1] : null
+}
+
+// States where ProGuild currently has licensed contractors.
+// Add to this list as the network expands — the page itself stays national.
+const SERVICED_STATES = new Set(['FL'])
+
 function parseSolar(solar: Record<string, unknown>) {
   const potential = (solar.solarPotential as Record<string, unknown>) || {}
   const whole     = (potential.wholeRoofStats as Record<string, unknown>) || {}
@@ -72,6 +83,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Could not calculate roof size for this address. Try a nearby address.' }, { status: 422 })
     }
 
+    const state = stateFromAddress(geo.formattedAddress)
+
     return NextResponse.json({
       sqft:             totalSqft,
       squares:          totalSquares,
@@ -80,6 +93,10 @@ export async function GET(req: NextRequest) {
       lat:              geo.lat,
       lng:              geo.lng,
       formattedAddress: geo.formattedAddress,
+      state,
+      // Whether we currently have contractors who can quote this address.
+      // Drives the confirmation copy — the lead is captured either way.
+      serviced:         state ? SERVICED_STATES.has(state) : false,
     })
   } catch {
     return NextResponse.json({ error: 'Roof data unavailable for this address. Try again or enter a different address.' }, { status: 502 })
@@ -90,6 +107,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json()
   const { name, email, phone, address, sqft, squares, pitch } = body
+  const state    = stateFromAddress(address ?? '')
+  const serviced = state ? SERVICED_STATES.has(state) : false
 
   if (!name || !email || !address) {
     return NextResponse.json({ error: 'name, email and address are required' }, { status: 400 })
@@ -109,9 +128,13 @@ export async function POST(req: NextRequest) {
     contact_email:    email.toLowerCase().trim(),
     contact_phone:    phone?.trim() || null,
     property_address: address.trim(),
-    message:          `Roof size: ${sqft} sq ft (${squares} squares), pitch ${pitch}. Submitted via roof-size-calculator.`,
-    lead_source:      'roof_calculator',
+    message:          `Roof size: ${sqft} sq ft (${squares} squares), pitch ${pitch}. `
+                      + `State: ${state ?? 'unknown'}. `
+                      + (serviced ? 'Serviced area.' : 'WAITLIST — no contractors in this state yet.')
+                      + ' Submitted via roof-size-calculator.',
+    lead_source:      serviced ? 'roof_calculator' : 'roof_calculator_waitlist',
     lead_status:      'new_lead',
+    contact_state:    state,
   }).select('id').single()
 
   if (error || !lead) {
@@ -126,5 +149,5 @@ export async function POST(req: NextRequest) {
     square_count: squares,
   })
 
-  return NextResponse.json({ ok: true, leadId: lead.id })
+  return NextResponse.json({ ok: true, leadId: lead.id, serviced })
 }
