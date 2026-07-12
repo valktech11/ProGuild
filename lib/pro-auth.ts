@@ -67,7 +67,7 @@ const _hs256Secret = process.env.SUPABASE_JWT_SECRET
 /** Verified token identity: auth user id (JWT sub) + email claim. */
 export async function verifySupabaseToken(
   token: string,
-): Promise<{ userId: string; email: string | null } | null> {
+): Promise<{ userId: string; email: string | null; sessionId: string | null } | null> {
   // Peek at header to route correctly without trying all keys.
   let alg = 'ES256'
   try {
@@ -87,7 +87,11 @@ export async function verifySupabaseToken(
         const { jwtVerify: jv } = await import('jose')
         const { payload } = await jv(token, pubKey, { audience: 'authenticated' })
         if (!payload.sub) continue
-        return { userId: payload.sub as string, email: (payload.email as string) ?? null }
+        return {
+          userId: payload.sub as string,
+          email: (payload.email as string) ?? null,
+          sessionId: (payload.session_id as string) ?? null,
+        }
       } catch { continue }
     }
     // JWKS miss — fall through to network
@@ -98,7 +102,11 @@ export async function verifySupabaseToken(
     try {
       const { payload } = await jwtVerify(token, _hs256Secret, { audience: 'authenticated' })
       if (!payload.sub) return null
-      return { userId: payload.sub as string, email: (payload.email as string) ?? null }
+      return {
+        userId: payload.sub as string,
+        email: (payload.email as string) ?? null,
+        sessionId: (payload.session_id as string) ?? null,
+      }
     } catch { /* invalid */ return null }
   }
 
@@ -106,12 +114,80 @@ export async function verifySupabaseToken(
   const authClient = createClient(getUrl(), process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   const { data, error } = await authClient.auth.getUser(token)
   if (error || !data?.user) return null
-  return { userId: data.user.id, email: data.user.email ?? null }
+  return { userId: data.user.id, email: data.user.email ?? null, sessionId: null }
 }
 
 export type ProAuthResult =
   | { proId: string; authUserId: string; error?: undefined }
   | { proId?: undefined; authUserId?: undefined; error: NextResponse }
+
+// ── Session activity tracking ────────────────────────────────────────────────
+// Records/refreshes a pro_sessions row so we can answer "how long was this
+// session active". Runs AFTER auth succeeds, is fire-and-forget, and touches
+// only our own table — it can never block authentication or a request.
+//
+// Throttle: only writes if the session is new, or last_active_at is older than
+// ACTIVITY_THROTTLE_MS. Keeps this to roughly one write per session per window
+// instead of one per API call.
+const ACTIVITY_THROTTLE_MS = 5 * 60 * 1000  // 5 minutes
+const _lastStamped = new Map<string, number>()  // sessionId → epoch ms (per-instance)
+
+function classifyClient(ua: string) {
+  const isMobileApp = /dart|okhttp|proguild_mobile/i.test(ua)
+  const deviceType =
+    isMobileApp                     ? 'mobile_app' :
+    /ipad/i.test(ua)                ? 'tablet'     :
+    /iphone|android/i.test(ua)      ? 'mobile_web' :
+    ua === ''                       ? 'unknown'    : 'desktop'
+  const browser =
+    isMobileApp        ? 'ProGuild App' :
+    /edg\//i.test(ua)  ? 'Edge'    :
+    /chrome/i.test(ua) ? 'Chrome'  :
+    /safari/i.test(ua) ? 'Safari'  :
+    /firefox/i.test(ua)? 'Firefox' : null
+  const os =
+    /windows/i.test(ua)      ? 'Windows' :
+    /mac os/i.test(ua)       ? 'macOS'   :
+    /android/i.test(ua)      ? 'Android' :
+    /iphone|ipad/i.test(ua)  ? 'iOS'     :
+    /linux/i.test(ua)        ? 'Linux'   : null
+  return { isMobileApp, deviceType, browser, os }
+}
+
+async function touchSession(
+  req: NextRequest,
+  proId: string,
+  sessionId: string | null,
+): Promise<void> {
+  if (!sessionId) return
+  const now = Date.now()
+  const last = _lastStamped.get(sessionId) ?? 0
+  if (now - last < ACTIVITY_THROTTLE_MS) return
+  _lastStamped.set(sessionId, now)
+
+  try {
+    const ua = req.headers.get('user-agent') ?? ''
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || req.headers.get('x-real-ip')?.trim()
+      || null
+    const { isMobileApp, deviceType, browser, os } = classifyClient(ua)
+
+    await getSupabaseAdmin()
+      .from('pro_sessions')
+      .upsert({
+        pro_id:              proId,
+        supabase_session_id: sessionId,
+        device_type:         deviceType,
+        browser,
+        os,
+        ip_address:          ip,
+        is_mobile_app:       isMobileApp,
+        last_active_at:      new Date().toISOString(),
+      }, { onConflict: 'supabase_session_id' })
+  } catch {
+    // Never let activity tracking affect the request.
+  }
+}
 
 export async function requirePro(
   req: NextRequest,
@@ -157,6 +233,10 @@ export async function requirePro(
   if (claimedProId && claimedProId !== pro.id) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
+
+  // Fire-and-forget: stamp session activity so we can measure session duration.
+  // Deliberately NOT awaited — must never add latency or fail the request.
+  void touchSession(req, pro.id as string, verified.sessionId ?? null)
 
   return { proId: pro.id as string, authUserId }
 }
