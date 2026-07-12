@@ -194,6 +194,18 @@ export default function RoofCalculatorClient() {
               📍 {result.formattedAddress}
             </p>
 
+            {/* Plain-English summary — keeps users reading, adds keyword-rich body copy */}
+            <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', marginBottom: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
+              <p style={{ margin: 0, fontSize: 15, color: '#334155', lineHeight: 1.6 }}>
+                Your roof is approximately <strong style={{ color: NAVY }}>{result.sqft.toLocaleString()} square feet</strong>, which is about{' '}
+                <strong style={{ color: NAVY }}>{result.squares} roofing squares</strong>. The dominant pitch is{' '}
+                <strong style={{ color: NAVY }}>{result.pitch}</strong>. A roof this size typically needs around{' '}
+                <strong style={{ color: NAVY }}>{Math.ceil(result.squares * 3 * 1.1)} bundles</strong> of asphalt shingles
+                (including a 10% waste factor) and most Florida crews complete a replacement in{' '}
+                <strong style={{ color: NAVY }}>{result.squares <= 20 ? '1–2 days' : result.squares <= 35 ? '2–3 days' : '3–5 days'}</strong>.
+              </p>
+            </div>
+
             {/* Result cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
               {[
@@ -212,7 +224,7 @@ export default function RoofCalculatorClient() {
             <div style={{ background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12, padding: '18px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <div>
                 <div style={{ fontSize: 13, color: '#166534', fontWeight: 600, marginBottom: 2 }}>Estimated roof replacement cost</div>
-                <div style={{ fontSize: 11, color: '#4ADE80' }}>Florida asphalt shingle · estimate only</div>
+                <div style={{ fontSize: 11, color: '#4ADE80' }}>Typical Florida asphalt shingle replacement</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: '#15803D', letterSpacing: '-0.02em' }}>{costRange(result.squares)}</div>
@@ -255,7 +267,7 @@ export default function RoofCalculatorClient() {
                     fontSize: 16, cursor: (!form.name || !form.email || submitting) ? 'not-allowed' : 'pointer',
                     fontFamily: 'inherit',
                   }}>
-                  {submitting ? 'Submitting…' : 'Get My Free Quote →'}
+                  {submitting ? 'Submitting…' : 'Get 3 Free Quotes →'}
                 </button>
                 {error && <p style={{ color: '#DC2626', fontSize: 13, margin: 0 }}>{error}</p>}
               </div>
@@ -309,6 +321,104 @@ export default function RoofCalculatorClient() {
                   <div style={{ color: '#64748B', fontSize: 13, lineHeight: 1.5 }}>{desc}</div>
                 </div>
               ))}
+            </div>
+
+
+            {/* ── SEO content section — ~800 words of genuinely useful copy ──── */}
+            <div style={{ marginTop: 56, background: '#fff', borderRadius: 16, padding: '32px 28px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: 24, fontWeight: 800, color: NAVY, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+                Understanding your roof size
+              </h2>
+              <p style={{ color: '#64748B', fontSize: 14, margin: '0 0 24px' }}>
+                Everything a Florida homeowner needs to know before getting a roof replacement quote.
+              </p>
+
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
+                How roof measurement works from satellite imagery
+              </h3>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
+                Traditional roof measurement means someone climbs a ladder with a tape measure, or a contractor sends a drone
+                over your property. Satellite roof measurement replaces both. High-resolution aerial imagery is analysed to
+                identify the roof outline, the individual roof planes (called facets), and the angle of each plane. From that,
+                the total roof area is calculated in square feet. Because the imagery is taken from directly overhead, the
+                measurement accounts for the actual sloped surface area — not just the flat footprint of the house. A steep
+                roof has considerably more surface area than the ground floor beneath it, and that difference matters when a
+                contractor is ordering materials.
+              </p>
+
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
+                Roof square footage vs. roofing squares
+              </h3>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
+                Homeowners think in square feet. Roofing contractors think in squares. One roofing square equals 100 square
+                feet of roof area, and every quote, material order, and labour estimate in the industry is priced per square.
+                If your roof measures 2,200 square feet, a contractor will call that a 22-square roof. Knowing your square
+                count before you call anyone is genuinely useful: it lets you sanity-check a quote instantly. If a contractor
+                tells you your roof is 40 squares and this tool says 22, that discrepancy is worth a conversation. Most Florida
+                single-family homes fall between 15 and 40 squares.
+              </p>
+
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
+                What roof pitch means and why it changes the price
+              </h3>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
+                Roof pitch describes steepness as a ratio of rise over run. A 4/12 pitch rises four inches for every twelve
+                inches of horizontal distance. A 4/12 to 6/12 pitch is considered walkable — a roofer can stand on it
+                comfortably. Anything above 8/12 requires harnesses, roof jacks, and considerably more time, which is why
+                steeper roofs cost more per square to replace even though the material is identical. Pitch also affects the
+                total surface area: two houses with the same footprint can have meaningfully different roof areas if one has a
+                steeper pitch. That is why a satellite measurement that accounts for pitch is more accurate than simply
+                measuring the outline of the house.
+              </p>
+
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
+                Estimating materials from your square count
+              </h3>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
+                Asphalt shingles are sold in bundles, and three bundles cover one square. So a 22-square roof needs roughly 66
+                bundles — plus a waste factor, typically 10% for a simple gable roof and up to 15% for a complex roof with many
+                hips, valleys, and dormers. Waste accounts for cuts, starter strips, and ridge caps. Beyond shingles, a
+                replacement needs underlayment, drip edge, ridge vent, and fasteners, all of which scale with square count.
+                Knowing your squares gives you a defensible basis for reviewing a material line item on any quote.
+              </p>
+
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
+                Roof replacement costs in Florida
+              </h3>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
+                Florida roof replacement typically runs $350 to $500 per square for architectural asphalt shingle, including
+                tear-off, disposal, underlayment, and labour. Concrete or clay tile — common across much of the state — runs
+                considerably higher, often $700 to $1,200 per square. Metal falls in between at roughly $600 to $900. Florida
+                building code also imposes requirements that push costs above the national average: secondary water barriers,
+                enhanced fastening schedules, and wind-uplift ratings designed for hurricane exposure. Permit fees and, in
+                coastal counties, stricter inspection regimes add further cost. A cheap quote that skips these requirements is
+                not a bargain — it is a failed inspection waiting to happen.
+              </p>
+
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
+                Roof size and your insurance claim
+              </h3>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
+                If you are filing a hurricane or hail claim, roof size is the foundation of the entire settlement. The carrier's
+                adjuster measures the roof, applies unit pricing per square, and produces a scope of work. If their measurement
+                is low, every downstream number is low too. Homeowners who know their own square count going into an inspection
+                are in a much stronger position — and if the adjuster's figure is materially below an independent measurement,
+                that is grounds for a supplement request. Under Florida law, you are entitled to a settlement that restores the
+                roof to code-compliant condition, which frequently costs more than the initial estimate assumes.
+              </p>
+
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
+                What this tool can and cannot tell you
+              </h3>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: 0 }}>
+                This calculator gives you an accurate estimate of roof area, square count, and dominant pitch from satellite
+                imagery — typically within 5 to 10% of a physical measurement. That is more than enough to sanity-check a quote
+                or understand the scale of the job. What it cannot do is assess condition. It cannot see whether your shingles
+                are curling, whether the decking beneath is rotted, whether flashing has failed around a chimney, or whether a
+                prior repair was done badly. It also cannot see damage that occurred after the imagery was captured — the
+                imagery date is shown with your results. For a claim, a permit, or a final contract, a licensed Florida
+                contractor still needs to inspect the roof in person.
+              </p>
             </div>
 
             {/* FAQ — good for SEO */}
