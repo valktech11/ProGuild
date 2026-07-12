@@ -83,6 +83,13 @@ export default function RoofCalculatorClient() {
     }
   }, [form, result])
 
+  // Estimated replacement cost (Florida avg: $350–$500/square for asphalt shingle)
+  function costRange(squares: number) {
+    const low  = Math.round(squares * 350 / 100) * 100
+    const high = Math.round(squares * 500 / 100) * 100
+    return `$${low.toLocaleString()}–$${high.toLocaleString()}`
+  }
+
   // Map thumbnail URL
   const mapThumb = result
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${result.lat},${result.lng}&zoom=20&size=640x320&maptype=satellite&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ''}`
@@ -98,7 +105,7 @@ export default function RoofCalculatorClient() {
           </div>
           <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>ProGuild</span>
         </a>
-        <a href="https://proguild.ai" style={{ color: '#94A3B8', fontSize: 13, textDecoration: 'none' }}>For Contractors →</a>
+        <a href="https://proguild.ai" style={{ color: '#5EEAD4', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>Are you a roofer? Get leads →</a>
       </header>
 
       <main style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px 80px' }}>
@@ -188,7 +195,7 @@ export default function RoofCalculatorClient() {
             </p>
 
             {/* Result cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
               {[
                 { label: 'Square footage', value: result.sqft.toLocaleString(), unit: 'sq ft' },
                 { label: 'Roofing squares', value: result.squares.toString(), unit: 'squares' },
@@ -201,6 +208,17 @@ export default function RoofCalculatorClient() {
                 </div>
               ))}
             </div>
+            {/* Estimated replacement cost — full width, prominent */}
+            <div style={{ background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12, padding: '18px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 13, color: '#166534', fontWeight: 600, marginBottom: 2 }}>Estimated roof replacement cost</div>
+                <div style={{ fontSize: 11, color: '#4ADE80' }}>Florida asphalt shingle · estimate only</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#15803D', letterSpacing: '-0.02em' }}>{costRange(result.squares)}</div>
+                <div style={{ fontSize: 11, color: '#166534' }}>Actual quotes may vary significantly</div>
+              </div>
+            </div>
 
             {/* Disclaimer */}
             <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: '10px 14px', marginBottom: 24, fontSize: 13, color: '#92400E' }}>
@@ -210,10 +228,10 @@ export default function RoofCalculatorClient() {
             {/* CTA — get quotes */}
             <div style={{ background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
               <h2 style={{ fontSize: 20, fontWeight: 700, color: NAVY, margin: '0 0 4px' }}>
-                Want a free quote from a licensed Florida roofer?
+                Get up to 3 free quotes from licensed Florida roofers
               </h2>
               <p style={{ color: '#64748B', fontSize: 14, margin: '0 0 20px' }}>
-                We'll connect you with a verified contractor in your area. No obligation.
+                Compare estimates from verified local contractors. No obligation, no spam.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <input
@@ -302,6 +320,12 @@ export default function RoofCalculatorClient() {
                 { q: 'What does roof pitch mean?', a: 'Roof pitch (or slope) describes how steep your roof is. It is expressed as rise over run — for example, 4/12 means the roof rises 4 inches for every 12 inches of horizontal distance. Steeper roofs cost more to install and replace.' },
                 { q: 'Does this work for all roof types?', a: 'Yes — the calculator works for gable, hip, flat, and most other residential roof types. Complex roofs with many facets, dormers, or additions may have slightly lower accuracy.' },
                 { q: 'Is this tool free?', a: 'Yes, completely free. No sign-up or account required. Just enter your address and get your results instantly.' },
+                { q: 'Can I measure my roof without climbing it?', a: 'Yes — that is exactly what this tool does. Using satellite imagery, we calculate your roof size from above. No ladder, no drone, no contractor visit required to get an estimate.' },
+                { q: 'How many roofing squares does my house have?', a: 'One roofing square equals 100 square feet of roof area. Enter your address above and we will calculate your exact square count instantly. A typical Florida home has between 15 and 40 squares.' },
+                { q: 'Can insurance companies use satellite roof measurements?', a: 'Many insurance companies and adjusters use satellite measurement tools for initial estimates. However, for final claims settlements, a licensed contractor or adjuster will typically verify measurements on-site.' },
+                { q: 'Does this work for tile roofs common in Florida?', a: 'Yes. The calculator measures roof area regardless of roofing material — asphalt shingle, concrete tile, clay tile, or metal. Note that tile roofs cost more to replace per square than asphalt, so the cost estimate on this page reflects asphalt shingle pricing.' },
+                { q: 'Does this work after a hurricane or storm?', a: 'Yes, though accuracy may be slightly lower if the satellite imagery predates recent storm damage. The imagery date is shown with your results. For post-storm damage assessments, a licensed roofing contractor or public adjuster should inspect in person.' },
+                { q: 'Is my address or personal information stored?', a: 'Your address is used only to retrieve roof measurements from satellite imagery. If you choose to request quotes, your contact information is shared only with licensed Florida roofing contractors through ProGuild. We do not sell your data.' },
               ].map(({ q, a }) => (
                 <details key={q} style={{ borderBottom: '1px solid #E2E8F0', padding: '16px 0' }}>
                   <summary style={{ fontWeight: 600, color: NAVY, cursor: 'pointer', fontSize: 15, listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -316,11 +340,23 @@ export default function RoofCalculatorClient() {
       </main>
 
       {/* Footer */}
-      <footer style={{ background: NAVY, padding: '24px', textAlign: 'center' }}>
-        <p style={{ color: '#475569', fontSize: 13, margin: 0 }}>
-          © {new Date().getFullYear()} ProGuild LLC · <a href="https://proguild.ai" style={{ color: '#94A3B8', textDecoration: 'none' }}>proguild.ai</a>
+      {/* Contractor CTA footer */}
+      <div style={{ background: '#0F172A', borderTop: '1px solid #1E293B', padding: '32px 24px', textAlign: 'center' }}>
+        <p style={{ color: '#94A3B8', fontSize: 15, margin: '0 0 12px', fontWeight: 500 }}>
+          Are you a licensed Florida roofing contractor?
+        </p>
+        <p style={{ color: '#64748B', fontSize: 13, margin: '0 0 16px' }}>
+          Join ProGuild and receive homeowner leads directly. No per-lead fees.
+        </p>
+        <a href="https://proguild.ai" style={{ display: 'inline-block', background: TEAL, color: '#fff', padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+          Join ProGuild — It's Free →
+        </a>
+      </div>
+      <footer style={{ background: NAVY, padding: '16px 24px', textAlign: 'center' }}>
+        <p style={{ color: '#334155', fontSize: 12, margin: 0 }}>
+          © {new Date().getFullYear()} ProGuild LLC · <a href="https://proguild.ai" style={{ color: '#475569', textDecoration: 'none' }}>proguild.ai</a>
           {' · '}
-          <a href="https://proguild.ai/privacy" style={{ color: '#94A3B8', textDecoration: 'none' }}>Privacy</a>
+          <a href="https://proguild.ai/privacy" style={{ color: '#475569', textDecoration: 'none' }}>Privacy</a>
         </p>
       </footer>
     </div>
