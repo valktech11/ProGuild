@@ -123,7 +123,7 @@ export default function RoofCalculatorClient() {
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#E0F2F1', color: TEAL, borderRadius: 20, padding: '4px 14px', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-            Free • Instant • No sign-up required
+            Free • Results in seconds • No sign-up required
           </div>
           <h1 style={{ fontSize: 36, fontWeight: 800, color: NAVY, margin: '0 0 12px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
             Free Roof Size Calculator
@@ -172,7 +172,7 @@ export default function RoofCalculatorClient() {
               </div>
             )}
             <p style={{ margin: '16px 0 0', fontSize: 13, color: '#94A3B8' }}>
-              Powered by satellite imagery. Accuracy typically within 5–10% of actual measurements.
+              Measured using high-resolution satellite imagery. Typically accurate within 5–10% of field measurements.
             </p>
           </div>
         )}
@@ -190,6 +190,10 @@ export default function RoofCalculatorClient() {
         {/* Result step */}
         {step === 'result' && result && (
           <div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: NAVY, textAlign: 'center', margin: '0 0 16px', letterSpacing: '-0.02em' }}>
+              Here&apos;s your instant roof estimate
+            </h2>
+
             {/* Satellite map */}
             {mapThumb && (
               <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
@@ -233,10 +237,10 @@ export default function RoofCalculatorClient() {
             <div style={{ background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12, padding: '18px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <div>
                 <div style={{ fontSize: 13, color: '#166534', fontWeight: 600, marginBottom: 2 }}>Estimated roof replacement cost</div>
-                <div style={{ fontSize: 11, color: '#4ADE80' }}>Typical architectural asphalt shingle · varies by region</div>
+                <div style={{ fontSize: 11, color: '#4ADE80' }}>Typical installed cost (architectural shingles)</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#15803D', letterSpacing: '-0.02em' }}>{costRange(result.squares)}</div>
+                <div style={{ fontSize: 33, fontWeight: 800, color: '#15803D', letterSpacing: '-0.02em', lineHeight: 1.1 }}>{costRange(result.squares)}</div>
                 <div style={{ fontSize: 11, color: '#166534' }}>Actual quotes may vary significantly</div>
               </div>
             </div>
