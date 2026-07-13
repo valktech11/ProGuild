@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Session } from '@/types'
 import { timeAgo } from '@/lib/utils'
 
-type Section = 'dashboard' | 'pros' | 'leads' | 'moderation' | 'config' | 'emails' | 'categories' | 'cron' | 'claims' | 'activity'
+type Section = 'dashboard' | 'pros' | 'leads' | 'moderation' | 'config' | 'emails' | 'categories' | 'cron' | 'claims' | 'activity' | 'env'
 
 function StatCard({ label, value, sub, color = 'teal' }: { label: string; value: any; sub?: string; color?: string }) {
   const colors: Record<string, string> = {
@@ -53,6 +53,11 @@ export default function AdminPage() {
   const [actView, setActView]   = useState<'changes' | 'sessions'>('changes')
   const [actTable, setActTable] = useState('')
   const [actExpanded, setActExpanded] = useState<string | null>(null)
+
+  // Env vars section state
+  const [envData, setEnvData] = useState<Record<string, string> | null>(null)
+  const [envMeta, setEnvMeta] = useState<{ environment: string; url: string } | null>(null)
+  const [envLoading, setEnvLoading] = useState(false)
   const [proClaimed, setProClaimed] = useState('')
 
   // Email campaign state
@@ -85,7 +90,7 @@ export default function AdminPage() {
   }, [session])
 
   useEffect(() => {
-    if (session && section !== 'emails' && section !== 'categories' && section !== 'cron' && section !== 'activity') loadSection(section)
+    if (session && section !== 'emails' && section !== 'categories' && section !== 'cron' && section !== 'activity' && section !== 'env') loadSection(section)
     if (session && section === 'categories') {
       fetch('/api/categories').then(r => r.json()).then(d => setCats(d.categories || []))
     }
@@ -98,6 +103,18 @@ export default function AdminPage() {
       loadSection('activity', params)
     }
   }, [section, session, actView, actTable, loadSection])
+
+  // Env vars section — calls the dedicated endpoint
+  useEffect(() => {
+    if (session && section === 'env' && !envData) {
+      setEnvLoading(true)
+      fetch('/api/admin/env-check', { headers: { 'x-pro-id': session.id } })
+        .then(r => r.json())
+        .then(d => { setEnvData(d.vars); setEnvMeta({ environment: d.environment, url: d.url }) })
+        .catch(() => {})
+        .finally(() => setEnvLoading(false))
+    }
+  }, [section, session, envData])
 
   async function updateConfig(key: string, value: string) {
     if (!session) return
@@ -159,6 +176,7 @@ export default function AdminPage() {
     { id: 'leads',      icon: '📥', label: 'Leads'      },
     { id: 'moderation', icon: '🛡',  label: 'Moderation' },
     { id: 'activity',   icon: '📜', label: 'Activity'   },
+    { id: 'env',        icon: '🔑', label: 'Env Vars'   },
     { id: 'config',     icon: '⚙️',  label: 'Config'    },
     { id: 'emails',     icon: '📧', label: 'Emails'     },
     { id: 'categories', icon: '🏷',  label: 'Categories' },
@@ -850,6 +868,57 @@ export default function AdminPage() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── Env Vars ──────────────────────────────────────────────────── */}
+          {section === 'env' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>Environment Variables</h2>
+                  {envMeta && (
+                    <p style={{ color: '#64748B', fontSize: 13, margin: '4px 0 0' }}>
+                      {envMeta.environment} · {envMeta.url}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setEnvData(null) }}
+                  style={{ background: '#1E293B', border: '1px solid #334155', color: '#94A3B8', borderRadius: 8, padding: '6px 14px', fontSize: 13, cursor: 'pointer' }}>
+                  Refresh
+                </button>
+              </div>
+
+              {envLoading && <p style={{ color: '#64748B' }}>Loading…</p>}
+
+              {envData && (
+                <div style={{ background: '#0F172A', borderRadius: 12, overflow: 'hidden', border: '1px solid #1E293B' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: '#1E293B' }}>
+                        <th style={{ textAlign: 'left', padding: '10px 16px', color: '#64748B', fontWeight: 600, width: '45%' }}>Variable</th>
+                        <th style={{ textAlign: 'left', padding: '10px 16px', color: '#64748B', fontWeight: 600 }}>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(envData).map(([key, val], i) => {
+                        const isSet = !String(val).startsWith('❌')
+                        return (
+                          <tr key={key} style={{ borderTop: i === 0 ? 'none' : '1px solid #1E293B', background: i % 2 === 0 ? 'transparent' : '#0A1628' }}>
+                            <td style={{ padding: '9px 16px', color: '#94A3B8', fontFamily: 'monospace', fontSize: 12 }}>{key}</td>
+                            <td style={{ padding: '9px 16px', color: isSet ? '#4ADE80' : '#EF4444', fontFamily: 'monospace', fontSize: 12 }}>{val}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <p style={{ color: '#475569', fontSize: 12, marginTop: 16 }}>
+                ⚠️ Values are masked (first 6 chars only). Delete this page before prod cutover.
+              </p>
             </div>
           )}
 
