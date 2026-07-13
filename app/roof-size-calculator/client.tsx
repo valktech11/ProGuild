@@ -207,41 +207,46 @@ export default function RoofCalculatorClient() {
               📍 {result.formattedAddress}
             </p>
 
-            {/* Plain-English summary — keeps users reading, adds keyword-rich body copy */}
-            <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', marginBottom: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
-              <p style={{ margin: 0, fontSize: 15, color: '#334155', lineHeight: 1.6 }}>
-                Your roof is approximately <strong style={{ color: NAVY }}>{result.sqft.toLocaleString()} square feet</strong>, which is about{' '}
-                <strong style={{ color: NAVY }}>{result.squares} roofing squares</strong>. The dominant pitch is{' '}
-                <strong style={{ color: NAVY }}>{result.pitch}</strong>. A roof this size typically needs around{' '}
-                <strong style={{ color: NAVY }}>{Math.ceil(result.squares * 3 * 1.1)} bundles</strong> of asphalt shingles
-                (including a 10% waste factor) and most crews complete a replacement in{' '}
-                <strong style={{ color: NAVY }}>{result.squares <= 20 ? '1–2 days' : result.squares <= 35 ? '2–3 days' : '3–5 days'}</strong>.
-              </p>
-            </div>
+            {/* ── Roof Summary — one card: metrics + cost + plain-English read ── */}
+            <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04)' }}>
 
-            {/* Result cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
-              {[
-                { label: 'Square footage', value: result.sqft.toLocaleString(), unit: 'sq ft' },
-                { label: 'Roofing squares', value: result.squares.toString(), unit: 'squares' },
-                { label: 'Dominant pitch', value: result.pitch, unit: '' },
-              ].map(({ label, value, unit }) => (
-                <div key={label} style={{ background: '#fff', borderRadius: 12, padding: '20px 16px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: TEAL, letterSpacing: '-0.02em' }}>{value}</div>
-                  {unit && <div style={{ fontSize: 12, color: '#94A3B8', fontWeight: 500, marginTop: 2 }}>{unit}</div>}
-                  <div style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{label}</div>
-                </div>
-              ))}
-            </div>
-            {/* Estimated replacement cost — full width, prominent */}
-            <div style={{ background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12, padding: '18px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                <div style={{ fontSize: 13, color: '#166534', fontWeight: 600, marginBottom: 2 }}>Estimated roof replacement cost</div>
-                <div style={{ fontSize: 11, color: '#4ADE80' }}>Typical installed cost (architectural shingles)</div>
+              {/* Metrics row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                {[
+                  { label: 'Square footage', value: result.sqft.toLocaleString(), unit: 'sq ft' },
+                  { label: 'Roofing squares', value: result.squares.toString(), unit: 'squares' },
+                  { label: 'Dominant pitch', value: result.pitch, unit: '' },
+                ].map(({ label, value, unit }, i) => (
+                  <div key={label} style={{ padding: '22px 16px', textAlign: 'center', borderLeft: i === 0 ? 'none' : '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: TEAL, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{value}</div>
+                    {unit && <div style={{ fontSize: 12, color: '#94A3B8', fontWeight: 500, marginTop: 2 }}>{unit}</div>}
+                    <div style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{label}</div>
+                  </div>
+                ))}
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 33, fontWeight: 800, color: '#15803D', letterSpacing: '-0.02em', lineHeight: 1.1 }}>{costRange(result.squares)}</div>
-                <div style={{ fontSize: 11, color: '#166534' }}>Actual quotes may vary significantly</div>
+
+              {/* Cost band — the number people are really looking for */}
+              <div style={{ background: '#F0FDF4', borderTop: '1px solid #DCFCE7', borderBottom: '1px solid #DCFCE7', padding: '22px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: '#166534', fontWeight: 700, marginBottom: 2 }}>Estimated roof replacement cost</div>
+                  <div style={{ fontSize: 11, color: '#16A34A' }}>Typical installed cost (architectural shingles)</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 34, fontWeight: 800, color: '#15803D', letterSpacing: '-0.025em', lineHeight: 1.05 }}>{costRange(result.squares)}</div>
+                  <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>Actual quotes may vary significantly</div>
+                </div>
+              </div>
+
+              {/* Plain-English read — keyword-rich body copy, inside the same card */}
+              <div style={{ padding: '18px 24px' }}>
+                <p style={{ margin: 0, fontSize: 15, color: '#334155', lineHeight: 1.65 }}>
+                  Your roof is approximately <strong style={{ color: NAVY }}>{result.sqft.toLocaleString()} square feet</strong> — about{' '}
+                  <strong style={{ color: NAVY }}>{result.squares} roofing squares</strong> at a{' '}
+                  <strong style={{ color: NAVY }}>{result.pitch}</strong> pitch. A roof this size typically needs around{' '}
+                  <strong style={{ color: NAVY }}>{Math.ceil(result.squares * 3 * 1.1)} bundles</strong> of asphalt shingles
+                  (including a 10% waste factor), and most crews complete a replacement in{' '}
+                  <strong style={{ color: NAVY }}>{result.squares <= 20 ? '1–2 days' : result.squares <= 35 ? '2–3 days' : '3–5 days'}</strong>.
+                </p>
               </div>
             </div>
 
@@ -368,14 +373,19 @@ export default function RoofCalculatorClient() {
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
                 Roof square footage vs. roofing squares
               </h3>
-              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
-                Homeowners think in square feet. Roofing contractors think in squares. One roofing square equals 100 square
-                feet of roof area, and every quote, material order, and labour estimate in the industry is priced per square.
-                If your roof measures 2,200 square feet, a contractor will call that a 22-square roof. Knowing your square
-                count before you call anyone is genuinely useful: it lets you sanity-check a quote instantly. If a contractor
-                tells you your roof is 40 squares and this tool says 22, that discrepancy is worth a conversation. Most
-                single-family homes fall between 15 and 40 squares.
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 12px' }}>
+                Homeowners think in square feet. Roofing contractors think in squares. <strong>One roofing square equals 100
+                square feet</strong> of roof area, and every quote, material order, and labour estimate in the industry is
+                priced per square. If your roof measures 2,200 square feet, a contractor will call that a 22-square roof.
+                Most single-family homes fall between 15 and 40 squares.
               </p>
+              <div style={{ background: '#EFF6FF', borderLeft: `3px solid #3B82F6`, borderRadius: 6, padding: '12px 16px', margin: '0 0 20px' }}>
+                <p style={{ margin: 0, fontSize: 14, color: '#1E3A8A', lineHeight: 1.6 }}>
+                  <strong>Why this matters:</strong> knowing your square count before you call anyone lets you sanity-check a
+                  quote instantly. If a contractor says your roof is 40 squares and this tool says 22, that discrepancy is
+                  worth a conversation.
+                </p>
+              </div>
 
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
                 What roof pitch means and why it changes the price
@@ -393,27 +403,43 @@ export default function RoofCalculatorClient() {
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
                 Estimating materials from your square count
               </h3>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 12px' }}>
+                Asphalt shingles are sold in bundles, and <strong>three bundles cover one square</strong>. So a 22-square roof
+                needs roughly 66 bundles — plus a waste factor:
+              </p>
+              <ul style={{ margin: '0 0 12px', paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8 }}>
+                <li><strong>10% waste</strong> — a simple gable roof with few cuts</li>
+                <li><strong>15% waste</strong> — a complex roof with many hips, valleys, and dormers</li>
+              </ul>
               <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
-                Asphalt shingles are sold in bundles, and three bundles cover one square. So a 22-square roof needs roughly 66
-                bundles — plus a waste factor, typically 10% for a simple gable roof and up to 15% for a complex roof with many
-                hips, valleys, and dormers. Waste accounts for cuts, starter strips, and ridge caps. Beyond shingles, a
-                replacement needs underlayment, drip edge, ridge vent, and fasteners, all of which scale with square count.
-                Knowing your squares gives you a defensible basis for reviewing a material line item on any quote.
+                Waste accounts for cuts, starter strips, and ridge caps. Beyond shingles, a replacement also needs underlayment,
+                drip edge, ridge vent, and fasteners — all of which scale with square count. Knowing your squares gives you a
+                defensible basis for reviewing the material line item on any quote.
               </p>
 
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
                 What a roof replacement typically costs
               </h3>
-              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 20px' }}>
-                Architectural asphalt shingle replacement generally runs $400 to $550 per square nationally, including tear-off,
-                disposal, underlayment, and labour. Metal roofing runs roughly $600 to $900 per square, and concrete or clay
-                tile higher still, often $700 to $1,200. Regional variation is significant and driven by three things: local
-                labour rates, disposal costs, and building code. Coastal and high-wind regions require enhanced fastening
-                schedules, secondary water barriers, and wind-uplift ratings that push material and labour costs well above the
-                national average. Cold-climate regions add ice-and-water shield requirements along eaves and valleys. Permit
-                fees and inspection regimes vary by municipality. A quote that comes in far below these ranges is worth
-                scrutinising — it often means a code requirement is being skipped, which becomes a failed inspection later.
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 12px' }}>
+                Typical national cost per square, including tear-off, disposal, underlayment, and labour:
               </p>
+              <ul style={{ margin: '0 0 16px', paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8 }}>
+                <li><strong>Architectural asphalt shingle</strong> — $400 to $550 per square</li>
+                <li><strong>Metal</strong> — roughly $600 to $900 per square</li>
+                <li><strong>Concrete or clay tile</strong> — often $700 to $1,200 per square</li>
+              </ul>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 12px' }}>
+                Regional variation is significant, driven by three things: local labour rates, disposal costs, and building code.
+                Coastal and high-wind regions require enhanced fastening schedules, secondary water barriers, and wind-uplift
+                ratings that push costs well above the national average. Cold-climate regions add ice-and-water shield
+                requirements along eaves and valleys. Permit fees and inspection regimes vary by municipality.
+              </p>
+              <div style={{ background: '#FFFBEB', borderLeft: '3px solid #F59E0B', borderRadius: 6, padding: '12px 16px', margin: '0 0 20px' }}>
+                <p style={{ margin: 0, fontSize: 14, color: '#92400E', lineHeight: 1.6 }}>
+                  <strong>A warning on cheap quotes:</strong> a bid that comes in far below these ranges is worth scrutinising.
+                  It often means a code requirement is being skipped — which becomes a failed inspection later, at your expense.
+                </p>
+              </div>
 
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
                 Roof size and your insurance claim
@@ -422,22 +448,36 @@ export default function RoofCalculatorClient() {
                 If you are filing a hurricane or hail claim, roof size is the foundation of the entire settlement. The carrier's
                 adjuster measures the roof, applies unit pricing per square, and produces a scope of work. If their measurement
                 is low, every downstream number is low too. Homeowners who know their own square count going into an inspection
-                are in a much stronger position — and if the adjuster's figure is materially below an independent measurement,
-                that is grounds for a supplement request. In most states, your policy entitles you to a settlement that restores
-                the roof to code-compliant condition, which frequently costs more than the initial estimate assumes.
+                are in a much stronger position.
               </p>
+              <div style={{ background: '#F0FDF4', borderLeft: `3px solid ${TEAL}`, borderRadius: 6, padding: '12px 16px', margin: '0 0 20px' }}>
+                <p style={{ margin: 0, fontSize: 14, color: '#166534', lineHeight: 1.6 }}>
+                  <strong>If the adjuster&apos;s number looks low:</strong> a figure materially below an independent measurement is
+                  grounds for a supplement request. In most states your policy entitles you to a settlement that restores the
+                  roof to code-compliant condition — which frequently costs more than the initial estimate assumes.
+                </p>
+              </div>
 
               <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, margin: '0 0 8px' }}>
                 What this tool can and cannot tell you
               </h3>
-              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: 0 }}>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 12px' }}>
                 This calculator gives you an accurate estimate of roof area, square count, and dominant pitch from satellite
                 imagery — typically within 5 to 10% of a physical measurement. That is more than enough to sanity-check a quote
-                or understand the scale of the job. What it cannot do is assess condition. It cannot see whether your shingles
-                are curling, whether the decking beneath is rotted, whether flashing has failed around a chimney, or whether a
-                prior repair was done badly. It also cannot see damage that occurred after the imagery was captured — the
-                imagery date is shown with your results. For a claim, a permit, or a final contract, a licensed contractor
-                still needs to inspect the roof in person.
+                or understand the scale of the job.
+              </p>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: '0 0 12px' }}>
+                What it <strong>cannot</strong> do is assess condition. It cannot see:
+              </p>
+              <ul style={{ margin: '0 0 12px', paddingLeft: 20, color: '#475569', fontSize: 15, lineHeight: 1.8 }}>
+                <li>Whether your shingles are curling, cracked, or losing granules</li>
+                <li>Whether the decking beneath is rotted or soft</li>
+                <li>Whether flashing has failed around a chimney or valley</li>
+                <li>Whether a prior repair was done badly</li>
+                <li>Damage that occurred <em>after</em> the imagery was captured — the imagery date is shown with your results</li>
+              </ul>
+              <p style={{ color: '#475569', fontSize: 15, lineHeight: 1.7, margin: 0 }}>
+                For a claim, a permit, or a final contract, a licensed contractor still needs to inspect the roof in person.
               </p>
             </div>
 
