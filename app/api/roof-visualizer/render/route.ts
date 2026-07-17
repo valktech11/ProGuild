@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
         session.mask_public_url!,
         sku as SkuRow,
         sb
-      )), idx * 800)  // 800ms stagger between each call
+      )), idx * 1500)  // 1500ms stagger
       ))
     )
 

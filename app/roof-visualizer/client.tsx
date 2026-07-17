@@ -236,8 +236,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: T.radLg, padding: T.sp6, ...extra }}>{children}</div>
   )
 
-  const successRenders = renders.filter(r => r.renderUrl)
-  const gridCols = Math.min(successRenders.length + 1, 4)
+  const gridCols = Math.min(renders.length + 1, 4)  // total renders + original, max 4
 
   return (
     <div style={{ minHeight: '100vh', background: t.pageBg, fontFamily: 'inherit' }}>
@@ -318,7 +317,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         {step === 'rendering' && (
           <div>
             <p style={{ fontWeight: 700, fontSize: 17, color: t.textPri, margin: '0 0 20px' }}>Generating your renders…</p>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(selectedSkuIds.length + 1, 4)}, 1fr)`, gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(selectedSkuIds.length + 1, 3)}, 1fr)`, gap: 16 }}>
               {photoPreview && (
                 <div style={{ borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -343,7 +342,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 <button onClick={handleShare} style={{ padding: '9px 18px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Share with Homeowner →</button>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(gridCols, 3)}, 1fr)`, gap: 16 }}>
               {photoPreview && <OriginalCard photoUrl={photoPreview} />}
               {renders.map(r => r.renderUrl && photoPreview ? (
                 <BeforeAfterSlider key={r.skuId} original={photoPreview} rendered={r.renderUrl} label={r.skuName} hex={r.hexPreview} mfg={r.mfgName ?? ''} />
