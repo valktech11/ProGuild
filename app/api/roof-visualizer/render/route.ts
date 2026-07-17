@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { uploadToR2 } from '@/lib/r2'
+import sharp from 'sharp'
 
 export const maxDuration = 120  // 2 min timeout for 3 parallel Gemini image renders
 
@@ -70,20 +71,58 @@ async function renderOneSku(
       urlToBase64(maskUrl),
     ])
 
+    // Composite mask onto photo as semi-transparent green overlay
+    // This creates ONE image where the roof is visually highlighted in green
+    // Gemini understands "replace the green region" much more reliably than a separate mask image
+    const photoBuffer = Buffer.from(photo.data, 'base64')
+    const maskBuffer  = Buffer.from(mask.data,  'base64')
+
+    // Get photo dimensions
+    const photoMeta = await sharp(photoBuffer).metadata()
+    const pw = photoMeta.width  ?? 800
+    const ph = photoMeta.height ?? 600
+
+    // Resize mask to match photo, create green overlay
+    const greenMask = await sharp(maskBuffer)
+      .resize(pw, ph, { fit: 'fill' })
+      .ensureAlpha()
+      .recomb([
+        [0, 0, 0],   // R = 0
+        [1, 0, 0],   // G = from R channel (mask is white = 255,255,255)
+        [0, 0, 0],   // B = 0
+      ])
+      .toBuffer()
+
+    // Composite: original photo + green mask at 50% opacity
+    const composited = await sharp(photoBuffer)
+      .composite([{ input: greenMask, blend: 'over', top: 0, left: 0 }])
+      .modulate({ brightness: 1 })
+      .jpeg({ quality: 90 })
+      .toBuffer()
+
+    const compositedB64 = composited.toString('base64')
+
+    const colorHex = sku.hex_preview || '#666666'
     const prompt = [
-      `You are a photorealistic roof visualizer. You have received a house photo and a white mask image showing exactly where the roof is.`,
-      `TASK: Replace ONLY the white-masked roof area with ${sku.texture_prompt}.`,
-      `CRITICAL RULES (follow all of them):`,
-      `- Change ONLY the pixels under the white mask. Everything outside the mask (sky, walls, windows, trees, driveway, cars) must be pixel-perfect identical to the original.`,
-      `- The replacement shingles must follow the existing roof geometry — same pitch, ridges, valleys, hip lines, and shadow angles.`,
-      `- Lighting, shadows, and highlights must match the original photo's sun direction exactly.`,
-      `- The result must look like a professional real-estate photograph. No compositing artifacts, no blurry edges.`,
-      `- Do not add text, logos, watermarks, or UI elements.`,
-      `Output: a single photorealistic image of the house with the new shingles applied.`,
+      `You are an expert photo editor specializing in realistic roofing visualizations for the construction industry.`,
+      ``,
+      `In the provided image, the roof surfaces are highlighted with a GREEN overlay/tint.`,
+      ``,
+      `YOUR TASK: Replace ALL green-highlighted roof surfaces with ${sku.texture_prompt}.`,
+      `Target color: ${colorHex} (hex). This must be a CLEARLY VISIBLE, DRAMATIC color change from the current roof.`,
+      ``,
+      `MANDATORY REQUIREMENTS:`,
+      `1. The new shingles MUST be clearly and obviously ${sku.name} colored — not subtle, not a slight tint. A person looking at before/after must immediately notice the roof color changed.`,
+      `2. Preserve the exact roof geometry: pitch, ridges, hips, valleys, rakes, and gutters must all remain structurally identical.`,
+      `3. Match the original lighting direction and sun angle. Maintain all shadow gradients across the roof planes.`,
+      `4. Keep ALL non-roof areas completely unchanged: sky, walls, windows, doors, driveway, garage, trees, cars — pixel-perfect preservation.`,
+      `5. The final image must look like a real photograph taken on the same day, from the same angle, with only the roof material changed.`,
+      `6. Remove the green overlay entirely in your output — it should not appear in the final result.`,
+      ``,
+      `Output: ONE photorealistic image of the house with the new ${sku.name} shingles clearly visible.`,
     ].join('\n')
 
-    // REST call — same pattern as supplement/insurance routes
-    console.log(`[render] calling Gemini for SKU ${sku.id} (${sku.name}), photo: ${photo.data.length} mask: ${mask.data.length} maskUrl: ${maskUrl}`)
+    console.log(`[render] calling Gemini for SKU ${sku.id} (${sku.name}), composited: ${compositedB64.length}`)
     const gemRes = await fetch(GEMINI_IMG_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -92,13 +131,12 @@ async function renderOneSku(
           role: 'user',
           parts: [
             { text: prompt },
-            { inlineData: { mimeType: photo.mimeType, data: photo.data } },
-            { inlineData: { mimeType: 'image/png',    data: mask.data  } },
+            { inlineData: { mimeType: 'image/jpeg', data: compositedB64 } },
           ],
         }],
         generationConfig: {
           responseModalities: ['TEXT', 'IMAGE'],
-          temperature: 0.2,
+          temperature: 0.4,
         },
       }),
     })
