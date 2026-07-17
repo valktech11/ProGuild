@@ -109,7 +109,7 @@ CRITICAL: Your entire response must be valid JSON only. Start with [ and end wit
 
   // Save to bank (non-blocking — return questions even if DB fails)
   sb().from('sat_questions').upsert(stamped, { onConflict: 'id' })
-    .then(({ error }) => { if (error) console.error('DB save:', error.message) })
+    .then(({ error }: { error: { message: string } | null }) => { if (error) console.error('DB save:', error.message) })
 
   return NextResponse.json({ text: JSON.stringify(stamped) })
 }

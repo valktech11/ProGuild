@@ -22,11 +22,16 @@ export interface InsuranceClaimData {
 }
 
 interface Props {
-  leadId:    string
-  proId:     string
-  initial:   Partial<InsuranceClaimData>
-  darkMode:  boolean
-  onSaved:   (data: InsuranceClaimData) => void
+  leadId:          string
+  proId:           string
+  initial:         Partial<InsuranceClaimData>
+  darkMode:        boolean
+  onSaved:         (data: InsuranceClaimData) => void
+  propertyState?:  string | null
+  propertyAddress?: string | null
+  propertyLat?:    number | null
+  propertyLon?:    number | null
+  locked?:         boolean
 }
 
 const CLAIM_STATUSES = [

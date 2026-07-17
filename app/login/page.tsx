@@ -717,7 +717,7 @@ function LoginPageInner() {
 
   useEffect(() => {
     const supabase = getSupabaseBrowser()
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: unknown } }) => {
       if (session) router.replace('/dashboard')
     })
   }, [])

@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'lead_id required — estimates must be linked to a lead' }, { status: 400 })
   }
 
-  const sb = auditedAdmin(req, { actorId: __auth.proId, actorType: 'pro' })
+  const sb = auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
 
   // Tax follows the JOB location, not the client-passed session snapshot.
   // Resolve once here so every branch (create / revision / re-price) keys tax

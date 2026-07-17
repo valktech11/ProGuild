@@ -76,10 +76,10 @@ export async function GET(req: NextRequest) {
   // (lead_in uses created_at, and sent/signed/paid are the events that ARE the reach.)
   dates['lead_in']              = (lead.created_at as string | null) ?? dates['lead_in'] ?? null
   dates['inspection_scheduled'] = dates['inspection_scheduled'] ?? null
-  dates['proposal_sent']        = (bestEst?.sent_at ?? undefined) ?? dates['proposal_sent'] ?? (bestEst?.created_at ?? undefined) ?? null
-  dates['proposal_signed']      = (bestEst?.approved_at ?? undefined) ?? dates['proposal_signed'] ?? (bestEst?.created_at ?? undefined) ?? null
+  dates['proposal_sent']        = bestEst?.sent_at ?? dates['proposal_sent'] ?? bestEst?.created_at ?? null
+  dates['proposal_signed']      = bestEst?.approved_at ?? dates['proposal_signed'] ?? bestEst?.created_at ?? null
   dates['scheduled']            = dates['scheduled'] ?? null
-  dates['job_won']              = (inv?.paid_at ?? undefined) ?? dates['job_won'] ?? null
+  dates['job_won']              = inv?.paid_at ?? dates['job_won'] ?? null
 
   const plan = evaluateStagePlan(ctx)
 

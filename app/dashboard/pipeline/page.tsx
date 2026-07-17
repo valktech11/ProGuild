@@ -284,10 +284,10 @@ export default function PipelinePage() {
               <Chip label={`$${filters.minValue || '0'} – $${filters.maxValue || '∞'}`} onRemove={() => setFilters(f => ({ ...f, minValue: '', maxValue: '' }))} />
             )}
             {filters.dateReceived && (
-              <Chip label={{ today: 'Today', week: 'This week', month: 'This month' }[filters.dateReceived] || ''} onRemove={() => setFilters(f => ({ ...f, dateReceived: '' }))} />
+              <Chip label={({ today: 'Today', week: 'This week', month: 'This month' } as Record<string,string>)[filters.dateReceived] || ''} onRemove={() => setFilters(f => ({ ...f, dateReceived: '' }))} />
             )}
             {filters.followUpDue && (
-              <Chip label={`Follow-up: ${{ overdue: 'Overdue', today: 'Today', week: 'This week' }[filters.followUpDue] || ''}`} onRemove={() => setFilters(f => ({ ...f, followUpDue: '' }))} />
+              <Chip label={`Follow-up: ${({ overdue: 'Overdue', today: 'Today', week: 'This week' } as Record<string,string>)[filters.followUpDue] || ''}`} onRemove={() => setFilters(f => ({ ...f, followUpDue: '' }))} />
             )}
           </div>
         )}

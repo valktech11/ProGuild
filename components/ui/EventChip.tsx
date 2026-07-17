@@ -48,6 +48,7 @@ function Svg({ path, size = 12, color = 'currentColor', sw = 2 }: { path: string
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 interface EventChipProps {
+  key?: React.Key
   ev: CalEvent
   dk: boolean
   /** micro: month grid cell chip (name only, 9px)

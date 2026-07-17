@@ -28,7 +28,7 @@ function ResetInner() {
   useEffect(() => {
     // The reset link gives us a recovery session. Confirm we have one.
     const supabase = getSupabaseBrowser()
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: unknown } }) => {
       if (session) setReady(true)
       else {
         // Listen briefly in case the recovery exchange is still processing

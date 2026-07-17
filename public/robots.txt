@@ -1,3 +1,6 @@
-# ProGuild.ai STAGING — not for public indexing
 User-agent: *
-Disallow: /
+Allow: /roof-size-calculator
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /api

@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
       }, {})
   )
   const activeValue = Math.round(
-    bestPerLead.reduce((s, e) => s + ((e.total as number) || 0), 0) * 100) / 100
+    (bestPerLead as Array<{ total?: unknown }>).reduce((s: number, e) => s + ((e.total as number) || 0), 0) * 100) / 100
 
   return NextResponse.json({
     totalEstimates,

@@ -15,6 +15,7 @@ type CardPad     = 'none' | 'sm' | 'md' | 'lg'
 type CardRadius  = 'sm' | 'md' | 'lg' | 'xl'
 
 interface CardProps {
+  key?:      React.Key
   dk?:       boolean
   variant?:  CardVariant
   pad?:      CardPad

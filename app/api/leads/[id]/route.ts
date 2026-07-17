@@ -245,7 +245,7 @@ export async function PATCH(
   let leadData: Record<string, unknown> | null = null
   if (Object.keys(updateFields).length > 0) {
     updateFields.updated_at = new Date().toISOString()
-    const { data, error } = await auditedAdmin(req, { actorId: proId, actorType: 'pro' })
+    const { data, error } = await auditedAdmin(req, { actorId: proId!, actorType: 'pro' })
       .from('leads')
       .update(updateFields)
       .eq('id', id)

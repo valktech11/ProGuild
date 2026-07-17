@@ -1,4 +1,5 @@
 'use client'
+import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { AnyNavSection, AnyNavItem } from '@/lib/trades/_registry'
@@ -14,6 +15,7 @@ interface Props {
 }
 
 function NavItem({ item, plan, isActive }: {
+  key?:     React.Key
   item:     AnyNavItem
   plan:     PlanTier
   isActive: boolean
