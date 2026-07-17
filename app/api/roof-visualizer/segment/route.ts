@@ -103,29 +103,68 @@ async function runSam2(imageUrl: string, imageBuffer?: Buffer, mimeType?: string
   throw new Error('SAM2 timed out after 120 seconds')
 }
 
-// Pick the mask with the most white pixels (largest region = roof)
-async function pickBestMask(maskUrls: string[]): Promise<string> {
+// Build the roof mask: decode every SAM2 mask, score by REAL white-pixel coverage
+// and vertical centroid, then UNION all roof-like planes into one mask.
+// (SAM2 segments each roof plane separately — a single mask is one sliver.)
+async function buildRoofMask(maskUrls: string[], width: number, height: number): Promise<Buffer> {
   if (maskUrls.length === 0) throw new Error('SAM2 returned no masks')
-  if (maskUrls.length === 1) return maskUrls[0]
 
-  // Fetch all masks in parallel and score by white-pixel count
-  console.log(`[SAM2] scoring ${maskUrls.length} masks`)
-  const scores = await Promise.all(maskUrls.map(async (url, i) => {
+  const S = 128  // scoring resolution
+  const candidates = maskUrls.slice(0, 24)  // cap fetch cost
+
+  const scored = await Promise.all(candidates.map(async (url, i) => {
     try {
       const res = await fetch(url)
       const buf = Buffer.from(await res.arrayBuffer())
-      let score = 0
-      for (let j = 0; j < buf.length; j++) if (buf[j] === 0xff) score++
-      console.log(`[SAM2] mask ${i}: bytes=${buf.length} whiteScore=${score} url=${url.slice(-40)}`)
-      return { i, score }
+      const raw = await sharp(buf).resize(S, S, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
+      let white = 0, ySum = 0
+      for (let p = 0; p < S * S; p++) {
+        if (raw[p] > 200) { white++; ySum += Math.floor(p / S) }
+      }
+      const coverage  = white / (S * S)
+      const centroidY = white > 0 ? (ySum / white) / S : 1
+      console.log(`[SAM2] mask ${i}: coverage=${(coverage * 100).toFixed(1)}% centroidY=${centroidY.toFixed(2)}`)
+      return { i, buf: buf as Buffer | null, coverage, centroidY }
     } catch (e) {
-      console.error(`[SAM2] mask ${i} fetch failed:`, e)
-      return { i, score: 0 }
+      console.error(`[SAM2] mask ${i} fetch/decode failed:`, e)
+      return { i, buf: null as Buffer | null, coverage: 0, centroidY: 1 }
     }
   }))
 
-  scores.sort((a, b) => b.score - a.score)
-  return maskUrls[scores[0].i]
+  // Roof-like: meaningful size, sits in the upper part of the frame
+  let roofMasks = scored.filter(m =>
+    m.buf && m.coverage >= 0.015 && m.coverage <= 0.5 && m.centroidY <= 0.62
+  )
+
+  // Fallback: nothing matched heuristics → single largest mask
+  if (roofMasks.length === 0) {
+    const largest = scored.filter(m => m.buf).sort((a, b) => b.coverage - a.coverage)[0]
+    if (!largest?.buf) throw new Error('No decodable masks from SAM2')
+    console.log(`[SAM2] no roof-like masks — falling back to largest (${(largest.coverage * 100).toFixed(1)}%)`)
+    roofMasks = [largest]
+  }
+
+  // Cap runaway unions (sky/walls slipping through) at ~65% coverage
+  roofMasks.sort((a, b) => b.coverage - a.coverage)
+  const selected: typeof roofMasks = []
+  let total = 0
+  for (const m of roofMasks) {
+    if (total + m.coverage > 0.65 && selected.length > 0) break
+    selected.push(m); total += m.coverage
+  }
+  console.log(`[SAM2] union of ${selected.length} masks, est coverage=${(total * 100).toFixed(1)}%`)
+
+  // Union at full photo resolution via manual OR on raw buffers
+  const acc = Buffer.alloc(width * height)
+  for (const m of selected) {
+    const raw = await sharp(m.buf!).resize(width, height, { fit: 'fill' })
+      .greyscale().extractChannel(0).raw().toBuffer()
+    for (let p = 0; p < width * height; p++) {
+      if (raw[p] > 200) acc[p] = 255
+    }
+  }
+
+  return sharp(acc, { raw: { width, height, channels: 1 } }).png().toBuffer()
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -199,28 +238,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not detect roof surfaces in this photo. Try a clearer image.' }, { status: 422 })
     }
 
-    // Pick largest mask (= roof)
-    const bestMaskUrl = await pickBestMask(output.individual_masks)
-    console.log(`[segment] best mask: ${bestMaskUrl}`)
-
-    // Download and re-upload mask to our R2
-    const maskRes    = await fetch(bestMaskUrl)
-    const maskBuffer = Buffer.from(await maskRes.arrayBuffer())
+    // Build unified roof mask from all roof-like SAM2 planes
+    const photoMeta = await sharp(photoBuffer).metadata()
+    const pw = photoMeta.width  ?? 800
+    const ph = photoMeta.height ?? 600
+    const maskBuffer = await buildRoofMask(output.individual_masks, pw, ph)
     const maskKey    = r2Key('masks', sessionId, 'png')
     const maskUrl    = await uploadToR2(maskKey, maskBuffer, 'image/png')
-    console.log(`[segment] mask uploaded: ${maskUrl}`)
+    console.log(`[segment] union mask uploaded: ${maskUrl}`)
 
-    // Compute mask coverage for confidence signal
-    // White pixel ratio in the mask ≈ fraction of image that is roof
+    // Compute REAL mask coverage from decoded pixels for the confidence signal
+    const covRaw = await sharp(maskBuffer).resize(128, 128, { fit: 'fill' })
+      .greyscale().extractChannel(0).raw().toBuffer()
     let whitePixels = 0
-    for (let j = 0; j < maskBuffer.length; j++) if (maskBuffer[j] === 0xff) whitePixels++
-    const coverage = whitePixels / maskBuffer.length  // rough proxy (PNG bytes, not exact pixels, but monotonic)
+    for (let j = 0; j < covRaw.length; j++) if (covRaw[j] > 200) whitePixels++
+    const coverage = whitePixels / covRaw.length
 
     // Confidence heuristic
     let confidence: 'high' | 'medium' | 'low' = 'high'
     let confidenceNote = 'Roof detected successfully'
-    if (coverage < 0.02) { confidence = 'low';    confidenceNote = 'Roof area looks small — results may be less accurate' }
-    else if (coverage < 0.06) { confidence = 'medium'; confidenceNote = 'Roof detected — complex roof or partial view' }
+    if (coverage < 0.04) { confidence = 'low';    confidenceNote = 'Roof area looks small — results may be less accurate' }
+    else if (coverage < 0.10) { confidence = 'medium'; confidenceNote = 'Roof detected — complex roof or partial view' }
 
     // Update session
     await sb.from('visualizer_sessions').update({
