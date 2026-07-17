@@ -8,11 +8,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { getR2Client } from '@/lib/r2'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { uploadToR2 } from '@/lib/r2'
 
-const BUCKET  = process.env.R2_BUCKET_NAME!
-const R2_PUB  = process.env.R2_PUBLIC_URL!
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
 
 // Use the preview image generation model — supports responseModalities IMAGE
@@ -21,17 +18,7 @@ const GEMINI_IMG_URL   = `https://generativelanguage.googleapis.com/v1beta/model
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function uploadToR2(key: string, buffer: Buffer, contentType: string) {
-  const r2 = getR2Client()
-  await r2.send(new PutObjectCommand({
-    Bucket:       BUCKET,
-    Key:          key,
-    Body:         buffer,
-    ContentType:  contentType,
-    CacheControl: 'public, max-age=31536000',
-  }))
-  return `${R2_PUB}/${key}`
-}
+
 
 async function urlToBase64(url: string): Promise<{ data: string; mimeType: string }> {
   const res = await fetch(url)

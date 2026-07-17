@@ -9,12 +9,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { getR2Client } from '@/lib/r2'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { uploadToR2, getR2PublicUrl } from '@/lib/r2'
 import sharp from 'sharp'
 
-const BUCKET          = process.env.R2_BUCKET_NAME!
-const R2_PUB          = process.env.R2_PUBLIC_URL!
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
 
 // Use the deployment API (no version hash) — simpler and more reliable
@@ -26,17 +23,7 @@ function r2Key(prefix: string, id: string, ext: string) {
   return `visualizer/${prefix}/${id}.${ext}`
 }
 
-async function uploadToR2(key: string, buffer: Buffer, contentType: string) {
-  const r2 = getR2Client()
-  await r2.send(new PutObjectCommand({
-    Bucket:       BUCKET,
-    Key:          key,
-    Body:         buffer,
-    ContentType:  contentType,
-    CacheControl: 'public, max-age=31536000',
-  }))
-  return `${R2_PUB}/${key}`
-}
+
 
 // Call Replicate — create prediction then poll for completion
 async function runSam2(imageUrl: string, imageBuffer?: Buffer, mimeType?: string): Promise<{ combined_mask: string; individual_masks: string[] }> {
