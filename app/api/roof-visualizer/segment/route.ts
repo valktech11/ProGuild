@@ -38,8 +38,14 @@ async function uploadToR2(key: string, buffer: Buffer, contentType: string) {
 }
 
 // Call Replicate — create prediction then poll for completion
-async function runSam2(imageUrl: string): Promise<{ combined_mask: string; individual_masks: string[] }> {
+async function runSam2(imageUrl: string, imageBuffer?: Buffer, mimeType?: string): Promise<{ combined_mask: string; individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
+
+  // Pass image as base64 data URI — bypasses Replicate URI validation issues with R2 URLs
+  const mime     = mimeType || 'image/jpeg'
+  const imgInput = imageBuffer
+    ? `data:${mime};base64,${imageBuffer.toString('base64')}`
+    : imageUrl
 
   // Create prediction using /v1/predictions with pinned version hash
   const SAM2_VERSION = 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b'
@@ -49,7 +55,7 @@ async function runSam2(imageUrl: string): Promise<{ combined_mask: string; indiv
     body: JSON.stringify({
       version: SAM2_VERSION,
       input: {
-        image:                  imageUrl,
+        image:                  imgInput,
         points_per_side:        16,
         pred_iou_thresh:        0.85,
         stability_score_thresh: 0.92,
@@ -175,7 +181,7 @@ export async function POST(req: NextRequest) {
     // Call SAM2 via Replicate
     let output: { combined_mask: string; individual_masks: string[] }
     try {
-      output = await runSam2(photoUrl)
+      output = await runSam2(photoUrl, photoBuffer, file.type || 'image/jpeg')
     } catch (samErr) {
       const msg = samErr instanceof Error ? samErr.message : 'SAM2 error'
       console.error('[segment] SAM2 error:', msg)
