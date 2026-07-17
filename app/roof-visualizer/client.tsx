@@ -404,8 +404,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={maskUrl} alt="Roof mask" style={{
                     position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                    mixBlendMode: 'multiply', opacity: 0.4,
-                    filter: 'hue-rotate(120deg) saturate(5)',
+                    mixBlendMode: 'screen', opacity: 0.5,
+                    filter: 'invert(1) sepia(1) saturate(10) hue-rotate(100deg)',
                   }} />
                 )}
                 <div style={{
