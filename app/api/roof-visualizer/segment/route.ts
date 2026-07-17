@@ -77,8 +77,11 @@ interface Candidate {
 async function decodeCandidates(
   maskUrls: string[], gw: number, gh: number, photoLumGrid: Buffer
 ): Promise<Candidate[]> {
-  const capped = maskUrls.slice(0, 48)  // SAM2 orders by stability, NOT size — a wide net is required
-  const decoded = await Promise.all(capped.map(async (url) => {
+  // Decode ALL masks — proven necessary: SAM2 returned 104 in stability order and the
+  // main roof plane sat beyond every arbitrary cap. Batched fetches (16 at a time).
+  const capped = maskUrls.slice(0, 128)  // hard safety ceiling only
+
+  const decodeOne = async (url: string) => {
     try {
       const res = await fetch(url)
       const buf = Buffer.from(await res.arrayBuffer())
@@ -89,7 +92,14 @@ async function decodeCandidates(
       }
       return { buf, raw, area, cx: area ? xSum / area : 0, cy: area ? ySum / area : 0, meanLum: area ? lumSum / area : 255 }
     } catch { return null }
-  }))
+  }
+
+  const decoded: Array<Awaited<ReturnType<typeof decodeOne>>> = []
+  const BATCH = 16
+  for (let b = 0; b < capped.length; b += BATCH) {
+    const batch = await Promise.all(capped.slice(b, b + BATCH).map(decodeOne))
+    decoded.push(...batch)
+  }
 
   const total = gw * gh
   const ok = decoded.filter((d): d is NonNullable<typeof d> => !!d)
@@ -98,7 +108,7 @@ async function decodeCandidates(
     .filter(d => d.area / total >= MIN_AREA_FRAC && d.area / total <= 0.6)
     .sort((a, b) => b.area - a.area)
     .slice(0, MAX_CANDIDATES)
-  console.log(`[segment] kept ${kept.length} candidates`)
+  console.log(`[segment] kept ${kept.length} candidates:`, kept.map((d, i) => `#${i + 1}=${(d.area / total * 100).toFixed(1)}%`).join(' '))
 
   return kept.map((d, i) => ({
     index: i + 1, areaPx: d.area, areaPct: d.area / total,
