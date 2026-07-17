@@ -42,7 +42,7 @@ async function runSam2(imgB64DataUri: string): Promise<{ individual_masks: strin
     method: 'POST', headers: authHeader,
     body: JSON.stringify({
       version: SAM2_VERSION,
-      input: { image: imgB64DataUri, points_per_side: 16, pred_iou_thresh: 0.85, stability_score_thresh: 0.92, use_m2m: true },
+      input: { image: imgB64DataUri, points_per_side: 32, pred_iou_thresh: 0.85, stability_score_thresh: 0.92, use_m2m: true },
     }),
   })
   if (!createRes.ok) throw new Error(`Replicate create failed ${createRes.status}: ${(await createRes.text()).slice(0, 300)}`)
