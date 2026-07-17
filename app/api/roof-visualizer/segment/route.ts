@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getR2Client } from '@/lib/r2'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
+import sharp from 'sharp'
 
 const BUCKET          = process.env.R2_BUCKET_NAME!
 const R2_PUB          = process.env.R2_PUBLIC_URL!
@@ -41,11 +42,16 @@ async function uploadToR2(key: string, buffer: Buffer, contentType: string) {
 async function runSam2(imageUrl: string, imageBuffer?: Buffer, mimeType?: string): Promise<{ combined_mask: string; individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
 
-  // Pass image as base64 data URI — bypasses Replicate URI validation issues with R2 URLs
-  const mime     = mimeType || 'image/jpeg'
-  const imgInput = imageBuffer
-    ? `data:${mime};base64,${imageBuffer.toString('base64')}`
-    : imageUrl
+  // Convert to JPEG — SAM2 rejects AVIF/WEBP/HEIC formats
+  // sharp normalises any input format to JPEG safely
+  let jpegBuffer: Buffer
+  if (imageBuffer) {
+    jpegBuffer = await sharp(imageBuffer).jpeg({ quality: 90 }).toBuffer()
+  } else {
+    const res = await fetch(imageUrl)
+    jpegBuffer = await sharp(Buffer.from(await res.arrayBuffer())).jpeg({ quality: 90 }).toBuffer()
+  }
+  const imgInput = `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`
 
   // Create prediction using /v1/predictions with pinned version hash
   const SAM2_VERSION = 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b'
@@ -158,8 +164,10 @@ export async function POST(req: NextRequest) {
     if (!file) return NextResponse.json({ error: 'photo required' }, { status: 400 })
     if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'Photo must be under 10MB' }, { status: 400 })
 
-    const photoBuffer = Buffer.from(await file.arrayBuffer())
-    const ext         = file.type === 'image/png' ? 'png' : 'jpg'
+    // Normalise to JPEG regardless of upload format (handles AVIF, WEBP, HEIC etc.)
+    const rawBuffer   = Buffer.from(await file.arrayBuffer())
+    const photoBuffer = await sharp(rawBuffer).jpeg({ quality: 92 }).toBuffer()
+    const ext         = 'jpg'
     const sessionId   = crypto.randomUUID()
 
     console.log(`[segment] sessionId=${sessionId} file=${file.name} size=${file.size} type=${file.type}`)
