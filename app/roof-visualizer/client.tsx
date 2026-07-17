@@ -215,6 +215,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   }, [gridData, gridDims, selected, uncertainIdx, step])
 
   const handleConfirmTap = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation()
     const imgEl = confirmImgRef.current
     if (!gridData || !imgEl) { console.warn('[confirm] tap ignored — grid or img missing', { hasGrid: !!gridData, hasImg: !!imgEl }); return }
     const rect = imgEl.getBoundingClientRect()
@@ -378,8 +379,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               )}
             </div>
 
-            <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, cursor: 'pointer', maxWidth: 720, margin: '0 auto' }}
-              onClick={handleConfirmTap}>
+            <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, maxWidth: 720, margin: '0 auto' }}>
               {photoPreview && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img ref={confirmImgRef} src={photoPreview} alt="Your home" onClick={handleConfirmTap} style={{ width: '100%', display: 'block', cursor: 'crosshair' }} />
