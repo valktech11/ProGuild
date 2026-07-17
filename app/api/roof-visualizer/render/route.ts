@@ -10,6 +10,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { uploadToR2 } from '@/lib/r2'
 
+export const maxDuration = 120  // 2 min timeout for 3 parallel Gemini image renders
+
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
 
 // Use the preview image generation model — supports responseModalities IMAGE
@@ -189,14 +191,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'SKUs not found' }, { status: 404 })
     }
 
-    // Run all renders in parallel
+    // Stagger calls slightly to avoid Gemini rate limits
     const renders = await Promise.all(
-      skus.map(sku => renderOneSku(
+      skus.map((sku, idx) => new Promise<ReturnType<typeof renderOneSku>>(resolve =>
+        setTimeout(() => resolve(renderOneSku(
         session.id,
         session.photo_public_url,
         session.mask_public_url!,
         sku as SkuRow,
         sb
+      )), idx * 800)  // 800ms stagger between each call
       ))
     )
 
