@@ -15,7 +15,7 @@ interface RenderResult {
   skuId: string; renderUrl: string | null; skuName: string
   hexPreview: string; mfgName?: string; error?: string
 }
-type Step = 'upload' | 'segmenting' | 'pick' | 'rendering' | 'results' | 'gate' | 'share'
+type Step = 'upload' | 'preview' | 'segmenting' | 'pick' | 'rendering' | 'results' | 'gate' | 'share'
 
 function groupSkusByManufacturer(skus: Sku[]) {
   const map: Record<string, { manufacturer: string; skus: Sku[] }> = {}
@@ -174,25 +174,36 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [shareUrl, setShareUrl]     = useState<string | null>(null)
   const [gateEmail, setGateEmail]   = useState('')
   const [gateBusy, setGateBusy]     = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [confidence, setConfidence] = useState<{ level: string; note: string } | null>(null)
   const groups = groupSkusByManufacturer(skus)
   const skuMap = Object.fromEntries(skus.map(s => [s.id, s]))
 
-  const handleFileSelect = useCallback(async (file: File) => {
+  const handleFileSelect = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) { setError('Please upload a photo (JPG or PNG)'); return }
     if (file.size > 10 * 1024 * 1024)   { setError('Photo must be under 10MB'); return }
     const reader = new FileReader()
     reader.onload = e => setPhotoPreview(e.target?.result as string)
     reader.readAsDataURL(file)
+    setPendingFile(file)
+    setError(null)
+    setStep('preview')
+  }, [])
+
+  const handleAnalyze = useCallback(async () => {
+    if (!pendingFile) return
     setError(null); setStep('segmenting')
     try {
       const form = new FormData()
-      form.append('photo', file)
+      form.append('photo', pendingFile)
       const res  = await fetch('/api/roof-visualizer/segment', { method: 'POST', body: form })
       const data = await res.json()
-      if (!res.ok) { setError(data.detail ? `${data.error} — ${data.detail}` : (data.error || 'Could not detect roof.')); setStep('upload'); return }
-      setSessionId(data.sessionId); setStep('pick')
-    } catch { setError('Upload failed. Please try again.'); setStep('upload') }
-  }, [])
+      if (!res.ok) { setError(data.detail ? `${data.error} — ${data.detail}` : (data.error || 'Could not detect roof.')); setStep('preview'); return }
+      setSessionId(data.sessionId)
+      setConfidence(data.confidence ? { level: data.confidence, note: data.confidenceNote || 'Roof detected' } : null)
+      setStep('pick')
+    } catch { setError('Upload failed. Please try again.'); setStep('preview') }
+  }, [pendingFile])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFileSelect(file)
@@ -236,7 +247,6 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: T.radLg, padding: T.sp6, ...extra }}>{children}</div>
   )
 
-  const gridCols = Math.min(renders.length + 1, 4)  // total renders + original, max 4
 
   return (
     <div style={{ minHeight: '100vh', background: t.pageBg, fontFamily: 'inherit' }}>
@@ -273,6 +283,27 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
           </div>
         )}
 
+        {step === 'preview' && card(
+          <div style={{ textAlign: 'center' }}>
+            {photoPreview && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoPreview} alt="Your home" style={{ maxHeight: 380, maxWidth: '100%', borderRadius: T.radMd, marginBottom: 20, objectFit: 'contain' }} />
+            )}
+            <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 6px' }}>Ready to analyze this photo?</p>
+            <p style={{ color: t.textMuted, fontSize: 13, margin: '0 0 20px' }}>Make sure the roof is clearly visible. You can pick a different photo if needed.</p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button onClick={() => { setStep('upload'); setPendingFile(null); setPhotoPreview(null) }}
+                style={{ padding: '11px 22px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+                ← Choose Different Photo
+              </button>
+              <button onClick={handleAnalyze}
+                style={{ padding: '11px 28px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                Analyze My Roof →
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 'segmenting' && card(
           <div style={{ textAlign: 'center', padding: '48px 0' }}>
             {photoPreview && <img src={photoPreview} alt="Your home" style={{ maxHeight: 220, borderRadius: T.radMd, marginBottom: 24, maxWidth: '100%', objectFit: 'cover' }} />}
@@ -288,7 +319,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block', maxHeight: 360, objectFit: 'cover' }} />
-                <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(15,118,110,0.85)', color: '#fff', borderRadius: T.radSm, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>✓ Roof detected</div>
+                <div style={{ position: 'absolute', bottom: 10, left: 10, background: confidence?.level === 'low' ? 'rgba(217,119,6,0.9)' : confidence?.level === 'medium' ? 'rgba(202,138,4,0.9)' : 'rgba(15,118,110,0.85)', color: '#fff', borderRadius: T.radSm, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+                  {confidence?.level === 'low' ? '⚠' : confidence?.level === 'medium' ? '⚠' : '✓'} {confidence?.note ?? 'Roof detected'}
+                </div>
               </div>
             )}
             {card(
@@ -342,8 +375,14 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 <button onClick={handleShare} style={{ padding: '9px 18px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Share with Homeowner →</button>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(gridCols, 3)}, 1fr)`, gap: 16 }}>
-              {photoPreview && <OriginalCard photoUrl={photoPreview} />}
+            {/* Row 1 — original, centered and de-emphasized */}
+            {photoPreview && (
+              <div style={{ maxWidth: 420, margin: '0 auto 20px' }}>
+                <OriginalCard photoUrl={photoPreview} />
+              </div>
+            )}
+            {/* Row 2 — the renders dominate */}
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(renders.length, 3)}, 1fr)`, gap: 16 }}>
               {renders.map(r => r.renderUrl && photoPreview ? (
                 <BeforeAfterSlider key={r.skuId} original={photoPreview} rendered={r.renderUrl} label={r.skuName} hex={r.hexPreview} mfg={r.mfgName ?? ''} />
               ) : (

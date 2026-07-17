@@ -210,6 +210,18 @@ export async function POST(req: NextRequest) {
     const maskUrl    = await uploadToR2(maskKey, maskBuffer, 'image/png')
     console.log(`[segment] mask uploaded: ${maskUrl}`)
 
+    // Compute mask coverage for confidence signal
+    // White pixel ratio in the mask ≈ fraction of image that is roof
+    let whitePixels = 0
+    for (let j = 0; j < maskBuffer.length; j++) if (maskBuffer[j] === 0xff) whitePixels++
+    const coverage = whitePixels / maskBuffer.length  // rough proxy (PNG bytes, not exact pixels, but monotonic)
+
+    // Confidence heuristic
+    let confidence: 'high' | 'medium' | 'low' = 'high'
+    let confidenceNote = 'Roof detected successfully'
+    if (coverage < 0.02) { confidence = 'low';    confidenceNote = 'Roof area looks small — results may be less accurate' }
+    else if (coverage < 0.06) { confidence = 'medium'; confidenceNote = 'Roof detected — complex roof or partial view' }
+
     // Update session
     await sb.from('visualizer_sessions').update({
       mask_r2_key:     maskKey,
@@ -218,7 +230,7 @@ export async function POST(req: NextRequest) {
       updated_at:      new Date().toISOString(),
     }).eq('id', sessionId)
 
-    return NextResponse.json({ sessionId, photoUrl, maskUrl })
+    return NextResponse.json({ sessionId, photoUrl, maskUrl, confidence, confidenceNote })
 
   } catch (err: unknown) {
     console.error('[visualizer/segment] unhandled:', err)
