@@ -16,7 +16,7 @@ const R2_PUB  = process.env.R2_PUBLIC_URL!
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
 
 // Use the preview image generation model — supports responseModalities IMAGE
-const GEMINI_IMG_MODEL = 'gemini-2.0-flash-preview-image-generation'
+const GEMINI_IMG_MODEL = 'gemini-2.5-flash-image-preview'
 const GEMINI_IMG_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${GEM_KEY}`
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -94,6 +94,7 @@ async function renderOneSku(
     ].join('\n')
 
     // REST call — same pattern as supplement/insurance routes
+    console.log(`[render] calling Gemini for SKU ${sku.id} (${sku.name}), photoUrl length: ${photo.data.length}`)
     const gemRes = await fetch(GEMINI_IMG_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -115,10 +116,14 @@ async function renderOneSku(
 
     if (!gemRes.ok) {
       const errText = await gemRes.text()
+      console.error(`[render] Gemini error SKU ${sku.id}: ${gemRes.status} ${errText.slice(0, 400)}`)
       throw new Error(`Gemini ${gemRes.status}: ${errText.slice(0, 200)}`)
     }
 
     const gemData = await gemRes.json()
+    console.log('[render] Gemini response candidates:', gemData?.candidates?.length,
+      'parts:', gemData?.candidates?.[0]?.content?.parts?.length,
+      'finishReason:', gemData?.candidates?.[0]?.finishReason)
 
     // Extract image part from response
     const parts = gemData?.candidates?.[0]?.content?.parts ?? []
