@@ -26,8 +26,8 @@ const GEMINI_TEXT_URL = `https://generativelanguage.googleapis.com/v1beta/models
 
 const MAX_PHOTO_DIM   = 2000   // normalize uploads
 const GRID_MAX_DIM    = 768    // client hit-test resolution
-const MAX_CANDIDATES  = 12     // selectable logical regions cap
-const MIN_AREA_FRAC   = 0.008  // fragments below this are not selectable
+const MAX_CANDIDATES  = 24     // selectable logical regions cap
+const MIN_AREA_FRAC   = 0.005  // fragments below this are not selectable
 
 function r2Key(prefix: string, id: string, ext: string) {
   return `visualizer/${prefix}/${id}.${ext}`
@@ -71,13 +71,13 @@ interface Candidate {
   cx: number; cy: number // centroid at grid res
   meanLum: number        // original-photo luminance inside mask (heuristic fallback)
   gridRaw: Buffer        // 1ch at grid res
-  url: string            // SAM2 mask URL (re-decoded at full res on demand)
+  srcBuf: Buffer         // original downloaded mask PNG (full-res decode without refetch)
 }
 
 async function decodeCandidates(
   maskUrls: string[], gw: number, gh: number, photoLumGrid: Buffer
 ): Promise<Candidate[]> {
-  const capped = maskUrls.slice(0, 24)
+  const capped = maskUrls.slice(0, 48)  // SAM2 orders by stability, NOT size — a wide net is required
   const decoded = await Promise.all(capped.map(async (url) => {
     try {
       const res = await fetch(url)
@@ -87,19 +87,22 @@ async function decodeCandidates(
       for (let p = 0; p < gw * gh; p++) {
         if (raw[p] > 200) { area++; xSum += p % gw; ySum += Math.floor(p / gw); lumSum += photoLumGrid[p] }
       }
-      return { url, raw, area, cx: area ? xSum / area : 0, cy: area ? ySum / area : 0, meanLum: area ? lumSum / area : 255 }
+      return { buf, raw, area, cx: area ? xSum / area : 0, cy: area ? ySum / area : 0, meanLum: area ? lumSum / area : 255 }
     } catch { return null }
   }))
 
   const total = gw * gh
-  const kept = decoded
-    .filter((d): d is NonNullable<typeof d> => !!d && d.area / total >= MIN_AREA_FRAC && d.area / total <= 0.6)
+  const ok = decoded.filter((d): d is NonNullable<typeof d> => !!d)
+  console.log(`[segment] SAM2 masks: ${maskUrls.length} returned, ${ok.length} decoded; areas: ${ok.map(d => (d.area / total * 100).toFixed(1) + '%').join(', ')}`)
+  const kept = ok
+    .filter(d => d.area / total >= MIN_AREA_FRAC && d.area / total <= 0.6)
     .sort((a, b) => b.area - a.area)
     .slice(0, MAX_CANDIDATES)
+  console.log(`[segment] kept ${kept.length} candidates`)
 
   return kept.map((d, i) => ({
     index: i + 1, areaPx: d.area, areaPct: d.area / total,
-    cx: d.cx, cy: d.cy, meanLum: d.meanLum, gridRaw: d.raw, url: d.url,
+    cx: d.cx, cy: d.cy, meanLum: d.meanLum, gridRaw: d.raw, srcBuf: d.buf,
   }))
 }
 
@@ -115,14 +118,12 @@ function bakeIndexGrid(cands: Candidate[], gw: number, gh: number): Buffer {
   return grid
 }
 
-// Full-res index grid: re-decode kept candidates at photo dims.
+// Full-res index grid: decode kept candidates at photo dims from stored buffers (no refetch).
 async function bakeFullResGrid(cands: Candidate[], pw: number, ph: number): Promise<Buffer> {
   const grid = Buffer.alloc(pw * ph)
   const byAreaDesc = [...cands].sort((a, b) => b.areaPx - a.areaPx)
   for (const c of byAreaDesc) {
-    const res = await fetch(c.url)
-    const buf = Buffer.from(await res.arrayBuffer())
-    const raw = await sharp(buf).resize(pw, ph, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
+    const raw = await sharp(c.srcBuf).resize(pw, ph, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
     for (let p = 0; p < pw * ph; p++) {
       if (raw[p] > 200) grid[p] = c.index
     }
@@ -275,7 +276,7 @@ export async function POST(req: NextRequest) {
     await uploadToR2(gridFullKey, await sharp(gridFull, { raw: { width: pw, height: ph, channels: 1 } }).png().toBuffer(), 'image/png')
 
     // Semantic classification (Gemini primary, heuristic fallback)
-    const gem = await classifyWithGemini(photoGridJpeg, cands)
+    const gem = await classifyWithGemini(photoGridJpeg, cands.filter(cd => cd.index <= 12))
     let preselected: number[], uncertain: number[], selector: string
     if (gem && gem.roofIndices.length > 0) {
       preselected = gem.roofIndices.filter(i => (gem.confidences[i] ?? 0) >= 0.6)
