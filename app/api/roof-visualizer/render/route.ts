@@ -13,7 +13,7 @@ import { uploadToR2 } from '@/lib/r2'
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
 
 // Use the preview image generation model — supports responseModalities IMAGE
-const GEMINI_IMG_MODEL = 'gemini-2.5-flash-image-preview'
+const GEMINI_IMG_MODEL = 'gemini-2.0-flash-preview-image-generation'
 const GEMINI_IMG_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${GEM_KEY}`
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ async function renderOneSku(
     ].join('\n')
 
     // REST call — same pattern as supplement/insurance routes
-    console.log(`[render] calling Gemini for SKU ${sku.id} (${sku.name}), photoUrl length: ${photo.data.length}`)
+    console.log(`[render] calling Gemini for SKU ${sku.id} (${sku.name}), photo: ${photo.data.length} mask: ${mask.data.length} maskUrl: ${maskUrl}`)
     const gemRes = await fetch(GEMINI_IMG_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
