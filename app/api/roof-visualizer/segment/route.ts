@@ -41,11 +41,13 @@ async function uploadToR2(key: string, buffer: Buffer, contentType: string) {
 async function runSam2(imageUrl: string): Promise<{ combined_mask: string; individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
 
-  // Create prediction using the model slug directly (no version hash needed)
-  const createRes = await fetch(`${REPLICATE_API}/models/meta/sam-2/predictions`, {
+  // Create prediction using /v1/predictions with pinned version hash
+  const SAM2_VERSION = 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b'
+  const createRes = await fetch(`${REPLICATE_API}/predictions`, {
     method:  'POST',
     headers: authHeader,
     body: JSON.stringify({
+      version: SAM2_VERSION,
       input: {
         image:                  imageUrl,
         points_per_side:        16,
