@@ -21,12 +21,14 @@ import sharp from 'sharp'
 export const maxDuration = 120
 
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
-const GEMINI_IMG_MODEL = 'gemini-2.5-flash-image'
+const GEMINI_IMG_MODEL = 'gemini-3.1-flash-image'  // Nano Banana 2 — experiment behind the gate
 const GEMINI_IMG_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${GEM_KEY}`
 
-// Similarity gate threshold — mean absolute pixel difference (0-255) on non-roof region.
-// Same house + roof-only edit lands well under 12. A regenerated scene lands 40+.
-const SIMILARITY_MAE_THRESHOLD = 18
+// Two-sided arbitration gate (MAE on 64px downscale, 0-255):
+// (a) non-roof region must be UNCHANGED  — copies pass, regenerated scenes (40+) fail
+// (b) roof region must be CHANGED       — lazy photocopies fail, real edits pass
+const NONROOF_MAE_MAX = 18
+const ROOF_MAE_MIN    = 12
 // AI attempt cap so classical result is never held hostage by a slow model
 const AI_TIMEOUT_MS = 55_000
 
@@ -116,11 +118,10 @@ async function classicalRecolor(prep: PreparedImages, hex: string): Promise<Buff
 
 async function aiAttempt(prep: PreparedImages, sku: SkuRow): Promise<Buffer | null> {
   const prompt = [
-    `PHOTO EDITING TASK — NOT image generation.`,
-    `You are given a photograph of a house. Output the EXACT SAME photograph — same house, same camera angle, same trees, same driveway, same sky, same walls, same windows — with exactly ONE change:`,
-    `Re-shingle the roof with ${sku.texture_prompt} (target colour ${sku.hex_preview}). The colour change must be clearly visible.`,
-    `Every non-roof pixel must remain identical to the input photograph. Do not reframe, re-angle, regenerate, or "improve" anything else.`,
-    `Output: one edited photograph only.`,
+    `Re-shingle the roof of this house with ${sku.texture_prompt} (target colour ${sku.hex_preview}).`,
+    `Apply a realistic shingle texture that clearly shows the new colour, following the existing roof geometry, pitch, ridges, and lighting direction.`,
+    `Maintain the original camera angle, architecture, and all non-roof elements — sky, walls, windows, landscaping, driveway — consistent with the source photograph.`,
+    `Output one photorealistic edited photograph.`,
   ].join('\n')
 
   const controller = new AbortController()
@@ -139,7 +140,7 @@ async function aiAttempt(prep: PreparedImages, sku: SkuRow): Promise<Buffer | nu
             { inlineData: { mimeType: 'image/jpeg', data: prep.photo.toString('base64') } },
           ],
         }],
-        generationConfig: { responseModalities: ['TEXT', 'IMAGE'], temperature: 0.15 },
+        generationConfig: { responseModalities: ['TEXT', 'IMAGE'], temperature: 0.35 },
       }),
     })
     if (!res.ok) {
@@ -164,28 +165,22 @@ async function aiAttempt(prep: PreparedImages, sku: SkuRow): Promise<Buffer | nu
   }
 }
 
-// ── 3. Similarity gate — non-roof region MAE ─────────────────────────────────
+// ── 3. Similarity gate — regional MAE ────────────────────────────────────────
 
-async function nonRoofMae(prep: PreparedImages, aiRender: Buffer): Promise<number> {
+async function regionMae(prep: PreparedImages, aiRender: Buffer, region: 'roof' | 'nonroof'): Promise<number> {
   const S = 64
-  const smallMaskInv = await sharp(prep.maskInverted).resize(S, S, { fit: 'fill' }).extractChannel(0).raw().toBuffer()
+  const src = region === 'roof' ? prep.maskAligned : prep.maskInverted
+  const smallMask = await sharp(src).resize(S, S, { fit: 'fill' }).extractChannel(0).raw().toBuffer()
 
-  const blackOutRoof = async (img: Buffer) => {
-    const grey = await sharp(img).resize(S, S, { fit: 'fill' }).greyscale().raw().toBuffer()
-    const out = Buffer.alloc(S * S)
-    for (let i = 0; i < S * S; i++) {
-      // keep pixel only where NON-roof (inverted mask is white there)
-      out[i] = smallMaskInv[i] > 128 ? grey[i] : 0
-    }
-    return out
-  }
+  const greyAt = async (img: Buffer) =>
+    sharp(img).resize(S, S, { fit: 'fill' }).greyscale().raw().toBuffer()
 
-  const [a, b] = await Promise.all([blackOutRoof(prep.photo), blackOutRoof(aiRender)])
+  const [a, b] = await Promise.all([greyAt(prep.photo), greyAt(aiRender)])
   let sum = 0, count = 0
   for (let i = 0; i < S * S; i++) {
-    if (smallMaskInv[i] > 128) { sum += Math.abs(a[i] - b[i]); count++ }
+    if (smallMask[i] > 128) { sum += Math.abs(a[i] - b[i]); count++ }
   }
-  return count > 0 ? sum / count : 255
+  return count > 0 ? sum / count : (region === 'roof' ? 0 : 255)
 }
 
 // ── 4. Pixel guarantee — original outside mask, AI inside ────────────────────
@@ -236,9 +231,15 @@ async function renderOneSku(
     let engine: 'ai' | 'classical' = 'classical'
 
     if (ai) {
-      const mae = await nonRoofMae(prep, ai)
-      console.log(`[render] ${sku.name}: nonRoofMAE=${mae.toFixed(1)} (threshold ${SIMILARITY_MAE_THRESHOLD})`)
-      if (mae <= SIMILARITY_MAE_THRESHOLD) {
+      const [nonRoof, roof] = await Promise.all([
+        regionMae(prep, ai, 'nonroof'),
+        regionMae(prep, ai, 'roof'),
+      ])
+      const scenePreserved = nonRoof <= NONROOF_MAE_MAX
+      const roofChanged    = roof >= ROOF_MAE_MIN
+      const serveAi = scenePreserved && roofChanged
+      console.log(`[render] ${sku.name}: nonRoofMAE=${nonRoof.toFixed(1)} (max ${NONROOF_MAE_MAX}) roofMAE=${roof.toFixed(1)} (min ${ROOF_MAE_MIN}) → engine=${serveAi ? 'ai' : 'classical'}`)
+      if (serveAi) {
         finalBuffer = await pixelGuaranteeComposite(prep, ai)
         engine = 'ai'
       }
