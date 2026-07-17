@@ -136,21 +136,34 @@ async function classifyWithGemini(
   photoGridJpeg: Buffer, cands: Candidate[]
 ): Promise<{ roofIndices: number[]; confidences: Record<number, number> } | null> {
   try {
-    // Numbered composite: red circle + white number at each candidate centroid
+    // Colored-dot markers (font-free — Vercel Lambda has no fonts, SVG <text> renders blank)
+    const DOT_COLORS: Array<[string, string]> = [
+      ['#FF0000','red'], ['#0033FF','blue'], ['#00CC00','green'], ['#FFD700','yellow'],
+      ['#FF8C00','orange'], ['#9900FF','purple'], ['#00CCCC','cyan'], ['#FF00CC','magenta'],
+      ['#8B4513','brown'], ['#FF69B4','pink'], ['#66FF33','lime'], ['#000080','navy'],
+    ]
     const meta = await sharp(photoGridJpeg).metadata()
     const w = meta.width ?? GRID_MAX_DIM, h = meta.height ?? GRID_MAX_DIM
-    const labels = cands.map(c => `
-      <circle cx="${c.cx.toFixed(0)}" cy="${c.cy.toFixed(0)}" r="16" fill="rgba(220,38,38,0.85)" stroke="white" stroke-width="2"/>
-      <text x="${c.cx.toFixed(0)}" y="${(c.cy + 6).toFixed(0)}" font-family="Arial" font-size="20" font-weight="bold" fill="white" text-anchor="middle">${c.index}</text>`).join('')
-    const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${labels}</svg>`
+    const dots = cands.map(c => {
+      const [hex] = DOT_COLORS[(c.index - 1) % DOT_COLORS.length]
+      return `<circle cx="${c.cx.toFixed(0)}" cy="${c.cy.toFixed(0)}" r="13" fill="${hex}" stroke="white" stroke-width="4"/>`
+    }).join('')
+    const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${dots}</svg>`
     const composite = await sharp(photoGridJpeg).composite([{ input: Buffer.from(svg) }]).jpeg({ quality: 85 }).toBuffer()
 
+    const legend = cands.map(c => {
+      const [, name] = DOT_COLORS[(c.index - 1) % DOT_COLORS.length]
+      return `Region ${c.index}: ${name} dot at pixel (${c.cx.toFixed(0)}, ${c.cy.toFixed(0)})`
+    }).join('\n')
+
     const prompt = [
-      'The image shows a house photo with numbered red markers on segmented regions.',
-      'Identify which numbered regions are part of the HOUSE ROOF (shingles, tiles, metal roofing, dormers, gable roof planes, porch roofs, garage roofs of the SAME house).',
-      "EXCLUDE: sky, walls, siding, windows, doors, trees, grass, driveway, cars, and neighboring house roofs.",
+      `A house photo (${w}x${h}px) has colored dot markers on segmented regions:`,
+      legend,
+      '',
+      'Identify which regions are part of the HOUSE ROOF: shingles, tiles, metal roofing, dormers, gable planes, porch roofs, and attached-garage roofs of the SAME house.',
+      'EXCLUDE: sky, walls, siding, windows, garage DOORS, entry doors, trees, bushes, grass, driveway, sidewalks, fences, cars, and any neighboring house.',
       'Respond with ONLY this JSON, no markdown fences, no commentary:',
-      '{"roof_indices":[<numbers>],"confidence_scores":[<0..1 floats, aligned with roof_indices>]}',
+      '{"roof_indices":[<region numbers>],"confidence_scores":[<0..1 floats aligned with roof_indices>]}',
     ].join('\n')
 
     const res = await fetch(GEMINI_TEXT_URL, {

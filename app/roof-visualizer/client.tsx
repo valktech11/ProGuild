@@ -181,6 +181,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         const px = ctx.getImageData(0, 0, data.gridW, data.gridH).data
         const grid = new Uint8Array(data.gridW * data.gridH)
         for (let i = 0; i < grid.length; i++) grid[i] = px[i * 4]  // R channel = index
+        console.log('[confirm] grid decoded', { w: data.gridW, h: data.gridH, preselected: data.preselected, uncertain: data.uncertain })
         setGridData(grid)
         setGridDims({ w: data.gridW, h: data.gridH })
         setSelected(new Set<number>(data.preselected ?? []))
@@ -213,17 +214,17 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     ctx.putImageData(img, 0, 0)
   }, [gridData, gridDims, selected, uncertainIdx, step])
 
-  const handleConfirmTap = useCallback((e: React.MouseEvent) => {
-    if (!gridData || !confirmImgRef.current) return
-    const rect = confirmImgRef.current.getBoundingClientRect()
+  const handleConfirmTap = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const imgEl = confirmImgRef.current
+    if (!gridData || !imgEl) { console.warn('[confirm] tap ignored — grid or img missing', { hasGrid: !!gridData, hasImg: !!imgEl }); return }
+    const rect = imgEl.getBoundingClientRect()
     const { w, h } = gridDims
     const gx = Math.floor(((e.clientX - rect.left) / rect.width) * w)
     const gy = Math.floor(((e.clientY - rect.top) / rect.height) * h)
-    if (gx < 0 || gy < 0 || gx >= w || gy >= h) return
+    if (gx < 0 || gy < 0 || gx >= w || gy >= h) { console.warn('[confirm] tap outside image', { gx, gy }); return }
     let idx = gridData[gy * w + gx]
     if (idx === 0) {
-      // Radial snap: nearest non-zero index within 8 grid px
-      let best = 0, bestD = 65  // 8^2 + 1
+      let best = 0, bestD = 65
       for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
         const nx = gx + dx, ny = gy + dy
         if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
@@ -232,11 +233,13 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       }
       idx = best
     }
+    console.log('[confirm] tap', { gx, gy, idx })
     if (idx === 0) return
     setTapCount(t => t + 1)
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(idx)) next.delete(idx); else next.add(idx)
+      console.log('[confirm] selection now', [...next])
       return next
     })
   }, [gridData, gridDims])
@@ -379,7 +382,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               onClick={handleConfirmTap}>
               {photoPreview && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img ref={confirmImgRef} src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block' }} />
+                <img ref={confirmImgRef} src={photoPreview} alt="Your home" onClick={handleConfirmTap} style={{ width: '100%', display: 'block', cursor: 'crosshair' }} />
               )}
               <canvas ref={overlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
             </div>
