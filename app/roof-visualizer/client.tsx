@@ -399,15 +399,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             {photoPreview && (
               <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block' }} />
-                {maskUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={maskUrl} alt="Roof mask" style={{
-                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                    mixBlendMode: 'screen', opacity: 0.5,
-                    filter: 'invert(1) sepia(1) saturate(10) hue-rotate(100deg)',
-                  }} />
-                )}
+                <img src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block', maxHeight: 360, objectFit: 'cover' }} />
                 <div style={{
                   position: 'absolute', bottom: 10, left: 10,
                   background: 'rgba(15,118,110,0.85)', color: '#fff',
