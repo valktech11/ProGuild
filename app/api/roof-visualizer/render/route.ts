@@ -13,7 +13,7 @@ import { uploadToR2 } from '@/lib/r2'
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
 
 // Use the preview image generation model — supports responseModalities IMAGE
-const GEMINI_IMG_MODEL = 'gemini-2.0-flash-preview-image-generation'
+const GEMINI_IMG_MODEL = 'gemini-2.0-flash-exp'
 const GEMINI_IMG_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${GEM_KEY}`
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

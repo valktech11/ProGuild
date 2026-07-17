@@ -109,15 +109,17 @@ async function pickBestMask(maskUrls: string[]): Promise<string> {
   if (maskUrls.length === 1) return maskUrls[0]
 
   // Fetch all masks in parallel and score by white-pixel count
+  console.log(`[SAM2] scoring ${maskUrls.length} masks`)
   const scores = await Promise.all(maskUrls.map(async (url, i) => {
     try {
       const res = await fetch(url)
       const buf = Buffer.from(await res.arrayBuffer())
       let score = 0
       for (let j = 0; j < buf.length; j++) if (buf[j] === 0xff) score++
-      console.log(`[SAM2] mask ${i}: score=${score}`)
+      console.log(`[SAM2] mask ${i}: bytes=${buf.length} whiteScore=${score} url=${url.slice(-40)}`)
       return { i, score }
-    } catch {
+    } catch (e) {
+      console.error(`[SAM2] mask ${i} fetch failed:`, e)
       return { i, score: 0 }
     }
   }))
