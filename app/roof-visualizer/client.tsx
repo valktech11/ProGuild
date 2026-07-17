@@ -122,7 +122,10 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
+const CLIENT_BUILD = 'tap-v3-83fccc5'
+
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
+  React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
   const t = theme(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [step, setStep]             = useState<Step>('upload')
