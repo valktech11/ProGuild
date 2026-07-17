@@ -1,7 +1,7 @@
 'use client'
 // app/roof-visualizer/client.tsx — v2 with all improvements
 
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { theme, BRAND, T } from '@/lib/tokens'
 import Link from 'next/link'
 
@@ -28,39 +28,11 @@ function groupSkusByManufacturer(skus: Sku[]) {
 }
 function getMfgName(sku: Sku) { return sku.viz_product_lines?.viz_manufacturers?.name ?? '' }
 
-// ── Before/After Slider ───────────────────────────────────────────────────────
-function BeforeAfterSlider({ original, rendered, label, hex, mfg }: {
-  original: string; rendered: string; label: string; hex: string; mfg: string
+// ── Render result card (static — original card above is the baseline) ────────
+function RenderResultCard({ rendered, label, hex, mfg }: {
+  rendered: string; label: string; hex: string; mfg: string
 }) {
   const t = theme(false)
-  const [pos, setPos] = useState(50)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const dragging = useRef(false)
-
-  const updatePos = useCallback((clientX: number) => {
-    const el = containerRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    setPos(Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100)))
-  }, [])
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent | TouchEvent) => {
-      if (!dragging.current) return
-      updatePos('touches' in e ? e.touches[0].clientX : e.clientX)
-    }
-    const onUp = () => { dragging.current = false }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    window.addEventListener('touchmove', onMove)
-    window.addEventListener('touchend', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-      window.removeEventListener('touchmove', onMove)
-      window.removeEventListener('touchend', onUp)
-    }
-  }, [updatePos])
 
   const handleDownload = useCallback(async () => {
     try {
@@ -74,21 +46,10 @@ function BeforeAfterSlider({ original, rendered, label, hex, mfg }: {
   }, [rendered, label])
 
   return (
-    <div style={{ borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, userSelect: 'none' }}>
-      <div ref={containerRef} style={{ position: 'relative', aspectRatio: '4/3', cursor: 'ew-resize' }}
-        onMouseDown={e => { dragging.current = true; updatePos(e.clientX) }}
-        onTouchStart={e => { dragging.current = true; updatePos(e.touches[0].clientX) }}>
+    <div style={{ borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
+      <div style={{ position: 'relative' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={rendered} alt={label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', width: `${pos}%` }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={original} alt="Original" style={{ position: 'absolute', inset: 0, width: pos > 0 ? `${10000/pos}%` : '100%', maxWidth: 'none', height: '100%', objectFit: 'cover' }} />
-        </div>
-        <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${pos}%`, transform: 'translateX(-50%)', width: 3, background: '#fff', boxShadow: '0 0 6px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 32, height: 32, borderRadius: '50%', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#555', fontWeight: 700 }}>⇔</div>
-        </div>
-        <div style={{ position: 'absolute', top: 8, left: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 700, pointerEvents: 'none', opacity: pos > 15 ? 1 : 0, transition: 'opacity 0.2s' }}>BEFORE</div>
-        <div style={{ position: 'absolute', top: 8, right: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 700, pointerEvents: 'none', opacity: pos < 85 ? 1 : 0, transition: 'opacity 0.2s' }}>AFTER</div>
+        <img src={rendered} alt={`${label} shingles`} style={{ width: '100%', display: 'block', aspectRatio: '4/3', objectFit: 'cover' }} />
         <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.65)', borderRadius: 4, padding: '2px 8px', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em', pointerEvents: 'none', whiteSpace: 'nowrap' }}>proguild.ai</div>
       </div>
       <div style={{ padding: '10px 14px', background: t.cardBg, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -327,7 +288,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             {card(
               <div>
                 <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Pick up to 3 shingle colors</p>
-                <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 20px' }}>We'll show all three with a before/after slider — free</p>
+                <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 20px' }}>We'll show all three side by side — free</p>
                 {groups.map(group => (
                   <div key={group.manufacturer} style={{ marginBottom: 20 }}>
                     <p style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>{group.manufacturer}</p>
@@ -368,7 +329,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <h2 style={{ fontSize: 22, fontWeight: 800, color: t.textPri, margin: '0 0 4px' }}>Your Roof Visualized</h2>
-                <p style={{ fontSize: 14, color: t.textMuted, margin: 0 }}>Drag the slider to compare before and after</p>
+                <p style={{ fontSize: 14, color: t.textMuted, margin: 0 }}>Compare each color against your current roof above</p>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setStep('pick')} style={{ padding: '9px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>← Try Other Colors</button>
@@ -383,8 +344,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             )}
             {/* Row 2 — the renders dominate */}
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(renders.length, 3)}, 1fr)`, gap: 16 }}>
-              {renders.map(r => r.renderUrl && photoPreview ? (
-                <BeforeAfterSlider key={r.skuId} original={photoPreview} rendered={r.renderUrl} label={r.skuName} hex={r.hexPreview} mfg={r.mfgName ?? ''} />
+              {renders.map(r => r.renderUrl ? (
+                <RenderResultCard key={r.skuId} rendered={r.renderUrl} label={r.skuName} hex={r.hexPreview} mfg={r.mfgName ?? ''} />
               ) : (
                 <ErrorCard key={r.skuId} label={r.skuName} />
               ))}
@@ -441,7 +402,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             {[
               { icon: '📸', title: 'Upload a photo', body: 'Street-view photo of your home — just the front' },
               { icon: '🤖', title: 'AI detects your roof', body: 'Our AI finds the roof automatically — no clicking required' },
-              { icon: '⇔', title: 'Before/after slider', body: 'Drag to compare original vs new shingles side by side' },
+              { icon: '🎨', title: 'Compare side by side', body: 'See all your shingle options next to your current roof' },
             ].map(s => card(
               <div key={s.title} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}>{s.icon}</div>

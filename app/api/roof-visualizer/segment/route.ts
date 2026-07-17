@@ -106,34 +106,39 @@ async function runSam2(imageUrl: string, imageBuffer?: Buffer, mimeType?: string
 // Build the roof mask: decode every SAM2 mask, score by REAL white-pixel coverage
 // and vertical centroid, then UNION all roof-like planes into one mask.
 // (SAM2 segments each roof plane separately — a single mask is one sliver.)
-async function buildRoofMask(maskUrls: string[], width: number, height: number): Promise<Buffer> {
+async function buildRoofMask(maskUrls: string[], width: number, height: number, photoBufferForScoring: Buffer): Promise<Buffer> {
   if (maskUrls.length === 0) throw new Error('SAM2 returned no masks')
 
   const S = 128  // scoring resolution
   const candidates = maskUrls.slice(0, 24)  // cap fetch cost
+
+  // Photo luminance at scoring resolution — used to reject bright masks (sky, white walls)
+  const photoLum = await sharp(photoBufferForScoring).resize(S, S, { fit: 'fill' })
+    .greyscale().extractChannel(0).raw().toBuffer()
 
   const scored = await Promise.all(candidates.map(async (url, i) => {
     try {
       const res = await fetch(url)
       const buf = Buffer.from(await res.arrayBuffer())
       const raw = await sharp(buf).resize(S, S, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
-      let white = 0, ySum = 0
+      let white = 0, ySum = 0, lumSum = 0
       for (let p = 0; p < S * S; p++) {
-        if (raw[p] > 200) { white++; ySum += Math.floor(p / S) }
+        if (raw[p] > 200) { white++; ySum += Math.floor(p / S); lumSum += photoLum[p] }
       }
       const coverage  = white / (S * S)
       const centroidY = white > 0 ? (ySum / white) / S : 1
-      console.log(`[SAM2] mask ${i}: coverage=${(coverage * 100).toFixed(1)}% centroidY=${centroidY.toFixed(2)}`)
-      return { i, buf: buf as Buffer | null, coverage, centroidY }
+      const meanLum   = white > 0 ? lumSum / white : 255
+      console.log(`[SAM2] mask ${i}: coverage=${(coverage * 100).toFixed(1)}% centroidY=${centroidY.toFixed(2)} meanLum=${meanLum.toFixed(0)}`)
+      return { i, buf: buf as Buffer | null, coverage, centroidY, meanLum }
     } catch (e) {
       console.error(`[SAM2] mask ${i} fetch/decode failed:`, e)
-      return { i, buf: null as Buffer | null, coverage: 0, centroidY: 1 }
+      return { i, buf: null as Buffer | null, coverage: 0, centroidY: 1, meanLum: 255 }
     }
   }))
 
-  // Roof-like: meaningful size, sits in the upper part of the frame
+  // Roof-like: meaningful size, upper ~3/4 of frame, and NOT bright (rejects sky/white walls)
   let roofMasks = scored.filter(m =>
-    m.buf && m.coverage >= 0.015 && m.coverage <= 0.5 && m.centroidY <= 0.62
+    m.buf && m.coverage >= 0.008 && m.coverage <= 0.5 && m.centroidY <= 0.72 && m.meanLum <= 170
   )
 
   // Fallback: nothing matched heuristics → single largest mask
@@ -242,7 +247,7 @@ export async function POST(req: NextRequest) {
     const photoMeta = await sharp(photoBuffer).metadata()
     const pw = photoMeta.width  ?? 800
     const ph = photoMeta.height ?? 600
-    const maskBuffer = await buildRoofMask(output.individual_masks, pw, ph)
+    const maskBuffer = await buildRoofMask(output.individual_masks, pw, ph, photoBuffer)
     const maskKey    = r2Key('masks', sessionId, 'png')
     const maskUrl    = await uploadToR2(maskKey, maskBuffer, 'image/png')
     console.log(`[segment] union mask uploaded: ${maskUrl}`)

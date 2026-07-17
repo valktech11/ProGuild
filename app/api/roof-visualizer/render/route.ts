@@ -86,12 +86,21 @@ async function classicalRecolor(prep: PreparedImages, hex: string): Promise<Buff
   const tg = parseInt(h.slice(2, 4), 16)
   const tb = parseInt(h.slice(4, 6), 16)
 
+  // Roof mean luminance — normalize so mid-tone roof pixels land EXACTLY on the
+  // target swatch colour; shadows render darker, highlights lighter.
+  let lumSum = 0, lumCount = 0
+  for (let i = 0; i < W * H; i++) {
+    if (maskRaw[i] > 128) { lumSum += lum[i]; lumCount++ }
+  }
+  const roofMeanLum = lumCount > 0 ? lumSum / lumCount : 128
+
   const rgba = Buffer.alloc(W * H * 4)
   for (let i = 0; i < W * H; i++) {
-    const l = Math.min(255, lum[i] * 1.25)   // lift so multiply doesn't crush shadow detail
-    rgba[i * 4]     = Math.round(l * tr / 255)
-    rgba[i * 4 + 1] = Math.round(l * tg / 255)
-    rgba[i * 4 + 2] = Math.round(l * tb / 255)
+    // scale relative to roof mean, clamped to keep shadows/highlights natural
+    const scale = Math.max(0.35, Math.min(1.6, lum[i] / roofMeanLum))
+    rgba[i * 4]     = Math.min(255, Math.round(tr * scale))
+    rgba[i * 4 + 1] = Math.min(255, Math.round(tg * scale))
+    rgba[i * 4 + 2] = Math.min(255, Math.round(tb * scale))
     rgba[i * 4 + 3] = maskRaw[i]             // feathered mask = alpha → soft edges
   }
 
