@@ -79,7 +79,7 @@ async function decodeCandidates(
 ): Promise<Candidate[]> {
   // Decode ALL masks — proven necessary: SAM2 returned 104 in stability order and the
   // main roof plane sat beyond every arbitrary cap. Batched fetches (16 at a time).
-  const capped = maskUrls.slice(0, 128)  // hard safety ceiling only
+  const capped = maskUrls.slice(0, 256)  // effectively uncapped (SAM2 max output is well below this)
 
   const decodeOne = async (url: string) => {
     try {

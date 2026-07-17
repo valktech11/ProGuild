@@ -24,9 +24,10 @@ async function morph(mask1ch: Buffer, w: number, h: number, sigma: number, thres
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, selectedIndices, tapCount, msToConfirm } = await req.json()
-    if (!sessionId || !Array.isArray(selectedIndices) || selectedIndices.length === 0) {
-      return NextResponse.json({ error: 'sessionId and selectedIndices required' }, { status: 400 })
+    const { sessionId, selectedIndices, customMaskB64, tapCount, msToConfirm } = await req.json()
+    const hasIndices = Array.isArray(selectedIndices) && selectedIndices.length > 0
+    if (!sessionId || (!hasIndices && !customMaskB64)) {
+      return NextResponse.json({ error: 'sessionId and a selection required' }, { status: 400 })
     }
 
     const sb = getSupabaseAdmin()
@@ -45,8 +46,8 @@ export async function POST(req: NextRequest) {
 
     const W = meta.photo_w, H = meta.photo_h
     const valid = new Set((meta.candidates ?? []).map(c => c.i))
-    const chosen = new Set((selectedIndices as number[]).filter(i => valid.has(i)))
-    if (chosen.size === 0) return NextResponse.json({ error: 'No valid indices selected' }, { status: 400 })
+    const chosen = new Set(((selectedIndices ?? []) as number[]).filter(i => valid.has(i)))
+    if (chosen.size === 0 && !customMaskB64) return NextResponse.json({ error: 'No valid selection' }, { status: 400 })
 
     // Load full-res index grid and union chosen indices into a binary mask
     const gridRes = await fetch(getR2PublicUrl(meta.grid_full_key))
@@ -57,6 +58,22 @@ export async function POST(req: NextRequest) {
     let mask: Buffer = Buffer.alloc(W * H)
     for (let i = 0; i < W * H; i++) {
       if (chosen.has(grid[i])) mask[i] = 255
+    }
+
+    // Union in user-traced regions (client flood fill at grid res → upscale → threshold)
+    if (customMaskB64) {
+      try {
+        const customRaw = await sharp(Buffer.from(customMaskB64, 'base64'))
+          .resize(W, H, { fit: 'fill' })
+          .greyscale().extractChannel(0).raw().toBuffer()
+        let tracedPx = 0
+        for (let i = 0; i < W * H; i++) {
+          if (customRaw[i] > 128) { mask[i] = 255; tracedPx++ }
+        }
+        console.log(`[confirm-mask] traced regions merged: ${tracedPx}px`)
+      } catch (e) {
+        console.warn('[confirm-mask] custom mask decode failed:', e)
+      }
     }
 
     // Morphological closing with net +1px: dilate ~2px → erode ~1px, then light feather

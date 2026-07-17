@@ -122,7 +122,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'coverage-v7-lowthresh'
+const CLIENT_BUILD = 'trace-v8'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -149,6 +149,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [confirmBusy, setConfirmBusy]   = useState(false)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const confirmImgRef = useRef<HTMLImageElement>(null)
+  const photoPixelsRef = useRef<Uint8ClampedArray | null>(null)
+  const customIdxRef   = useRef(200)   // traced regions get indices 200+
+  const [traceHint, setTraceHint] = useState<string | null>(null)
   const groups = groupSkusByManufacturer(skus)
   const skuMap = Object.fromEntries(skus.map(s => [s.id, s]))
 
@@ -197,6 +200,23 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     } catch { setError('Upload failed. Please try again.'); setStep('preview') }
   }, [pendingFile])
 
+  // Decode photo pixels at grid resolution (for tap-to-trace flood fill)
+  React.useEffect(() => {
+    if (step !== 'confirm' || !photoPreview || photoPixelsRef.current) return
+    const { w, h } = gridDims
+    if (!w || !h) return
+    const img = new Image()
+    img.onload = () => {
+      const cv = document.createElement('canvas')
+      cv.width = w; cv.height = h
+      const ctx = cv.getContext('2d')!
+      ctx.drawImage(img, 0, 0, w, h)
+      photoPixelsRef.current = ctx.getImageData(0, 0, w, h).data
+      console.log('[confirm] photo pixels ready for trace')
+    }
+    img.src = photoPreview
+  }, [step, photoPreview, gridDims])
+
   // Redraw teal/amber overlay whenever selection changes
   React.useEffect(() => {
     const cv = overlayRef.current
@@ -217,15 +237,60 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     ctx.putImageData(img, 0, 0)
   }, [gridData, gridDims, selected, uncertainIdx, step])
 
+  // Flood fill from seed across similar-colored, unowned pixels → new custom region
+  const traceRegion = useCallback((sx: number, sy: number): number => {
+    const px = photoPixelsRef.current
+    if (!px || !gridData) return 0
+    const { w, h } = gridDims
+    const MAXPX = Math.floor(w * h * 0.30), MINPX = Math.floor(w * h * 0.003)
+    const TH2 = 45 * 45
+    const seed = (sy * w + sx) * 4
+    let ar = px[seed], ag = px[seed + 1], ab = px[seed + 2], n = 1
+    const visited = new Uint8Array(w * h)
+    const region: number[] = []
+    const queue: number[] = [sy * w + sx]
+    visited[sy * w + sx] = 1
+    while (queue.length && region.length < MAXPX) {
+      const p = queue.pop()!
+      const pr = px[p * 4], pg = px[p * 4 + 1], pb = px[p * 4 + 2]
+      const dr = pr - ar / 1, dg = pg - ag, db = pb - ab
+      // distance to running average
+      const d2 = (pr - ar) * (pr - ar) + (pg - ag) * (pg - ag) + (pb - ab) * (pb - ab)
+      if (p !== sy * w + sx && d2 > TH2) continue
+      region.push(p)
+      // update running average
+      ar = (ar * n + pr) / (n + 1); ag = (ag * n + pg) / (n + 1); ab = (ab * n + pb) / (n + 1); n++
+      const x = p % w, y = Math.floor(p / w)
+      const neigh = [p - 1, p + 1, p - w, p + w]
+      for (let k = 0; k < 4; k++) {
+        const q = neigh[k]
+        if (q < 0 || q >= w * h) continue
+        if (k === 0 && x === 0) continue
+        if (k === 1 && x === w - 1) continue
+        if (visited[q] || gridData[q] !== 0) continue
+        visited[q] = 1
+        queue.push(q)
+      }
+    }
+    if (region.length < MINPX) { console.log('[confirm] trace too small:', region.length); return 0 }
+    if (region.length >= MAXPX) { console.log('[confirm] trace too large, rejected'); return 0 }
+    const idx = customIdxRef.current++
+    const next = new Uint8Array(gridData)
+    for (const p of region) next[p] = idx
+    setGridData(next)
+    console.log('[confirm] traced region', { idx, pixels: region.length })
+    return idx
+  }, [gridData, gridDims])
+
   const handleConfirmTap = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation()
     const imgEl = confirmImgRef.current
-    if (!gridData || !imgEl) { console.warn('[confirm] tap ignored — grid or img missing', { hasGrid: !!gridData, hasImg: !!imgEl }); return }
+    if (!gridData || !imgEl) { console.warn('[confirm] tap ignored — grid or img missing'); return }
     const rect = imgEl.getBoundingClientRect()
     const { w, h } = gridDims
     const gx = Math.floor(((e.clientX - rect.left) / rect.width) * w)
     const gy = Math.floor(((e.clientY - rect.top) / rect.height) * h)
-    if (gx < 0 || gy < 0 || gx >= w || gy >= h) { console.warn('[confirm] tap outside image', { gx, gy }); return }
+    if (gx < 0 || gy < 0 || gx >= w || gy >= h) return
     let idx = gridData[gy * w + gx]
     if (idx === 0) {
       let best = 0, bestD = 65
@@ -237,8 +302,19 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       }
       idx = best
     }
+    if (idx === 0) {
+      // No candidate here — trace the surface ourselves
+      setTraceHint('Tracing surface…')
+      const traced = traceRegion(gx, gy)
+      setTraceHint(traced ? null : "Couldn't trace a surface here — try tapping the middle of the area")
+      if (traced) {
+        setTapCount(t => t + 1)
+        setSelected(prev => new Set(prev).add(traced))
+      }
+      console.log('[confirm] tap', { gx, gy, idx: traced, traced: true })
+      return
+    }
     console.log('[confirm] tap', { gx, gy, idx })
-    if (idx === 0) return
     setTapCount(t => t + 1)
     setSelected(prev => {
       const next = new Set(prev)
@@ -246,16 +322,39 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       console.log('[confirm] selection now', [...next])
       return next
     })
-  }, [gridData, gridDims])
+  }, [gridData, gridDims, traceRegion])
 
   const handleConfirmMask = useCallback(async () => {
-    if (!sessionId || selected.size === 0) return
+    if (!sessionId || selected.size === 0 || !gridData) return
     setConfirmBusy(true)
     try {
+      // Bake selected TRACED regions (idx >= 200) into a binary PNG for the server
+      let customMaskB64: string | null = null
+      const hasCustom = [...selected].some(i => i >= 200)
+      if (hasCustom) {
+        const { w, h } = gridDims
+        const cv = document.createElement('canvas')
+        cv.width = w; cv.height = h
+        const ctx = cv.getContext('2d')!
+        const imgD = ctx.createImageData(w, h)
+        for (let i = 0; i < w * h; i++) {
+          const v = gridData[i]
+          if (v >= 200 && selected.has(v)) {
+            imgD.data[i * 4] = 255; imgD.data[i * 4 + 1] = 255; imgD.data[i * 4 + 2] = 255; imgD.data[i * 4 + 3] = 255
+          } else {
+            imgD.data[i * 4 + 3] = 255  // opaque black
+          }
+        }
+        ctx.putImageData(imgD, 0, 0)
+        customMaskB64 = cv.toDataURL('image/png').split(',')[1]
+      }
+
       const res = await fetch('/api/roof-visualizer/confirm-mask', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId, selectedIndices: [...selected],
+          sessionId,
+          selectedIndices: [...selected].filter(i => i < 200),
+          customMaskB64,
           tapCount, msToConfirm: Date.now() - confirmStart,
         }),
       })
@@ -264,7 +363,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       setStep('pick')
     } catch { setError('Could not confirm selection. Try again.') }
     finally { setConfirmBusy(false) }
-  }, [sessionId, selected, tapCount, confirmStart])
+  }, [sessionId, selected, gridData, gridDims, tapCount, confirmStart])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFileSelect(file)
@@ -371,7 +470,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               <div>
                 <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Confirm your roof</p>
                 <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
-                  Teal = will be painted. Tap any missed roof areas to add them — tap again to remove.
+                  Teal = will be painted. Tap any missed roof area — we'll trace it automatically. Tap again to remove.
                   {uncertainIdx.length > 0 && ' Amber areas are uncertain — tap them if they are roof.'}
                 </p>
               </div>
@@ -394,6 +493,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               <span style={{ fontSize: 12, color: t.textSubtle }}>
                 {selected.size} area{selected.size === 1 ? '' : 's'} selected
               </span>
+              {traceHint && <span style={{ fontSize: 12, color: '#B45309', fontWeight: 600 }}>{traceHint}</span>}
               <button onClick={handleConfirmMask} disabled={selected.size === 0 || confirmBusy}
                 style={{ padding: '12px 32px', borderRadius: T.radMd, border: 'none', background: selected.size > 0 ? BRAND.teal : '#ccc', color: '#fff', fontWeight: 700, fontSize: 15, cursor: selected.size > 0 && !confirmBusy ? 'pointer' : 'not-allowed' }}>
                 {confirmBusy ? 'Saving…' : 'Confirm Roof →'}
