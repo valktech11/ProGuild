@@ -1,7 +1,7 @@
 // POST /api/roof-visualizer/segment
 // Body: multipart/form-data  { photo: File }
 // 1. Upload original photo to R2
-// 2. Call meta/sam-2 on Replicate (automatic roof detection, REST API)
+// 2. Call meta/sam-2 on Replicate
 // 3. Pick best mask (largest white-pixel region = roof)
 // 4. Upload mask PNG to R2
 // 5. Create visualizer_session row
@@ -16,8 +16,8 @@ const BUCKET          = process.env.R2_BUCKET_NAME!
 const R2_PUB          = process.env.R2_PUBLIC_URL!
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
 
-const SAM2_MODEL = 'meta/sam-2'
-const SAM2_VERSION = 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b'
+// Use the deployment API (no version hash) — simpler and more reliable
+const REPLICATE_API = 'https://api.replicate.com/v1'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -37,21 +37,18 @@ async function uploadToR2(key: string, buffer: Buffer, contentType: string) {
   return `${R2_PUB}/${key}`
 }
 
-// Call Replicate REST API — create prediction, then poll for completion
+// Call Replicate — create prediction then poll for completion
 async function runSam2(imageUrl: string): Promise<{ combined_mask: string; individual_masks: string[] }> {
-  const headers = {
-    'Authorization': `Bearer ${REPLICATE_TOKEN}`,
-    'Content-Type':  'application/json',
-    'Prefer':        'wait',  // Replicate "wait" mode — blocks up to 60s, no polling needed
-  }
+  const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
 
-  const createRes = await fetch(`https://api.replicate.com/v1/models/${SAM2_MODEL}/versions/${SAM2_VERSION}/predictions`, {
+  // Create prediction using the model slug directly (no version hash needed)
+  const createRes = await fetch(`${REPLICATE_API}/models/meta/sam-2/predictions`, {
     method:  'POST',
-    headers,
+    headers: authHeader,
     body: JSON.stringify({
       input: {
         image:                  imageUrl,
-        points_per_side:        16,    // faster; sufficient for large roof surfaces
+        points_per_side:        16,
         pred_iou_thresh:        0.85,
         stability_score_thresh: 0.92,
         use_m2m:                true,
@@ -61,30 +58,48 @@ async function runSam2(imageUrl: string): Promise<{ combined_mask: string; indiv
 
   if (!createRes.ok) {
     const txt = await createRes.text()
-    throw new Error(`Replicate create failed ${createRes.status}: ${txt.slice(0, 200)}`)
+    throw new Error(`Replicate create failed ${createRes.status}: ${txt.slice(0, 300)}`)
   }
 
   const prediction = await createRes.json()
+  console.log('[SAM2] prediction created:', prediction.id, 'status:', prediction.status)
 
-  // "Prefer: wait" returns the completed prediction directly if it finishes in time.
-  // If still processing, poll.
+  // If already done (unlikely but possible with fast models)
   if (prediction.status === 'succeeded') {
     return prediction.output as { combined_mask: string; individual_masks: string[] }
   }
-
-  // Poll up to 90s
-  const pollUrl = prediction.urls?.get
-  if (!pollUrl) throw new Error('No poll URL from Replicate')
-
-  for (let i = 0; i < 18; i++) {
-    await new Promise(r => setTimeout(r, 5000))
-    const pollRes = await fetch(pollUrl, { headers: { 'Authorization': `Bearer ${REPLICATE_TOKEN}` } })
-    const poll    = await pollRes.json()
-    if (poll.status === 'succeeded') return poll.output
-    if (poll.status === 'failed')   throw new Error(`SAM2 failed: ${poll.error}`)
+  if (prediction.status === 'failed') {
+    throw new Error(`SAM2 prediction failed immediately: ${prediction.error}`)
   }
 
-  throw new Error('SAM2 timed out after 90 seconds')
+  // Poll for completion — up to 120s (SAM2 cold start can be slow)
+  const pollUrl = prediction.urls?.get
+  if (!pollUrl) throw new Error(`No poll URL in prediction response: ${JSON.stringify(prediction)}`)
+
+  for (let i = 0; i < 24; i++) {
+    await new Promise(r => setTimeout(r, 5000))
+
+    const pollRes = await fetch(pollUrl, { headers: { 'Authorization': `Bearer ${REPLICATE_TOKEN}` } })
+    if (!pollRes.ok) {
+      console.warn(`[SAM2] poll ${i} returned ${pollRes.status}`)
+      continue
+    }
+
+    const poll = await pollRes.json()
+    console.log(`[SAM2] poll ${i}: status=${poll.status}`)
+
+    if (poll.status === 'succeeded') {
+      const output = poll.output as { combined_mask: string; individual_masks: string[] }
+      console.log('[SAM2] succeeded, masks:', output?.individual_masks?.length ?? 0)
+      return output
+    }
+    if (poll.status === 'failed') {
+      throw new Error(`SAM2 failed: ${poll.error}`)
+    }
+    // still processing/starting — keep polling
+  }
+
+  throw new Error('SAM2 timed out after 120 seconds')
 }
 
 // Pick the mask with the most white pixels (largest region = roof)
@@ -92,12 +107,14 @@ async function pickBestMask(maskUrls: string[]): Promise<string> {
   if (maskUrls.length === 0) throw new Error('SAM2 returned no masks')
   if (maskUrls.length === 1) return maskUrls[0]
 
+  // Fetch all masks in parallel and score by white-pixel count
   const scores = await Promise.all(maskUrls.map(async (url, i) => {
     try {
       const res = await fetch(url)
       const buf = Buffer.from(await res.arrayBuffer())
       let score = 0
       for (let j = 0; j < buf.length; j++) if (buf[j] === 0xff) score++
+      console.log(`[SAM2] mask ${i}: score=${score}`)
       return { i, score }
     } catch {
       return { i, score: 0 }
@@ -137,9 +154,12 @@ export async function POST(req: NextRequest) {
     const ext         = file.type === 'image/png' ? 'png' : 'jpg'
     const sessionId   = crypto.randomUUID()
 
+    console.log(`[segment] sessionId=${sessionId} file=${file.name} size=${file.size} type=${file.type}`)
+
     // Upload original photo to R2
     const photoKey = r2Key('photos', sessionId, ext)
-    const photoUrl = await uploadToR2(photoKey, photoBuffer, file.type)
+    const photoUrl = await uploadToR2(photoKey, photoBuffer, file.type || 'image/jpeg')
+    console.log(`[segment] photo uploaded: ${photoUrl}`)
 
     // Create session row
     await sb.from('visualizer_sessions').insert({
@@ -155,28 +175,35 @@ export async function POST(req: NextRequest) {
     try {
       output = await runSam2(photoUrl)
     } catch (samErr) {
+      const msg = samErr instanceof Error ? samErr.message : 'SAM2 error'
+      console.error('[segment] SAM2 error:', msg)
       await sb.from('visualizer_sessions').update({
         mask_status: 'failed',
-        mask_error:  samErr instanceof Error ? samErr.message : 'SAM2 error',
+        mask_error:  msg,
       }).eq('id', sessionId)
       return NextResponse.json({
-        error: 'Could not detect roof. Try a clear street-view photo of your home with minimal tree coverage.',
+        error: 'Could not detect roof. Try a clear street-view photo with the roof fully visible.',
+        detail: msg,
       }, { status: 422 })
     }
 
     if (!output?.individual_masks?.length) {
-      await sb.from('visualizer_sessions').update({ mask_status: 'failed', mask_error: 'No masks returned' }).eq('id', sessionId)
-      return NextResponse.json({ error: 'Could not detect roof. Try a clearer photo.' }, { status: 422 })
+      const msg = 'SAM2 returned no individual masks'
+      console.error('[segment]', msg, 'output:', JSON.stringify(output))
+      await sb.from('visualizer_sessions').update({ mask_status: 'failed', mask_error: msg }).eq('id', sessionId)
+      return NextResponse.json({ error: 'Could not detect roof surfaces in this photo. Try a clearer image.' }, { status: 422 })
     }
 
     // Pick largest mask (= roof)
     const bestMaskUrl = await pickBestMask(output.individual_masks)
+    console.log(`[segment] best mask: ${bestMaskUrl}`)
 
     // Download and re-upload mask to our R2
     const maskRes    = await fetch(bestMaskUrl)
     const maskBuffer = Buffer.from(await maskRes.arrayBuffer())
     const maskKey    = r2Key('masks', sessionId, 'png')
     const maskUrl    = await uploadToR2(maskKey, maskBuffer, 'image/png')
+    console.log(`[segment] mask uploaded: ${maskUrl}`)
 
     // Update session
     await sb.from('visualizer_sessions').update({
@@ -189,7 +216,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ sessionId, photoUrl, maskUrl })
 
   } catch (err: unknown) {
-    console.error('[visualizer/segment]', err)
+    console.error('[visualizer/segment] unhandled:', err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Segmentation failed' },
       { status: 500 }

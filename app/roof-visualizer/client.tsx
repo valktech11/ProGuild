@@ -187,7 +187,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || 'Could not detect roof. Try a photo with a clear view of the roof from the street.')
+        const msg = data.detail ? `${data.error} — ${data.detail}` : (data.error || 'Could not detect roof.')
+        setError(msg)
         setStep('upload')
         return
       }
