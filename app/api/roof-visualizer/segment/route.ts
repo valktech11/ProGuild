@@ -1,285 +1,306 @@
 // POST /api/roof-visualizer/segment
-// Body: multipart/form-data  { photo: File }
-// 1. Upload original photo to R2
-// 2. Call meta/sam-2 on Replicate
-// 3. Pick best mask (largest white-pixel region = roof)
-// 4. Upload mask PNG to R2
-// 5. Create visualizer_session row
-// Returns: { sessionId, photoUrl, maskUrl }
+// SEMANTIC SELECTION PIPELINE (v2):
+//   1. Upload photo → normalize (max 2000px JPEG) → R2
+//   2. SAM2 automatic → candidate masks
+//   3. Decode candidates at grid res (~768px), drop fragments (<0.8%), keep top 12 by area
+//   4. Bake INDEX GRIDS: pixel value = index of SMALLEST candidate covering it
+//      (smallest-wins → tap on a plane toggles the plane, never a super-mask)
+//      - full-res grid → R2 (used by confirm-mask endpoint)
+//      - grid-res grid → returned inline as base64 (client hit-testing, no CORS issues)
+//   5. Gemini 2.5 Flash classifies a numbered composite → {roof_indices, confidence_scores}
+//      (detection-only, text out; heuristic fallback if the call fails)
+//   6. Session stores selection_meta; mask_status = 'candidates' until user confirms
+// Returns: { sessionId, photoUrl, gridB64, gridW, gridH, candidates, preselected, uncertain, confidence, confidenceNote }
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { uploadToR2, getR2PublicUrl } from '@/lib/r2'
+import { uploadToR2 } from '@/lib/r2'
 import sharp from 'sharp'
 
+export const maxDuration = 120
+
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
+const REPLICATE_API   = 'https://api.replicate.com/v1'
+const GEM_KEY         = process.env.GEMINI_API_KEY || ''
+const GEMINI_TEXT_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEM_KEY}`
 
-// Use the deployment API (no version hash) — simpler and more reliable
-const REPLICATE_API = 'https://api.replicate.com/v1'
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
+const MAX_PHOTO_DIM   = 2000   // normalize uploads
+const GRID_MAX_DIM    = 768    // client hit-test resolution
+const MAX_CANDIDATES  = 12     // selectable logical regions cap
+const MIN_AREA_FRAC   = 0.008  // fragments below this are not selectable
 
 function r2Key(prefix: string, id: string, ext: string) {
   return `visualizer/${prefix}/${id}.${ext}`
 }
 
+// ── SAM2 (unchanged mechanics) ───────────────────────────────────────────────
 
-
-// Call Replicate — create prediction then poll for completion
-async function runSam2(imageUrl: string, imageBuffer?: Buffer, mimeType?: string): Promise<{ combined_mask: string; individual_masks: string[] }> {
+async function runSam2(imgB64DataUri: string): Promise<{ individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
-
-  // Convert to JPEG — SAM2 rejects AVIF/WEBP/HEIC formats
-  // sharp normalises any input format to JPEG safely
-  let jpegBuffer: Buffer
-  if (imageBuffer) {
-    jpegBuffer = await sharp(imageBuffer).jpeg({ quality: 90 }).toBuffer()
-  } else {
-    const res = await fetch(imageUrl)
-    jpegBuffer = await sharp(Buffer.from(await res.arrayBuffer())).jpeg({ quality: 90 }).toBuffer()
-  }
-  const imgInput = `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`
-
-  // Create prediction using /v1/predictions with pinned version hash
   const SAM2_VERSION = 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b'
   const createRes = await fetch(`${REPLICATE_API}/predictions`, {
-    method:  'POST',
-    headers: authHeader,
+    method: 'POST', headers: authHeader,
     body: JSON.stringify({
       version: SAM2_VERSION,
-      input: {
-        image:                  imgInput,
-        points_per_side:        16,
-        pred_iou_thresh:        0.85,
-        stability_score_thresh: 0.92,
-        use_m2m:                true,
-      },
+      input: { image: imgB64DataUri, points_per_side: 16, pred_iou_thresh: 0.85, stability_score_thresh: 0.92, use_m2m: true },
     }),
   })
-
-  if (!createRes.ok) {
-    const txt = await createRes.text()
-    throw new Error(`Replicate create failed ${createRes.status}: ${txt.slice(0, 300)}`)
-  }
-
+  if (!createRes.ok) throw new Error(`Replicate create failed ${createRes.status}: ${(await createRes.text()).slice(0, 300)}`)
   const prediction = await createRes.json()
-  console.log('[SAM2] prediction created:', prediction.id, 'status:', prediction.status)
-
-  // If already done (unlikely but possible with fast models)
-  if (prediction.status === 'succeeded') {
-    return prediction.output as { combined_mask: string; individual_masks: string[] }
-  }
-  if (prediction.status === 'failed') {
-    throw new Error(`SAM2 prediction failed immediately: ${prediction.error}`)
-  }
-
-  // Poll for completion — up to 120s (SAM2 cold start can be slow)
+  if (prediction.status === 'succeeded') return prediction.output
+  if (prediction.status === 'failed') throw new Error(`SAM2 failed immediately: ${prediction.error}`)
   const pollUrl = prediction.urls?.get
-  if (!pollUrl) throw new Error(`No poll URL in prediction response: ${JSON.stringify(prediction)}`)
-
+  if (!pollUrl) throw new Error('No poll URL from Replicate')
   for (let i = 0; i < 24; i++) {
     await new Promise(r => setTimeout(r, 5000))
-
     const pollRes = await fetch(pollUrl, { headers: { 'Authorization': `Bearer ${REPLICATE_TOKEN}` } })
-    if (!pollRes.ok) {
-      console.warn(`[SAM2] poll ${i} returned ${pollRes.status}`)
-      continue
-    }
-
+    if (!pollRes.ok) continue
     const poll = await pollRes.json()
-    console.log(`[SAM2] poll ${i}: status=${poll.status}`)
-
-    if (poll.status === 'succeeded') {
-      const output = poll.output as { combined_mask: string; individual_masks: string[] }
-      console.log('[SAM2] succeeded, masks:', output?.individual_masks?.length ?? 0)
-      return output
-    }
-    if (poll.status === 'failed') {
-      throw new Error(`SAM2 failed: ${poll.error}`)
-    }
-    // still processing/starting — keep polling
+    if (poll.status === 'succeeded') return poll.output
+    if (poll.status === 'failed') throw new Error(`SAM2 failed: ${poll.error}`)
   }
-
   throw new Error('SAM2 timed out after 120 seconds')
 }
 
-// Build the roof mask: decode every SAM2 mask, score by REAL white-pixel coverage
-// and vertical centroid, then UNION all roof-like planes into one mask.
-// (SAM2 segments each roof plane separately — a single mask is one sliver.)
-async function buildRoofMask(maskUrls: string[], width: number, height: number, photoBufferForScoring: Buffer): Promise<Buffer> {
-  if (maskUrls.length === 0) throw new Error('SAM2 returned no masks')
+// ── Candidate decoding + index grid baking ───────────────────────────────────
 
-  const S = 128  // scoring resolution
-  const candidates = maskUrls.slice(0, 24)  // cap fetch cost
+interface Candidate {
+  index: number          // 1-based, stable across grid + labels + Gemini
+  areaPx: number         // at grid res
+  areaPct: number
+  cx: number; cy: number // centroid at grid res
+  meanLum: number        // original-photo luminance inside mask (heuristic fallback)
+  gridRaw: Buffer        // 1ch at grid res
+  url: string            // SAM2 mask URL (re-decoded at full res on demand)
+}
 
-  // Photo luminance at scoring resolution — used to reject bright masks (sky, white walls)
-  const photoLum = await sharp(photoBufferForScoring).resize(S, S, { fit: 'fill' })
-    .greyscale().extractChannel(0).raw().toBuffer()
-
-  const scored = await Promise.all(candidates.map(async (url, i) => {
+async function decodeCandidates(
+  maskUrls: string[], gw: number, gh: number, photoLumGrid: Buffer
+): Promise<Candidate[]> {
+  const capped = maskUrls.slice(0, 24)
+  const decoded = await Promise.all(capped.map(async (url) => {
     try {
       const res = await fetch(url)
       const buf = Buffer.from(await res.arrayBuffer())
-      const raw = await sharp(buf).resize(S, S, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
-      let white = 0, ySum = 0, lumSum = 0
-      for (let p = 0; p < S * S; p++) {
-        if (raw[p] > 200) { white++; ySum += Math.floor(p / S); lumSum += photoLum[p] }
+      const raw = await sharp(buf).resize(gw, gh, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
+      let area = 0, xSum = 0, ySum = 0, lumSum = 0
+      for (let p = 0; p < gw * gh; p++) {
+        if (raw[p] > 200) { area++; xSum += p % gw; ySum += Math.floor(p / gw); lumSum += photoLumGrid[p] }
       }
-      const coverage  = white / (S * S)
-      const centroidY = white > 0 ? (ySum / white) / S : 1
-      const meanLum   = white > 0 ? lumSum / white : 255
-      console.log(`[SAM2] mask ${i}: coverage=${(coverage * 100).toFixed(1)}% centroidY=${centroidY.toFixed(2)} meanLum=${meanLum.toFixed(0)}`)
-      return { i, buf: buf as Buffer | null, coverage, centroidY, meanLum }
-    } catch (e) {
-      console.error(`[SAM2] mask ${i} fetch/decode failed:`, e)
-      return { i, buf: null as Buffer | null, coverage: 0, centroidY: 1, meanLum: 255 }
-    }
+      return { url, raw, area, cx: area ? xSum / area : 0, cy: area ? ySum / area : 0, meanLum: area ? lumSum / area : 255 }
+    } catch { return null }
   }))
 
-  // Roof-like: meaningful size, upper ~3/4 of frame, and NOT bright (rejects sky/white walls)
-  let roofMasks = scored.filter(m =>
-    m.buf && m.coverage >= 0.008 && m.coverage <= 0.5 && m.centroidY <= 0.72 && m.meanLum <= 170
-  )
+  const total = gw * gh
+  const kept = decoded
+    .filter((d): d is NonNullable<typeof d> => !!d && d.area / total >= MIN_AREA_FRAC && d.area / total <= 0.6)
+    .sort((a, b) => b.area - a.area)
+    .slice(0, MAX_CANDIDATES)
 
-  // Fallback: nothing matched heuristics → single largest mask
-  if (roofMasks.length === 0) {
-    const largest = scored.filter(m => m.buf).sort((a, b) => b.coverage - a.coverage)[0]
-    if (!largest?.buf) throw new Error('No decodable masks from SAM2')
-    console.log(`[SAM2] no roof-like masks — falling back to largest (${(largest.coverage * 100).toFixed(1)}%)`)
-    roofMasks = [largest]
-  }
+  return kept.map((d, i) => ({
+    index: i + 1, areaPx: d.area, areaPct: d.area / total,
+    cx: d.cx, cy: d.cy, meanLum: d.meanLum, gridRaw: d.raw, url: d.url,
+  }))
+}
 
-  // Cap runaway unions (sky/walls slipping through) at ~65% coverage
-  roofMasks.sort((a, b) => b.coverage - a.coverage)
-  const selected: typeof roofMasks = []
-  let total = 0
-  for (const m of roofMasks) {
-    if (total + m.coverage > 0.65 && selected.length > 0) break
-    selected.push(m); total += m.coverage
-  }
-  console.log(`[SAM2] union of ${selected.length} masks, est coverage=${(total * 100).toFixed(1)}%`)
-
-  // Union at full photo resolution via manual OR on raw buffers
-  const acc = Buffer.alloc(width * height)
-  for (const m of selected) {
-    const raw = await sharp(m.buf!).resize(width, height, { fit: 'fill' })
-      .greyscale().extractChannel(0).raw().toBuffer()
-    for (let p = 0; p < width * height; p++) {
-      if (raw[p] > 200) acc[p] = 255
+// Bake index grid: iterate LARGEST → SMALLEST so smallest candidate wins per pixel.
+function bakeIndexGrid(cands: Candidate[], gw: number, gh: number): Buffer {
+  const grid = Buffer.alloc(gw * gh) // 0 = none
+  const byAreaDesc = [...cands].sort((a, b) => b.areaPx - a.areaPx)
+  for (const c of byAreaDesc) {
+    for (let p = 0; p < gw * gh; p++) {
+      if (c.gridRaw[p] > 200) grid[p] = c.index
     }
   }
+  return grid
+}
 
-  return sharp(acc, { raw: { width, height, channels: 1 } }).png().toBuffer()
+// Full-res index grid: re-decode kept candidates at photo dims.
+async function bakeFullResGrid(cands: Candidate[], pw: number, ph: number): Promise<Buffer> {
+  const grid = Buffer.alloc(pw * ph)
+  const byAreaDesc = [...cands].sort((a, b) => b.areaPx - a.areaPx)
+  for (const c of byAreaDesc) {
+    const res = await fetch(c.url)
+    const buf = Buffer.from(await res.arrayBuffer())
+    const raw = await sharp(buf).resize(pw, ph, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
+    for (let p = 0; p < pw * ph; p++) {
+      if (raw[p] > 200) grid[p] = c.index
+    }
+  }
+  return grid
+}
+
+// ── Gemini semantic classification (detection-only, JSON out) ────────────────
+
+async function classifyWithGemini(
+  photoGridJpeg: Buffer, cands: Candidate[]
+): Promise<{ roofIndices: number[]; confidences: Record<number, number> } | null> {
+  try {
+    // Numbered composite: red circle + white number at each candidate centroid
+    const meta = await sharp(photoGridJpeg).metadata()
+    const w = meta.width ?? GRID_MAX_DIM, h = meta.height ?? GRID_MAX_DIM
+    const labels = cands.map(c => `
+      <circle cx="${c.cx.toFixed(0)}" cy="${c.cy.toFixed(0)}" r="16" fill="rgba(220,38,38,0.85)" stroke="white" stroke-width="2"/>
+      <text x="${c.cx.toFixed(0)}" y="${(c.cy + 6).toFixed(0)}" font-family="Arial" font-size="20" font-weight="bold" fill="white" text-anchor="middle">${c.index}</text>`).join('')
+    const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${labels}</svg>`
+    const composite = await sharp(photoGridJpeg).composite([{ input: Buffer.from(svg) }]).jpeg({ quality: 85 }).toBuffer()
+
+    const prompt = [
+      'The image shows a house photo with numbered red markers on segmented regions.',
+      'Identify which numbered regions are part of the HOUSE ROOF (shingles, tiles, metal roofing, dormers, gable roof planes, porch roofs, garage roofs of the SAME house).',
+      "EXCLUDE: sky, walls, siding, windows, doors, trees, grass, driveway, cars, and neighboring house roofs.",
+      'Respond with ONLY this JSON, no markdown fences, no commentary:',
+      '{"roof_indices":[<numbers>],"confidence_scores":[<0..1 floats, aligned with roof_indices>]}',
+    ].join('\n')
+
+    const res = await fetch(GEMINI_TEXT_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [
+          { text: prompt },
+          { inlineData: { mimeType: 'image/jpeg', data: composite.toString('base64') } },
+        ]}],
+        generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+      }),
+    })
+    if (!res.ok) { console.warn('[segment/gemini]', res.status, (await res.text()).slice(0, 200)); return null }
+    const data = await res.json()
+    const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || ''
+    const clean = text.replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(clean) as { roof_indices: number[]; confidence_scores?: number[] }
+    if (!Array.isArray(parsed.roof_indices)) return null
+
+    const valid = new Set(cands.map(c => c.index))
+    const roofIndices = parsed.roof_indices.filter(i => valid.has(i))
+    const confidences: Record<number, number> = {}
+    roofIndices.forEach((idx, k) => { confidences[idx] = parsed.confidence_scores?.[k] ?? 0.8 })
+    console.log('[segment/gemini] roof indices:', roofIndices, 'confidences:', confidences)
+    return { roofIndices, confidences }
+  } catch (e) {
+    console.warn('[segment/gemini] failed:', e instanceof Error ? e.message : e)
+    return null
+  }
+}
+
+// Heuristic fallback (Gemini unavailable) — spatial + brightness, PRESELECT ONLY
+function heuristicPreselect(cands: Candidate[], gh: number): number[] {
+  return cands
+    .filter(c => c.cy / gh <= 0.72 && c.meanLum <= 185)
+    .map(c => c.index)
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
-    // Abuse check — max 10 sessions/hour per IP
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
     const sb = getSupabaseAdmin()
     const hourAgo = new Date(Date.now() - 3600_000).toISOString()
-
     const { count: recentCount } = await sb
       .from('visualizer_sessions')
       .select('id', { count: 'exact', head: true })
       .eq('ip_address', ip)
       .gte('created_at', hourAgo)
-
     if ((recentCount ?? 0) >= 10) {
       return NextResponse.json({ error: 'Too many requests — try again later' }, { status: 429 })
     }
 
-    // Parse upload
     const form = await req.formData()
     const file = form.get('photo') as File | null
     if (!file) return NextResponse.json({ error: 'photo required' }, { status: 400 })
     if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'Photo must be under 10MB' }, { status: 400 })
 
-    // Normalise to JPEG regardless of upload format (handles AVIF, WEBP, HEIC etc.)
+    // Normalize: any format → JPEG, max 2000px
     const rawBuffer   = Buffer.from(await file.arrayBuffer())
-    const photoBuffer = await sharp(rawBuffer).jpeg({ quality: 92 }).toBuffer()
-    const ext         = 'jpg'
-    const sessionId   = crypto.randomUUID()
+    const photoBuffer = await sharp(rawBuffer)
+      .resize(MAX_PHOTO_DIM, MAX_PHOTO_DIM, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 92 }).toBuffer()
+    const pMeta = await sharp(photoBuffer).metadata()
+    const pw = pMeta.width ?? 800, ph = pMeta.height ?? 600
 
-    console.log(`[segment] sessionId=${sessionId} file=${file.name} size=${file.size} type=${file.type}`)
+    const sessionId = crypto.randomUUID()
+    const photoKey  = r2Key('photos', sessionId, 'jpg')
+    const photoUrl  = await uploadToR2(photoKey, photoBuffer, 'image/jpeg')
 
-    // Upload original photo to R2
-    const photoKey = r2Key('photos', sessionId, ext)
-    const photoUrl = await uploadToR2(photoKey, photoBuffer, file.type || 'image/jpeg')
-    console.log(`[segment] photo uploaded: ${photoUrl}`)
-
-    // Create session row
     await sb.from('visualizer_sessions').insert({
-      id:               sessionId,
-      photo_r2_key:     photoKey,
-      photo_public_url: photoUrl,
-      mask_status:      'processing',
-      ip_address:       ip,
+      id: sessionId, photo_r2_key: photoKey, photo_public_url: photoUrl,
+      mask_status: 'processing', ip_address: ip,
     })
 
-    // Call SAM2 via Replicate
-    let output: { combined_mask: string; individual_masks: string[] }
+    // SAM2
+    let samOut: { individual_masks: string[] }
     try {
-      output = await runSam2(photoUrl, photoBuffer, file.type || 'image/jpeg')
+      samOut = await runSam2(`data:image/jpeg;base64,${photoBuffer.toString('base64')}`)
     } catch (samErr) {
       const msg = samErr instanceof Error ? samErr.message : 'SAM2 error'
-      console.error('[segment] SAM2 error:', msg)
-      await sb.from('visualizer_sessions').update({
-        mask_status: 'failed',
-        mask_error:  msg,
-      }).eq('id', sessionId)
-      return NextResponse.json({
-        error: 'Could not detect roof. Try a clear street-view photo with the roof fully visible.',
-        detail: msg,
-      }, { status: 422 })
-    }
-
-    if (!output?.individual_masks?.length) {
-      const msg = 'SAM2 returned no individual masks'
-      console.error('[segment]', msg, 'output:', JSON.stringify(output))
       await sb.from('visualizer_sessions').update({ mask_status: 'failed', mask_error: msg }).eq('id', sessionId)
-      return NextResponse.json({ error: 'Could not detect roof surfaces in this photo. Try a clearer image.' }, { status: 422 })
+      return NextResponse.json({ error: 'Could not analyze this photo. Try a clear street-view photo.', detail: msg }, { status: 422 })
+    }
+    if (!samOut?.individual_masks?.length) {
+      await sb.from('visualizer_sessions').update({ mask_status: 'failed', mask_error: 'No masks' }).eq('id', sessionId)
+      return NextResponse.json({ error: 'No surfaces detected. Try a clearer photo.' }, { status: 422 })
     }
 
-    // Build unified roof mask from all roof-like SAM2 planes
-    const photoMeta = await sharp(photoBuffer).metadata()
-    const pw = photoMeta.width  ?? 800
-    const ph = photoMeta.height ?? 600
-    const maskBuffer = await buildRoofMask(output.individual_masks, pw, ph, photoBuffer)
-    const maskKey    = r2Key('masks', sessionId, 'png')
-    const maskUrl    = await uploadToR2(maskKey, maskBuffer, 'image/png')
-    console.log(`[segment] union mask uploaded: ${maskUrl}`)
+    // Grid dims (preserve aspect, max 768)
+    const scale = Math.min(GRID_MAX_DIM / pw, GRID_MAX_DIM / ph, 1)
+    const gw = Math.round(pw * scale), gh = Math.round(ph * scale)
+    const photoGridJpeg = await sharp(photoBuffer).resize(gw, gh, { fit: 'fill' }).jpeg({ quality: 85 }).toBuffer()
+    const photoLumGrid  = await sharp(photoGridJpeg).greyscale().extractChannel(0).raw().toBuffer()
 
-    // Compute REAL mask coverage from decoded pixels for the confidence signal
-    const covRaw = await sharp(maskBuffer).resize(128, 128, { fit: 'fill' })
-      .greyscale().extractChannel(0).raw().toBuffer()
-    let whitePixels = 0
-    for (let j = 0; j < covRaw.length; j++) if (covRaw[j] > 200) whitePixels++
-    const coverage = whitePixels / covRaw.length
+    // Candidates + grids
+    const cands = await decodeCandidates(samOut.individual_masks, gw, gh, photoLumGrid)
+    if (cands.length === 0) {
+      await sb.from('visualizer_sessions').update({ mask_status: 'failed', mask_error: 'No viable candidates' }).eq('id', sessionId)
+      return NextResponse.json({ error: 'No roof-sized surfaces found. Try a closer photo.' }, { status: 422 })
+    }
 
-    // Confidence heuristic
+    const gridClient = bakeIndexGrid(cands, gw, gh)
+    const gridB64 = (await sharp(gridClient, { raw: { width: gw, height: gh, channels: 1 } }).png().toBuffer()).toString('base64')
+
+    const gridFull = await bakeFullResGrid(cands, pw, ph)
+    const gridFullKey = r2Key('grids', sessionId, 'png')
+    await uploadToR2(gridFullKey, await sharp(gridFull, { raw: { width: pw, height: ph, channels: 1 } }).png().toBuffer(), 'image/png')
+
+    // Semantic classification (Gemini primary, heuristic fallback)
+    const gem = await classifyWithGemini(photoGridJpeg, cands)
+    let preselected: number[], uncertain: number[], selector: string
+    if (gem && gem.roofIndices.length > 0) {
+      preselected = gem.roofIndices.filter(i => (gem.confidences[i] ?? 0) >= 0.6)
+      uncertain   = gem.roofIndices.filter(i => (gem.confidences[i] ?? 0) <  0.6)
+      selector = 'gemini-2.5-flash'
+      if (preselected.length === 0) { preselected = gem.roofIndices; uncertain = []; }
+    } else {
+      preselected = heuristicPreselect(cands, gh)
+      uncertain = []
+      selector = 'heuristic-fallback'
+    }
+
+    // Confidence badge from preselection coverage
+    const preArea = cands.filter(c => preselected.includes(c.index)).reduce((s, c) => s + c.areaPct, 0)
     let confidence: 'high' | 'medium' | 'low' = 'high'
-    let confidenceNote = 'Roof detected successfully'
-    if (coverage < 0.04) { confidence = 'low';    confidenceNote = 'Roof area looks small — results may be less accurate' }
-    else if (coverage < 0.10) { confidence = 'medium'; confidenceNote = 'Roof detected — complex roof or partial view' }
+    let confidenceNote = 'Roof detected — confirm below'
+    if (preArea < 0.04)      { confidence = 'low';    confidenceNote = 'Roof unclear — tap the roof areas below' }
+    else if (preArea < 0.10) { confidence = 'medium'; confidenceNote = 'Roof detected — check all planes are selected' }
 
-    // Update session
     await sb.from('visualizer_sessions').update({
-      mask_r2_key:     maskKey,
-      mask_public_url: maskUrl,
-      mask_status:     'done',
-      updated_at:      new Date().toISOString(),
+      mask_status: 'candidates',
+      selection_meta: {
+        grid_full_key: gridFullKey, grid_w: gw, grid_h: gh, photo_w: pw, photo_h: ph,
+        candidates: cands.map(c => ({ i: c.index, areaPct: +c.areaPct.toFixed(4), cx: +c.cx.toFixed(0), cy: +c.cy.toFixed(0), meanLum: +c.meanLum.toFixed(0) })),
+        selector, preselected, uncertain,
+        gemini_confidences: gem?.confidences ?? null,
+      },
+      updated_at: new Date().toISOString(),
     }).eq('id', sessionId)
 
-    return NextResponse.json({ sessionId, photoUrl, maskUrl, confidence, confidenceNote })
+    return NextResponse.json({
+      sessionId, photoUrl, gridB64, gridW: gw, gridH: gh,
+      candidates: cands.map(c => ({ index: c.index, areaPct: c.areaPct })),
+      preselected, uncertain, confidence, confidenceNote,
+    })
 
   } catch (err: unknown) {
-    console.error('[visualizer/segment] unhandled:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Segmentation failed' },
-      { status: 500 }
-    )
+    console.error('[visualizer/segment]', err)
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Segmentation failed' }, { status: 500 })
   }
 }

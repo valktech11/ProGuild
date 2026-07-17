@@ -15,7 +15,7 @@ interface RenderResult {
   skuId: string; renderUrl: string | null; skuName: string
   hexPreview: string; mfgName?: string; error?: string
 }
-type Step = 'upload' | 'preview' | 'segmenting' | 'pick' | 'rendering' | 'results' | 'gate' | 'share'
+type Step = 'upload' | 'preview' | 'segmenting' | 'confirm' | 'pick' | 'rendering' | 'results' | 'gate' | 'share'
 
 function groupSkusByManufacturer(skus: Sku[]) {
   const map: Record<string, { manufacturer: string; skus: Sku[] }> = {}
@@ -137,6 +137,15 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [gateBusy, setGateBusy]     = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [confidence, setConfidence] = useState<{ level: string; note: string } | null>(null)
+  const [gridData, setGridData]   = useState<Uint8Array | null>(null)
+  const [gridDims, setGridDims]   = useState<{ w: number; h: number }>({ w: 0, h: 0 })
+  const [selected, setSelected]   = useState<Set<number>>(new Set())
+  const [uncertainIdx, setUncertainIdx] = useState<number[]>([])
+  const [tapCount, setTapCount]   = useState(0)
+  const [confirmStart, setConfirmStart] = useState(0)
+  const [confirmBusy, setConfirmBusy]   = useState(false)
+  const overlayRef = useRef<HTMLCanvasElement>(null)
+  const confirmImgRef = useRef<HTMLImageElement>(null)
   const groups = groupSkusByManufacturer(skus)
   const skuMap = Object.fromEntries(skus.map(s => [s.id, s]))
 
@@ -162,9 +171,93 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       if (!res.ok) { setError(data.detail ? `${data.error} — ${data.detail}` : (data.error || 'Could not detect roof.')); setStep('preview'); return }
       setSessionId(data.sessionId)
       setConfidence(data.confidence ? { level: data.confidence, note: data.confidenceNote || 'Roof detected' } : null)
-      setStep('pick')
+      // Decode index grid (base64 PNG → Uint8Array) for client-side hit-testing
+      const img = new Image()
+      img.onload = () => {
+        const cv = document.createElement('canvas')
+        cv.width = data.gridW; cv.height = data.gridH
+        const ctx = cv.getContext('2d')!
+        ctx.drawImage(img, 0, 0)
+        const px = ctx.getImageData(0, 0, data.gridW, data.gridH).data
+        const grid = new Uint8Array(data.gridW * data.gridH)
+        for (let i = 0; i < grid.length; i++) grid[i] = px[i * 4]  // R channel = index
+        setGridData(grid)
+        setGridDims({ w: data.gridW, h: data.gridH })
+        setSelected(new Set<number>(data.preselected ?? []))
+        setUncertainIdx(data.uncertain ?? [])
+        setTapCount(0)
+        setConfirmStart(Date.now())
+        setStep('confirm')
+      }
+      img.src = `data:image/png;base64,${data.gridB64}`
     } catch { setError('Upload failed. Please try again.'); setStep('preview') }
   }, [pendingFile])
+
+  // Redraw teal/amber overlay whenever selection changes
+  React.useEffect(() => {
+    const cv = overlayRef.current
+    if (!cv || !gridData || step !== 'confirm') return
+    const { w, h } = gridDims
+    cv.width = w; cv.height = h
+    const ctx = cv.getContext('2d')!
+    const img = ctx.createImageData(w, h)
+    const unc = new Set(uncertainIdx)
+    for (let i = 0; i < w * h; i++) {
+      const idx = gridData[i]
+      if (idx > 0 && selected.has(idx)) {
+        img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 115  // teal
+      } else if (idx > 0 && unc.has(idx)) {
+        img.data[i * 4] = 217; img.data[i * 4 + 1] = 119; img.data[i * 4 + 2] = 6; img.data[i * 4 + 3] = 70    // amber
+      }
+    }
+    ctx.putImageData(img, 0, 0)
+  }, [gridData, gridDims, selected, uncertainIdx, step])
+
+  const handleConfirmTap = useCallback((e: React.MouseEvent) => {
+    if (!gridData || !confirmImgRef.current) return
+    const rect = confirmImgRef.current.getBoundingClientRect()
+    const { w, h } = gridDims
+    const gx = Math.floor(((e.clientX - rect.left) / rect.width) * w)
+    const gy = Math.floor(((e.clientY - rect.top) / rect.height) * h)
+    if (gx < 0 || gy < 0 || gx >= w || gy >= h) return
+    let idx = gridData[gy * w + gx]
+    if (idx === 0) {
+      // Radial snap: nearest non-zero index within 8 grid px
+      let best = 0, bestD = 65  // 8^2 + 1
+      for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
+        const nx = gx + dx, ny = gy + dy
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
+        const v = gridData[ny * w + nx]
+        if (v > 0) { const d = dx * dx + dy * dy; if (d < bestD) { bestD = d; best = v } }
+      }
+      idx = best
+    }
+    if (idx === 0) return
+    setTapCount(t => t + 1)
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx); else next.add(idx)
+      return next
+    })
+  }, [gridData, gridDims])
+
+  const handleConfirmMask = useCallback(async () => {
+    if (!sessionId || selected.size === 0) return
+    setConfirmBusy(true)
+    try {
+      const res = await fetch('/api/roof-visualizer/confirm-mask', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId, selectedIndices: [...selected],
+          tapCount, msToConfirm: Date.now() - confirmStart,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Could not confirm selection.'); return }
+      setStep('pick')
+    } catch { setError('Could not confirm selection. Try again.') }
+    finally { setConfirmBusy(false) }
+  }, [sessionId, selected, tapCount, confirmStart])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFileSelect(file)
@@ -265,6 +358,44 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
           </div>
         )}
 
+        {step === 'confirm' && card(
+          <div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              <div>
+                <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Confirm your roof</p>
+                <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
+                  Teal = will be painted. Tap any missed roof areas to add them — tap again to remove.
+                  {uncertainIdx.length > 0 && ' Amber areas are uncertain — tap them if they are roof.'}
+                </p>
+              </div>
+              {confidence && (
+                <span style={{ fontSize: 12, fontWeight: 600, color: confidence.level === 'high' ? BRAND.teal : '#B45309' }}>
+                  {confidence.level === 'high' ? '✓' : '⚠'} {confidence.note}
+                </span>
+              )}
+            </div>
+
+            <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, cursor: 'pointer', maxWidth: 720, margin: '0 auto' }}
+              onClick={handleConfirmTap}>
+              {photoPreview && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img ref={confirmImgRef} src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block' }} />
+              )}
+              <canvas ref={overlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: t.textSubtle }}>
+                {selected.size} area{selected.size === 1 ? '' : 's'} selected
+              </span>
+              <button onClick={handleConfirmMask} disabled={selected.size === 0 || confirmBusy}
+                style={{ padding: '12px 32px', borderRadius: T.radMd, border: 'none', background: selected.size > 0 ? BRAND.teal : '#ccc', color: '#fff', fontWeight: 700, fontSize: 15, cursor: selected.size > 0 && !confirmBusy ? 'pointer' : 'not-allowed' }}>
+                {confirmBusy ? 'Saving…' : 'Confirm Roof →'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 'segmenting' && card(
           <div style={{ textAlign: 'center', padding: '48px 0' }}>
             {photoPreview && <img src={photoPreview} alt="Your home" style={{ maxHeight: 220, borderRadius: T.radMd, marginBottom: 24, maxWidth: '100%', objectFit: 'cover' }} />}
@@ -281,7 +412,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block', maxHeight: 360, objectFit: 'cover' }} />
                 <div style={{ position: 'absolute', bottom: 10, left: 10, background: confidence?.level === 'low' ? 'rgba(217,119,6,0.9)' : confidence?.level === 'medium' ? 'rgba(202,138,4,0.9)' : 'rgba(15,118,110,0.85)', color: '#fff', borderRadius: T.radSm, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
-                  {confidence?.level === 'low' ? '⚠' : confidence?.level === 'medium' ? '⚠' : '✓'} {confidence?.note ?? 'Roof detected'}
+                  ✓ Roof confirmed
                 </div>
               </div>
             )}
