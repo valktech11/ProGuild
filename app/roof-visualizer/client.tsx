@@ -130,7 +130,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'trace-v15'
+const CLIENT_BUILD = 'veg-v16'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -243,7 +243,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     const isVeg = (p: number) => {
       if (!px) return false
       const rr = px[p * 4], gg = px[p * 4 + 1], bb = px[p * 4 + 2]
-      return gg > rr + 15 && gg > bb + 15
+      return 2 * gg - rr - bb > 40  // mirrors server ExG backstop
     }
     // Outline = true region boundary (veto-blind); tint = veto-aware (shows real paint area)
     const isSel = (p: number) => { const v = gridData[p]; return v > 0 && selected.has(v) }

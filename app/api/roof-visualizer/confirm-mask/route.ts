@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < W * H; i++) {
         if (mask[i] !== 255) continue
         const rr = rgb[i * 3], gg = rgb[i * 3 + 1], bb = rgb[i * 3 + 2]
-        if (gg > rr + 15 && gg > bb + 15) { mask[i] = 0; vetoed++ }
+        if (2 * gg - rr - bb > 40) { mask[i] = 0; vetoed++ }  // per-pixel ExG backstop for roofline bleed
       }
       console.log(`[confirm-mask] vegetation veto removed ${vetoed}px`)
     } catch (e) {
