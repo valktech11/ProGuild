@@ -14,7 +14,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:coverage": "vitest run tests/unit/ --coverage",
-    "test:watch": "vitest tests/unit/"
+    "test:watch": "vitest tests/unit/",
+    "test:visualizer": "node scripts/visualizer-regression.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1048.0",
