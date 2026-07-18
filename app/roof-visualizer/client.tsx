@@ -130,7 +130,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'veto-display-v14'
+const CLIENT_BUILD = 'trace-v15'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -245,7 +245,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       const rr = px[p * 4], gg = px[p * 4 + 1], bb = px[p * 4 + 2]
       return gg > rr + 15 && gg > bb + 15
     }
-    const isSel = (p: number) => { const v = gridData[p]; return v > 0 && selected.has(v) && !isVeg(p) }
+    // Outline = true region boundary (veto-blind); tint = veto-aware (shows real paint area)
+    const isSel = (p: number) => { const v = gridData[p]; return v > 0 && selected.has(v) }
     for (let i = 0; i < w * h; i++) {
       const idx = gridData[i]
       if (idx > 0 && selected.has(idx) && !isVeg(i)) {
@@ -302,11 +303,31 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     }
     if (region.length < MINPX) { console.log('[confirm] trace too small:', region.length); return 0 }
     if (region.length >= MAXPX) { console.log('[confirm] trace too large, rejected'); return 0 }
+
+    // Morphological close: fill shingle shadow-row holes (dilate 2 into UNOWNED pixels, erode 2)
+    let bin = new Uint8Array(w * h)
+    for (const p of region) bin[p] = 1
+    const pass = (src: Uint8Array, grow: boolean) => {
+      const dst = new Uint8Array(src)
+      for (let p = 0; p < w * h; p++) {
+        const x = p % w
+        const n = (x > 0 && src[p - 1]) || (x < w - 1 && src[p + 1]) || (p >= w && src[p - w]) || (p < w * h - w && src[p + w])
+        if (grow) { if (!src[p] && n && gridData[p] === 0) dst[p] = 1 }
+        else      { if (src[p] && !((x === 0 || src[p-1]) && (x === w-1 || src[p+1]) && (p < w || src[p-w]) && (p >= w*h-w || src[p+w]))) dst[p] = 0 }
+      }
+      return dst
+    }
+    bin = pass(pass(bin, true), true)   // dilate ×2
+    bin = pass(pass(bin, false), false) // erode ×2 (closing: interior holes stay filled)
+
     const idx = customIdxRef.current++
     const next = new Uint8Array(gridData)
-    for (const p of region) next[p] = idx
+    let finalPx = 0
+    for (let p = 0; p < w * h; p++) {
+      if (bin[p] && gridData[p] === 0) { next[p] = idx; finalPx++ }
+    }
+    console.log('[confirm] trace closed:', region.length, '→', finalPx, 'px')
     setGridData(next)
-    console.log('[confirm] traced region', { idx, pixels: region.length })
     return idx
   }, [gridData, gridDims])
 
