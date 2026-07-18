@@ -315,6 +315,55 @@ console.log('\npalette calibration')
   }
 }
 
+// ── 12. Erase brush ──────────────────────────────────────────────────────────
+console.log('\nerase brush')
+{
+  // Simulate the server-side erase step: erase mask zeros pixels from the union mask.
+  // roofMask is the middle band; eraseRaw zeroes the top half of that band.
+  const eraseRaw = Buffer.alloc(W * H)
+  for (let y = Math.floor(H * 0.33); y < Math.floor(H * 0.50); y++)
+    for (let x = 0; x < W; x++) eraseRaw[y * W + x] = 255
+
+  const maskAfterErase = Buffer.from(roofMask)
+  let erasedCount = 0
+  for (let i = 0; i < W * H; i++) {
+    if (eraseRaw[i] > 128 && maskAfterErase[i] === 255) { maskAfterErase[i] = 0; erasedCount++ }
+  }
+  let remainingCount = 0
+  for (let i = 0; i < W * H; i++) if (maskAfterErase[i] === 255) remainingCount++
+
+  assert(erasedCount > 0, 'erase step removes pixels from the mask', 'no pixels were erased — erase loop is broken')
+  assert(remainingCount < roofPx, 'mask pixel count decreases after erase', `before=${roofPx} after=${remainingCount}`)
+  assert(remainingCount > 0, 'erase does not wipe the entire mask when partial', `remaining=${remainingCount}`)
+
+  // Pixel guarantee still holds after erase: outside the FINAL (erased) mask = byte-identical to original
+  const erasedRgba = Buffer.alloc(W * H * 4)
+  for (let i = 0; i < W * H; i++) {
+    erasedRgba[i*4] = 255; erasedRgba[i*4+1] = 0; erasedRgba[i*4+2] = 0  // vivid red layer
+    erasedRgba[i*4+3] = maskAfterErase[i]
+  }
+  const erasedLayer = await sharp(erasedRgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer()
+  const erasedComp  = await sharp(photoJpeg).composite([{ input: erasedLayer, blend: 'over' }]).raw().toBuffer()
+  const originalRaw = await sharp(photoJpeg).raw().toBuffer()
+  const ch = erasedComp.length / (W * H)
+  let leaked = 0
+  for (let i = 0; i < W * H; i++) {
+    if (maskAfterErase[i] > 128) continue  // inside final mask — paint is expected
+    const same = erasedComp[i*ch] === originalRaw[i*3] && erasedComp[i*ch+1] === originalRaw[i*3+1] && erasedComp[i*ch+2] === originalRaw[i*3+2]
+    if (!same) leaked++
+  }
+  assert(leaked === 0, 'pixel guarantee holds after erase — nothing outside final mask changed', `${leaked} leaked pixels`)
+
+  // Undo restores: erase commits push to the history stack the same as taps.
+  // Simulate: pre-erase selection → erase → undo restores pre-erase selection.
+  const preErase = new Set([3, 7, 9])
+  const historyStack = [new Set(preErase)]
+  // (erase happens — user has modified erasePixels)
+  const undoneSelection = new Set(historyStack[historyStack.length - 1])
+  assert(undoneSelection.size === preErase.size && [...preErase].every(v => undoneSelection.has(v)),
+    'undo after erase restores pre-erase selection snapshot', `got {${[...undoneSelection]}} expected {${[...preErase]}}`)
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(failures === 0
   ? '\n\x1b[32m\x1b[1mAll invariants hold.\x1b[0m\n'

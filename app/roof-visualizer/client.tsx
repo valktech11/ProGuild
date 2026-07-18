@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v28'
+const CLIENT_BUILD = 'verify-v29'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -185,6 +185,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [lightbox, setLightbox]   = useState<{ url: string; label: string } | null>(null)
   const [mfgFilter, setMfgFilter] = useState<string | null>(null)
   const [retrying, setRetrying]   = useState<Set<string>>(new Set())
+  const [eraseMode, setEraseMode] = useState(false)
+  const [erasePixels, setErasePixels] = useState<Set<number>>(new Set())
+  const erasing = useRef(false)
   const groups = groupSkusByManufacturer(skus)
   const skuMap = Object.fromEntries(skus.map(s => [s.id, s]))
 
@@ -298,23 +301,29 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       return 2 * gg - rr - bb > 40 || 2 * bb - rr - gg > 50  // veg (ExG) + sky (ExB)
     }
     // Outline = true region boundary (veto-blind); tint = veto-aware (shows real paint area)
-    const isSel = (p: number) => { const v = gridData[p]; return v > 0 && selected.has(v) }
+    const isSel = (p: number) => { const v = gridData[p]; return v > 0 && selected.has(v) && !erasePixels.has(p) }
     for (let i = 0; i < w * h; i++) {
       const idx = gridData[i]
+      const isErased = erasePixels.has(i)
       if (idx > 0 && selected.has(idx) && !isVeg(i)) {
-        // white outline where selection borders non-selection → visible over any background
-        const x = i % w, y = Math.floor(i / w)
-        const edge = (x > 0 && !isSel(i - 1)) || (x < w - 1 && !isSel(i + 1)) ||
-                     (y > 0 && !isSel(i - w)) || (y < h - 1 && !isSel(i + w))
-        if (edge) {
-          img.data[i * 4] = 255; img.data[i * 4 + 1] = 255; img.data[i * 4 + 2] = 255; img.data[i * 4 + 3] = 235
+        if (isErased) {
+          // amber: marks pixels that will be subtracted from the mask on confirm
+          img.data[i * 4] = 234; img.data[i * 4 + 1] = 88; img.data[i * 4 + 2] = 12; img.data[i * 4 + 3] = 160
         } else {
-          img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 150  // teal, stronger
+          // white outline where selection borders non-selection → visible over any background
+          const x = i % w, y = Math.floor(i / w)
+          const edge = (x > 0 && !isSel(i - 1)) || (x < w - 1 && !isSel(i + 1)) ||
+                       (y > 0 && !isSel(i - w)) || (y < h - 1 && !isSel(i + w))
+          if (edge) {
+            img.data[i * 4] = 255; img.data[i * 4 + 1] = 255; img.data[i * 4 + 2] = 255; img.data[i * 4 + 3] = 235
+          } else {
+            img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 150  // teal, stronger
+          }
         }
       }
     }
     ctx.putImageData(img, 0, 0)
-  }, [gridData, gridDims, selected, step, pxReady])
+  }, [gridData, gridDims, selected, erasePixels, step, pxReady])
 
   // Flood fill from seed across similar-colored, unowned pixels → new custom region
   const traceRegion = useCallback((sx: number, sy: number): number => {
@@ -463,6 +472,61 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     }
   }, [])
 
+  // Erase mode: drag paints a ~20px-radius negative mask over selected pixels.
+  // Undo covers erase strokes via the same 20-step history stack.
+  const handleEraseStart = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    e.preventDefault()
+    if (!gridData) return
+    erasing.current = true
+    pushHistory()
+    const imgEl = confirmImgRef.current
+    if (!imgEl) return
+    const rect = imgEl.getBoundingClientRect()
+    const { w, h } = gridDims
+    const RADIUS = 20
+    const gx = Math.floor(((e.clientX - rect.left) / rect.width) * w)
+    const gy = Math.floor(((e.clientY - rect.top) / rect.height) * h)
+    const next = new Set<number>()
+    for (let dy = -RADIUS; dy <= RADIUS; dy++) for (let dx = -RADIUS; dx <= RADIUS; dx++) {
+      if (dx * dx + dy * dy > RADIUS * RADIUS) continue
+      const nx = gx + dx, ny = gy + dy
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
+      next.add(ny * w + nx)
+    }
+    setErasePixels(prev => { const n = new Set(prev); next.forEach(p => n.add(p)); return n })
+    console.log('[confirm] erase start at', gx, gy)
+  }, [gridData, gridDims, pushHistory])
+
+  const handleEraseMove = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    if (!erasing.current || !gridData) return
+    const imgEl = confirmImgRef.current
+    if (!imgEl) return
+    const rect = imgEl.getBoundingClientRect()
+    const { w, h } = gridDims
+    const RADIUS = 20
+    const gx = Math.floor(((e.clientX - rect.left) / rect.width) * w)
+    const gy = Math.floor(((e.clientY - rect.top) / rect.height) * h)
+    const next = new Set<number>()
+    for (let dy = -RADIUS; dy <= RADIUS; dy++) for (let dx = -RADIUS; dx <= RADIUS; dx++) {
+      if (dx * dx + dy * dy > RADIUS * RADIUS) continue
+      const nx = gx + dx, ny = gy + dy
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
+      next.add(ny * w + nx)
+    }
+    setErasePixels(prev => { const n = new Set(prev); next.forEach(p => n.add(p)); return n })
+  }, [gridData, gridDims])
+
+  const handleEraseEnd = useCallback(() => {
+    if (!erasing.current) return
+    erasing.current = false
+    console.log('[confirm] erase stroke committed')
+  }, [])
+
+  // Reset erase state when user leaves the confirm step
+  React.useEffect(() => {
+    if (step !== 'confirm') { setEraseMode(false); setErasePixels(new Set()) }
+  }, [step])
+
   const handleConfirmMask = useCallback(async () => {
     if (!sessionId || selected.size === 0 || !gridData) return
     setConfirmBusy(true)
@@ -494,6 +558,22 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
           sessionId,
           selectedIndices: [...selected].filter(i => i < 200),
           customMaskB64,
+          eraseMaskB64: (() => {
+            if (erasePixels.size === 0) return null
+            const { w, h } = gridDims
+            const cv2 = document.createElement('canvas')
+            cv2.width = w; cv2.height = h
+            const ctx2 = cv2.getContext('2d')!
+            const imgD2 = ctx2.createImageData(w, h)
+            erasePixels.forEach(p => {
+              imgD2.data[p * 4] = 255; imgD2.data[p * 4 + 1] = 255
+              imgD2.data[p * 4 + 2] = 255; imgD2.data[p * 4 + 3] = 255
+            })
+            // fill alpha for non-erase pixels (opaque black)
+            for (let i = 0; i < w * h; i++) if (!erasePixels.has(i)) imgD2.data[i * 4 + 3] = 255
+            ctx2.putImageData(imgD2, 0, 0)
+            return cv2.toDataURL('image/png').split(',')[1]
+          })(),
           tapCount, msToConfirm: Date.now() - confirmStart,
         }),
       })
@@ -503,7 +583,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       setStep('pick')
     } catch { setError('Could not confirm selection. Try again.') }
     finally { setConfirmBusy(false) }
-  }, [sessionId, selected, gridData, gridDims, tapCount, confirmStart])
+  }, [sessionId, selected, erasePixels, gridData, gridDims, tapCount, confirmStart])
 
   const handleRetry = useCallback(async (skuId: string) => {
     if (!sessionId) return
@@ -674,8 +754,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             <div style={{ marginBottom: 12 }}>
               <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Tap each section of your roof</p>
               <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
-                Tap a roof plane to select it — or hold and drag across several at once. Tap again to remove.
-                Teal is exactly what gets painted.
+                {eraseMode
+                  ? 'Drag to erase the parts you don\'t want painted. Switch back to Select when done.'
+                  : 'Tap a roof plane to select it — or hold and drag across several at once. Tap again to remove. Teal is exactly what gets painted.'}
               </p>
             </div>
 
@@ -683,21 +764,34 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               {photoPreview && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img ref={confirmImgRef} src={photoPreview} alt="Your home"
-                  onPointerDown={handleSweepStart}
-                  onPointerMove={handleSweepMove}
-                  onPointerUp={handleSweepEnd}
-                  onPointerLeave={handleSweepEnd}
+                  onPointerDown={eraseMode ? handleEraseStart : handleSweepStart}
+                  onPointerMove={eraseMode ? handleEraseMove : handleSweepMove}
+                  onPointerUp={eraseMode ? handleEraseEnd : handleSweepEnd}
+                  onPointerLeave={eraseMode ? handleEraseEnd : handleSweepEnd}
                   draggable={false}
-                  style={{ width: '100%', display: 'block', cursor: 'crosshair', userSelect: 'none' }} />
+                  style={{ width: '100%', display: 'block', cursor: eraseMode ? 'cell' : 'crosshair', userSelect: 'none' }} />
               )}
               <canvas ref={overlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
             </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 18, alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: t.textSubtle }}>
-                {selected.size === 0 ? 'Nothing selected yet' : `${selected.size} section${selected.size === 1 ? '' : 's'} selected`}
+                {selected.size === 0 ? 'Nothing selected yet' : `${selected.size} section${selected.size === 1 ? '' : 's'} selected${erasePixels.size > 0 ? ` · ${erasePixels.size} px erased` : ''}`}
               </span>
               {traceHint && <span style={{ fontSize: 12, color: '#B45309', fontWeight: 600 }}>{traceHint}</span>}
+              {/* Mode toggle — only show once something is selected */}
+              {selected.size > 0 && (
+                <div style={{ display: 'flex', borderRadius: T.radSm, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
+                  <button onClick={() => setEraseMode(false)}
+                    style={{ padding: '8px 14px', border: 'none', background: !eraseMode ? BRAND.teal : t.cardBg, color: !eraseMode ? '#fff' : t.textMuted, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                    ✏ Select
+                  </button>
+                  <button onClick={() => setEraseMode(true)}
+                    style={{ padding: '8px 14px', border: 'none', background: eraseMode ? '#EA580C' : t.cardBg, color: eraseMode ? '#fff' : t.textMuted, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                    ⌫ Erase
+                  </button>
+                </div>
+              )}
               <button onClick={handleUndo} disabled={history.length === 0}
                 style={{ padding: '10px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: history.length ? t.textBody : t.textSubtle, fontWeight: 600, fontSize: 13, cursor: history.length ? 'pointer' : 'not-allowed' }}>
                 ↶ Undo

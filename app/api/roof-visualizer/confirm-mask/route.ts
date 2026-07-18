@@ -27,7 +27,7 @@ async function morph(mask1ch: Buffer, w: number, h: number, sigma: number, thres
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, selectedIndices, customMaskB64, tapCount, msToConfirm } = await req.json()
+    const { sessionId, selectedIndices, customMaskB64, eraseMaskB64, tapCount, msToConfirm } = await req.json()
     const hasIndices = Array.isArray(selectedIndices) && selectedIndices.length > 0
     if (!sessionId || (!hasIndices && !customMaskB64)) {
       return NextResponse.json({ error: 'sessionId and a selection required' }, { status: 400 })
@@ -79,6 +79,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Erase step — subtract user-painted erase pixels from the mask (user-explicit, not filter).
+    // No destroy-guard on this path: deliberate human subtraction is not mask corruption.
+    if (eraseMaskB64) {
+      try {
+        const eraseRaw = await sharp(Buffer.from(eraseMaskB64, 'base64'))
+          .resize(W, H, { fit: 'fill' })
+          .greyscale().extractChannel(0).raw().toBuffer()
+        let erasedPx = 0
+        for (let i = 0; i < W * H; i++) {
+          if (eraseRaw[i] > 128 && mask[i] === 255) { mask[i] = 0; erasedPx++ }
+        }
+        console.log(`[confirm-mask] erase brush removed ${erasedPx}px from mask`)
+      } catch (e) {
+        console.warn('[confirm-mask] erase mask decode failed:', e)
+      }
+    }
+
     // Vegetation veto — zero mask pixels that are green-dominant in the ORIGINAL photo.
     // Catches foliage bleed from any source: relaxed-gate SAM2 masks, Gemini picks,
     // or trace overshoot. Engine-agnostic because it shrinks the mask itself.
@@ -106,7 +123,9 @@ export async function POST(req: NextRequest) {
     let postCount = 0
     for (let i = 0; i < W * H; i++) if (mask[i] === 255) postCount++
     console.log(`[confirm-mask] mask px: pre-morph=${preCount} post-morph=${postCount}`)
-    if (postCount < preCount * 0.5) {
+    if (postCount < preCount * 0.5 && !eraseMaskB64) {
+      // Destroy-guard is exempted when the user explicitly erased pixels — deliberate
+      // large subtraction is not morphology corruption.
       console.error(`[confirm-mask] MORPHOLOGY DESTROYED MASK (${preCount}→${postCount}) — serving pre-morph mask`)
       mask = preMorph
     }
