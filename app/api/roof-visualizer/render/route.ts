@@ -33,7 +33,10 @@ const ROOF_MAE_MIN    = 12
 // shade value is added to all three channels, so a neutral chip stays neutral by
 // construction. Gemini can only introduce hue drift there (log-proven: Pewter Gray
 // #8A8A8A came back with a sage cast at engine=ai). Skip the AI attempt entirely.
-const NEUTRAL_CHROMA_MAX = 12
+// Threshold raised 12→20: Pristine Heather (chroma 18) was winning AI arbitration
+// and drifting to lavender. At chroma ≤20 the classical result is exact; AI only
+// introduces hue error. Nordic (32), Heather Blend (32), Slate (24) remain on AI path.
+const NEUTRAL_CHROMA_MAX = 20
 // AI attempt cap so classical result is never held hostage by a slow model
 const AI_TIMEOUT_MS = 55_000
 
