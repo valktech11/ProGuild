@@ -15,8 +15,11 @@ export const maxDuration = 60
 // Approximate morphological ops via blur + threshold (no native erode/dilate in sharp)
 async function morph(mask1ch: Buffer, w: number, h: number, sigma: number, threshold: number): Promise<Buffer> {
   // returns a fresh binary buffer
+  // extractChannel(0) is REQUIRED: sharp's blur silently converts 1ch raw to 3ch RGB;
+  // without it the threshold loop reads interleaved garbage (verified locally — this
+  // exact bug shipped black masks and made every render serve the original photo)
   const blurred = await sharp(mask1ch, { raw: { width: w, height: h, channels: 1 } })
-    .blur(sigma).raw().toBuffer()
+    .blur(sigma).extractChannel(0).raw().toBuffer()
   const out = Buffer.alloc(w * h)
   for (let i = 0; i < w * h; i++) out[i] = blurred[i] > threshold ? 255 : 0
   return out
@@ -77,8 +80,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Morphological closing with net +1px: dilate ~2px → erode ~1px, then light feather
+    const preMorph = Buffer.from(mask)
+    let preCount = 0
+    for (let i = 0; i < W * H; i++) if (mask[i] === 255) preCount++
     mask = await morph(mask, W, H, 1.2, 10)    // dilate ≈2px (fills gaps between planes)
     mask = await morph(mask, W, H, 0.8, 235)   // erode ≈1px (pulls edge back in)
+    let postCount = 0
+    for (let i = 0; i < W * H; i++) if (mask[i] === 255) postCount++
+    console.log(`[confirm-mask] mask px: pre-morph=${preCount} post-morph=${postCount}`)
+    if (postCount < preCount * 0.5) {
+      console.error(`[confirm-mask] MORPHOLOGY DESTROYED MASK (${preCount}→${postCount}) — serving pre-morph mask`)
+      mask = preMorph
+    }
     const finalMask = await sharp(mask, { raw: { width: W, height: H, channels: 1 } })
       .blur(0.8)                                // feather — small, avoids "painted" look
       .png().toBuffer()
