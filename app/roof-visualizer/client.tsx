@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'blend-v26'
+const CLIENT_BUILD = 'palette-v27'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -741,6 +741,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   Visualize My Roof →
                 </button>
                 <p style={{ fontSize: 11, color: t.textSubtle, textAlign: 'center', margin: '10px 0 0' }}>Free — no account required for first 3 renders</p>
+                <p style={{ fontSize: 10.5, color: t.textSubtle, textAlign: 'center', margin: '8px 0 0', lineHeight: 1.45 }}>
+                  Colors shown are digital approximations. Manufacturers recommend viewing full-size shingle samples in daylight before choosing.
+                </p>
               </div>
             )}
           </div>

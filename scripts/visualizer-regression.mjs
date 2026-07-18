@@ -285,6 +285,36 @@ console.log('\ngranule blend')
     `R-G gap did not narrow — Heather Blend would still render pink`)
 }
 
+// ── 11. Palette calibration guards ──────────────────────────────────────────
+console.log('\npalette calibration')
+{
+  const parse = (x) => { const s = x.replace('#',''); return [parseInt(s.slice(0,2),16), parseInt(s.slice(2,4),16), parseInt(s.slice(4,6),16)] }
+  const lum = (x) => { const [r,g,b] = parse(x); return (r+g+b)/3 }
+  const spread = (hexes) => { const ls = hexes.map(lum); return Math.max(...ls) - Math.min(...ls) }
+  const blueRatio = (x) => { const [r,,b] = parse(x); return b / r }
+
+  // Wide luminance spread reads as speckle/moss, not granule blend (v120 shipped 36-64)
+  const palettes = {
+    Barkwood:        ['#63533C', '#5F4E38', '#695A44'],
+    WeatheredWood:   ['#6B5C3E', '#665739', '#705F44'],
+    Driftwood:       ['#7A6B55', '#746551', '#82715B'],
+    HeatherBlend:    ['#9B7B8A', '#8D7C88', '#98817C'],
+    PristineHeather: ['#8C7A8A', '#83788A', '#8E7F80'],
+  }
+  for (const [name, pal] of Object.entries(palettes)) {
+    const s = spread(pal)
+    assert(s <= 14, `${name} granule spread <= 14 (no speckling)`, `spread ${s.toFixed(1)}`)
+    assert(s >= 2,  `${name} keeps some granule variation`, `spread ${s.toFixed(1)} — too uniform`)
+  }
+
+  // Brown-family SKUs must not drift into olive (blue channel starved relative to red)
+  for (const name of ['Barkwood', 'WeatheredWood', 'Driftwood']) {
+    const br = blueRatio(palettes[name][0])
+    assert(br >= 0.52, `${name} base stays in the brown family (B/R >= 0.52)`,
+      `B/R ${(br*100).toFixed(0)}% — renders olive (Barkwood shipped at 46%)`)
+  }
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(failures === 0
   ? '\n\x1b[32m\x1b[1mAll invariants hold.\x1b[0m\n'
