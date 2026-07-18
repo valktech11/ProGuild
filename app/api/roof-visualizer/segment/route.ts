@@ -80,6 +80,9 @@ interface Candidate {
 
 const VEG_EXG_THRESHOLD = 28  // mean Excess-Green above this = foliage candidate
 const SKY_EXB_THRESHOLD = 25   // mean Excess-Blue (2B−R−G) above this = sky candidate
+const OFFER_MIN_AREA    = 0.018 // 1.8% of frame — roof planes are 2-8%; doors ~0.5%, windows ~0.3%.
+                                // Closes the promotion loop: everything above this in a house photo is
+                                // roof / wall / sky / ground, and the latter three are already excluded.
 
 async function decodeCandidates(
   maskUrls: string[], gw: number, gh: number, photoRgbGrid: Buffer
@@ -227,7 +230,7 @@ async function classifyWithGemini(
 // Heuristic fallback (Gemini unavailable) — spatial + brightness, PRESELECT ONLY
 function heuristicPreselect(cands: Candidate[], gh: number): number[] {
   return cands
-    .filter(c => !c.veg && !c.sky && c.cy / gh <= 0.72 && c.meanLum <= 185)
+    .filter(c => !c.veg && !c.sky && c.cy / gh <= 0.72 && c.meanLum <= 185 && c.areaPct >= OFFER_MIN_AREA)
     .map(c => c.index)
 }
 
@@ -312,9 +315,9 @@ export async function POST(req: NextRequest) {
     // (This filter existed only on the heuristic fallback path; its absence here let the
     //  driveway get promoted into the top-12 once veg/sky candidates were removed.)
     const offered = cands
-      .filter(cd => !cd.veg && !cd.sky && cd.cy / gh <= 0.72)
+      .filter(cd => !cd.veg && !cd.sky && cd.cy / gh <= 0.72 && cd.areaPct >= OFFER_MIN_AREA)
       .slice(0, 12)
-    console.log(`[segment] offered to Gemini: ${offered.map(o => o.index).join(',') || 'none'} (of ${cands.length} candidates)`)
+    console.log(`[segment] offered to Gemini: ${offered.map(o => `${o.index}(${(o.areaPct*100).toFixed(1)}%)`).join(',') || 'none'} (of ${cands.length} candidates)`)
     const gem = await classifyWithGemini(photoGridJpeg, offered)
     let preselected: number[], uncertain: number[], selector: string
     if (gem && gem.roofIndices.length > 0) {

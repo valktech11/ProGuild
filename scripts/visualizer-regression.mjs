@@ -144,12 +144,17 @@ console.log('\nvetoes')
 console.log('\ncandidate filters (offered set)')
 {
   const gh = 100
-  const offered = (c) => !c.veg && !c.sky && c.cy / gh <= 0.72
-  assert(offered({ veg:false, sky:false, cy:30 }), 'roof plane is offered', 'roof excluded')
-  assert(!offered({ veg:true,  sky:false, cy:30 }), 'tree excluded (veg)', 'tree offered')
-  assert(!offered({ veg:false, sky:true,  cy:10 }), 'sky excluded (sky)',  'sky offered')
-  assert(!offered({ veg:false, sky:false, cy:85 }), 'driveway excluded (ground filter)',
-    'driveway offered — the exact regression that tinted a driveway teal')
+  const OFFER_MIN_AREA = 0.018
+  const offered = (c) => !c.veg && !c.sky && c.cy / gh <= 0.72 && c.areaPct >= OFFER_MIN_AREA
+  assert( offered({ veg:false, sky:false, cy:30, areaPct:0.045 }), 'roof plane is offered (4.5%)', 'roof excluded')
+  assert(!offered({ veg:true,  sky:false, cy:30, areaPct:0.060 }), 'tree excluded (veg)', 'tree offered')
+  assert(!offered({ veg:false, sky:true,  cy:10, areaPct:0.200 }), 'sky excluded (sky)',  'sky offered')
+  assert(!offered({ veg:false, sky:false, cy:85, areaPct:0.070 }), 'driveway excluded (ground filter)',
+    'driveway offered — regression that tinted a driveway teal')
+  assert(!offered({ veg:false, sky:false, cy:60, areaPct:0.005 }), 'door excluded (size floor, 0.5%)',
+    'door offered — regression that tinted a front door teal')
+  assert(!offered({ veg:false, sky:false, cy:35, areaPct:0.003 }), 'window excluded (size floor, 0.3%)',
+    'window offered')
 }
 
 // ── 7. Two-sided arbitration ─────────────────────────────────────────────────
