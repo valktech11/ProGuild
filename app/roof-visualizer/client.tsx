@@ -28,39 +28,34 @@ function groupSkusByManufacturer(skus: Sku[]) {
 }
 function getMfgName(sku: Sku) { return sku.viz_product_lines?.viz_manufacturers?.name ?? '' }
 
+function downloadRender(url: string, label: string) {
+  const a = document.createElement('a')
+  a.href = `/api/roof-visualizer/download?url=${encodeURIComponent(url)}&name=proguild-${label.toLowerCase().replace(/\s+/g, '-')}.jpg`
+  a.click()
+}
+
 // ── Render result card (static — original card above is the baseline) ────────
-function RenderResultCard({ rendered, label, hex, mfg }: {
-  rendered: string; label: string; hex: string; mfg: string
+function RenderResultCard({ rendered, label, hex, mfg, onOpen }: {
+  rendered: string; label: string; hex: string; mfg: string; onOpen: () => void
 }) {
   const t = theme(false)
-
-  const handleDownload = useCallback(async () => {
-    try {
-      const res = await fetch(rendered)
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = `proguild-${label.toLowerCase().replace(/\s/g,'-')}.jpg`
-      a.click(); URL.revokeObjectURL(url)
-    } catch { /* silent */ }
-  }, [rendered, label])
-
   return (
     <div style={{ borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', cursor: 'zoom-in' }} onClick={onOpen}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={rendered} alt={`${label} shingles`} style={{ width: '100%', display: 'block', aspectRatio: '4/3', objectFit: 'cover' }} />
+        <img src={rendered} alt={`${mfg} ${label} shingles`} style={{ width: '100%', display: 'block', aspectRatio: '4/3', objectFit: 'cover' }} />
         <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.65)', borderRadius: 4, padding: '2px 8px', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em', pointerEvents: 'none', whiteSpace: 'nowrap' }}>proguild.ai</div>
+        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.45)', color: '#fff', borderRadius: 4, padding: '3px 8px', fontSize: 11, pointerEvents: 'none' }}>⤢</div>
       </div>
       <div style={{ padding: '10px 14px', background: t.cardBg, display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 14, height: 14, borderRadius: 3, background: hex, border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
+          {mfg && <span style={{ color: t.textSubtle, fontSize: 11, marginRight: 6 }}>{mfg}</span>}
           <span style={{ fontWeight: 700, color: t.textPri, fontSize: 13 }}>{label}</span>
-          {mfg && <span style={{ color: t.textSubtle, fontSize: 11, marginLeft: 6 }}>{mfg}</span>}
         </div>
-        <button onClick={handleDownload} title="Download"
-          style={{ background: 'none', border: `1px solid ${t.cardBorder}`, borderRadius: 4, padding: '4px 10px', fontSize: 11, color: t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-          ↓ Save
+        <button onClick={() => downloadRender(rendered, label)} title="Download"
+          style={{ background: 'none', border: `1px solid ${t.cardBorder}`, borderRadius: 4, padding: '4px 10px', fontSize: 11, color: t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          ↓ Download
         </button>
       </div>
     </div>
@@ -95,13 +90,26 @@ function SkeletonCard({ label }: { label?: string }) {
   )
 }
 
-function ErrorCard({ label }: { label: string }) {
+function ErrorCard({ label, retrying, onRetry }: { label: string; retrying: boolean; onRetry: () => void }) {
   const t = theme(false)
   return (
     <div style={{ borderRadius: T.radLg, overflow: 'hidden', border: `1px dashed ${t.cardBorder}` }}>
-      <div style={{ aspectRatio: '4/3', background: t.cardBgAlt, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
-        <span style={{ fontSize: 28 }}>🔄</span>
-        <span style={{ fontSize: 12, color: t.textMuted, textAlign: 'center', padding: '0 16px' }}>Render timed out.<br/>Try again with fewer colors.</span>
+      <div style={{ aspectRatio: '4/3', background: t.cardBgAlt, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
+        {retrying ? (
+          <>
+            <div style={{ width: 28, height: 28, border: `3px solid ${BRAND.teal}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <span style={{ fontSize: 12, color: t.textMuted }}>Retrying {label}…</span>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: 26 }}>⚠️</span>
+            <span style={{ fontSize: 12, color: t.textMuted, textAlign: 'center', padding: '0 16px' }}>This render didn&apos;t complete.</span>
+            <button onClick={onRetry}
+              style={{ background: BRAND.teal, color: '#fff', border: 'none', borderRadius: T.radSm, padding: '7px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              ↻ Retry
+            </button>
+          </>
+        )}
       </div>
       <div style={{ padding: '10px 14px', background: t.cardBg }}>
         <span style={{ fontSize: 13, color: t.textSubtle }}>{label}</span>
@@ -115,14 +123,14 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   return (
     <button onClick={onClick} title={`${getMfgName(sku)} — ${sku.name}`}
       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '8px 6px', borderRadius: T.radMd, border: `2px solid ${selected ? BRAND.teal : t.cardBorder}`, background: selected ? BRAND.tealAlpha : t.cardBg, cursor: 'pointer', transition: 'all 0.15s', minWidth: 70 }}>
-      <div style={{ width: 36, height: 36, borderRadius: T.radSm, background: sku.hex_preview, border: '1px solid rgba(0,0,0,0.15)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-      <span style={{ fontSize: 10, color: t.textMuted, textAlign: 'center', lineHeight: 1.2, maxWidth: 64 }}>{sku.name}</span>
+      <div style={{ width: 54, height: 54, borderRadius: T.radSm, background: sku.hex_preview, border: '1px solid rgba(0,0,0,0.15)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+      <span style={{ fontSize: 11, color: t.textMuted, textAlign: 'center', lineHeight: 1.2, maxWidth: 80 }}>{sku.name}</span>
       {selected && <span style={{ fontSize: 10, color: BRAND.teal, fontWeight: 600 }}>✓</span>}
     </button>
   )
 }
 
-const CLIENT_BUILD = 'mask-v10'
+const CLIENT_BUILD = 'polish-v11'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -152,6 +160,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const photoPixelsRef = useRef<Uint8ClampedArray | null>(null)
   const customIdxRef   = useRef(200)   // traced regions get indices 200+
   const [traceHint, setTraceHint] = useState<string | null>(null)
+  const [lightbox, setLightbox]   = useState<{ url: string; label: string } | null>(null)
+  const [mfgFilter, setMfgFilter] = useState<string | null>(null)
+  const [retrying, setRetrying]   = useState<Set<string>>(new Set())
   const groups = groupSkusByManufacturer(skus)
   const skuMap = Object.fromEntries(skus.map(s => [s.id, s]))
 
@@ -365,6 +376,32 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     finally { setConfirmBusy(false) }
   }, [sessionId, selected, gridData, gridDims, tapCount, confirmStart])
 
+  const handleRetry = useCallback(async (skuId: string) => {
+    if (!sessionId) return
+    setRetrying(prev => new Set(prev).add(skuId))
+    try {
+      const res  = await fetch('/api/roof-visualizer/render', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, skuIds: [skuId] }),
+      })
+      const data = await res.json()
+      const fresh = data?.renders?.[0]
+      if (res.ok && fresh) {
+        setRenders(prev => prev.map(r => r.skuId === skuId
+          ? { ...fresh, mfgName: skuMap[skuId] ? getMfgName(skuMap[skuId]) : '' } : r))
+      }
+    } catch { /* card stays in error state, retry again */ }
+    finally { setRetrying(prev => { const n = new Set(prev); n.delete(skuId); return n }) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId])
+
+  React.useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox])
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFileSelect(file)
   }, [handleFileSelect])
@@ -422,6 +459,13 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <h1 style={{ fontSize: 30, fontWeight: 800, color: t.textPri, margin: '0 0 10px', letterSpacing: '-0.5px' }}>See Your New Roof Before You Buy</h1>
           <p style={{ fontSize: 16, color: t.textMuted, margin: 0, maxWidth: 540, marginInline: 'auto' }}>Upload a photo of your home and instantly visualize different shingle colors — no app, no account required.</p>
+          <div style={{ display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+            {['AI-powered', 'No sign-up', 'First 3 renders free', 'About 60 seconds'].map(item => (
+              <span key={item} style={{ fontSize: 12.5, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ color: BRAND.teal, fontWeight: 700 }}>✓</span> {item}
+              </span>
+            ))}
+          </div>
         </div>
 
         {error && (
@@ -526,7 +570,18 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               <div>
                 <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Pick up to 3 shingle colors</p>
                 <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 20px' }}>We'll show all three side by side — free</p>
-                {groups.map(group => (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+                  {[null, ...groups.map(g => g.manufacturer)].map(m => (
+                    <button key={m ?? 'all'} onClick={() => setMfgFilter(m)}
+                      style={{ padding: '5px 13px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        border: `1.5px solid ${mfgFilter === m ? BRAND.teal : t.cardBorder}`,
+                        background: mfgFilter === m ? BRAND.tealAlpha : t.cardBg,
+                        color: mfgFilter === m ? BRAND.teal : t.textMuted }}>
+                      {m ?? 'All'}
+                    </button>
+                  ))}
+                </div>
+                {groups.filter(g => !mfgFilter || g.manufacturer === mfgFilter).map(group => (
                   <div key={group.manufacturer} style={{ marginBottom: 20 }}>
                     <p style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>{group.manufacturer}</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -570,23 +625,35 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setStep('pick')} style={{ padding: '9px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>← Try Other Colors</button>
-                <button onClick={handleShare} style={{ padding: '9px 18px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Share with Homeowner →</button>
+                <button onClick={handleShare} style={{ padding: '9px 18px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Send to Homeowner →</button>
               </div>
             </div>
             {/* Row 1 — original, centered and de-emphasized */}
             {photoPreview && (
-              <div style={{ maxWidth: 420, margin: '0 auto 20px' }}>
+              <div style={{ maxWidth: 420, margin: '0 auto 20px', cursor: 'zoom-in' }}
+                onClick={() => setLightbox({ url: photoPreview, label: 'Original' })}>
                 <OriginalCard photoUrl={photoPreview} />
               </div>
             )}
             {/* Row 2 — the renders dominate */}
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(renders.length, 3)}, 1fr)`, gap: 16 }}>
               {renders.map(r => r.renderUrl ? (
-                <RenderResultCard key={r.skuId} rendered={r.renderUrl} label={r.skuName} hex={r.hexPreview} mfg={r.mfgName ?? ''} />
+                <RenderResultCard key={r.skuId} rendered={r.renderUrl} label={r.skuName} hex={r.hexPreview} mfg={r.mfgName ?? ''}
+                  onOpen={() => setLightbox({ url: r.renderUrl!, label: `${r.mfgName ?? ''} ${r.skuName}`.trim() })} />
               ) : (
-                <ErrorCard key={r.skuId} label={r.skuName} />
+                <ErrorCard key={r.skuId} label={r.skuName} retrying={retrying.has(r.skuId)} onRetry={() => handleRetry(r.skuId)} />
               ))}
             </div>
+            {card(
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <div>
+                  <p style={{ fontWeight: 700, color: t.textPri, margin: '0 0 4px', fontSize: 16 }}>Want your exact roof size?</p>
+                  <p style={{ color: t.textMuted, fontSize: 14, margin: 0 }}>Measure your roof from satellite imagery in seconds — square footage, free, no signup.</p>
+                </div>
+                <Link href="/roof-size-calculator" style={{ display: 'inline-block', background: t.cardBg, color: BRAND.teal, border: `2px solid ${BRAND.teal}`, padding: '10px 22px', borderRadius: T.radMd, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap' }}>Measure My Roof Free →</Link>
+              </div>,
+              { marginTop: 20 }
+            )}
             {card(
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
                 <div>
@@ -651,6 +718,28 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         )}
 
       </div>
+
+      {lightbox && (
+        <div onClick={() => setLightbox(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightbox.url} alt={lightbox.label} onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '94vw', maxHeight: '82vh', borderRadius: 8, boxShadow: '0 8px 40px rgba(0,0,0,0.6)', cursor: 'default' }} />
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16, cursor: 'default' }}>
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{lightbox.label}</span>
+            {lightbox.label !== 'Original' && (
+              <button onClick={() => downloadRender(lightbox.url, lightbox.label)}
+                style={{ background: BRAND.teal, color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                ↓ Download
+              </button>
+            )}
+            <button onClick={() => setLightbox(null)}
+              style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              ✕ Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
