@@ -29,10 +29,21 @@ const GEMINI_IMG_URL   = `https://generativelanguage.googleapis.com/v1beta/model
 // (b) roof region must be CHANGED       — lazy photocopies fail, real edits pass
 const NONROOF_MAE_MAX = 18
 const ROOF_MAE_MIN    = 12
+// Neutral chips (R≈G≈B) are rendered EXACTLY by the additive classical path — the same
+// shade value is added to all three channels, so a neutral chip stays neutral by
+// construction. Gemini can only introduce hue drift there (log-proven: Pewter Gray
+// #8A8A8A came back with a sage cast at engine=ai). Skip the AI attempt entirely.
+const NEUTRAL_CHROMA_MAX = 12
 // AI attempt cap so classical result is never held hostage by a slow model
 const AI_TIMEOUT_MS = 55_000
 
 interface SkuRow { id: string; name: string; texture_prompt: string; hex_preview: string }
+
+function chipChroma(hex: string): number {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16)
+  return Math.max(r, g, b) - Math.min(r, g, b)
+}
 interface RenderResult {
   skuId: string; renderUrl: string | null; skuName: string
   hexPreview: string; engine: 'ai' | 'classical' | 'failed'; error?: string
@@ -225,10 +236,15 @@ async function renderOneSku(
       status: 'processing', gemini_model: 'hybrid-v1',
     })
 
-    // Classical + AI race in parallel; classical is the floor
+    // Classical is the floor. AI is attempted only for chromatic chips — for neutral
+    // greys/blacks the classical result is exact and AI can only add hue drift.
+    const chroma = chipChroma(sku.hex_preview)
+    const tryAi  = chroma > NEUTRAL_CHROMA_MAX
+    if (!tryAi) console.log(`[render] ${sku.name}: chroma=${chroma} → neutral chip, classical only (AI skipped)`)
+
     const [classical, ai] = await Promise.all([
       classicalRecolor(prep, sku.hex_preview),
-      aiAttempt(prep, sku),
+      tryAi ? aiAttempt(prep, sku) : Promise.resolve(null),
     ])
 
     let finalBuffer = classical

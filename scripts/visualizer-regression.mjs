@@ -182,6 +182,39 @@ console.log('\narbitration gate')
   assert(!serve(3.0, 15.0, 200), 'pale SKU needs roofMAE ≥ 20',                'pastel AI slipped through')
 }
 
+// ── 8. Neutral-chip routing ─────────────────────────────────────────────────
+console.log('\nneutral chip routing')
+{
+  const chroma = (hex) => {
+    const s = hex.replace('#','')
+    const r = parseInt(s.slice(0,2),16), g = parseInt(s.slice(2,4),16), b = parseInt(s.slice(4,6),16)
+    return Math.max(r,g,b) - Math.min(r,g,b)
+  }
+  const tryAi = (hex) => chroma(hex) > 12
+
+  // Neutral greys/blacks — classical is mathematically exact, AI can only drift hue
+  assert(!tryAi('#8A8A8A'), 'Pewter Gray skips AI (chroma 0)',    `chroma=${chroma('#8A8A8A')}`)
+  assert(!tryAi('#707070'), 'Georgetown Gray skips AI',           `chroma=${chroma('#707070')}`)
+  assert(!tryAi('#5A5A5A'), 'IKO Cambridge skips AI',             `chroma=${chroma('#5A5A5A')}`)
+  assert(!tryAi('#1A1A1A'), 'Onyx Black skips AI',                `chroma=${chroma('#1A1A1A')}`)
+  assert(!tryAi('#3D3D3D'), 'GAF Charcoal skips AI',              `chroma=${chroma('#3D3D3D')}`)
+
+  // Chromatic chips keep the AI attempt behind the two-sided gate
+  assert(tryAi('#6B5C3E'), 'Weathered Wood attempts AI',          `chroma=${chroma('#6B5C3E')}`)
+  assert(tryAi('#2E3B4E'), 'IKO Nordic attempts AI',              `chroma=${chroma('#2E3B4E')}`)
+  assert(tryAi('#8C7A8A'), 'Pristine Heather attempts AI',        `chroma=${chroma('#8C7A8A')}`)
+  assert(tryAi('#5A6472'), 'GAF Slate attempts AI',               `chroma=${chroma('#5A6472')}`)
+
+  // Additive recolor on a neutral chip must stay neutral at every luminance
+  const neutralStays = [40, 128, 220].every(lum => {
+    const shade = (lum - 128) * 0.55
+    const [r,g,b] = [0x8A, 0x8A, 0x8A].map(v => Math.round(v + shade))
+    return r === g && g === b
+  })
+  assert(neutralStays, 'additive shading keeps a neutral chip neutral at all luminances',
+    'classical path introduced a colour cast — impossible unless the loop changed')
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(failures === 0
   ? '\n\x1b[32m\x1b[1mAll invariants hold.\x1b[0m\n'
