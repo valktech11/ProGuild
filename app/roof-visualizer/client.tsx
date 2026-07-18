@@ -582,6 +582,17 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Could not confirm selection.'); return }
+      // Sync client gridData with server erase: zero out erased pixels so the pick
+      // screen preview matches the mask the server actually confirmed.
+      if (erasePixels.size > 0) {
+        setGridData(prev => {
+          if (!prev) return prev
+          const next = new Uint8Array(prev)
+          erasePixels.forEach(p => { if (p < next.length) next[p] = 0 })
+          return next
+        })
+        setErasePixels(new Set())
+      }
       setShowPickMask(true)
       setStep('pick')
     } catch { setError('Could not confirm selection. Try again.') }
