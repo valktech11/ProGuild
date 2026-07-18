@@ -240,9 +240,13 @@ async function renderOneSku(
         regionMae(prep, ai, 'roof'),
       ])
       const scenePreserved = nonRoof <= NONROOF_MAE_MAX
-      const roofChanged    = roof >= ROOF_MAE_MIN
+      // Light SKUs need a higher roofMAE bar — additive classical is more accurate for pastels
+      const hx = sku.hex_preview.replace('#', '')
+      const chipLum = (parseInt(hx.slice(0,2),16) + parseInt(hx.slice(2,4),16) + parseInt(hx.slice(4,6),16)) / 3
+      const roofFloor = chipLum > 160 ? 20 : ROOF_MAE_MIN
+      const roofChanged    = roof >= roofFloor
       const serveAi = scenePreserved && roofChanged
-      console.log(`[render] ${sku.name}: nonRoofMAE=${nonRoof.toFixed(1)} (max ${NONROOF_MAE_MAX}) roofMAE=${roof.toFixed(1)} (min ${ROOF_MAE_MIN}) → engine=${serveAi ? 'ai' : 'classical'}`)
+      console.log(`[render] ${sku.name}: nonRoofMAE=${nonRoof.toFixed(1)} roofMAE=${roof.toFixed(1)} roofFloor=${roofFloor} chipLum=${chipLum.toFixed(0)} → engine=${serveAi ? 'ai' : 'classical'}`)
       if (serveAi) {
         finalBuffer = await pixelGuaranteeComposite(prep, ai)
         engine = 'ai'

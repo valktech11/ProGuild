@@ -71,12 +71,15 @@ interface Candidate {
   cx: number; cy: number // centroid at grid res
   meanLum: number        // original-photo luminance inside mask (heuristic fallback)
   meanExG: number        // mean Excess-Green (2G−R−B) inside mask — vegetation signal
+  meanExB: number        // mean Excess-Blue (2B−R−G) inside mask — sky signal (needed for sky veto)
   veg: boolean           // true = looks like foliage; never offered to Gemini / preselect
+  sky: boolean           // true = looks like sky; never offered to Gemini / preselect
   gridRaw: Buffer        // 1ch at grid res
   srcBuf: Buffer         // original downloaded mask PNG (full-res decode without refetch)
 }
 
-const VEG_EXG_THRESHOLD = 28  // mean ExG above this = foliage candidate
+const VEG_EXG_THRESHOLD = 28  // mean Excess-Green above this = foliage candidate
+const SKY_EXB_THRESHOLD = 25   // mean Excess-Blue (2B−R−G) above this = sky candidate
 
 async function decodeCandidates(
   maskUrls: string[], gw: number, gh: number, photoRgbGrid: Buffer
@@ -90,17 +93,19 @@ async function decodeCandidates(
       const res = await fetch(url)
       const buf = Buffer.from(await res.arrayBuffer())
       const raw = await sharp(buf).resize(gw, gh, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
-      let area = 0, xSum = 0, ySum = 0, lumSum = 0, exgSum = 0
+      let area = 0, xSum = 0, ySum = 0, lumSum = 0, exgSum = 0, exbSum = 0
       for (let p = 0; p < gw * gh; p++) {
         if (raw[p] > 200) {
           area++; xSum += p % gw; ySum += Math.floor(p / gw)
           const rr = photoRgbGrid[p * 3], gg = photoRgbGrid[p * 3 + 1], bb = photoRgbGrid[p * 3 + 2]
           lumSum += (rr + gg + bb) / 3
           exgSum += 2 * gg - rr - bb
+          exbSum += 2 * bb - rr - gg
         }
       }
       return { buf, raw, area, cx: area ? xSum / area : 0, cy: area ? ySum / area : 0,
-               meanLum: area ? lumSum / area : 255, meanExG: area ? exgSum / area : 0 }
+               meanLum: area ? lumSum / area : 255, meanExG: area ? exgSum / area : 0,
+               meanExB: area ? exbSum / area : 0 }
     } catch { return null }
   }
 
@@ -118,12 +123,13 @@ async function decodeCandidates(
     .filter(d => d.area / total >= MIN_AREA_FRAC && d.area / total <= 0.6)
     .sort((a, b) => b.area - a.area)
     .slice(0, MAX_CANDIDATES)
-  console.log(`[segment] kept ${kept.length} candidates:`, kept.map((d, i) => `#${i + 1}=${(d.area / total * 100).toFixed(1)}%/exg${d.meanExG.toFixed(0)}${d.meanExG > VEG_EXG_THRESHOLD ? '🌳' : ''}`).join(' '))
+  console.log(`[segment] kept ${kept.length} candidates:`, kept.map((d, i) => { const tag = d.meanExG > VEG_EXG_THRESHOLD ? '🌳' : d.meanExB > SKY_EXB_THRESHOLD ? '☁️' : ''; return `#${i+1}=${(d.area/total*100).toFixed(1)}%/exg${d.meanExG.toFixed(0)}/exb${d.meanExB.toFixed(0)}${tag}` }).join(' '))
 
   return kept.map((d, i) => ({
     index: i + 1, areaPx: d.area, areaPct: d.area / total,
-    cx: d.cx, cy: d.cy, meanLum: d.meanLum, meanExG: d.meanExG,
+    cx: d.cx, cy: d.cy, meanLum: d.meanLum, meanExG: d.meanExG, meanExB: d.meanExB,
     veg: d.meanExG > VEG_EXG_THRESHOLD,
+    sky: d.meanExB > SKY_EXB_THRESHOLD,
     gridRaw: d.raw, srcBuf: d.buf,
   }))
 }
@@ -221,7 +227,7 @@ async function classifyWithGemini(
 // Heuristic fallback (Gemini unavailable) — spatial + brightness, PRESELECT ONLY
 function heuristicPreselect(cands: Candidate[], gh: number): number[] {
   return cands
-    .filter(c => !c.veg && c.cy / gh <= 0.72 && c.meanLum <= 185)
+    .filter(c => !c.veg && !c.sky && c.cy / gh <= 0.72 && c.meanLum <= 185)
     .map(c => c.index)
 }
 
@@ -298,7 +304,7 @@ export async function POST(req: NextRequest) {
     await uploadToR2(gridFullKey, await sharp(gridFull, { raw: { width: pw, height: ph, channels: 1 } }).png().toBuffer(), 'image/png')
 
     // Semantic classification (Gemini primary, heuristic fallback)
-    const offered = cands.filter(cd => !cd.veg).slice(0, 12)  // vegetation never offered — Gemini can't pick what it doesn't see
+    const offered = cands.filter(cd => !cd.veg && !cd.sky).slice(0, 12)  // veg + sky never offered to Gemini
     const gem = await classifyWithGemini(photoGridJpeg, offered)
     let preselected: number[], uncertain: number[], selector: string
     if (gem && gem.roofIndices.length > 0) {
