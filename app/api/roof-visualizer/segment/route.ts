@@ -304,7 +304,17 @@ export async function POST(req: NextRequest) {
     await uploadToR2(gridFullKey, await sharp(gridFull, { raw: { width: pw, height: ph, channels: 1 } }).png().toBuffer(), 'image/png')
 
     // Semantic classification (Gemini primary, heuristic fallback)
-    const offered = cands.filter(cd => !cd.veg && !cd.sky).slice(0, 12)  // veg + sky never offered to Gemini
+    // Offered set = what Gemini is even allowed to pick from. Three categorical exclusions:
+    //   veg (ExG)  — foliage
+    //   sky (ExB)  — sky/clouds
+    //   ground     — centroid below 72% of frame height: driveways, lawns, paths, sidewalks.
+    // Geometric, so it cannot be defeated by a neutral-toned surface the way colour tests can.
+    // (This filter existed only on the heuristic fallback path; its absence here let the
+    //  driveway get promoted into the top-12 once veg/sky candidates were removed.)
+    const offered = cands
+      .filter(cd => !cd.veg && !cd.sky && cd.cy / gh <= 0.72)
+      .slice(0, 12)
+    console.log(`[segment] offered to Gemini: ${offered.map(o => o.index).join(',') || 'none'} (of ${cands.length} candidates)`)
     const gem = await classifyWithGemini(photoGridJpeg, offered)
     let preselected: number[], uncertain: number[], selector: string
     if (gem && gem.roofIndices.length > 0) {
