@@ -37,7 +37,7 @@ const NEUTRAL_CHROMA_MAX = 12
 // AI attempt cap so classical result is never held hostage by a slow model
 const AI_TIMEOUT_MS = 55_000
 
-interface SkuRow { id: string; name: string; texture_prompt: string; hex_preview: string }
+interface SkuRow { id: string; name: string; texture_prompt: string; hex_preview: string; hex_granule_2?: string | null; hex_granule_3?: string | null }
 
 function chipChroma(hex: string): number {
   const h = hex.replace('#', '')
@@ -87,17 +87,27 @@ async function prepareImages(photoUrl: string, maskUrl: string): Promise<Prepare
 
 // ── 1. Classical renderer — guaranteed floor ─────────────────────────────────
 
-async function classicalRecolor(prep: PreparedImages, hex: string): Promise<Buffer> {
+async function classicalRecolor(prep: PreparedImages, sku: SkuRow): Promise<Buffer> {
+  const hex = sku.hex_preview
   // Multiply-tint from raw luminance — preserves texture, shadows, ridge lines.
   // All raw-buffer explicit: verified pixel-exact (original outside mask, tint inside).
   const { width: W, height: H } = prep
   const lum = await sharp(prep.photo).greyscale().raw().toBuffer()          // 1ch luminance
   const maskRaw = await sharp(prep.maskAligned).extractChannel(0).raw().toBuffer()  // force 1ch
 
-  const h = hex.replace('#', '')
-  const tr = parseInt(h.slice(0, 2), 16)
-  const tg = parseInt(h.slice(2, 4), 16)
-  const tb = parseInt(h.slice(4, 6), 16)
+  const parseHex = (x: string): [number, number, number] => {
+    const s = x.replace('#', '')
+    return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)]
+  }
+  // GRANULE PALETTE — blended products (Barkwood, Heather Blend, Pristine Heather,
+  // Driftwood, Weathered Wood) are a MIX of granule colours. Rendering them from one hex
+  // is faithful to the hex and wrong for the product: Barkwood came out olive, Heather
+  // Blend pink. Solid SKUs have no extra tones and render exactly as before.
+  const palette: Array<[number, number, number]> = [parseHex(hex)]
+  if (sku.hex_granule_2) palette.push(parseHex(sku.hex_granule_2))
+  if (sku.hex_granule_3) palette.push(parseHex(sku.hex_granule_3))
+  const isBlend = palette.length > 1
+  const [tr, tg, tb] = palette[0]
 
   // Roof mean luminance — normalize so mid-tone roof pixels land EXACTLY on the
   // target swatch colour; shadows render darker, highlights lighter.
@@ -130,12 +140,17 @@ async function classicalRecolor(prep: PreparedImages, hex: string): Promise<Buff
     const x = i % W, y = (i / W) | 0
     const shade  = (lum[i] - roofMeanLum) * K
     const grain  = cellNoise(x, y, 1) * LUM_JITTER
+    // Blend SKUs: each 2x2 cell draws one granule tone from the palette, so the surface
+    // reads as a granule matrix rather than a uniform sheet.
+    const [br, bg, bb] = isBlend
+      ? palette[Math.floor(((cellNoise(x, y, 5) + 1) / 2) * palette.length) % palette.length]
+      : palette[0]
     const hueR   = cellNoise(x, y, 2) * HUE_JITTER
     const hueG   = cellNoise(x, y, 3) * HUE_JITTER
     const hueB   = cellNoise(x, y, 4) * HUE_JITTER
-    rgba[i * 4]     = Math.max(0, Math.min(255, Math.round(tr + shade + grain + hueR)))
-    rgba[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(tg + shade + grain + hueG)))
-    rgba[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(tb + shade + grain + hueB)))
+    rgba[i * 4]     = Math.max(0, Math.min(255, Math.round(br + shade + grain + hueR)))
+    rgba[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(bg + shade + grain + hueG)))
+    rgba[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(bb + shade + grain + hueB)))
     rgba[i * 4 + 3] = maskRaw[i]             // feathered mask = alpha → soft edges
   }
 
@@ -262,7 +277,7 @@ async function renderOneSku(
     if (!tryAi) console.log(`[render] ${sku.name}: chroma=${chroma} → neutral chip, classical only (AI skipped)`)
 
     const [classical, ai] = await Promise.all([
-      classicalRecolor(prep, sku.hex_preview),
+      classicalRecolor(prep, sku),
       tryAi ? aiAttempt(prep, sku) : Promise.resolve(null),
     ])
 
@@ -278,7 +293,9 @@ async function renderOneSku(
       // Light SKUs need a higher roofMAE bar — additive classical is more accurate for pastels
       const hx = sku.hex_preview.replace('#', '')
       const chipLum = (parseInt(hx.slice(0,2),16) + parseInt(hx.slice(2,4),16) + parseInt(hx.slice(4,6),16)) / 3
-      const roofFloor = chipLum > 160 ? 20 : ROOF_MAE_MIN
+      // Blend SKUs now render correctly in classical; require a clearly better AI result
+      const isBlendSku = !!(sku.hex_granule_2 || sku.hex_granule_3)
+      const roofFloor = chipLum > 160 ? 20 : isBlendSku ? 16 : ROOF_MAE_MIN
       const roofChanged    = roof >= roofFloor
       const serveAi = scenePreserved && roofChanged
       console.log(`[render] ${sku.name}: nonRoofMAE=${nonRoof.toFixed(1)} roofMAE=${roof.toFixed(1)} roofFloor=${roofFloor} chipLum=${chipLum.toFixed(0)} → engine=${serveAi ? 'ai' : 'classical'}`)
@@ -337,7 +354,7 @@ export async function POST(req: NextRequest) {
 
     const { data: skus, error: skuErr } = await sb
       .from('viz_skus')
-      .select('id, name, texture_prompt, hex_preview')
+      .select('id, name, texture_prompt, hex_preview, hex_granule_2, hex_granule_3')
       .in('id', skuIds)
 
     if (skuErr || !skus?.length) return NextResponse.json({ error: 'SKUs not found' }, { status: 404 })

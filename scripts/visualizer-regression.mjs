@@ -243,6 +243,48 @@ console.log('\ntrace containment & granule')
     `range ${Math.min(...vals)}..${Math.max(...vals)} — jitter would blow out colour`)
 }
 
+// ── 10. Granule blend palette ───────────────────────────────────────────────
+console.log('\ngranule blend')
+{
+  const parseHex = (x) => { const s = x.replace('#',''); return [parseInt(s.slice(0,2),16), parseInt(s.slice(2,4),16), parseInt(s.slice(4,6),16)] }
+  const cellNoise = (x, y, salt) => {
+    let n = (x >> 1) * 73856093 ^ (y >> 1) * 19349663 ^ salt * 83492791
+    n = (n ^ (n >>> 13)) >>> 0
+    return ((n % 2001) / 1000) - 1
+  }
+  const mix = (hexes) => {
+    const pal = hexes.map(parseHex)
+    let sum = [0,0,0], counts = new Array(pal.length).fill(0)
+    for (let y = 0; y < 120; y += 2) for (let x = 0; x < 120; x += 2) {
+      const i = Math.floor(((cellNoise(x,y,5)+1)/2) * pal.length) % pal.length
+      counts[i]++; sum[0]+=pal[i][0]; sum[1]+=pal[i][1]; sum[2]+=pal[i][2]
+    }
+    const n = counts.reduce((a,b)=>a+b)
+    return { mean: sum.map(v => Math.round(v/n)), share: counts.map(c => c/n) }
+  }
+
+  // Solid SKUs must be untouched by the blend path (Cambridge is the best render in the build)
+  const solid = mix(['#5A5A5A'])
+  assert(solid.mean.join() === '90,90,90', 'single-tone SKU renders its exact hex',
+    `got ${solid.mean} — solid SKUs must not be altered by blend logic`)
+
+  // Blend palettes must distribute roughly evenly across granule tones
+  const bark = mix(['#5C4A2A', '#3E3020', '#6E6350'])
+  assert(bark.share.every(s => s > 0.25 && s < 0.42), 'granule tones distribute evenly',
+    `shares ${bark.share.map(s => (s*100).toFixed(0)+'%')} — one tone dominating defeats the blend`)
+
+  // Barkwood: the olive cast is a large R-B gap; blending must narrow it
+  const singleGap = 0x5C - 0x2A            // 50
+  const blendGap  = bark.mean[0] - bark.mean[2]
+  assert(blendGap < singleGap - 8, 'blend reduces the yellow/olive cast (R-B gap narrows)',
+    `single-hex gap ${singleGap}, blend gap ${blendGap} — Barkwood would still render olive`)
+
+  // Heather Blend: greys/browns must pull it off pure pink
+  const heather = mix(['#9B7B8A', '#6E6470', '#7D6355'])
+  assert(heather.mean[0] - heather.mean[1] < 0x9B - 0x7B, 'blend reduces the pink cast',
+    `R-G gap did not narrow — Heather Blend would still render pink`)
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(failures === 0
   ? '\n\x1b[32m\x1b[1mAll invariants hold.\x1b[0m\n'
