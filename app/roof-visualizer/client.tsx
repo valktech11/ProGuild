@@ -130,7 +130,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'shade-v12'
+const CLIENT_BUILD = 'copy-v13'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -714,7 +714,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 24 }}>
             {[
               { icon: '📸', title: 'Upload a photo', body: 'Street-view photo of your home — just the front' },
-              { icon: '🤖', title: 'AI detects your roof', body: 'Our AI finds the roof automatically — no clicking required' },
+              { icon: '🤖', title: 'AI detects, you confirm', body: 'AI finds your roof automatically — you approve it with a tap before anything renders' },
               { icon: '🎨', title: 'Compare side by side', body: 'See all your shingle options next to your current roof' },
             ].map(s => card(
               <div key={s.title} style={{ textAlign: 'center' }}>
