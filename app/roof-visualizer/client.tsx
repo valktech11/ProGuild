@@ -122,15 +122,32 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   const t = theme(false)
   return (
     <button onClick={onClick} title={`${getMfgName(sku)} — ${sku.name}`}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '8px 6px', borderRadius: T.radMd, border: `2px solid ${selected ? BRAND.teal : t.cardBorder}`, background: selected ? BRAND.tealAlpha : t.cardBg, cursor: 'pointer', transition: 'all 0.15s', minWidth: 70 }}>
-      <div style={{ width: 54, height: 54, borderRadius: T.radSm, background: sku.hex_preview, border: '1px solid rgba(0,0,0,0.15)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-      <span style={{ fontSize: 11, color: t.textMuted, textAlign: 'center', lineHeight: 1.2, maxWidth: 80 }}>{sku.name}</span>
-      {selected && <span style={{ fontSize: 10, color: BRAND.teal, fontWeight: 600 }}>✓</span>}
+      style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 0,
+        padding: 0, borderRadius: 12, overflow: 'hidden',
+        border: `2px solid ${selected ? BRAND.teal : t.cardBorder}`,
+        background: t.cardBg, cursor: 'pointer', textAlign: 'left',
+        boxShadow: selected ? `0 4px 14px ${BRAND.tealAlpha}` : '0 1px 2px rgba(0,0,0,0.05)',
+        transform: selected ? 'translateY(-1px)' : 'none',
+        transition: 'all 0.15s ease',
+      }}>
+      <div style={{ position: 'relative', height: 76, background: sku.hex_preview }}>
+        {/* subtle shingle-course texture so it reads as a roof material, not paint */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0 1px, rgba(255,255,255,0.05) 1px 9px)' }} />
+        <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 -10px 18px rgba(0,0,0,0.18)' }} />
+        {selected && (
+          <div style={{ position: 'absolute', top: 6, right: 6, width: 20, height: 20, borderRadius: '50%', background: BRAND.teal, color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>✓</div>
+        )}
+      </div>
+      <div style={{ padding: '7px 9px 8px' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: t.textPri, lineHeight: 1.25 }}>{sku.name}</div>
+        <div style={{ fontSize: 10, color: t.textSubtle, marginTop: 1 }}>{getMfgName(sku)}</div>
+      </div>
     </button>
   )
 }
 
-const CLIENT_BUILD = 'neutral-v22'
+const CLIENT_BUILD = 'ui-v23'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -542,8 +559,18 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
 
       <div style={{ maxWidth: 980, margin: '0 auto', padding: '32px 20px' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <h1 style={{ fontSize: 30, fontWeight: 800, color: t.textPri, margin: '0 0 10px', letterSpacing: '-0.5px' }}>See Your New Roof Before You Buy</h1>
-          <p style={{ fontSize: 16, color: t.textMuted, margin: 0, maxWidth: 540, marginInline: 'auto' }}>Upload a photo of your home and instantly visualize different shingle colors — no app, no account required.</p>
+          {step === 'upload' && (
+            <div style={{ display: 'inline-block', background: BRAND.tealAlpha, color: BRAND.teal, fontSize: 11.5, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 999, marginBottom: 16 }}>
+              Free AI Roof Visualizer
+            </div>
+          )}
+          <h1 style={{ fontSize: 42, fontWeight: 800, color: t.textPri, margin: '0 0 14px', letterSpacing: '-1.2px', lineHeight: 1.08 }}>
+            See your new roof<br />
+            <span style={{ color: BRAND.teal }}>before you spend a dollar</span>
+          </h1>
+          <p style={{ fontSize: 17, color: t.textMuted, margin: 0, maxWidth: 560, marginInline: 'auto', lineHeight: 1.5 }}>
+            Upload one photo of the house and compare real shingle colors from GAF, Owens Corning, CertainTeed, IKO and Atlas — side by side, in under a minute.
+          </p>
           <div style={{ display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
             {['AI-powered', 'No sign-up', 'First 3 renders free', 'About 60 seconds'].map(item => (
               <span key={item} style={{ fontSize: 12.5, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -562,12 +589,12 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
 
         {step === 'upload' && card(
           <div onDrop={handleDrop} onDragOver={e => e.preventDefault()} onClick={() => fileRef.current?.click()}
-            style={{ border: `2px dashed ${BRAND.teal}`, borderRadius: T.radLg, padding: '56px 32px', textAlign: 'center', cursor: 'pointer' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🏠</div>
-            <p style={{ fontWeight: 700, fontSize: 18, color: t.textPri, margin: '0 0 8px' }}>Upload a photo of your home</p>
-            <p style={{ color: t.textMuted, fontSize: 14, margin: '0 0 20px' }}>Drag & drop or click to browse — JPG or PNG, max 10MB</p>
-            <div style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '10px 28px', borderRadius: T.radMd, fontWeight: 700, fontSize: 14 }}>Choose Photo</div>
-            <p style={{ color: t.textSubtle, fontSize: 12, margin: '16px 0 0' }}>Best results: straight-on street view, clear sky, minimal tree coverage</p>
+            style={{ border: `2px dashed ${BRAND.teal}`, borderRadius: 16, padding: '64px 32px', textAlign: 'center', cursor: 'pointer', background: `linear-gradient(180deg, ${BRAND.tealAlpha} 0%, transparent 70%)`, transition: 'background 0.2s' }}>
+            <div style={{ width: 76, height: 76, margin: '0 auto 20px', borderRadius: '50%', background: t.cardBg, border: `2px solid ${BRAND.teal}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, boxShadow: '0 4px 16px rgba(13,148,136,0.15)' }}>🏡</div>
+            <p style={{ fontWeight: 800, fontSize: 21, color: t.textPri, margin: '0 0 8px', letterSpacing: '-0.3px' }}>Drop a photo of the house</p>
+            <p style={{ color: t.textMuted, fontSize: 14.5, margin: '0 0 24px' }}>or click to browse — JPG or PNG, up to 10MB</p>
+            <div style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '14px 38px', borderRadius: 10, fontWeight: 700, fontSize: 15.5, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>Choose Photo</div>
+            <p style={{ color: t.textSubtle, fontSize: 12.5, margin: '20px 0 0' }}>Best results: straight-on street view, roof clearly visible</p>
             <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f) }} />
           </div>
         )}
@@ -657,13 +684,31 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         )}
 
         {step === 'pick' && (
-          <div style={{ display: 'grid', gridTemplateColumns: photoPreview ? '1fr 1fr' : '1fr', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: photoPreview ? 'minmax(0,1fr) minmax(0,1.1fr)' : '1fr', gap: 24, alignItems: 'start' }}>
             {photoPreview && (
-              <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
+              <div style={{ position: 'sticky', top: 24, borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                <div style={{ position: 'relative' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block', maxHeight: 360, objectFit: 'cover' }} />
+                <img src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
                 <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(15,118,110,0.85)', color: '#fff', borderRadius: T.radSm, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
                   ✓ Roof confirmed
+                </div>
+                </div>
+                <div style={{ padding: '12px 14px', background: t.cardBg, borderTop: `1px solid ${t.cardBorder}` }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+                    Your comparison
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', minHeight: 34 }}>
+                    {selectedSkuIds.length === 0 && (
+                      <span style={{ fontSize: 12.5, color: t.textMuted }}>Pick up to 3 colors to compare →</span>
+                    )}
+                    {selectedSkuIds.map(id => skuMap[id] && (
+                      <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: t.cardBgAlt, borderRadius: 999, padding: '4px 10px 4px 5px' }}>
+                        <span style={{ width: 20, height: 20, borderRadius: '50%', background: skuMap[id].hex_preview, border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0 }} />
+                        <span style={{ fontSize: 11.5, fontWeight: 600, color: t.textBody, whiteSpace: 'nowrap' }}>{skuMap[id].name}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -685,7 +730,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 {groups.filter(g => !mfgFilter || g.manufacturer === mfgFilter).map(group => (
                   <div key={group.manufacturer} style={{ marginBottom: 20 }}>
                     <p style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>{group.manufacturer}</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: 10 }}>
                       {group.skus.map(sku => <SkuSwatch key={sku.id} sku={sku} selected={selectedSkuIds.includes(sku.id)} onClick={() => toggleSku(sku.id)} />)}
                     </div>
                   </div>
@@ -802,8 +847,24 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
           </div>
         )}
 
+        {step === 'upload' && skus.length > 0 && (
+          <div style={{ marginTop: 28, textAlign: 'center' }}>
+            <p style={{ fontSize: 11.5, fontWeight: 800, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 14px' }}>
+              {skus.length} real shingle colors · 5 manufacturers
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 7 }}>
+              {skus.map(s => (
+                <div key={s.id} title={`${getMfgName(s)} ${s.name}`}
+                  style={{ width: 46, height: 46, borderRadius: 9, background: s.hex_preview, border: '1px solid rgba(0,0,0,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0 1px, rgba(255,255,255,0.05) 1px 8px)' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {step === 'upload' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 28 }}>
             {[
               { icon: '📸', title: 'Upload a photo', body: 'Street-view photo of your home — just the front' },
               { icon: '🤖', title: 'AI detects, you confirm', body: 'AI finds your roof automatically — you approve it with a tap before anything renders' },
