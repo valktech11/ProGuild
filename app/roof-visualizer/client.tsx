@@ -130,7 +130,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'size-v19'
+const CLIENT_BUILD = 'manual-v20'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -147,11 +147,10 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [gateEmail, setGateEmail]   = useState('')
   const [gateBusy, setGateBusy]     = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
-  const [confidence, setConfidence] = useState<{ level: string; note: string } | null>(null)
   const [gridData, setGridData]   = useState<Uint8Array | null>(null)
   const [gridDims, setGridDims]   = useState<{ w: number; h: number }>({ w: 0, h: 0 })
   const [selected, setSelected]   = useState<Set<number>>(new Set())
-  const [uncertainIdx, setUncertainIdx] = useState<number[]>([])
+  const [history, setHistory]     = useState<Set<number>[]>([])
   const [tapCount, setTapCount]   = useState(0)
   const [confirmStart, setConfirmStart] = useState(0)
   const [confirmBusy, setConfirmBusy]   = useState(false)
@@ -161,6 +160,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const customIdxRef   = useRef(200)   // traced regions get indices 200+
   const [traceHint, setTraceHint] = useState<string | null>(null)
   const [pxReady, setPxReady]     = useState(false)
+  const sweeping    = useRef(false)
+  const sweptThisDrag = useRef<Set<number>>(new Set())
   const [lightbox, setLightbox]   = useState<{ url: string; label: string } | null>(null)
   const [mfgFilter, setMfgFilter] = useState<string | null>(null)
   const [retrying, setRetrying]   = useState<Set<string>>(new Set())
@@ -188,7 +189,6 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       const data = await res.json()
       if (!res.ok) { setError(data.detail ? `${data.error} — ${data.detail}` : (data.error || 'Could not detect roof.')); setStep('preview'); return }
       setSessionId(data.sessionId)
-      setConfidence(data.confidence ? { level: data.confidence, note: data.confidenceNote || 'Roof detected' } : null)
       // Decode index grid (base64 PNG → Uint8Array) for client-side hit-testing
       const img = new Image()
       img.onload = () => {
@@ -199,11 +199,11 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         const px = ctx.getImageData(0, 0, data.gridW, data.gridH).data
         const grid = new Uint8Array(data.gridW * data.gridH)
         for (let i = 0; i < grid.length; i++) grid[i] = px[i * 4]  // R channel = index
-        console.log('[confirm] grid decoded', { w: data.gridW, h: data.gridH, preselected: data.preselected, uncertain: data.uncertain })
+        console.log('[confirm] grid decoded', { w: data.gridW, h: data.gridH, candidates: data.candidates?.length })
         setGridData(grid)
         setGridDims({ w: data.gridW, h: data.gridH })
-        setSelected(new Set<number>(data.preselected ?? []))
-        setUncertainIdx(data.uncertain ?? [])
+        setSelected(new Set<number>())   // NO preselection — user taps/sweeps their roof
+        setHistory([])
         setTapCount(0)
         setConfirmStart(Date.now())
         setStep('confirm')
@@ -238,7 +238,6 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     cv.width = w; cv.height = h
     const ctx = cv.getContext('2d')!
     const img = ctx.createImageData(w, h)
-    const unc = new Set(uncertainIdx)
     const px = photoPixelsRef.current
     const isVeg = (p: number) => {
       if (!px) return false
@@ -259,12 +258,10 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         } else {
           img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 150  // teal, stronger
         }
-      } else if (idx > 0 && unc.has(idx)) {
-        img.data[i * 4] = 217; img.data[i * 4 + 1] = 119; img.data[i * 4 + 2] = 6; img.data[i * 4 + 3] = 80    // amber
       }
     }
     ctx.putImageData(img, 0, 0)
-  }, [gridData, gridDims, selected, uncertainIdx, step, pxReady])
+  }, [gridData, gridDims, selected, step, pxReady])
 
   // Flood fill from seed across similar-colored, unowned pixels → new custom region
   const traceRegion = useCallback((sx: number, sy: number): number => {
@@ -331,15 +328,15 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     return idx
   }, [gridData, gridDims])
 
-  const handleConfirmTap = useCallback((e: React.MouseEvent<HTMLElement>) => {
-    e.stopPropagation()
+  // Resolve a pointer event to a candidate index (radial snap on miss)
+  const indexAtPointer = useCallback((clientX: number, clientY: number): { idx: number; gx: number; gy: number } | null => {
     const imgEl = confirmImgRef.current
-    if (!gridData || !imgEl) { console.warn('[confirm] tap ignored — grid or img missing'); return }
+    if (!gridData || !imgEl) return null
     const rect = imgEl.getBoundingClientRect()
     const { w, h } = gridDims
-    const gx = Math.floor(((e.clientX - rect.left) / rect.width) * w)
-    const gy = Math.floor(((e.clientY - rect.top) / rect.height) * h)
-    if (gx < 0 || gy < 0 || gx >= w || gy >= h) return
+    const gx = Math.floor(((clientX - rect.left) / rect.width) * w)
+    const gy = Math.floor(((clientY - rect.top) / rect.height) * h)
+    if (gx < 0 || gy < 0 || gx >= w || gy >= h) return null
     let idx = gridData[gy * w + gx]
     if (idx === 0) {
       let best = 0, bestD = 65
@@ -351,27 +348,66 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       }
       idx = best
     }
-    if (idx === 0) {
-      // No candidate here — trace the surface ourselves
+    return { idx, gx, gy }
+  }, [gridData, gridDims])
+
+  const pushHistory = useCallback(() => {
+    setHistory(h => [...h.slice(-19), new Set(selected)])
+  }, [selected])
+
+  const handleUndo = useCallback(() => {
+    setHistory(h => {
+      if (h.length === 0) return h
+      const prev = h[h.length - 1]
+      setSelected(new Set(prev))
+      return h.slice(0, -1)
+    })
+  }, [])
+
+  const handleSweepStart = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    e.preventDefault()
+    sweeping.current = true
+    sweptThisDrag.current = new Set()
+    pushHistory()
+    const hit = indexAtPointer(e.clientX, e.clientY)
+    if (!hit) return
+    if (hit.idx === 0) {
+      // No candidate here — trace the surface (flood fill)
       setTraceHint('Tracing surface…')
-      const traced = traceRegion(gx, gy)
+      const traced = traceRegion(hit.gx, hit.gy)
       setTraceHint(traced ? null : "Couldn't trace a surface here — try tapping the middle of the area")
       if (traced) {
         setTapCount(t => t + 1)
         setSelected(prev => new Set(prev).add(traced))
+        sweptThisDrag.current.add(traced)
       }
-      console.log('[confirm] tap', { gx, gy, idx: traced, traced: true })
       return
     }
-    console.log('[confirm] tap', { gx, gy, idx })
+    sweptThisDrag.current.add(hit.idx)
     setTapCount(t => t + 1)
     setSelected(prev => {
       const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx); else next.add(idx)
-      console.log('[confirm] selection now', [...next])
+      if (next.has(hit.idx)) next.delete(hit.idx); else next.add(hit.idx)
       return next
     })
-  }, [gridData, gridDims, traceRegion])
+  }, [indexAtPointer, pushHistory, traceRegion])
+
+  const handleSweepMove = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    if (!sweeping.current) return
+    const hit = indexAtPointer(e.clientX, e.clientY)
+    if (!hit || hit.idx === 0) return
+    if (sweptThisDrag.current.has(hit.idx)) return   // each plane toggles once per drag
+    sweptThisDrag.current.add(hit.idx)
+    setSelected(prev => new Set(prev).add(hit.idx))  // sweep only ADDS — predictable
+  }, [indexAtPointer])
+
+  const handleSweepEnd = useCallback(() => {
+    if (!sweeping.current) return
+    sweeping.current = false
+    if (sweptThisDrag.current.size > 1) {
+      console.log('[confirm] swept', sweptThisDrag.current.size, 'planes')
+    }
+  }, [])
 
   const handleConfirmMask = useCallback(async () => {
     if (!sessionId || selected.size === 0 || !gridData) return
@@ -548,48 +584,42 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
 
         {step === 'confirm' && card(
           <div>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-              <div>
-                <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Confirm your roof</p>
-                <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
-                  Teal = will be painted. Tap any missed roof area — we'll trace it automatically. Tap again to remove.
-                  {uncertainIdx.length > 0 && ' Amber areas are uncertain — tap them if they are roof.'}
-                </p>
-              </div>
-              {confidence && (
-                <span style={{ fontSize: 12, fontWeight: 600, color: confidence.level === 'high' ? BRAND.teal : '#B45309' }}>
-                  {confidence.level === 'high' ? '✓' : '⚠'} {confidence.note}
-                </span>
-              )}
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Tap each section of your roof</p>
+              <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
+                Tap a roof plane to select it — or hold and drag across several at once. Tap again to remove.
+                Teal is exactly what gets painted.
+              </p>
             </div>
 
-            <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, maxWidth: 720, margin: '0 auto' }}>
+            <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, maxWidth: 720, margin: '0 auto', touchAction: 'none' }}>
               {photoPreview && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img ref={confirmImgRef} src={photoPreview} alt="Your home" onClick={handleConfirmTap} style={{ width: '100%', display: 'block', cursor: 'crosshair' }} />
+                <img ref={confirmImgRef} src={photoPreview} alt="Your home"
+                  onPointerDown={handleSweepStart}
+                  onPointerMove={handleSweepMove}
+                  onPointerUp={handleSweepEnd}
+                  onPointerLeave={handleSweepEnd}
+                  draggable={false}
+                  style={{ width: '100%', display: 'block', cursor: 'crosshair', userSelect: 'none' }} />
               )}
               <canvas ref={overlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
             </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 18, alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: t.textSubtle }}>
-                {selected.size} area{selected.size === 1 ? '' : 's'} selected
+                {selected.size === 0 ? 'Nothing selected yet' : `${selected.size} section${selected.size === 1 ? '' : 's'} selected`}
               </span>
               {traceHint && <span style={{ fontSize: 12, color: '#B45309', fontWeight: 600 }}>{traceHint}</span>}
+              <button onClick={handleUndo} disabled={history.length === 0}
+                style={{ padding: '10px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: history.length ? t.textBody : t.textSubtle, fontWeight: 600, fontSize: 13, cursor: history.length ? 'pointer' : 'not-allowed' }}>
+                ↶ Undo
+              </button>
               <button onClick={handleConfirmMask} disabled={selected.size === 0 || confirmBusy}
                 style={{ padding: '12px 32px', borderRadius: T.radMd, border: 'none', background: selected.size > 0 ? BRAND.teal : '#ccc', color: '#fff', fontWeight: 700, fontSize: 15, cursor: selected.size > 0 && !confirmBusy ? 'pointer' : 'not-allowed' }}>
                 {confirmBusy ? 'Saving…' : 'Confirm Roof →'}
               </button>
             </div>
-          </div>
-        )}
-
-        {step === 'segmenting' && card(
-          <div style={{ textAlign: 'center', padding: '48px 0' }}>
-            {photoPreview && <img src={photoPreview} alt="Your home" style={{ maxHeight: 220, borderRadius: T.radMd, marginBottom: 24, maxWidth: '100%', objectFit: 'cover' }} />}
-            <div style={{ width: 40, height: 40, border: `4px solid ${BRAND.teal}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-            <p style={{ fontWeight: 700, color: t.textPri, fontSize: 17, margin: '0 0 6px' }}>Detecting your roof…</p>
-            <p style={{ color: t.textMuted, fontSize: 14, margin: 0 }}>AI is analyzing your photo — takes about 15 seconds</p>
           </div>
         )}
 
@@ -599,7 +629,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block', maxHeight: 360, objectFit: 'cover' }} />
-                <div style={{ position: 'absolute', bottom: 10, left: 10, background: confidence?.level === 'low' ? 'rgba(217,119,6,0.9)' : confidence?.level === 'medium' ? 'rgba(202,138,4,0.9)' : 'rgba(15,118,110,0.85)', color: '#fff', borderRadius: T.radSm, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+                <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(15,118,110,0.85)', color: '#fff', borderRadius: T.radSm, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
                   ✓ Roof confirmed
                 </div>
               </div>

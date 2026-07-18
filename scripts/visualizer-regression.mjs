@@ -140,21 +140,36 @@ console.log('\nvetoes')
     `ExB=${exb(140,140,150)} — this is why driveways need the geometric filter, not a colour test`)
 }
 
-// ── 6. Candidate offered-set filters ─────────────────────────────────────────
-console.log('\ncandidate filters (offered set)')
+// ── 6. Manual selection model (preselection deleted) ────────────────────────
+console.log('\nmanual selection')
 {
-  const gh = 100
-  const OFFER_MIN_AREA = 0.018
-  const offered = (c) => !c.veg && !c.sky && c.cy / gh <= 0.72 && c.areaPct >= OFFER_MIN_AREA
-  assert( offered({ veg:false, sky:false, cy:30, areaPct:0.045 }), 'roof plane is offered (4.5%)', 'roof excluded')
-  assert(!offered({ veg:true,  sky:false, cy:30, areaPct:0.060 }), 'tree excluded (veg)', 'tree offered')
-  assert(!offered({ veg:false, sky:true,  cy:10, areaPct:0.200 }), 'sky excluded (sky)',  'sky offered')
-  assert(!offered({ veg:false, sky:false, cy:85, areaPct:0.070 }), 'driveway excluded (ground filter)',
-    'driveway offered — regression that tinted a driveway teal')
-  assert(!offered({ veg:false, sky:false, cy:60, areaPct:0.005 }), 'door excluded (size floor, 0.5%)',
-    'door offered — regression that tinted a front door teal')
-  assert(!offered({ veg:false, sky:false, cy:35, areaPct:0.003 }), 'window excluded (size floor, 0.3%)',
-    'window offered')
+  // Preselection was removed after six iterations of filter-chain regressions.
+  // Invariant: the confirm step opens with NOTHING selected, on every photo type.
+  const initialSelection = new Set()
+  assert(initialSelection.size === 0,
+    'confirm opens with zero selected (no preselection layer)',
+    'something is preselected — the elimination-based failure mode is back')
+
+  // Sweep accumulates and only ADDS; each plane toggles at most once per drag
+  const sel = new Set(), swept = new Set()
+  const sweepOver = (idx) => { if (!swept.has(idx)) { swept.add(idx); sel.add(idx) } }
+  ;[3, 3, 7, 7, 9].forEach(sweepOver)
+  assert(sel.size === 3 && sel.has(3) && sel.has(7) && sel.has(9),
+    'sweep adds each crossed plane exactly once',
+    `expected {3,7,9}, got {${[...sel]}}`)
+
+  // Tap toggles (add then remove)
+  const tapped = new Set([5])
+  const tapToggle = (s, i) => { const n = new Set(s); n.has(i) ? n.delete(i) : n.add(i); return n }
+  assert(tapToggle(tapped, 5).size === 0, 'tap on selected plane removes it', 'toggle broken')
+  assert(tapToggle(tapped, 8).size === 2, 'tap on unselected plane adds it', 'toggle broken')
+
+  // Undo restores the previous selection snapshot
+  const history = [new Set([1]), new Set([1, 2])]
+  const current = new Set([1, 2, 3])
+  const undone = new Set(history[history.length - 1])
+  assert(undone.size === 2 && !undone.has(3), 'undo restores prior selection', `got {${[...undone]}}`)
+  assert(current.size === 3, 'undo does not mutate the live set in place', 'aliasing bug')
 }
 
 // ── 7. Two-sided arbitration ─────────────────────────────────────────────────

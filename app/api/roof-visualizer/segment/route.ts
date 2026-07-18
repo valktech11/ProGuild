@@ -7,10 +7,15 @@
 //      (smallest-wins → tap on a plane toggles the plane, never a super-mask)
 //      - full-res grid → R2 (used by confirm-mask endpoint)
 //      - grid-res grid → returned inline as base64 (client hit-testing, no CORS issues)
-//   5. Gemini 2.5 Flash classifies a numbered composite → {roof_indices, confidence_scores}
-//      (detection-only, text out; heuristic fallback if the call fails)
-//   6. Session stores selection_meta; mask_status = 'candidates' until user confirms
-// Returns: { sessionId, photoUrl, gridB64, gridW, gridH, candidates, preselected, uncertain, confidence, confidenceNote }
+//   5. Session stores selection_meta; mask_status = 'candidates' until user confirms
+// Returns: { sessionId, photoUrl, gridB64, gridW, gridH, candidates }
+//
+// NO PRESELECTION. Heuristic/VLM preselection was deleted after six iterations proved
+// it computes "this isn't roof" (elimination) rather than "this is roof" — every filter
+// promoted the next-worst candidate into view (tree→sky→driveway→door) and each fix
+// regressed a different photo type (dusk, autumn foliage, monochrome house).
+// The confirm step opens empty; the user taps/sweeps their roof planes. SAM2 remains
+// because it gives each tap a pixel-precise plane boundary.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
@@ -21,8 +26,6 @@ export const maxDuration = 120
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
 const REPLICATE_API   = 'https://api.replicate.com/v1'
-const GEM_KEY         = process.env.GEMINI_API_KEY || ''
-const GEMINI_TEXT_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEM_KEY}`
 
 const MAX_PHOTO_DIM   = 2000   // normalize uploads
 const GRID_MAX_DIM    = 768    // client hit-test resolution
@@ -70,19 +73,10 @@ interface Candidate {
   areaPct: number
   cx: number; cy: number // centroid at grid res
   meanLum: number        // original-photo luminance inside mask (heuristic fallback)
-  meanExG: number        // mean Excess-Green (2G−R−B) inside mask — vegetation signal
-  meanExB: number        // mean Excess-Blue (2B−R−G) inside mask — sky signal (needed for sky veto)
-  veg: boolean           // true = looks like foliage; never offered to Gemini / preselect
-  sky: boolean           // true = looks like sky; never offered to Gemini / preselect
   gridRaw: Buffer        // 1ch at grid res
   srcBuf: Buffer         // original downloaded mask PNG (full-res decode without refetch)
 }
 
-const VEG_EXG_THRESHOLD = 28  // mean Excess-Green above this = foliage candidate
-const SKY_EXB_THRESHOLD = 25   // mean Excess-Blue (2B−R−G) above this = sky candidate
-const OFFER_MIN_AREA    = 0.018 // 1.8% of frame — roof planes are 2-8%; doors ~0.5%, windows ~0.3%.
-                                // Closes the promotion loop: everything above this in a house photo is
-                                // roof / wall / sky / ground, and the latter three are already excluded.
 
 async function decodeCandidates(
   maskUrls: string[], gw: number, gh: number, photoRgbGrid: Buffer
@@ -96,19 +90,16 @@ async function decodeCandidates(
       const res = await fetch(url)
       const buf = Buffer.from(await res.arrayBuffer())
       const raw = await sharp(buf).resize(gw, gh, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
-      let area = 0, xSum = 0, ySum = 0, lumSum = 0, exgSum = 0, exbSum = 0
+      let area = 0, xSum = 0, ySum = 0, lumSum = 0
       for (let p = 0; p < gw * gh; p++) {
         if (raw[p] > 200) {
           area++; xSum += p % gw; ySum += Math.floor(p / gw)
           const rr = photoRgbGrid[p * 3], gg = photoRgbGrid[p * 3 + 1], bb = photoRgbGrid[p * 3 + 2]
           lumSum += (rr + gg + bb) / 3
-          exgSum += 2 * gg - rr - bb
-          exbSum += 2 * bb - rr - gg
         }
       }
       return { buf, raw, area, cx: area ? xSum / area : 0, cy: area ? ySum / area : 0,
-               meanLum: area ? lumSum / area : 255, meanExG: area ? exgSum / area : 0,
-               meanExB: area ? exbSum / area : 0 }
+               meanLum: area ? lumSum / area : 255 }
     } catch { return null }
   }
 
@@ -126,13 +117,11 @@ async function decodeCandidates(
     .filter(d => d.area / total >= MIN_AREA_FRAC && d.area / total <= 0.6)
     .sort((a, b) => b.area - a.area)
     .slice(0, MAX_CANDIDATES)
-  console.log(`[segment] kept ${kept.length} candidates:`, kept.map((d, i) => { const tag = d.meanExG > VEG_EXG_THRESHOLD ? '🌳' : d.meanExB > SKY_EXB_THRESHOLD ? '☁️' : ''; return `#${i+1}=${(d.area/total*100).toFixed(1)}%/exg${d.meanExG.toFixed(0)}/exb${d.meanExB.toFixed(0)}${tag}` }).join(' '))
+  console.log(`[segment] kept ${kept.length} tappable candidates:`, kept.map((d, i) => `#${i+1}=${(d.area/total*100).toFixed(1)}%`).join(' '))
 
   return kept.map((d, i) => ({
     index: i + 1, areaPx: d.area, areaPct: d.area / total,
-    cx: d.cx, cy: d.cy, meanLum: d.meanLum, meanExG: d.meanExG, meanExB: d.meanExB,
-    veg: d.meanExG > VEG_EXG_THRESHOLD,
-    sky: d.meanExB > SKY_EXB_THRESHOLD,
+    cx: d.cx, cy: d.cy, meanLum: d.meanLum,
     gridRaw: d.raw, srcBuf: d.buf,
   }))
 }
@@ -160,78 +149,6 @@ async function bakeFullResGrid(cands: Candidate[], pw: number, ph: number): Prom
     }
   }
   return grid
-}
-
-// ── Gemini semantic classification (detection-only, JSON out) ────────────────
-
-async function classifyWithGemini(
-  photoGridJpeg: Buffer, cands: Candidate[]
-): Promise<{ roofIndices: number[]; confidences: Record<number, number> } | null> {
-  try {
-    // Colored-dot markers (font-free — Vercel Lambda has no fonts, SVG <text> renders blank)
-    const DOT_COLORS: Array<[string, string]> = [
-      ['#FF0000','red'], ['#0033FF','blue'], ['#00CC00','green'], ['#FFD700','yellow'],
-      ['#FF8C00','orange'], ['#9900FF','purple'], ['#00CCCC','cyan'], ['#FF00CC','magenta'],
-      ['#8B4513','brown'], ['#FF69B4','pink'], ['#66FF33','lime'], ['#000080','navy'],
-    ]
-    const meta = await sharp(photoGridJpeg).metadata()
-    const w = meta.width ?? GRID_MAX_DIM, h = meta.height ?? GRID_MAX_DIM
-    const dots = cands.map(c => {
-      const [hex] = DOT_COLORS[(c.index - 1) % DOT_COLORS.length]
-      return `<circle cx="${c.cx.toFixed(0)}" cy="${c.cy.toFixed(0)}" r="13" fill="${hex}" stroke="white" stroke-width="4"/>`
-    }).join('')
-    const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">${dots}</svg>`
-    const composite = await sharp(photoGridJpeg).composite([{ input: Buffer.from(svg) }]).jpeg({ quality: 85 }).toBuffer()
-
-    const legend = cands.map(c => {
-      const [, name] = DOT_COLORS[(c.index - 1) % DOT_COLORS.length]
-      return `Region ${c.index}: ${name} dot at pixel (${c.cx.toFixed(0)}, ${c.cy.toFixed(0)})`
-    }).join('\n')
-
-    const prompt = [
-      `A house photo (${w}x${h}px) has colored dot markers on segmented regions:`,
-      legend,
-      '',
-      'Identify which regions are part of the HOUSE ROOF: shingles, tiles, metal roofing, dormers, gable planes, porch roofs, and attached-garage roofs of the SAME house.',
-      'EXCLUDE: sky, walls, siding, windows, garage DOORS, entry doors, trees, bushes, grass, driveway, sidewalks, fences, cars, and any neighboring house.',
-      'Respond with ONLY this JSON, no markdown fences, no commentary:',
-      '{"roof_indices":[<region numbers>],"confidence_scores":[<0..1 floats aligned with roof_indices>]}',
-    ].join('\n')
-
-    const res = await fetch(GEMINI_TEXT_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [
-          { text: prompt },
-          { inlineData: { mimeType: 'image/jpeg', data: composite.toString('base64') } },
-        ]}],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json' },
-      }),
-    })
-    if (!res.ok) { console.warn('[segment/gemini]', res.status, (await res.text()).slice(0, 200)); return null }
-    const data = await res.json()
-    const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || ''
-    const clean = text.replace(/```json|```/g, '').trim()
-    const parsed = JSON.parse(clean) as { roof_indices: number[]; confidence_scores?: number[] }
-    if (!Array.isArray(parsed.roof_indices)) return null
-
-    const valid = new Set(cands.map(c => c.index))  // offered subset enforced by caller
-    const roofIndices = parsed.roof_indices.filter(i => valid.has(i))
-    const confidences: Record<number, number> = {}
-    roofIndices.forEach((idx, k) => { confidences[idx] = parsed.confidence_scores?.[k] ?? 0.8 })
-    console.log('[segment/gemini] roof indices:', roofIndices, 'confidences:', confidences)
-    return { roofIndices, confidences }
-  } catch (e) {
-    console.warn('[segment/gemini] failed:', e instanceof Error ? e.message : e)
-    return null
-  }
-}
-
-// Heuristic fallback (Gemini unavailable) — spatial + brightness, PRESELECT ONLY
-function heuristicPreselect(cands: Candidate[], gh: number): number[] {
-  return cands
-    .filter(c => !c.veg && !c.sky && c.cy / gh <= 0.72 && c.meanLum <= 185 && c.areaPct >= OFFER_MIN_AREA)
-    .map(c => c.index)
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -307,44 +224,12 @@ export async function POST(req: NextRequest) {
     await uploadToR2(gridFullKey, await sharp(gridFull, { raw: { width: pw, height: ph, channels: 1 } }).png().toBuffer(), 'image/png')
 
     // Semantic classification (Gemini primary, heuristic fallback)
-    // Offered set = what Gemini is even allowed to pick from. Three categorical exclusions:
-    //   veg (ExG)  — foliage
-    //   sky (ExB)  — sky/clouds
-    //   ground     — centroid below 72% of frame height: driveways, lawns, paths, sidewalks.
-    // Geometric, so it cannot be defeated by a neutral-toned surface the way colour tests can.
-    // (This filter existed only on the heuristic fallback path; its absence here let the
-    //  driveway get promoted into the top-12 once veg/sky candidates were removed.)
-    const offered = cands
-      .filter(cd => !cd.veg && !cd.sky && cd.cy / gh <= 0.72 && cd.areaPct >= OFFER_MIN_AREA)
-      .slice(0, 12)
-    console.log(`[segment] offered to Gemini: ${offered.map(o => `${o.index}(${(o.areaPct*100).toFixed(1)}%)`).join(',') || 'none'} (of ${cands.length} candidates)`)
-    const gem = await classifyWithGemini(photoGridJpeg, offered)
-    let preselected: number[], uncertain: number[], selector: string
-    if (gem && gem.roofIndices.length > 0) {
-      preselected = gem.roofIndices.filter(i => (gem.confidences[i] ?? 0) >= 0.6)
-      uncertain   = gem.roofIndices.filter(i => (gem.confidences[i] ?? 0) <  0.6)
-      selector = 'gemini-2.5-flash'
-      if (preselected.length === 0) { preselected = gem.roofIndices; uncertain = []; }
-    } else {
-      preselected = heuristicPreselect(cands, gh)
-      uncertain = []
-      selector = 'heuristic-fallback'
-    }
-
-    // Confidence badge from preselection coverage
-    const preArea = cands.filter(c => preselected.includes(c.index)).reduce((s, c) => s + c.areaPct, 0)
-    let confidence: 'high' | 'medium' | 'low' = 'high'
-    let confidenceNote = 'Roof detected — confirm below'
-    if (preArea < 0.04)      { confidence = 'low';    confidenceNote = 'Roof unclear — tap the roof areas below' }
-    else if (preArea < 0.10) { confidence = 'medium'; confidenceNote = 'Roof detected — check all planes are selected' }
-
     await sb.from('visualizer_sessions').update({
       mask_status: 'candidates',
       selection_meta: {
         grid_full_key: gridFullKey, grid_w: gw, grid_h: gh, photo_w: pw, photo_h: ph,
         candidates: cands.map(c => ({ i: c.index, areaPct: +c.areaPct.toFixed(4), cx: +c.cx.toFixed(0), cy: +c.cy.toFixed(0), meanLum: +c.meanLum.toFixed(0) })),
-        selector, preselected, uncertain,
-        gemini_confidences: gem?.confidences ?? null,
+        selector: 'manual',
       },
       updated_at: new Date().toISOString(),
     }).eq('id', sessionId)
@@ -352,7 +237,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       sessionId, photoUrl, gridB64, gridW: gw, gridH: gh,
       candidates: cands.map(c => ({ index: c.index, areaPct: c.areaPct })),
-      preselected, uncertain, confidence, confidenceNote,
     })
 
   } catch (err: unknown) {
