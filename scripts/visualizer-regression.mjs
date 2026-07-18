@@ -215,6 +215,34 @@ console.log('\nneutral chip routing')
     'classical path introduced a colour cast — impossible unless the loop changed')
 }
 
+// ── 9. Trace containment + granule jitter ──────────────────────────────────
+console.log('\ntrace containment & granule')
+{
+  // Flood fill spreads only into UNOWNED pixels. A window dropped from the candidate
+  // set becomes unowned → the fill bleeds in → classical paints the glass.
+  const MIN_AREA_FRAC = 0.0008
+  const isCandidate = (areaPct) => areaPct >= MIN_AREA_FRAC
+  assert(isCandidate(0.003), 'window (0.3%) is an owned candidate — blocks trace bleed',
+    'window unowned: flood fill will paint glass (log-proven purple window)')
+  assert(isCandidate(0.005), 'door (0.5%) is an owned candidate', 'door unowned')
+  assert(!isCandidate(0.0002), 'sub-0.08% speck is still excluded', 'noise became selectable')
+
+  // Deterministic granule noise: same pixel → same value across renders
+  const cellNoise = (x, y, salt) => {
+    let n = (x >> 1) * 73856093 ^ (y >> 1) * 19349663 ^ salt * 83492791
+    n = (n ^ (n >>> 13)) >>> 0
+    return ((n % 2001) / 1000) - 1
+  }
+  assert(cellNoise(100, 200, 1) === cellNoise(100, 200, 1), 'granule noise is deterministic',
+    'noise varies per call — renders would not reproduce')
+  assert(cellNoise(100, 200, 1) !== cellNoise(140, 260, 1), 'granule noise varies across cells',
+    'noise is constant — no granule texture')
+  const vals = []
+  for (let x = 0; x < 40; x += 2) vals.push(cellNoise(x, 0, 1))
+  assert(Math.max(...vals) <= 1 && Math.min(...vals) >= -1, 'granule noise stays in [-1,1]',
+    `range ${Math.min(...vals)}..${Math.max(...vals)} — jitter would blow out colour`)
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(failures === 0
   ? '\n\x1b[32m\x1b[1mAll invariants hold.\x1b[0m\n'

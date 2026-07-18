@@ -29,8 +29,13 @@ const REPLICATE_API   = 'https://api.replicate.com/v1'
 
 const MAX_PHOTO_DIM   = 2000   // normalize uploads
 const GRID_MAX_DIM    = 768    // client hit-test resolution
-const MAX_CANDIDATES  = 24     // selectable logical regions cap
-const MIN_AREA_FRAC   = 0.005  // fragments below this are not selectable
+const MAX_CANDIDATES  = 60     // selectable regions (index grid is 8-bit; traced regions start at 200)
+// Small objects (windows ~0.3%, doors ~0.5%) MUST remain candidates: the tap-to-trace
+// flood fill only spreads into UNOWNED pixels, so anything dropped here becomes an open
+// field the fill can bleed into — log-proven (a trace crossed into a window and the
+// classical recolor painted the glass purple). The old 0.5% floor existed only to keep
+// small objects out of Gemini's offered set; preselection is deleted, so it has no upside.
+const MIN_AREA_FRAC   = 0.0008 // 0.08% — owns windows/vents/dormer faces
 
 function r2Key(prefix: string, id: string, ext: string) {
   return `visualizer/${prefix}/${id}.${ext}`

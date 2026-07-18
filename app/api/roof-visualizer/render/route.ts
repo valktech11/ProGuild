@@ -111,12 +111,31 @@ async function classicalRecolor(prep: PreparedImages, hex: string): Promise<Buff
   // shadows/highlights shift along the same hue. Replaces multiplicative tint, whose
   // chroma amplification turned light SKUs pastel on sunlit planes (Heather candy-lilac).
   const K = 0.55  // shading contrast
+
+  // GRANULE JITTER — real architectural shingles are a blended granule matrix, not a
+  // uniform sheet. Without this the classical path reads as "a flat sticker" (reviewer
+  // wording). Deterministic hash noise over 2x2 px cells: reproducible, no per-render
+  // variance, sized to read as granule blend rather than film grain at roof scale.
+  const LUM_JITTER = 9   // ± luminance
+  const HUE_JITTER = 4   // ± per-channel, breaks up uniform hue
+  const cellNoise = (x: number, y: number, salt: number) => {
+    let h = (x >> 1) * 73856093 ^ (y >> 1) * 19349663 ^ salt * 83492791
+    h = (h ^ (h >>> 13)) >>> 0
+    return ((h % 2001) / 1000) - 1   // -1 .. +1
+  }
+
   const rgba = Buffer.alloc(W * H * 4)
   for (let i = 0; i < W * H; i++) {
-    const shade = (lum[i] - roofMeanLum) * K
-    rgba[i * 4]     = Math.max(0, Math.min(255, Math.round(tr + shade)))
-    rgba[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(tg + shade)))
-    rgba[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(tb + shade)))
+    if (maskRaw[i] === 0) { rgba[i * 4 + 3] = 0; continue }   // skip work outside the roof
+    const x = i % W, y = (i / W) | 0
+    const shade  = (lum[i] - roofMeanLum) * K
+    const grain  = cellNoise(x, y, 1) * LUM_JITTER
+    const hueR   = cellNoise(x, y, 2) * HUE_JITTER
+    const hueG   = cellNoise(x, y, 3) * HUE_JITTER
+    const hueB   = cellNoise(x, y, 4) * HUE_JITTER
+    rgba[i * 4]     = Math.max(0, Math.min(255, Math.round(tr + shade + grain + hueR)))
+    rgba[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(tg + shade + grain + hueG)))
+    rgba[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(tb + shade + grain + hueB)))
     rgba[i * 4 + 3] = maskRaw[i]             // feathered mask = alpha → soft edges
   }
 
