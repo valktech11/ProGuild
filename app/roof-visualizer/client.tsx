@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'palette-v27'
+const CLIENT_BUILD = 'verify-v28'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -178,6 +178,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [traceHint, setTraceHint] = useState<string | null>(null)
   const [pxReady, setPxReady]     = useState(false)
   const [elapsed, setElapsed]     = useState(0)
+  const [showPickMask, setShowPickMask] = useState(true)
+  const pickOverlayRef = useRef<HTMLCanvasElement>(null)
   const sweeping    = useRef(false)
   const sweptThisDrag = useRef<Set<number>>(new Set())
   const [lightbox, setLightbox]   = useState<{ url: string; label: string } | null>(null)
@@ -229,6 +231,30 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       img.src = `data:image/png;base64,${data.gridB64}`
     } catch { setError('Upload failed. Please try again.'); setStep('preview') }
   }, [pendingFile])
+
+  // Pick screen: redraw the CONFIRMED selection so the user can verify what
+  // '✓ Roof confirmed' actually confirmed before spending renders.
+  React.useEffect(() => {
+    const cv = pickOverlayRef.current
+    if (!cv || !gridData || step !== 'pick' || !showPickMask) return
+    const { w, h } = gridDims
+    cv.width = w; cv.height = h
+    const ctx = cv.getContext('2d')!
+    const img = ctx.createImageData(w, h)
+    const px = photoPixelsRef.current
+    const isVeg = (p: number) => {
+      if (!px) return false
+      const rr = px[p * 4], gg = px[p * 4 + 1], bb = px[p * 4 + 2]
+      return 2 * gg - rr - bb > 40 || 2 * bb - rr - gg > 50
+    }
+    for (let i = 0; i < w * h; i++) {
+      const idx = gridData[i]
+      if (idx > 0 && selected.has(idx) && !isVeg(i)) {
+        img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 70
+      }
+    }
+    ctx.putImageData(img, 0, 0)
+  }, [step, showPickMask, gridData, gridDims, selected])
 
   // Elapsed-time ticker for the two slow server steps
   React.useEffect(() => {
@@ -473,6 +499,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Could not confirm selection.'); return }
+      setShowPickMask(true)
       setStep('pick')
     } catch { setError('Could not confirm selection. Try again.') }
     finally { setConfirmBusy(false) }
@@ -690,9 +717,15 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 <div style={{ position: 'relative' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photoPreview} alt="Your home" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', maxHeight: 300 }} />
-                <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(15,118,110,0.85)', color: '#fff', borderRadius: T.radSm, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+                {showPickMask && (
+                  <canvas ref={pickOverlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
+                )}
+                <button onClick={() => setShowPickMask(v => !v)}
+                  title={showPickMask ? 'Hide the confirmed roof area' : 'Show the confirmed roof area'}
+                  style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(15,118,110,0.9)', color: '#fff', border: 'none', borderRadius: T.radSm, padding: '5px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                   ✓ Roof confirmed
-                </div>
+                  <span style={{ opacity: 0.75, fontWeight: 500 }}>{showPickMask ? '· hide' : '· show'}</span>
+                </button>
                 </div>
                 <div style={{ padding: '20px 22px', background: t.cardBg, borderLeft: `1px solid ${t.cardBorder}`, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 12 }}>
