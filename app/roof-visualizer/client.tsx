@@ -769,7 +769,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Tap each section of your roof</p>
               <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
                 {eraseMode
-                  ? 'Drag to erase the parts you don\'t want painted. Switch back to Select when done.'
+                  ? 'Drag over any areas you don\'t want painted — walls, soffits, anything that\'s not roof. Tap "Done Erasing" when finished.'
                   : 'Tap a roof plane to select it — or hold and drag across several at once. Tap again to remove. Teal is exactly what gets painted.'}
               </p>
             </div>
@@ -793,18 +793,18 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 {selected.size === 0 ? 'Nothing selected yet' : `${selected.size} section${selected.size === 1 ? '' : 's'} selected${erasePixels.size > 0 ? ` · ${erasePixels.size} px erased` : ''}`}
               </span>
               {traceHint && <span style={{ fontSize: 12, color: '#B45309', fontWeight: 600 }}>{traceHint}</span>}
-              {/* Mode toggle — only show once something is selected */}
-              {selected.size > 0 && (
-                <div style={{ display: 'flex', borderRadius: T.radSm, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
-                  <button onClick={() => setEraseMode(false)}
-                    style={{ padding: '8px 14px', border: 'none', background: !eraseMode ? BRAND.teal : t.cardBg, color: !eraseMode ? '#fff' : t.textMuted, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                    ✏ Select
-                  </button>
-                  <button onClick={() => setEraseMode(true)}
-                    style={{ padding: '8px 14px', border: 'none', background: eraseMode ? '#EA580C' : t.cardBg, color: eraseMode ? '#fff' : t.textMuted, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                    ⌫ Erase
-                  </button>
-                </div>
+              {/* Erase is an escape hatch — show as a single contextual button, not a peer toggle */}
+              {selected.size > 0 && !eraseMode && (
+                <button onClick={() => setEraseMode(true)}
+                  style={{ padding: '8px 16px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                  ⌫ Erase unwanted areas
+                </button>
+              )}
+              {eraseMode && (
+                <button onClick={() => setEraseMode(false)}
+                  style={{ padding: '8px 16px', borderRadius: T.radMd, border: `1.5px solid #EA580C`, background: '#FFF7ED', color: '#EA580C', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                  ✓ Done Erasing
+                </button>
               )}
               <button onClick={handleUndo} disabled={history.length === 0}
                 style={{ padding: '10px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: history.length ? t.textBody : t.textSubtle, fontWeight: 600, fontSize: 13, cursor: history.length ? 'pointer' : 'not-allowed' }}>
