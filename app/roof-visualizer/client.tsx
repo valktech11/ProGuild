@@ -130,7 +130,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'polish-v11'
+const CLIENT_BUILD = 'shade-v12'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -237,12 +237,21 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     const ctx = cv.getContext('2d')!
     const img = ctx.createImageData(w, h)
     const unc = new Set(uncertainIdx)
+    const isSel = (p: number) => { const v = gridData[p]; return v > 0 && selected.has(v) }
     for (let i = 0; i < w * h; i++) {
       const idx = gridData[i]
       if (idx > 0 && selected.has(idx)) {
-        img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 115  // teal
+        // white outline where selection borders non-selection → visible over any background
+        const x = i % w, y = Math.floor(i / w)
+        const edge = (x > 0 && !isSel(i - 1)) || (x < w - 1 && !isSel(i + 1)) ||
+                     (y > 0 && !isSel(i - w)) || (y < h - 1 && !isSel(i + w))
+        if (edge) {
+          img.data[i * 4] = 255; img.data[i * 4 + 1] = 255; img.data[i * 4 + 2] = 255; img.data[i * 4 + 3] = 235
+        } else {
+          img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 150  // teal, stronger
+        }
       } else if (idx > 0 && unc.has(idx)) {
-        img.data[i * 4] = 217; img.data[i * 4 + 1] = 119; img.data[i * 4 + 2] = 6; img.data[i * 4 + 3] = 70    // amber
+        img.data[i * 4] = 217; img.data[i * 4 + 1] = 119; img.data[i * 4 + 2] = 6; img.data[i * 4 + 3] = 80    // amber
       }
     }
     ctx.putImageData(img, 0, 0)

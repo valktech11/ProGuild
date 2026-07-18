@@ -96,13 +96,16 @@ async function classicalRecolor(prep: PreparedImages, hex: string): Promise<Buff
   }
   const roofMeanLum = lumCount > 0 ? lumSum / lumCount : 128
 
+  // ADDITIVE luminance shading: mid-tone roof = exactly the chip hex for every SKU;
+  // shadows/highlights shift along the same hue. Replaces multiplicative tint, whose
+  // chroma amplification turned light SKUs pastel on sunlit planes (Heather candy-lilac).
+  const K = 0.55  // shading contrast
   const rgba = Buffer.alloc(W * H * 4)
   for (let i = 0; i < W * H; i++) {
-    // scale relative to roof mean, clamped to keep shadows/highlights natural
-    const scale = Math.max(0.35, Math.min(1.6, lum[i] / roofMeanLum))
-    rgba[i * 4]     = Math.min(255, Math.round(tr * scale))
-    rgba[i * 4 + 1] = Math.min(255, Math.round(tg * scale))
-    rgba[i * 4 + 2] = Math.min(255, Math.round(tb * scale))
+    const shade = (lum[i] - roofMeanLum) * K
+    rgba[i * 4]     = Math.max(0, Math.min(255, Math.round(tr + shade)))
+    rgba[i * 4 + 1] = Math.max(0, Math.min(255, Math.round(tg + shade)))
+    rgba[i * 4 + 2] = Math.max(0, Math.min(255, Math.round(tb + shade)))
     rgba[i * 4 + 3] = maskRaw[i]             // feathered mask = alpha → soft edges
   }
 
@@ -121,6 +124,7 @@ async function aiAttempt(prep: PreparedImages, sku: SkuRow): Promise<Buffer | nu
     `Re-shingle the roof of this house with ${sku.texture_prompt} (target colour ${sku.hex_preview}).`,
     `Apply a realistic shingle texture that clearly shows the new colour, following the existing roof geometry, pitch, ridges, and lighting direction.`,
     `Maintain the original camera angle, architecture, and all non-roof elements — sky, walls, windows, landscaping, driveway — consistent with the source photograph.`,
+    `Use the exact muted manufacturer colour specified — do not oversaturate, brighten, or stylise the shingles.`,
     `Output one photorealistic edited photograph.`,
   ].join('\n')
 

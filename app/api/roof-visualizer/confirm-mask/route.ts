@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const sb = getSupabaseAdmin()
     const { data: session, error: sessErr } = await sb
       .from('visualizer_sessions')
-      .select('id, mask_status, selection_meta')
+      .select('id, mask_status, selection_meta, photo_public_url')
       .eq('id', sessionId)
       .single()
 
@@ -77,6 +77,24 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.warn('[confirm-mask] custom mask decode failed:', e)
       }
+    }
+
+    // Vegetation veto — zero mask pixels that are green-dominant in the ORIGINAL photo.
+    // Catches foliage bleed from any source: relaxed-gate SAM2 masks, Gemini picks,
+    // or trace overshoot. Engine-agnostic because it shrinks the mask itself.
+    try {
+      const photoRes = await fetch((session as { photo_public_url?: string }).photo_public_url!)
+      const rgb = await sharp(Buffer.from(await photoRes.arrayBuffer()))
+        .resize(W, H, { fit: 'fill' }).removeAlpha().raw().toBuffer()
+      let vetoed = 0
+      for (let i = 0; i < W * H; i++) {
+        if (mask[i] !== 255) continue
+        const rr = rgb[i * 3], gg = rgb[i * 3 + 1], bb = rgb[i * 3 + 2]
+        if (gg > rr + 15 && gg > bb + 15) { mask[i] = 0; vetoed++ }
+      }
+      console.log(`[confirm-mask] vegetation veto removed ${vetoed}px`)
+    } catch (e) {
+      console.warn('[confirm-mask] vegetation veto skipped:', e instanceof Error ? e.message : e)
     }
 
     // Morphological closing with net +1px: dilate ~2px → erode ~1px, then light feather
