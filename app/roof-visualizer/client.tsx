@@ -130,7 +130,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'copy-v13'
+const CLIENT_BUILD = 'veto-display-v14'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -160,6 +160,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const photoPixelsRef = useRef<Uint8ClampedArray | null>(null)
   const customIdxRef   = useRef(200)   // traced regions get indices 200+
   const [traceHint, setTraceHint] = useState<string | null>(null)
+  const [pxReady, setPxReady]     = useState(false)
   const [lightbox, setLightbox]   = useState<{ url: string; label: string } | null>(null)
   const [mfgFilter, setMfgFilter] = useState<string | null>(null)
   const [retrying, setRetrying]   = useState<Set<string>>(new Set())
@@ -223,7 +224,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       const ctx = cv.getContext('2d')!
       ctx.drawImage(img, 0, 0, w, h)
       photoPixelsRef.current = ctx.getImageData(0, 0, w, h).data
-      console.log('[confirm] photo pixels ready for trace')
+      setPxReady(true)
+      console.log('[confirm] photo pixels ready for trace + display veto')
     }
     img.src = photoPreview
   }, [step, photoPreview, gridDims])
@@ -237,10 +239,16 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     const ctx = cv.getContext('2d')!
     const img = ctx.createImageData(w, h)
     const unc = new Set(uncertainIdx)
-    const isSel = (p: number) => { const v = gridData[p]; return v > 0 && selected.has(v) }
+    const px = photoPixelsRef.current
+    const isVeg = (p: number) => {
+      if (!px) return false
+      const rr = px[p * 4], gg = px[p * 4 + 1], bb = px[p * 4 + 2]
+      return gg > rr + 15 && gg > bb + 15
+    }
+    const isSel = (p: number) => { const v = gridData[p]; return v > 0 && selected.has(v) && !isVeg(p) }
     for (let i = 0; i < w * h; i++) {
       const idx = gridData[i]
-      if (idx > 0 && selected.has(idx)) {
+      if (idx > 0 && selected.has(idx) && !isVeg(i)) {
         // white outline where selection borders non-selection → visible over any background
         const x = i % w, y = Math.floor(i / w)
         const edge = (x > 0 && !isSel(i - 1)) || (x < w - 1 && !isSel(i + 1)) ||
@@ -255,7 +263,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       }
     }
     ctx.putImageData(img, 0, 0)
-  }, [gridData, gridDims, selected, uncertainIdx, step])
+  }, [gridData, gridDims, selected, uncertainIdx, step, pxReady])
 
   // Flood fill from seed across similar-colored, unowned pixels → new custom region
   const traceRegion = useCallback((sx: number, sy: number): number => {
