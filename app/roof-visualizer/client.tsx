@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'ui-v23'
+const CLIENT_BUILD = 'ui-v24'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -684,21 +684,21 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         )}
 
         {step === 'pick' && (
-          <div style={{ display: 'grid', gridTemplateColumns: photoPreview ? 'minmax(0,1fr) minmax(0,1.1fr)' : '1fr', gap: 24, alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {photoPreview && (
-              <div style={{ position: 'sticky', top: 24, borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.35fr) minmax(0,1fr)', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', background: t.cardBg }}>
                 <div style={{ position: 'relative' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoPreview} alt="Your home" style={{ width: '100%', display: 'block', objectFit: 'cover' }} />
+                <img src={photoPreview} alt="Your home" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', maxHeight: 300 }} />
                 <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(15,118,110,0.85)', color: '#fff', borderRadius: T.radSm, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
                   ✓ Roof confirmed
                 </div>
                 </div>
-                <div style={{ padding: '12px 14px', background: t.cardBg, borderTop: `1px solid ${t.cardBorder}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+                <div style={{ padding: '20px 22px', background: t.cardBg, borderLeft: `1px solid ${t.cardBorder}`, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 12 }}>
                     Your comparison
                   </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', minHeight: 34 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minHeight: 34 }}>
                     {selectedSkuIds.length === 0 && (
                       <span style={{ fontSize: 12.5, color: t.textMuted }}>Pick up to 3 colors to compare →</span>
                     )}
@@ -730,7 +730,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 {groups.filter(g => !mfgFilter || g.manufacturer === mfgFilter).map(group => (
                   <div key={group.manufacturer} style={{ marginBottom: 20 }}>
                     <p style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>{group.manufacturer}</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 12 }}>
                       {group.skus.map(sku => <SkuSwatch key={sku.id} sku={sku} selected={selectedSkuIds.includes(sku.id)} onClick={() => toggleSku(sku.id)} />)}
                     </div>
                   </div>
