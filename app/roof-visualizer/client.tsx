@@ -424,6 +424,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       setSelected(new Set(prev))
       return h.slice(0, -1)
     })
+    // Always reset erase state on undo — user is going backwards, return them to Select mode
+    setEraseMode(false)
+    setErasePixels(new Set())
   }, [])
 
   const handleSweepStart = useCallback((e: React.PointerEvent<HTMLElement>) => {
