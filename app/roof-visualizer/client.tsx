@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v30'
+const CLIENT_BUILD = 'verify-v31'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -850,12 +850,12 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         {step === 'pick' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {photoPreview && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.35fr) minmax(0,1fr)', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', background: t.cardBg }}>
-                <div style={{ position: 'relative' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.35fr) minmax(0,1fr)', alignItems: 'stretch', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', background: t.cardBg }}>
+                <div style={{ position: 'relative', lineHeight: 0, alignSelf: 'start' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoPreview} alt="Your home" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', maxHeight: 300, background: '#000' }} />
+                <img src={photoPreview} alt="Your home" style={{ width: '100%', height: 'auto', display: 'block' }} />
                 {showPickMask && (
-                  <canvas ref={pickOverlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} />
+                  <canvas ref={pickOverlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
                 )}
                 <button onClick={() => setShowPickMask(v => !v)}
                   title={showPickMask ? 'Hide the confirmed roof area' : 'Show the confirmed roof area'}
