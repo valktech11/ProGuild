@@ -191,7 +191,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v45'
+const CLIENT_BUILD = 'verify-v46'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -227,7 +227,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     const ready = searchParams.get('ready')
     if (!restoredSession || ready !== 'report') return
     setSessionId(restoredSession)
-    // Fetch completed renders for this session
+    // Fetch completed renders and the original photo for this session
     fetch(`/api/roof-visualizer/session?sessionId=${restoredSession}`)
       .then(r => r.json())
       .then(d => {
@@ -238,9 +238,13 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             hexPreview: r.viz_skus?.hex_preview ?? '#888',
             renderUrl: r.render_url,
             mfgName: r.viz_skus?.viz_product_lines?.viz_manufacturers?.name ?? '',
+            lowContrast: r.low_contrast ?? false,
           })))
-          setStep('results')
+          setHeroIdx(1)
         }
+        // Restore the original photo so the thumbnail strip shows "Original"
+        if (d.photoUrl) setPhotoPreview(d.photoUrl)
+        setStep('results')
       })
       .catch(() => { /* fail silently, show upload screen */ })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -880,10 +884,21 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     <div style={{ minHeight: '100vh', background: t.pageBg, fontFamily: 'inherit' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
-      <div style={{ background: t.cardBg, borderBottom: `1px solid ${t.cardBorder}`, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link href="/" style={{ textDecoration: 'none' }}><span style={{ fontWeight: 800, fontSize: 18, color: BRAND.teal, letterSpacing: '-0.5px' }}>ProGuild</span></Link>
-        <span style={{ fontSize: 13, color: t.textMuted }}>Roof Visualizer</span>
-        <Link href="/login" style={{ fontSize: 13, color: BRAND.teal, textDecoration: 'none', fontWeight: 600 }}>Sign in</Link>
+      <div style={{ background: t.cardBg, borderBottom: `1px solid ${t.cardBorder}`, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {proId
+            ? <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, color: t.textMuted }}>←</span>
+                <span style={{ fontWeight: 800, fontSize: 18, color: BRAND.teal, letterSpacing: '-0.5px' }}>ProGuild</span>
+              </Link>
+            : <Link href="/" style={{ textDecoration: 'none' }}><span style={{ fontWeight: 800, fontSize: 18, color: BRAND.teal, letterSpacing: '-0.5px' }}>ProGuild</span></Link>
+          }
+          <span style={{ fontSize: 13, color: t.textMuted }}>· Roof Visualizer</span>
+        </div>
+        {proId
+          ? <Link href="/dashboard" style={{ fontSize: 13, color: BRAND.teal, textDecoration: 'none', fontWeight: 600 }}>← Dashboard</Link>
+          : <Link href="/login" style={{ fontSize: 13, color: BRAND.teal, textDecoration: 'none', fontWeight: 600 }}>Sign in</Link>
+        }
       </div>
 
       <div style={{ maxWidth: 980, margin: '0 auto', padding: '32px 20px' }}>

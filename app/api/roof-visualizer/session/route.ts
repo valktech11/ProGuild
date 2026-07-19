@@ -86,8 +86,13 @@ export async function GET(req: NextRequest) {
     const sessionId = url.searchParams.get('sessionId')
     const sb = getSupabaseAdmin()
 
-    // Session restore after signup — return renders for a sessionId directly
+    // Session restore after signup — return renders + photo URL for a sessionId
     if (sessionId && !token) {
+      const { data: sess, error: sessErr } = await sb
+        .from('visualizer_sessions')
+        .select('photo_public_url')
+        .eq('id', sessionId)
+        .single()
       const { data, error } = await sb
         .from('visualizer_renders')
         .select(`
@@ -97,7 +102,10 @@ export async function GET(req: NextRequest) {
         .eq('session_id', sessionId)
         .eq('status', 'done')
       if (error) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-      return NextResponse.json({ renders: data ?? [] })
+      return NextResponse.json({
+        renders: data ?? [],
+        photoUrl: (!sessErr && sess?.photo_public_url) ? sess.photo_public_url : null,
+      })
     }
 
     if (!token) return NextResponse.json({ error: 'token required' }, { status: 400 })

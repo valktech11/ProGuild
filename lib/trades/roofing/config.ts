@@ -186,6 +186,7 @@ export const roofingConfig: RoofingConfig = {
     {
       title: 'ROOFING TOOLS',
       items: [
+        { label: 'Roof Visualizer',  href: '/roof-visualizer',                             icon: '🎨', description: 'Show homeowners their new roof before they sign' },
         { label: 'Quick Bid PDF', href: '/dashboard/roofing/quickbid', icon: '⚡', description: 'Address → satellite PDF in 30 seconds' },
         { label: 'ProMeasure',    href: '/dashboard/roofing/promeasure',               icon: '📐', description: 'Satellite polygon measurement' },
         { label: 'Material Prices', href: '/dashboard/roofing/settings',               icon: '💲', description: 'Set your material costs for estimates' },
