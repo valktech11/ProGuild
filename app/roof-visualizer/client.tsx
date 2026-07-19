@@ -148,7 +148,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v40'
+const CLIENT_BUILD = 'verify-v41'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -806,10 +806,10 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             <span style={{ color: BRAND.teal }}>before you spend a dollar</span>
           </h1>
           <p style={{ fontSize: 17, color: t.textMuted, margin: 0, maxWidth: 560, marginInline: 'auto', lineHeight: 1.5 }}>
-            Upload one photo of the house and compare real shingle colors from GAF, Owens Corning, CertainTeed, IKO and Atlas — side by side, in under a minute.
+            Show homeowners exactly how their new roof will look — real shingle colours from GAF, Owens Corning, CertainTeed, IKO and Atlas, rendered on their actual house.
           </p>
           <div style={{ display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
-            {['AI-powered', 'No sign-up', 'First 3 renders free', 'About 60 seconds'].map(item => (
+            {['Real manufacturer colours', 'No homeowner sign-up', 'First 3 renders free', 'Results in under a minute'].map(item => (
               <span key={item} style={{ fontSize: 12.5, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ color: BRAND.teal, fontWeight: 700 }}>✓</span> {item}
               </span>
