@@ -50,7 +50,28 @@ function chipChroma(hex: string): number {
 interface RenderResult {
   skuId: string; renderUrl: string | null; skuName: string
   hexPreview: string; engine: 'ai' | 'classical' | 'failed'; error?: string
+  // True when the chip is so close to the existing roof's luminance that the render
+  // looks near-identical to the original (e.g. Charcoal on an already-charcoal roof).
+  // Not a defect — the maths is right — but the user needs telling, or they conclude
+  // the tool did nothing.
+  lowContrast?: boolean
 }
+
+// Mean luminance of the roof pixels in the ORIGINAL photo. Computed once per session
+// and reused for every SKU's low-contrast check.
+async function roofMeanLuminance(prep: PreparedImages): Promise<number> {
+  const { width: W, height: H } = prep
+  const lum     = await sharp(prep.photo).greyscale().raw().toBuffer()
+  const maskRaw = await sharp(prep.maskAligned).extractChannel(0).raw().toBuffer()
+  let sum = 0, count = 0
+  for (let i = 0; i < W * H; i++) {
+    if (maskRaw[i] > 128) { sum += lum[i]; count++ }
+  }
+  return count > 0 ? sum / count : 128
+}
+
+// Luminance delta below which the render reads as "nothing changed".
+const LOW_CONTRAST_DELTA = 15
 
 // ── Shared image prep ─────────────────────────────────────────────────────────
 
@@ -264,7 +285,8 @@ async function renderOneSku(
   sessionId: string,
   prep: PreparedImages,
   sku: SkuRow,
-  sb: ReturnType<typeof getSupabaseAdmin>
+  sb: ReturnType<typeof getSupabaseAdmin>,
+  roofLum: number,
 ): Promise<RenderResult> {
   const renderId = crypto.randomUUID()
   try {
@@ -316,7 +338,15 @@ async function renderOneSku(
       status: 'done', gemini_model: engine === 'ai' ? GEMINI_IMG_MODEL : 'classical-v1',
     }).eq('id', renderId)
 
-    return { skuId: sku.id, renderUrl, skuName: sku.name, hexPreview: sku.hex_preview, engine }
+    // Low-contrast check — chip luminance vs the existing roof's mean luminance.
+    const chipHx  = sku.hex_preview.replace('#', '')
+    const chipLumOut = (parseInt(chipHx.slice(0,2),16) + parseInt(chipHx.slice(2,4),16) + parseInt(chipHx.slice(4,6),16)) / 3
+    const lowContrast = Math.abs(chipLumOut - roofLum) < LOW_CONTRAST_DELTA
+    if (lowContrast) {
+      console.log(`[render] ${sku.name}: chipLum=${chipLumOut.toFixed(0)} roofLum=${roofLum.toFixed(0)} → lowContrast (looks close to existing roof)`)
+    }
+
+    return { skuId: sku.id, renderUrl, skuName: sku.name, hexPreview: sku.hex_preview, engine, lowContrast }
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Render failed'
@@ -365,8 +395,12 @@ export async function POST(req: NextRequest) {
     // Prepare shared images ONCE (photo fetch, mask alignment, inversion)
     const prep = await prepareImages(session.photo_public_url, session.mask_public_url!)
 
+    // Existing roof's mean luminance — computed once, reused for every SKU's
+    // low-contrast check so we can warn when a chip barely differs from the current roof.
+    const roofLum = await roofMeanLuminance(prep)
+
     const renders = await Promise.all(
-      skus.map(sku => renderOneSku(session.id, prep, sku as SkuRow, sb))
+      skus.map(sku => renderOneSku(session.id, prep, sku as SkuRow, sb, roofLum))
     )
 
     const newCount = used + skus.length

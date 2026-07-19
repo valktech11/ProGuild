@@ -15,6 +15,7 @@ interface Sku {
 interface RenderResult {
   skuId: string; renderUrl: string | null; skuName: string
   hexPreview: string; mfgName?: string; error?: string
+  lowContrast?: boolean
 }
 type Step = 'upload' | 'preview' | 'segmenting' | 'confirm' | 'pick' | 'rendering' | 'results' | 'gate' | 'share'
 
@@ -28,6 +29,44 @@ function groupSkusByManufacturer(skus: Sku[]) {
   return Object.values(map)
 }
 function getMfgName(sku: Sku) { return sku.viz_product_lines?.viz_manufacturers?.name ?? '' }
+
+// Default SKU picker — maximise visible difference between the three starting colours.
+// `is_default … slice(0,3)` used to hand out three near-identical greys, so the first
+// render a roofer ever sees looked like three copies of the same roof. Greedy
+// farthest-point selection over (luminance, chroma) guarantees dark / mid / warm spread.
+function pickSpreadDefaults(all: Sku[]): string[] {
+  const pool = (all.filter(s => s.is_default).length >= 3 ? all.filter(s => s.is_default) : all)
+  if (pool.length <= 3) return pool.map(s => s.id)
+
+  const feat = (s: Sku) => {
+    const hx = (s.hex_preview || '#888888').replace('#', '')
+    const r = parseInt(hx.slice(0, 2), 16), g = parseInt(hx.slice(2, 4), 16), b = parseInt(hx.slice(4, 6), 16)
+    return { lum: (r + g + b) / 3, chroma: Math.max(r, g, b) - Math.min(r, g, b) }
+  }
+  // Chroma weighted higher: a grey and a brown at equal luminance still read as
+  // clearly different roofs, which is the point of the comparison.
+  const dist = (a: Sku, b: Sku) => {
+    const fa = feat(a), fb = feat(b)
+    return Math.abs(fa.lum - fb.lum) + 1.6 * Math.abs(fa.chroma - fb.chroma)
+  }
+
+  // Seed with the darkest chip — dark roofs are the most common real-world starting point.
+  const sorted = [...pool].sort((a, b) => feat(a).lum - feat(b).lum)
+  const chosen: Sku[] = [sorted[0]]
+  while (chosen.length < 3) {
+    let best: Sku | null = null
+    let bestScore = -1
+    for (const cand of pool) {
+      if (chosen.some(c => c.id === cand.id)) continue
+      // farthest-point: maximise distance to the NEAREST already-chosen chip
+      const score = Math.min(...chosen.map(c => dist(cand, c)))
+      if (score > bestScore) { bestScore = score; best = cand }
+    }
+    if (!best) break
+    chosen.push(best)
+  }
+  return chosen.map(s => s.id)
+}
 
 function downloadRender(url: string, label: string) {
   const a = document.createElement('a')
@@ -148,7 +187,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v41'
+const CLIENT_BUILD = 'verify-v42'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -158,8 +197,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [step, setStep]             = useState<Step>('upload')
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [sessionId, setSessionId]   = useState<string | null>(null)
-  const [selectedSkuIds, setSelectedSkuIds] = useState<string[]>(() =>
-    skus.filter(s => s.is_default).slice(0, 3).map(s => s.id))
+  const [selectedSkuIds, setSelectedSkuIds] = useState<string[]>(() => pickSpreadDefaults(skus))
   const [renders, setRenders]       = useState<RenderResult[]>([])
   const [error, setError]           = useState<string | null>(null)
   const [shareUrl, setShareUrl]     = useState<string | null>(null)
@@ -739,22 +777,44 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [heroIdx, setHeroIdx]           = useState<number>(1) // 0=original, 1+=renders
   const [reportBusy, setReportBusy]     = useState(false)
 
-  // Detect logged-in pro for the PDF report feature
+  // Resolve the logged-in pro for the PDF report feature.
+  // IMPORTANT: pros.id !== auth.users.id — they are linked via pros.auth_user_id.
+  // /api/auth/me does that lookup and returns session.id = pros.id.
+  // Using getUser().id here would be truthy for any auth session (even one with no
+  // linked pro), which hides the signup teaser and 404s the report endpoint.
   React.useEffect(() => {
-    import('@/lib/supabase-browser').then(mod => {
-      const sb = mod.getSupabaseBrowser()
-      sb.auth.getUser().then(({ data }: { data: { user: { id: string } | null } }) => {
-        if (data?.user?.id) setProId(data.user.id)
-      })
-    }).catch(() => { /* not logged in */ })
+    let cancelled = false
+    ;(async () => {
+      try {
+        const mod = await import('@/lib/supabase-browser')
+        const sb  = mod.getSupabaseBrowser()
+        const { data: sess } = await sb.auth.getSession()
+        const token = sess?.session?.access_token
+        if (!token) return
+        const r = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+        if (!r.ok) return
+        const d = await r.json()
+        if (!cancelled && d?.session?.id) setProId(d.session.id as string)
+      } catch { /* anonymous — teaser stays locked */ }
+    })()
+    return () => { cancelled = true }
   }, [])
 
   const handleDownloadReport = async () => {
     if (!sessionId || !proId) return
     setReportBusy(true)
     try {
-      const res = await fetch(`/api/roof-visualizer/report?sessionId=${sessionId}&proId=${proId}`)
-      if (res.status === 403) { window.location.href = '/login'; return }
+      // requirePro reads Authorization: Bearer <token> — without it the route 401s.
+      const mod = await import('@/lib/supabase-browser')
+      const { data: sess } = await mod.getSupabaseBrowser().auth.getSession()
+      const token = sess?.session?.access_token
+      if (!token) { window.location.href = '/login'; return }
+
+      const res = await fetch(
+        `/api/roof-visualizer/report?sessionId=${sessionId}&proId=${proId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (res.status === 401 || res.status === 403) { window.location.href = '/login'; return }
       if (!res.ok) { setError('Could not generate report. Try again.'); return }
       const blob = await res.blob()
       const a = document.createElement('a')
@@ -1059,9 +1119,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         )}
 
         {step === 'results' && (() => {
-            const allItems: Array<{ url: string; label: string; hex: string; mfg: string; isOriginal?: boolean }> = [
+            const allItems: Array<{ url: string; label: string; hex: string; mfg: string; isOriginal?: boolean; lowContrast?: boolean }> = [
               ...(photoPreview ? [{ url: photoPreview, label: 'Original', hex: '#888', mfg: '', isOriginal: true }] : []),
-              ...renders.filter(r => r.renderUrl).map(r => ({ url: r.renderUrl!, label: r.skuName, hex: r.hexPreview, mfg: r.mfgName ?? '' })),
+              ...renders.filter(r => r.renderUrl).map(r => ({ url: r.renderUrl!, label: r.skuName, hex: r.hexPreview, mfg: r.mfgName ?? '', lowContrast: r.lowContrast })),
             ]
             return (
               <div>
@@ -1095,23 +1155,36 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   </div>
                 )}
 
+                {/* Low-contrast note — this colour barely differs from the existing roof */}
+                {heroIdx !== null && allItems[heroIdx]?.lowContrast && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: T.radMd, padding: '10px 13px', marginBottom: 12 }}>
+                    <span style={{ fontSize: 15, flexShrink: 0 }}>💡</span>
+                    <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.45 }}>
+                      <strong style={{ color: '#92400E' }}>{allItems[heroIdx].label} is close to the current roof colour.</strong>{' '}
+                      The render is accurate — there just isn't much visible change. Try a lighter or warmer option to show the homeowner a clearer difference.
+                    </div>
+                  </div>
+                )}
+
                 {/* ── Thumbnail strip — Original + renders ────────────── */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
                   {allItems.map((item, i) => (
                     <div key={i} onClick={() => setHeroIdx(i)}
-                      style={{ flexShrink: 0, width: 100, cursor: 'pointer', borderRadius: T.radMd, overflow: 'hidden',
+                      style={{ flexShrink: 0, width: 116, cursor: 'pointer', borderRadius: T.radMd, overflow: 'hidden',
                         border: heroIdx === i ? `2.5px solid ${BRAND.teal}` : `2px solid ${t.cardBorder}`,
                         transition: 'border-color 0.12s', opacity: heroIdx === i ? 1 : 0.75 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.url} alt={item.label} style={{ width: '100%', height: 64, objectFit: 'cover', display: 'block' }} />
+                      <img src={item.url} alt={item.label} style={{ width: '100%', height: 72, objectFit: 'cover', display: 'block' }} />
                       {/* Colour band */}
                       <div style={{ height: item.isOriginal ? 0 : 6, background: item.hex }} />
-                      <div style={{ padding: '4px 6px', background: t.cardBg }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: heroIdx === i ? BRAND.teal : t.textPri, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ padding: '5px 7px', background: t.cardBg, minHeight: 34 }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: heroIdx === i ? BRAND.teal : t.textPri, lineHeight: 1.25 }}>
                           {item.isOriginal ? 'Original' : item.label}
                         </div>
                         {!item.isOriginal && item.mfg && (
-                          <div style={{ fontSize: 9, color: t.textSubtle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.mfg}</div>
+                          <div style={{ fontSize: 9, color: t.textSubtle, lineHeight: 1.2 }}>
+                            {item.mfg}{item.lowContrast ? ' · similar' : ''}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1125,12 +1198,6 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                       style={{ flex: 1, minWidth: 200, padding: '14px 24px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
                       Send to Homeowner →
                     </button>
-                    {proId && (
-                      <button onClick={handleDownloadReport} disabled={reportBusy}
-                        style={{ padding: '14px 20px', borderRadius: T.radMd, border: `2px solid ${BRAND.teal}`, background: t.cardBg, color: BRAND.teal, fontWeight: 700, fontSize: 15, cursor: reportBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
-                        {reportBusy ? 'Generating…' : '↓ Report'}
-                      </button>
-                    )}
                     <button onClick={() => setStep('pick')}
                       style={{ padding: '14px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                       ← Try Other Colors
@@ -1191,7 +1258,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                           {renders.filter(r => r.renderUrl).slice(0, 3).map((r, i) => (
                             <div key={i} style={{ flex: 1, borderRadius: 4, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={r.renderUrl!} alt="" style={{ width: '100%', height: 70, objectFit: 'cover', display: 'block' }} />
+                              <img src={r.renderUrl!} alt="" style={{ width: '100%', height: 84, objectFit: 'cover', display: 'block' }} />
                               <div style={{ height: 10, background: r.hexPreview }} />
                               <div style={{ padding: '3px 5px', fontSize: 8, fontWeight: 600, color: '#111' }}>{r.mfgName} {r.skuName}</div>
                             </div>
