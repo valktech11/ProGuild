@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   // Fetch pro profile for branding
   const { data: pro } = await sb
     .from('pros')
-    .select('full_name, city, state, phone')
+    .select('full_name, city, state, phone, is_verified, plan_tier')
     .eq('id', proId)
     .single()
 
@@ -68,12 +68,13 @@ export async function GET(req: NextRequest) {
   }
 
   const reportData = {
-    proName:     pro?.full_name ?? '',
-    proPhone:    pro?.phone     ?? undefined,
-    proCity:     pro?.city      ?? undefined,
-    proState:    pro?.state     ?? undefined,
+    proName:      pro?.full_name  ?? '',
+    proPhone:     pro?.phone      ?? undefined,
+    proCity:      pro?.city       ?? undefined,
+    proState:     pro?.state      ?? undefined,
+    isVerified:   pro?.is_verified ?? false,
     renders,
-    generatedAt: new Date().toISOString(),
+    generatedAt:  new Date().toISOString(),
   }
 
   try {
