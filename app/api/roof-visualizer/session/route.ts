@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { sendVisualizerPickEmail } from '@/lib/email'
+import { requirePro } from '@/lib/pro-auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://proguild.ai'
 
@@ -18,6 +19,22 @@ export async function PATCH(req: NextRequest) {
     if (!sessionId) return NextResponse.json({ error: 'sessionId required' }, { status: 400 })
 
     const sb = getSupabaseAdmin()
+
+    // Authenticated link — attribute this session to the signed-in pro.
+    // pro_id is taken from the verified token, NOT from the request body, so a caller
+    // cannot attach someone else's session to their own pro and then pull a branded
+    // PDF of a house they never uploaded.
+    if (action === 'link') {
+      const auth = await requirePro(req)
+      if (auth.error) return auth.error
+      const { error } = await sb
+        .from('visualizer_sessions')
+        .update({ pro_id: auth.proId, updated_at: new Date().toISOString() })
+        .eq('id', sessionId)
+      if (error) throw error
+      console.log(`[visualizer/session] linked ${sessionId} → pro ${auth.proId}`)
+      return NextResponse.json({ ok: true, proId: auth.proId })
+    }
 
     if (action === 'share') {
       // Save email to session first (roofer's notification address)

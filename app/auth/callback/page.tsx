@@ -60,21 +60,26 @@ function CallbackInner() {
         try { vizSessionId = sessionStorage.getItem('pg_visualizer_session') } catch {}
 
         if (r.ok && d.session) {
-          // Logged-in pro — link visualizer session if present
-          if (vizSessionId && d.session.pro_id) {
+          // Logged-in pro. /api/auth/me returns session.id = pros.id — there is no
+          // session.pro_id field. Reading the wrong name here silently skipped the
+          // link and dropped everyone on /dashboard after signup.
+          const linkedProId = d.session.id
+          if (vizSessionId && linkedProId) {
             try {
               await fetch('/api/roof-visualizer/session', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ sessionId: vizSessionId, proId: d.session.pro_id }),
+                body: JSON.stringify({ sessionId: vizSessionId, proId: linkedProId }),
               })
-              sessionStorage.removeItem('pg_visualizer_session')
-              router.replace(`/roof-visualizer?session=${vizSessionId}&ready=report`)
-              return
-            } catch { /* fall through to dashboard */ }
+            } catch { /* client self-heals on the results screen */ }
+            sessionStorage.removeItem('pg_visualizer_session')
+            router.replace(`/roof-visualizer?session=${vizSessionId}&ready=report`)
+            return
           }
           router.replace('/dashboard')
         } else if (r.ok && d.needsProfile) {
+          // Profile not built yet. Keep pg_visualizer_session in storage — the
+          // visualizer links it itself once the pro record exists.
           router.replace('/complete-profile')
         } else {
           router.replace('/login')

@@ -187,7 +187,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v43'
+const CLIENT_BUILD = 'verify-v44'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -802,6 +802,31 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     })()
     return () => { cancelled = true }
   }, [])
+
+  // Self-healing session link. Whenever we know BOTH the pro and the session, make
+  // sure the session is attributed to them. Idempotent, so it's safe to fire on every
+  // change. Deliberately not dependent on the signup redirect path: a roofer who signs
+  // up from the teaser, lands on /complete-profile, finishes their profile and
+  // navigates back still ends up with a linked session and a working report.
+  // The server derives pro_id from the bearer token — the body is not trusted.
+  React.useEffect(() => {
+    if (!proId || !sessionId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const mod = await import('@/lib/supabase-browser')
+        const { data: sess } = await mod.getSupabaseBrowser().auth.getSession()
+        const token = sess?.session?.access_token
+        if (!token || cancelled) return
+        await fetch('/api/roof-visualizer/session', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ sessionId, action: 'link' }),
+        })
+      } catch { /* non-fatal — report 404s and the user can retry */ }
+    })()
+    return () => { cancelled = true }
+  }, [proId, sessionId])
 
   const handleDownloadReport = async () => {
     if (!sessionId || !proId) return
