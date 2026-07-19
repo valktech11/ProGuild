@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v33'
+const CLIENT_BUILD = 'verify-v34'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -188,6 +188,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [retrying, setRetrying]   = useState<Set<string>>(new Set())
   const [occlusionLevel, setOcclusionLevel] = useState<'clear' | 'partial' | 'heavy'>('clear')
   const [candidates, setCandidates] = useState<Array<{ index: number; areaPct: number }>>([])
+  const [superMaskWarning, setSuperMaskWarning] = useState(false)
   const [eraseMode, setEraseMode] = useState(false)
   const [erasePixels, setErasePixels] = useState<Set<number>>(new Set())
   const erasing = useRef(false)
@@ -457,6 +458,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     // Always reset erase state on undo — user is going backwards, return them to Select mode
     setEraseMode(false)
     setErasePixels(new Set())
+    setSuperMaskWarning(false)
   }, [])
 
   const handleSweepStart = useCallback((e: React.PointerEvent<HTMLElement>) => {
@@ -482,15 +484,16 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     setTapCount(t => t + 1)
     setSelected(prev => {
       const next = new Set(prev)
-      if (next.has(hit.idx)) { next.delete(hit.idx); setTraceHint(null) }
-      else {
+      if (next.has(hit.idx)) {
+        next.delete(hit.idx)
+        setTraceHint(null)
+        setSuperMaskWarning(false)
+      } else {
         next.add(hit.idx)
-        // If this candidate covers >30% of frame it's almost certainly a super-mask
-        // (walls merged with roof). Prompt the user to erase rather than leaving them
-        // wondering why so much got selected.
         const cand = candidates.find(c => c.index === hit.idx)
         if (cand && cand.areaPct > 0.30) {
-          setTraceHint('Large area selected — tap "Erase unwanted areas" to remove walls or siding')
+          setSuperMaskWarning(true)
+          setTraceHint(null)
         } else {
           setTraceHint(null)
         }
@@ -569,7 +572,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
 
   // Reset erase state when user leaves the confirm step
   React.useEffect(() => {
-    if (step !== 'confirm') { setEraseMode(false); setErasePixels(new Set()) }
+    if (step !== 'confirm') { setEraseMode(false); setErasePixels(new Set()); setSuperMaskWarning(false) }
   }, [step])
 
   const handleConfirmMask = useCallback(async () => {
@@ -839,6 +842,22 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               </div>
             )}
 
+            {/* Super-mask banner — shown when a single tap covers >30% of frame */}
+            {superMaskWarning && !eraseMode && (
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#FFF7ED', border: '2px solid #EA580C', borderRadius: T.radMd, padding: '14px 16px', marginBottom: 14 }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>🏠</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E', marginBottom: 3 }}>Your tap selected the whole house</div>
+                  <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.5 }}>The AI couldn't separate the roof from the walls — tap below to erase what you don't want painted.</div>
+                </div>
+                <button
+                  onClick={() => { setEraseMode(true); setSuperMaskWarning(false); setTraceHint(null) }}
+                  style={{ flexShrink: 0, padding: '10px 16px', borderRadius: T.radMd, border: 'none', background: '#EA580C', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  Erase Walls →
+                </button>
+              </div>
+            )}
+
             <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, maxWidth: 720, margin: '0 auto', touchAction: 'none' }}>
               {photoPreview && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -860,7 +879,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               {traceHint && <span style={{ fontSize: 12, color: '#B45309', fontWeight: 600 }}>{traceHint}</span>}
               {/* Erase is an escape hatch — show as a single contextual button, not a peer toggle */}
               {selected.size > 0 && !eraseMode && (
-                <button onClick={() => { setEraseMode(true); setTraceHint(null) }}
+                <button onClick={() => { setEraseMode(true); setTraceHint(null); setSuperMaskWarning(false) }}
                   style={{ padding: '8px 16px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
                   ⌫ Erase unwanted areas
                 </button>
