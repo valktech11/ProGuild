@@ -35,7 +35,11 @@ function getMfgName(sku: Sku) { return sku.viz_product_lines?.viz_manufacturers?
 // render a roofer ever sees looked like three copies of the same roof. Greedy
 // farthest-point selection over (luminance, chroma) guarantees dark / mid / warm spread.
 function pickSpreadDefaults(all: Sku[]): string[] {
-  const pool = (all.filter(s => s.is_default).length >= 3 ? all.filter(s => s.is_default) : all)
+  // Always spread across the full catalogue — never pre-filter to is_default.
+  // The is_default subset often has only 3 items, which triggers the early-return
+  // shortcut and means the spread algorithm never runs (it just returns whatever
+  // 3 happen to be flagged, regardless of whether they look different from each other).
+  const pool = all.length > 0 ? all : []
   if (pool.length <= 3) return pool.map(s => s.id)
 
   const feat = (s: Sku) => {
@@ -187,7 +191,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v44'
+const CLIENT_BUILD = 'verify-v45'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
