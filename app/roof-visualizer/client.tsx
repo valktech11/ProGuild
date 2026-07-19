@@ -629,6 +629,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleFileSelect(file)
   }, [handleFileSelect])
 
+  const [hoveredSkuId, setHoveredSkuId] = useState<string | null>(null)
+
   const toggleSku = (id: string) => setSelectedSkuIds(prev =>
     prev.includes(id) ? prev.filter(x => x !== id) : prev.length >= 3 ? [...prev.slice(1), id] : [...prev, id])
 
@@ -997,12 +999,33 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               {skus.length} real shingle colors · 5 manufacturers
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 7 }}>
-              {skus.map(s => (
-                <div key={s.id} title={`${getMfgName(s)} ${s.name}`}
-                  style={{ width: 46, height: 46, borderRadius: 9, background: s.hex_preview, border: '1px solid rgba(0,0,0,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0 1px, rgba(255,255,255,0.05) 1px 8px)' }} />
-                </div>
-              ))}
+              {skus.map(s => {
+                const isHovered = hoveredSkuId === s.id
+                const mfg = getMfgName(s)
+                return (
+                  <div key={s.id}
+                    onMouseEnter={() => setHoveredSkuId(s.id)}
+                    onMouseLeave={() => setHoveredSkuId(null)}
+                    onPointerDown={() => setHoveredSkuId(s.id)}
+                    onPointerUp={() => setTimeout(() => setHoveredSkuId(null), 900)}
+                    style={{ position: 'relative', width: 46, height: 46, borderRadius: 9, background: s.hex_preview, border: '1px solid rgba(0,0,0,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', overflow: 'visible', cursor: 'default', flexShrink: 0 }}>
+                    <div style={{ position: 'absolute', inset: 0, borderRadius: 9, backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0 1px, rgba(255,255,255,0.05) 1px 8px)', overflow: 'hidden' }} />
+                    {isHovered && (
+                      <div style={{
+                        position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)',
+                        background: 'rgba(15,15,15,0.92)', color: '#fff', borderRadius: 7,
+                        padding: '6px 10px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 50,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                      }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.3 }}>{s.name}</div>
+                        {mfg && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{mfg}</div>}
+                        {/* Arrow */}
+                        <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(15,15,15,0.92)' }} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
