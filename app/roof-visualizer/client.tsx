@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v31'
+const CLIENT_BUILD = 'verify-v32'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -186,6 +186,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [lightbox, setLightbox]   = useState<{ url: string; label: string } | null>(null)
   const [mfgFilter, setMfgFilter] = useState<string | null>(null)
   const [retrying, setRetrying]   = useState<Set<string>>(new Set())
+  const [occlusionLevel, setOcclusionLevel] = useState<'clear' | 'partial' | 'heavy'>('clear')
   const [eraseMode, setEraseMode] = useState(false)
   const [erasePixels, setErasePixels] = useState<Set<number>>(new Set())
   const erasing = useRef(false)
@@ -223,9 +224,10 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         const px = ctx.getImageData(0, 0, data.gridW, data.gridH).data
         const grid = new Uint8Array(data.gridW * data.gridH)
         for (let i = 0; i < grid.length; i++) grid[i] = px[i * 4]  // R channel = index
-        console.log('[confirm] grid decoded', { w: data.gridW, h: data.gridH, candidates: data.candidates?.length })
+        console.log('[confirm] grid decoded', { w: data.gridW, h: data.gridH, candidates: data.candidates?.length, occlusion: data.occlusionLevel })
         setGridData(grid)
         setGridDims({ w: data.gridW, h: data.gridH })
+        setOcclusionLevel(data.occlusionLevel ?? 'clear')
         setSelected(new Set<number>())   // NO preselection — user taps/sweeps their roof
         setHistory([])
         setTapCount(0)
@@ -802,6 +804,26 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   : 'Tap a roof plane to select it — or hold and drag across several at once. Tap again to remove. Teal is exactly what gets painted.'}
               </p>
             </div>
+
+            {/* Occlusion warning — shown when trees or heavy shadows likely cover part of the roof */}
+            {occlusionLevel === 'heavy' && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: T.radMd, padding: '12px 14px', marginBottom: 14 }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>🌳</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#991B1B', marginBottom: 2 }}>Heavy tree cover detected</div>
+                  <div style={{ fontSize: 12, color: '#B91C1C', lineHeight: 1.5 }}>We couldn't find enough clear roof area. For best results, use a photo taken in winter, from a different angle, or farther back so the full roofline is visible.</div>
+                </div>
+              </div>
+            )}
+            {occlusionLevel === 'partial' && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: T.radMd, padding: '12px 14px', marginBottom: 14 }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#92400E', marginBottom: 2 }}>Trees may be covering part of your roof</div>
+                  <div style={{ fontSize: 12, color: '#B45309', lineHeight: 1.5 }}>Tap the roof sections you can see — we'll render those. For a complete visualization, try a photo where the full roofline is visible.</div>
+                </div>
+              </div>
+            )}
 
             <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, maxWidth: 720, margin: '0 auto', touchAction: 'none' }}>
               {photoPreview && (

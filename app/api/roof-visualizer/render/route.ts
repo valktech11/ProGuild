@@ -127,12 +127,12 @@ async function classicalRecolor(prep: PreparedImages, sku: SkuRow): Promise<Buff
 
   // GRANULE JITTER — real architectural shingles are a blended granule matrix, not a
   // uniform sheet. Without this the classical path reads as "a flat sticker" (reviewer
-  // wording). Deterministic hash noise over 2x2 px cells: reproducible, no per-render
-  // variance, sized to read as granule blend rather than film grain at roof scale.
+  // wording). Deterministic hash noise over 3x3 px cells (raised from 2x2): lower
+  // frequency variation reads more like real granule blends, less like film grain.
   const LUM_JITTER = 9   // ± luminance
   const HUE_JITTER = 4   // ± per-channel, breaks up uniform hue
   const cellNoise = (x: number, y: number, salt: number) => {
-    let h = (x >> 1) * 73856093 ^ (y >> 1) * 19349663 ^ salt * 83492791
+    let h = Math.floor(x / 3) * 73856093 ^ Math.floor(y / 3) * 19349663 ^ salt * 83492791
     h = (h ^ (h >>> 13)) >>> 0
     return ((h % 2001) / 1000) - 1   // -1 .. +1
   }
@@ -143,7 +143,7 @@ async function classicalRecolor(prep: PreparedImages, sku: SkuRow): Promise<Buff
     const x = i % W, y = (i / W) | 0
     const shade  = (lum[i] - roofMeanLum) * K
     const grain  = cellNoise(x, y, 1) * LUM_JITTER
-    // Blend SKUs: each 2x2 cell draws one granule tone from the palette, so the surface
+    // Blend SKUs: each 3x3 cell draws one granule tone from the palette, so the surface
     // reads as a granule matrix rather than a uniform sheet.
     const [br, bg, bb] = isBlend
       ? palette[Math.floor(((cellNoise(x, y, 5) + 1) / 2) * palette.length) % palette.length]

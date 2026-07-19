@@ -221,6 +221,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No roof-sized surfaces found. Try a closer photo.' }, { status: 422 })
     }
 
+    // Occlusion scoring: count vegetation (ExG) + sky (ExB) pixels in the full grid photo.
+    // Used to warn the user before they spend time selecting a heavily-occluded roof.
+    // Cost: one pass over photoRgbGrid (already in memory, no extra I/O).
+    let vegPx = 0
+    const totalPx = gw * gh
+    for (let p = 0; p < totalPx; p++) {
+      const rr = photoRgbGrid[p * 3], gg = photoRgbGrid[p * 3 + 1], bb = photoRgbGrid[p * 3 + 2]
+      if (2 * gg - rr - bb > 40) vegPx++   // ExG — vegetation
+    }
+    const vegFraction = +(vegPx / totalPx).toFixed(3)
+    const maxCandArea = cands.length > 0 ? Math.max(...cands.map(c => c.areaPct)) : 0
+    // Occlusion level: 'clear' | 'partial' | 'heavy'
+    // partial: warn but allow  — trees visible but roof is selectable
+    // heavy:   strongly suggest re-upload — most of roof is likely hidden
+    const occlusionLevel =
+      vegFraction > 0.45 && maxCandArea < 0.10 ? 'heavy' :
+      vegFraction > 0.25 && maxCandArea < 0.20 ? 'partial' :
+      'clear'
+    console.log(`[segment] vegFraction=${vegFraction} maxCandArea=${maxCandArea.toFixed(3)} → occlusion=${occlusionLevel}`)
+
     const gridClient = bakeIndexGrid(cands, gw, gh)
     const gridB64 = (await sharp(gridClient, { raw: { width: gw, height: gh, channels: 1 } }).png().toBuffer()).toString('base64')
 
@@ -235,6 +255,7 @@ export async function POST(req: NextRequest) {
         grid_full_key: gridFullKey, grid_w: gw, grid_h: gh, photo_w: pw, photo_h: ph,
         candidates: cands.map(c => ({ i: c.index, areaPct: +c.areaPct.toFixed(4), cx: +c.cx.toFixed(0), cy: +c.cy.toFixed(0), meanLum: +c.meanLum.toFixed(0) })),
         selector: 'manual',
+        vegFraction, occlusionLevel,
       },
       updated_at: new Date().toISOString(),
     }).eq('id', sessionId)
@@ -242,6 +263,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       sessionId, photoUrl, gridB64, gridW: gw, gridH: gh,
       candidates: cands.map(c => ({ index: c.index, areaPct: c.areaPct })),
+      vegFraction, occlusionLevel,
     })
 
   } catch (err: unknown) {
