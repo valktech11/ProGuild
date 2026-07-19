@@ -2,6 +2,7 @@
 // app/roof-visualizer/client.tsx — v2 with all improvements
 
 import React, { useState, useRef, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { theme, BRAND, T } from '@/lib/tokens'
 import Link from 'next/link'
 
@@ -147,11 +148,12 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v37'
+const CLIENT_BUILD = 'verify-v38'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
   const t = theme(false)
+  const searchParams = useSearchParams()
   const fileRef = useRef<HTMLInputElement>(null)
   const [step, setStep]             = useState<Step>('upload')
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -172,6 +174,33 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [confirmStart, setConfirmStart] = useState(0)
   const [confirmBusy, setConfirmBusy]   = useState(false)
   const overlayRef = useRef<HTMLCanvasElement>(null)
+
+  // Restore session after signup redirect (?session=<id>&ready=report)
+  // The roofer signed up from the visualizer — their session is already linked to
+  // their new pro account. Load the renders and drop them on the results screen.
+  React.useEffect(() => {
+    const restoredSession = searchParams.get('session')
+    const ready = searchParams.get('ready')
+    if (!restoredSession || ready !== 'report') return
+    setSessionId(restoredSession)
+    // Fetch completed renders for this session
+    fetch(`/api/roof-visualizer/session?sessionId=${restoredSession}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.renders && d.renders.length > 0) {
+          setRenders(d.renders.map((r: any) => ({
+            skuId: r.sku_id,
+            skuName: r.viz_skus?.name ?? '',
+            hexPreview: r.viz_skus?.hex_preview ?? '#888',
+            renderUrl: r.render_url,
+            mfgName: r.viz_skus?.viz_product_lines?.viz_manufacturers?.name ?? '',
+          })))
+          setStep('results')
+        }
+      })
+      .catch(() => { /* fail silently, show upload screen */ })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const confirmImgRef = useRef<HTMLImageElement>(null)
   const photoPixelsRef = useRef<Uint8ClampedArray | null>(null)
   const customIdxRef   = useRef(200)   // traced regions get indices 200+
@@ -1098,7 +1127,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   <p style={{ fontWeight: 700, color: t.textPri, margin: '0 0 4px', fontSize: 16 }}>Are you a roofing contractor?</p>
                   <p style={{ color: t.textMuted, fontSize: 14, margin: 0 }}>Close more sales with the visualizer. 3 free renders — unlimited with a free ProGuild account.</p>
                 </div>
-                <Link href="/login?tab=signup" style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '11px 24px', borderRadius: T.radMd, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap' }}>Join ProGuild Free →</Link>
+                <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`} style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '11px 24px', borderRadius: T.radMd, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap' }}>Join ProGuild Free →</Link>
               </div>,
               { marginTop: 20 }
             )}
@@ -1127,7 +1156,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                       {reportBusy ? 'Generating…' : '↓ Download Report'}
                     </button>
                   ) : (
-                    <Link href="/login?tab=signup"
+                    <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`}
                       style={{ display: 'inline-block', padding: '11px 22px', borderRadius: T.radMd, border: `2px solid ${BRAND.teal}`, background: t.cardBg, color: BRAND.teal, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
                       Sign in to Download →
                     </Link>
@@ -1161,7 +1190,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <div style={{ fontSize: 28 }}>🔒</div>
                       <div style={{ fontWeight: 700, fontSize: 14, color: t.textPri }}>Pro feature</div>
-                      <Link href="/login?tab=signup"
+                      <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`}
                         style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '9px 20px', borderRadius: T.radMd, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                         Join Free to Unlock →
                       </Link>

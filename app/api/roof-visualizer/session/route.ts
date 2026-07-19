@@ -64,10 +64,26 @@ export async function PATCH(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const token = new URL(req.url).searchParams.get('token')
-    if (!token) return NextResponse.json({ error: 'token required' }, { status: 400 })
-
+    const url = new URL(req.url)
+    const token     = url.searchParams.get('token')
+    const sessionId = url.searchParams.get('sessionId')
     const sb = getSupabaseAdmin()
+
+    // Session restore after signup — return renders for a sessionId directly
+    if (sessionId && !token) {
+      const { data, error } = await sb
+        .from('visualizer_renders')
+        .select(`
+          sku_id, render_url, status,
+          viz_skus ( name, hex_preview, viz_product_lines ( viz_manufacturers ( name ) ) )
+        `)
+        .eq('session_id', sessionId)
+        .eq('status', 'done')
+      if (error) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+      return NextResponse.json({ renders: data ?? [] })
+    }
+
+    if (!token) return NextResponse.json({ error: 'token required' }, { status: 400 })
 
     const { data: share, error } = await sb
       .from('visualizer_shares')

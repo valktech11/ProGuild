@@ -54,10 +54,27 @@ function CallbackInner() {
         })
         const d = await r.json()
         if (cancelled) return
+
+        // Check if this signup came from the visualizer
+        let vizSessionId: string | null = null
+        try { vizSessionId = sessionStorage.getItem('pg_visualizer_session') } catch {}
+
         if (r.ok && d.session) {
+          // Logged-in pro — link visualizer session if present
+          if (vizSessionId && d.session.pro_id) {
+            try {
+              await fetch('/api/roof-visualizer/session', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ sessionId: vizSessionId, proId: d.session.pro_id }),
+              })
+              sessionStorage.removeItem('pg_visualizer_session')
+              router.replace(`/roof-visualizer?session=${vizSessionId}&ready=report`)
+              return
+            } catch { /* fall through to dashboard */ }
+          }
           router.replace('/dashboard')
         } else if (r.ok && d.needsProfile) {
-          // Authenticated but no linked pro — new user → build their profile
           router.replace('/complete-profile')
         } else {
           router.replace('/login')

@@ -282,6 +282,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const params = useSearchParams()
   const claimId = params.get('claim') || ''
   const isClaiming = !!claimId
+  const vizSession = params.get('visualizer_session') || ''
 
   const [step, setStep] = useState(0) // 0: identity, 1: trade+location, 2: contact
   const [cats, setCats] = useState<TradeCategory[]>([])
@@ -431,6 +432,11 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
     // Mark this as a fresh signup so onboarding shows if the callback routes there.
     try { sessionStorage.setItem('pg_just_signed_up', '1') } catch {}
+    // If the roofer came from the visualizer, carry the session through so the
+    // callback can link it and redirect back to the report.
+    if (vizSession) {
+      try { sessionStorage.setItem('pg_visualizer_session', vizSession) } catch {}
+    }
 
     setSuccess(true)
     // Route through the shared callback, which reliably waits for the session to be
