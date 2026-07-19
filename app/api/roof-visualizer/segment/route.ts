@@ -232,14 +232,20 @@ export async function POST(req: NextRequest) {
     }
     const vegFraction = +(vegPx / totalPx).toFixed(3)
     const maxCandArea = cands.length > 0 ? Math.max(...cands.map(c => c.areaPct)) : 0
+    const candCount   = cands.length
     // Occlusion level: 'clear' | 'partial' | 'heavy'
-    // partial: warn but allow  — trees visible but roof is selectable
-    // heavy:   strongly suggest re-upload — most of roof is likely hidden
+    // Two signals combined:
+    //   1. vegFraction: ExG pixel ratio. Lowered from 0.25→0.18 to catch backlit/shaded
+    //      foliage where ExG is suppressed (dark leaves score ~0.22 on the brick/oak house).
+    //   2. Fragmentation: many small candidates + no dominant roof plane = heavy occlusion.
+    //      A clear photo typically has one candidate at 25%+; 60 fragments with max 19.6%
+    //      is a strong occlusion signal independent of colour.
+    const isFragmented = candCount >= 40 && maxCandArea < 0.22
     const occlusionLevel =
-      vegFraction > 0.45 && maxCandArea < 0.10 ? 'heavy' :
-      vegFraction > 0.25 && maxCandArea < 0.20 ? 'partial' :
+      (vegFraction > 0.40 && maxCandArea < 0.10) ? 'heavy' :
+      (vegFraction > 0.18 || isFragmented) && maxCandArea < 0.22 ? 'partial' :
       'clear'
-    console.log(`[segment] vegFraction=${vegFraction} maxCandArea=${maxCandArea.toFixed(3)} → occlusion=${occlusionLevel}`)
+    console.log(`[segment] vegFraction=${vegFraction} maxCandArea=${maxCandArea.toFixed(3)} candCount=${candCount} fragmented=${isFragmented} → occlusion=${occlusionLevel}`)
 
     const gridClient = bakeIndexGrid(cands, gw, gh)
     const gridB64 = (await sharp(gridClient, { raw: { width: gw, height: gh, channels: 1 } }).png().toBuffer()).toString('base64')
