@@ -50,28 +50,50 @@ function chipChroma(hex: string): number {
 interface RenderResult {
   skuId: string; renderUrl: string | null; skuName: string
   hexPreview: string; engine: 'ai' | 'classical' | 'failed'; error?: string
-  // True when the chip is so close to the existing roof's luminance that the render
-  // looks near-identical to the original (e.g. Charcoal on an already-charcoal roof).
-  // Not a defect — the maths is right — but the user needs telling, or they conclude
-  // the tool did nothing.
+  // True when the chip is perceptually so close to the existing roof that the render
+  // looks near-identical (e.g. Charcoal on an already-charcoal roof). Not a defect —
+  // the maths is right — but the user needs telling, or they conclude nothing happened.
   lowContrast?: boolean
 }
 
-// Mean luminance of the roof pixels in the ORIGINAL photo. Computed once per session
-// and reused for every SKU's low-contrast check.
-async function roofMeanLuminance(prep: PreparedImages): Promise<number> {
+// Mean RGB of the roof pixels in the ORIGINAL photo. Computed once per session.
+// RGB, not luminance: a warm brown and a cool grey can share a luminance value while
+// looking completely different on a house. Luminance-only flagged Weathered Wood
+// (chipLum 87 vs roofLum 92) as "no visible change" when it is obviously changed.
+async function roofMeanRgb(prep: PreparedImages): Promise<{ r: number; g: number; b: number }> {
   const { width: W, height: H } = prep
-  const lum     = await sharp(prep.photo).greyscale().raw().toBuffer()
+  const rgb     = await sharp(prep.photo).removeAlpha().raw().toBuffer()   // 3ch
   const maskRaw = await sharp(prep.maskAligned).extractChannel(0).raw().toBuffer()
-  let sum = 0, count = 0
+  let sr = 0, sg = 0, sb = 0, count = 0
   for (let i = 0; i < W * H; i++) {
-    if (maskRaw[i] > 128) { sum += lum[i]; count++ }
+    if (maskRaw[i] > 128) { sr += rgb[i * 3]; sg += rgb[i * 3 + 1]; sb += rgb[i * 3 + 2]; count++ }
   }
-  return count > 0 ? sum / count : 128
+  if (count === 0) return { r: 128, g: 128, b: 128 }
+  return { r: sr / count, g: sg / count, b: sb / count }
 }
 
-// Luminance delta below which the render reads as "nothing changed".
-const LOW_CONTRAST_DELTA = 15
+// Redmean colour distance — cheap perceptual approximation, far better than raw RGB
+// euclidean and good enough to answer "would a homeowner see a difference?".
+// Range roughly 0–765.
+function redmeanDistance(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+): number {
+  const rmean = (a.r + b.r) / 2
+  const dr = a.r - b.r, dg = a.g - b.g, db = a.b - b.b
+  return Math.sqrt(
+    (2 + rmean / 256) * dr * dr +
+    4 * dg * dg +
+    (2 + (255 - rmean) / 256) * db * db
+  )
+}
+
+// Below this perceptual distance the render reads as "nothing changed".
+// Calibrated against observed cases:
+//   Charcoal on a dark charcoal roof  → ~19  (flag — user reported it looked unchanged)
+//   Weathered Wood on a grey roof     → ~62  (no flag — clearly different hue)
+//   Charcoal on a light grey roof     → ~94  (no flag)
+const LOW_CONTRAST_DISTANCE = 45
 
 // ── Shared image prep ─────────────────────────────────────────────────────────
 
@@ -286,7 +308,7 @@ async function renderOneSku(
   prep: PreparedImages,
   sku: SkuRow,
   sb: ReturnType<typeof getSupabaseAdmin>,
-  roofLum: number,
+  roofRgb: { r: number; g: number; b: number },
 ): Promise<RenderResult> {
   const renderId = crypto.randomUUID()
   try {
@@ -338,13 +360,16 @@ async function renderOneSku(
       status: 'done', gemini_model: engine === 'ai' ? GEMINI_IMG_MODEL : 'classical-v1',
     }).eq('id', renderId)
 
-    // Low-contrast check — chip luminance vs the existing roof's mean luminance.
-    const chipHx  = sku.hex_preview.replace('#', '')
-    const chipLumOut = (parseInt(chipHx.slice(0,2),16) + parseInt(chipHx.slice(2,4),16) + parseInt(chipHx.slice(4,6),16)) / 3
-    const lowContrast = Math.abs(chipLumOut - roofLum) < LOW_CONTRAST_DELTA
-    if (lowContrast) {
-      console.log(`[render] ${sku.name}: chipLum=${chipLumOut.toFixed(0)} roofLum=${roofLum.toFixed(0)} → lowContrast (looks close to existing roof)`)
+    // Low-contrast check — perceptual distance between the chip and the existing roof.
+    const chipHx = sku.hex_preview.replace('#', '')
+    const chipRgb = {
+      r: parseInt(chipHx.slice(0, 2), 16),
+      g: parseInt(chipHx.slice(2, 4), 16),
+      b: parseInt(chipHx.slice(4, 6), 16),
     }
+    const dist = redmeanDistance(chipRgb, roofRgb)
+    const lowContrast = dist < LOW_CONTRAST_DISTANCE
+    console.log(`[render] ${sku.name}: colourDist=${dist.toFixed(0)} (roof rgb ${roofRgb.r.toFixed(0)},${roofRgb.g.toFixed(0)},${roofRgb.b.toFixed(0)})${lowContrast ? ' → lowContrast' : ''}`)
 
     return { skuId: sku.id, renderUrl, skuName: sku.name, hexPreview: sku.hex_preview, engine, lowContrast }
 
@@ -395,12 +420,12 @@ export async function POST(req: NextRequest) {
     // Prepare shared images ONCE (photo fetch, mask alignment, inversion)
     const prep = await prepareImages(session.photo_public_url, session.mask_public_url!)
 
-    // Existing roof's mean luminance — computed once, reused for every SKU's
-    // low-contrast check so we can warn when a chip barely differs from the current roof.
-    const roofLum = await roofMeanLuminance(prep)
+    // Existing roof's mean colour — computed once, reused for every SKU's low-contrast
+    // check so we can warn when a chip barely differs from the current roof.
+    const roofRgb = await roofMeanRgb(prep)
 
     const renders = await Promise.all(
-      skus.map(sku => renderOneSku(session.id, prep, sku as SkuRow, sb, roofLum))
+      skus.map(sku => renderOneSku(session.id, prep, sku as SkuRow, sb, roofRgb))
     )
 
     const newCount = used + skus.length

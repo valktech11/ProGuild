@@ -187,7 +187,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v42'
+const CLIENT_BUILD = 'verify-v43'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -204,6 +204,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [gateEmail, setGateEmail]   = useState('')
   const [gateBusy, setGateBusy]     = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
+  // Declared early: handleAnalyze lists proId in its deps, so it must exist above it.
+  const [proId, setProId]         = useState<string | null>(null)
   const [gridData, setGridData]   = useState<Uint8Array | null>(null)
   const [gridDims, setGridDims]   = useState<{ w: number; h: number }>({ w: 0, h: 0 })
   const [selected, setSelected]   = useState<Set<number>>(new Set())
@@ -279,6 +281,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     try {
       const form = new FormData()
       form.append('photo', pendingFile)
+      // Link this session to the pro if one is signed in — required for the PDF report
+      if (proId) form.append('proId', proId)
       const res  = await fetch('/api/roof-visualizer/segment', { method: 'POST', body: form })
       const data = await res.json()
       if (!res.ok) { setError(data.detail ? `${data.error} — ${data.detail}` : (data.error || 'Could not detect roof.')); setStep('preview'); return }
@@ -306,7 +310,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       }
       img.src = `data:image/png;base64,${data.gridB64}`
     } catch { setError('Upload failed. Please try again.'); setStep('preview') }
-  }, [pendingFile])
+  }, [pendingFile, proId])   // proId resolves async — must be a dep or the session never links
 
   // Pick screen: draw the SERVER's confirmed mask, fetched through the same-origin
   // proxy. The R2 public bucket sends no CORS headers, so the PNG cannot be loaded
@@ -773,7 +777,6 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [shareEmail, setShareEmail]     = useState('')
   const [shareEmailStep, setShareEmailStep] = useState(false)
   const [shareBusy, setShareBusy]       = useState(false)
-  const [proId, setProId]               = useState<string | null>(null)
   const [heroIdx, setHeroIdx]           = useState<number>(1) // 0=original, 1+=renders
   const [reportBusy, setReportBusy]     = useState(false)
 
@@ -1299,8 +1302,13 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   { marginBottom: 16 }
                 )}
 
-                {/* ── Contractor signup — benefit-led ─────────────────── */}
-                {card(
+                {/* ── Contractor signup — benefit-led. Hidden once signed in. ── */}
+                {proId ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', padding: '10px 0', fontSize: 13, color: t.textSubtle }}>
+                    <span style={{ color: BRAND.teal, fontWeight: 700 }}>✓</span>
+                    Signed in — branded reports enabled
+                  </div>
+                ) : card(
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
                     <div>
                       <p style={{ fontWeight: 700, color: t.textPri, margin: '0 0 8px', fontSize: 16 }}>Unlock unlimited renders</p>

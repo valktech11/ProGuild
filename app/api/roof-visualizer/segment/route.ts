@@ -189,10 +189,18 @@ export async function POST(req: NextRequest) {
     const photoKey  = r2Key('photos', sessionId, 'jpg')
     const photoUrl  = await uploadToR2(photoKey, photoBuffer, 'image/jpeg')
 
+    // Link the session to the pro at creation when one is signed in. Without this
+    // every session is anonymous, and the PDF report (which matches on pro_id) 404s
+    // even for a logged-in pro looking at their own renders.
+    const proIdRaw = form.get('proId')
+    const proId = typeof proIdRaw === 'string' && proIdRaw.length > 0 ? proIdRaw : null
+
     await sb.from('visualizer_sessions').insert({
       id: sessionId, photo_r2_key: photoKey, photo_public_url: photoUrl,
       mask_status: 'processing', ip_address: ip,
+      ...(proId ? { pro_id: proId } : {}),
     })
+    if (proId) console.log(`[segment] session ${sessionId} linked to pro ${proId}`)
 
     // SAM2
     let samOut: { individual_masks: string[] }
