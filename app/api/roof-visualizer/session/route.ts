@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
         // Resolve roofer email: prefer linked pro account, fall back to gate-captured email
         const pro        = sess?.pros
         const toEmail: string | null = pro?.email ?? sess?.email ?? null
-        const toName: string         = pro?.full_name ?? 'there'
+        const toName: string         = pro?.full_name ?? 'Roofer'
 
         if (!toEmail) {
           console.log('[visualizer/share] no roofer email on session — skipping notification')

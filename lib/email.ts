@@ -237,7 +237,7 @@ export async function sendVisualizerPickEmail({
 
     <tr><td style="padding:28px 32px;">
       <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:6px;">Homeowner decision</div>
-      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">They picked a colour, ${firstName}</div>
+      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">${firstName === 'Roofer' ? 'Your homeowner picked a colour' : `They picked a colour, ${firstName}`}</div>
       <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">Your homeowner reviewed the renders you sent and made a choice. Time to follow up.</div>
 
       <!-- Chosen colour card -->
