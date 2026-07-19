@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v34'
+const CLIENT_BUILD = 'verify-v35'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -702,13 +702,22 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     finally { setGateBusy(false) }
   }
 
-  const handleShare = async () => {
+  const [shareEmail, setShareEmail]     = useState('')
+  const [shareEmailStep, setShareEmailStep] = useState(false)
+  const [shareBusy, setShareBusy]       = useState(false)
+
+  const handleShare = async (emailOverride?: string) => {
     if (!sessionId) return
+    // If no email on session yet, show capture step first
+    const emailToUse = emailOverride ?? (shareEmail || null)
+    if (!emailToUse) { setShareEmailStep(true); return }
+    setShareBusy(true)
     try {
-      const res  = await fetch('/api/roof-visualizer/session', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, action: 'share' }) })
+      const res  = await fetch('/api/roof-visualizer/session', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, action: 'share', email: emailToUse }) })
       const data = await res.json()
-      if (data.shareUrl) { setShareUrl(data.shareUrl); setStep('share') }
+      if (data.shareUrl) { setShareUrl(data.shareUrl); setShareEmailStep(false); setStep('share') }
     } catch { setError('Could not create share link.') }
+    finally { setShareBusy(false) }
   }
 
   const card = (children: React.ReactNode, extra?: React.CSSProperties) => (
@@ -999,7 +1008,22 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setStep('pick')} style={{ padding: '9px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>← Try Other Colors</button>
-                <button onClick={handleShare} style={{ padding: '9px 18px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Send to Homeowner →</button>
+                {!shareEmailStep ? (
+                  <button onClick={() => handleShare()} style={{ padding: '9px 18px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Send to Homeowner →</button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="email" placeholder="Your email for notification" value={shareEmail}
+                      onChange={e => setShareEmail(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && shareEmail && handleShare(shareEmail)}
+                      autoFocus
+                      style={{ padding: '8px 12px', borderRadius: T.radMd, border: `1.5px solid ${BRAND.teal}`, fontSize: 13, outline: 'none', width: 220 }} />
+                    <button onClick={() => handleShare(shareEmail)} disabled={!shareEmail || shareBusy}
+                      style={{ padding: '9px 16px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: shareEmail ? 'pointer' : 'not-allowed', opacity: !shareEmail ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                      {shareBusy ? 'Creating…' : 'Get Link →'}
+                    </button>
+                    <button onClick={() => setShareEmailStep(false)} style={{ padding: '9px 12px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, fontSize: 13, cursor: 'pointer' }}>✕</button>
+                  </div>
+                )}
               </div>
             </div>
             {/* Row 1 — original, centered and de-emphasized */}

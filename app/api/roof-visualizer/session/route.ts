@@ -20,6 +20,10 @@ export async function PATCH(req: NextRequest) {
     const sb = getSupabaseAdmin()
 
     if (action === 'share') {
+      // Save email to session first (roofer's notification address)
+      if (email) {
+        await sb.from('visualizer_sessions').update({ email, updated_at: new Date().toISOString() }).eq('id', sessionId)
+      }
       // Create a share token for the homeowner page
       const { data: share, error } = await sb
         .from('visualizer_shares')
