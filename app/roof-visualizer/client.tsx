@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v36'
+const CLIENT_BUILD = 'verify-v37'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -705,6 +705,34 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [shareEmail, setShareEmail]     = useState('')
   const [shareEmailStep, setShareEmailStep] = useState(false)
   const [shareBusy, setShareBusy]       = useState(false)
+  const [proId, setProId]               = useState<string | null>(null)
+  const [reportBusy, setReportBusy]     = useState(false)
+
+  // Detect logged-in pro for the PDF report feature
+  React.useEffect(() => {
+    import('@/lib/supabase-browser').then(mod => {
+      const sb = mod.getSupabaseBrowser()
+      sb.auth.getUser().then(({ data }: { data: { user: { id: string } | null } }) => {
+        if (data?.user?.id) setProId(data.user.id)
+      })
+    }).catch(() => { /* not logged in */ })
+  }, [])
+
+  const handleDownloadReport = async () => {
+    if (!sessionId || !proId) return
+    setReportBusy(true)
+    try {
+      const res = await fetch(`/api/roof-visualizer/report?sessionId=${sessionId}&proId=${proId}`)
+      if (res.status === 403) { window.location.href = '/login'; return }
+      if (!res.ok) { setError('Could not generate report. Try again.'); return }
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `ProGuild-Roof-Report-${new Date().toISOString().slice(0, 10)}.pdf`
+      a.click()
+    } catch { setError('Report download failed.') }
+    finally { setReportBusy(false) }
+  }
 
   const handleShare = async (emailOverride?: string) => {
     if (!sessionId) return
@@ -1071,6 +1099,75 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   <p style={{ color: t.textMuted, fontSize: 14, margin: 0 }}>Close more sales with the visualizer. 3 free renders — unlimited with a free ProGuild account.</p>
                 </div>
                 <Link href="/login?tab=signup" style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '11px 24px', borderRadius: T.radMd, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap' }}>Join ProGuild Free →</Link>
+              </div>,
+              { marginTop: 20 }
+            )}
+
+            {/* PDF Report card — download for pros, teaser for anonymous */}
+            {card(
+              <div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 20 }}>📄</span>
+                      <p style={{ fontWeight: 700, color: t.textPri, margin: 0, fontSize: 16 }}>Professional Roof Visualization Report</p>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: proId ? 0 : 14 }}>
+                      {['Cover page with your branding & contact details', 'Before & after + all colour comparisons', 'Manufacturer names and colour swatches', 'Ready to attach to estimates or proposals'].map(f => (
+                        <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: BRAND.teal, fontSize: 12, fontWeight: 700 }}>✓</span>
+                          <span style={{ fontSize: 13, color: t.textMuted }}>{f}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {proId ? (
+                    <button onClick={handleDownloadReport} disabled={reportBusy}
+                      style={{ padding: '11px 22px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 14, cursor: reportBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {reportBusy ? 'Generating…' : '↓ Download Report'}
+                    </button>
+                  ) : (
+                    <Link href="/login?tab=signup"
+                      style={{ display: 'inline-block', padding: '11px 22px', borderRadius: T.radMd, border: `2px solid ${BRAND.teal}`, background: t.cardBg, color: BRAND.teal, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      Sign in to Download →
+                    </Link>
+                  )}
+                </div>
+                {/* Blurred preview teaser for non-pros */}
+                {!proId && (
+                  <div style={{ position: 'relative', marginTop: 16, borderRadius: T.radMd, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
+                    {/* Mock PDF preview */}
+                    <div style={{ background: '#F8FAFC', padding: '16px 20px', filter: 'blur(3px)', userSelect: 'none', pointerEvents: 'none' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `2px solid ${BRAND.teal}`, paddingBottom: 10, marginBottom: 12 }}>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: 16, color: BRAND.teal }}>ProGuild</div>
+                          <div style={{ fontSize: 10, color: '#888' }}>Roof Visualization Report</div>
+                        </div>
+                        <div style={{ fontSize: 10, color: '#888' }}>{new Date().toLocaleDateString()}</div>
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#111', marginBottom: 4 }}>Smith Residence</div>
+                      <div style={{ fontSize: 11, color: '#666', marginBottom: 12 }}>Prepared by: Bert's Roofing Co. · (555) 123-4567</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {renders.slice(0, 3).map((r, i) => (
+                          <div key={i} style={{ flex: 1, borderRadius: 4, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                            {r.renderUrl && <img src={r.renderUrl} alt="" style={{ width: '100%', height: 60, objectFit: 'cover', display: 'block' }} />}
+                            <div style={{ height: 12, background: r.hexPreview }} />
+                            <div style={{ padding: '4px 6px', fontSize: 8, fontWeight: 600, color: '#111' }}>{r.skuName}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Overlay */}
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <div style={{ fontSize: 28 }}>🔒</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: t.textPri }}>Pro feature</div>
+                      <Link href="/login?tab=signup"
+                        style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '9px 20px', borderRadius: T.radMd, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                        Join Free to Unlock →
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </div>,
               { marginTop: 20 }
             )}
