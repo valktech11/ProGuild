@@ -148,7 +148,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v38'
+const CLIENT_BUILD = 'verify-v39'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -913,13 +913,13 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#FFF7ED', border: '2px solid #EA580C', borderRadius: T.radMd, padding: '14px 16px', marginBottom: 14 }}>
                 <span style={{ fontSize: 22, flexShrink: 0 }}>🏠</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E', marginBottom: 3 }}>Your tap selected the whole house</div>
-                  <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.5 }}>The AI couldn't separate the roof from the walls — tap below to erase what you don't want painted.</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E', marginBottom: 3 }}>We found the roof — but also some walls</div>
+                  <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.5 }}>Tap below to erase walls, gutters, or anything that isn't roof. Takes about 15 seconds.</div>
                 </div>
                 <button
                   onClick={() => { setEraseMode(true); setSuperMaskWarning(false); setTraceHint(null) }}
                   style={{ flexShrink: 0, padding: '10px 16px', borderRadius: T.radMd, border: 'none', background: '#EA580C', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  Erase Walls →
+                  Clean Up Selection →
                 </button>
               </div>
             )}
