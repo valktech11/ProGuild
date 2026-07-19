@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v35'
+const CLIENT_BUILD = 'verify-v36'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -1008,24 +1008,36 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setStep('pick')} style={{ padding: '9px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>← Try Other Colors</button>
-                {!shareEmailStep ? (
+                {!shareEmailStep && (
                   <button onClick={() => handleShare()} style={{ padding: '9px 18px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Send to Homeowner →</button>
-                ) : (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="email" placeholder="Your email for notification" value={shareEmail}
-                      onChange={e => setShareEmail(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && shareEmail && handleShare(shareEmail)}
-                      autoFocus
-                      style={{ padding: '8px 12px', borderRadius: T.radMd, border: `1.5px solid ${BRAND.teal}`, fontSize: 13, outline: 'none', width: 220 }} />
-                    <button onClick={() => handleShare(shareEmail)} disabled={!shareEmail || shareBusy}
-                      style={{ padding: '9px 16px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: shareEmail ? 'pointer' : 'not-allowed', opacity: !shareEmail ? 0.6 : 1, whiteSpace: 'nowrap' }}>
-                      {shareBusy ? 'Creating…' : 'Get Link →'}
-                    </button>
-                    <button onClick={() => setShareEmailStep(false)} style={{ padding: '9px 12px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, fontSize: 13, cursor: 'pointer' }}>✕</button>
-                  </div>
                 )}
               </div>
             </div>
+
+            {/* Email capture card — shown when roofer taps Send to Homeowner */}
+            {shareEmailStep && (
+              <div style={{ background: '#F0FDF9', border: `2px solid ${BRAND.teal}`, borderRadius: T.radLg, padding: '20px 24px', marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: t.textPri, marginBottom: 4 }}>Where should we send the notification?</div>
+                  <div style={{ fontSize: 13, color: t.textMuted }}>Enter your email — we'll notify you the moment your homeowner picks a colour.</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input type="email" placeholder="your@email.com" value={shareEmail}
+                    onChange={e => setShareEmail(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && shareEmail && handleShare(shareEmail)}
+                    autoFocus
+                    style={{ padding: '11px 14px', borderRadius: T.radMd, border: `1.5px solid ${BRAND.teal}`, fontSize: 14, outline: 'none', width: 240, background: '#fff', color: t.textPri, boxSizing: 'border-box' as const }} />
+                  <button onClick={() => handleShare(shareEmail)} disabled={!shareEmail || shareBusy}
+                    style={{ padding: '11px 20px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 14, cursor: shareEmail ? 'pointer' : 'not-allowed', opacity: !shareEmail ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    {shareBusy ? 'Creating…' : 'Get Link →'}
+                  </button>
+                  <button onClick={() => setShareEmailStep(false)}
+                    style={{ padding: '11px 14px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, fontSize: 13, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             {/* Row 1 — original, centered and de-emphasized */}
             {photoPreview && (
               <div style={{ maxWidth: 420, margin: '0 auto 20px', cursor: 'zoom-in' }}
