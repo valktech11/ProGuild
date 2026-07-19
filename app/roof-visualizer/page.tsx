@@ -3,6 +3,7 @@
 // Roofer acquisition tool: 1 free render without account → gate → signup → 3 total free.
 
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import RoofVisualizerClient from './client'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
@@ -48,5 +49,9 @@ async function getSkuCatalog() {
 export default async function RoofVisualizerPage() {
   const skus = await getSkuCatalog()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <RoofVisualizerClient skus={skus as any} />
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#F5F4EF' }} />}>
+      <RoofVisualizerClient skus={skus as any} />
+    </Suspense>
+  )
 }
