@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { sendVisualizerPickEmail } from '@/lib/email'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://proguild.ai'
 
@@ -105,7 +106,13 @@ export async function POST(req: NextRequest) {
 
     const { data: share, error: findErr } = await sb
       .from('visualizer_shares')
-      .select('id, session_id, visualizer_sessions(pro_id)')
+      .select(`
+        id, session_id,
+        visualizer_sessions (
+          email, pro_id,
+          pros ( full_name, email )
+        )
+      `)
       .eq('token', token)
       .single()
 
@@ -116,7 +123,41 @@ export async function POST(req: NextRequest) {
       chosen_at: new Date().toISOString(),
     }).eq('id', share.id)
 
-    // TODO: Resend notification to pro (Week 4)
+    // Notify the roofer — fire-and-forget, never block the homeowner response
+    ;(async () => {
+      try {
+        const sess = share.visualizer_sessions as any
+        // Resolve roofer email: prefer linked pro account, fall back to gate-captured email
+        const pro        = sess?.pros
+        const toEmail: string | null = pro?.email ?? sess?.email ?? null
+        const toName: string         = pro?.full_name ?? 'there'
+
+        if (!toEmail) {
+          console.log('[visualizer/share] no roofer email on session — skipping notification')
+          return
+        }
+
+        // Fetch the render URL for the chosen SKU
+        const { data: render } = await sb
+          .from('visualizer_renders')
+          .select('render_url, viz_skus ( name, viz_product_lines ( viz_manufacturers ( name ) ) )')
+          .eq('session_id', share.session_id)
+          .eq('sku_id', skuId)
+          .eq('status', 'done')
+          .single()
+
+        const skuName      = (render?.viz_skus as any)?.name ?? 'a shingle colour'
+        const manufacturer = (render?.viz_skus as any)?.viz_product_lines?.viz_manufacturers?.name ?? ''
+        const renderUrl    = render?.render_url ?? ''
+        const shareUrl     = `${BASE_URL}/r/${token}`
+
+        await sendVisualizerPickEmail({ toEmail, toName, skuName, manufacturer, renderUrl, shareUrl })
+        console.log(`[visualizer/share] notified ${toEmail} — homeowner picked ${skuName}`)
+      } catch (e) {
+        // Never surface email errors to the homeowner
+        console.error('[visualizer/share] notification failed:', e)
+      }
+    })()
 
     return NextResponse.json({ ok: true })
 

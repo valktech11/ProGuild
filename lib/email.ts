@@ -196,3 +196,88 @@ export async function sendClaimEmail(pro: {
     `,
   })
 }
+
+// Sent to the roofer when a homeowner picks a shingle colour on /r/[token]
+export async function sendVisualizerPickEmail({
+  toEmail,
+  toName,
+  skuName,
+  manufacturer,
+  renderUrl,
+  shareUrl,
+}: {
+  toEmail:      string
+  toName:       string
+  skuName:      string
+  manufacturer: string
+  renderUrl:    string
+  shareUrl:     string
+}) {
+  const firstName = toName.split(' ')[0] || toName
+  const now = new Date().toLocaleString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+  })
+
+  return getResend().emails.send({
+    from:    'ProGuild.ai <hello@proguild.ai>',
+    to:      toEmail,
+    subject: `Your homeowner picked ${skuName} — ProGuild Roof Visualizer`,
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f4ef;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4ef;padding:32px 16px;">
+  <tr><td align="center">
+  <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e1db;">
+
+    <tr><td style="background:#0d9488;padding:28px 32px 24px;">
+      <div style="font-size:20px;font-weight:600;color:#ffffff;letter-spacing:-0.3px;">ProGuild.ai</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">Roof Visualizer</div>
+    </td></tr>
+
+    <tr><td style="padding:28px 32px;">
+      <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:6px;">Homeowner decision</div>
+      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">They picked a colour, ${firstName}</div>
+      <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">Your homeowner reviewed the renders you sent and made a choice. Time to follow up.</div>
+
+      <!-- Chosen colour card -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf8;border-radius:12px;border:1px solid #e2e1db;margin-bottom:24px;overflow:hidden;">
+        <tr><td>
+          <img src="${renderUrl}" alt="${skuName}" width="560" style="width:100%;display:block;max-height:280px;object-fit:cover;" />
+        </td></tr>
+        <tr><td style="padding:16px 20px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#9c9a92;margin-bottom:4px;">Their choice</div>
+          <div style="font-size:18px;font-weight:700;color:#1a1a18;">${skuName}</div>
+          <div style="font-size:13px;color:#73726c;margin-top:2px;">${manufacturer}</div>
+          <div style="font-size:12px;color:#9c9a92;margin-top:8px;">Chosen at ${now}</div>
+        </td></tr>
+      </table>
+
+      <!-- CTA -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        <tr><td style="padding-bottom:10px;">
+          <a href="${shareUrl}" style="display:block;background:#0d9488;color:#ffffff;text-align:center;padding:14px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;">View their selection →</a>
+        </td></tr>
+      </table>
+
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="background:#E1F5EE;border-left:3px solid #0d9488;border-radius:0 8px 8px 0;padding:12px 14px;">
+          <div style="font-size:13px;color:#085041;line-height:1.55;">Follow up now while momentum is high — homeowners who've chosen a colour are ready to talk next steps.</div>
+        </td></tr>
+      </table>
+    </td></tr>
+
+    <tr><td style="border-top:1px solid #e2e1db;padding:18px 32px;background:#fafaf8;">
+      <div style="font-size:12px;color:#9c9a92;line-height:1.6;">
+        Sent via ProGuild.ai Roof Visualizer · <a href="https://proguild.ai" style="color:#73726c;text-decoration:none;">proguild.ai</a>
+      </div>
+      <div style="font-size:11px;color:#9c9a92;margin-top:6px;">© 2026 ProGuild.ai · Univaro Technologies</div>
+    </td></tr>
+
+  </table>
+  </td></tr>
+</table>
+</body>
+</html>`,
+  })
+}
