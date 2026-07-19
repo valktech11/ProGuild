@@ -180,6 +180,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [elapsed, setElapsed]     = useState(0)
   const [showPickMask, setShowPickMask] = useState(true)
   const [confirmedMaskUrl, setConfirmedMaskUrl] = useState<string | null>(null)
+  const confirmedPixels = useRef<Set<number>>(new Set())
   const pickOverlayRef = useRef<HTMLCanvasElement>(null)
   const sweeping    = useRef(false)
   const sweptThisDrag = useRef<Set<number>>(new Set())
@@ -237,11 +238,14 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   }, [pendingFile])
 
   // Pick screen: redraw the CONFIRMED selection so the user can verify what
-  // '✓ Roof confirmed' actually confirmed before spending renders.
+  // Pick screen: draw teal overlay from the confirmed pixel snapshot (exact server mask).
+  // Using selected+gridData here is wrong — gridData has stale candidate ownership
+  // (custom traces, erase, morphology all happen server-side). The snapshot is truth.
   React.useEffect(() => {
     const cv = pickOverlayRef.current
-    if (!cv || !gridData || step !== 'pick' || !showPickMask) return
+    if (!cv || step !== 'pick' || !showPickMask) return
     const { w, h } = gridDims
+    if (!w || !h) return
     cv.width = w; cv.height = h
     const ctx = cv.getContext('2d')!
     const img = ctx.createImageData(w, h)
@@ -251,14 +255,13 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       const rr = px[p * 4], gg = px[p * 4 + 1], bb = px[p * 4 + 2]
       return 2 * gg - rr - bb > 40 || 2 * bb - rr - gg > 50
     }
-    for (let i = 0; i < w * h; i++) {
-      const idx = gridData[i]
-      if (idx > 0 && selected.has(idx) && !isVeg(i)) {
-        img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 70
+    confirmedPixels.current.forEach(i => {
+      if (!isVeg(i)) {
+        img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 110
       }
-    }
+    })
     ctx.putImageData(img, 0, 0)
-  }, [step, showPickMask, gridData, gridDims, selected])
+  }, [step, showPickMask, gridDims])
 
   // Elapsed-time ticker for the two slow server steps
   React.useEffect(() => {
@@ -584,6 +587,18 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Could not confirm selection.'); return }
       if (data.maskUrl) setConfirmedMaskUrl(data.maskUrl)
+      // Build confirmed pixel snapshot BEFORE erasePixels are cleared.
+      // This is what the pick screen overlay draws — exact pixels confirmed server-side.
+      const snap = new Set<number>()
+      if (gridData) {
+        const ep = erasePixels  // capture before clearing
+        const { w, h } = gridDims
+        for (let i = 0; i < w * h; i++) {
+          const idx = gridData[i]
+          if (idx > 0 && selected.has(idx) && !ep.has(i)) snap.add(i)
+        }
+      }
+      confirmedPixels.current = snap
       // Sync client gridData with server erase: zero out erased pixels so the pick
       // screen preview matches the mask the server actually confirmed.
       if (erasePixels.size > 0) {
@@ -829,21 +844,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 <div style={{ position: 'relative' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photoPreview} alt="Your home" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', maxHeight: 300 }} />
-                {showPickMask && confirmedMaskUrl && (
-                  // Server mask PNG: exact pixels the server confirmed (veto + morphology + erase applied).
-                  // Teal tint via CSS — mask is white-on-black, multiply blend makes non-roof areas transparent.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={confirmedMaskUrl} alt=""
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', mixBlendMode: 'multiply', opacity: 0, filter: 'none' }} />
-                )}
-                {showPickMask && !confirmedMaskUrl && (
+                {showPickMask && (
                   <canvas ref={pickOverlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
-                )}
-                {showPickMask && confirmedMaskUrl && (
-                  // Teal fill layer: positioned behind mask, visible only where mask is white
-                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(13,148,136,0.45)', pointerEvents: 'none',
-                    WebkitMaskImage: `url(${confirmedMaskUrl})`, maskImage: `url(${confirmedMaskUrl})`,
-                    WebkitMaskSize: '100% 100%', maskSize: '100% 100%' }} />
                 )}
                 <button onClick={() => setShowPickMask(v => !v)}
                   title={showPickMask ? 'Hide the confirmed roof area' : 'Show the confirmed roof area'}
