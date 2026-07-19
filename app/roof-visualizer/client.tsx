@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v29'
+const CLIENT_BUILD = 'verify-v30'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -180,7 +180,6 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [elapsed, setElapsed]     = useState(0)
   const [showPickMask, setShowPickMask] = useState(true)
   const [confirmedMaskUrl, setConfirmedMaskUrl] = useState<string | null>(null)
-  const confirmedPixels = useRef<Set<number>>(new Set())
   const pickOverlayRef = useRef<HTMLCanvasElement>(null)
   const sweeping    = useRef(false)
   const sweptThisDrag = useRef<Set<number>>(new Set())
@@ -237,31 +236,54 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     } catch { setError('Upload failed. Please try again.'); setStep('preview') }
   }, [pendingFile])
 
-  // Pick screen: redraw the CONFIRMED selection so the user can verify what
-  // Pick screen: draw teal overlay from the confirmed pixel snapshot (exact server mask).
-  // Using selected+gridData here is wrong — gridData has stale candidate ownership
-  // (custom traces, erase, morphology all happen server-side). The snapshot is truth.
+  // Pick screen: draw the SERVER's confirmed mask, fetched through the same-origin
+  // proxy. The R2 public bucket sends no CORS headers, so the PNG cannot be loaded
+  // directly by <img>, CSS mask-image or fetch — it must go through /download.
+  // Single source of truth: no client-side reconstruction to drift from the server.
   React.useEffect(() => {
-    const cv = pickOverlayRef.current
-    if (!cv || step !== 'pick' || !showPickMask) return
-    const { w, h } = gridDims
-    if (!w || !h) return
-    cv.width = w; cv.height = h
-    const ctx = cv.getContext('2d')!
-    const img = ctx.createImageData(w, h)
-    const px = photoPixelsRef.current
-    const isVeg = (p: number) => {
-      if (!px) return false
-      const rr = px[p * 4], gg = px[p * 4 + 1], bb = px[p * 4 + 2]
-      return 2 * gg - rr - bb > 40 || 2 * bb - rr - gg > 50
-    }
-    confirmedPixels.current.forEach(i => {
-      if (!isVeg(i)) {
-        img.data[i * 4] = 13; img.data[i * 4 + 1] = 148; img.data[i * 4 + 2] = 136; img.data[i * 4 + 3] = 110
+    if (step !== 'pick' || !showPickMask || !confirmedMaskUrl) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const proxied = `/api/roof-visualizer/download?url=${encodeURIComponent(confirmedMaskUrl)}&name=mask.png`
+        const res = await fetch(proxied)
+        if (!res.ok) { console.warn('[pick] mask proxy failed:', res.status); return }
+        const bmp = await createImageBitmap(await res.blob())
+        if (cancelled) return
+        const cv = pickOverlayRef.current
+        if (!cv) { console.warn('[pick] overlay canvas not mounted'); return }
+
+        // Canvas matches the mask's own pixel grid; CSS stretches it over the photo box.
+        const w = bmp.width, h = bmp.height
+        cv.width = w; cv.height = h
+
+        // Read the mask through an offscreen canvas
+        const off = document.createElement('canvas')
+        off.width = w; off.height = h
+        const octx = off.getContext('2d')!
+        octx.drawImage(bmp, 0, 0)
+        const maskPx = octx.getImageData(0, 0, w, h).data
+
+        const ctx = cv.getContext('2d')!
+        const out = ctx.createImageData(w, h)
+        let white = 0
+        for (let i = 0; i < w * h; i++) {
+          if (maskPx[i * 4] > 128) {              // mask is white-on-black
+            out.data[i * 4]     = 13
+            out.data[i * 4 + 1] = 148
+            out.data[i * 4 + 2] = 136
+            out.data[i * 4 + 3] = 110
+            white++
+          }
+        }
+        ctx.putImageData(out, 0, 0)
+        console.log(`[pick] mask loaded: ${white} white px of ${w}x${h}`)
+      } catch (err) {
+        console.warn('[pick] mask draw failed:', err)
       }
-    })
-    ctx.putImageData(img, 0, 0)
-  }, [step, showPickMask, gridDims])
+    })()
+    return () => { cancelled = true }
+  }, [step, showPickMask, confirmedMaskUrl])
 
   // Elapsed-time ticker for the two slow server steps
   React.useEffect(() => {
@@ -587,18 +609,6 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Could not confirm selection.'); return }
       if (data.maskUrl) setConfirmedMaskUrl(data.maskUrl)
-      // Build confirmed pixel snapshot BEFORE erasePixels are cleared.
-      // This is what the pick screen overlay draws — exact pixels confirmed server-side.
-      const snap = new Set<number>()
-      if (gridData) {
-        const ep = erasePixels  // capture before clearing
-        const { w, h } = gridDims
-        for (let i = 0; i < w * h; i++) {
-          const idx = gridData[i]
-          if (idx > 0 && selected.has(idx) && !ep.has(i)) snap.add(i)
-        }
-      }
-      confirmedPixels.current = snap
       // Sync client gridData with server erase: zero out erased pixels so the pick
       // screen preview matches the mask the server actually confirmed.
       if (erasePixels.size > 0) {
@@ -843,9 +853,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.35fr) minmax(0,1fr)', borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', background: t.cardBg }}>
                 <div style={{ position: 'relative' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoPreview} alt="Your home" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', maxHeight: 300 }} />
+                <img src={photoPreview} alt="Your home" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', maxHeight: 300, background: '#000' }} />
                 {showPickMask && (
-                  <canvas ref={pickOverlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
+                  <canvas ref={pickOverlayRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} />
                 )}
                 <button onClick={() => setShowPickMask(v => !v)}
                   title={showPickMask ? 'Hide the confirmed roof area' : 'Show the confirmed roof area'}
