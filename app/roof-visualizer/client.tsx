@@ -148,7 +148,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v39'
+const CLIENT_BUILD = 'verify-v40'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -721,6 +721,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       if (data.gate)  { setStep('gate'); return }
       if (!res.ok)    { setError(data.error || 'Render failed.'); setStep('pick'); return }
       setRenders((data.renders as RenderResult[]).map(r => ({ ...r, mfgName: skuMap[r.skuId] ? getMfgName(skuMap[r.skuId]) : '' })))
+      setHeroIdx(1) // default to first render (index 0 = original)
       setStep('results')
     } catch { setError('Render failed. Please try again.'); setStep('pick') }
   }
@@ -735,6 +736,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [shareEmailStep, setShareEmailStep] = useState(false)
   const [shareBusy, setShareBusy]       = useState(false)
   const [proId, setProId]               = useState<string | null>(null)
+  const [heroIdx, setHeroIdx]           = useState<number>(1) // 0=original, 1+=renders
   const [reportBusy, setReportBusy]     = useState(false)
 
   // Detect logged-in pro for the PDF report feature
@@ -1056,152 +1058,203 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
           </div>
         )}
 
-        {step === 'results' && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        {step === 'results' && (() => {
+            const allItems: Array<{ url: string; label: string; hex: string; mfg: string; isOriginal?: boolean }> = [
+              ...(photoPreview ? [{ url: photoPreview, label: 'Original', hex: '#888', mfg: '', isOriginal: true }] : []),
+              ...renders.filter(r => r.renderUrl).map(r => ({ url: r.renderUrl!, label: r.skuName, hex: r.hexPreview, mfg: r.mfgName ?? '' })),
+            ]
+            return (
               <div>
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: t.textPri, margin: '0 0 4px' }}>Your Roof Visualized</h2>
-                <p style={{ fontSize: 14, color: t.textMuted, margin: 0 }}>Compare each color against your current roof above</p>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setStep('pick')} style={{ padding: '9px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>← Try Other Colors</button>
-                {!shareEmailStep && (
-                  <button onClick={() => handleShare()} style={{ padding: '9px 18px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Send to Homeowner →</button>
-                )}
-              </div>
-            </div>
-
-            {/* Email capture card — shown when roofer taps Send to Homeowner */}
-            {shareEmailStep && (
-              <div style={{ background: '#F0FDF9', border: `2px solid ${BRAND.teal}`, borderRadius: T.radLg, padding: '20px 24px', marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: t.textPri, marginBottom: 4 }}>Where should we send the notification?</div>
-                  <div style={{ fontSize: 13, color: t.textMuted }}>Enter your email — we'll notify you the moment your homeowner picks a colour.</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input type="email" placeholder="your@email.com" value={shareEmail}
-                    onChange={e => setShareEmail(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && shareEmail && handleShare(shareEmail)}
-                    autoFocus
-                    style={{ padding: '11px 14px', borderRadius: T.radMd, border: `1.5px solid ${BRAND.teal}`, fontSize: 14, outline: 'none', width: 240, background: '#fff', color: t.textPri, boxSizing: 'border-box' as const }} />
-                  <button onClick={() => handleShare(shareEmail)} disabled={!shareEmail || shareBusy}
-                    style={{ padding: '11px 20px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 14, cursor: shareEmail ? 'pointer' : 'not-allowed', opacity: !shareEmail ? 0.6 : 1, whiteSpace: 'nowrap' }}>
-                    {shareBusy ? 'Creating…' : 'Get Link →'}
-                  </button>
-                  <button onClick={() => setShareEmailStep(false)}
-                    style={{ padding: '11px 14px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, fontSize: 13, cursor: 'pointer' }}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-            {/* Row 1 — original, centered and de-emphasized */}
-            {photoPreview && (
-              <div style={{ maxWidth: 420, margin: '0 auto 20px', cursor: 'zoom-in' }}
-                onClick={() => setLightbox({ url: photoPreview, label: 'Original' })}>
-                <OriginalCard photoUrl={photoPreview} />
-              </div>
-            )}
-            {/* Row 2 — the renders dominate */}
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(renders.length, 3)}, 1fr)`, gap: 16 }}>
-              {renders.map(r => r.renderUrl ? (
-                <RenderResultCard key={r.skuId} rendered={r.renderUrl} label={r.skuName} hex={r.hexPreview} mfg={r.mfgName ?? ''}
-                  onOpen={() => setLightbox({ url: r.renderUrl!, label: `${r.mfgName ?? ''} ${r.skuName}`.trim() })} />
-              ) : (
-                <ErrorCard key={r.skuId} label={r.skuName} retrying={retrying.has(r.skuId)} onRetry={() => handleRetry(r.skuId)} />
-              ))}
-            </div>
-            {card(
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                <div>
-                  <p style={{ fontWeight: 700, color: t.textPri, margin: '0 0 4px', fontSize: 16 }}>Want your exact roof size?</p>
-                  <p style={{ color: t.textMuted, fontSize: 14, margin: 0 }}>Measure your roof from satellite imagery in seconds — square footage, free, no signup.</p>
-                </div>
-                <Link href="/roof-size-calculator" style={{ display: 'inline-block', background: t.cardBg, color: BRAND.teal, border: `2px solid ${BRAND.teal}`, padding: '10px 22px', borderRadius: T.radMd, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap' }}>Measure My Roof Free →</Link>
-              </div>,
-              { marginTop: 20 }
-            )}
-            {card(
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                <div>
-                  <p style={{ fontWeight: 700, color: t.textPri, margin: '0 0 4px', fontSize: 16 }}>Are you a roofing contractor?</p>
-                  <p style={{ color: t.textMuted, fontSize: 14, margin: 0 }}>Close more sales with the visualizer. 3 free renders — unlimited with a free ProGuild account.</p>
-                </div>
-                <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`} style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '11px 24px', borderRadius: T.radMd, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap' }}>Join ProGuild Free →</Link>
-              </div>,
-              { marginTop: 20 }
-            )}
-
-            {/* PDF Report card — download for pros, teaser for anonymous */}
-            {card(
-              <div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <span style={{ fontSize: 20 }}>📄</span>
-                      <p style={{ fontWeight: 700, color: t.textPri, margin: 0, fontSize: 16 }}>Professional Roof Visualization Report</p>
+                {/* ── Hero image ──────────────────────────────────────── */}
+                {heroIdx !== null && allItems[heroIdx] && (
+                  <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', marginBottom: 12, cursor: 'zoom-in', lineHeight: 0 }}
+                    onClick={() => setLightbox({ url: allItems[heroIdx!].url, label: allItems[heroIdx!].label })}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={allItems[heroIdx].url} alt={allItems[heroIdx].label}
+                      style={{ width: '100%', maxHeight: 520, objectFit: 'cover', display: 'block' }} />
+                    {/* Label badge */}
+                    <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.62)', borderRadius: 8, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {!allItems[heroIdx].isOriginal && (
+                        <span style={{ width: 14, height: 14, borderRadius: 3, background: allItems[heroIdx].hex, display: 'inline-block', flexShrink: 0, border: '1px solid rgba(255,255,255,0.3)' }} />
+                      )}
+                      <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>
+                        {allItems[heroIdx].isOriginal ? 'Original roof' : `${allItems[heroIdx].mfg ? allItems[heroIdx].mfg + ' · ' : ''}${allItems[heroIdx].label}`}
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: proId ? 0 : 14 }}>
-                      {['Cover page with your branding & contact details', 'Before & after + all colour comparisons', 'Manufacturer names and colour swatches', 'Ready to attach to estimates or proposals'].map(f => (
-                        <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ color: BRAND.teal, fontSize: 12, fontWeight: 700 }}>✓</span>
-                          <span style={{ fontSize: 13, color: t.textMuted }}>{f}</span>
+                    {/* Zoom hint */}
+                    <div style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(0,0,0,0.45)', borderRadius: 6, padding: '4px 8px', fontSize: 11, color: '#fff' }}>⤢ Tap to zoom</div>
+                    {/* ✓ Roof confirmed badge */}
+                    {showPickMask && (
+                      <div style={{ position: 'absolute', bottom: 14, right: 14 }}>
+                        <button onClick={e => { e.stopPropagation(); setShowPickMask(false) }}
+                          style={{ background: BRAND.teal, color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          ✓ Roof confirmed · hide
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Thumbnail strip — Original + renders ────────────── */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
+                  {allItems.map((item, i) => (
+                    <div key={i} onClick={() => setHeroIdx(i)}
+                      style={{ flexShrink: 0, width: 100, cursor: 'pointer', borderRadius: T.radMd, overflow: 'hidden',
+                        border: heroIdx === i ? `2.5px solid ${BRAND.teal}` : `2px solid ${t.cardBorder}`,
+                        transition: 'border-color 0.12s', opacity: heroIdx === i ? 1 : 0.75 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.url} alt={item.label} style={{ width: '100%', height: 64, objectFit: 'cover', display: 'block' }} />
+                      {/* Colour band */}
+                      <div style={{ height: item.isOriginal ? 0 : 6, background: item.hex }} />
+                      <div style={{ padding: '4px 6px', background: t.cardBg }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: heroIdx === i ? BRAND.teal : t.textPri, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.isOriginal ? 'Original' : item.label}
                         </div>
-                      ))}
+                        {!item.isOriginal && item.mfg && (
+                          <div style={{ fontSize: 9, color: t.textSubtle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.mfg}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Primary actions ──────────────────────────────────── */}
+                {!shareEmailStep ? (
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+                    <button onClick={() => handleShare()}
+                      style={{ flex: 1, minWidth: 200, padding: '14px 24px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
+                      Send to Homeowner →
+                    </button>
+                    {proId && (
+                      <button onClick={handleDownloadReport} disabled={reportBusy}
+                        style={{ padding: '14px 20px', borderRadius: T.radMd, border: `2px solid ${BRAND.teal}`, background: t.cardBg, color: BRAND.teal, fontWeight: 700, fontSize: 15, cursor: reportBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                        {reportBusy ? 'Generating…' : '↓ Report'}
+                      </button>
+                    )}
+                    <button onClick={() => setStep('pick')}
+                      style={{ padding: '14px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      ← Try Other Colors
+                    </button>
+                  </div>
+                ) : (
+                  /* Email capture */
+                  <div style={{ background: '#F0FDF9', border: `2px solid ${BRAND.teal}`, borderRadius: T.radLg, padding: '20px 24px', marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: t.textPri, marginBottom: 4 }}>Where should we send the notification?</div>
+                      <div style={{ fontSize: 13, color: t.textMuted }}>Enter your email — we'll notify you the moment your homeowner picks a colour.</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input type="email" placeholder="your@email.com" value={shareEmail}
+                        onChange={e => setShareEmail(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && shareEmail && handleShare(shareEmail)}
+                        autoFocus
+                        style={{ padding: '11px 14px', borderRadius: T.radMd, border: `1.5px solid ${BRAND.teal}`, fontSize: 14, outline: 'none', width: 240, background: '#fff', color: t.textPri, boxSizing: 'border-box' as const }} />
+                      <button onClick={() => handleShare(shareEmail)} disabled={!shareEmail || shareBusy}
+                        style={{ padding: '11px 20px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 14, cursor: shareEmail ? 'pointer' : 'not-allowed', opacity: !shareEmail ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                        {shareBusy ? 'Creating…' : 'Get Link →'}
+                      </button>
+                      <button onClick={() => setShareEmailStep(false)}
+                        style={{ padding: '11px 14px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, fontSize: 13, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
                     </div>
                   </div>
-                  {proId ? (
-                    <button onClick={handleDownloadReport} disabled={reportBusy}
-                      style={{ padding: '11px 22px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 14, cursor: reportBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      {reportBusy ? 'Generating…' : '↓ Download Report'}
-                    </button>
-                  ) : (
-                    <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`}
-                      style={{ display: 'inline-block', padding: '11px 22px', borderRadius: T.radMd, border: `2px solid ${BRAND.teal}`, background: t.cardBg, color: BRAND.teal, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      Sign in to Download →
-                    </Link>
-                  )}
-                </div>
-                {/* Blurred preview teaser for non-pros */}
-                {!proId && (
-                  <div style={{ position: 'relative', marginTop: 16, borderRadius: T.radMd, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
-                    {/* Mock PDF preview */}
-                    <div style={{ background: '#F8FAFC', padding: '16px 20px', filter: 'blur(3px)', userSelect: 'none', pointerEvents: 'none' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `2px solid ${BRAND.teal}`, paddingBottom: 10, marginBottom: 12 }}>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: 16, color: BRAND.teal }}>ProGuild</div>
-                          <div style={{ fontSize: 10, color: '#888' }}>Roof Visualization Report</div>
+                )}
+
+                {/* ── Error renders ────────────────────────────────────── */}
+                {renders.some(r => !r.renderUrl) && (
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(renders.filter(r => !r.renderUrl).length, 3)}, 1fr)`, gap: 12, marginBottom: 16 }}>
+                    {renders.filter(r => !r.renderUrl).map(r => (
+                      <ErrorCard key={r.skuId} label={r.skuName} retrying={retrying.has(r.skuId)} onRetry={() => handleRetry(r.skuId)} />
+                    ))}
+                  </div>
+                )}
+
+                {/* ── PDF Report card ──────────────────────────────────── */}
+                {card(
+                  <div>
+                    {/* Visual mock PDF — real renders inside, blurred for non-pros */}
+                    <div style={{ position: 'relative', borderRadius: T.radMd, overflow: 'hidden', border: `1px solid ${t.cardBorder}`, marginBottom: 16 }}>
+                      <div style={{ background: '#F8FAFC', padding: '14px 18px', filter: proId ? 'none' : 'blur(3px)', userSelect: 'none', pointerEvents: proId ? 'auto' : 'none' }}>
+                        {/* Mock PDF header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `2px solid ${BRAND.teal}`, paddingBottom: 8, marginBottom: 10 }}>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: 14, color: BRAND.teal }}>ProGuild</div>
+                            <div style={{ fontSize: 9, color: '#888' }}>Roof Visualization Report</div>
+                          </div>
+                          <div style={{ fontSize: 9, color: '#888' }}>{new Date().toLocaleDateString()}</div>
                         </div>
-                        <div style={{ fontSize: 10, color: '#888' }}>{new Date().toLocaleDateString()}</div>
+                        <div style={{ fontWeight: 700, fontSize: 12, color: '#111', marginBottom: 2 }}>Smith Residence — Roof Colour Comparison</div>
+                        <div style={{ fontSize: 10, color: '#666', marginBottom: 10 }}>Prepared by: Your Roofing Company · Licensed & Insured</div>
+                        {/* Render thumbnails inside mock PDF */}
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {renders.filter(r => r.renderUrl).slice(0, 3).map((r, i) => (
+                            <div key={i} style={{ flex: 1, borderRadius: 4, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={r.renderUrl!} alt="" style={{ width: '100%', height: 70, objectFit: 'cover', display: 'block' }} />
+                              <div style={{ height: 10, background: r.hexPreview }} />
+                              <div style={{ padding: '3px 5px', fontSize: 8, fontWeight: 600, color: '#111' }}>{r.mfgName} {r.skuName}</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: '#111', marginBottom: 4 }}>Smith Residence</div>
-                      <div style={{ fontSize: 11, color: '#666', marginBottom: 12 }}>Prepared by: Bert's Roofing Co. · (555) 123-4567</div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {renders.slice(0, 3).map((r, i) => (
-                          <div key={i} style={{ flex: 1, borderRadius: 4, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-                            {r.renderUrl && <img src={r.renderUrl} alt="" style={{ width: '100%', height: 60, objectFit: 'cover', display: 'block' }} />}
-                            <div style={{ height: 12, background: r.hexPreview }} />
-                            <div style={{ padding: '4px 6px', fontSize: 8, fontWeight: 600, color: '#111' }}>{r.skuName}</div>
+                      {/* Lock overlay for non-pros */}
+                      {!proId && (
+                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.55)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                          <div style={{ fontSize: 24 }}>🔒</div>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: t.textPri }}>Pro feature — free to unlock</div>
+                          <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`}
+                            style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '8px 18px', borderRadius: T.radMd, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                            Join Free to Unlock →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                    {/* Actions row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: t.textPri, marginBottom: 3 }}>Professional Roof Visualization Report</div>
+                        <div style={{ fontSize: 13, color: t.textMuted }}>Cover · comparisons · manufacturer swatches · ready to attach to proposals</div>
+                      </div>
+                      {proId ? (
+                        <button onClick={handleDownloadReport} disabled={reportBusy}
+                          style={{ padding: '10px 20px', borderRadius: T.radMd, border: 'none', background: BRAND.teal, color: '#fff', fontWeight: 700, fontSize: 13, cursor: reportBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                          {reportBusy ? 'Generating…' : '↓ Download Report'}
+                        </button>
+                      ) : (
+                        <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`}
+                          style={{ display: 'inline-block', padding: '10px 18px', borderRadius: T.radMd, border: `2px solid ${BRAND.teal}`, background: t.cardBg, color: BRAND.teal, fontWeight: 700, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          Sign in to Download →
+                        </Link>
+                      )}
+                    </div>
+                  </div>,
+                  { marginBottom: 16 }
+                )}
+
+                {/* ── Contractor signup — benefit-led ─────────────────── */}
+                {card(
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                    <div>
+                      <p style={{ fontWeight: 700, color: t.textPri, margin: '0 0 8px', fontSize: 16 }}>Unlock unlimited renders</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {['Unlimited renders — no cap', 'Branded PDF reports for proposals', 'Homeowner colour tracking', 'Free to join — no card required'].map(b => (
+                          <div key={b} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ color: BRAND.teal, fontWeight: 700, fontSize: 12 }}>✓</span>
+                            <span style={{ fontSize: 13, color: t.textMuted }}>{b}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                    {/* Overlay */}
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                      <div style={{ fontSize: 28 }}>🔒</div>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: t.textPri }}>Pro feature</div>
-                      <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`}
-                        style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '9px 20px', borderRadius: T.radMd, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
-                        Join Free to Unlock →
-                      </Link>
-                    </div>
+                    <Link href={`/login?tab=signup${sessionId ? `&visualizer_session=${sessionId}` : ''}`}
+                      style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '12px 26px', borderRadius: T.radMd, fontWeight: 700, fontSize: 15, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      Join ProGuild Free →
+                    </Link>
                   </div>
                 )}
-              </div>,
-              { marginTop: 20 }
-            )}
-          </div>
-        )}
+              </div>
+            )
+          })()}
 
         {step === 'gate' && card(
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
