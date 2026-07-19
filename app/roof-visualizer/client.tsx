@@ -147,7 +147,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v32'
+const CLIENT_BUILD = 'verify-v33'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -187,6 +187,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [mfgFilter, setMfgFilter] = useState<string | null>(null)
   const [retrying, setRetrying]   = useState<Set<string>>(new Set())
   const [occlusionLevel, setOcclusionLevel] = useState<'clear' | 'partial' | 'heavy'>('clear')
+  const [candidates, setCandidates] = useState<Array<{ index: number; areaPct: number }>>([])
   const [eraseMode, setEraseMode] = useState(false)
   const [erasePixels, setErasePixels] = useState<Set<number>>(new Set())
   const erasing = useRef(false)
@@ -228,6 +229,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         setGridData(grid)
         setGridDims({ w: data.gridW, h: data.gridH })
         setOcclusionLevel(data.occlusionLevel ?? 'clear')
+        setCandidates(data.candidates ?? [])
         setSelected(new Set<number>())   // NO preselection — user taps/sweeps their roof
         setHistory([])
         setTapCount(0)
@@ -480,11 +482,23 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     setTapCount(t => t + 1)
     setSelected(prev => {
       const next = new Set(prev)
-      if (next.has(hit.idx)) next.delete(hit.idx); else next.add(hit.idx)
+      if (next.has(hit.idx)) { next.delete(hit.idx); setTraceHint(null) }
+      else {
+        next.add(hit.idx)
+        // If this candidate covers >30% of frame it's almost certainly a super-mask
+        // (walls merged with roof). Prompt the user to erase rather than leaving them
+        // wondering why so much got selected.
+        const cand = candidates.find(c => c.index === hit.idx)
+        if (cand && cand.areaPct > 0.30) {
+          setTraceHint('Large area selected — tap "Erase unwanted areas" to remove walls or siding')
+        } else {
+          setTraceHint(null)
+        }
+      }
       console.log('[confirm] tap', { gx: hit.gx, gy: hit.gy, idx: hit.idx, selected: [...next] })
       return next
     })
-  }, [indexAtPointer, pushHistory, traceRegion])
+  }, [indexAtPointer, pushHistory, traceRegion, candidates])
 
   const handleSweepMove = useCallback((e: React.PointerEvent<HTMLElement>) => {
     if (!sweeping.current) return
@@ -846,7 +860,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
               {traceHint && <span style={{ fontSize: 12, color: '#B45309', fontWeight: 600 }}>{traceHint}</span>}
               {/* Erase is an escape hatch — show as a single contextual button, not a peer toggle */}
               {selected.size > 0 && !eraseMode && (
-                <button onClick={() => setEraseMode(true)}
+                <button onClick={() => { setEraseMode(true); setTraceHint(null) }}
                   style={{ padding: '8px 16px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textMuted, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
                   ⌫ Erase unwanted areas
                 </button>
