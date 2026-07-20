@@ -191,7 +191,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v46'
+const CLIENT_BUILD = 'verify-v47'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -267,6 +267,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [candidates, setCandidates] = useState<Array<{ index: number; areaPct: number }>>([])
   const [superMaskWarning, setSuperMaskWarning] = useState(false)
   const [eraseMode, setEraseMode] = useState(false)
+  const [eraseRadius, setEraseRadius] = useState<8|14|22>(14)
   const [erasePixels, setErasePixels] = useState<Set<number>>(new Set())
   const erasing = useRef(false)
   const groups = groupSkusByManufacturer(skus)
@@ -599,8 +600,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     }
   }, [])
 
-  // Erase mode: drag paints a ~20px-radius negative mask over selected pixels.
-  // Undo covers erase strokes via the same 20-step history stack.
+  // Erase mode: drag paints a variable-radius negative mask over selected pixels.
+  // Radius is user-controlled: Fine (8px) for eave edges, Normal (14px) default,
+  // Large (22px) for open wall areas.
   const handleEraseStart = useCallback((e: React.PointerEvent<HTMLElement>) => {
     e.preventDefault()
     if (!gridData) return
@@ -610,19 +612,19 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     if (!imgEl) return
     const rect = imgEl.getBoundingClientRect()
     const { w, h } = gridDims
-    const RADIUS = 20
+    const R = eraseRadius
     const gx = Math.floor(((e.clientX - rect.left) / rect.width) * w)
     const gy = Math.floor(((e.clientY - rect.top) / rect.height) * h)
     const next = new Set<number>()
-    for (let dy = -RADIUS; dy <= RADIUS; dy++) for (let dx = -RADIUS; dx <= RADIUS; dx++) {
-      if (dx * dx + dy * dy > RADIUS * RADIUS) continue
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      if (dx * dx + dy * dy > R * R) continue
       const nx = gx + dx, ny = gy + dy
       if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
       next.add(ny * w + nx)
     }
     setErasePixels(prev => { const n = new Set(prev); next.forEach(p => n.add(p)); return n })
-    console.log('[confirm] erase start at', gx, gy)
-  }, [gridData, gridDims, pushHistory])
+    console.log('[confirm] erase start at', gx, gy, 'radius', R)
+  }, [gridData, gridDims, pushHistory, eraseRadius])
 
   const handleEraseMove = useCallback((e: React.PointerEvent<HTMLElement>) => {
     if (!erasing.current || !gridData) return
@@ -630,18 +632,18 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
     if (!imgEl) return
     const rect = imgEl.getBoundingClientRect()
     const { w, h } = gridDims
-    const RADIUS = 20
+    const R = eraseRadius
     const gx = Math.floor(((e.clientX - rect.left) / rect.width) * w)
     const gy = Math.floor(((e.clientY - rect.top) / rect.height) * h)
     const next = new Set<number>()
-    for (let dy = -RADIUS; dy <= RADIUS; dy++) for (let dx = -RADIUS; dx <= RADIUS; dx++) {
-      if (dx * dx + dy * dy > RADIUS * RADIUS) continue
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      if (dx * dx + dy * dy > R * R) continue
       const nx = gx + dx, ny = gy + dy
       if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
       next.add(ny * w + nx)
     }
     setErasePixels(prev => { const n = new Set(prev); next.forEach(p => n.add(p)); return n })
-  }, [gridData, gridDims])
+  }, [gridData, gridDims, eraseRadius])
 
   const handleEraseEnd = useCallback(() => {
     if (!erasing.current) return
@@ -1064,6 +1066,17 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   style={{ padding: '8px 16px', borderRadius: T.radMd, border: `1.5px solid #EA580C`, background: '#FFF7ED', color: '#EA580C', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                   ✓ Done Erasing
                 </button>
+              )}
+              {eraseMode && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 11, color: t.textSubtle }}>Brush:</span>
+                  {([['Fine', 8], ['Normal', 14], ['Large', 22]] as [string, 8|14|22][]).map(([label, r]) => (
+                    <button key={r} onClick={() => setEraseRadius(r)}
+                      style={{ padding: '5px 9px', borderRadius: T.radSm, border: `1.5px solid ${eraseRadius === r ? '#EA580C' : t.cardBorder}`, background: eraseRadius === r ? '#FFF7ED' : t.cardBg, color: eraseRadius === r ? '#EA580C' : t.textMuted, fontWeight: eraseRadius === r ? 700 : 500, fontSize: 11, cursor: 'pointer' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
               )}
               <button onClick={handleUndo} disabled={history.length === 0}
                 style={{ padding: '10px 18px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: history.length ? t.textBody : t.textSubtle, fontWeight: 600, fontSize: 13, cursor: history.length ? 'pointer' : 'not-allowed' }}>
