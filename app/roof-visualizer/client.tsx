@@ -191,7 +191,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v49'
+const CLIENT_BUILD = 'verify-v50'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -270,11 +270,16 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [eraseRadius, setEraseRadius] = useState<8|14|22>(14)
   // Touchup step — full-resolution post-confirm edge cleanup
   const touchupCanvasRef  = useRef<HTMLCanvasElement>(null)
-  const touchupEraseRef   = useRef<HTMLCanvasElement>(null)   // erase layer drawn by user
   const touchupImgRef     = useRef<HTMLImageElement>(null)
+  const touchupMaskPixels = useRef<Uint8Array | null>(null)  // white pixels from mask PNG
+  const touchupPhotoImg   = useRef<HTMLImageElement | null>(null)
+  const touchupMaskW      = useRef(0)
+  const touchupMaskH      = useRef(0)
+  const touchupEraseSet   = useRef<Set<number>>(new Set())   // pixel indices erased by user
   const touchupErasing    = useRef(false)
-  const [touchupRadius, setTouchupRadius] = useState<4|8|14|22>(8)  // defaults to Fine
+  const [touchupRadius, setTouchupRadius] = useState<4|8|14|22>(8)
   const [touchupBusy, setTouchupBusy]     = useState(false)
+  const [touchupReady, setTouchupReady]   = useState(false)
   const [erasePixels, setErasePixels] = useState<Set<number>>(new Set())
   const erasing = useRef(false)
   const groups = groupSkusByManufacturer(skus)
@@ -664,34 +669,69 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   }, [step])
 
   // ── Touchup step handlers ────────────────────────────────────────────────
-  // Draws directly on the erase canvas at full display resolution.
-  const getTouchupPos = (e: React.PointerEvent) => {
-    const img = touchupImgRef.current
-    if (!img) return null
-    const rect = img.getBoundingClientRect()
-    return {
-      x: (e.clientX - rect.left) / rect.width,   // 0..1 relative
-      y: (e.clientY - rect.top)  / rect.height,
+  const redrawTouchup = () => {
+    const cv = touchupCanvasRef.current
+    const photo = touchupPhotoImg.current
+    const maskPx = touchupMaskPixels.current
+    const W = touchupMaskW.current, H = touchupMaskH.current
+    if (!cv || !photo || !maskPx || !W || !H) return
+    cv.width = W; cv.height = H
+    const ctx = cv.getContext('2d')!
+    // 1. Draw original photo
+    ctx.drawImage(photo, 0, 0, W, H)
+    // 2. Draw teal mask overlay (excluding erased pixels)
+    const overlay = ctx.createImageData(W, H)
+    for (let i = 0; i < W * H; i++) {
+      if (maskPx[i] > 128 && !touchupEraseSet.current.has(i)) {
+        overlay.data[i * 4]     = 13
+        overlay.data[i * 4 + 1] = 148
+        overlay.data[i * 4 + 2] = 136
+        overlay.data[i * 4 + 3] = 110
+      }
+      // Erased pixels: amber to show what was removed
+      if (maskPx[i] > 128 && touchupEraseSet.current.has(i)) {
+        overlay.data[i * 4]     = 234
+        overlay.data[i * 4 + 1] = 88
+        overlay.data[i * 4 + 2] = 12
+        overlay.data[i * 4 + 3] = 140
+      }
     }
+    ctx.putImageData(overlay, 0, 0)
   }
 
-  const paintTouchupCircle = (relX: number, relY: number) => {
-    const cv = touchupEraseRef.current
-    if (!cv) return
-    const ctx = cv.getContext('2d')!
-    const px = relX * cv.width
-    const py = relY * cv.height
-    // Scale radius to the canvas's actual pixel size
-    const r  = touchupRadius * (cv.width / 800)   // 800px reference width
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.fillStyle = 'rgba(255,255,255,0.85)'
-    ctx.beginPath()
-    ctx.arc(px, py, Math.max(r, 3), 0, Math.PI * 2)
-    ctx.fill()
+  const getTouchupPos = (e: React.PointerEvent) => {
+    const cv = touchupCanvasRef.current
+    if (!cv) return null
+    const rect = cv.getBoundingClientRect()
+    const W = touchupMaskW.current, H = touchupMaskH.current
+    const x = Math.floor(((e.clientX - rect.left) / rect.width)  * W)
+    const y = Math.floor(((e.clientY - rect.top)  / rect.height) * H)
+    return { x, y }
+  }
+
+  const paintTouchupCircle = (cx: number, cy: number) => {
+    const W = touchupMaskW.current, H = touchupMaskH.current
+    const maskPx = touchupMaskPixels.current
+    if (!maskPx) return
+    // Scale radius: touchupRadius is in "800px reference" units
+    const cv = touchupCanvasRef.current
+    const displayW = cv?.getBoundingClientRect().width ?? 800
+    const scale = W / displayW
+    const R = Math.max(4, Math.round(touchupRadius * scale))
+    for (let dy = -R; dy <= R; dy++) {
+      for (let dx = -R; dx <= R; dx++) {
+        if (dx * dx + dy * dy > R * R) continue
+        const nx = cx + dx, ny = cy + dy
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue
+        touchupEraseSet.current.add(ny * W + nx)
+      }
+    }
+    redrawTouchup()
   }
 
   const handleTouchupStart = (e: React.PointerEvent) => {
     e.preventDefault()
+    if (!touchupReady) return
     touchupErasing.current = true
     const pos = getTouchupPos(e)
     if (pos) paintTouchupCircle(pos.x, pos.y)
@@ -707,12 +747,24 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
 
   const handleApplyTouchup = async () => {
     if (!sessionId || touchupBusy) return
-    const eraseCv = touchupEraseRef.current
-    if (!eraseCv) return
+    const W = touchupMaskW.current, H = touchupMaskH.current
+    if (!W || !H || touchupEraseSet.current.size === 0) { setStep('pick'); return }
     setTouchupBusy(true)
     try {
-      // Export the erase layer as a PNG
-      const eraseMaskB64 = eraseCv.toDataURL('image/png').split(',')[1]
+      // Build erase mask PNG from the pixel Set
+      const buf = new Uint8ClampedArray(W * H * 4)
+      touchupEraseSet.current.forEach(i => {
+        buf[i * 4] = 255; buf[i * 4 + 1] = 255; buf[i * 4 + 2] = 255; buf[i * 4 + 3] = 255
+      })
+      // Non-erased pixels: opaque black
+      for (let i = 0; i < W * H; i++) {
+        if (!touchupEraseSet.current.has(i)) buf[i * 4 + 3] = 255
+      }
+      const offCv = document.createElement('canvas')
+      offCv.width = W; offCv.height = H
+      offCv.getContext('2d')!.putImageData(new ImageData(buf, W, H), 0, 0)
+      const eraseMaskB64 = offCv.toDataURL('image/png').split(',')[1]
+
       const res = await fetch('/api/roof-visualizer/refine-mask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -720,65 +772,69 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Refinement failed.'); return }
-      // Update the confirmed mask URL so the pick overlay redraws
       setConfirmedMaskUrl(data.maskUrl)
       setStep('pick')
     } catch { setError('Could not refine mask. Try again.') }
     finally { setTouchupBusy(false) }
   }
 
-  // Initialise the touchup canvases when entering the touchup step
+  // Init touchup: fetch mask PNG, decode into pixel array, draw photo+overlay
   React.useEffect(() => {
     if (step !== 'touchup' || !confirmedMaskUrl || !photoPreview) return
     let cancelled = false
+    setTouchupReady(false)
+    touchupEraseSet.current = new Set()
     ;(async () => {
       try {
-        // Load the confirmed mask through the proxy
+        // Fetch mask through proxy
         const proxied = `/api/roof-visualizer/download?url=${encodeURIComponent(confirmedMaskUrl)}&name=mask.png`
         const res = await fetch(proxied)
         if (!res.ok || cancelled) return
         const bmp = await createImageBitmap(await res.blob())
         if (cancelled) return
+
         const W = bmp.width, H = bmp.height
-        // Main canvas: photo + teal mask overlay
-        const cv = touchupCanvasRef.current
-        if (!cv) return
-        cv.width = W; cv.height = H
-        const ctx = cv.getContext('2d')!
-        // Draw photo
-        const img = new window.Image()
-        img.src = photoPreview
-        await new Promise(r => { img.onload = r })
-        if (cancelled) return
-        ctx.drawImage(img, 0, 0, W, H)
-        // Draw teal mask overlay
+        touchupMaskW.current = W
+        touchupMaskH.current = H
+
+        // Decode mask into a flat Uint8Array (white pixel = roof)
         const off = document.createElement('canvas')
         off.width = W; off.height = H
         const octx = off.getContext('2d')!
         octx.drawImage(bmp, 0, 0)
-        const maskPx = octx.getImageData(0, 0, W, H).data
-        const overlay = ctx.createImageData(W, H)
-        for (let i = 0; i < W * H; i++) {
-          if (maskPx[i * 4] > 128) {
-            overlay.data[i * 4]     = 13
-            overlay.data[i * 4 + 1] = 148
-            overlay.data[i * 4 + 2] = 136
-            overlay.data[i * 4 + 3] = 110
-          }
+        const raw = octx.getImageData(0, 0, W, H).data
+        const maskPx = new Uint8Array(W * H)
+        for (let i = 0; i < W * H; i++) maskPx[i] = raw[i * 4]
+        touchupMaskPixels.current = maskPx
+
+        // Load photo
+        const img = new window.Image()
+        img.crossOrigin = 'anonymous'
+        img.src = photoPreview
+        await new Promise<void>((resolve, reject) => {
+          img.onload  = () => resolve()
+          img.onerror = reject
+        })
+        if (cancelled) return
+        touchupPhotoImg.current = img
+
+        if (!cancelled) {
+          setTouchupReady(true)
+          // Initial draw happens after state update via the radius/ready effect below
         }
-        ctx.putImageData(overlay, 0, 0)
-        // Erase canvas: transparent, drawn on top by the user
-        const ev = touchupEraseRef.current
-        if (!ev) return
-        ev.width = W; ev.height = H
-        const ectx = ev.getContext('2d')!
-        ectx.clearRect(0, 0, W, H)
       } catch (err) {
         console.warn('[touchup] init failed:', err)
       }
     })()
     return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, confirmedMaskUrl, photoPreview])
+
+  // Redraw whenever ready or radius changes
+  React.useEffect(() => {
+    if (touchupReady) redrawTouchup()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [touchupReady, touchupRadius])
 
   const handleConfirmMask = useCallback(async () => {
     if (!sessionId || selected.size === 0 || !gridData) return
@@ -1151,18 +1207,32 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             )}
 
             {/* Super-mask banner — shown when a single tap covers >30% of frame */}
-            {superMaskWarning && !eraseMode && (
+            {superMaskWarning && (
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: '#FFF7ED', border: '2px solid #EA580C', borderRadius: T.radMd, padding: '14px 16px', marginBottom: 14 }}>
                 <span style={{ fontSize: 22, flexShrink: 0 }}>🏠</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E', marginBottom: 3 }}>We found the roof — but also some walls</div>
-                  <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.5 }}>Tap below to erase walls, gutters, or anything that isn't roof. Takes about 15 seconds.</div>
-                </div>
-                <button
-                  onClick={() => { setEraseMode(true); setSuperMaskWarning(false); setTraceHint(null) }}
-                  style={{ flexShrink: 0, padding: '10px 16px', borderRadius: T.radMd, border: 'none', background: '#EA580C', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  Clean Up Selection →
-                </button>
+                {!eraseMode ? (
+                  <>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E', marginBottom: 3 }}>We found the roof — but also some walls</div>
+                      <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.5 }}>Tap below to erase walls, gutters, or anything that isn't roof. Takes about 15 seconds.</div>
+                    </div>
+                    <button onClick={() => { setEraseMode(true); setTraceHint(null) }}
+                      style={{ flexShrink: 0, padding: '10px 16px', borderRadius: T.radMd, border: 'none', background: '#EA580C', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Clean Up Selection →
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#92400E', marginBottom: 3 }}>Drag over walls, siding or gutters to remove them</div>
+                      <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.5 }}>Drag over anything that isn't roof — the teal will be removed from those areas. Use Fine brush for eave edges.</div>
+                    </div>
+                    <button onClick={() => { setEraseMode(false); setSuperMaskWarning(false) }}
+                      style={{ flexShrink: 0, padding: '10px 16px', borderRadius: T.radMd, border: '2px solid #EA580C', background: '#fff', color: '#EA580C', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      ✓ Done Erasing
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -1226,27 +1296,30 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             <div style={{ marginBottom: 14 }}>
               <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Touch up edges</p>
               <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
-                Drag over any remaining wall or siding areas to remove them from the mask. Use Fine for eave lines.
+                Drag over any remaining wall or siding areas to remove them. <strong>Teal stays</strong> = gets painted. <strong>Amber</strong> = will be removed. Use Extra Fine for eave lines.
               </p>
             </div>
 
-            {/* Canvas stack: photo+mask underlay + user erase overlay */}
-            <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', lineHeight: 0, touchAction: 'none', cursor: 'cell' }}
+            {!touchupReady && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: t.textMuted, fontSize: 13, gap: 10 }}>
+                <div style={{ width: 20, height: 20, border: `2px solid ${BRAND.teal}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                Loading mask…
+              </div>
+            )}
+
+            <div style={{ position: 'relative', borderRadius: T.radLg, overflow: 'hidden', lineHeight: 0, touchAction: 'none', cursor: 'cell', display: touchupReady ? 'block' : 'none' }}
               onPointerDown={handleTouchupStart}
               onPointerMove={handleTouchupMove}
               onPointerUp={handleTouchupEnd}
               onPointerLeave={handleTouchupEnd}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img ref={touchupImgRef} src={photoPreview ?? ''} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: 0, pointerEvents: 'none' }} />
+              <img ref={touchupImgRef} src={photoPreview ?? ''} alt="" style={{ display: 'none' }} />
               <canvas ref={touchupCanvasRef} style={{ width: '100%', display: 'block' }} />
-              {/* Orange erase strokes drawn on top */}
-              <canvas ref={touchupEraseRef}
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.65, mixBlendMode: 'multiply', pointerEvents: 'none' }} />
             </div>
 
             {/* Toolbar */}
-            <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: t.textSubtle }}>Brush size:</span>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: t.textSubtle }}>Brush:</span>
               {([['Extra Fine', 4], ['Fine', 8], ['Normal', 14], ['Large', 22]] as [string, 4|8|14|22][]).map(([label, r]) => (
                 <button key={r} onClick={() => setTouchupRadius(r)}
                   style={{ padding: '6px 12px', borderRadius: T.radSm, border: `1.5px solid ${touchupRadius === r ? BRAND.teal : t.cardBorder}`, background: touchupRadius === r ? BRAND.tealAlpha : t.cardBg, color: touchupRadius === r ? BRAND.teal : t.textMuted, fontWeight: touchupRadius === r ? 700 : 500, fontSize: 12, cursor: 'pointer' }}>
@@ -1254,6 +1327,10 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 </button>
               ))}
               <div style={{ flex: 1 }} />
+              <button onClick={() => { touchupEraseSet.current = new Set(); redrawTouchup() }}
+                style={{ padding: '9px 14px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                Reset
+              </button>
               <button onClick={() => setStep('pick')}
                 style={{ padding: '9px 16px', borderRadius: T.radMd, border: `1px solid ${t.cardBorder}`, background: t.cardBg, color: t.textBody, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                 Cancel
