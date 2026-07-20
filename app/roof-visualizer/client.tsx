@@ -191,7 +191,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v48'
+const CLIENT_BUILD = 'verify-v49'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -1011,15 +1011,22 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
       <div style={{ background: t.cardBg, borderBottom: `1px solid ${t.cardBorder}`, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {proId
-            ? <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 13, color: t.textMuted }}>←</span>
-                <span style={{ fontWeight: 800, fontSize: 18, color: BRAND.teal, letterSpacing: '-0.5px' }}>ProGuild</span>
-              </Link>
-            : <Link href="/" style={{ textDecoration: 'none' }}><span style={{ fontWeight: 800, fontSize: 18, color: BRAND.teal, letterSpacing: '-0.5px' }}>ProGuild</span></Link>
-          }
-          <span style={{ fontSize: 13, color: t.textMuted }}>· Roof Visualizer</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <Link href={proId ? '/dashboard' : '/'} style={{ textDecoration: 'none' }}>
+            <span style={{ fontWeight: 800, fontSize: 18, color: BRAND.teal, letterSpacing: '-0.5px' }}>ProGuild</span>
+          </Link>
+          {proId ? (
+            <>
+              <span style={{ color: t.textSubtle }}>›</span>
+              <Link href="/dashboard" style={{ color: t.textMuted, textDecoration: 'none', fontWeight: 500 }}>Dashboard</Link>
+              <span style={{ color: t.textSubtle }}>›</span>
+              <Link href="/dashboard" style={{ color: t.textMuted, textDecoration: 'none', fontWeight: 500 }}>Tools</Link>
+              <span style={{ color: t.textSubtle }}>›</span>
+              <span style={{ color: t.textPri, fontWeight: 600 }}>Roof Visualizer</span>
+            </>
+          ) : (
+            <span style={{ fontSize: 13, color: t.textMuted }}>· Roof Visualizer</span>
+          )}
         </div>
         {proId
           ? <Link href="/dashboard" style={{ fontSize: 13, color: BRAND.teal, textDecoration: 'none', fontWeight: 600 }}>← Dashboard</Link>
