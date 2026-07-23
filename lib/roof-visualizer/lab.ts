@@ -20,8 +20,21 @@
  *  (dark chip on an already-dark roof) render as they did before. */
 export const K_BASE = 0.55
 
-/** Ceiling for adaptive K. 1.0 = source L* contrast reproduced 1:1 on the chip. */
-export const K_MAX = 1.0
+/**
+ * Ceiling for adaptive K.
+ *
+ * 1.0 would reproduce the source L* contrast 1:1, and that was the first setting. It is too
+ * aggressive in practice. On a light roof recoloured dark, replacing chroma with a single chip
+ * value strips the colour cue that carried part of the source's tab-to-tab variation, leaving
+ * luminance as the only texture. At K near 1.0 that luminance variation is reproduced at full
+ * strength against a dark ground, and the shingle tab pattern stops reading as texture and
+ * starts reading as the dominant feature — reviewed as "blocky" and "over-patterned" on the
+ * photo 7 / Brownwood render.
+ *
+ * 0.80 keeps texture well clear of the flat-paint failure at K_BASE while leaving the tab
+ * pattern subordinate to the colour.
+ */
+export const K_MAX = 0.80
 
 /** L* travel distance at which adaptive K reaches K_MAX. */
 export const K_SPAN = 50
@@ -166,6 +179,9 @@ function clamp8(v: number): number {
  * wrong when they are far apart: a light tan roof at L* 61 recoloured to Onyx Black at L* 26
  * had its L* spread cut from sd 12.7 to sd 7.0, so the render read as flat paint rather than
  * shingle. Scaling K with |dL| keeps the relative texture intact across the travel.
+ *
+ * The ceiling matters as much as the scaling — see K_MAX. Too low and long travels flatten;
+ * too high and the source's tab pattern overwhelms the colour.
  *
  * Degrades exactly to K_BASE when chip and roof means coincide, so short-travel recolours are
  * bit-comparable with the legacy engine.

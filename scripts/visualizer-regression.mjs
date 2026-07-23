@@ -424,9 +424,14 @@ console.log('\nCIELAB recolour engine')
   // sd of 12.7 fell to 7.0. K must rise with travel and collapse to K_BASE when travel is nil.
   assert(Math.abs(adaptiveK(50, 50) - K_BASE) < 1e-9,
     'adaptiveK degrades to K_BASE when chip and roof means coincide', `got ${adaptiveK(50, 50)}`)
-  assert(adaptiveK(15, 61) > 0.9,
+  assert(adaptiveK(15, 61) > 0.75,
     'adaptiveK approaches K_MAX on a long light-to-dark travel (photo 7 case)',
     `got ${adaptiveK(15, 61).toFixed(3)} — dark chips on light roofs will read as flat paint`)
+  // Upper guard: K_MAX above ~0.85 reproduces source tab mottling strongly enough that it
+  // dominates the render on a light-to-dark recolour. Measured on photo 7 / Brownwood.
+  assert(adaptiveK(15, 61) <= 0.85,
+    'adaptiveK stays below the tab-mottling threshold on long travels',
+    `got ${adaptiveK(15, 61).toFixed(3)} — source shingle tabs will read as blocky patterning`)
   assert(adaptiveK(40, 35) < 0.65,
     'adaptiveK stays near baseline on short travel (dark chip on dark roof)',
     `got ${adaptiveK(40, 35).toFixed(3)} — legacy-equivalent cases would change appearance`)
