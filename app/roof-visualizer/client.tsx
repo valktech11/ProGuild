@@ -191,7 +191,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v50'
+const CLIENT_BUILD = 'verify-v51'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -939,7 +939,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [hoveredSkuId, setHoveredSkuId] = useState<string | null>(null)
 
   const toggleSku = (id: string) => setSelectedSkuIds(prev =>
-    prev.includes(id) ? prev.filter(x => x !== id) : prev.length >= 3 ? [...prev.slice(1), id] : [...prev, id])
+    prev.includes(id) ? prev.filter(x => x !== id) : prev.length >= 10 ? [...prev.slice(1), id] : [...prev, id])
 
   const handleRender = async () => {
     if (!sessionId || selectedSkuIds.length === 0) return
@@ -1372,7 +1372,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minHeight: 34 }}>
                     {selectedSkuIds.length === 0 && (
-                      <span style={{ fontSize: 12.5, color: t.textMuted }}>Pick up to 3 colors to compare →</span>
+                      <span style={{ fontSize: 12.5, color: t.textMuted }}>Pick up to 10 colors to compare →</span>
                     )}
                     {selectedSkuIds.map(id => skuMap[id] && (
                       <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: t.cardBgAlt, borderRadius: 999, padding: '4px 10px 4px 5px' }}>
@@ -1386,7 +1386,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             )}
             {card(
               <div>
-                <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Pick up to 3 shingle colors</p>
+                <p style={{ fontWeight: 700, fontSize: 16, color: t.textPri, margin: '0 0 4px' }}>Pick up to 10 shingle colors</p>
                 <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 20px' }}>We'll show all three side by side — free</p>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
                   {[null, ...groups.map(g => g.manufacturer)].map(m => (
@@ -1424,7 +1424,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         {step === 'rendering' && (
           <div>
             <p style={{ fontWeight: 700, fontSize: 17, color: t.textPri, margin: '0 0 20px' }}>Generating your renders…</p>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(selectedSkuIds.length + 1, 3)}, 1fr)`, gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(selectedSkuIds.length + 1, 4)}, 1fr)`, gap: 16 }}>
               {photoPreview && (
                 <div style={{ borderRadius: T.radLg, overflow: 'hidden', border: `1px solid ${t.cardBorder}` }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
