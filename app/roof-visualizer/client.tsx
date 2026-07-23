@@ -1486,7 +1486,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 )}
 
                 {/* ── Thumbnail strip — Original + renders ────────────── */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4, minWidth: 0, WebkitOverflowScrolling: 'touch' }}>
                   {allItems.map((item, i) => (
                     <div key={i} onClick={() => setHeroIdx(i)}
                       style={{ flexShrink: 0, width: 116, cursor: 'pointer', borderRadius: T.radMd, overflow: 'hidden',
