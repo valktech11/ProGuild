@@ -17,6 +17,11 @@
  * No network, no API keys, no cost. Pure sharp + arithmetic on synthetic fixtures.
  */
 import sharp from 'sharp'
+import {
+  rgbToLab, labToRgbRaw, labToRgbGamutMapped, isInGamut,
+  adaptiveK, chromaRolloff, labRecolorPixel,
+  K_BASE, K_MAX, CHROMA_ROLLOFF_MIN, L_ROLLOFF_LO, L_ROLLOFF_HI,
+} from '../lib/roof-visualizer/lab.ts'
 
 let failures = 0
 const ok  = (name) => console.log(`  \x1b[32m✓\x1b[0m ${name}`)
@@ -365,6 +370,118 @@ console.log('\nerase brush')
   const undoneSelection = new Set(historyStack[historyStack.length - 1])
   assert(undoneSelection.size === preErase.size && [...preErase].every(v => undoneSelection.has(v)),
     'undo after erase restores pre-erase selection snapshot', `got {${[...undoneSelection]}} expected {${[...preErase]}}`)
+}
+
+// ── 13. CIELAB engine ────────────────────────────────────────────────────────
+// These import the SHIPPING module rather than reimplementing the arithmetic. The older
+// blocks in this file re-derive their formulas by hand, which means route.ts can drift from
+// the test and both stay green. Anything added from here on imports what actually runs.
+console.log('\nCIELAB recolour engine')
+{
+  // Round trip must be exact for every in-gamut colour: L* carries the shading, so any
+  // round-trip error is a systematic shift applied to every roof pixel.
+  let maxErr = 0, worstAt = null
+  for (let r = 0; r <= 255; r += 15)
+    for (let g = 0; g <= 255; g += 15)
+      for (let b = 0; b <= 255; b += 15) {
+        const [L, A, B] = rgbToLab(r, g, b)
+        const [r2, g2, b2] = labToRgbGamutMapped(L, A, B)
+        const e = Math.max(Math.abs(r - r2), Math.abs(g - g2), Math.abs(b - b2))
+        if (e > maxErr) { maxErr = e; worstAt = `${r},${g},${b} -> ${r2},${g2},${b2}` }
+      }
+  assert(maxErr === 0, 'sRGB -> Lab -> sRGB round trip is exact across the cube',
+    `max channel error ${maxErr} at ${worstAt} — every roof pixel would carry this shift`)
+
+  // Reference anchors. If these move, the matrices or white point have been edited.
+  const white = rgbToLab(255, 255, 255), black = rgbToLab(0, 0, 0), grey = rgbToLab(128, 128, 128)
+  assert(Math.abs(white[0] - 100) < 0.01 && Math.abs(white[1]) < 0.01 && Math.abs(white[2]) < 0.01,
+    'white maps to L*100 a*0 b*0', `got ${white.map(v => v.toFixed(3))}`)
+  assert(Math.abs(black[0]) < 0.01, 'black maps to L*0', `got ${black[0]}`)
+  assert(Math.abs(grey[0] - 53.59) < 0.05, 'sRGB 128 grey maps to L*53.59 (D65 anchor)',
+    `got ${grey[0].toFixed(3)}`)
+  assert(Math.abs(grey[1]) < 0.01 && Math.abs(grey[2]) < 0.01,
+    'neutral input yields zero chroma', `got a*=${grey[1]} b*=${grey[2]}`)
+
+  // Gamut mapping must reduce chroma at CONSTANT HUE, not clip per channel. Per-channel
+  // clipping is what shifted saturated highlights toward cyan in the legacy engine.
+  const oogL = 55, oogA = 80, oogB = 70
+  assert(!isInGamut(oogL, oogA, oogB), 'test colour is genuinely out of gamut',
+    'fixture no longer exercises the gamut mapper')
+  const mapped = labToRgbGamutMapped(oogL, oogA, oogB)
+  const backLab = rgbToLab(...mapped)
+  const hueIn  = Math.atan2(oogB, oogA), hueOut = Math.atan2(backLab[2], backLab[1])
+  let dHue = Math.abs(hueIn - hueOut)
+  if (dHue > Math.PI) dHue = 2 * Math.PI - dHue
+  assert(dHue < 0.05, 'gamut mapping preserves hue angle (chroma reduced, not clipped)',
+    `hue moved ${(dHue * 180 / Math.PI).toFixed(2)} deg — per-channel clipping has crept back in`)
+  const cIn = Math.hypot(oogA, oogB), cOut = Math.hypot(backLab[1], backLab[2])
+  assert(cOut < cIn, 'gamut mapping reduces chroma', `in ${cIn.toFixed(1)} out ${cOut.toFixed(1)}`)
+  assert(mapped.every(v => v >= 0 && v <= 255 && Number.isInteger(v)),
+    'gamut mapped output is valid 8-bit', `got ${mapped}`)
+
+  // Adaptive K. Fixed K compressed a light roof recoloured to a dark chip into flat paint:
+  // photo 7 measured roof L*61, an Onyx-class chip sits near L*15, and at K=0.55 the source
+  // sd of 12.7 fell to 7.0. K must rise with travel and collapse to K_BASE when travel is nil.
+  assert(Math.abs(adaptiveK(50, 50) - K_BASE) < 1e-9,
+    'adaptiveK degrades to K_BASE when chip and roof means coincide', `got ${adaptiveK(50, 50)}`)
+  assert(adaptiveK(15, 61) > 0.9,
+    'adaptiveK approaches K_MAX on a long light-to-dark travel (photo 7 case)',
+    `got ${adaptiveK(15, 61).toFixed(3)} — dark chips on light roofs will read as flat paint`)
+  assert(adaptiveK(40, 35) < 0.65,
+    'adaptiveK stays near baseline on short travel (dark chip on dark roof)',
+    `got ${adaptiveK(40, 35).toFixed(3)} — legacy-equivalent cases would change appearance`)
+  assert(adaptiveK(0, 100) <= K_MAX && adaptiveK(100, 0) <= K_MAX,
+    'adaptiveK never exceeds K_MAX', 'contrast would be amplified beyond the source')
+
+  // Chroma rolloff: full chip chroma through the midtones, tapered at both ends so saturation
+  // is not painted into specular highlights or deep shade.
+  assert(chromaRolloff(50) === 1 && chromaRolloff(L_ROLLOFF_LO) === 1 && chromaRolloff(L_ROLLOFF_HI) === 1,
+    'chroma rolloff is unity across the midtone band', 'midtones would be desaturated')
+  assert(Math.abs(chromaRolloff(0) - CHROMA_ROLLOFF_MIN) < 1e-9
+      && Math.abs(chromaRolloff(100) - CHROMA_ROLLOFF_MIN) < 1e-9,
+    'chroma rolloff reaches its floor at both ends', 'extremes would take full chip chroma')
+  assert(chromaRolloff(10) > CHROMA_ROLLOFF_MIN && chromaRolloff(10) < 1,
+    'chroma rolloff is monotonic between floor and unity', `got ${chromaRolloff(10)}`)
+  assert(chromaRolloff(5) > 0,
+    'chroma rolloff never reaches zero (deep shade keeps some hue)', 'shadow would go pure grey')
+
+  // The pixel op itself: a roof pixel sitting exactly at the mean must render as the chip.
+  // This is the LAB equivalent of the long-standing additive invariant in block 3.
+  const chip = rgbToLab(0x6B, 0x4F, 0x3A)          // a Brownwood-class chromatic chip
+  const kEff = adaptiveK(chip[0], chip[0])
+  const atMean = labRecolorPixel({
+    srcL: chip[0], roofMeanL: chip[0],
+    chipL: chip[0], chipA: chip[1], chipB: chip[2], k: kEff,
+  })
+  assert(Math.abs(atMean[0] - 0x6B) <= 2 && Math.abs(atMean[1] - 0x4F) <= 2 && Math.abs(atMean[2] - 0x3A) <= 2,
+    'mid-tone roof pixel renders as the exact chip hex (lab path)',
+    `expected ~[107,79,58] got [${atMean}]`)
+
+  // Shading direction must survive: a brighter source pixel must render brighter.
+  const dark  = labRecolorPixel({ srcL: 30, roofMeanL: 55, chipL: chip[0], chipA: chip[1], chipB: chip[2], k: 0.8 })
+  const light = labRecolorPixel({ srcL: 80, roofMeanL: 55, chipL: chip[0], chipA: chip[1], chipB: chip[2], k: 0.8 })
+  assert(rgbToLab(...light)[0] > rgbToLab(...dark)[0],
+    'shading direction preserved — brighter source pixel renders brighter',
+    'ridge lines and shadows would invert')
+
+  // Deep shade must not come back more saturated than the chip. This was the specific defect
+  // of the additive engine: an equal offset on all three channels holds code-value spread
+  // constant while perceptual chroma rises as lightness falls.
+  const shadow = labRecolorPixel({ srcL: 6, roofMeanL: 55, chipL: chip[0], chipA: chip[1], chipB: chip[2], k: 0.8 })
+  const shadowLab = rgbToLab(...shadow)
+  assert(Math.hypot(shadowLab[1], shadowLab[2]) <= Math.hypot(chip[1], chip[2]) + 0.5,
+    'deep shade is not more saturated than the chip itself',
+    `chip C* ${Math.hypot(chip[1], chip[2]).toFixed(1)} vs shadow C* ${Math.hypot(shadowLab[1], shadowLab[2]).toFixed(1)}`)
+
+  // Every output must be a legal 8-bit triple across the full L* sweep — no NaN, no clipping
+  // artefacts leaking through from an out-of-gamut intermediate.
+  let allValid = true
+  for (let L = 0; L <= 100; L += 2) {
+    const px = labRecolorPixel({ srcL: L, roofMeanL: 50, chipL: chip[0], chipA: chip[1], chipB: chip[2], k: 1.0 })
+    if (!px.every(v => Number.isInteger(v) && v >= 0 && v <= 255)) { allValid = false; break }
+  }
+  assert(allValid, 'lab recolour yields valid 8-bit output across the full L* sweep',
+    'NaN or out-of-range channel leaked from the gamut mapper')
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────────

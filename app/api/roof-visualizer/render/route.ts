@@ -17,8 +17,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { uploadToR2 } from '@/lib/r2'
 import sharp from 'sharp'
+import {
+  rgbToLab, adaptiveK, labRecolorPixel, K_BASE,
+} from '@/lib/roof-visualizer/lab'
 
 export const maxDuration = 120
+
+// RENDER ENGINE SELECTOR
+//   'lab'    — CIELAB classical recolour for every SKU, Gemini never called. Zero API cost.
+//   'hybrid' — legacy: additive-sRGB classical + Gemini arbitration for chromatic chips.
+// Env sets the default; an optional `engine` field on the request body overrides per call so
+// A/B comparison runs against one session without a redeploy.
+type RenderEngineMode = 'lab' | 'hybrid'
+const DEFAULT_ENGINE: RenderEngineMode =
+  process.env.VIZ_RENDER_ENGINE === 'hybrid' ? 'hybrid' : 'lab'
+
+// Granule jitter in Lab units. The legacy values were sRGB code values (±9 luminance, ±4 per
+// channel); near mid-grey one code value is ~0.34 L*, so ±9 codes is ~±3 L*. Chroma jitter is
+// set independently rather than derived, because in Lab it is a direct a*/b* offset with no
+// luminance coupling — the legacy per-channel hue jitter moved lightness as a side effect.
+const LAB_LUM_JITTER = 3.0
+const LAB_AB_JITTER  = 2.0
 
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
 const GEMINI_IMG_MODEL = 'gemini-3.1-flash-image'  // Nano Banana 2 — experiment behind the gate
@@ -70,6 +89,31 @@ async function roofMeanRgb(prep: PreparedImages): Promise<{ r: number; g: number
   }
   if (count === 0) return { r: 128, g: 128, b: 128 }
   return { r: sr / count, g: sg / count, b: sb / count }
+}
+
+// Per-pixel L* over the roof plus its mean. Computed ONCE per request and shared across every
+// SKU: the legacy code recomputed roofMeanLum inside classicalRecolor on every call, which at a
+// 10-SKU battery run meant ten full decodes of the same photo for an identical answer.
+//
+// L* is used rather than sharp's greyscale(): greyscale gives Rec.709 luma on gamma-encoded
+// values, which is not perceptually uniform. Shading that rides on luma compresses differently
+// in shadow than in highlight; shading that rides on L* does not.
+interface RoofLuminance { srcL: Float32Array; roofMeanL: number }
+
+async function computeRoofL(prep: PreparedImages): Promise<RoofLuminance> {
+  const { width: W, height: H } = prep
+  const rgb     = await sharp(prep.photo).removeAlpha().raw().toBuffer()
+  const maskRaw = await sharp(prep.maskAligned).extractChannel(0).raw().toBuffer()
+
+  const srcL = new Float32Array(W * H)
+  let sum = 0, count = 0
+  for (let i = 0; i < W * H; i++) {
+    if (maskRaw[i] <= 128) continue
+    const L = rgbToLab(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2])[0]
+    srcL[i] = L
+    sum += L; count++
+  }
+  return { srcL, roofMeanL: count > 0 ? sum / count : 50 }
 }
 
 // Redmean colour distance — cheap perceptual approximation, far better than raw RGB
@@ -133,7 +177,12 @@ async function prepareImages(photoUrl: string, maskUrl: string): Promise<Prepare
 
 // ── 1. Classical renderer — guaranteed floor ─────────────────────────────────
 
-async function classicalRecolor(prep: PreparedImages, sku: SkuRow): Promise<Buffer> {
+async function classicalRecolor(
+  prep: PreparedImages,
+  sku: SkuRow,
+  roofL: RoofLuminance,
+  mode: RenderEngineMode,
+): Promise<Buffer> {
   const hex = sku.hex_preview
   // Multiply-tint from raw luminance — preserves texture, shadows, ridge lines.
   // All raw-buffer explicit: verified pixel-exact (original outside mask, tint inside).
@@ -180,6 +229,14 @@ async function classicalRecolor(prep: PreparedImages, sku: SkuRow): Promise<Buff
     return ((h % 2001) / 1000) - 1   // -1 .. +1
   }
 
+  // Chip palette in Lab, and the travel-scaled shading factor. Both are constant for the whole
+  // SKU, so they are hoisted out of the pixel loop.
+  const labChips: Array<[number, number, number]> = palette.map(([pr, pg, pb]) => rgbToLab(pr, pg, pb))
+  const kEff = mode === 'lab' ? adaptiveK(labChips[0][0], roofL.roofMeanL, K_BASE) : K
+  if (mode === 'lab') {
+    console.log(`[render] ${sku.name}: engine=lab chipL*=${labChips[0][0].toFixed(1)} roofMeanL*=${roofL.roofMeanL.toFixed(1)} adaptiveK=${kEff.toFixed(3)}`)
+  }
+
   const rgba = Buffer.alloc(W * H * 4)
   for (let i = 0; i < W * H; i++) {
     if (maskRaw[i] === 0) { rgba[i * 4 + 3] = 0; continue }   // skip work outside the roof
@@ -191,6 +248,26 @@ async function classicalRecolor(prep: PreparedImages, sku: SkuRow): Promise<Buff
     const [br, bg, bb] = isBlend
       ? palette[Math.floor(((cellNoise(x, y, 5) + 1) / 2) * palette.length) % palette.length]
       : palette[0]
+    if (mode === 'lab') {
+      // Shading rides on L*, hue/chroma come from the chip, chroma tapers at the lightness
+      // extremes, out-of-gamut results reduce chroma at constant hue instead of clipping.
+      const [cl, ca, cb] = labChips[
+        isBlend ? Math.floor(((cellNoise(x, y, 5) + 1) / 2) * labChips.length) % labChips.length : 0
+      ]
+      const [lr, lg, lb] = labRecolorPixel({
+        srcL: roofL.srcL[i],
+        roofMeanL: roofL.roofMeanL,
+        chipL: cl, chipA: ca, chipB: cb,
+        k: kEff,
+        lumJitter: cellNoise(x, y, 1) * LAB_LUM_JITTER,
+        aJitter:   cellNoise(x, y, 2) * LAB_AB_JITTER,
+        bJitter:   cellNoise(x, y, 3) * LAB_AB_JITTER,
+      })
+      rgba[i * 4] = lr; rgba[i * 4 + 1] = lg; rgba[i * 4 + 2] = lb
+      rgba[i * 4 + 3] = maskRaw[i]
+      continue
+    }
+
     const hueR   = cellNoise(x, y, 2) * HUE_JITTER
     const hueG   = cellNoise(x, y, 3) * HUE_JITTER
     const hueB   = cellNoise(x, y, 4) * HUE_JITTER
@@ -309,22 +386,27 @@ async function renderOneSku(
   sku: SkuRow,
   sb: ReturnType<typeof getSupabaseAdmin>,
   roofRgb: { r: number; g: number; b: number },
+  roofL: RoofLuminance,
+  mode: RenderEngineMode,
 ): Promise<RenderResult> {
   const renderId = crypto.randomUUID()
   try {
     await sb.from('visualizer_renders').insert({
       id: renderId, session_id: sessionId, sku_id: sku.id,
-      status: 'processing', gemini_model: 'hybrid-v1',
+      status: 'processing', gemini_model: mode === 'lab' ? 'lab-v1' : 'hybrid-v1',
     })
 
     // Classical is the floor. AI is attempted only for chromatic chips — for neutral
     // greys/blacks the classical result is exact and AI can only add hue drift.
+    // In lab mode the classical engine handles every chip, chromatic included — that is the
+    // entire point of the rewrite, so the AI path is never entered and NEUTRAL_CHROMA_MAX
+    // stops being load-bearing. In hybrid mode the legacy routing applies.
     const chroma = chipChroma(sku.hex_preview)
-    const tryAi  = chroma > NEUTRAL_CHROMA_MAX
-    if (!tryAi) console.log(`[render] ${sku.name}: chroma=${chroma} → neutral chip, classical only (AI skipped)`)
+    const tryAi  = mode === 'hybrid' && chroma > NEUTRAL_CHROMA_MAX
+    if (mode === 'hybrid' && !tryAi) console.log(`[render] ${sku.name}: chroma=${chroma} → neutral chip, classical only (AI skipped)`)
 
     const [classical, ai] = await Promise.all([
-      classicalRecolor(prep, sku),
+      classicalRecolor(prep, sku, roofL, mode),
       tryAi ? aiAttempt(prep, sku) : Promise.resolve(null),
     ])
 
@@ -357,7 +439,7 @@ async function renderOneSku(
 
     await sb.from('visualizer_renders').update({
       render_r2_key: renderKey, render_url: renderUrl,
-      status: 'done', gemini_model: engine === 'ai' ? GEMINI_IMG_MODEL : 'classical-v1',
+      status: 'done', gemini_model: engine === 'ai' ? GEMINI_IMG_MODEL : (mode === 'lab' ? 'classical-lab-v1' : 'classical-v1'),
     }).eq('id', renderId)
 
     // Low-contrast check — perceptual distance between the chip and the existing roof.
@@ -385,7 +467,10 @@ async function renderOneSku(
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, skuIds } = await req.json()
+    const { sessionId, skuIds, engine: engineOverride } = await req.json()
+    const mode: RenderEngineMode = engineOverride === 'hybrid' ? 'hybrid'
+      : engineOverride === 'lab' ? 'lab'
+      : DEFAULT_ENGINE
     if (!sessionId || !Array.isArray(skuIds) || skuIds.length === 0) {
       return NextResponse.json({ error: 'sessionId and skuIds required' }, { status: 400 })
     }
@@ -424,8 +509,12 @@ export async function POST(req: NextRequest) {
     // check so we can warn when a chip barely differs from the current roof.
     const roofRgb = await roofMeanRgb(prep)
 
+    // Per-pixel L* and the roof mean — one pass, shared by every SKU in this request.
+    const roofL = await computeRoofL(prep)
+    console.log(`[render] session=${sessionId} engine=${mode} skus=${skus.length} roofMeanL*=${roofL.roofMeanL.toFixed(1)}`)
+
     const renders = await Promise.all(
-      skus.map(sku => renderOneSku(session.id, prep, sku as SkuRow, sb, roofRgb))
+      skus.map(sku => renderOneSku(session.id, prep, sku as SkuRow, sb, roofRgb, roofL, mode))
     )
 
     const newCount = used + skus.length
