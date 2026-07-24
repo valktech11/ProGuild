@@ -39,6 +39,18 @@ const DEFAULT_ENGINE: RenderEngineMode =
 const LAB_LUM_JITTER = 4.5   // raised from 3.0 — compensates for loss of cell averaging
 const LAB_AB_JITTER  = 2.8   // raised from 2.0 — same reason
 
+// PLANE BRIGHTNESS DRIFT — a very slow sinusoidal modulation of L* that varies across the
+// roof plane. On a real roof, slight manufacturing differences between bundles, the angle of
+// granule lay, and panel-to-panel moisture variation produce a low-frequency brightness wave
+// that makes the surface read as continuous material rather than a painted flat field.
+//
+// Two orthogonal waves at incommensurate periods (271px, 389px) sum to a Lissajous-like
+// pattern with no visible repeat within any residential roof width. Amplitude ±2.5 L* is
+// below the JND for a single uniform surface but perceptible as depth across a 1000px span.
+const PLANE_DRIFT_AMP    = 2.5    // ± L* units
+const PLANE_DRIFT_FREQ_X = 1 / 271  // cycles per pixel, horizontal
+const PLANE_DRIFT_FREQ_Y = 1 / 389  // cycles per pixel, vertical
+
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
 const GEMINI_IMG_MODEL = 'gemini-3.1-flash-image'  // Nano Banana 2 — experiment behind the gate
 const GEMINI_IMG_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${GEM_KEY}`
@@ -261,12 +273,16 @@ async function classicalRecolor(
       const [cl, ca, cb] = labChips[
         isBlend ? Math.floor(((cellNoise(x, y, 5) + 1) / 2) * labChips.length) % labChips.length : 0
       ]
+      const planeDrift = PLANE_DRIFT_AMP * (
+        Math.sin(2 * Math.PI * x * PLANE_DRIFT_FREQ_X) +
+        Math.sin(2 * Math.PI * y * PLANE_DRIFT_FREQ_Y)
+      ) / 2   // average the two waves so peak stays within ±AMP
       const [lr, lg, lb] = labRecolorPixel({
         srcL: roofL.srcL[i],
         roofMeanL: roofL.roofMeanL,
         chipL: cl, chipA: ca, chipB: cb,
         k: kEff,
-        lumJitter: cellNoise(x, y, 1) * LAB_LUM_JITTER,
+        lumJitter: cellNoise(x, y, 1) * LAB_LUM_JITTER + planeDrift,
         aJitter:   cellNoise(x, y, 2) * LAB_AB_JITTER,
         bJitter:   cellNoise(x, y, 3) * LAB_AB_JITTER,
       })
