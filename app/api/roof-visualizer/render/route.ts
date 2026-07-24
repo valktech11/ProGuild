@@ -36,8 +36,8 @@ const DEFAULT_ENGINE: RenderEngineMode =
 // channel); near mid-grey one code value is ~0.34 L*, so ±9 codes is ~±3 L*. Chroma jitter is
 // set independently rather than derived, because in Lab it is a direct a*/b* offset with no
 // luminance coupling — the legacy per-channel hue jitter moved lightness as a side effect.
-const LAB_LUM_JITTER = 3.0
-const LAB_AB_JITTER  = 2.0
+const LAB_LUM_JITTER = 4.5   // raised from 3.0 — compensates for loss of cell averaging
+const LAB_AB_JITTER  = 2.8   // raised from 2.0 — same reason
 
 const GEM_KEY = process.env.GEMINI_API_KEY || ''
 const GEMINI_IMG_MODEL = 'gemini-3.1-flash-image'  // Nano Banana 2 — experiment behind the gate
@@ -219,12 +219,19 @@ async function classicalRecolor(
 
   // GRANULE JITTER — real architectural shingles are a blended granule matrix, not a
   // uniform sheet. Without this the classical path reads as "a flat sticker" (reviewer
-  // wording). Deterministic hash noise over 3x3 px cells (raised from 2x2): lower
-  // frequency variation reads more like real granule blends, less like film grain.
-  const LUM_JITTER = 9   // ± luminance
-  const HUE_JITTER = 4   // ± per-channel, breaks up uniform hue
+  // wording).
+  //
+  // Per-pixel hash (divisor was 3 = 3x3px cells). The 3-pixel cell was producing
+  // large contiguous same-chip blocks on multi-granule blend SKUs (Atlantic Blue,
+  // Estate Gray, Heather Blend) because all pixels in a cell share the same random
+  // value, and adjacent same-chip cells merged visually into camouflage patches.
+  // Per-pixel eliminates the cell structure entirely — each pixel is independently
+  // hashed. The averaging effect of the cell no longer softens the jitter field, so
+  // LAB_LUM_JITTER is raised 3.0→4.5 and LAB_AB_JITTER 2.0→2.8 to compensate.
+  const LUM_JITTER = 9   // ± luminance (legacy hybrid path, unchanged)
+  const HUE_JITTER = 4   // ± per-channel (legacy hybrid path, unchanged)
   const cellNoise = (x: number, y: number, salt: number) => {
-    let h = Math.floor(x / 3) * 73856093 ^ Math.floor(y / 3) * 19349663 ^ salt * 83492791
+    let h = x * 73856093 ^ y * 19349663 ^ salt * 83492791
     h = (h ^ (h >>> 13)) >>> 0
     return ((h % 2001) / 1000) - 1   // -1 .. +1
   }
