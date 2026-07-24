@@ -497,8 +497,8 @@ export async function POST(req: NextRequest) {
     if (!sessionId || !Array.isArray(skuIds) || skuIds.length === 0) {
       return NextResponse.json({ error: 'sessionId and skuIds required' }, { status: 400 })
     }
-    if (skuIds.length > 3) {
-      return NextResponse.json({ error: 'Maximum 3 SKUs per render call' }, { status: 400 })
+    if (skuIds.length > 10) {
+      return NextResponse.json({ error: 'Maximum 10 SKUs per render call' }, { status: 400 })
     }
 
     const sb = getSupabaseAdmin()
