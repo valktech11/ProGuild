@@ -548,7 +548,7 @@ export async function POST(req: NextRequest) {
     if (!isPro && newCount >= 3) gateUpdate.gate_shown_at = new Date().toISOString()
     await sb.from('visualizer_sessions').update(gateUpdate).eq('id', sessionId)
 
-    return NextResponse.json({ renders })
+    return NextResponse.json({ renders, roofMeanRgb: roofRgb })
 
   } catch (err: unknown) {
     console.error('[visualizer/render]', err)

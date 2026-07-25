@@ -31,6 +31,52 @@ function groupSkusByManufacturer(skus: Sku[]) {
 function getMfgName(sku: Sku) { return sku.viz_product_lines?.viz_manufacturers?.name ?? '' }
 
 // Default SKU picker — maximise visible difference between the three starting colours.
+// Rule-based colour recommendation: given the measured roof mean RGB, return 3 SKUs
+// whose colours are maximally different from the current roof AND from each other.
+// This gives the homeowner contrast rather than confirming what they already have.
+// Pure client-side — zero API cost.
+function pickRecommended(all: Sku[], roofRgb: { r: number; g: number; b: number }): string[] {
+  if (all.length === 0) return []
+  const feat = (s: Sku) => {
+    const hx = (s.hex_preview || '#888888').replace('#', '')
+    return {
+      r: parseInt(hx.slice(0,2),16),
+      g: parseInt(hx.slice(2,4),16),
+      b: parseInt(hx.slice(4,6),16),
+    }
+  }
+  const distRgb = (a: {r:number;g:number;b:number}, b: {r:number;g:number;b:number}) =>
+    Math.sqrt((a.r-b.r)**2 + (a.g-b.g)**2 + (a.b-b.b)**2)
+
+  // Score each SKU: high score = far from current roof (contrast) + not too similar to each other
+  const pool = [...all]
+  const chosen: Sku[] = []
+
+  // Seed: pick the chip most different from the existing roof colour
+  let best = pool[0], bestD = -1
+  for (const s of pool) {
+    const d = distRgb(feat(s), roofRgb)
+    if (d > bestD) { bestD = d; best = s }
+  }
+  chosen.push(best)
+
+  // Greedy farthest-point from both the roof colour AND already chosen chips
+  while (chosen.length < 3) {
+    let next: Sku | null = null, nextScore = -1
+    for (const cand of pool) {
+      if (chosen.some(c => c.id === cand.id)) continue
+      const distToRoof  = distRgb(feat(cand), roofRgb)
+      const distToChosen = Math.min(...chosen.map(c => distRgb(feat(cand), feat(c))))
+      // Weight: 40% contrast with roof, 60% spread among recommendations
+      const score = 0.4 * distToRoof + 0.6 * distToChosen
+      if (score > nextScore) { nextScore = score; next = cand }
+    }
+    if (!next) break
+    chosen.push(next)
+  }
+  return chosen.map(s => s.id)
+}
+
 // `is_default … slice(0,3)` used to hand out three near-identical greys, so the first
 // render a roofer ever sees looked like three copies of the same roof. Greedy
 // farthest-point selection over (luminance, chroma) guarantees dark / mid / warm spread.
@@ -191,7 +237,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v58'
+const CLIENT_BUILD = 'verify-v59'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -203,6 +249,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   const [sessionId, setSessionId]   = useState<string | null>(null)
   const [selectedSkuIds, setSelectedSkuIds] = useState<string[]>(() => pickSpreadDefaults(skus))
   const [renders, setRenders]       = useState<RenderResult[]>([])
+  const [roofMeanRgb, setRoofMeanRgb] = useState<{ r: number; g: number; b: number } | null>(null)
   const [error, setError]           = useState<string | null>(null)
   const [shareUrl, setShareUrl]     = useState<string | null>(null)
   const [gateEmail, setGateEmail]   = useState('')
@@ -953,6 +1000,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
       if (data.gate)  { setStep('gate'); return }
       if (!res.ok)    { setError(data.error || 'Render failed.'); setStep('pick'); return }
       setRenders((data.renders as RenderResult[]).map(r => ({ ...r, mfgName: skuMap[r.skuId] ? getMfgName(skuMap[r.skuId]) : '' })))
+      if (data.roofMeanRgb) setRoofMeanRgb(data.roofMeanRgb)
       setHeroIdx(1) // default to first render (index 0 = original)
       setStep('results')
     } catch { setError('Render failed. Please try again.'); setStep('pick') }
@@ -1415,6 +1463,41 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 <p style={{ fontSize: 11, color: t.textSubtle, textAlign: 'center', margin: '10px 0 0' }}>Free — no account required for first 3 renders</p>
                 <p style={{ fontSize: 10.5, color: t.textSubtle, textAlign: 'center', margin: '8px 0 0', lineHeight: 1.45 }}>
                   Colors shown are digital approximations. Manufacturers recommend viewing full-size shingle samples in daylight before choosing.
+              </p>
+
+              {/* AI Recommendation banner — only shown after a render has been done */}
+              {roofMeanRgb && renders.length > 0 && (() => {
+                const recIds = pickRecommended(skus, roofMeanRgb)
+                const recSkus = recIds.map(id => skus.find(s => s.id === id)).filter(Boolean) as Sku[]
+                if (recSkus.length === 0) return null
+                return (
+                  <div style={{ marginBottom: 20, padding: '14px 18px', background: BRAND.teal + '10', borderRadius: T.radLg, border: `1px solid ${BRAND.teal}30` }}>
+                    <p style={{ fontWeight: 700, fontSize: 13, color: BRAND.teal, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      ✦ Recommended for your roof
+                    </p>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      {recSkus.map(s => (
+                        <button key={s.id} onClick={() => {
+                          setSelectedSkuIds(prev =>
+                            prev.includes(s.id) ? prev : prev.length >= 10 ? [...prev.slice(1), s.id] : [...prev, s.id]
+                          )
+                        }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px',
+                            borderRadius: T.radMd, border: `2px solid ${selectedSkuIds.includes(s.id) ? BRAND.teal : 'transparent'}`,
+                            background: t.cardBg, cursor: 'pointer', transition: 'border-color 0.12s' }}>
+                          <span style={{ width: 18, height: 18, borderRadius: '50%', background: s.hex_preview, flexShrink: 0, display: 'inline-block', border: '1px solid rgba(0,0,0,0.1)' }} />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: t.textPri }}>{s.name}</span>
+                          {selectedSkuIds.includes(s.id) && <span style={{ fontSize: 11, color: BRAND.teal }}>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                    <p style={{ fontSize: 11, color: t.textSubtle, margin: '8px 0 0' }}>
+                      Based on contrast with your current roof colour.
+                    </p>
+                  </div>
+                )
+              })()}
+              <p style={{ display: 'none' }}>
                 </p>
               </div>
             )}

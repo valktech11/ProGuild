@@ -19,6 +19,8 @@ interface ShareData {
   session_id:     string
   visualizer_sessions: {
     photo_public_url: string
+    pro_id:           string | null
+    pros:             { full_name: string; phone: string | null } | null
     visualizer_renders: Render[]
   }
 }
@@ -76,7 +78,10 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
     } catch { /* silent */ }
   }
 
-  const renders = share?.visualizer_sessions?.visualizer_renders?.filter(r => r.status === 'done' && r.render_url) ?? []
+  const renders  = share?.visualizer_sessions?.visualizer_renders?.filter(r => r.status === 'done' && r.render_url) ?? []
+  const pro      = share?.visualizer_sessions?.pros ?? null
+  const proName  = pro?.full_name ?? null
+  const proPhone = pro?.phone ?? null
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.pageBg }}>
@@ -113,10 +118,20 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
         </div>
       )}
 
-      {/* Header */}
-      <div style={{ background: t.cardBg, borderBottom: `1px solid ${t.cardBorder}`, padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontWeight: 800, fontSize: 18, color: BRAND.teal }}>ProGuild</span>
-        <span style={{ color: t.textSubtle, fontSize: 13 }}>· Roof Visualizer</span>
+      {/* Header — contractor branded when pro is linked */}
+      <div style={{ background: t.cardBg, borderBottom: `1px solid ${t.cardBorder}`, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontWeight: 800, fontSize: 18, color: BRAND.teal }}>
+            {proName ?? 'ProGuild'}
+          </span>
+          <span style={{ color: t.textSubtle, fontSize: 13 }}>· Roof Colour Preview</span>
+        </div>
+        {proPhone && (
+          <a href={`tel:${proPhone.replace(/\D/g,'')}`}
+            style={{ color: BRAND.teal, fontWeight: 700, fontSize: 14, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            📞 {proPhone}
+          </a>
+        )}
       </div>
 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 20px' }}>
@@ -151,9 +166,10 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
         ) : (
           <>
             <div style={{ marginBottom: 28, textAlign: 'center' }}>
-              <h1 style={{ fontSize: 26, fontWeight: 800, color: t.textPri, margin: '0 0 10px' }}>Pick Your Favourite Shingle</h1>
+              <h1 style={{ fontSize: 26, fontWeight: 800, color: t.textPri, margin: '0 0 10px' }}>Your Roof, New Colours</h1>
               <p style={{ color: t.textMuted, fontSize: 15, margin: 0 }}>
-                Tap a render to zoom in, then confirm your choice below.
+                {proName ? `${proName} prepared these options for your home.` : 'Tap a render to zoom in, then confirm your choice below.'}
+                {' '}Tap to zoom, then select your favourite.
               </p>
             </div>
 
@@ -199,22 +215,50 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
               ))}
             </div>
 
+            {/* Original photo comparison */}
+            {share?.visualizer_sessions?.photo_public_url && (
+              <div style={{ marginTop: 32, padding: '20px 24px', background: t.cardBg, borderRadius: T.radLg, border: `1px solid ${t.cardBorder}` }}>
+                <p style={{ fontWeight: 700, fontSize: 14, color: t.textMuted, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your current roof</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={share.visualizer_sessions.photo_public_url} alt="Original roof"
+                  style={{ width: '100%', maxHeight: 260, objectFit: 'cover', borderRadius: T.radMd, display: 'block' }} />
+              </div>
+            )}
+
             {chosen && !submitted && (
               <div style={{ textAlign: 'center', marginTop: 28 }}>
                 <button onClick={() => handlePick(chosen)}
                   style={{ background: BRAND.teal, color: '#fff', border: 'none', borderRadius: T.radMd, padding: '14px 48px', fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
                   Confirm my choice →
                 </button>
-                <p style={{ fontSize: 12, color: t.textSubtle, marginTop: 10 }}>Your roofer will be notified with your selection.</p>
+                <p style={{ fontSize: 12, color: t.textSubtle, marginTop: 10 }}>
+                  {proName ? `${proName} will be notified with your selection.` : 'Your roofer will be notified with your selection.'}
+                </p>
+              </div>
+            )}
+
+            {/* Schedule CTA — shown after pick or if no choice yet */}
+            {proPhone && (
+              <div style={{ marginTop: 32, padding: '20px 24px', background: BRAND.teal + '12', borderRadius: T.radLg, border: `1px solid ${BRAND.teal}44`, textAlign: 'center' }}>
+                <p style={{ fontWeight: 800, fontSize: 16, color: t.textPri, margin: '0 0 6px' }}>
+                  Ready to get started?
+                </p>
+                <p style={{ color: t.textMuted, fontSize: 14, margin: '0 0 16px' }}>
+                  Call {proName ?? 'your roofer'} to schedule a free inspection.
+                </p>
+                <a href={`tel:${proPhone.replace(/\D/g,'')}`}
+                  style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', textDecoration: 'none', borderRadius: T.radMd, padding: '12px 32px', fontWeight: 700, fontSize: 15 }}>
+                  📞 Call {proPhone}
+                </a>
               </div>
             )}
           </>
         )}
 
         <p style={{ textAlign: 'center', color: t.textSubtle, fontSize: 12, marginTop: 40 }}>
-          Roof visualization powered by{' '}
+          Roof visualization by{' '}
           <a href="https://proguild.ai" style={{ color: BRAND.teal, textDecoration: 'none', fontWeight: 600 }}>ProGuild.ai</a>
-          {' '}· Free for homeowners
+          {proName ? ` · Prepared by ${proName}` : ''}{' '}· Free for homeowners
         </p>
       </div>
     </div>

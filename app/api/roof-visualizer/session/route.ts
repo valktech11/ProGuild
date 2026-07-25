@@ -117,6 +117,8 @@ export async function GET(req: NextRequest) {
         session_id,
         visualizer_sessions (
           photo_public_url,
+          pro_id,
+          pros ( full_name, phone ),
           visualizer_renders (
             render_url, status,
             viz_skus ( id, name, hex_preview )
