@@ -22,6 +22,29 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { uploadToR2 } from '@/lib/r2'
 import sharp from 'sharp'
 
+// Same logic as lib/pro-auth.ts classifyClient — inlined to avoid circular deps
+function classifyClient(ua: string) {
+  const isMobileApp = /dart|okhttp|proguild_mobile/i.test(ua)
+  const deviceType =
+    isMobileApp                     ? 'mobile_app' :
+    /ipad/i.test(ua)                ? 'tablet'     :
+    /iphone|android/i.test(ua)      ? 'mobile_web' :
+    ua === ''                       ? 'unknown'    : 'desktop'
+  const browser =
+    isMobileApp         ? 'ProGuild App' :
+    /edg\//i.test(ua)   ? 'Edge'    :
+    /chrome/i.test(ua)  ? 'Chrome'  :
+    /safari/i.test(ua)  ? 'Safari'  :
+    /firefox/i.test(ua) ? 'Firefox' : null
+  const os =
+    /windows/i.test(ua)     ? 'Windows' :
+    /mac os/i.test(ua)      ? 'macOS'   :
+    /android/i.test(ua)     ? 'Android' :
+    /iphone|ipad/i.test(ua) ? 'iOS'     :
+    /linux/i.test(ua)       ? 'Linux'   : null
+  return { deviceType, browser, os }
+}
+
 export const maxDuration = 120
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
@@ -160,7 +183,11 @@ async function bakeFullResGrid(cands: Candidate[], pw: number, ph: number): Prom
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+    const ip = (req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+              || req.headers.get('x-real-ip')?.trim()
+              || null)
+    const ua = req.headers.get('user-agent') ?? ''
+    const { deviceType, browser, os } = classifyClient(ua)
     const sb = getSupabaseAdmin()
     const hourAgo = new Date(Date.now() - 3600_000).toISOString()
     const { count: recentCount } = await sb
@@ -197,7 +224,8 @@ export async function POST(req: NextRequest) {
 
     await sb.from('visualizer_sessions').insert({
       id: sessionId, photo_r2_key: photoKey, photo_public_url: photoUrl,
-      mask_status: 'processing', ip_address: ip,
+      mask_status: 'processing', ip_address: ip ?? 'unknown',
+      user_agent: ua || null, device_type: deviceType, browser: browser ?? null, os: os ?? null,
       ...(proId ? { pro_id: proId } : {}),
     })
     if (proId) console.log(`[segment] session ${sessionId} linked to pro ${proId}`)
