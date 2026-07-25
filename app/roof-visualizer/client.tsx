@@ -250,7 +250,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v60'
+const CLIENT_BUILD = 'verify-v61'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -1588,8 +1588,8 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: T.radMd, padding: '10px 13px', marginBottom: 12 }}>
                     <span style={{ fontSize: 15, flexShrink: 0 }}>💡</span>
                     <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.45 }}>
-                      <strong style={{ color: '#92400E' }}>{allItems[heroIdx].label} is close to the current roof colour.</strong>{' '}
-                      The render is accurate — there just isn't much visible change. Try a lighter or warmer option to show the homeowner a clearer difference.
+                      <strong style={{ color: '#92400E' }}>Low contrast — {allItems[heroIdx].label} is similar to the existing roof.</strong>{' '}
+                      The render is accurate but the change may be subtle. For a stronger visual impact, consider a colour with higher contrast — try something lighter, darker, or from a different colour family.
                     </div>
                   </div>
                 )}
@@ -1620,7 +1620,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                         </div>
                         {!item.isOriginal && item.mfg && (
                           <div style={{ fontSize: 9, color: t.textSubtle, lineHeight: 1.2 }}>
-                            {item.mfg}{item.lowContrast ? ' · similar' : ''}
+                            {item.mfg}{item.lowContrast ? ' · low contrast' : ''}
                           </div>
                         )}
                       </div>

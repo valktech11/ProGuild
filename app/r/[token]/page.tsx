@@ -141,10 +141,15 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 20px' }}>
         {submitted ? (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: t.textPri, margin: '0 0 10px' }}>Thanks for choosing!</h2>
-            <p style={{ color: t.textMuted, fontSize: 15, margin: '0 0 24px' }}>
-              Your roofer has been notified with your favourite shingle color.
+            <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: t.textPri, margin: '0 0 10px' }}>
+              Great choice!
+            </h2>
+            <p style={{ color: t.textMuted, fontSize: 15, margin: '0 0 8px' }}>
+              {proName ? `${proName} has been notified and will be in touch shortly.` : 'Your roofer has been notified and will be in touch shortly.'}
+            </p>
+            <p style={{ color: t.textMuted, fontSize: 14, margin: '0 0 24px' }}>
+              What happens next: your roofer will review your selection, confirm material availability, and reach out with a final quote.
             </p>
             {chosen && renders.find(r => r.viz_skus?.id === chosen) && (() => {
               const r = renders.find(r => r.viz_skus?.id === chosen)!
