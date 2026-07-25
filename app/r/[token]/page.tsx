@@ -10,7 +10,7 @@ import { theme, BRAND, T } from '@/lib/tokens'
 interface Render {
   render_url:  string
   status:      string
-  viz_skus: { id: string; name: string; hex_preview: string }
+  viz_skus: { id: string; name: string; hex_preview: string; viz_product_lines?: { viz_manufacturers?: { name: string } } | null }
 }
 
 interface ShareData {
@@ -23,6 +23,10 @@ interface ShareData {
     pros:             { full_name: string; phone: string | null } | null
     visualizer_renders: Render[]
   }
+}
+
+function getMfg(r: Render): string | null {
+  return r.viz_skus?.viz_product_lines?.viz_manufacturers?.name ?? null
 }
 
 export default function SharePage({ params }: { params: Promise<{ token: string }> }) {
@@ -150,7 +154,10 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
                   <img src={r.render_url} alt="Your chosen roof" style={{ width: '100%', display: 'block' }} />
                   <div style={{ height: 48, background: r.viz_skus.hex_preview, position: 'relative' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ color: '#fff', fontWeight: 700, fontSize: 14, textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{r.viz_skus.name} · ✓ Your pick</span>
+                      <span style={{ color: '#fff', fontWeight: 700, fontSize: 14, textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                        {getMfg(r) && <span style={{ fontWeight: 400, opacity: 0.8 }}>{getMfg(r)} · </span>}
+                        {r.viz_skus.name} · ✓ Your pick
+                      </span>
                     </div>
                   </div>
                   <div style={{ padding: '12px 16px', background: t.cardBg, display: 'flex', justifyContent: 'center' }}>
@@ -191,7 +198,10 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
                   {/* Large colour band */}
                   <div style={{ height: 44, background: r.viz_skus?.hex_preview, position: 'relative' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>{r.viz_skus?.name}</span>
+                      <span style={{ color: '#fff', fontWeight: 700, fontSize: 13, textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>
+                        {getMfg(r) && <span style={{ fontWeight: 400, opacity: 0.8 }}>{getMfg(r)} · </span>}
+                        {r.viz_skus?.name}
+                      </span>
                     </div>
                   </div>
                   {/* Actions row */}

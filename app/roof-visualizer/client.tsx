@@ -30,6 +30,19 @@ function groupSkusByManufacturer(skus: Sku[]) {
 }
 function getMfgName(sku: Sku) { return sku.viz_product_lines?.viz_manufacturers?.name ?? '' }
 
+// Good / Better / Best tier by product line — based on impact rating and market positioning.
+// Good  = GAF Timberline HDZ (entry premium, highest market share)
+// Better = OC Duration, CertainTeed Landmark (mid-premium, contractor preferred)
+// Best  = IKO Dynasty (Class 3/4 impact), Atlas Pinnacle Pristine (impact-rated, algae resistant)
+const MFG_TIER: Record<string, { label: string; color: string; description: string }> = {
+  'GAF':          { label: 'Good',   color: '#6B7280', description: 'Standard' },
+  'Owens Corning':{ label: 'Better', color: '#0F766E', description: 'Contractor preferred' },
+  'CertainTeed':  { label: 'Better', color: '#0F766E', description: 'Contractor preferred' },
+  'IKO':          { label: 'Best',   color: '#7C3AED', description: 'Impact-rated Class 3/4' },
+  'Atlas':        { label: 'Best',   color: '#7C3AED', description: 'Impact-rated' },
+}
+function getMfgTier(mfgName: string) { return MFG_TIER[mfgName] ?? null }
+
 // Default SKU picker — maximise visible difference between the three starting colours.
 // Rule-based colour recommendation: given the measured roof mean RGB, return 3 SKUs
 // whose colours are maximally different from the current roof AND from each other.
@@ -237,7 +250,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v59'
+const CLIENT_BUILD = 'verify-v60'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -1449,7 +1462,20 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                 </div>
                 {groups.filter(g => !mfgFilter || g.manufacturer === mfgFilter).map(group => (
                   <div key={group.manufacturer} style={{ marginBottom: 20 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>{group.manufacturer}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>{group.manufacturer}</p>
+                      {getMfgTier(group.manufacturer) && (() => {
+                        const tier = getMfgTier(group.manufacturer)!
+                        return (
+                          <span title={tier.description}
+                            style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999,
+                              background: tier.color + '18', color: tier.color, border: `1px solid ${tier.color}40`,
+                              letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                            {tier.label}
+                          </span>
+                        )
+                      })()}
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))', gap: 12 }}>
                       {group.skus.map(sku => <SkuSwatch key={sku.id} sku={sku} selected={selectedSkuIds.includes(sku.id)} onClick={() => toggleSku(sku.id)} />)}
                     </div>
