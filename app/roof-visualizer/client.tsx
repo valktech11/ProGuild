@@ -250,7 +250,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v65'
+const CLIENT_BUILD = 'verify-v66'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -1801,10 +1801,11 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
 
         {step === 'upload' && skus.length > 0 && (
           <div style={{ marginTop: 28, textAlign: 'center' }}>
-            <p style={{ fontSize: 11.5, fontWeight: 800, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 14px' }}>
-              {skus.length} real shingle colors · 5 manufacturers
+            <p style={{ fontSize: 11, fontWeight: 800, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 12px' }}>
+              {skus.length} real shingle colours · 5 manufacturers
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 7 }}>
+            {/* 9-per-row grid — 18 chips split into 2 clean rows */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 40px)', gap: 6, justifyContent: 'center' }}>
               {skus.map(s => {
                 const isHovered = hoveredSkuId === s.id
                 const mfg = getMfgName(s)
@@ -1814,8 +1815,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                     onMouseLeave={() => setHoveredSkuId(null)}
                     onPointerDown={() => setHoveredSkuId(s.id)}
                     onPointerUp={() => setTimeout(() => setHoveredSkuId(null), 900)}
-                    style={{ position: 'relative', width: 46, height: 46, borderRadius: 9, background: s.hex_preview, border: '1px solid rgba(0,0,0,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.12)', overflow: 'visible', cursor: 'default', flexShrink: 0 }}>
-                    <div style={{ position: 'absolute', inset: 0, borderRadius: 9, backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.10) 0 1px, rgba(255,255,255,0.05) 1px 8px)', overflow: 'hidden' }} />
+                    style={{ position: 'relative', width: 40, height: 40, borderRadius: 8, background: s.hex_preview, border: '1px solid rgba(0,0,0,0.10)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', overflow: 'visible', cursor: 'default' }}>
                     {isHovered && (
                       <div style={{
                         position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)',
