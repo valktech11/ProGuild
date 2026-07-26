@@ -83,7 +83,7 @@ export default function MaintenancePlansPage() {
     ].filter(Boolean).join(' ')
 
     try {
-      const r = await fetch('/api/leads', {
+      const r = await apiFetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

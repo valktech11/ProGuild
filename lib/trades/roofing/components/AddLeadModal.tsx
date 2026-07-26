@@ -7,6 +7,7 @@ import { theme } from '@/lib/tokens'
 import { useState, useRef } from 'react'
 import type { ReactElement } from 'react'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { apiFetch } from '@/lib/api-fetch'
 import { LEAD_SOURCES } from '../leadSources'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -115,7 +116,7 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
     if (!phone.trim() && !email.trim())   { setErr('Phone or email is required'); return }
     if (!scope.trim())                    { setErr('Describe the damage or scope'); return }
     setSaving(true); setErr('')
-    const r = await fetch('/api/leads', {
+    const r = await apiFetch('/api/leads', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

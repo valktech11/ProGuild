@@ -8,6 +8,7 @@
 import { useState, useRef } from 'react'
 import type { ReactElement } from 'react'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { apiFetch } from '@/lib/api-fetch'
 
 // ── Lead source icons ─────────────────────────────────────────────────────────
 function PhoneIcon({ a }: { a: boolean }) {
@@ -133,7 +134,7 @@ export default function HVACAddLeadModal({ proId, onClose, onAdded, dk = false }
     if (!phone.trim() && !email.trim()) { setErr('Phone or email is required'); return }
     if (!scope.trim())                  { setErr('Describe the issue or scope'); return }
     setSaving(true); setErr('')
-    const r = await fetch('/api/leads', {
+    const r = await apiFetch('/api/leads', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

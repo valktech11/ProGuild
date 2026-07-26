@@ -3,6 +3,7 @@ import { theme, T } from '@/lib/tokens'
 import { capName } from '@/lib/utils'
 import { useState } from 'react'
 import { getTradeConfig } from '@/lib/trades/_registry'
+import { apiFetch } from '@/lib/api-fetch'
 
 const SOURCES = [
   { value: 'Phone_Call', label: 'Phone call' },
@@ -103,7 +104,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
     if (!phone.trim() && !email.trim()) { setErr('Phone or email is required'); return }
     if (!need.trim())  { setErr('Describe what they need'); return }
     setSaving(true); setErr('')
-    const r = await fetch('/api/leads', {
+    const r = await apiFetch('/api/leads', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
