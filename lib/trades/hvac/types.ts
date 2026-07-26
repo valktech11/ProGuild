@@ -19,6 +19,8 @@ export interface HVACPipelineStage {
   color:        string
   bg:           string
   dot:          string
+  subLabel?:    string
+  nextLabel?:   string
   terminal?:    boolean
   reopenable?:  boolean
 }
@@ -34,18 +36,18 @@ export interface HVACNavItem {
 }
 
 export interface HVACNavSection {
-  title:  'TODAY' | 'MONEY' | 'MY EQUIPMENT' | 'COMPLIANCE' | 'REPORTS'
+  title:  'TODAY' | 'BILLING' | 'EQUIPMENT' | 'MY EQUIPMENT' | 'MONEY' | 'COMPLIANCE' | 'REPORTS'
   items:  HVACNavItem[]
 }
 
 export interface HVACLabels {
-  pipeline:    'Jobs'
-  estimate:    'Quote'
-  invoice:     'Invoice'
-  client:      'Client'
-  clients:     'Clients'
-  newButton:   'New Call'
-  wonStage:    'Job Won'
+  pipeline:    string
+  estimate:    string
+  invoice:     string
+  client:      string
+  clients:     string
+  newButton:   string
+  wonStage:    string
   scopePlaceholder?: string
 }
 
