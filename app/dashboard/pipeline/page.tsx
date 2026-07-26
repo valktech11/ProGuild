@@ -84,7 +84,7 @@ export default function PipelinePage() {
     if (!session) { router.replace('/login'); return }
     fetchLeads().finally(() => setDataLoading(false))
     // Refresh when a lead is added from the sidebar "+ Add New Lead" button
-    const handler = () => fetchLeads()
+    const handler = () => setTimeout(() => fetchLeads(), 600)
     window.addEventListener('pg:lead-added', handler)
     return () => window.removeEventListener('pg:lead-added', handler)
   }, [session, router, fetchLeads])

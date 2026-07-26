@@ -71,6 +71,8 @@ interface PipelineSummary {
   awaitingSignature:  number
   insuranceFollowUp:  number
   stalledLeads:       number
+  maintenanceDue?:    number   // HVAC only — pending reminders due this week
+  stalledList?:       string[]
 }
 
 interface Props {
@@ -1478,13 +1480,47 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
         clear. Card-driven filters show as selected state — no chip duplicate. */}
     {summary && (() => {
       const sm = summary
-      const cards = [
+      const isHVACBoard = tradeSlug === 'hvac-technician' || tradeSlug === 'hvac' || tradeSlug === 'hvac-contractor' || tradeSlug === 'air-conditioning'
+      const cards = isHVACBoard ? [
+        {
+          key:   'needsContact',
+          label: 'New Calls',
+          sub:   'Calls not yet visited >24h',
+          count: sm.needsContact,
+          color: '#DC2626',
+          selBg: '#FFF5F5',
+        },
+        {
+          key:   'awaitingSignature',
+          label: 'Quote Pending',
+          sub:   'Quotes unsigned 48h+',
+          count: sm.awaitingSignature,
+          color: '#D97706',
+          selBg: '#FFFBEB',
+        },
+        {
+          key:   'stalledLeads',
+          label: 'Stalled',
+          sub:   'Exceeding stage SLA',
+          count: sm.stalledLeads,
+          color: '#7C3AED',
+          selBg: '#F8F4FF',
+        },
+        {
+          key:   'maintenanceDue',
+          label: 'Maintenance Due',
+          sub:   'Service reminders this week',
+          count: sm.maintenanceDue ?? 0,
+          color: '#0891B2',
+          selBg: '#F0FBFF',
+        },
+      ] : [
         {
           key:   'needsContact',
           label: 'Needs Contact',
           sub:   'Entry leads waiting >24h',
           count: sm.needsContact,
-          color: '#DC2626',    // red
+          color: '#DC2626',
           selBg: '#FFF5F5',
         },
         {
@@ -1492,7 +1528,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           label: 'Awaiting Signature',
           sub:   'Proposals unsigned 48h+',
           count: sm.awaitingSignature,
-          color: '#D97706',    // amber
+          color: '#D97706',
           selBg: '#FFFBEB',
         },
         {
@@ -1500,7 +1536,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           label: 'Insurance Follow-Up',
           sub:   'Carrier action overdue >14d',
           count: sm.insuranceFollowUp,
-          color: '#0891B2',    // cyan
+          color: '#0891B2',
           selBg: '#F0FBFF',
         },
         {
@@ -1508,7 +1544,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
           label: 'Stalled',
           sub:   'Exceeding stage SLA',
           count: sm.stalledLeads,
-          color: '#7C3AED',    // violet
+          color: '#7C3AED',
           selBg: '#F8F4FF',
         },
       ]
