@@ -143,6 +143,8 @@ export async function POST(req: NextRequest) {
     property_address, contact_city, contact_state, contact_zip,
     // HVAC-specific — populate hvac_job_data row on POST
     system_type, issue_type, refrigerant_type,
+    // trade_slug from client session — fallback if pros row not yet updated
+    trade_slug: clientTradeSlug,
   } = body
 
   // Two distinct flows share this endpoint:
@@ -183,7 +185,11 @@ export async function POST(req: NextRequest) {
     .eq('id', pro_id)
     .single()
 
-  const tradeSlug   = proRecord?.trade_slug ?? null
+  // Prefer DB trade_slug (authoritative). Fall back to client-supplied value
+  // so a newly registered pro whose pros.trade_slug hasn't been set yet still
+  // gets the correct initial stage. Both are validated — client value is never
+  // trusted for auth, only for stage resolution.
+  const tradeSlug   = proRecord?.trade_slug ?? clientTradeSlug ?? null
   const initialStage = getInitialStage(tradeSlug)
 
   // ── Normalise address ─────────────────────────────────────────────────────

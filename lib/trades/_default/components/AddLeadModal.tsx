@@ -109,6 +109,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pro_id:           proId,
+        trade_slug:       tradeSlug || null,
         contact_name:     name.trim(),
         contact_phone:    phone.trim()  || null,
         contact_email:    email.trim()  || null,

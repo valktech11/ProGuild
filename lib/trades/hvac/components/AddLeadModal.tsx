@@ -96,9 +96,9 @@ function san(v: string) {
   return v.replace(/[\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g, '').trimStart()
 }
 
-interface Props { proId: string; onClose: () => void; onAdded: (lead: any) => void; dk?: boolean }
+interface Props { proId: string; tradeSlug?: string | null; onClose: () => void; onAdded: (lead: any) => void; dk?: boolean }
 
-export default function HVACAddLeadModal({ proId, onClose, onAdded, dk = false }: Props) {
+export default function HVACAddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = false }: Props) {
   const [name,        setName]        = useState('')
   const [phone,       setPhone]       = useState('')
   const [email,       setEmail]       = useState('')
@@ -139,6 +139,7 @@ export default function HVACAddLeadModal({ proId, onClose, onAdded, dk = false }
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pro_id:           proId,
+          trade_slug:       tradeSlug || null,
         contact_name:     name.trim(),
         contact_phone:    phone.trim()  || null,
         contact_email:    email.trim()  || null,

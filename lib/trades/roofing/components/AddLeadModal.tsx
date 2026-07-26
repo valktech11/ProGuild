@@ -120,7 +120,7 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        pro_id: proId, contact_name: name.trim(),
+        pro_id: proId, trade_slug: tradeSlug || null, contact_name: name.trim(),
         contact_phone: phone.trim() || null,
         contact_email: email.trim() || null,
         property_address: street.trim() || null,  // street only — city/state/zip sent separately below
