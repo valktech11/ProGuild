@@ -1,8 +1,8 @@
 // ── HVAC Trade Config ───────────────────────────────────────────────────────
 
 import type { HVACConfig } from './types'
-import HVACAddLeadModal from './components/AddLeadModal'
-import DefaultOverviewWidget from '../_default/components/OverviewWidget'
+import HVACAddLeadModal    from './components/AddLeadModal'
+import HVACOverviewWidget  from './components/OverviewWidget'
 
 export const hvacConfig: HVACConfig = {
   slug:        'hvac-technician',
@@ -93,6 +93,6 @@ export const hvacConfig: HVACConfig = {
 
   components: {
     AddLeadModal:   HVACAddLeadModal,
-    OverviewWidget: DefaultOverviewWidget,
+    OverviewWidget: HVACOverviewWidget,
   },
 }
