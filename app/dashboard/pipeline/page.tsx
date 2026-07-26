@@ -6,7 +6,6 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import DashboardShell from '@/components/layout/DashboardShell'
 import LeadPipeline from '@/components/ui/LeadPipeline'
 import ActionAlert from '@/components/ui/ActionAlert'
-import AddLeadModal from '@/components/ui/AddLeadModal'
 // RoofingAddLeadModal now accessed via plugin.components.AddLeadModal
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
 import { theme, T } from '@/lib/tokens'
@@ -351,7 +350,7 @@ export default function PipelinePage() {
       {showAddLead && session && (() => {
         // Shell delegates to trade plugin — no direct trade component imports
         const plugin = getTradeConfig(session.trade_slug)
-        const TradeAddLeadModal = (plugin as any).components?.AddLeadModal ?? AddLeadModal
+        const TradeAddLeadModal = (plugin as any).components?.AddLeadModal ?? null
         return (
           <TradeAddLeadModal
             proId={session.id}

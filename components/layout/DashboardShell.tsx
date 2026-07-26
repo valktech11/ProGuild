@@ -6,7 +6,6 @@ import { Session, isPaidPlan } from '@/types'
 import { initials, avatarColor, planLabel } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
-import AddLeadModal from '@/components/ui/AddLeadModal'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
 type NavItem  = { label: string; href: string; icon: (a: boolean) => React.ReactNode; badge?: number | null; soon?: boolean; exact?: boolean }
@@ -859,18 +858,24 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
         </div>
       </div>
 
-      {/* Add Lead Modal — rendered outside desktop/mobile divs so it works everywhere */}
-      {showAddLead && session && (
-        <AddLeadModal
-          proId={session.id}
-          tradeSlug={session.trade_slug ?? session.trade ?? 'roofing'}
-          onClose={() => setShowAddLead(false)}
-          onAdded={(lead: any) => {
-            setShowAddLead(false)
-            window.dispatchEvent(new CustomEvent('pg:lead-added', { detail: lead }))
-          }}
-        />
-      )}
+      {/* Add Lead Modal — resolved from trade plugin so each trade gets its own modal */}
+      {showAddLead && session && (() => {
+        const _plugin = getTradeConfig(session.trade_slug)
+        const TradeModal = (_plugin as any).components?.AddLeadModal
+        if (!TradeModal) return null
+        return (
+          <TradeModal
+            proId={session.id}
+            tradeSlug={session.trade_slug ?? session.trade ?? undefined}
+            onClose={() => setShowAddLead(false)}
+            onAdded={(lead: any) => {
+              setShowAddLead(false)
+              window.dispatchEvent(new CustomEvent('pg:lead-added', { detail: lead }))
+            }}
+            dk={false}
+          />
+        )
+      })()}
     </>
   )
 }

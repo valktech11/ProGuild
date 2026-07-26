@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { Lead, Review } from '@/types'
 import { timeAgo, fmtCurrency } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
-import AddLeadModal from '@/components/ui/AddLeadModal'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
@@ -1077,7 +1076,7 @@ export default function OverviewPage() {
       {showAddLead && session && (() => {
         // Use trade plugin's AddLeadModal — roofing gets roofing modal, HVAC gets HVAC modal
         const plugin = getTradeConfig(session.trade_slug)
-        const TradeAddLeadModal = (plugin as any).components?.AddLeadModal ?? AddLeadModal
+        const TradeAddLeadModal = (plugin as any).components?.AddLeadModal ?? null
         return (
           <TradeAddLeadModal
             proId={session.id}
