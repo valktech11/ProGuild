@@ -33,7 +33,7 @@ async function getSkuCatalog() {
     const { data } = await sb
       .from('viz_skus')
       .select(`
-        id, slug, name, hex_preview, is_default, sort_order,
+        id, slug, name, hex_preview, is_default, sort_order, swatch_url,
         viz_product_lines (
           id, slug, name,
           viz_manufacturers ( id, slug, name )

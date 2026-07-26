@@ -8,7 +8,7 @@ import Link from 'next/link'
 
 interface Sku {
   id: string; slug: string; name: string; hex_preview: string
-  is_default: boolean; sort_order: number
+  is_default: boolean; sort_order: number; swatch_url?: string | null
   viz_product_lines: { id: string; slug: string; name: string
     viz_manufacturers: { id: string; slug: string; name: string } }
 }
@@ -1819,14 +1819,28 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                     {isHovered && (
                       <div style={{
                         position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)',
-                        background: 'rgba(15,15,15,0.92)', color: '#fff', borderRadius: 7,
-                        padding: '6px 10px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 50,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                        background: 'rgba(15,15,15,0.95)', color: '#fff', borderRadius: 10,
+                        padding: s.swatch_url ? '0' : '6px 10px',
+                        whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 50,
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+                        minWidth: s.swatch_url ? 140 : 'auto', overflow: 'hidden',
                       }}>
-                        <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.3 }}>{s.name}</div>
-                        {mfg && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{mfg}</div>}
-                        {/* Arrow */}
-                        <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(15,15,15,0.92)' }} />
+                        {s.swatch_url
+                          ? <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={s.swatch_url} alt={s.name}
+                                style={{ width: 140, height: 100, objectFit: 'cover', display: 'block' }} />
+                              <div style={{ padding: '6px 10px' }}>
+                                <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.3 }}>{s.name}</div>
+                                {mfg && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>{mfg}</div>}
+                              </div>
+                            </>
+                          : <>
+                              <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.3 }}>{s.name}</div>
+                              {mfg && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{mfg}</div>}
+                            </>
+                        }
+                        <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(15,15,15,0.95)' }} />
                       </div>
                     )}
                   </div>
