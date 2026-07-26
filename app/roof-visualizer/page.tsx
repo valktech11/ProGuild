@@ -41,7 +41,8 @@ async function getSkuCatalog() {
       `)
       .order('sort_order')
     return data || []
-  } catch {
+  } catch (err) {
+    console.error("[getSkuCatalog] ERROR:", err)
     return []
   }
 }
