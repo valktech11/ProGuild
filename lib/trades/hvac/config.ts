@@ -1,7 +1,7 @@
 // ── HVAC Trade Config ───────────────────────────────────────────────────────
 
 import type { HVACConfig } from './types'
-import DefaultAddLeadModal from '../_default/components/AddLeadModal'
+import HVACAddLeadModal from './components/AddLeadModal'
 import DefaultOverviewWidget from '../_default/components/OverviewWidget'
 
 export const hvacConfig: HVACConfig = {
@@ -91,9 +91,8 @@ export const hvacConfig: HVACConfig = {
     maintenanceMembership: false,  // Phase 2
   },
 
-  // ── Components — use default until trade gets its own ──────────────────────
   components: {
-    AddLeadModal: DefaultAddLeadModal,
+    AddLeadModal:   HVACAddLeadModal,
     OverviewWidget: DefaultOverviewWidget,
   },
 }

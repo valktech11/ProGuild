@@ -141,6 +141,8 @@ export async function POST(req: NextRequest) {
     pro_id, job_id, contact_name, contact_email, contact_phone,
     message, lead_source, client_id, is_manual,
     property_address, contact_city, contact_state, contact_zip,
+    // HVAC-specific — populate hvac_job_data row on POST
+    system_type, issue_type, refrigerant_type,
   } = body
 
   // Two distinct flows share this endpoint:
@@ -316,6 +318,22 @@ export async function POST(req: NextRequest) {
       })
       console.log('[POST /api/leads] roofing_job_data insert — lead_id:', lead.id, 'error:', rjdErr?.message ?? 'OK')
     } catch (e) { console.error('[POST /api/leads] roofing_job_data insert threw:', e) }
+  }
+
+  // ── Create hvac_job_data row for HVAC pros ────────────────────────────────
+  // Captures system_type, issue_type, refrigerant_type at lead creation so the
+  // row always exists for downstream PATCHes (equipment wiring, diagnosis notes).
+  if (tradeSlug && (tradeSlug.includes('hvac') || tradeSlug === 'hvac-technician')) {
+    try {
+      const { error: hjdErr } = await supabase.from('hvac_job_data').insert({
+        lead_id:          lead.id,
+        pro_id,
+        system_type:      system_type      || null,
+        issue_type:       issue_type       || null,
+        refrigerant_type: refrigerant_type || null,
+      })
+      console.log('[POST /api/leads] hvac_job_data insert — lead_id:', lead.id, 'error:', hjdErr?.message ?? 'OK')
+    } catch (e) { console.error('[POST /api/leads] hvac_job_data insert threw:', e) }
   }
 
   // ── Write initial pipeline_event ──────────────────────────────────────────
