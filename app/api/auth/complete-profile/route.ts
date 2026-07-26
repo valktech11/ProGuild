@@ -69,6 +69,16 @@ export async function POST(req: NextRequest) {
   }
   if (!slug) slug = `${candidates[0]}-${Date.now().toString(36)}`
 
+  // Resolve trade_slug from trade_categories — denormalised onto pros so every
+  // route that reads pros directly (e.g. /api/leads POST) gets the slug without
+  // a join. Single indexed read by PK — negligible cost.
+  const { data: tcRow } = await admin
+    .from('trade_categories')
+    .select('slug')
+    .eq('id', trade_category_id)
+    .maybeSingle()
+  const tradeSlugFromCategory = tcRow?.slug ?? null
+
   const { data: pro, error: insErr } = await admin
     .from('pros')
     .insert({
@@ -77,6 +87,7 @@ export async function POST(req: NextRequest) {
       email:             authUser.email,
       phone:             phone || null,
       trade_category_id,
+      trade_slug:        tradeSlugFromCategory,
       state:             state || null,
       city:              city || null,
       years_experience:  years_experience || null,
