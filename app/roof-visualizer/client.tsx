@@ -250,7 +250,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v67'
+const CLIENT_BUILD = 'verify-v68'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -1188,7 +1188,6 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             <p style={{ fontWeight: 800, fontSize: 21, color: t.textPri, margin: '0 0 8px', letterSpacing: '-0.3px' }}>Drop a photo of the house</p>
             <p style={{ color: t.textMuted, fontSize: 14.5, margin: '0 0 24px' }}>or click to browse — JPG or PNG, up to 10MB</p>
             <div style={{ display: 'inline-block', background: BRAND.teal, color: '#fff', padding: '14px 38px', borderRadius: 10, fontWeight: 700, fontSize: 15.5, boxShadow: '0 4px 14px rgba(13,148,136,0.3)' }}>Choose Photo</div>
-            <p style={{ color: t.textSubtle, fontSize: 12.5, margin: '20px 0 0' }}>Best results: straight-on street view, roof clearly visible</p>
             <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelect(f) }} />
           </div>
         )}
