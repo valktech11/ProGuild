@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 async function getSkuCatalog() {
   try {
     const sb = getSupabaseAdmin()
-    const { data } = await sb
+    const { data, error: skuErr } = await sb
       .from('viz_skus')
       .select(`
         id, slug, name, hex_preview, is_default, sort_order, swatch_url,
@@ -40,9 +40,10 @@ async function getSkuCatalog() {
         )
       `)
       .order('sort_order')
+    if (skuErr) console.error('[getSkuCatalog] supabase error:', JSON.stringify(skuErr))
     return data || []
   } catch (err) {
-    console.error("[getSkuCatalog] ERROR:", err)
+    console.error('[getSkuCatalog] exception:', err)
     return []
   }
 }
