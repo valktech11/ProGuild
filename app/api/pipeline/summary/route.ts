@@ -97,6 +97,24 @@ export async function GET(req: NextRequest) {
       return s + (approved != null && approved > 0 ? approved : 0)
     }, 0) * 100) / 100
 
+  // ── HVAC: Maintenance Due this week ─────────────────────────────────────────
+  // Count pending reminders due within 7 days — shown in the HVAC board card.
+  // Only queried when the trade is HVAC (non-zero cost query avoided for others).
+  let maintenanceDue = 0
+  const isHVAC = tradeSlug === 'hvac-technician' || tradeSlug === 'hvac' || tradeSlug === 'hvac-contractor' || tradeSlug === 'air-conditioning'
+  if (isHVAC) {
+    const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const todayISO    = new Date().toISOString().slice(0, 10)
+    const { count } = await sb
+      .from('hvac_maintenance_reminders')
+      .select('id', { count: 'exact', head: true })
+      .eq('pro_id', proId)
+      .eq('status', 'Pending')
+      .gte('due_date', todayISO)
+      .lte('due_date', weekFromNow)
+    maintenanceDue = count ?? 0
+  }
+
   return NextResponse.json({
     // ── Command bar ──────────────────────────────────────────────────────────
     newCount:      entryLeads.length,
@@ -111,5 +129,6 @@ export async function GET(req: NextRequest) {
     insuranceFollowUp,
     stalledLeads,
     stalledList,
+    maintenanceDue,
   })
 }

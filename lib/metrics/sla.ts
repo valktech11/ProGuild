@@ -19,6 +19,7 @@ const DAY = 86400000
 // as past-SLA (this is what suppresses the badge on terminal stages: won / lost
 // / unqualified are not keys here).
 export const STAGE_SLA_DAYS: Record<string, number> = {
+  // Roofing stages
   lead_in:              1,
   inspection_scheduled: 3,
   insurance_approved:   14, // carrier cycles are long in FL
@@ -26,6 +27,13 @@ export const STAGE_SLA_DAYS: Record<string, number> = {
   proposal_signed:      14, // unscheduled
   scheduled:            7,
   in_progress:          7,
+  // HVAC stages
+  new_call:             1,  // unvisited call — should be diagnosed same/next day
+  diagnosed:            2,  // quote should follow diagnosis within 48h
+  quoted:               3,  // customer should approve within 3 days
+  parts_ordered:        5,  // parts expected within 5 days
+  job_scheduled:        7,  // job should be completed within 7 days of scheduling
+  on_the_job:           1,  // active job should not exceed 1 day without update
 }
 
 // Minimal shape — works for both DB rows (route) and Lead objects (components).
