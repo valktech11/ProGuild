@@ -250,7 +250,7 @@ function SkuSwatch({ sku, selected, onClick }: { sku: Sku; selected: boolean; on
   )
 }
 
-const CLIENT_BUILD = 'verify-v64'
+const CLIENT_BUILD = 'verify-v65'
 
 export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
   React.useEffect(() => { console.log('[visualizer] client build:', CLIENT_BUILD) }, [])
@@ -1851,18 +1851,32 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         )}
 
         {step === 'upload' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 28 }}>
-            {[
-              { icon: '📸', title: 'Upload a photo', body: 'Street-view photo of your home — just the front' },
-              { icon: '🤖', title: 'AI detects, you confirm', body: 'AI finds your roof automatically — you approve it with a tap before anything renders' },
-              { icon: '🎨', title: 'Compare side by side', body: 'See all your shingle options next to your current roof' },
-            ].map(s => card(
-              <div key={s.title} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>{s.icon}</div>
-                <p style={{ fontWeight: 700, color: t.textPri, margin: '0 0 6px', fontSize: 14 }}>{s.title}</p>
-                <p style={{ color: t.textMuted, fontSize: 13, margin: 0, lineHeight: 1.4 }}>{s.body}</p>
-              </div>
-            ))}
+          <div style={{ marginTop: 28 }}>
+            {/* Photo tips */}
+            <p style={{ fontWeight: 700, fontSize: 13, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 14px' }}>
+              Photo tips — best results
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              {[
+                { icon: '✅', text: 'Street-level front view, roof clearly visible' },
+                { icon: '✅', text: 'Straight-on angle — not too high, not too low' },
+                { icon: '✅', text: 'Full roof fits in the frame, no cropping at edges' },
+                { icon: '✅', text: 'Taken in daylight with no heavy shadows on the roof' },
+                { icon: '❌', text: 'Trees or branches covering the roof' },
+                { icon: '❌', text: 'Aerial or steep-angle drone shots' },
+                { icon: '❌', text: 'Heavy rain, snow, or deep shadow across the whole roof' },
+                { icon: '❌', text: 'Side or rear of the house — front view only' },
+              ].map((tip, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 12px',
+                  borderRadius: T.radMd, background: tip.icon === '✅' ? BRAND.teal + '08' : '#ef444408',
+                  border: `1px solid ${tip.icon === '✅' ? BRAND.teal + '22' : '#ef444422'}`,
+                }}>
+                  <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{tip.icon}</span>
+                  <span style={{ fontSize: 13, color: t.textBody, lineHeight: 1.4 }}>{tip.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
