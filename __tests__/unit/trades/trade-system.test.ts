@@ -165,11 +165,11 @@ describe('Nav Section Isolation', () => {
     })
   })
 
-  test('HVAC nav has MY EQUIPMENT section, roofing does not', () => {
+  test('HVAC nav has EQUIPMENT section, roofing does not', () => {
     const hvac    = getTradeConfig('hvac-technician')
     const roofing = getTradeConfig('roofing')
-    expect(hvac.nav.some(s    => s.title === 'MY EQUIPMENT')).toBe(true)
-    expect(roofing.nav.some(s => s.title === 'MY EQUIPMENT')).toBe(false)
+    expect(hvac.nav.some(s    => s.title === 'EQUIPMENT')).toBe(true)
+    expect(roofing.nav.some(s => s.title === 'EQUIPMENT')).toBe(false)
   })
 
   test('roofing nav has ROOFING TOOLS section, HVAC does not', () => {
