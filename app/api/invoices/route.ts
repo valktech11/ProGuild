@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
 import { requirePro } from '@/lib/pro-auth'
+import { computeMilestonesForTrade } from '@/lib/estimates/milestones'
 
 // ── GET /api/invoices?pro_id=xxx ──────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -128,7 +129,16 @@ export async function POST(req: NextRequest) {
       notes:          est.notes,
       payment_terms:  bodyTerms || 'due_on_receipt',
       due_date:       bodyDueDate || dueDate.toISOString(),
-      payment_milestones: (est as any).payment_milestones || null,
+      // Compute payment milestones trade-aware from the estimate total.
+      // Estimates don't store milestones — they're derived at invoice time.
+      // roofing → 30/40/30; HVAC/others → deposit + completion.
+      payment_milestones: computeMilestonesForTrade(
+        Number(est.total) || 0,
+        est.trade_slug ?? est.trade ?? null,
+        est.deposit_percent ?? ((est.trade_slug ?? est.trade ?? '').includes('roof') ? 30 : 50),
+      ),
+      require_deposit: true,
+      deposit_percent: est.deposit_percent ?? ((est.trade_slug ?? est.trade ?? '').includes('roof') ? 30 : 50),
       status:         'draft',
     }
   } else {
