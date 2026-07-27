@@ -158,9 +158,19 @@ export async function DELETE(
   if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const proId = __auth.proId
   const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
+  // Read the invoice's estimate link before voiding so we can reset the parent
+  const { data: invRow } = await sb
+    .from('invoices').select('estimate_id').eq('id', id).eq('pro_id', proId).maybeSingle()
   const { error } = await sb
     .from('invoices').update({ status: 'void' }).eq('id', id).eq('pro_id', proId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // Reset the parent estimate so it can be re-invoiced — clears the stale
+  // invoice_id pointer that would otherwise redirect to a voided invoice.
+  if (invRow?.estimate_id) {
+    await sb.from('estimates')
+      .update({ status: 'approved', invoice_id: null, invoiced_at: null })
+      .eq('id', invRow.estimate_id).eq('pro_id', proId)
+  }
   return NextResponse.json({ ok: true })
 }
 
