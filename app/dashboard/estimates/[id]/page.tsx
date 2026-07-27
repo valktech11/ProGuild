@@ -559,10 +559,10 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
           {/* Deposit collected */}
           {estimate.require_deposit && (
-            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: t.cardBgAlt, border: '1.5px solid ' + depositCollected ? '#0F766E' : (t.cardBorder) }}>
+            <div style={{ marginBottom:20, padding:'12px 14px', borderRadius:10, background: t.cardBgAlt, border: '1.5px solid ' + (depositCollected ? '#0F766E' : t.cardBorder) }}>
               <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
                 <div onClick={() => setDepositCollected(v => !v)}
-                  style={{ width:20, height:20, borderRadius:6, border: '2px solid ' + depositCollected ? '#0F766E' : (t.inputBorder), background: depositCollected ? '#0F766E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer', transition:'all 0.15s' }}>
+                  style={{ width:20, height:20, borderRadius:6, border: '2px solid ' + (depositCollected ? '#0F766E' : t.inputBorder), background: depositCollected ? '#0F766E' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:'pointer', transition:'all 0.15s' }}>
                   {depositCollected && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>}
                 </div>
                 <div>
