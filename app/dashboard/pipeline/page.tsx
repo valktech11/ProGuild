@@ -86,7 +86,18 @@ export default function PipelinePage() {
     // Refresh when a lead is added from the sidebar "+ Add New Lead" button
     const handler = () => setTimeout(() => fetchLeads(), 600)
     window.addEventListener('pg:lead-added', handler)
-    return () => window.removeEventListener('pg:lead-added', handler)
+    // Refresh when returning to this tab / navigating back from a lead detail
+    // page where the stage may have changed. Without this the board shows a
+    // stale stage (e.g. a lead moved to Quoted on the detail page still appears
+    // in New Call, or disappears from its old column).
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchLeads() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      window.removeEventListener('pg:lead-added', handler)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   }, [session, router, fetchLeads])
 
   const anchors  = getStageAnchors(session?.trade_slug)

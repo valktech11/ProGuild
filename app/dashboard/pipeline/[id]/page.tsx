@@ -1071,6 +1071,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           const stgObj   = stages.find(s=>s.key===stage)
           const active   = stages.filter(s=>!s.terminal)
           const curPos   = active.findIndex(s=>s.key===stage)
+          if (typeof window !== 'undefined') console.log('[pipeline detail] trade_slug:', session?.trade_slug, '| stage:', stage, '| lead.lead_status:', lead.lead_status, '| curPos:', curPos, '| keys:', active.map(s=>s.key).join(','))
           const anchors2   = getStageAnchors(session?.trade_slug)
           const termKeys   = tradePlugin.stages.filter(s => s.terminal).map(s => s.key)
           const isTerminal = stage === anchors2.won || termKeys.some(k => k === stage)
@@ -1208,9 +1209,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     </span>
                                   )}
                                   {lead.quoted_amount!=null&&(
-                                    <span style={{fontSize:14,fontWeight:700,color:BRAND.teal,marginLeft:'auto',display:'flex',alignItems:'center',gap:4}}>
-                                      <span style={{fontSize:11,fontWeight:600,color:'#64748B',textTransform:'uppercase',letterSpacing:'0.05em'}}>Quote</span>
-                                      ${Number(lead.quoted_amount).toLocaleString()}
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:6,marginLeft:'auto',padding:'5px 12px',borderRadius:8,background:dk?'rgba(15,118,110,0.12)':'#F0FDFA',border:`1px solid ${dk?'rgba(15,118,110,0.3)':'#99F6E4'}`}}>
+                                      <span style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.06em'}}>Quote</span>
+                                      <span style={{fontSize:15,fontWeight:800,color:BRAND.teal}}>${Number(lead.quoted_amount).toLocaleString()}</span>
                                     </span>
                                   )}
                                 </div>
