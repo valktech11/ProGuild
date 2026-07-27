@@ -33,6 +33,7 @@ export const roofingConfig: RoofingConfig = {
     entry:           'lead_in',
     won:             'job_won',
     lost:            'lost',
+    sentTrigger:     'proposal_sent',
     depositTrigger:  'proposal_signed',
     insuranceStage:  'insurance_approved',
     warrantyTrigger: 'job_won',

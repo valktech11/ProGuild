@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('pro_id', proId)
-    .in('lead_status', ['Quoted', 'Contacted'])
+    .in('lead_status', ['Quoted', 'Contacted', 'quoted'])
     .is('scheduled_date', null)
     .order('created_at', { ascending: false })
     .limit(10)

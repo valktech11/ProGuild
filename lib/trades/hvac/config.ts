@@ -22,9 +22,11 @@ export const hvacConfig: HVACConfig = {
     scopePlaceholder: 'AC not cooling — unit is 12 years old, R-410A, needs diagnosis and possible replacement...',
   },
   stageAnchors: {
-    entry: 'new_call',
-    won:   'job_won',
-    lost:  'lost',
+    entry:          'new_call',
+    won:            'job_won',
+    lost:           'lost',
+    sentTrigger:    'quoted',   // estimate sent → lead moves here
+    depositTrigger: 'scheduled', // estimate approved → lead moves here (deposit paid → job scheduled)
   },
 
   stages: [

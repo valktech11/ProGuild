@@ -424,11 +424,13 @@ export async function PATCH(
 
     // Auto-advance lead stage — only move forward, never backward
     if (status === 'sent') {
-      // Estimate sent → proposal_sent (maps to stageAnchors entry neighbour)
-      leadUpdate.lead_status = anchors.entry === 'lead_in' ? 'proposal_sent' : 'Quoted'
+      // Estimate sent → the trade's "quote sent" stage (sentTrigger anchor).
+      // Falls back to the roofing/generic keys only if no anchor is defined.
+      leadUpdate.lead_status = (anchors as any).sentTrigger
+        ?? (anchors.entry === 'lead_in' ? 'proposal_sent' : 'quoted')
       leadUpdate.lead_status_changed_at = new Date().toISOString()
     } else if (status === 'approved') {
-      // Homeowner approved estimate → proposal_signed (deposit trigger)
+      // Homeowner approved estimate → depositTrigger stage
       leadUpdate.lead_status = (anchors as any).depositTrigger ?? 'proposal_signed'
       leadUpdate.lead_status_changed_at = new Date().toISOString()
     }

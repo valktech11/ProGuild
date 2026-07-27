@@ -1071,7 +1071,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           const stgObj   = stages.find(s=>s.key===stage)
           const active   = stages.filter(s=>!s.terminal)
           const curPos   = active.findIndex(s=>s.key===stage)
-          if (typeof window !== 'undefined') console.log('[pipeline detail] trade_slug:', session?.trade_slug, '| stage:', stage, '| lead.lead_status:', lead.lead_status, '| curPos:', curPos, '| keys:', active.map(s=>s.key).join(','))
           const anchors2   = getStageAnchors(session?.trade_slug)
           const termKeys   = tradePlugin.stages.filter(s => s.terminal).map(s => s.key)
           const isTerminal = stage === anchors2.won || termKeys.some(k => k === stage)

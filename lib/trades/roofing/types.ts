@@ -37,6 +37,7 @@ export interface RoofingStageAnchors {
   entry:            RoofingStage   // 'lead_in'
   won:              RoofingStage   // 'job_won'
   lost:             RoofingStage   // 'lost'
+  sentTrigger?:     RoofingStage   // 'proposal_sent' — estimate sent moves lead here
   depositTrigger:   RoofingStage   // 'proposal_signed' — Stripe deposit fires here
   insuranceStage:   RoofingStage   // 'insurance_approved' — insurance-specific UI
   warrantyTrigger:  RoofingStage   // 'job_won' — warranty record prompt

@@ -52,9 +52,11 @@ export interface HVACLabels {
 }
 
 export interface HVACStageAnchors {
-  entry:  HVACStage   // 'new_call'
-  won:    HVACStage   // 'job_won'
-  lost:   HVACStage   // 'lost'
+  entry:           HVACStage   // 'new_call'
+  won:             HVACStage   // 'job_won'
+  lost:            HVACStage   // 'lost'
+  sentTrigger?:    HVACStage   // 'quoted' — estimate sent moves lead here
+  depositTrigger?: HVACStage   // 'scheduled' — estimate approved moves lead here
 }
 
 export type HVACAutoAction =
