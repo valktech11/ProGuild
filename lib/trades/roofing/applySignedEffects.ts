@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { notifyRoofer } from '@/lib/notifyRoofer'
 import { computeMilestones } from '@/lib/estimates/milestones'
+import { getStageAnchors } from '@/lib/trades/_registry'
 
 // ── Shared "estimate signed" side-effect engine ────────────────────────────────
 // This is the single source of truth for everything that must happen once an
@@ -97,10 +98,20 @@ export async function applyEstimateSignedEffects(
       .neq('status', 'paid')  // never void a paid invoice — money already collected
   }
 
-  // ── Auto-stage: move lead to proposal_signed ─────────────────────────────
+  // ── Auto-stage: move lead to the trade's post-approval stage ─────────────
+  // Roofing → proposal_signed; HVAC → scheduled; resolved via depositTrigger
+  // anchor so no trade's stage key is hardcoded. Falls back to proposal_signed
+  // only if the trade defines no depositTrigger.
   if (est.lead_id) {
+    const { data: leadRow } = await sb
+      .from('leads')
+      .select('trade_slug')
+      .eq('id', est.lead_id)
+      .maybeSingle()
+    const anchors = getStageAnchors(leadRow?.trade_slug ?? null)
+    const signedStage = (anchors as any).depositTrigger ?? 'proposal_signed'
     await sb.from('leads')
-      .update({ lead_status: 'proposal_signed', updated_at: new Date().toISOString(), lead_status_changed_at: new Date().toISOString() })
+      .update({ lead_status: signedStage, updated_at: new Date().toISOString(), lead_status_changed_at: new Date().toISOString() })
       .eq('id', est.lead_id)
   }
 
