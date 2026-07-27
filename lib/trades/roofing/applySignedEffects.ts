@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { notifyRoofer } from '@/lib/notifyRoofer'
-import { computeMilestones } from '@/lib/estimates/milestones'
+import { computeMilestones, computeMilestonesForTrade } from '@/lib/estimates/milestones'
 import { getStageAnchors } from '@/lib/trades/_registry'
 
 // ── Shared "estimate signed" side-effect engine ────────────────────────────────
@@ -140,7 +140,7 @@ export async function applyEstimateSignedEffects(
         // Always recompute milestones from the authoritative invoiceTotal — never copy
         // the estimate's stored payment_milestones which may have been computed off a
         // stale total. The estimate milestones are only used as a fallback for deposit %.
-        const depositPct = fullEst.deposit_percent ?? 30
+        const depositPct = fullEst.deposit_percent ?? (fullEst.trade_slug?.includes('roof') ? 30 : 50)
 
         // GBB: use the selected tier's subtotal + recalculated tax.
         // Standard: derive from the LINE ITEMS + tax — the same source of truth the
@@ -174,7 +174,8 @@ export async function applyEstimateSignedEffects(
 
         // Compute fresh milestones from the authoritative invoiceTotal so amounts
         // always sum to what the homeowner is actually being charged.
-        const milestones = computeMilestones(invoiceTotal)
+        // Trade-aware: roofing → 30/40/30, HVAC + others → deposit + completion.
+        const milestones = computeMilestonesForTrade(invoiceTotal, fullEst.trade_slug, depositPct)
 
         const depositAmt = milestones?.[0]?.amount
           ?? Math.round(invoiceTotal * (depositPct / 100) * 100) / 100

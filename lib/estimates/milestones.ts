@@ -32,3 +32,29 @@ export function computeMilestones(total: number): PaymentMilestone[] {
     { ...LOCKED[2], amount: com },
   ]
 }
+
+// ── HVAC: two-milestone schedule ──────────────────────────────────────────────
+// Diagnostic/Deposit up front (default 50%) + balance on completion. HVAC jobs
+// don't have a material-delivery milestone the way roofing does — parts and
+// labour are typically deposit + completion.
+export function computeHVACMilestones(total: number, depositPct = 50): PaymentMilestone[] {
+  const t   = Number(total) || 0
+  const dep = Math.round(t * (depositPct / 100) * 100) / 100
+  const bal = Math.round((t - dep) * 100) / 100 // balance absorbs rounding
+  return [
+    { id: 'dep', name: 'Deposit',       pct: depositPct,       due_when: 'Due at signing',     amount: dep },
+    { id: 'com', name: 'On Completion', pct: 100 - depositPct,  due_when: 'Due on completion',  amount: bal },
+  ]
+}
+
+// ── Trade-aware dispatcher ────────────────────────────────────────────────────
+// Roofing → locked 30/40/30. HVAC → deposit + completion. Other trades default
+// to the HVAC two-milestone shape (simpler, safer than assuming material delivery).
+export function computeMilestonesForTrade(
+  total: number,
+  tradeSlug: string | null | undefined,
+  depositPct = 50,
+): PaymentMilestone[] {
+  if (tradeSlug?.includes('roof')) return computeMilestones(total)
+  return computeHVACMilestones(total, depositPct)
+}
