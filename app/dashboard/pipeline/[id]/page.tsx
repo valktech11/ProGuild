@@ -1208,7 +1208,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     </span>
                                   )}
                                   {lead.quoted_amount!=null&&(
-                                    <span style={{fontSize:14,fontWeight:700,color:BRAND.teal,marginLeft:'auto'}}>
+                                    <span style={{fontSize:14,fontWeight:700,color:BRAND.teal,marginLeft:'auto',display:'flex',alignItems:'center',gap:4}}>
+                                      <span style={{fontSize:11,fontWeight:600,color:'#64748B',textTransform:'uppercase',letterSpacing:'0.05em'}}>Quote</span>
                                       ${Number(lead.quoted_amount).toLocaleString()}
                                     </span>
                                   )}

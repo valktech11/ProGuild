@@ -59,6 +59,10 @@ export async function POST(req: NextRequest) {
   const proName     = pro.full_name ?? 'Your Contractor'
   const proPhone    = pro.phone_cell ?? ''
   const proCity     = [pro.city, pro.state].filter(Boolean).join(', ')
+  const tradeSlug   = pro.trade_slug ?? (est as any).trade_slug ?? ''
+  const isHVAC      = tradeSlug.includes('hvac') || tradeSlug === 'air-conditioning'
+  const proposalLabel = isHVAC ? 'HVAC Service Proposal' : 'Roofing Proposal'
+  const proposalLine  = isHVAC ? 'Your HVAC service proposal' : 'Your roofing proposal'
   const property    = leadPropertyAddress ?? roofing.property_address ?? ''
   const estNumber   = est.estimate_number ?? 'EST'
 
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#0F766E,#0A5A54);padding:32px 32px 28px;">
       <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">
-        Roofing Proposal
+        ${proposalLabel}
       </div>
       <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.02em;">
         ${total}
@@ -113,7 +117,7 @@ export async function POST(req: NextRequest) {
     <div style="padding:32px;">
       <p style="font-size:16px;color:#111827;margin:0 0 8px;font-weight:600;">Hi ${homeownerName},</p>
       <p style="font-size:15px;color:#374151;line-height:1.7;margin:0 0 24px;">
-        Your roofing proposal <strong>${estNumber}</strong> is ready to review.
+        ${proposalLine} <strong>${estNumber}</strong> is ready to review.
         Take a look at the options, ask any questions, and approve when you're ready — everything happens online.
       </p>
 
@@ -158,7 +162,7 @@ export async function POST(req: NextRequest) {
     const { data: resendData, error: resendErr } = await resend.emails.send({
       from:    'ProGuild <hello@proguild.ai>',
       to:      contactEmail,
-      subject: `Your roofing proposal is ready — ${total}${property ? ` for ${property}` : ''}`,
+      subject: `${proposalLine} is ready — ${total}${property ? ` for ${property}` : ''}`,
       html,
     })
     if (resendErr) throw new Error(resendErr.message)

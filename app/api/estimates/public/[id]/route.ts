@@ -118,10 +118,13 @@ export async function GET(
       supplement_amount: roofingData?.supplement_amount ?? null,
       insurance_company: roofingData?.insurance_company ?? null,
       claim_number:      roofingData?.claim_number      ?? null,
-      // Payment milestones — ALWAYS computed fresh from the authoritative total
-      // (single source: lib/estimates/milestones), never the stored value, so the
-      // homeowner sees the same schedule as the contractor and it can't go stale.
-      payment_milestones: computeMilestones(Number(safe.total) || 0),
+      // trade_slug — tells the public page which component to render
+      trade_slug: (estimate.pro as any)?.trade_slug ?? estimate.trade_slug ?? null,
+      // Payment milestones — roofing only (30/40/30 deposit/delivery/completion).
+      // HVAC and other trades use a simple two-milestone structure built client-side.
+      payment_milestones: ((estimate.pro as any)?.trade_slug?.includes('roof') || estimate.trade_slug?.includes('roof'))
+        ? computeMilestones(Number(safe.total) || 0)
+        : null,
     }
   })
 }
