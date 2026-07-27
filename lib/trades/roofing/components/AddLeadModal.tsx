@@ -70,11 +70,11 @@ function san(v: string) {
   return v.replace(/[\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g, '').trimStart()
 }
 
-interface Props { proId: string; onClose: () => void; onAdded: (lead: any) => void; dk?: boolean }
+interface Props { proId: string; tradeSlug?: string | null; onClose: () => void; onAdded: (lead: any) => void; dk?: boolean }
 
 const TEAL = '#0F766E'
 
-export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = false }: Props) {
+export default function RoofingAddLeadModal({ proId, tradeSlug, onClose, onAdded, dk = false }: Props) {
   const [name,    setName]    = useState('')
   const [phone,   setPhone]   = useState('')
   const [email,   setEmail]   = useState('')
