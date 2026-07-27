@@ -1200,7 +1200,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 : null
                               if (!appt && lead.quoted_amount==null) return null
                               return (
-                                <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8,flexWrap:'wrap'}}>
+                                <div style={{display:'flex',alignItems:'center',gap:10,marginTop:8,flexWrap:'wrap'}}>
                                   {appt&&(
                                     <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,color:tsu}}>
                                       <Svg size={15} stroke={appt.color}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
@@ -1208,7 +1208,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     </span>
                                   )}
                                   {lead.quoted_amount!=null&&(
-                                    <span style={{display:'inline-flex',alignItems:'center',gap:6,marginLeft:'auto',padding:'5px 12px',borderRadius:8,background:dk?'rgba(15,118,110,0.12)':'#F0FDFA',border:`1px solid ${dk?'rgba(15,118,110,0.3)':'#99F6E4'}`}}>
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px',borderRadius:8,background:dk?'rgba(15,118,110,0.12)':'#F0FDFA',border:`1px solid ${dk?'rgba(15,118,110,0.3)':'#99F6E4'}`}}>
                                       <span style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.06em'}}>Quote</span>
                                       <span style={{fontSize:15,fontWeight:800,color:BRAND.teal}}>${Number(lead.quoted_amount).toLocaleString()}</span>
                                     </span>
