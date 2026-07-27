@@ -181,16 +181,30 @@ export async function POST(req: NextRequest) {
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase
     .from('pros')
-    .select('trade_slug, full_name, email, plan_tier, city, state')
+    .select('trade_slug, trade_category_id, full_name, email, plan_tier, city, state')
     .eq('id', pro_id)
     .single()
 
-  // Prefer DB trade_slug (authoritative). Fall back to client-supplied value
-  // so a newly registered pro whose pros.trade_slug hasn't been set yet still
-  // gets the correct initial stage. Both are validated — client value is never
-  // trusted for auth, only for stage resolution.
-  const tradeSlug   = proRecord?.trade_slug ?? clientTradeSlug ?? null
+  // Resolve trade_slug through a priority chain so the lead always gets the
+  // correct initial stage even if pros.trade_slug hasn't been backfilled:
+  //   1. pros.trade_slug (authoritative, denormalised)
+  //   2. client-supplied trade_slug (from session, sent in POST body)
+  //   3. trade_categories.slug via pros.trade_category_id (source of truth)
+  let tradeSlug: string | null = proRecord?.trade_slug ?? clientTradeSlug ?? null
+  if (!tradeSlug && proRecord?.trade_category_id) {
+    const { data: tcRow } = await supabase
+      .from('trade_categories')
+      .select('slug')
+      .eq('id', proRecord.trade_category_id)
+      .maybeSingle()
+    tradeSlug = tcRow?.slug ?? null
+    // Backfill pros.trade_slug so this lookup only happens once per pro
+    if (tradeSlug) {
+      void supabase.from('pros').update({ trade_slug: tradeSlug }).eq('id', pro_id)
+    }
+  }
   const initialStage = getInitialStage(tradeSlug)
+  console.log('[POST /api/leads] trade_slug resolution — pros:', proRecord?.trade_slug, 'client:', clientTradeSlug, 'final:', tradeSlug, 'initialStage:', initialStage)
 
   // ── Normalise address ─────────────────────────────────────────────────────
   // street_only = just the street portion (never the full "street, city, state, zip" string)
