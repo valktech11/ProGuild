@@ -24,7 +24,7 @@ function money(n: number) {
 }
 
 export default function EstimateItems({
-  estimate, setEstimate, darkMode, onSaveTemplate, onOpenTemplatePicker, locked = false,
+  estimate, setEstimate, darkMode, onSaveTemplate, onOpenTemplatePicker, locked = false, tradeSlug,
 }: {
   estimate: Estimate
   setEstimate: Dispatch<SetStateAction<Estimate | null>>
@@ -32,7 +32,9 @@ export default function EstimateItems({
   onSaveTemplate?: () => void
   onOpenTemplatePicker?: () => void
   locked?: boolean
+  tradeSlug?: string | null
 }) {
+  const isHVAC = tradeSlug === 'hvac-technician' || tradeSlug === 'hvac' || tradeSlug === 'hvac-contractor'
   const dk = darkMode
   const [editingId,   setEditingId]   = useState<string | null>(null)
   const [draft,       setDraft]       = useState<Partial<EstimateItem>>({})
@@ -182,12 +184,12 @@ export default function EstimateItems({
                       <div>
                         <label style={labelStyle}>Item Name</label>
                         <input autoFocus value={draft.name ?? ''} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
-                          placeholder="e.g. Interior Wall Painting" style={inputStyle()} onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)} />
+                          placeholder={isHVAC ? "e.g. AC Diagnostic Fee" : "e.g. Interior Wall Painting"} style={inputStyle()} onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)} />
                       </div>
                       <div>
                         <label style={labelStyle}>Description <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
                         <input value={draft.description ?? ''} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))}
-                          placeholder="e.g. Premium quality paint" style={inputStyle()} onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)} />
+                          placeholder={isHVAC ? "e.g. R-410A system, 3-ton unit" : "e.g. Premium quality paint"} style={inputStyle()} onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)} />
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
@@ -382,12 +384,12 @@ export default function EstimateItems({
                     <div>
                       <label style={labelStyle}>Item Name</label>
                       <input autoFocus value={draft.name ?? ''} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
-                        placeholder="e.g. Interior Wall Painting" style={inputStyle()} onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)} />
+                        placeholder={isHVAC ? "e.g. AC Diagnostic Fee" : "e.g. Interior Wall Painting"} style={inputStyle()} onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)} />
                     </div>
                     <div>
                       <label style={labelStyle}>Description <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
                       <input value={draft.description ?? ''} onChange={e => setDraft(d => ({ ...d, description: e.target.value }))}
-                        placeholder="e.g. Premium quality paint" style={inputStyle()} onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)} />
+                        placeholder={isHVAC ? "e.g. R-410A system, 3-ton unit" : "e.g. Premium quality paint"} style={inputStyle()} onKeyDown={e => e.key === 'Enter' && commitEdit(item.id)} />
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>

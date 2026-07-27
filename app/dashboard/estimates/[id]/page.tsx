@@ -947,6 +947,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                             estimate={estimate}
                             setEstimate={setEstimateDirty}
                             darkMode={dk}
+                            tradeSlug={estTradeSlug}
                             onOpenTemplatePicker={openTemplatePicker}
                             onSaveTemplate={() => {
                               if (estimate.items.length === 0) { setSaveMsg('Add items before saving a template'); setTimeout(() => setSaveMsg(null), 3000); return }
@@ -1281,7 +1282,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             <p style={{ fontSize: 14, marginBottom: 16, color: muted }}>Name this template so you can reuse it on future estimates.</p>
             <input autoFocus value={templateName} onChange={e => setTemplateName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveTemplate(); if (e.key === 'Escape') setShowSaveTemplate(false) }}
-              placeholder="e.g. Interior Paint 2BHK"
+              placeholder={estTradeSlug?.includes("hvac") ? "e.g. AC Tune-Up Package" : "e.g. Interior Paint 2BHK"}
               className={`w-full text-sm px-3 py-2.5 rounded-lg mb-4 ${dk ? 'bg-[#0F172A] text-white' : 'bg-[#F5F4F0] text-gray-900'}`}
               style={{ boxShadow: '0 0 0 1.5px #0F766E' }}
             />

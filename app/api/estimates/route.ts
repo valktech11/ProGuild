@@ -184,7 +184,9 @@ export async function POST(req: NextRequest) {
             valid_until:     validUntil2.toISOString(),
             contact_phone:   contact_phone || null,
             contact_email:   contact_email || null,
-            terms:           'This estimate is valid for 14 days. Payment is due upon job completion.',
+            terms:           (trade_slug?.includes('hvac')
+              ? 'This estimate is valid for 14 days. A diagnostic fee applies if no repair is authorized. Payment is due upon job completion.'
+              : 'This estimate is valid for 14 days. Payment is due upon job completion.'),
             revision_of:     best.id,
             revision_number: nextRevNum,
           }).select().single()
@@ -348,7 +350,9 @@ export async function POST(req: NextRequest) {
       valid_until:     validUntil.toISOString(),
       contact_phone:   contact_phone || null,
       contact_email:   contact_email || null,
-      terms:           'This estimate is valid for 14 days. Payment is due upon job completion.',
+      terms:           (trade_slug?.includes('hvac')
+              ? 'This estimate is valid for 14 days. A diagnostic fee applies if no repair is authorized. Payment is due upon job completion.'
+              : 'This estimate is valid for 14 days. Payment is due upon job completion.'),
       trade_slug:      trade_slug || null,
       // Note: estimate_type, tiered_data, scope_of_work, payment_milestones,
       // property_address are NOT written here — they live in roofing_estimate_data.
