@@ -132,13 +132,16 @@ export async function POST(req: NextRequest) {
       // Compute payment milestones trade-aware from the estimate total.
       // Estimates don't store milestones — they're derived at invoice time.
       // roofing → 30/40/30; HVAC/others → deposit + completion.
+      // payment_milestones drives the client-facing pay schedule + pay buttons.
+      // Note: require_deposit/deposit_percent are intentionally NOT set here —
+      // they may not exist on every environment's invoices table, and the public
+      // invoice only reads payment_milestones. Keeping the insert to known columns
+      // avoids a silent insert failure that leaves the estimate un-invoiced.
       payment_milestones: computeMilestonesForTrade(
         Number(est.total) || 0,
         est.trade_slug ?? est.trade ?? null,
         est.deposit_percent ?? ((est.trade_slug ?? est.trade ?? '').includes('roof') ? 30 : 50),
       ),
-      require_deposit: true,
-      deposit_percent: est.deposit_percent ?? ((est.trade_slug ?? est.trade ?? '').includes('roof') ? 30 : 50),
       status:         'draft',
     }
   } else {
