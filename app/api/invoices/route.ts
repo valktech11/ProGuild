@@ -166,13 +166,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Invoice insert failed: ${error.message}` }, { status: 500 })
   }
 
-  // If created from estimate, mark estimate as invoiced
+  // If created from estimate, mark estimate as invoiced.
+  // Error-checked: a silent failure here left the estimate showing 'Approved'
+  // + 'Create Invoice' even though the invoice was created. If the full update
+  // fails (e.g. a missing column), retry with the minimal safe set so the
+  // estimate at least stops offering to re-invoice.
   if (estimate_id) {
-    await sb.from('estimates').update({
+    const { error: estErr } = await sb.from('estimates').update({
       status:      'invoiced' as any,
       invoiced_at: new Date().toISOString(),
       invoice_id:  invoice.id,
     }).eq('id', estimate_id)
+    if (estErr) {
+      console.error('[POST /api/invoices] estimate update failed:', estErr.message, '| retrying minimal')
+      const { error: est2 } = await sb.from('estimates')
+        .update({ status: 'invoiced' as any, invoice_id: invoice.id })
+        .eq('id', estimate_id)
+      if (est2) console.error('[POST /api/invoices] minimal estimate update also failed:', est2.message)
+    }
   }
 
   // ── Roofing invoices get a roofing_invoice_data row immediately ─────────
