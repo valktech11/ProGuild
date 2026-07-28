@@ -116,6 +116,8 @@ export default function HVACAddLeadModal({ proId, tradeSlug, onClose, onAdded, d
   const [focus,       setFocus]       = useState<Record<string, boolean>>({})
 
   const streetRef = useRef<HTMLInputElement>(null)
+  const nameRef   = useRef<HTMLInputElement>(null)
+  const scopeRef  = useRef<HTMLTextAreaElement>(null)
   usePlacesAutocomplete(streetRef, (formatted: string) => {
     const parts = formatted.replace(', USA', '').split(', ')
     const zipMatch   = formatted.match(/\b(\d{5})\b/)
@@ -130,9 +132,19 @@ export default function HVACAddLeadModal({ proId, tradeSlug, onClose, onAdded, d
   const fb = (k: string) => setFocus(f => ({ ...f, [k]: false }))
 
   async function save() {
-    if (!name.trim())                   { setErr('Customer name is required'); return }
+    if (!name.trim()) {
+      setErr('Customer name is required')
+      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      nameRef.current?.focus()
+      return
+    }
     if (!phone.trim() && !email.trim()) { setErr('Phone or email is required'); return }
-    if (!scope.trim())                  { setErr('Describe the issue or scope'); return }
+    if (!scope.trim()) {
+      setErr('Describe the issue or scope')
+      scopeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      scopeRef.current?.focus()
+      return
+    }
     setSaving(true); setErr('')
     const r = await apiFetch('/api/leads', {
       method: 'POST',
@@ -327,7 +339,7 @@ export default function HVACAddLeadModal({ proId, tradeSlug, onClose, onAdded, d
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <Lbl text="Customer name" req />
-                <input value={name} onChange={e => setName(san(e.target.value))}
+                <input ref={nameRef} value={name} onChange={e => setName(san(e.target.value))}
                   placeholder="Maria Santos" style={iStyle('name')}
                   onFocus={() => fo('name')} onBlur={() => fb('name')} />
               </div>
@@ -386,7 +398,7 @@ export default function HVACAddLeadModal({ proId, tradeSlug, onClose, onAdded, d
             <div>
               <Lbl text="Describe the issue / scope" req />
               <div style={{ position: 'relative' }}>
-                <textarea value={scope} onChange={e => setScope(san(e.target.value))}
+                <textarea ref={scopeRef} value={scope} onChange={e => setScope(san(e.target.value))}
                   placeholder="AC not cooling, unit is 12 years old, needs inspection and possible replacement..."
                   rows={3} maxLength={250}
                   style={{ ...iStyle('scope'), resize: 'none' as const, lineHeight: 1.65, paddingBottom: 28 }}
@@ -398,23 +410,23 @@ export default function HVACAddLeadModal({ proId, tradeSlug, onClose, onAdded, d
               </div>
             </div>
 
-            {err && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8,
-                padding: '11px 14px', borderRadius: 10,
-                background: '#FEF2F2', border: '1px solid #FECACA' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <span style={{ fontSize: 13, fontWeight: 500, color: '#B91C1C' }}>{err}</span>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer — always visible; error surfaces here so it's never below the fold */}
         <div style={{ flexShrink: 0, padding: '16px 24px',
           paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
           borderTop: `1px solid ${sep}`, background: bg }}>
+          {err && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+              padding: '11px 14px', borderRadius: 10, marginBottom: 12,
+              background: '#FEF2F2', border: '1px solid #FECACA' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#B91C1C' }}>{err}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
             <button onClick={onClose} style={{
               flex: 1, padding: '14px', borderRadius: 12, fontSize: 14, fontWeight: 600,
