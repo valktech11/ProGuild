@@ -218,8 +218,10 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       setEstimate(prev => prev ? { ...prev, status: 'invoiced', invoice_id: d.invoice.id } : prev)
       router.push(`/dashboard/invoices/${d.invoice.id}`)
     } catch (e: any) {
+      // Keep the error on screen (10s) so it can actually be read — invoice
+      // creation failures were auto-dismissing before the user could see them.
       setSaveMsg(`Failed to create invoice: ${e.message}`)
-      setTimeout(() => setSaveMsg(null), 4000)
+      setTimeout(() => setSaveMsg(null), 10000)
     } finally {
       setCreatingInvoice(false)
     }

@@ -161,7 +161,10 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: invoice, error } = await sb.from('invoices').insert(invoiceData).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[POST /api/invoices] insert failed:', error.message, '| code:', (error as any).code, '| details:', (error as any).details, '| keys:', Object.keys(invoiceData).join(','))
+    return NextResponse.json({ error: `Invoice insert failed: ${error.message}` }, { status: 500 })
+  }
 
   // If created from estimate, mark estimate as invoiced
   if (estimate_id) {
