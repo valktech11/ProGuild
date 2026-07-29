@@ -159,93 +159,65 @@ export default function EquipmentRecordsPage() {
               const reminders = eq.hvac_maintenance_reminders || []
               const pendingReminders = reminders.filter((r: any) => r.status === 'Pending')
 
+              const fmtD = (d: string) => { try { return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) } catch { return d } }
+              const dueColor = overdue ? '#DC2626' : dueSoon ? '#B45309' : '#0F766E'
+              const dueText  = days === null ? null
+                : overdue ? `${Math.abs(days)}d overdue`
+                : days === 0 ? 'Due today'
+                : `Due in ${days}d`
+              // Equipment identity subline: type · brand · model, quietly
+              const identity = [EQUIPMENT_LABELS[eq.equipment_type] || eq.equipment_type, eq.brand, eq.model_number]
+                .filter(Boolean).join('  ·  ')
+
               return (
                 <div key={eq.id} style={{
                   borderTop: i > 0 ? `1px solid ${t.divider}` : 'none',
-                  padding: '16px 20px',
+                  padding: '18px 20px',
                   cursor: client ? 'pointer' : 'default',
-                  transition: 'background 0.1s',
+                  transition: 'background 0.12s',
+                  display: 'flex', alignItems: 'center', gap: 16,
                 }}
                   onClick={() => client && router.push(`/dashboard/clients/${eq.client_id}`)}
                   onMouseEnter={e => { if (client) e.currentTarget.style.background = t.tableRowHover }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                    {/* Icon */}
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: dk ? 'rgba(14,165,233,0.12)' : '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                      {EQUIP_ICONS[eq.equipment_type] || '🔧'}
+                  {/* Icon */}
+                  <div style={{ width: 46, height: 46, borderRadius: 12, background: dk ? 'rgba(14,165,233,0.12)' : '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                    {EQUIP_ICONS[eq.equipment_type] || '🔧'}
+                  </div>
+
+                  {/* Primary column — customer name (line 1), equipment identity (line 2) */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {client ? capName(client.full_name) : (EQUIPMENT_LABELS[eq.equipment_type] || eq.equipment_type)}
                     </div>
-
-                    {/* Details */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: t.textPri }}>
-                          {EQUIPMENT_LABELS[eq.equipment_type] || eq.equipment_type}
-                          {eq.brand ? ` · ${eq.brand}` : ''}
-                        </span>
-                        {overdue && (
-                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEE2E2', color: '#DC2626' }}>
-                            ⚠ Overdue
-                          </span>
-                        )}
-                        {dueSoon && !overdue && (
-                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#FEF3C7', color: '#B45309' }}>
-                            Due in {days}d
-                          </span>
-                        )}
-                        {pendingReminders.length > 0 && (
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: dk ? 'rgba(14,165,233,0.12)' : '#E0F2FE', color: '#0284C7' }}>
-                            🔔 {pendingReminders.length} reminder{pendingReminders.length > 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Client name */}
-                      {client && (
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0EA5E9', marginBottom: 4 }}>
-                          {capName(client.full_name)}
-                        </div>
-                      )}
-
-                      {/* Specs — labeled chips, scannable */}
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
-                        {[
-                          eq.model_number     && { l: 'Model', v: eq.model_number },
-                          eq.serial_number    && { l: 'S/N',   v: eq.serial_number },
-                          eq.refrigerant_type && { l: 'Ref',   v: eq.refrigerant_type },
-                          eq.filter_size      && { l: 'Filter',v: eq.filter_size },
-                        ].filter(Boolean).map((s: any) => (
-                          <span key={s.l} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, fontSize: 12, padding: '2px 8px', borderRadius: 6, background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', border: `1px solid ${t.divider}` }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: t.textSubtle }}>{s.l}</span>
-                            <span style={{ fontWeight: 600, color: t.textMuted }}>{s.v}</span>
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Service dates line */}
-                      {(eq.installation_date || eq.next_service_date) && (
-                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 6 }}>
-                          {eq.installation_date && (
-                            <span style={{ fontSize: 12, color: t.textSubtle }}>
-                              Installed {new Date(eq.installation_date).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
-                            </span>
-                          )}
-                          {eq.next_service_date && (
-                            <span style={{ fontSize: 12, fontWeight: 700, color: overdue ? '#DC2626' : dueSoon ? '#B45309' : '#0F766E' }}>
-                              Next service {new Date(eq.next_service_date).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                    <div style={{ fontSize: 12.5, color: t.textSubtle, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {identity}
                     </div>
+                  </div>
 
-                    {/* Chevron */}
-                    {client && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 4 }}>
-                        <path d="M9 18l6-6-6-6"/>
-                      </svg>
+                  {/* Right column — service status, aligned and quiet */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                    {dueText && (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                        background: overdue ? '#FEE2E2' : dueSoon ? '#FEF3C7' : (dk ? 'rgba(15,118,110,0.15)' : '#F0FDFA'),
+                        color: dueColor }}>
+                        {dueText}
+                      </span>
+                    )}
+                    {eq.next_service_date && (
+                      <span style={{ fontSize: 12, color: t.textSubtle }}>
+                        {fmtD(eq.next_service_date)}
+                      </span>
                     )}
                   </div>
+
+                  {/* Chevron */}
+                  {client && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  )}
                 </div>
               )
             })}
