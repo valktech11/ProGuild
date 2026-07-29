@@ -39,7 +39,7 @@ WITH unlinked AS (
   AND    contact_name IS NOT NULL
 ),
 inserted AS (
-  INSERT INTO clients (pro_id, full_name, phone, email, address_line1, city, state, zip_code)
+  INSERT INTO clients (pro_id, full_name, phone, email, address_line1, city, state, zip)
   SELECT pro_id,
          trim(contact_name),
          NULLIF(trim(contact_phone), ''),

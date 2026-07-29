@@ -57,7 +57,7 @@ export async function resolveClientForLead(
         address_line1: streetOnly,
         city:          lead.contact_city  ? String(lead.contact_city).trim()  : null,
         state:         lead.contact_state ? String(lead.contact_state).trim() : null,
-        zip_code:      lead.contact_zip   ? String(lead.contact_zip).trim()   : null,
+        zip:           lead.contact_zip   ? String(lead.contact_zip).trim()   : null,
       }).select('id').single()
       if (insErr) {
         console.error('[resolveClientForLead] client insert failed:', insErr.message)

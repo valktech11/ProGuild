@@ -139,7 +139,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
               address_line1: streetOnly,
               city:          leadForClient.contact_city  ? String(leadForClient.contact_city).trim()  : null,
               state:         leadForClient.contact_state ? String(leadForClient.contact_state).trim() : null,
-              zip_code:      leadForClient.contact_zip   ? String(leadForClient.contact_zip).trim()   : null,
+              zip:           leadForClient.contact_zip   ? String(leadForClient.contact_zip).trim()   : null,
             }).select('id').single()
             if (newClient) clientId = newClient.id
           }
