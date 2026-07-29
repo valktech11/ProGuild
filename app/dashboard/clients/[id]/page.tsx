@@ -340,45 +340,96 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   const daysUntil = nextService ? Math.ceil((nextService.getTime() - today.getTime()) / (1000*60*60*24)) : null
                   const overdue = daysUntil !== null && daysUntil < 0
                   const dueSoon = daysUntil !== null && daysUntil >= 0 && daysUntil <= 30
+                  const fmtDate = (d: string) => { try { return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) } catch { return d } }
+                  const dueColor = overdue ? '#DC2626' : dueSoon ? '#B45309' : '#0F766E'
+                  const dueBg    = overdue ? '#FEE2E2' : dueSoon ? '#FEF3C7' : (dk ? 'rgba(15,118,110,0.15)' : '#F0FDFA')
+                  const dueLabel = daysUntil === null ? null
+                    : overdue ? `${Math.abs(daysUntil)} day${Math.abs(daysUntil)!==1?'s':''} overdue`
+                    : daysUntil === 0 ? 'Due today'
+                    : `Due in ${daysUntil} day${daysUntil!==1?'s':''}`
+                  // Spec cells shown in a labeled grid — only render the ones with values
+                  const specs = [
+                    eq.model_number    && { label: 'Model',       value: eq.model_number },
+                    eq.serial_number   && { label: 'Serial',      value: eq.serial_number },
+                    eq.refrigerant_type&& { label: 'Refrigerant', value: eq.refrigerant_type },
+                    eq.filter_size     && { label: 'Filter',      value: eq.filter_size },
+                  ].filter(Boolean) as { label: string; value: string }[]
                   return (
-                    <div key={eq.id} style={{ borderTop: i > 0 ? `1px solid ${t.divider}` : 'none', padding:'16px 20px' }}>
-                      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
-                        <div style={{ display:'flex', alignItems:'flex-start', gap:12, flex:1, minWidth:0 }}>
-                          <div style={{ width:40, height:40, borderRadius:10, background: dk ? 'rgba(15,118,110,0.15)' : '#F0FDFA', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>
-                            {EQUIP_ICONS[eq.equipment_type] || '🔧'}
-                          </div>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                              <span style={{ fontSize:15, fontWeight:700, color: t.textPri }}>{EQUIPMENT_LABELS[eq.equipment_type] || eq.equipment_type}</span>
-                              {eq.brand && <span style={{ fontSize:12, color: t.textMuted }}>{eq.brand}</span>}
-                              {overdue && <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'#FEE2E2', color:'#DC2626' }}>⚠ Service Overdue</span>}
-                              {dueSoon && !overdue && <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'#FEF3C7', color:'#B45309' }}>Service due in {daysUntil}d</span>}
-                            </div>
-                            <div style={{ display:'flex', gap:16, marginTop:4, flexWrap:'wrap' }}>
-                              {eq.model_number && <span style={{ fontSize:12, color: t.textSubtle }}>Model: {eq.model_number}</span>}
-                              {eq.serial_number && <span style={{ fontSize:12, color: t.textSubtle }}>S/N: {eq.serial_number}</span>}
-                              {eq.filter_size && <span style={{ fontSize:12, color: t.textSubtle }}>Filter: {eq.filter_size}</span>}
-                              {eq.refrigerant_type && <span style={{ fontSize:12, color: t.textSubtle }}>Ref: {eq.refrigerant_type}</span>}
-                            </div>
-                            <div style={{ display:'flex', gap:16, marginTop:4, flexWrap:'wrap' }}>
-                              {eq.installation_date && <span style={{ fontSize:12, color: t.textSubtle }}>Installed: {eq.installation_date}</span>}
-                              {eq.last_service_date && <span style={{ fontSize:12, color: t.textSubtle }}>Last service: {eq.last_service_date}</span>}
-                              {eq.next_service_date && <span style={{ fontSize:12, fontWeight:600, color: overdue ? '#DC2626' : dueSoon ? '#B45309' : t.textSubtle }}>Next: {eq.next_service_date}</span>}
-                            </div>
-                            {eq.notes && <p style={{ fontSize:12, color: t.textMuted, marginTop:4, lineHeight:1.5 }}>{eq.notes}</p>}
-                          </div>
+                    <div key={eq.id} style={{
+                      border: `1px solid ${overdue ? '#FECACA' : dueSoon ? '#FDE68A' : t.cardBorder}`,
+                      borderRadius: 14, margin: '12px 16px', overflow: 'hidden',
+                      background: t.cardBg,
+                    }}>
+                      {/* Header row: icon, type + brand, due badge, actions */}
+                      <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 16px', borderBottom:`1px solid ${t.divider}` }}>
+                        <div style={{ width:42, height:42, borderRadius:11, background: dk ? 'rgba(15,118,110,0.15)' : '#F0FDFA', display:'flex', alignItems:'center', justifyContent:'center', fontSize:21, flexShrink:0 }}>
+                          {EQUIP_ICONS[eq.equipment_type] || '🔧'}
                         </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:15, fontWeight:800, color: t.textPri, letterSpacing:'-0.01em' }}>
+                            {EQUIPMENT_LABELS[eq.equipment_type] || eq.equipment_type}
+                          </div>
+                          {eq.brand && <div style={{ fontSize:12.5, color: t.textMuted, marginTop:1 }}>{eq.brand}</div>}
+                        </div>
+                        {dueLabel && (
+                          <span style={{ fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:20, background:dueBg, color:dueColor, flexShrink:0, whiteSpace:'nowrap' }}>
+                            {overdue ? '⚠ ' : ''}{dueLabel}
+                          </span>
+                        )}
                         <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                          <button onClick={() => openEditEquip(eq)}
+                          <button onClick={() => openEditEquip(eq)} aria-label="Edit equipment"
                             style={{ padding:'6px 12px', borderRadius:8, border:`1px solid ${t.inputBorder}`, background:'transparent', color: t.textMuted, fontSize:12, fontWeight:600, cursor:'pointer' }}>
                             Edit
                           </button>
-                          <button onClick={() => deleteEquipment(eq.id)} disabled={deletingEquip === eq.id}
-                            style={{ padding:'6px 10px', borderRadius:8, border:'1px solid #FEE2E2', background:'transparent', color:'#DC2626', fontSize:12, fontWeight:600, cursor:'pointer', opacity: deletingEquip === eq.id ? 0.5 : 1 }}>
+                          <button onClick={() => deleteEquipment(eq.id)} disabled={deletingEquip === eq.id} aria-label="Delete equipment"
+                            style={{ width:32, height:32, borderRadius:8, border:'1px solid #FEE2E2', background:'transparent', color:'#DC2626', fontSize:13, fontWeight:600, cursor:'pointer', opacity: deletingEquip === eq.id ? 0.5 : 1, display:'flex', alignItems:'center', justifyContent:'center' }}>
                             {deletingEquip === eq.id ? '…' : '✕'}
                           </button>
                         </div>
                       </div>
+
+                      {/* Spec grid — labeled cells, not run-together grey text */}
+                      {specs.length > 0 && (
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))', gap:0, borderBottom:`1px solid ${t.divider}` }}>
+                          {specs.map((s, si) => (
+                            <div key={s.label} style={{ padding:'10px 16px', borderRight: si < specs.length-1 ? `1px solid ${t.divider}` : 'none' }}>
+                              <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color: t.textSubtle, marginBottom:2 }}>{s.label}</div>
+                              <div style={{ fontSize:13, fontWeight:600, color: t.textPri, wordBreak:'break-word' }}>{s.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Service timeline footer */}
+                      {(eq.installation_date || eq.last_service_date || eq.next_service_date) && (
+                        <div style={{ display:'flex', alignItems:'center', gap:0, padding:'10px 16px', flexWrap:'wrap', background: dk ? 'rgba(255,255,255,0.02)' : '#FAFAFA' }}>
+                          {eq.installation_date && (
+                            <div style={{ display:'flex', flexDirection:'column', gap:1, paddingRight:20 }}>
+                              <span style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color: t.textSubtle }}>Installed</span>
+                              <span style={{ fontSize:12.5, fontWeight:600, color: t.textMuted }}>{fmtDate(eq.installation_date)}</span>
+                            </div>
+                          )}
+                          {eq.last_service_date && (
+                            <div style={{ display:'flex', flexDirection:'column', gap:1, paddingRight:20 }}>
+                              <span style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color: t.textSubtle }}>Last service</span>
+                              <span style={{ fontSize:12.5, fontWeight:600, color: t.textMuted }}>{fmtDate(eq.last_service_date)}</span>
+                            </div>
+                          )}
+                          {eq.next_service_date && (
+                            <div style={{ display:'flex', flexDirection:'column', gap:1, marginLeft:'auto', alignItems:'flex-end' }}>
+                              <span style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color: dueColor }}>Next service</span>
+                              <span style={{ fontSize:13, fontWeight:700, color: dueColor }}>{fmtDate(eq.next_service_date)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Notes */}
+                      {eq.notes && (
+                        <div style={{ padding:'10px 16px', borderTop:`1px solid ${t.divider}` }}>
+                          <p style={{ fontSize:12.5, color: t.textMuted, margin:0, lineHeight:1.55 }}>{eq.notes}</p>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
