@@ -84,7 +84,7 @@ export default function WarrantiesPage() {
       .then(r => r.json())
       .then(d => { setWarranties(d.warranties || []); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [router])
+  }, [session, _authLoading, router])
 
   const t = theme(dk)
 

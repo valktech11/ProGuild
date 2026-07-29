@@ -61,8 +61,13 @@ export default function ClientsPage() {
       apiFetch(`/api/clients?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ clients: [] })),
       apiFetch(`/api/clients/summary?pro_id=${s.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
     ])
-      .then(([d, sum]) => { setClients(d.clients || []); setSummary(sum); setLoading(false) })
-  }, [router])
+      .then(([d, sum]) => { setClients(d.clients || []); setSummary(sum) })
+      .catch(() => setClients([]))
+      .finally(() => setLoading(false))
+    // Depend on session/_authLoading so the fetch runs once auth resolves.
+    // Previously depended on [router] only, so if session wasn't ready on the
+    // first render the effect early-returned and never re-ran → infinite spinner.
+  }, [session, _authLoading, router])
 
   async function addClient() {
     if (!newName.trim()) { setErr('Name is required'); return }

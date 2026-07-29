@@ -38,7 +38,7 @@ export default function PerformancePage() {
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [router])
+  }, [session, _authLoading, router])
 
   const t = theme(dk)
   const card: React.CSSProperties = { background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: '16px 18px' }
