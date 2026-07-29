@@ -207,19 +207,36 @@ export default function EquipmentRecordsPage() {
                         </div>
                       )}
 
-                      {/* Specs row */}
-                      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                        {eq.model_number    && <span style={{ fontSize: 12, color: t.textSubtle }}>Model: {eq.model_number}</span>}
-                        {eq.serial_number   && <span style={{ fontSize: 12, color: t.textSubtle }}>S/N: {eq.serial_number}</span>}
-                        {eq.refrigerant_type && <span style={{ fontSize: 12, color: t.textSubtle }}>Ref: {eq.refrigerant_type}</span>}
-                        {eq.filter_size     && <span style={{ fontSize: 12, color: t.textSubtle }}>Filter: {eq.filter_size}</span>}
-                        {eq.installation_date && <span style={{ fontSize: 12, color: t.textSubtle }}>Installed: {eq.installation_date}</span>}
-                        {eq.next_service_date && (
-                          <span style={{ fontSize: 12, fontWeight: 600, color: overdue ? '#DC2626' : dueSoon ? '#B45309' : t.textSubtle }}>
-                            Next service: {eq.next_service_date}
+                      {/* Specs — labeled chips, scannable */}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                        {[
+                          eq.model_number     && { l: 'Model', v: eq.model_number },
+                          eq.serial_number    && { l: 'S/N',   v: eq.serial_number },
+                          eq.refrigerant_type && { l: 'Ref',   v: eq.refrigerant_type },
+                          eq.filter_size      && { l: 'Filter',v: eq.filter_size },
+                        ].filter(Boolean).map((s: any) => (
+                          <span key={s.l} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, fontSize: 12, padding: '2px 8px', borderRadius: 6, background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', border: `1px solid ${t.divider}` }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: t.textSubtle }}>{s.l}</span>
+                            <span style={{ fontWeight: 600, color: t.textMuted }}>{s.v}</span>
                           </span>
-                        )}
+                        ))}
                       </div>
+
+                      {/* Service dates line */}
+                      {(eq.installation_date || eq.next_service_date) && (
+                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 6 }}>
+                          {eq.installation_date && (
+                            <span style={{ fontSize: 12, color: t.textSubtle }}>
+                              Installed {new Date(eq.installation_date).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
+                            </span>
+                          )}
+                          {eq.next_service_date && (
+                            <span style={{ fontSize: 12, fontWeight: 700, color: overdue ? '#DC2626' : dueSoon ? '#B45309' : '#0F766E' }}>
+                              Next service {new Date(eq.next_service_date).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Chevron */}

@@ -13,13 +13,17 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  // Optional client_id filter — lets a client detail page fetch only that
+  // client's leads instead of pulling the whole list and filtering client-side.
+  const clientFilter = searchParams.get('client_id')
 
-  const { data, error } = await getSupabaseAdmin()
+  let q = getSupabaseAdmin()
     .from('leads')
     .select('*')
     .eq('pro_id', proId)
     .is('deleted_at', null)
-    .order('created_at', { ascending: false })
+  if (clientFilter) q = q.eq('client_id', clientFilter)
+  const { data, error } = await q.order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const leads = data || []

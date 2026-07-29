@@ -73,15 +73,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
+    // Fetch only THIS client + only THIS client's leads (server-filtered) instead
+    // of pulling the full client and lead lists and filtering in the browser.
     Promise.all([
-      apiFetch(`/api/clients?pro_id=${session.id}`).then(r => r.json()),
-      apiFetch(`/api/leads?pro_id=${session.id}`).then(r => r.json()),
-    ]).then(([clientsData, leadsData]) => {
-      const found = (clientsData.clients || []).find((c: any) => c.id === id)
+      apiFetch(`/api/clients/${id}?pro_id=${session.id}`).then(r => r.json()),
+      apiFetch(`/api/leads?pro_id=${session.id}&client_id=${id}`).then(r => r.json()),
+    ]).then(([clientData, leadsData]) => {
+      const found = clientData.client
       if (!found) { router.push('/dashboard/clients'); return }
       setClient(found)
       setForm({ full_name: found.full_name, phone: found.phone || '', email: found.email || '', notes: found.notes || '', tags: found.tags || [] })
-      setLeads((leadsData.leads || []).filter((l: any) => l.client_id === id))
+      setLeads(leadsData.leads || [])
       setLoading(false)
     })
     loadEquipment()
