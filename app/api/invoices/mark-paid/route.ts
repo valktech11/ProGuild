@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
 import { requirePro } from '@/lib/pro-auth'
+import { resolveClientForLead } from '@/lib/leads/resolveClientForLead'
 
 // ── POST /api/invoices/mark-paid ─────────────────────────────────────────
 export async function POST(req: NextRequest) {
@@ -41,6 +42,9 @@ export async function POST(req: NextRequest) {
       quoted_amount: Math.round(inv.total * 100) / 100,
       updated_at:    new Date().toISOString(),
     }).eq('id', inv.lead_id)
+
+    // A won job must have a customer record (equipment moat depends on it).
+    await resolveClientForLead(sb, inv.lead_id, proId)
 
     // Queue review request (stored in DB — fired by Twilio when 10DLC is active)
     // Queue review request — non-fatal if table doesn't exist yet

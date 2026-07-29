@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
+import { resolveClientForLead } from '@/lib/leads/resolveClientForLead'
 import { notifyRoofer } from '@/lib/notifyRoofer'
 
 // Stripe sends: checkout.session.completed when payment succeeds
@@ -103,6 +104,8 @@ export async function POST(req: NextRequest) {
           updated_at:             new Date().toISOString(),
         }).eq('id', inv.lead_id)
       }
+      // A won job must have a customer record.
+      await resolveClientForLead(sb, inv.lead_id, leadRow.pro_id ?? inv.pro_id)
     }
   }
 

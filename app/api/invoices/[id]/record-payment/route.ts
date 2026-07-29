@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
 import { requirePro } from '@/lib/pro-auth'
 import { getStageAnchors } from '@/lib/trades/_registry'
+import { resolveClientForLead } from '@/lib/leads/resolveClientForLead'
 import { computeInvoiceBalances } from '@/lib/invoices/balances'
 
 // POST /api/invoices/[id]/record-payment
@@ -106,6 +107,8 @@ export async function POST(
             .update({ lead_status: anchors.won, lead_status_changed_at: now })
             .eq('id', inv.lead_id)
         }
+        // A won job must have a customer record.
+        await resolveClientForLead(sb, inv.lead_id, leadRow.pro_id)
       }
     }
     if (inv.estimate_id) {
