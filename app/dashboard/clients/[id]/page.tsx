@@ -62,6 +62,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [deletingEquip, setDeletingEquip] = useState<string|null>(null)
 
   const hvac = isHVAC(getTradeConfig(session?.trade_slug))
+  // stage key → human label, from the trade config (so 'new_call' → 'New Call')
+  const stageLabelMap: Record<string, string> = Object.fromEntries(
+    (getTradeConfig(session?.trade_slug).stages || []).map((s: any) => [s.key, s.label])
+  )
 
   const loadEquipment = useCallback(async () => {
     if (!session || !hvac) return
@@ -299,15 +303,21 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   onMouseEnter={e => (e.currentTarget.style.background = t.tableRowHover)}
                   onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 1 ? t.tableRowAlt : 'transparent')}>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:14, fontWeight:700, color: t.textPri }}>{capName(lead.contact_name)}</div>
-                    <div style={{ fontSize:12, color: t.textSubtle, marginTop:2 }}>{timeAgo(lead.created_at)}</div>
+                    <div style={{ fontSize:14, fontWeight:700, color: t.textPri, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {lead.message?.trim() || 'Service call'}
+                    </div>
+                    <div style={{ fontSize:12, color: t.textSubtle, marginTop:2 }}>
+                      {lead.lead_source ? `${String(lead.lead_source).replace(/_/g,' ')} · ` : ''}{timeAgo(lead.created_at)}
+                    </div>
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
                     {lead.quoted_amount > 0 && (
                       <span style={{ fontSize:13, fontWeight:700, color:'#0F766E' }}>${lead.quoted_amount.toLocaleString()}</span>
                     )}
-                    <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:12, background: STAGE_COLOR[lead.lead_status] + '18', color: STAGE_COLOR[lead.lead_status] || t.textMuted }}>
-                      {lead.lead_status === clientAnchors.won || lead.lead_status === 'Paid' ? getTradeLabels(session?.trade_slug).wonStage : lead.lead_status}
+                    <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:12, background: (STAGE_COLOR[lead.lead_status] || '#6B7280') + '18', color: STAGE_COLOR[lead.lead_status] || t.textMuted }}>
+                      {lead.lead_status === clientAnchors.won || lead.lead_status === 'Paid'
+                        ? getTradeLabels(session?.trade_slug).wonStage
+                        : (stageLabelMap[lead.lead_status] || lead.lead_status)}
                     </span>
                   </div>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSubtle} strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
