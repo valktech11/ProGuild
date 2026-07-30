@@ -19,7 +19,7 @@ export async function resolveClientForLead(
   try {
     const { data: lead } = await sb
       .from('leads')
-      .select('client_id, contact_name, contact_phone, contact_email, property_address')
+      .select('client_id, contact_name, contact_phone, contact_email, property_address, contact_city, contact_state, contact_zip')
       .eq('id', leadId)
       .single()
 
@@ -55,6 +55,9 @@ export async function resolveClientForLead(
         phone:         lead.contact_phone ? String(lead.contact_phone).trim() : null,
         email:         lead.contact_email ? String(lead.contact_email).toLowerCase().trim() : null,
         address_line1: streetOnly,
+        city:          lead.contact_city  ? String(lead.contact_city).trim()  : null,
+        state:         lead.contact_state ? String(lead.contact_state).trim() : null,
+        zip:           lead.contact_zip   ? String(lead.contact_zip).trim()   : null,
       }).select('id').single()
       if (insErr) {
         console.error('[resolveClientForLead] client insert failed:', insErr.message)
