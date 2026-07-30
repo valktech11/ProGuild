@@ -172,18 +172,29 @@ export async function POST(req: NextRequest) {
   // fails (e.g. a missing column), retry with the minimal safe set so the
   // estimate at least stops offering to re-invoice.
   if (estimate_id) {
-    const { error: estErr } = await sb.from('estimates').update({
-      status:      'invoiced' as any,
-      invoiced_at: new Date().toISOString(),
-      invoice_id:  invoice.id,
-    }).eq('id', estimate_id)
-    if (estErr) {
-      console.error('[POST /api/invoices] estimate update failed:', estErr.message, '| retrying minimal')
-      const { error: est2 } = await sb.from('estimates')
-        .update({ status: 'invoiced' as any, invoice_id: invoice.id })
-        .eq('id', estimate_id)
-      if (est2) console.error('[POST /api/invoices] minimal estimate update also failed:', est2.message)
+    // Update + read-back confirm. Supabase does NOT error on a 0-row update, so
+    // a silent miss (wrong match, RLS, race) would leave the estimate unlinked
+    // with no error — exactly the 'invoice created but estimate still Approved'
+    // symptom. We select the updated row back and retry until it's linked.
+    const linkEstimate = async () => {
+      const { data, error } = await sb.from('estimates').update({
+        status:      'invoiced' as any,
+        invoiced_at: new Date().toISOString(),
+        invoice_id:  invoice.id,
+      }).eq('id', estimate_id).select('id, invoice_id').maybeSingle()
+      if (error) { console.error('[POST /api/invoices] estimate update error:', error.message); return false }
+      return !!(data && data.invoice_id === invoice.id)
     }
+    let linked = await linkEstimate()
+    if (!linked) {
+      // Retry once with minimal columns in case a column write was the issue.
+      const { data, error } = await sb.from('estimates')
+        .update({ status: 'invoiced' as any, invoice_id: invoice.id })
+        .eq('id', estimate_id).select('id, invoice_id').maybeSingle()
+      if (error) console.error('[POST /api/invoices] minimal estimate update error:', error.message)
+      linked = !!(data && data.invoice_id === invoice.id)
+    }
+    if (!linked) console.error('[POST /api/invoices] estimate', estimate_id, 'did NOT link to invoice', invoice.id, '(0-row update)')
   }
 
   // ── Roofing invoices get a roofing_invoice_data row immediately ─────────
