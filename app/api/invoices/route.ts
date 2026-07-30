@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
       .select('id, pro_id, status, invoice_id')
       .eq('id', estimate_id)
       .maybeSingle()
-    console.log(tag, 'ctx', JSON.stringify({
+    console.error(tag, 'ctx', JSON.stringify({
       estimate_id, req_pro_id: pro_id, invoice_id: invoice.id,
       pre_visible: !!preRow,
       pre_pro_id: preRow?.pro_id ?? null,
@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
         : { status: 'invoiced' as any, invoice_id: invoice.id }
       const { data, error } = await sb.from('estimates')
         .update(payload).eq('id', estimate_id).select('id, invoice_id').maybeSingle()
-      console.log(tag, label, JSON.stringify({
+      console.error(tag, label, JSON.stringify({
         returned_row: !!data,
         returned_invoice_id: data?.invoice_id ?? null,
         update_error: error?.message ?? null,
@@ -220,7 +220,7 @@ export async function POST(req: NextRequest) {
         invoice.id, '| pre_visible:', !!preRow, '| pro_id_match:',
         preRow ? preRow.pro_id === pro_id : 'n/a')
     } else {
-      console.log(tag, 'OK linked', estimate_id, '→', invoice.id)
+      console.error(tag, 'OK linked', estimate_id, '->', invoice.id)
     }
   }
 
