@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, pro_id, client_id, equipment_id, due_date, scheduled_lead_id,
       hvac_equipment(id, equipment_type, brand, model_number, filter_size),
-      clients(id, full_name, phone, email)
+      clients(id, full_name, phone, email, address_line1, city, state, zip)
     `)
     .eq('status', 'Pending')
     .eq('due_date', targetISO)
@@ -109,7 +109,15 @@ export async function GET(req: NextRequest) {
       continue
     }
 
-    // Insert lead
+    // Build a dispatch address from the client record so the tech knows where
+    // to go — the whole point of an auto-scheduled maintenance visit.
+    const propertyAddress = [client?.address_line1, client?.city, client?.state, client?.zip]
+      .filter(Boolean).join(', ') || null
+
+    // Insert lead. Source is 'Manual' (system-generated, not a real phone call)
+    // so these don't inflate phone-call lead metrics. A dedicated
+    // 'Maintenance_Plan' source would need a lead_source CHECK-constraint
+    // migration first (allowed values are fixed in the DB).
     const { data: lead, error: leadErr } = await sb
       .from('leads')
       .insert({
@@ -118,8 +126,12 @@ export async function GET(req: NextRequest) {
         contact_name:     client?.full_name  || 'Maintenance Customer',
         contact_phone:    client?.phone      || null,
         contact_email:    client?.email      || null,
+        property_address: propertyAddress,
+        contact_city:     client?.city  || null,
+        contact_state:    client?.state || null,
+        contact_zip:      client?.zip   || null,
         message:          scope,
-        lead_source:      'Phone_Call',
+        lead_source:      'Manual',
         is_manual:        true,
         lead_status:      'new_call',    // HVAC initial stage
       })

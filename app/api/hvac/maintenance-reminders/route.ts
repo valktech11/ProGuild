@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     .select(`
       *,
       hvac_equipment(id, equipment_type, brand, model_number, filter_size),
-      clients(id, full_name, phone, email)
+      clients(id, full_name, phone, email, address_line1, city, state, zip)
     `)
     .eq('pro_id', proId)
     .eq('status', 'Pending')

@@ -91,8 +91,12 @@ export default function MaintenancePlansPage() {
           contact_name:  client?.full_name  || 'Maintenance Customer',
           contact_phone: client?.phone      || null,
           contact_email: client?.email      || null,
+          property_address: [client?.address_line1, client?.city, client?.state, client?.zip].filter(Boolean).join(', ') || null,
+          contact_city:  client?.city  || null,
+          contact_state: client?.state || null,
+          contact_zip:   client?.zip   || null,
           message:       scope,
-          lead_source:   'Phone_Call',
+          lead_source:   'Manual',
           is_manual:     true,
           issue_type:    'maintenance',
           system_type:   eq?.equipment_type === 'Furnace' ? 'furnace'
