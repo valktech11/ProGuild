@@ -2397,7 +2397,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         </div>
                         <div style={{padding:'2px 16px 10px'}}>
                           {([
-                            {label:'Inspection', val:fmt((lead as any).inspection_date), over:false},
+                            {label: getStageAnchors(session?.trade_slug).entry === 'new_call' ? 'Diagnosis' : 'Inspection', val:fmt((lead as any).inspection_date), over:false},
                             {label:'Job date',   val:fmt(lead.scheduled_date), over:false},
                             {label:'Follow-up',  val:lead.follow_up_date?fmt(lead.follow_up_date):'—', over:!!(lead.follow_up_date&&isOverdue(lead.follow_up_date))},
                           ]).map((d,i)=>(

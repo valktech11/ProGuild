@@ -113,7 +113,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       try {
         const { data: leadForClient } = await sb
           .from('leads')
-          .select('client_id, contact_name, contact_phone, contact_email, property_address, contact_city, contact_state, contact_zip')
+          .select('client_id, contact_name, contact_phone, contact_email, property_address')
           .eq('id', leadId).single()
 
         if (leadForClient && !leadForClient.client_id && leadForClient.contact_name) {
@@ -137,9 +137,6 @@ export async function PATCH(req: Request, { params }: RouteParams) {
               phone:         leadForClient.contact_phone ? String(leadForClient.contact_phone).trim() : null,
               email:         leadForClient.contact_email ? String(leadForClient.contact_email).toLowerCase().trim() : null,
               address_line1: streetOnly,
-              city:          leadForClient.contact_city  ? String(leadForClient.contact_city).trim()  : null,
-              state:         leadForClient.contact_state ? String(leadForClient.contact_state).trim() : null,
-              zip:           leadForClient.contact_zip   ? String(leadForClient.contact_zip).trim()   : null,
             }).select('id').single()
             if (newClient) clientId = newClient.id
           }
