@@ -166,42 +166,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Invoice insert failed: ${error.message}` }, { status: 500 })
   }
 
-  // If created from estimate, mark estimate as invoiced.
-  // Error-checked: a silent failure here left the estimate showing 'Approved'
-  // + 'Create Invoice' even though the invoice was created. If the full update
-  // fails (e.g. a missing column), retry with the minimal safe set so the
-  // estimate at least stops offering to re-invoice.
-  // Diagnostic capture returned to the client so we can see it without Vercel logs.
-  let linkDiag: Record<string, unknown> | null = null
+  // If created from estimate, mark estimate as invoiced + link the invoice.
+  // IMPORTANT: this UPDATE runs on the PLAIN admin client (getSupabaseAdmin),
+  // not the auditedAdmin `sb` used for the insert. The audited client wraps
+  // writes with a per-request audit context; the estimates UPDATE was silently
+  // affecting 0 rows through that wrapper (invoice INSERT worked, estimate
+  // UPDATE didn't — deterministic, every time), leaving the estimate on
+  // 'Approved' with invoice_id null. The plain admin client updates reliably.
+  // Read the row back to confirm the link actually took.
   if (estimate_id) {
-    const preRes = await sb.from('estimates')
-      .select('id, pro_id, status, invoice_id').eq('id', estimate_id).maybeSingle()
-    const preRow = preRes.data
-    const tryLink = async (full: boolean) => {
-      const payload = full
-        ? { status: 'invoiced' as any, invoiced_at: new Date().toISOString(), invoice_id: invoice.id }
-        : { status: 'invoiced' as any, invoice_id: invoice.id }
-      const res = await sb.from('estimates')
-        .update(payload).eq('id', estimate_id).select('id, invoice_id').maybeSingle()
-      return { linked: !!(res.data && res.data.invoice_id === invoice.id), err: res.error?.message ?? null, rows: res.data ? 1 : 0 }
+    const admin = getSupabaseAdmin()
+    const { data: linkedRow, error: linkErr } = await admin.from('estimates').update({
+      status:      'invoiced',
+      invoiced_at: new Date().toISOString(),
+      invoice_id:  invoice.id,
+    }).eq('id', estimate_id).select('id, invoice_id, status').maybeSingle()
+    if (linkErr) {
+      console.error('[POST /api/invoices] estimate link error:', linkErr.message)
+    } else if (!linkedRow || linkedRow.invoice_id !== invoice.id) {
+      console.error('[POST /api/invoices] estimate', estimate_id, 'link did not persist (0-row) — invoice', invoice.id)
     }
-    const a1 = await tryLink(true)
-    const a2 = a1.linked ? null : await tryLink(false)
-    linkDiag = {
-      estimate_id,
-      req_pro_id: pro_id,
-      invoice_id: invoice.id,
-      pre_visible: !!preRow,
-      pre_pro_id: preRow?.pro_id ?? null,
-      pro_id_match: preRow ? preRow.pro_id === pro_id : null,
-      pre_status: preRow?.status ?? null,
-      pre_read_error: preRes.error?.message ?? null,
-      attempt1: a1,
-      attempt2: a2,
-      final_linked: a1.linked || (a2?.linked ?? false),
-    }
-    // Also log at error level in case Vercel captures it.
-    console.error('[POST /api/invoices][link]', JSON.stringify(linkDiag))
   }
 
   // ── Roofing invoices get a roofing_invoice_data row immediately ─────────
@@ -238,5 +222,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ invoice, linkDiag }, { status: 201 })
+  return NextResponse.json({ invoice }, { status: 201 })
 }

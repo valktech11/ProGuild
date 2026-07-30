@@ -214,14 +214,6 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.error)
-      // TEMP DIAGNOSTIC: surface the estimate-link result on-page and DO NOT
-      // redirect, so it can be read without alert() (which browsers may block).
-      if (d.linkDiag) {
-        const dg = d.linkDiag
-        setSaveMsg('LINK DIAG — linked:' + dg.final_linked + ' pre_visible:' + dg.pre_visible + ' pro_match:' + dg.pro_id_match + ' a1_rows:' + (dg.attempt1?.rows) + ' a1_err:' + (dg.attempt1?.err) + ' a2_rows:' + (dg.attempt2?.rows ?? 'n/a') + ' a2_err:' + (dg.attempt2?.err ?? 'n/a'))
-        setCreatingInvoice(false)
-        return  // hold on page + keep modal open so the diagnostic is readable
-      }
       // Update local estimate state to reflect invoiced status
       setEstimate(prev => prev ? { ...prev, status: 'invoiced', invoice_id: d.invoice.id } : prev)
       router.push(`/dashboard/invoices/${d.invoice.id}`)
@@ -584,13 +576,6 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   </div>
                 </div>
               </label>
-            </div>
-          )}
-
-          {/* TEMP diagnostic banner — shows LINK DIAG result in the modal */}
-          {saveMsg && saveMsg.startsWith('LINK DIAG') && (
-            <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#FEF3C7', border: '1px solid #FCD34D', fontSize: 12, fontWeight: 600, color: '#92400E', wordBreak: 'break-word' }}>
-              {saveMsg}
             </div>
           )}
 
