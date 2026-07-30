@@ -172,29 +172,56 @@ export async function POST(req: NextRequest) {
   // fails (e.g. a missing column), retry with the minimal safe set so the
   // estimate at least stops offering to re-invoice.
   if (estimate_id) {
-    // Update + read-back confirm. Supabase does NOT error on a 0-row update, so
-    // a silent miss (wrong match, RLS, race) would leave the estimate unlinked
-    // with no error — exactly the 'invoice created but estimate still Approved'
-    // symptom. We select the updated row back and retry until it's linked.
-    const linkEstimate = async () => {
-      const { data, error } = await sb.from('estimates').update({
-        status:      'invoiced' as any,
-        invoiced_at: new Date().toISOString(),
-        invoice_id:  invoice.id,
-      }).eq('id', estimate_id).select('id, invoice_id').maybeSingle()
-      if (error) { console.error('[POST /api/invoices] estimate update error:', error.message); return false }
+    // ── Instrumented estimate → invoiced link ───────────────────────────────
+    // The link intermittently matched 0 rows with no error (Supabase doesn't
+    // error on 0-row updates), leaving the estimate on 'Approved'. To capture
+    // the root cause the NEXT time it happens, we log the full context:
+    //   [tag] estimate_id / pro_id / invoice.id, whether the row is READABLE by
+    //   this client just before the update (rules RLS/visibility/wrong-id in or
+    //   out), and what the update returned.
+    const tag = '[POST /api/invoices][link]'
+
+    // (a) Pre-update read-back: is the estimate row visible to THIS client?
+    //     If this returns null, the update will match 0 rows for the same reason
+    //     (RLS / read-after-write race / wrong id), which is the smoking gun.
+    const { data: preRow, error: preErr } = await sb
+      .from('estimates')
+      .select('id, pro_id, status, invoice_id')
+      .eq('id', estimate_id)
+      .maybeSingle()
+    console.log(tag, 'ctx', JSON.stringify({
+      estimate_id, req_pro_id: pro_id, invoice_id: invoice.id,
+      pre_visible: !!preRow,
+      pre_pro_id: preRow?.pro_id ?? null,
+      pro_id_match: preRow ? preRow.pro_id === pro_id : null,
+      pre_status: preRow?.status ?? null,
+      pre_read_error: preErr?.message ?? null,
+    }))
+
+    const linkEstimate = async (label: string, full: boolean) => {
+      const payload = full
+        ? { status: 'invoiced' as any, invoiced_at: new Date().toISOString(), invoice_id: invoice.id }
+        : { status: 'invoiced' as any, invoice_id: invoice.id }
+      const { data, error } = await sb.from('estimates')
+        .update(payload).eq('id', estimate_id).select('id, invoice_id').maybeSingle()
+      console.log(tag, label, JSON.stringify({
+        returned_row: !!data,
+        returned_invoice_id: data?.invoice_id ?? null,
+        update_error: error?.message ?? null,
+        rows_changed: data ? 1 : 0,
+      }))
       return !!(data && data.invoice_id === invoice.id)
     }
-    let linked = await linkEstimate()
+
+    let linked = await linkEstimate('attempt-1-full', true)
+    if (!linked) linked = await linkEstimate('attempt-2-minimal', false)
     if (!linked) {
-      // Retry once with minimal columns in case a column write was the issue.
-      const { data, error } = await sb.from('estimates')
-        .update({ status: 'invoiced' as any, invoice_id: invoice.id })
-        .eq('id', estimate_id).select('id, invoice_id').maybeSingle()
-      if (error) console.error('[POST /api/invoices] minimal estimate update error:', error.message)
-      linked = !!(data && data.invoice_id === invoice.id)
+      console.error(tag, 'FAILED — estimate', estimate_id, 'did NOT link to invoice',
+        invoice.id, '| pre_visible:', !!preRow, '| pro_id_match:',
+        preRow ? preRow.pro_id === pro_id : 'n/a')
+    } else {
+      console.log(tag, 'OK linked', estimate_id, '→', invoice.id)
     }
-    if (!linked) console.error('[POST /api/invoices] estimate', estimate_id, 'did NOT link to invoice', invoice.id, '(0-row update)')
   }
 
   // ── Roofing invoices get a roofing_invoice_data row immediately ─────────
