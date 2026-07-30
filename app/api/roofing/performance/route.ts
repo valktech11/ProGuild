@@ -2,18 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { wonInMonth, leadRevenue } from '@/lib/metrics/won'
 import { requirePro } from '@/lib/pro-auth'
+import { getActiveStages } from '@/lib/trades/_registry'
 
-// Ordered roofing funnel stages (matches lib/trades/roofing/config.ts).
-const FUNNEL = [
-  { key: 'lead_in', label: 'Lead In' },
-  { key: 'inspection_scheduled', label: 'Inspection Scheduled' },
-  { key: 'insurance_approved', label: 'Insurance Approved' },
-  { key: 'proposal_sent', label: 'Proposal Sent' },
-  { key: 'proposal_signed', label: 'Proposal Signed' },
-  { key: 'scheduled', label: 'Scheduled' },
-  { key: 'in_progress', label: 'In Progress' },
-  { key: 'job_won', label: 'Job Won' },
-]
 const pretty = (s: string) => s.replace(/_/g, ' ').trim().replace(/\b\w/g, c => c.toUpperCase())
 
 export async function GET(req: NextRequest) {
@@ -23,6 +13,13 @@ export async function GET(req: NextRequest) {
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
+
+  // Build the funnel from the pro's trade config so HVAC gets HVAC stages
+  // and roofing gets roofing stages — not hardcoded roofing regardless of trade.
+  const { data: proRow } = await sb.from('pros').select('trade_slug').eq('id', proId).maybeSingle()
+  const FUNNEL = getActiveStages(proRow?.trade_slug ?? null)
+    .map((s: any) => ({ key: s.key, label: s.label }))
+
   const [leadsRes, eventsRes] = await Promise.all([
     sb.from('leads')
       .select('id, lead_status, lead_source, created_at, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount)')
