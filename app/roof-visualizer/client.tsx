@@ -1166,7 +1166,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
             Show homeowners exactly how their new roof will look — real shingle colours from GAF, Owens Corning, CertainTeed, IKO and Atlas, rendered on their actual house.
           </p>
           <div style={{ display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 }}>
-            {['Real manufacturer colours', 'No homeowner sign-up', 'First 3 renders free', 'Results in under a minute'].map(item => (
+            {['Real manufacturer colours', 'No homeowner sign-up', 'First 10 renders free', 'Results in under a minute'].map(item => (
               <span key={item} style={{ fontSize: 12.5, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ color: BRAND.teal, fontWeight: 700 }}>✓</span> {item}
               </span>
@@ -1485,7 +1485,7 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
                   style={{ width: '100%', background: selectedSkuIds.length > 0 ? BRAND.teal : '#ccc', color: '#fff', border: 'none', borderRadius: T.radMd, padding: '13px 0', fontWeight: 700, fontSize: 15, cursor: selectedSkuIds.length > 0 ? 'pointer' : 'not-allowed' }}>
                   Visualize My Roof →
                 </button>
-                <p style={{ fontSize: 11, color: t.textSubtle, textAlign: 'center', margin: '10px 0 0' }}>Free — no account required for first 3 renders</p>
+                <p style={{ fontSize: 11, color: t.textSubtle, textAlign: 'center', margin: '10px 0 0' }}>Free — no account required for first 10 renders</p>
                 <p style={{ fontSize: 10.5, color: t.textSubtle, textAlign: 'center', margin: '8px 0 0', lineHeight: 1.45 }}>
                   Colors shown are digital approximations. Manufacturers recommend viewing full-size shingle samples in daylight before choosing.
               </p>

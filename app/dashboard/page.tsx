@@ -361,9 +361,9 @@ export default function OverviewPage() {
   function fetchData(s: typeof session) {
     if (!s) return
     Promise.all([
-      apiFetch(`/api/leads?pro_id=${s.id}`).then(r => r.json()),
-      fetch(`/api/reviews?pro_id=${s.id}`).then(r => r.json()),
-      apiFetch(`/api/estimates?pro_id=${s.id}`).then(r => r.json()),
+      apiFetch(`/api/leads?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ leads: [] })),
+      fetch(`/api/reviews?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ reviews: [] })),
+      apiFetch(`/api/estimates?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ estimates: [] })),
       isHVACTrade ? apiFetch(`/api/hvac/maintenance-reminders?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ reminders: [] })) : Promise.resolve({ reminders: [] }),
       apiFetch(`/api/overview?pro_id=${s.id}`).then(r => r.json()).catch(() => null),
       apiFetch(`/api/activity/recent?pro_id=${s.id}&limit=6`).then(r => r.json()).catch(() => ({ activity: [] })),
