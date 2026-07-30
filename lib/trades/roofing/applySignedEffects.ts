@@ -195,7 +195,7 @@ export async function applyEstimateSignedEffects(
           if (leadContact?.contact_name)  invoiceLeadName     = leadContact.contact_name
         }
 
-        await sb.from('invoices').insert({
+        const { data: signInv } = await sb.from('invoices').insert({
           pro_id:          fullEst.pro_id,
           estimate_id:     id,
           lead_id:         est.lead_id,
@@ -221,7 +221,18 @@ export async function applyEstimateSignedEffects(
           due_date:        new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
           created_at:      new Date().toISOString(),
           updated_at:      new Date().toISOString(),
-        })
+        }).select('id').single()
+
+        // CRITICAL: link the new invoice back onto the estimate. Without this the
+        // estimate keeps status='approved' + invoice_id=null, the UI still shows
+        // 'Create Invoice', and clicking it hits the duplicate guard (invoice
+        // already exists) and returns early WITHOUT ever linking — so the estimate
+        // could never reach 'invoiced'. This was the 100%-deterministic bug.
+        if (signInv?.id) {
+          await sb.from('estimates')
+            .update({ status: 'invoiced', invoiced_at: new Date().toISOString(), invoice_id: signInv.id })
+            .eq('id', id)
+        }
       }
     }
   }

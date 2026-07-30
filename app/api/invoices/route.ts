@@ -175,8 +175,7 @@ export async function POST(req: NextRequest) {
   // 'Approved' with invoice_id null. The plain admin client updates reliably.
   // Read the row back to confirm the link actually took.
   if (estimate_id) {
-    const admin = getSupabaseAdmin()
-    const { data: linkedRow, error: linkErr } = await admin.from('estimates').update({
+    const { data: linkedRow, error: linkErr } = await sb.from('estimates').update({
       status:      'invoiced',
       invoiced_at: new Date().toISOString(),
       invoice_id:  invoice.id,
@@ -184,7 +183,7 @@ export async function POST(req: NextRequest) {
     if (linkErr) {
       console.error('[POST /api/invoices] estimate link error:', linkErr.message)
     } else if (!linkedRow || linkedRow.invoice_id !== invoice.id) {
-      console.error('[POST /api/invoices] estimate', estimate_id, 'link did not persist (0-row) — invoice', invoice.id)
+      console.error('[POST /api/invoices] estimate', estimate_id, 'link did not persist — invoice', invoice.id)
     }
   }
 
