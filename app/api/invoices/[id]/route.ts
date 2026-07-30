@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
 import { requirePro } from '@/lib/pro-auth'
 import { getStageAnchors } from '@/lib/trades/_registry'
+import { resolveClientForLead } from '@/lib/leads/resolveClientForLead'
 
 // Always read fresh from the database — never serve a cached response.
 export const dynamic = 'force-dynamic'
@@ -109,6 +110,8 @@ export async function PATCH(
           .update({ lead_status: anchors.won, lead_status_changed_at: new Date().toISOString() })
           .eq('id', data.lead_id)
       }
+      // A won job must have a customer record.
+      await resolveClientForLead(sb, data.lead_id, leadRow.pro_id)
     }
   }
 

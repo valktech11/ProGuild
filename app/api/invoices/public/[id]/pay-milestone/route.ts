@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { getStageAnchors } from '@/lib/trades/_registry'
+import { resolveClientForLead } from '@/lib/leads/resolveClientForLead'
 import { notifyRoofer } from '@/lib/notifyRoofer'
 
 export async function POST(
@@ -80,6 +81,8 @@ export async function POST(
           updated_at:             new Date().toISOString(),
         }).eq('id', inv.lead_id)
       }
+      // A won job must have a customer record.
+      await resolveClientForLead(sb, inv.lead_id, leadRow.pro_id ?? inv.pro_id)
     }
   }
 
