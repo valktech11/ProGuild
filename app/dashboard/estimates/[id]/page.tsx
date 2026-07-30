@@ -214,6 +214,12 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.error)
+      // TEMP DIAGNOSTIC: show the estimate-link result directly in the browser
+      // so we can see it without depending on Vercel log capture.
+      if (d.linkDiag) {
+        // eslint-disable-next-line no-alert
+        alert('LINK DIAG:\n' + JSON.stringify(d.linkDiag, null, 2))
+      }
       // Update local estimate state to reflect invoiced status
       setEstimate(prev => prev ? { ...prev, status: 'invoiced', invoice_id: d.invoice.id } : prev)
       router.push(`/dashboard/invoices/${d.invoice.id}`)

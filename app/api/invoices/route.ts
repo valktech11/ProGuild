@@ -171,57 +171,37 @@ export async function POST(req: NextRequest) {
   // + 'Create Invoice' even though the invoice was created. If the full update
   // fails (e.g. a missing column), retry with the minimal safe set so the
   // estimate at least stops offering to re-invoice.
+  // Diagnostic capture returned to the client so we can see it without Vercel logs.
+  let linkDiag: Record<string, unknown> | null = null
   if (estimate_id) {
-    // ── Instrumented estimate → invoiced link ───────────────────────────────
-    // The link intermittently matched 0 rows with no error (Supabase doesn't
-    // error on 0-row updates), leaving the estimate on 'Approved'. To capture
-    // the root cause the NEXT time it happens, we log the full context:
-    //   [tag] estimate_id / pro_id / invoice.id, whether the row is READABLE by
-    //   this client just before the update (rules RLS/visibility/wrong-id in or
-    //   out), and what the update returned.
-    const tag = '[POST /api/invoices][link]'
-
-    // (a) Pre-update read-back: is the estimate row visible to THIS client?
-    //     If this returns null, the update will match 0 rows for the same reason
-    //     (RLS / read-after-write race / wrong id), which is the smoking gun.
-    const { data: preRow, error: preErr } = await sb
-      .from('estimates')
-      .select('id, pro_id, status, invoice_id')
-      .eq('id', estimate_id)
-      .maybeSingle()
-    console.error(tag, 'ctx', JSON.stringify({
-      estimate_id, req_pro_id: pro_id, invoice_id: invoice.id,
+    const preRes = await sb.from('estimates')
+      .select('id, pro_id, status, invoice_id').eq('id', estimate_id).maybeSingle()
+    const preRow = preRes.data
+    const tryLink = async (full: boolean) => {
+      const payload = full
+        ? { status: 'invoiced' as any, invoiced_at: new Date().toISOString(), invoice_id: invoice.id }
+        : { status: 'invoiced' as any, invoice_id: invoice.id }
+      const res = await sb.from('estimates')
+        .update(payload).eq('id', estimate_id).select('id, invoice_id').maybeSingle()
+      return { linked: !!(res.data && res.data.invoice_id === invoice.id), err: res.error?.message ?? null, rows: res.data ? 1 : 0 }
+    }
+    const a1 = await tryLink(true)
+    const a2 = a1.linked ? null : await tryLink(false)
+    linkDiag = {
+      estimate_id,
+      req_pro_id: pro_id,
+      invoice_id: invoice.id,
       pre_visible: !!preRow,
       pre_pro_id: preRow?.pro_id ?? null,
       pro_id_match: preRow ? preRow.pro_id === pro_id : null,
       pre_status: preRow?.status ?? null,
-      pre_read_error: preErr?.message ?? null,
-    }))
-
-    const linkEstimate = async (label: string, full: boolean) => {
-      const payload = full
-        ? { status: 'invoiced' as any, invoiced_at: new Date().toISOString(), invoice_id: invoice.id }
-        : { status: 'invoiced' as any, invoice_id: invoice.id }
-      const { data, error } = await sb.from('estimates')
-        .update(payload).eq('id', estimate_id).select('id, invoice_id').maybeSingle()
-      console.error(tag, label, JSON.stringify({
-        returned_row: !!data,
-        returned_invoice_id: data?.invoice_id ?? null,
-        update_error: error?.message ?? null,
-        rows_changed: data ? 1 : 0,
-      }))
-      return !!(data && data.invoice_id === invoice.id)
+      pre_read_error: preRes.error?.message ?? null,
+      attempt1: a1,
+      attempt2: a2,
+      final_linked: a1.linked || (a2?.linked ?? false),
     }
-
-    let linked = await linkEstimate('attempt-1-full', true)
-    if (!linked) linked = await linkEstimate('attempt-2-minimal', false)
-    if (!linked) {
-      console.error(tag, 'FAILED — estimate', estimate_id, 'did NOT link to invoice',
-        invoice.id, '| pre_visible:', !!preRow, '| pro_id_match:',
-        preRow ? preRow.pro_id === pro_id : 'n/a')
-    } else {
-      console.error(tag, 'OK linked', estimate_id, '->', invoice.id)
-    }
+    // Also log at error level in case Vercel captures it.
+    console.error('[POST /api/invoices][link]', JSON.stringify(linkDiag))
   }
 
   // ── Roofing invoices get a roofing_invoice_data row immediately ─────────
@@ -258,5 +238,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ invoice }, { status: 201 })
+  return NextResponse.json({ invoice, linkDiag }, { status: 201 })
 }
