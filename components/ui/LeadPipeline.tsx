@@ -1674,7 +1674,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
             <button key={s.key} onClick={() => setMobileStage(s.key as StageKey)}
               className="flex-shrink-0 px-4 py-2.5 rounded-full text-[13px] border transition-all"
               style={active
-                ? { background: dk ? s.color + '1A' : s.bg, color: s.color, borderColor: s.color, fontWeight: 700, boxShadow: `0 0 0 1.5px ${s.color}` }
+                ? { background: s.color, color: '#fff', borderColor: s.color, fontWeight: 700, boxShadow: `0 2px 8px ${s.color}40` }
                 : { background: dk ? 'rgba(255,255,255,0.04)' : '#F5F4F0', color: dk ? '#9CA3AF' : '#6B7280', borderColor: dk ? '#334155' : '#D1C9C0', fontWeight: 500 }}>
               {s.label} {cnt > 0 && <span style={{ fontWeight: active ? 800 : 600 }}>({cnt})</span>}
             </button>

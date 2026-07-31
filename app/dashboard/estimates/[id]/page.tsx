@@ -602,7 +602,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       onToggleDark={toggleDark}
       fullBleed={true}
     >
-      <div style={{ height: '100%', overflowY: 'auto' }}>
+      <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
         <div className="w-full max-w-[1200px] mx-auto px-3 py-4 lg:px-4 lg:py-6 space-y-5 min-w-0">
 
           {/* ── Top action bar ── */}
@@ -672,8 +672,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                   </div>
 
                   {/* Col 3: ··· menu + status-based primary CTA */}
-                  <div className="flex flex-col items-start xl:items-end gap-2 xl:shrink-0 xl:ml-auto">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col items-start xl:items-end gap-2 xl:shrink-0 xl:ml-auto min-w-0 overflow-x-auto">
+                    <div className="flex items-center gap-2 flex-wrap">
 
                       {/* ··· More menu */}
                       <div style={{ position: 'relative' }}>
