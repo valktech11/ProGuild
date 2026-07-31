@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { useState } from 'react'
 import { theme, T } from '@/lib/tokens'
 import { eventStyle, ICON_PATH } from '@/lib/design'
 import { capName, fmtCurrency } from '@/lib/utils'
@@ -77,33 +77,83 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
   const es = isInspection && !isOverdue ? { ...esBase, ...INSPECTION_STYLE } : esBase
   const CLIPBOARD = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'
   const timeLabel = ev._type === 'job' && ev.scheduled_time ? fmtTime(ev.scheduled_time) : ''
+  const fmtShort = (d: string | null) => {
+    if (!d) return ''
+    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return d }
+  }
+  const typeLabel = isInspection ? 'Diagnosis' : isFollowup ? 'Follow-up' : 'Job'
+  const eventDate = isInspection ? ev.inspection_date : isFollowup ? ev.follow_up_date : ev.scheduled_date
+  const tooltipDate = fmtShort(eventDate) + (timeLabel ? ` · ${timeLabel}` : '')
   const iconPath  = isOverdue ? ICON_PATH.warning : isInspection ? CLIPBOARD : isFollowup ? ICON_PATH.phone : ICON_PATH.wrench
 
   // ── micro — month grid cell ───────────────────────────────────────────────
   if (size === 'micro') {
+    const [tip, setTip] = useState(false)
     return (
-      <div
-        onClick={e => { e.stopPropagation(); onClick?.() }}
-        style={{
-          fontSize: 11, fontWeight: 700,
-          padding: '2px 5px',
-          borderRadius: 4,
-          background: es.bg,
-          borderLeft: `2px solid ${es.border}`,
-          color: es.text,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          opacity: es.opacity,
-          cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 3,
-          transition: 'opacity 0.1s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.opacity = String(Math.min(1, es.opacity + 0.2)))}
-        onMouseLeave={e => (e.currentTarget.style.opacity = String(es.opacity))}>
-        <Svg path={iconPath} size={8} color={es.border} sw={2.5} />
-        {capName(ev.contact_name)}
-        <span style={{ fontSize: 9, fontWeight: 800, opacity: 0.7, marginLeft: 2, flexShrink: 0 }}>
-          {isInspection ? '· Diag' : isFollowup ? '· FU' : ''}
-        </span>
+      <div style={{ position: 'relative', display: 'block' }}>
+        <div
+          onClick={e => { e.stopPropagation(); onClick?.() }}
+          onMouseEnter={() => setTip(true)}
+          onMouseLeave={() => setTip(false)}
+          style={{
+            fontSize: 11, fontWeight: 700,
+            padding: '2px 5px',
+            borderRadius: 4,
+            background: es.bg,
+            borderLeft: `2px solid ${es.border}`,
+            color: es.text,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            opacity: tip ? Math.min(1, es.opacity + 0.2) : es.opacity,
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 3,
+            transition: 'opacity 0.1s',
+          }}>
+          <Svg path={iconPath} size={8} color={es.border} sw={2.5} />
+          {capName(ev.contact_name)}
+          <span style={{ fontSize: 9, fontWeight: 800, opacity: 0.7, marginLeft: 2, flexShrink: 0 }}>
+            {isInspection ? '· Diag' : isFollowup ? '· FU' : ''}
+          </span>
+        </div>
+        {tip && (
+          <div style={{
+            position: 'absolute', bottom: '100%', left: 0, zIndex: 50,
+            marginBottom: 5, pointerEvents: 'none',
+            background: '#1E293B', borderRadius: 8, padding: '8px 11px',
+            minWidth: 160, maxWidth: 220,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          }}>
+            {/* Event type */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: es.border, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontWeight: 800, color: es.border, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {typeLabel}
+              </span>
+            </div>
+            {/* Name */}
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#F1F5F9', marginBottom: 2 }}>
+              {capName(ev.contact_name)}
+            </div>
+            {/* Date */}
+            {tooltipDate && (
+              <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: ev.quoted_amount ? 4 : 0 }}>
+                {tooltipDate}
+              </div>
+            )}
+            {/* Quote amount */}
+            {ev.quoted_amount && ev.quoted_amount > 0 ? (
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#34D399', marginTop: 2 }}>
+                ${Number(ev.quoted_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            ) : null}
+            {/* Arrow */}
+            <div style={{
+              position: 'absolute', top: '100%', left: 14,
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '5px solid #1E293B',
+            }} />
+          </div>
+        )}
       </div>
     )
   }
