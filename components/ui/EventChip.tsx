@@ -101,6 +101,9 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
         onMouseLeave={e => (e.currentTarget.style.opacity = String(es.opacity))}>
         <Svg path={iconPath} size={8} color={es.border} sw={2.5} />
         {capName(ev.contact_name)}
+        <span style={{ fontSize: 9, fontWeight: 800, opacity: 0.7, marginLeft: 2, flexShrink: 0 }}>
+          {isInspection ? '· Diag' : isFollowup ? '· FU' : ''}
+        </span>
       </div>
     )
   }
