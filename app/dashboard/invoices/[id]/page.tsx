@@ -420,10 +420,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`,
                 borderRadius: 16, overflow: 'hidden' }}>
                 {/* Dark header band */}
-                <div style={{ background: C.teal, padding: '24px 28px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ background: C.teal, padding: 'clamp(16px, 4vw, 28px)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                  gap: 12, minWidth: 0 }}>
                   {/* Pro info */}
-                  <div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     {pro?.logo_url ? (
                       <img src={pro.logo_url} alt="Logo"
                         style={{ height: 48, maxWidth: 160, objectFit: 'contain', marginBottom: 12, borderRadius: 4 }} />
@@ -447,12 +448,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                     )}
                   </div>
                   {/* Invoice meta */}
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em',
                       textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>
                       Invoice
                     </div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 12 }}>
+                    <div style={{ fontSize: 'clamp(16px, 4vw, 22px)', fontWeight: 900, color: '#fff', marginBottom: 12 }}>
                       #{invoice.invoice_number}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>

@@ -936,21 +936,22 @@ function CalendarInner() {
 
       {/* Sticky header */}
       <div style={{ flexShrink:0, position:'sticky', top:0, zIndex:20,
-        background: '#0F766E',
-        borderBottom: 'none',
+        background: t.cardBg,
+        borderBottom: `1px solid ${t.divider}`,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       }}>
 
         {/* Row 1: nav + date + filter */}
         <div style={{ display:'flex', alignItems:'center', gap:8, padding: mobileView==='agenda'?'14px 14px 8px':'10px 14px 8px' }}>
           <button onClick={() => handleMobileNav(-1)}
             style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
-              border: '1.5px solid rgba(255,255,255,0.25)',
-              background: 'rgba(255,255,255,0.12)', cursor:'pointer', flexShrink:0 }}>
-            <Svg path={ICON_PATH.chevronL} size={17} color='white' sw={2.5}/>
+              border: `1.5px solid ${t.inputBorder}`,
+              background: 'transparent', cursor:'pointer', flexShrink:0 }}>
+            <Svg path={ICON_PATH.chevronL} size={17} color={t.textMuted} sw={2.5}/>
           </button>
 
           <div style={{ flex:1, textAlign:'center' }}>
-            <div style={{ fontSize: mobileView==='agenda'?22:18, fontWeight:800, color:'white', letterSpacing:'-0.3px' }}>
+            <div style={{ fontSize: mobileView==='agenda'?22:18, fontWeight:800, color:t.textPri, letterSpacing:'-0.3px' }}>
               {mobileView==='agenda'
                 ? isToday(selectedDate) ? `Today · ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}` : `${DAYS[selectedDate.getDay()]}, ${SHORT_MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`
                 : mobileView==='week'
@@ -958,7 +959,7 @@ function CalendarInner() {
                 : `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`
               }
             </div>
-            <div style={{ fontSize: mobileView==='month'?12:14, fontWeight:500, color:'rgba(255,255,255,0.92)', marginTop:2 }}>
+            <div style={{ fontSize: mobileView==='month'?12:14, fontWeight:500, color:t.textMuted, marginTop:2 }}>
               {mobileView==='agenda' && (isToday(selectedDate)
                 ? `${MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear()}${todayJobs.length>0?` · ${todayJobs.length} jobs`:''}`
                 : selectedDate.getFullYear().toString()
@@ -967,7 +968,7 @@ function CalendarInner() {
                 <span>
                   {selectedDate.getFullYear()}
                   {weekValue>0 && (
-                    <> · <span style={{ fontWeight:800, color:'white', fontSize:15 }}>${weekValue.toLocaleString()}</span></>
+                    <> · <span style={{ fontWeight:800, color:'#0F766E', fontSize:15 }}>${weekValue.toLocaleString()}</span></>
                   )}
                 </span>
               )}
@@ -978,36 +979,36 @@ function CalendarInner() {
           <div style={{ display:'flex', gap:6, flexShrink:0 }}>
             <button onClick={() => setFilterSheetOpen(true)}
               style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
-                border: '1.5px solid rgba(255,255,255,0.25)',
-                background: (!showJobs||!showFollowups)?'rgba(255,255,255,0.25)':'rgba(255,255,255,0.12)', cursor:'pointer' }}>
+                border: `1.5px solid ${t.inputBorder}`,
+                background: (!showJobs||!showFollowups)?'rgba(15,118,110,0.10)':'transparent', cursor:'pointer' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke='white'
+                stroke={(!showJobs||!showFollowups)?'#0F766E':t.textMuted}
                 strokeWidth="2.2" strokeLinecap="round">
                 <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
               </svg>
             </button>
             <button onClick={() => handleMobileNav(1)}
               style={{ width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:11,
-                border: '1.5px solid rgba(255,255,255,0.25)',
-                background: 'rgba(255,255,255,0.12)', cursor:'pointer' }}>
-              <Svg path={ICON_PATH.chevronR} size={17} color='white' sw={2.5}/>
+                border: `1.5px solid ${t.inputBorder}`,
+                background: 'transparent', cursor:'pointer' }}>
+              <Svg path={ICON_PATH.chevronR} size={17} color={t.textMuted} sw={2.5}/>
             </button>
           </div>
         </div>
 
         {/* Row 2: view selector + Today chip */}
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0 14px 8px' }}>
-          <div style={{ display:'flex', borderRadius:22, overflow:'hidden', border: '1.5px solid rgba(255,255,255,0.25)', flexShrink:0 }}>
+          <div style={{ display:'flex', borderRadius:22, overflow:'hidden', border: `1.5px solid ${t.inputBorder}`, flexShrink:0 }}>
             {(['agenda','week','month'] as const).map(v => (
               <button key={v} onClick={() => setMobileView(v)}
-                style={{ padding:'7px 13px', border:'none', cursor:'pointer', fontSize: 13, background:mobileView===v?'rgba(255,255,255,0.2)':'transparent', color:'white', fontWeight:mobileView===v?800:500 }}>
+                style={{ padding:'7px 13px', border:'none', cursor:'pointer', fontSize: 13, background:mobileView===v?'#0F766E':'transparent', color:mobileView===v?'white':t.textMuted, fontWeight:mobileView===v?800:500 }}>
                 {v==='agenda'?'Day':v==='week'?'Week':'Month'}
               </button>
             ))}
           </div>
           {notOnToday && (
             <button onClick={goToday}
-              style={{ fontSize: 13, fontWeight:700, padding:'7px 13px', borderRadius:22, border:'1.5px solid rgba(255,255,255,0.5)', background:'rgba(255,255,255,0.2)', color:'white', cursor:'pointer', flexShrink:0 }}>
+              style={{ fontSize: 13, fontWeight:700, padding:'7px 13px', borderRadius:22, border:'1.5px solid #0F766E', background:'rgba(15,118,110,0.08)', color:'#0F766E', cursor:'pointer', flexShrink:0 }}>
               ← Today
             </button>
           )}
@@ -1016,12 +1017,12 @@ function CalendarInner() {
         {/* Row 3: week strip — Day mode only (week mode has its own grouped view) */}
         {mobileView==='agenda' && (
           <div style={{ padding:'0 12px 10px' }}>
-            <MobileWeekGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => selectDay(d)} dk={dk} onTeal={true}/>
+            <MobileWeekGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => selectDay(d)} dk={dk} onTeal={false}/>
           </div>
         )}
         {mobileView==='month' && (
-          <div style={{ padding:'0 12px 10px', background:'#0F766E' }}>
-            <MobileMonthGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => { selectDay(d) }} dk={dk} onTeal={true}/>
+          <div style={{ padding:'0 12px 10px' }}>
+            <MobileMonthGrid selectedDate={selectedDate} events={events} today0={today0} onSelect={d => { selectDay(d) }} dk={dk} onTeal={false}/>
           </div>
         )}
       </div>
@@ -1042,11 +1043,11 @@ function CalendarInner() {
         const dc = dj.filter(ev => CALENDAR_DONE_STATUSES.has(ev.lead_status))
         const dv = dj.reduce((s,ev)=>s+(ev.quoted_amount||0),0)
         return (
-          <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
+          <div style={{ flexShrink:0, display:'flex', background:t.cardBgAlt, borderBottom:`1px solid ${t.divider}` }}>
             {[{ label:"Today's Value", value:dv>0?'$'+dv.toLocaleString():'$0' },{ label:'Jobs', value:String(dj.length) },{ label:'Done', value:String(dc.length) }].map((s,i)=>(
               <div key={s.label} style={{ flex:1, padding:'11px 8px', borderRight:i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
-                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.80)', marginBottom:3 }}>{s.label}</div>
-                <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
+                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:t.textSubtle, marginBottom:3 }}>{s.label}</div>
+                <div style={{ fontSize:22, fontWeight:800, color:t.textPri, lineHeight:1 }}>{s.value}</div>
               </div>
             ))}
           </div>
@@ -1057,22 +1058,22 @@ function CalendarInner() {
           return sum + (weekGrouped[toDateKey(d)]||[]).filter(ev=>ev._type==='job'&&CALENDAR_DONE_STATUSES.has(ev.lead_status)).length
         }, 0)
         return (
-          <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
+          <div style={{ flexShrink:0, display:'flex', background:t.cardBgAlt, borderBottom:`1px solid ${t.divider}` }}>
             {[{ label:"Week's Value", value:weekValue>0?'$'+weekValue.toLocaleString():'$0' },{ label:'Jobs', value:String(weekJobs) },{ label:'Done', value:String(wDone) }].map((s,i)=>(
               <div key={s.label} style={{ flex:1, padding:'11px 8px', borderRight:i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
-                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.80)', marginBottom:3 }}>{s.label}</div>
-                <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
+                <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:t.textSubtle, marginBottom:3 }}>{s.label}</div>
+                <div style={{ fontSize:22, fontWeight:800, color:t.textPri, lineHeight:1 }}>{s.value}</div>
               </div>
             ))}
           </div>
         )
       })()}
       {mobileView==='month' && (() => (
-        <div style={{ flexShrink:0, display:'flex', background:'#0F766E', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
+        <div style={{ flexShrink:0, display:'flex', background:t.cardBgAlt, borderBottom:`1px solid ${t.divider}` }}>
           {[{ label:"Month's Value", value:monthValue>0?'$'+monthValue.toLocaleString():'$0' },{ label:'Jobs', value:String(monthJobs.length) },{ label:'Done', value:String(monthDone) }].map((s,i)=>(
             <div key={s.label} style={{ flex:1, padding:'11px 8px', borderRight:i<2?'1px solid rgba(255,255,255,0.2)':'none', textAlign:'center' }}>
-              <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:'rgba(255,255,255,0.80)', marginBottom:3 }}>{s.label}</div>
-              <div style={{ fontSize:22, fontWeight:800, color:'white', lineHeight:1 }}>{s.value}</div>
+              <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase' as const, letterSpacing:'0.06em', color:t.textSubtle, marginBottom:3 }}>{s.label}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:t.textPri, lineHeight:1 }}>{s.value}</div>
             </div>
           ))}
         </div>
