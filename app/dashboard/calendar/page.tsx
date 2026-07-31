@@ -367,10 +367,10 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk, onTeal = 
                 {day}
               </span>
               <div style={{ display:'flex', gap:2, minHeight:5, alignItems:'center' }}>
-                {hasOverdue && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
-                {hasJob     && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
-                {hasInsp    && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
-                {hasFU      && <div style={{ width:4, height:4, borderRadius:'50%', background:'rgba(255,255,255,0.9)' }}/>}
+                {hasOverdue && <div style={{ width:5, height:5, borderRadius:'50%', background: isSel||onTeal?'rgba(255,255,255,0.9)':'#DC2626' }}/>}
+                {hasJob     && <div style={{ width:5, height:5, borderRadius:'50%', background: isSel||onTeal?'rgba(255,255,255,0.9)':'#0F766E' }}/>}
+                {hasInsp    && <div style={{ width:5, height:5, borderRadius:'50%', background: isSel||onTeal?'rgba(255,255,255,0.9)':'#4F46E5' }}/>}
+                {hasFU      && <div style={{ width:5, height:5, borderRadius:'50%', background: isSel||onTeal?'rgba(255,255,255,0.9)':'#D97706' }}/>}
               </div>
             </button>
           )
