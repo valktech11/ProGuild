@@ -44,6 +44,10 @@ export async function GET(req: NextRequest) {
     .maybeSingle()
 
   if (proErr) {
+    // console.error survives Vercel Hobby log filter (console.log is stripped).
+    // Previously this 500'd silently — the Supabase error was swallowed, making
+    // cold-start 500s (paused DB, pool exhaustion, schema issues) undiagnosable.
+    console.error('[auth/me] pros lookup failed', proErr)
     return NextResponse.json({ error: 'Lookup failed' }, { status: 500 })
   }
 
