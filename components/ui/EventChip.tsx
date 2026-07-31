@@ -1,5 +1,6 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { theme, T } from '@/lib/tokens'
 import { eventStyle, ICON_PATH } from '@/lib/design'
 import { capName, fmtCurrency } from '@/lib/utils'
@@ -89,24 +90,47 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
   // ── micro — month grid cell ───────────────────────────────────────────────
   if (size === 'micro') {
     const [tip, setTip] = useState(false)
+    const [pos, setPos] = useState({ x: 0, y: 0 })
+    const chipRef = useRef<HTMLDivElement>(null)
+    // Recalculate portal position when tip becomes visible
+    useEffect(() => {
+      if (tip && chipRef.current) {
+        const r = chipRef.current.getBoundingClientRect()
+        setPos({ x: r.left, y: r.bottom + window.scrollY })
+      }
+    }, [tip])
+    const tooltipContent = (
+      <div style={{
+        position: 'absolute', top: pos.y + 6, left: Math.min(pos.x, window.innerWidth - 230),
+        zIndex: 9999, pointerEvents: 'none',
+        background: '#1E293B', borderRadius: 8, padding: '8px 11px',
+        minWidth: 160, maxWidth: 220,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
+      }}>
+        <div style={{ position: 'absolute', bottom: '100%', left: 14, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '5px solid #1E293B' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: es.border, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 800, color: es.border, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{typeLabel}</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#F1F5F9', marginBottom: 2 }}>{capName(ev.contact_name)}</div>
+        {tooltipDate && <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: ev.quoted_amount ? 4 : 0 }}>{tooltipDate}</div>}
+        {ev.quoted_amount && ev.quoted_amount > 0
+          ? <div style={{ fontSize: 13, fontWeight: 700, color: '#34D399', marginTop: 2 }}>${Number(ev.quoted_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          : null}
+      </div>
+    )
     return (
       <div style={{ position: 'relative', display: 'block' }}>
-        <div
+        <div ref={chipRef}
           onClick={e => { e.stopPropagation(); onClick?.() }}
           onMouseEnter={() => setTip(true)}
           onMouseLeave={() => setTip(false)}
           style={{
-            fontSize: 11, fontWeight: 700,
-            padding: '2px 5px',
-            borderRadius: 4,
-            background: es.bg,
-            borderLeft: `2px solid ${es.border}`,
-            color: es.text,
+            fontSize: 11, fontWeight: 700, padding: '2px 5px', borderRadius: 4,
+            background: es.bg, borderLeft: `2px solid ${es.border}`, color: es.text,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             opacity: tip ? Math.min(1, es.opacity + 0.2) : es.opacity,
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 3,
-            transition: 'opacity 0.1s',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, transition: 'opacity 0.1s',
           }}>
           <Svg path={iconPath} size={8} color={es.border} sw={2.5} />
           {capName(ev.contact_name)}
@@ -114,46 +138,7 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
             {isInspection ? '· Diag' : isFollowup ? '· FU' : ''}
           </span>
         </div>
-        {tip && (
-          <div style={{
-            position: 'absolute', bottom: '100%', left: 0, zIndex: 50,
-            marginBottom: 5, pointerEvents: 'none',
-            background: '#1E293B', borderRadius: 8, padding: '8px 11px',
-            minWidth: 160, maxWidth: 220,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-          }}>
-            {/* Event type */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: es.border, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 800, color: es.border, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {typeLabel}
-              </span>
-            </div>
-            {/* Name */}
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#F1F5F9', marginBottom: 2 }}>
-              {capName(ev.contact_name)}
-            </div>
-            {/* Date */}
-            {tooltipDate && (
-              <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: ev.quoted_amount ? 4 : 0 }}>
-                {tooltipDate}
-              </div>
-            )}
-            {/* Quote amount */}
-            {ev.quoted_amount && ev.quoted_amount > 0 ? (
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#34D399', marginTop: 2 }}>
-                ${Number(ev.quoted_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            ) : null}
-            {/* Arrow */}
-            <div style={{
-              position: 'absolute', top: '100%', left: 14,
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderTop: '5px solid #1E293B',
-            }} />
-          </div>
-        )}
+        {tip && typeof document !== 'undefined' && createPortal(tooltipContent, document.body)}
       </div>
     )
   }
