@@ -186,7 +186,7 @@ function RecordPaymentModal({ invoice, paidMs, onRecord, onClose, t }: {
             {err && <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: C.red }}>{err}</div>}
           </div>
           {/* Method + Date row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                 letterSpacing: '0.08em', color: C.muted, marginBottom: 6 }}>Method</div>
@@ -411,7 +411,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           {/* Two-column layout */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 20, alignItems: 'start' }}>
 
             {/* ── LEFT ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
