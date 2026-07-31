@@ -358,8 +358,8 @@ function MobileMonthGrid({ selectedDate, events, today0, onSelect, dk, onTeal = 
           const hasEvents  = hasJob||hasInsp||hasFU||hasOverdue
           const isDatePast = d < today0 && !isTod
           const dateOpacity = isDatePast ? 0.3 : 1
-          const selBg      = isSel?'rgba(255,255,255,0.92)':isTod?(onTeal?'rgba(255,255,255,0.18)':t.calColToday):'transparent'
-          const numColor   = isSel?(onTeal?'#0F766E':'white'):isTod?'#0F766E':d.getDay()===0?(onTeal?`rgba(252,165,165,${dateOpacity})`:'#DC2626'):(onTeal?`rgba(255,255,255,${dateOpacity})`:dk?'#F1F5F9':'#111827')
+          const selBg      = isSel?(onTeal?'rgba(255,255,255,0.92)':'#0F766E'):isTod?(onTeal?'rgba(255,255,255,0.18)':t.calColToday):'transparent'
+          const numColor   = isSel?'white':isTod?'#0F766E':d.getDay()===0?(onTeal?`rgba(252,165,165,${dateOpacity})`:'#DC2626'):(onTeal?`rgba(255,255,255,${dateOpacity})`:dk?'#F1F5F9':'#111827')
           return (
             <button key={day} onClick={() => onSelect(d)}
               style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1, padding:'5px 2px', borderRadius:8, border:'none', cursor:'pointer', background:selBg, minHeight:42 }}>
