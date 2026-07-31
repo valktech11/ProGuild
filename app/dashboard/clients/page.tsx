@@ -7,6 +7,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { initials, avatarColor, timeAgo, fmtCurrency } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { parseFormattedAddress } from '@/lib/address'
 import { apiFetch } from '@/lib/api-fetch'
 
 function TAG_COLORS(dk: boolean): Record<string, { bg: string; text: string }> {
@@ -316,13 +317,13 @@ function AddClientModal({ dk, proId, onClose, onSaved }: AddClientModalProps) {
   // Places autocomplete — hook attaches immediately because input is in DOM on mount
   const streetRef = useRef<HTMLInputElement>(null)
   usePlacesAutocomplete(streetRef, (formatted: string) => {
-    const zipMatch   = formatted.match(/\b(\d{5})\b/)
-    const stateMatch = formatted.match(/,\s*([A-Z]{2})\s+\d{5}/)
-    const parts      = formatted.replace(', USA', '').split(', ')
-    if (zipMatch)   setZip(zipMatch[1])
-    if (stateMatch) setState(stateMatch[1])
-    if (parts.length >= 3) setCity(parts[parts.length - 3] || '')
-    if (parts.length >= 1) setStreet(parts[0] || '')
+    // Canonical parse — see lib/address.ts. Do NOT hand-index the parts array:
+    // that is how the street address ended up written into contact_city.
+    const a = parseFormattedAddress(formatted)
+    if (a.zip)    setZip(a.zip)
+    if (a.state)  setState(a.state)
+    if (a.city)   setCity(a.city)
+    if (a.street) setStreet(a.street)
   })
 
   function toggleTag(tag: string) {

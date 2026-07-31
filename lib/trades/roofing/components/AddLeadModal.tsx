@@ -7,6 +7,7 @@ import { theme } from '@/lib/tokens'
 import { useState, useRef } from 'react'
 import type { ReactElement } from 'react'
 import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { parseFormattedAddress } from '@/lib/address'
 import { apiFetch } from '@/lib/api-fetch'
 import { LEAD_SOURCES } from '../leadSources'
 
@@ -91,17 +92,13 @@ export default function RoofingAddLeadModal({ proId, tradeSlug, onClose, onAdded
   // Autocomplete on street — parses result into street/city/state/zip
   const streetRef = useRef<HTMLInputElement>(null)
   usePlacesAutocomplete(streetRef, (formatted: string) => {
-    // formatted: "3919 Highgate Dr, Tampa, FL 33614, USA"
-    const parts = formatted.replace(', USA', '').split(', ')
-    // Last part is zip+country or just zip, second-last is state, third-last is city
-    const zipMatch = formatted.match(/\b(\d{5})\b/)
-    const stateMatch = formatted.match(/,\s*([A-Z]{2})\s+\d{5}/)
-    if (zipMatch) setZip(zipMatch[1])
-    if (stateMatch) setAddrState(stateMatch[1])
-    // City is typically the part before state
-    if (parts.length >= 3) setCity(parts[parts.length - 3] || '')
-    // Street is everything before city
-    if (parts.length >= 1) setStreet(parts[0] || '')
+    // Canonical parse — see lib/address.ts. Do NOT hand-index the parts array:
+    // that is how the street address ended up written into contact_city.
+    const a = parseFormattedAddress(formatted)
+    if (a.zip)    setZip(a.zip)
+    if (a.state)  setAddrState(a.state)
+    if (a.city)   setCity(a.city)
+    if (a.street) setStreet(a.street)
   })
 
   // Reset scroll to top whenever modal mounts
