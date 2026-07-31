@@ -504,7 +504,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 {/* Line items */}
                 <div style={{ padding: '0 28px' }}>
                   {/* Header */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 88px 88px',
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 52px 76px 76px',
                     gap: 12, padding: '12px 0', borderBottom: `1px solid ${t.divider}` }}>
                     {['Description', 'Qty', 'Unit Price', 'Amount'].map((h, i) => (
                       <div key={h} style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
@@ -515,7 +515,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                     ))}
                   </div>
                   {(invoice.items ?? []).map((item, i) => (
-                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 72px 88px 88px',
+                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 52px 76px 76px',
                       gap: 12, padding: '14px 0',
                       borderBottom: i < invoice.items.length - 1 ? `1px solid ${t.divider}` : 'none' }}>
                       <div>
