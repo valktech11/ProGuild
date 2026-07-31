@@ -162,10 +162,13 @@ export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, i
         }}
         onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 3px 8px rgba(0,0,0,0.12)' }}
         onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)' }}>
-        {/* Row 1: icon + time (if timed job) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        {/* Row 1: icon + type label + time */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Svg path={iconPath} size={10} color={es.border} sw={2.2} />
-          {timeLabel && <span style={{ fontSize: 11, fontWeight: 700, color: es.border }}>{timeLabel}</span>}
+          <span style={{ fontSize: 10, fontWeight: 800, color: es.border, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {typeLabel}
+          </span>
+          {timeLabel && <span style={{ fontSize: 11, fontWeight: 700, color: es.border, marginLeft: 2 }}>{timeLabel}</span>}
         </div>
         {/* Row 2: name */}
         <div style={{ fontSize: 13, fontWeight: 700, color: es.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
