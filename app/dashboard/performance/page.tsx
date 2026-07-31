@@ -110,18 +110,18 @@ export default function PerformancePage() {
                   {data.funnel.map((f, i) => {
                     const isBiggest = i === data.biggestDropIndex
                     return (
-                      <div key={f.stage} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 150, flexShrink: 0, fontSize: 13, fontWeight: isBiggest ? 700 : 600, color: t.textPri }}>{f.stage}</div>
-                        <div style={{ flex: 1, height: 22, borderRadius: 6, background: dk ? '#1E293B' : '#F1F5F9', overflow: 'hidden', position: 'relative' }}>
+                      <div key={f.stage} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ minWidth: 120, width: 120, flexShrink: 0, fontSize: 13, fontWeight: isBiggest ? 700 : 600, color: t.textPri }}>{f.stage}</div>
+                        <div style={{ flex: 1, height: 20, borderRadius: 6, background: dk ? '#1E293B' : '#F1F5F9', overflow: 'hidden', position: 'relative', minWidth: 40 }}>
                           <div style={{ height: '100%', width: `${f.conversion}%`, background: '#0F766E', borderRadius: 6, minWidth: f.count > 0 ? 2 : 0, transition: 'width .4s' }} />
                         </div>
-                        <div style={{ width: 96, textAlign: 'right', flexShrink: 0, fontSize: 13 }}>
+                        <div style={{ minWidth: 70, textAlign: 'right', flexShrink: 0, fontSize: 12 }}>
                           <span style={{ fontWeight: 700, color: t.textPri }}>{f.count}</span>
                           <span style={{ color: t.textMuted }}> · {f.conversion}%</span>
                         </div>
-                        <div style={{ width: 124, textAlign: 'right', flexShrink: 0, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                        <div style={{ minWidth: 52, textAlign: 'right', flexShrink: 0, fontSize: 12, fontWeight: 600 }}>
                           {isBiggest && (
-                            <span style={{ fontSize: 10.5, fontWeight: 700, color: '#C2410C', background: dk ? 'rgba(234,88,12,0.18)' : '#FFF7ED', border: `1px solid ${dk ? '#7C2D12' : '#FED7AA'}`, borderRadius: 6, padding: '1px 6px' }}>Biggest drop</span>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: '#C2410C', background: dk ? 'rgba(234,88,12,0.18)' : '#FFF7ED', border: `1px solid ${dk ? '#7C2D12' : '#FED7AA'}`, borderRadius: 4, padding: '1px 4px', marginBottom: 2, whiteSpace: 'nowrap' as const }}>↓ most</div>
                           )}
                           <span style={{ color: f.drop != null && isBiggest ? '#C2410C' : (f.drop != null && f.drop >= 50 ? '#DC2626' : t.textSubtle) }}>
                             {f.drop != null ? `−${f.drop}%` : ''}
@@ -140,24 +140,25 @@ export default function PerformancePage() {
                   <div style={{ color: t.textMuted, fontSize: 13 }}>No leads yet.</div>
                 ) : (
                   <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.2fr', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: t.textSubtle, padding: '6px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                    <div style={{ minWidth: 320 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 60px 60px 70px 70px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: t.textSubtle, padding: '6px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
                       <div>Source</div>
                       <div style={{ textAlign: 'right' }}>Leads</div>
-                      <div style={{ textAlign: 'right' }}>Won</div>
-                      <div style={{ textAlign: 'right' }}>Win %</div>
+                      <div style={{ textAlign: 'right' }}>Win%</div>
                       <div style={{ textAlign: 'right' }}>Revenue</div>
-                      <div style={{ textAlign: 'right' }}>$ / Lead</div>
+                      <div style={{ textAlign: 'right' }}>$/Lead</div>
                     </div>
                     {data.bySource.map(s => (
-                      <div key={s.source} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.2fr', fontSize: 13, color: t.textPri, padding: '10px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
-                        <div style={{ fontWeight: 600 }}>{s.source}</div>
+                      <div key={s.source} style={{ display: 'grid', gridTemplateColumns: '2fr 60px 60px 70px 70px', fontSize: 13, color: t.textPri, padding: '10px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
+                        <div style={{ fontWeight: 600, paddingRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.source}</div>
                         <div style={{ textAlign: 'right' }}>{s.leads}</div>
-                        <div style={{ textAlign: 'right' }}>{s.won}</div>
                         <div style={{ textAlign: 'right', color: s.winRate >= 50 ? '#059669' : t.textMuted }}>{s.winRate}%</div>
                         <div style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(s.revenue)}</div>
                         <div style={{ textAlign: 'right', color: t.textMuted }}>{s.perLead > 0 ? fmt(s.perLead) : '—'}</div>
                       </div>
                     ))}
+                    </div></div>
                   </div>
                 )}
               </div>
