@@ -327,6 +327,34 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     setShowTemplatePicker(false)
   }
 
+  // ── Common HVAC services — quick-add chips ─────────────────────────────────
+  // HVAC estimates start empty (no calculator like roofing), so a tech types
+  // every line from scratch. These chips append a named line at qty 1, price 0
+  // for the tech to fill in. Mirrors the mobile app's COMMON SERVICES row.
+  const HVAC_PRESETS = [
+    'Diagnostic fee', 'Service call', 'Refrigerant recharge (R-410A)',
+    'Capacitor replacement', 'Contactor replacement', 'Condenser fan motor',
+    'Blower motor', 'Thermostat replacement', 'Coil cleaning',
+    'Duct cleaning', 'Filter replacement', 'Annual maintenance',
+    'Labour (per hour)',
+  ]
+
+  const addPresetItem = (name: string) => {
+    if (!estimate) return
+    const newItem = {
+      id: crypto.randomUUID(),
+      name,
+      description: '',
+      qty: 1,
+      unit_price: 0,
+      amount: 0,
+    }
+    const merged     = [...estimate.items, newItem as any]
+    const subtotal   = merged.reduce((s: number, i: any) => s + i.qty * i.unit_price, 0)
+    const tax_amount = subtotal * (estimate.tax_rate / 100)
+    setEstimate(prev => prev ? { ...prev, items: merged, subtotal, tax_amount, total: subtotal + tax_amount } : prev)
+  }
+
   const saveTemplate = async () => {
     if (!estimate || !templateName.trim()) return
     setSavingTemplate(true)
@@ -927,6 +955,28 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                     <div style={{ padding: 24 }}>
                       {activeTab === 'items' ? (
                         <>
+                          {/* Common HVAC services — quick-add chips. HVAC estimates
+                              start empty (no roofing calculator), so give the tech
+                              one-click lines instead of typing every name. */}
+                          {!isRoofing(getTradeConfig(estTradeSlug)) && !isLocked(estimate.status) && (
+                            <div style={{ marginBottom: 18 }}>
+                              <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.05em', color: t.textMuted, marginBottom: 8 }}>
+                                COMMON SERVICES
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                                {HVAC_PRESETS.map(name => (
+                                  <button key={name} onClick={() => addPresetItem(name)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5, fontWeight: 500, padding: '6px 11px', borderRadius: 16, border: '1px solid ' + t.btnBorder, background: 'transparent', color: t.textPri, cursor: 'pointer' }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = t.btnBorder; e.currentTarget.style.color = t.textPri }}
+                                  >
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    {name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           {estimate.revision_of && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: dk ? 'rgba(13,148,136,0.10)' : '#F0FDFA', border: '1px solid #5EEAD4', marginBottom: 16 }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.5-5.7L3 8"/></svg>
