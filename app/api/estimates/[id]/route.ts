@@ -179,10 +179,13 @@ export async function PATCH(
   const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
 
   // Ownership check: confirm the estimate belongs to this pro before any write.
+  // Also fetch trade_slug here so milestone computation is trade-aware throughout
+  // the handler — estimateData is declared later and can't be used at line ~301.
   const { data: ownerRow, error: ownerErr } = await sb
-    .from('estimates').select('pro_id').eq('id', id).single()
+    .from('estimates').select('pro_id, trade_slug').eq('id', id).single()
   if (ownerErr || !ownerRow) return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
   if (ownerRow.pro_id !== proId) return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+  const patchTradeSlug = (ownerRow as any).trade_slug as string | null
 
   const {
     items, subtotal, discount, discount_type, tax_rate, tax_amount, total,
@@ -298,7 +301,7 @@ export async function PATCH(
               subtotal_cents: toCents(Number(t.subtotal) || 0),
             })),
           }
-          const freshMs = computeMilestonesForTrade(newTotal, estimateData?.trade_slug)
+          const freshMs = computeMilestonesForTrade(newTotal, patchTradeSlug)
           tierMilestones = freshMs
           computed.payment_milestones = freshMs
         }
@@ -388,7 +391,7 @@ export async function PATCH(
       // upsert above did not run and this is the only roofing write. When both
       // do run (standard estimate carrying roofing fields — rare), the earlier
       // upsert wrote structure and this writes the item-derived milestones.
-      const freshMs = computeMilestonesForTrade(derivedTotal, estimateData?.trade_slug)
+      const freshMs = computeMilestonesForTrade(derivedTotal, patchTradeSlug)
       await sb.from('roofing_estimate_data')
         .upsert({ estimate_id: id, payment_milestones: freshMs }, { onConflict: 'estimate_id' })
       computed.payment_milestones = freshMs
