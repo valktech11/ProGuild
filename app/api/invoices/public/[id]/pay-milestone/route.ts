@@ -75,11 +75,21 @@ export async function POST(
       const anchors  = getStageAnchors(proRow?.trade_slug)
       const terminal = [anchors.won, anchors.lost ?? 'lost', 'unqualified']
       if (!terminal.includes(leadRow.lead_status)) {
+        const wonAt = new Date().toISOString()
         await sb.from('leads').update({
           lead_status:            anchors.won,
-          lead_status_changed_at: new Date().toISOString(),
-          updated_at:             new Date().toISOString(),
+          lead_status_changed_at: wonAt,
+          updated_at:             wonAt,
         }).eq('id', inv.lead_id)
+        // Log the transition — see record-payment route for the same fix.
+        await sb.from('pipeline_events').insert({
+          lead_id:    inv.lead_id,
+          pro_id:     leadRow.pro_id ?? inv.pro_id,
+          event_type: 'stage_changed',
+          event_data: { from: leadRow.lead_status, to: anchors.won, auto: 'invoice_paid' },
+          actor_type: 'system',
+          created_at: wonAt,
+        })
       }
       // A won job must have a customer record.
       await resolveClientForLead(sb, inv.lead_id, leadRow.pro_id ?? inv.pro_id)

@@ -106,9 +106,19 @@ export async function PATCH(
       // Only advance if not already won/lost/unqualified
       const terminal = [anchors.won, anchors.lost ?? 'lost', 'unqualified']
       if (!terminal.includes(leadRow.lead_status)) {
+        const wonAt = new Date().toISOString()
         await sb.from('leads')
-          .update({ lead_status: anchors.won, lead_status_changed_at: new Date().toISOString() })
+          .update({ lead_status: anchors.won, lead_status_changed_at: wonAt })
           .eq('id', data.lead_id)
+        // Log the transition — see record-payment route for the same fix.
+        await sb.from('pipeline_events').insert({
+          lead_id:    data.lead_id,
+          pro_id:     leadRow.pro_id,
+          event_type: 'stage_changed',
+          event_data: { from: leadRow.lead_status, to: anchors.won, auto: 'invoice_paid' },
+          actor_type: 'system',
+          created_at: wonAt,
+        })
       }
       // A won job must have a customer record.
       await resolveClientForLead(sb, data.lead_id, leadRow.pro_id)

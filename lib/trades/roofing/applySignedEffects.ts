@@ -105,14 +105,28 @@ export async function applyEstimateSignedEffects(
   if (est.lead_id) {
     const { data: leadRow } = await sb
       .from('leads')
-      .select('trade_slug')
+      .select('trade_slug, lead_status')
       .eq('id', est.lead_id)
       .maybeSingle()
     const anchors = getStageAnchors(leadRow?.trade_slug ?? null)
     const signedStage = (anchors as any).depositTrigger ?? 'proposal_signed'
+    const signedAt = new Date().toISOString()
     await sb.from('leads')
-      .update({ lead_status: signedStage, updated_at: new Date().toISOString(), lead_status_changed_at: new Date().toISOString() })
+      .update({ lead_status: signedStage, updated_at: signedAt, lead_status_changed_at: signedAt })
       .eq('id', est.lead_id)
+    // Log the transition. Without this the activity feed showed "Proposal
+    // approved" but never "Moved to Job Scheduled" — the stage looked like it
+    // changed on its own.
+    if (leadRow?.lead_status && leadRow.lead_status !== signedStage) {
+      await sb.from('pipeline_events').insert({
+        lead_id:    est.lead_id,
+        pro_id:     est.pro_id,
+        event_type: 'stage_changed',
+        event_data: { from: leadRow.lead_status, to: signedStage, auto: 'estimate_signed' },
+        actor_type: 'system',
+        created_at: signedAt,
+      })
+    }
   }
 
   // ── Auto-create draft invoice from approved estimate ─────────────────────
