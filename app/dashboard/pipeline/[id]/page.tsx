@@ -759,12 +759,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       }
     }
     // Merge pipeline_events (stage transitions from DB)
-    const stageLabels: Record<string,string> = {
-      lead_in:'Lead In', inspection_scheduled:'Inspection Scheduled',
-      insurance_approved:'Insurance Approved', proposal_sent:'Proposal Sent',
-      proposal_signed:'Proposal Signed', scheduled:'Scheduled',
-      in_progress:'In Progress', job_won:'Job Won', lost:'Lost',
-    }
+    // Build stage label map from the trade's actual stages — not a hardcoded
+    // roofing map. This ensures HVAC shows "On the Job" not "In Progress",
+    // "New Call" not a raw key, etc. Falls back to the raw key for unknown stages.
+    const allTradeStages = getTradeConfig(session?.trade_slug).stages as { key: string; label: string }[]
+    const stageLabels: Record<string,string> = Object.fromEntries(
+      allTradeStages.map(s => [s.key, s.label])
+    )
     // The insurance auto-approve writes BOTH a stage_changed→insurance_approved AND an
     // insurance_auto_approved event at (near) the same instant. Collapse that pair to the
     // single richer "Pipeline advanced…" row. (Display-side only — stored rows untouched.)
