@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
 import { requirePro } from '@/lib/pro-auth'
 import { getStageAnchors } from '@/lib/trades/_registry'
-import { computeMilestones } from '@/lib/estimates/milestones'
+import { computeMilestones, computeMilestonesForTrade } from '@/lib/estimates/milestones'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
 import { CALCULATOR_LINE_NAMES, LABOUR_LINE_NAME } from '@/lib/roofing/calculator'
@@ -140,7 +140,7 @@ export async function GET(
       // Milestones are ALWAYS computed from the authoritative total (single source
       // of truth: lib/estimates/milestones). Never return the stored value — it can
       // go stale when the total changes via a path that didn't resave milestones.
-      payment_milestones: computeMilestones(derivedTotal),
+      payment_milestones: computeMilestonesForTrade(derivedTotal, tradeSlugResolved),
       // Property address — roofing_estimate_data → lead (estimates column dropped)
       property_address:   lead.property_address ?? roofing.property_address ?? null,  // lead is golden source
       // Measurements — roofing_estimate_data first, then roofing_job_data (live job data)
@@ -298,7 +298,7 @@ export async function PATCH(
               subtotal_cents: toCents(Number(t.subtotal) || 0),
             })),
           }
-          const freshMs = computeMilestones(newTotal)
+          const freshMs = computeMilestonesForTrade(newTotal, estimateData?.trade_slug)
           tierMilestones = freshMs
           computed.payment_milestones = freshMs
         }
@@ -388,7 +388,7 @@ export async function PATCH(
       // upsert above did not run and this is the only roofing write. When both
       // do run (standard estimate carrying roofing fields — rare), the earlier
       // upsert wrote structure and this writes the item-derived milestones.
-      const freshMs = computeMilestones(derivedTotal)
+      const freshMs = computeMilestonesForTrade(derivedTotal, estimateData?.trade_slug)
       await sb.from('roofing_estimate_data')
         .upsert({ estimate_id: id, payment_milestones: freshMs }, { onConflict: 'estimate_id' })
       computed.payment_milestones = freshMs
