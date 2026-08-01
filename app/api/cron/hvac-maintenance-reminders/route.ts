@@ -134,6 +134,7 @@ export async function GET(req: NextRequest) {
         lead_source:      'Manual',
         is_manual:        true,
         lead_status:      'new_call',    // HVAC initial stage
+        trade_slug:       'hvac-technician', // required — stage route validates against lead.trade_slug
       })
       .select('id')
       .single()
