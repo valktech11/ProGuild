@@ -55,12 +55,12 @@ export default function EquipmentDetailPage() {
   const [err,     setErr]     = useState('')
 
   useEffect(() => {
-    if (!session?.pro_id || !id) return
-    apiFetch(`/api/hvac/equipment/${id}/timeline?pro_id=${session.pro_id}`)
+    if (!session?.id || !id) return
+    apiFetch(`/api/hvac/equipment/${id}/timeline?pro_id=${session.id}`)
       .then(d => setData(d))
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false))
-  }, [session?.pro_id, id])
+  }, [session?.id, id])
 
   const card: React.CSSProperties = {
     background: t.cardBg, border: `1px solid ${t.cardBorder}`,
