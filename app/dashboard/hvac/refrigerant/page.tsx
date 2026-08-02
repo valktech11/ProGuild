@@ -11,6 +11,7 @@ import { apiFetch } from '@/lib/api-fetch'
 const REFRIGERANT_TYPES = ['R-22','R-410A','R-32','R-454B','R-407C','Other']
 
 const EMPTY_LOG = {
+  equipment_id: '',
   refrigerant_type: 'R-410A',
   amount_added_lbs: '',
   amount_recovered_lbs: '',
@@ -32,6 +33,7 @@ export default function RefrigerantLogPage() {
   }
 
   const [logs,    setLogs]    = useState<any[]>([])
+  const [equipment, setEquipment] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [form,    setForm]    = useState({ ...EMPTY_LOG })
@@ -41,10 +43,14 @@ export default function RefrigerantLogPage() {
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
-    apiFetch(`/api/hvac/refrigerant-log?pro_id=${session.id}`)
-      .then(r => r.json())
-      .then(d => { setLogs(d.logs || []); setLoading(false) })
-      .catch(() => setLoading(false))
+    Promise.all([
+      apiFetch(`/api/hvac/refrigerant-log?pro_id=${session.id}`).then(r => r.json()),
+      apiFetch(`/api/hvac/equipment?pro_id=${session.id}`).then(r => r.json()),
+    ]).then(([logData, eqData]) => {
+      setLogs(logData.logs || [])
+      setEquipment(eqData.equipment || [])
+      setLoading(false)
+    }).catch(() => setLoading(false))
   }, [session, router])
 
   async function saveLog() {
@@ -55,6 +61,7 @@ export default function RefrigerantLogPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pro_id: session.id,
+        equipment_id: form.equipment_id || null,
         refrigerant_type: form.refrigerant_type,
         amount_added_lbs: form.amount_added_lbs ? parseFloat(form.amount_added_lbs) : null,
         amount_recovered_lbs: form.amount_recovered_lbs ? parseFloat(form.amount_recovered_lbs) : null,
@@ -175,6 +182,20 @@ export default function RefrigerantLogPage() {
             </div>
 
             <div style={{ flex:1, overflowY:'auto', padding:'20px', display:'flex', flexDirection:'column', gap:14 }}>
+              {equipment.length > 0 && (
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color: t.textMuted, display:'block', marginBottom:4 }}>Equipment Unit (optional)</label>
+                  <select value={form.equipment_id} onChange={e => setForm(p => ({ ...p, equipment_id: e.target.value }))}
+                    style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, fontSize:13 }}>
+                    <option value=''>— Not linked to a unit —</option>
+                    {equipment.map((eq: any) => (
+                      <option key={eq.id} value={eq.id}>
+                        {[eq.brand, eq.model_number].filter(Boolean).join(' ') || eq.equipment_type || 'Unit'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color: t.textMuted, display:'block', marginBottom:4 }}>Refrigerant Type</label>
                 <select value={form.refrigerant_type} onChange={e => setForm(p => ({ ...p, refrigerant_type: e.target.value }))}
