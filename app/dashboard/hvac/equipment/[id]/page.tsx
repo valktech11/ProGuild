@@ -77,7 +77,20 @@ export default function EquipmentDetailPage() {
 
   if (err || !data) return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
-      <div style={{ padding: 40, color: t.textMuted }}>Equipment not found.</div>
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: t.textPri, marginBottom: 8 }}>
+          Could not load equipment record
+        </div>
+        <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>
+          {err || 'Equipment not found'}
+        </div>
+        <button onClick={() => window.location.reload()}
+          style={{ padding: '10px 20px', borderRadius: 10, border: 'none',
+            background: '#0F766E', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          Retry
+        </button>
+      </div>
     </DashboardShell>
   )
 
