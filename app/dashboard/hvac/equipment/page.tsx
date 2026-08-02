@@ -173,12 +173,12 @@ export default function EquipmentRecordsPage() {
                 <div key={eq.id} style={{
                   borderTop: i > 0 ? `1px solid ${t.divider}` : 'none',
                   padding: '18px 20px',
-                  cursor: client ? 'pointer' : 'default',
+                  cursor: 'pointer',
                   transition: 'background 0.12s',
                   display: 'flex', alignItems: 'center', gap: 16,
                 }}
-                  onClick={() => client && router.push(`/dashboard/clients/${eq.client_id}`)}
-                  onMouseEnter={e => { if (client) e.currentTarget.style.background = t.tableRowHover }}
+                  onClick={() => router.push(`/dashboard/hvac/equipment/${eq.id}`)}
+                  onMouseEnter={e => { e.currentTarget.style.background = t.tableRowHover }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                 >
                   {/* Icon */}
