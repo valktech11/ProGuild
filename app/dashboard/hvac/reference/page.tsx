@@ -84,19 +84,19 @@ function ReferenceInner() {
   }
 
   const card: React.CSSProperties = {
-    background: t.cardBg, border: `1px solid ${t.border}`, borderRadius: 14, padding: 16,
+    background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16,
   }
   const label: React.CSSProperties = {
     fontSize: 10.5, fontWeight: 800, letterSpacing: '0.05em', color: t.textMuted,
   }
   const input: React.CSSProperties = {
     width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 10,
-    border: `1px solid ${t.border}`, background: t.pageBg, color: t.textPri, outline: 'none',
+    border: `1px solid ${t.inputBorder}`, background: t.pageBg, color: t.textPri, outline: 'none',
   }
   const chip = (on: boolean): React.CSSProperties => ({
     padding: '8px 14px', fontSize: 13, fontWeight: 700, borderRadius: 10, cursor: 'pointer',
     background: on ? '#0F766E' : t.cardBg, color: on ? '#fff' : t.textPri,
-    border: `1px solid ${on ? '#0F766E' : t.border}`,
+    border: `1px solid ${on ? '#0F766E' : t.cardBorder}`,
   })
   const tabBtn = (on: boolean): React.CSSProperties => ({
     flex: 1, padding: '9px 0', fontSize: 13, fontWeight: 700, borderRadius: 9, cursor: 'pointer',
@@ -119,7 +119,7 @@ function ReferenceInner() {
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 4, padding: 4, marginBottom: 18,
-            background: t.cardBg, border: `1px solid ${t.border}`, borderRadius: 12 }}>
+            background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12 }}>
             <button style={tabBtn(tab === 'pt')}      onClick={() => setTab('pt')}>P–T Chart</button>
             <button style={tabBtn(tab === 'codes')}   onClick={() => setTab('codes')}>Fault Codes</button>
             <button style={tabBtn(tab === 'manuals')} onClick={() => setTab('manuals')}>Manuals</button>
@@ -162,7 +162,7 @@ function ReferenceInner() {
                   {CHARGE_TARGETS.map((c, i) => (
                     <div key={c.system} style={{ display: 'flex', alignItems: 'flex-start', gap: 12,
                       paddingTop: i === 0 ? 0 : 14, marginTop: i === 0 ? 0 : 14,
-                      borderTop: i === 0 ? 'none' : `1px solid ${t.border}` }}>
+                      borderTop: i === 0 ? 'none' : `1px solid ${t.divider}` }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13.5, fontWeight: 700, color: t.textPri }}>{c.system}</div>
                         <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{c.detail}</div>
@@ -176,13 +176,13 @@ function ReferenceInner() {
               <div>
                 <div style={{ ...label, marginBottom: 8 }}>{r.label} SATURATION TABLE</div>
                 <div style={card}>
-                  <div style={{ display: 'flex', paddingBottom: 10, borderBottom: `1px solid ${t.border}` }}>
+                  <div style={{ display: 'flex', paddingBottom: 10, borderBottom: `1px solid ${t.cardBorder}` }}>
                     <div style={{ flex: 1, fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: t.textMuted }}>TEMP °F</div>
                     <div style={{ flex: 1, textAlign: 'right', fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: t.textMuted }}>PSIG</div>
                   </div>
                   {temps.map((tp, i) => (
                     <div key={tp} style={{ display: 'flex', padding: '9px 0',
-                      borderTop: i === 0 ? 'none' : `1px solid ${t.border}55` }}>
+                      borderTop: i === 0 ? 'none' : `1px solid ${t.divider}` }}>
                       <div style={{ flex: 1, fontSize: 13.5, color: t.textPri }}>{tp}</div>
                       <div style={{ flex: 1, textAlign: 'right', fontSize: 13.5, fontWeight: 700, color: t.textPri }}>
                         {r.pt[tp].toFixed(1)}
@@ -257,7 +257,7 @@ function ReferenceInner() {
                   disabled={!mBrand.trim() && !mModel.trim()}
                   style={{ width: '100%', marginTop: 16, padding: '13px 0', fontSize: 14.5, fontWeight: 700,
                     borderRadius: 12, border: 'none', cursor: (mBrand.trim() || mModel.trim()) ? 'pointer' : 'not-allowed',
-                    background: (mBrand.trim() || mModel.trim()) ? '#0F766E' : t.border,
+                    background: (mBrand.trim() || mModel.trim()) ? '#0F766E' : t.cardBorder,
                     color: (mBrand.trim() || mModel.trim()) ? '#fff' : t.textMuted }}>
                   Search for manual
                 </button>
