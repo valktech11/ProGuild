@@ -202,7 +202,7 @@ export default function EquipmentDetailPage() {
               const color = EVENT_COLORS[ev.type] ?? '#64748B'
               const isLead = ev.type === 'service' && ev.meta?.lead_id
               return (
-                <div key={ev.id} style={{ display: 'flex', gap: 16, marginBottom: 14, position: 'relative', zIndex: 1 }}
+                <div key={ev.id}
                   onClick={() => isLead && router.push(`/dashboard/pipeline/${ev.meta.lead_id}`)}
                   style={{ display: 'flex', gap: 16, marginBottom: 14, position: 'relative', zIndex: 1, cursor: isLead ? 'pointer' : 'default' }}>
                   {/* Dot */}
