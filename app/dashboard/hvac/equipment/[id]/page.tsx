@@ -75,7 +75,7 @@ function EquipmentDetailInner() {
     </DashboardShell>
   )
 
-  if (err || !data) return (
+  if (err || !data || !data.equipment) return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{ padding: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>

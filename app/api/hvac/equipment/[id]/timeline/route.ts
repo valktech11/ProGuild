@@ -22,7 +22,10 @@ export async function GET(
     .eq('id', id)
     .eq('pro_id', proId)
     .single()
-  if (eqErr || !eq) return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
+  if (eqErr || !eq) {
+    console.error('[equipment/timeline] equipment fetch failed:', eqErr?.message, 'id:', id, 'pro:', proId)
+    return NextResponse.json({ error: eqErr?.message ?? 'Equipment not found' }, { status: 404 })
+  }
 
   // measurements query is fault-tolerant — the table may not exist yet in staging.
   const [refrigerantResult, measurementsResult, leadsResult] = await Promise.all([
