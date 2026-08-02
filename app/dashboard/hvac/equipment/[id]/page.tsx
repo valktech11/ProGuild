@@ -57,7 +57,11 @@ function EquipmentDetailInner() {
   useEffect(() => {
     if (!session?.id || !id) return
     apiFetch(`/api/hvac/equipment/${id}/timeline?pro_id=${session.id}`)
-      .then(d => setData(d))
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { setErr(d.error); return }
+        setData(d)
+      })
       .catch(e => setErr(e.message))
       .finally(() => setLoading(false))
   }, [session?.id, id])
