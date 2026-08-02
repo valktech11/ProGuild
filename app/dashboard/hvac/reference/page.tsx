@@ -120,7 +120,7 @@ function ReferenceInner() {
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 4, padding: 4, marginBottom: 18,
             background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 12 }}>
-            <button style={tabBtn(tab === 'pt')}      onClick={() => setTab('pt')}>P–T Chart</button>
+            <button style={tabBtn(tab === 'pt')}      onClick={() => setTab('pt')}>PT Chart</button>
             <button style={tabBtn(tab === 'codes')}   onClick={() => setTab('codes')}>Fault Codes</button>
             <button style={tabBtn(tab === 'manuals')} onClick={() => setTab('manuals')}>Manuals</button>
           </div>
