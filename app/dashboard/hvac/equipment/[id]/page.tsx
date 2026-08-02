@@ -228,27 +228,20 @@ function EquipmentDetailInner() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
                     {EVENT_ICONS[ev.type] ?? '●'}
                   </div>
-                  {/* Content */}
-                  <div style={{ flex: 1, ...card, marginBottom: 0, padding: '12px 14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri }}>{ev.title}</div>
-                      <div style={{ fontSize: 11.5, color: t.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>{fmtDate(ev.date)}</div>
+                  {ev.subtitle && (
+                    <div style={{ fontSize: 12.5, color: t.textMuted }}>{ev.subtitle}</div>
+                  )}
+                  {ev.type === 'service' && ev.meta?.quoted_amount && (
+                    <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, color: '#0F766E' }}>
+                      ${Number(ev.meta.quoted_amount).toLocaleString()}
                     </div>
-                    {ev.subtitle && (
-                      <div style={{ fontSize: 12.5, color: t.textMuted, marginTop: 3 }}>{ev.subtitle}</div>
-                    )}
-                    {ev.type === 'service' && ev.meta?.quoted_amount && (
-                      <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: '#0F766E' }}>
-                        ${Number(ev.meta.quoted_amount).toLocaleString()}
-                      </div>
-                    )}
-                    {ev.type === 'refrigerant' && ev.meta?.notes && (
-                      <div style={{ marginTop: 5, fontSize: 12, color: t.textMuted }}>{ev.meta.notes}</div>
-                    )}
-                    {isLead && (
-                      <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: '#0F766E' }}>View job →</div>
-                    )}
-                  </div>
+                  )}
+                  {ev.type === 'refrigerant' && ev.meta?.notes && (
+                    <div style={{ marginTop: 4, fontSize: 12, color: t.textMuted }}>{ev.meta.notes}</div>
+                  )}
+                  {isLead && (
+                    <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: '#0F766E' }}>View job →</div>
+                  )}
                 </div>
               )
             })}
