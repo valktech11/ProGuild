@@ -60,13 +60,14 @@ export async function GET(
     })
   }
 
+  const r1 = (v: any) => v == null ? null : Math.round(Number(v) * 10) / 10
   for (const m of measurements ?? []) {
     const parts: string[] = []
-    if (m.superheat_actual != null) parts.push(`SH ${m.superheat_actual}°F`)
-    if (m.subcool_actual != null)   parts.push(`SC ${m.subcool_actual}°F`)
-    if (m.suction_pressure != null) parts.push(`Suc ${m.suction_pressure} psig`)
+    if (m.superheat_actual != null) parts.push(`SH ${r1(m.superheat_actual)}°F`)
+    if (m.subcool_actual != null)   parts.push(`SC ${r1(m.subcool_actual)}°F`)
+    if (m.suction_pressure != null) parts.push(`Suc ${r1(m.suction_pressure)} psig`)
     if (m.static_pressure != null)  parts.push(`ESP ${m.static_pressure}" WC`)
-    if (m.delta_t != null)          parts.push(`ΔT ${m.delta_t}°F`)
+    if (m.delta_t != null)          parts.push(`ΔT ${r1(m.delta_t)}°F`)
     timeline.push({
       id: `meas-${m.id}`, type: 'measurement',
       date: m.measured_at,
