@@ -73,6 +73,12 @@ export const hvacConfig: HVACConfig = {
       ],
     },
     {
+      title: 'TOOLS',
+      items: [
+        { label: 'Field Reference', href: '/dashboard/hvac/reference', icon: '📖', description: 'P-T charts, fault codes, manuals' },
+      ],
+    },
+    {
       title: 'REPORTS',
       items: [
         { label: 'Performance', href: '/dashboard/performance', icon: '📈', description: 'Revenue and win rate', badge: 'pro' },

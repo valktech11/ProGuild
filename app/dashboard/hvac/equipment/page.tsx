@@ -194,6 +194,22 @@ export default function EquipmentRecordsPage() {
                     <div style={{ fontSize: 12.5, color: t.textSubtle, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {identity}
                     </div>
+                    {/* One-tap manual + fault codes — the payoff for storing
+                        brand and model_number on the equipment record. */}
+                    {(eq.brand || eq.model_number) && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          const qs = new URLSearchParams({
+                            brand: eq.brand || '', model: eq.model_number || '', tab: 'manuals',
+                          })
+                          router.push(`/dashboard/hvac/reference?${qs.toString()}`)
+                        }}
+                        style={{ marginTop: 6, padding: 0, border: 'none', background: 'transparent',
+                          cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#0F766E' }}>
+                        📖 Manual &amp; codes
+                      </button>
+                    )}
                   </div>
 
                   {/* Right column — service status, aligned and quiet */}
