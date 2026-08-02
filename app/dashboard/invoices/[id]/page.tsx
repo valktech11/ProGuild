@@ -583,7 +583,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {milestones.map((m, i) => {
                       const paidAmt   = Math.round(history.filter(p => p.milestone_name === m.name).reduce((s, p) => s + (Number(p.amount) || 0), 0) * 100) / 100
-                      const paid      = paidAmt >= m.amount - 0.005
+                      // A zero balance means every milestone is settled, however
+                      // the individual payments were tagged. Payments recorded as
+                      // "Other / partial payment" carry milestone_name 'Payment',
+                      // so name-matching alone leaves milestones showing unpaid on
+                      // a fully-paid invoice.
+                      const invoicePaidOff = (invoice.balance_due ?? 1) <= 0.005
+                      const paid      = invoicePaidOff || paidAmt >= m.amount - 0.005
                       const isPartial = !paid && paidAmt > 0
                       const remaining = Math.max(0, Math.round((m.amount - paidAmt) * 100) / 100)
                       return (
