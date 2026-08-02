@@ -18,7 +18,7 @@ export async function GET(
 
   const { data: eq, error: eqErr } = await sb
     .from('hvac_equipment')
-    .select('*, hvac_maintenance_reminders(id, due_date, status, scheduled_lead_id)')
+    .select('*, hvac_maintenance_reminders(id, due_date, status)')
     .eq('id', id)
     .eq('pro_id', proId)
     .single()
