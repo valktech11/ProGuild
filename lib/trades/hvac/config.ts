@@ -64,18 +64,13 @@ export const hvacConfig: HVACConfig = {
         { label: 'Equipment Records', href: '/dashboard/hvac/equipment',   icon: '🛠️', description: 'AC units, furnaces, heat pumps' },
         { label: 'Maintenance Plans', href: '/dashboard/hvac/maintenance', icon: '🗓️', description: 'Annual service reminders' },
         { label: 'Refrigerant Log',   href: '/dashboard/hvac/refrigerant', icon: '🧪', description: 'EPA 608 refrigerant tracking', badge: 'pro' },
+        { label: 'Field Reference',   href: '/dashboard/hvac/reference',   icon: '📖', description: 'P-T charts, fault codes, manuals' },
       ],
     },
     {
       title: 'COMPLIANCE',
       items: [
         { label: 'EPA Cert Tracker',  href: '/dashboard/hvac/epa', icon: '📜', description: '608 cert dates and renewals', badge: 'pro', comingSoon: true },
-      ],
-    },
-    {
-      title: 'TOOLS',
-      items: [
-        { label: 'Field Reference', href: '/dashboard/hvac/reference', icon: '📖', description: 'P-T charts, fault codes, manuals' },
       ],
     },
     {
