@@ -29,7 +29,7 @@ export async function GET(
 
   // measurements query is fault-tolerant — the table may not exist yet in staging.
   const [refrigerantResult, measurementsResult, leadsResult] = await Promise.all([
-    sb.from('hvac_refrigerant_log').select('*').eq('equipment_id', id).eq('pro_id', proId).order('service_date', { ascending: false }),
+    sb.from('hvac_refrigerant_log').select('*').eq('equipment_id', id).eq('pro_id', proId).order('created_at', { ascending: false }),
     Promise.resolve(sb.from('hvac_equipment_measurements').select('*').eq('equipment_id', id).eq('pro_id', proId).order('measured_at', { ascending: false }).limit(50)).catch(() => ({ data: [] as any[] })),
     sb.from('leads').select('id, message, lead_status, created_at, quoted_amount, notes').eq('pro_id', proId).eq('client_id', eq.client_id).order('created_at', { ascending: false }).limit(50),
   ])
@@ -53,7 +53,7 @@ export async function GET(
     if ((r.amount_recovered_lbs ?? 0) > 0) parts.push(`${r.amount_recovered_lbs} lbs recovered`)
     timeline.push({
       id: `refrig-${r.id}`, type: 'refrigerant',
-      date: r.service_date ?? r.created_at,
+      date: r.created_at,
       title: r.leak_detected ? '⚠️ Leak detected — refrigerant service' : 'Refrigerant service',
       subtitle: [r.refrigerant_type, ...parts].filter(Boolean).join(' · '),
       meta: r,
