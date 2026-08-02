@@ -3,7 +3,7 @@
 // Assembles: equipment record, refrigerant events, service calls,
 // maintenance history and measurements into a single timeline.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
@@ -37,7 +37,7 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function EquipmentDetailPage() {
+function EquipmentDetailInner() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { session } = useProSession()
@@ -253,5 +253,13 @@ export default function EquipmentDetailPage() {
         </div>
       </div>
     </DashboardShell>
+  )
+}
+
+export default function EquipmentDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <EquipmentDetailInner />
+    </Suspense>
   )
 }
