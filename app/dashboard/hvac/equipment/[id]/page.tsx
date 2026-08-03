@@ -98,6 +98,7 @@ function EquipmentDetailInner() {
     </DashboardShell>
   )
 
+  const r1  = (v: any) => v == null ? '' : Math.round(Number(v) * 10) / 10
   const eq  = data.equipment
   const tl  = (data.timeline ?? []) as TimelineEvent[]
   const lm  = data.latest_measurement
@@ -188,11 +189,11 @@ function EquipmentDetailInner() {
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {[
-                  { label: 'Superheat', value: lm.superheat_actual != null ? `${lm.superheat_actual}°F` : null },
-                  { label: 'Subcooling', value: lm.subcool_actual != null ? `${lm.subcool_actual}°F` : null },
-                  { label: 'Suction', value: lm.suction_pressure != null ? `${lm.suction_pressure} psig` : null },
-                  { label: 'Liquid', value: lm.liquid_pressure != null ? `${lm.liquid_pressure} psig` : null },
-                  { label: 'Delta-T', value: lm.delta_t != null ? `${lm.delta_t}°F` : null },
+                  { label: 'Superheat', value: lm.superheat_actual != null ? `${r1(lm.superheat_actual)}°F` : null },
+                  { label: 'Subcooling', value: lm.subcool_actual != null ? `${r1(lm.subcool_actual)}°F` : null },
+                  { label: 'Suction', value: lm.suction_pressure != null ? `${r1(lm.suction_pressure)} psig` : null },
+                  { label: 'Liquid', value: lm.liquid_pressure != null ? `${r1(lm.liquid_pressure)} psig` : null },
+                  { label: 'Delta-T', value: lm.delta_t != null ? `${r1(lm.delta_t)}°F` : null },
                   { label: 'Static', value: lm.static_pressure != null ? `${lm.static_pressure}" WC` : null },
                 ].filter(x => x.value).map(x => (
                   <div key={x.label} style={{ padding: '7px 12px', borderRadius: 8,

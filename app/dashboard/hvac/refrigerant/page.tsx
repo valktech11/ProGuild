@@ -143,25 +143,46 @@ export default function RefrigerantLogPage() {
               </div>
             ) : (
               <div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 80px 80px 60px 40px', gap:8, padding:'10px 16px', borderBottom:`1px solid ${t.divider}`, fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color: t.textSubtle }}>
-                  <span>Refrigerant / Date</span><span style={{ textAlign:'right' }}>Added</span><span style={{ textAlign:'right' }}>Recovered</span><span>Cylinder</span><span>Leak</span><span/>
-                </div>
                 {logs.map((log, i) => (
-                  <div key={log.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 80px 80px 60px 40px', gap:8, padding:'12px 16px', borderTop: i > 0 ? `1px solid ${t.divider}` : 'none', alignItems:'center' }}>
-                    <div>
-                      <div style={{ fontSize:14, fontWeight:700, color: t.textPri }}>{log.refrigerant_type}</div>
-                      <div style={{ fontSize:12, color: t.textSubtle }}>{timeAgo(log.created_at)}</div>
-                      {log.notes && <div style={{ fontSize:11, color: t.textMuted, marginTop:2 }}>{log.notes}</div>}
+                  <div key={log.id} style={{ padding:'14px 16px', borderTop: i > 0 ? `1px solid ${t.divider}` : 'none' }}>
+                    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
+                      <div style={{ flex:1 }}>
+                        {/* Top row: type + date + leak badge */}
+                        <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                          <span style={{ fontSize:15, fontWeight:800, color: t.textPri }}>{log.refrigerant_type}</span>
+                          <span style={{ fontSize:12, color: t.textMuted }}>{timeAgo(log.created_at)}</span>
+                          {log.leak_detected && (
+                            <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20,
+                              background:'#FEE2E2', color:'#DC2626', letterSpacing:'0.02em' }}>LEAK</span>
+                          )}
+                        </div>
+                        {/* Amount chips */}
+                        <div style={{ display:'flex', gap:16, marginTop:8, flexWrap:'wrap' }}>
+                          {log.amount_added_lbs > 0 && (
+                            <div>
+                              <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color: t.textMuted }}>Added</div>
+                              <div style={{ fontSize:14, fontWeight:700, color:'#0F766E' }}>+{log.amount_added_lbs} lbs</div>
+                            </div>
+                          )}
+                          {log.amount_recovered_lbs > 0 && (
+                            <div>
+                              <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color: t.textMuted }}>Recovered</div>
+                              <div style={{ fontSize:14, fontWeight:700, color:'#2563EB' }}>−{log.amount_recovered_lbs} lbs</div>
+                            </div>
+                          )}
+                          {log.cylinder_id && (
+                            <div>
+                              <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', color: t.textMuted }}>Cylinder</div>
+                              <div style={{ fontSize:13, fontWeight:600, color: t.textPri }}>{log.cylinder_id}</div>
+                            </div>
+                          )}
+                        </div>
+                        {log.notes && <div style={{ fontSize:12, color: t.textMuted, marginTop:6, lineHeight:1.4 }}>{log.notes}</div>}
+                      </div>
+                      <button onClick={() => deleteLog(log.id)}
+                        style={{ padding:'4px 8px', borderRadius:6, border:`1px solid ${t.cardBorder}`,
+                          background:'transparent', color: t.textMuted, fontSize:13, cursor:'pointer', flexShrink:0 }}>✕</button>
                     </div>
-                    <div style={{ fontSize:13, fontWeight:600, color: t.textPri, textAlign:'right' }}>{log.amount_added_lbs ? `${log.amount_added_lbs} lbs` : '—'}</div>
-                    <div style={{ fontSize:13, fontWeight:600, color: t.textPri, textAlign:'right' }}>{log.amount_recovered_lbs ? `${log.amount_recovered_lbs} lbs` : '—'}</div>
-                    <div style={{ fontSize:12, color: t.textSubtle }}>{log.cylinder_id || '—'}</div>
-                    <div>
-                      {log.leak_detected
-                        ? <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'#FEE2E2', color:'#DC2626' }}>YES</span>
-                        : <span style={{ fontSize:11, color: t.textSubtle }}>No</span>}
-                    </div>
-                    <button onClick={() => deleteLog(log.id)} style={{ padding:'4px 8px', borderRadius:6, border:'1px solid #FEE2E2', background:'transparent', color:'#DC2626', fontSize:11, cursor:'pointer' }}>✕</button>
                   </div>
                 ))}
               </div>
