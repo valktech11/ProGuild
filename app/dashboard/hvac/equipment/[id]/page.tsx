@@ -144,16 +144,25 @@ function EquipmentDetailInner() {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => {
-                const qs = new URLSearchParams({ brand: eq.brand || '', model: eq.model_number || '', tab: 'manuals' })
-                router.push(`/dashboard/hvac/reference?${qs}`)
-              }}
-              style={{ padding: '8px 12px', fontSize: 12.5, fontWeight: 700, borderRadius: 8,
-                background: 'transparent', border: `1px solid ${t.cardBorder}`,
-                cursor: 'pointer', color: '#0F766E', flexShrink: 0 }}>
-              📖 Manual
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={() => router.push(`/dashboard/hvac/equipment/${id}/qr`)}
+                style={{ padding: '8px 12px', fontSize: 12.5, fontWeight: 700, borderRadius: 8,
+                  background: 'transparent', border: `1px solid ${t.cardBorder}`,
+                  cursor: 'pointer', color: '#0F766E' }}>
+                🔲 QR
+              </button>
+              <button
+                onClick={() => {
+                  const qs = new URLSearchParams({ brand: eq.brand || '', model: eq.model_number || '', tab: 'manuals' })
+                  router.push(`/dashboard/hvac/reference?${qs}`)
+                }}
+                style={{ padding: '8px 12px', fontSize: 12.5, fontWeight: 700, borderRadius: 8,
+                  background: 'transparent', border: `1px solid ${t.cardBorder}`,
+                  cursor: 'pointer', color: '#0F766E' }}>
+                📖 Manual
+              </button>
+            </div>
           </div>
 
           {/* Stats row */}
