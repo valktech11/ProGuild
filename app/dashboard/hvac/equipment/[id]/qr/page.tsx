@@ -45,9 +45,9 @@ function QrStickerInner() {
     <div style={{ fontFamily: 'system-ui', padding: 24, maxWidth: 640, margin: '0 auto' }}>
       {/* Controls — hidden when printing */}
       <div className="no-print" style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>QR Sticker</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>QR Code</h1>
         <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 16px' }}>
-          Print and stick on the unit. Scanning it opens the full service history.
+          Save it to the customer file or text it to the homeowner. Scanning it opens the unit&apos;s full service history. Print a weatherproof label only if you apply codes on-site.
         </p>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <label style={{ fontSize: 14, fontWeight: 600 }}>Copies:</label>
@@ -60,8 +60,14 @@ function QrStickerInner() {
               {n}
             </button>
           ))}
+          <a href={qrSrc} download={`proguild-qr-${id}.png`}
+            style={{ marginLeft: 'auto', padding: '8px 20px', borderRadius: 8,
+              border: '1.5px solid #0F766E', background: '#fff', color: '#0F766E',
+              fontWeight: 700, fontSize: 14, cursor: 'pointer', textDecoration: 'none' }}>
+            ⬇ Download
+          </a>
           <button onClick={() => window.print()}
-            style={{ marginLeft: 'auto', padding: '8px 20px', borderRadius: 8, border: 'none',
+            style={{ padding: '8px 20px', borderRadius: 8, border: 'none',
               background: '#0F766E', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
             🖨 Print
           </button>
