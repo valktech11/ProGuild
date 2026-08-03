@@ -66,6 +66,7 @@ export const hvacConfig: HVACConfig = {
         { label: 'Refrigerant Log',   href: '/dashboard/hvac/refrigerant', icon: '🧪', description: 'EPA 608 refrigerant tracking', badge: 'pro' },
         { label: 'Field Reference',   href: '/dashboard/hvac/reference',   icon: '📖', description: 'P-T charts, fault codes, manuals' },
         { label: 'Job Checklists',    href: '/dashboard/hvac/checklists',  icon: '✅', description: 'Step-by-step by job type' },
+        { label: 'Guided Diagnosis',  href: '/dashboard/hvac/guided',      icon: '🧭', description: 'Step-by-step troubleshooting' },
       ],
     },
     {
