@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
 import { leadNotificationEmail } from '@/lib/email'
+import { sendProSms, newLeadSmsBody } from '@/lib/sms'
 import { Resend } from 'resend'
 import { moderateContent } from '@/lib/moderation'
 import { getInitialStage } from '@/lib/trades/_registry'
@@ -185,7 +186,7 @@ export async function POST(req: NextRequest) {
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase
     .from('pros')
-    .select('trade_slug, trade_category_id, full_name, email, plan_tier, city, state')
+    .select('trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state')
     .eq('id', pro_id)
     .single()
 
@@ -327,6 +328,22 @@ export async function POST(req: NextRequest) {
         }),
       })
     } catch (e) { console.error('Email failed:', e) }
+
+    // ── SMS to pro — fire if they have a phone number on file ──────────────
+    // We only SMS the pro (contractor), never the homeowner.
+    // Pros consented via Terms of Service at signup.
+    if (proRecord?.phone) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
+      void sendProSms(
+        proRecord.phone,
+        newLeadSmsBody({
+          contactName:  contact_name,
+          city:         proRecord.city,
+          state:        proRecord.state,
+          dashboardUrl: `${appUrl}/dashboard`,
+        })
+      )
+    }
   }
 
   // Client and property were resolved before INSERT — no follow-up writes needed.
