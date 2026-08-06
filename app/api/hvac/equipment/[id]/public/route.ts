@@ -94,7 +94,11 @@ export async function GET(
       id: `lead-${l.id}`, type: 'service',
       date: l.created_at,
       title: l.message || 'Service call',
-      subtitle: (l.lead_status ?? '').replace(/_/g, ' '),
+      subtitle: ({
+        new_lead: 'Service request', quoted: 'Quoted', scheduled: 'Scheduled',
+        in_progress: 'In progress', job_won: 'Job completed',
+        follow_up: 'Follow-up', lost: 'Closed', unqualified: 'Closed',
+      } as Record<string,string>)[l.lead_status ?? ''] ?? (l.lead_status ?? '').replace(/_/g, ' '),
     })
   }
 

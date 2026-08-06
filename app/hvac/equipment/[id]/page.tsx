@@ -209,7 +209,10 @@ function TwinInner() {
           <div style={{ fontSize: 12, color: '#94A3B8' }}>
             Service records maintained by{' '}
             <span style={{ color: '#0F766E', fontWeight: 700 }}>
-              {contractor?.business_name || 'your HVAC contractor'}
+              {contractor?.business_name || (
+                ({'hvac-technician':'your HVAC contractor','roofing':'your roofing contractor','plumber':'your plumbing contractor','electrician':'your electrician'} as Record<string,string>)[contractor?.trade_slug ?? '']
+                || 'your contractor'
+              )}
             </span>
             {' '}via ProGuild
           </div>
