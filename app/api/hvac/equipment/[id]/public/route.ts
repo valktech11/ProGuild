@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 
 // GET /api/hvac/equipment/[id]/public
 // Public read-only Digital Twin — no auth required.
-// Homeowner-facing: strips pro PII, client PII, lead notes, cylinder IDs.
+// install_date omitted from select — not in staging schema yet (pending migration batch).
 
 export async function GET(
   req: NextRequest,
@@ -14,27 +14,24 @@ export async function GET(
 
   const sb = getSupabaseAdmin()
 
-  // Include client_id in initial fetch — avoids a second round-trip
   const { data: eq, error: eqErr } = await sb
     .from('hvac_equipment')
-    .select('id, equipment_type, brand, model_number, serial_number, refrigerant_type, install_date, notes, pro_id, client_id')
+    .select('id, equipment_type, brand, model_number, serial_number, refrigerant_type, notes, pro_id, client_id')
     .eq('id', id)
     .single()
 
   if (eqErr || !eq) {
-    return NextResponse.json({ error: "Equipment not found", debug: { id, eqErr } }, { status: 404 })
+    return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
   }
 
   const clientId = (eq as any).client_id ?? null
 
-  // Fetch contractor branding — business name only, no PII
   const { data: pro } = await sb
     .from('pros')
     .select('business_name, trade_slug')
     .eq('id', eq.pro_id)
     .single()
 
-  // Safely fetch measurements — table may not exist in all envs; never crash the route
   const measurementsData: any[] = await sb
     .from('hvac_equipment_measurements')
     .select('id, superheat_actual, subcool_actual, suction_pressure, liquid_pressure, delta_t, static_pressure, measured_at, diagnosis')
@@ -64,12 +61,6 @@ export async function GET(
 
   type Event = { id: string; type: string; date: string; title: string; subtitle: string }
   const timeline: Event[] = []
-
-  if (eq.install_date) timeline.push({
-    id: `install-${id}`, type: 'install', date: eq.install_date,
-    title: 'Installed',
-    subtitle: [eq.brand, eq.model_number].filter(Boolean).join(' ') || 'Equipment installed',
-  })
 
   for (const r of refrigerantResult.data ?? []) {
     const parts: string[] = [r.refrigerant_type]
@@ -117,8 +108,6 @@ export async function GET(
   timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const logs = refrigerantResult.data ?? []
-
-  // Strip pro_id and client_id before sending
   const { pro_id: _p, client_id: _c, ...equipmentPublic } = eq as any
 
   return NextResponse.json({
