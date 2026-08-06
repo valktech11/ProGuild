@@ -22,7 +22,7 @@ export async function GET(
     .single()
 
   if (eqErr || !eq) {
-    return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
+    return NextResponse.json({ error: "Equipment not found", debug: { id, eqErr } }, { status: 404 })
   }
 
   const clientId = (eq as any).client_id ?? null
