@@ -4,8 +4,6 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 // GET /api/hvac/equipment/[id]/public
 // Public read-only Digital Twin — no auth required.
 // Homeowner-facing: strips pro PII, client PII, lead notes, cylinder IDs.
-// Exposes: equipment identity, service event timeline, measurement snapshots,
-// refrigerant stats (no amounts/cylinder IDs), contractor branding from pros table.
 
 export async function GET(
   req: NextRequest,
@@ -16,15 +14,18 @@ export async function GET(
 
   const sb = getSupabaseAdmin()
 
+  // Include client_id in initial fetch — avoids a second round-trip
   const { data: eq, error: eqErr } = await sb
     .from('hvac_equipment')
-    .select('id, equipment_type, brand, model_number, serial_number, refrigerant_type, install_date, notes, pro_id')
+    .select('id, equipment_type, brand, model_number, serial_number, refrigerant_type, install_date, notes, pro_id, client_id')
     .eq('id', id)
     .single()
 
   if (eqErr || !eq) {
     return NextResponse.json({ error: 'Equipment not found' }, { status: 404 })
   }
+
+  const clientId = (eq as any).client_id ?? null
 
   // Fetch contractor branding — business name only, no PII
   const { data: pro } = await sb
@@ -33,25 +34,20 @@ export async function GET(
     .eq('id', eq.pro_id)
     .single()
 
-  // Fetch client_id from equipment record (already fetched above with pro_id)
-  const { data: eqFull } = await sb
-    .from('hvac_equipment')
-    .select('client_id')
-    .eq('id', id)
-    .single()
-  const clientId = eqFull?.client_id ?? null
+  // Safely fetch measurements — table may not exist in all envs; never crash the route
+  const measurementsData: any[] = await sb
+    .from('hvac_equipment_measurements')
+    .select('id, superheat_actual, subcool_actual, suction_pressure, liquid_pressure, delta_t, static_pressure, measured_at, diagnosis')
+    .eq('equipment_id', id)
+    .order('measured_at', { ascending: false })
+    .limit(50)
+    .then(r => r.data ?? [], () => [])
 
-  const [refrigerantResult, measurementsResult, leadsResult, maintenanceResult] = await Promise.all([
+  const [refrigerantResult, leadsResult, maintenanceResult] = await Promise.all([
     sb.from('hvac_refrigerant_log')
       .select('id, refrigerant_type, amount_added_lbs, amount_recovered_lbs, leak_detected, created_at')
       .eq('equipment_id', id)
       .order('created_at', { ascending: false }),
-    sb.from('hvac_equipment_measurements')
-      .select('id, superheat_actual, subcool_actual, suction_pressure, liquid_pressure, delta_t, static_pressure, measured_at, diagnosis')
-      .eq('equipment_id', id)
-      .order('measured_at', { ascending: false })
-      .limit(50)
-      .then(r => r, () => ({ data: [] as any[] })),
     clientId
       ? sb.from('leads')
           .select('id, message, lead_status, created_at')
@@ -88,7 +84,7 @@ export async function GET(
   }
 
   const r1 = (v: any) => v == null ? null : Math.round(Number(v) * 10) / 10
-  for (const m of measurementsResult.data ?? []) {
+  for (const m of measurementsData) {
     const parts: string[] = []
     if (m.superheat_actual != null) parts.push(`SH ${r1(m.superheat_actual)}°F`)
     if (m.subcool_actual != null)   parts.push(`SC ${r1(m.subcool_actual)}°F`)
@@ -121,20 +117,19 @@ export async function GET(
   timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const logs = refrigerantResult.data ?? []
-  const meas = measurementsResult.data ?? []
 
-  // Strip pro_id before sending — homeowner doesn't need it
-  const { pro_id: _omit, ...equipmentPublic } = eq
+  // Strip pro_id and client_id before sending
+  const { pro_id: _p, client_id: _c, ...equipmentPublic } = eq as any
 
   return NextResponse.json({
     equipment: equipmentPublic,
     contractor: pro ? { business_name: pro.business_name, trade_slug: pro.trade_slug } : null,
     timeline,
-    latest_measurement: meas[0] ?? null,
+    latest_measurement: measurementsData[0] ?? null,
     refrigerant_stats: {
-      total_added_lbs:     logs.reduce((s, r) => s + (r.amount_added_lbs ?? 0), 0),
-      total_recovered_lbs: logs.reduce((s, r) => s + (r.amount_recovered_lbs ?? 0), 0),
-      leak_events:         logs.filter(r => r.leak_detected).length,
+      total_added_lbs:     logs.reduce((s: number, r: any) => s + (r.amount_added_lbs ?? 0), 0),
+      total_recovered_lbs: logs.reduce((s: number, r: any) => s + (r.amount_recovered_lbs ?? 0), 0),
+      leak_events:         logs.filter((r: any) => r.leak_detected).length,
       event_count:         logs.length,
     },
     service_count: leadsResult.data?.length ?? 0,
