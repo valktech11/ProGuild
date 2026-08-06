@@ -25,8 +25,9 @@ function QrStickerInner() {
       .catch(e => setErr(e.message))
   }, [session, id])
 
+  // Public URL — no auth required. Homeowners can scan without a ProGuild account.
   const twinUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/dashboard/hvac/equipment/${id}`
+    ? `${window.location.origin}/hvac/equipment/${id}`
     : ''
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(twinUrl)}`
 
@@ -47,7 +48,7 @@ function QrStickerInner() {
       <div className="no-print" style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>QR Code</h1>
         <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 16px' }}>
-          Save it to the customer file or text it to the homeowner. Scanning it opens the unit&apos;s full service history. Print a weatherproof label only if you apply codes on-site.
+          Text this to the homeowner or save it to the customer file. Anyone who scans it sees a read-only service history — no login required. Print a weatherproof label only if you apply codes on-site.
         </p>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <label style={{ fontSize: 14, fontWeight: 600 }}>Copies:</label>
