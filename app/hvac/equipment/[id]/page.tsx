@@ -76,8 +76,8 @@ function TwinInner() {
   const { equipment: eq, contractor, timeline, latest_measurement: lm, refrigerant_stats: rs, service_count } = data
   const typeLabel = EQUIP_LABELS[eq.equipment_type] ?? eq.equipment_type ?? '—'
   const icon      = EQUIP_ICONS[eq.equipment_type] ?? '🔧'
-  const age       = eq.install_date
-    ? Math.floor((Date.now() - new Date(eq.install_date).getTime()) / (365.25 * 864e5))
+  const age       = eq.installation_date
+    ? Math.floor((Date.now() - new Date(eq.installation_date).getTime()) / (365.25 * 864e5))
     : null
 
   const card: React.CSSProperties = {
@@ -117,9 +117,9 @@ function TwinInner() {
               {eq.serial_number ? ` · SN: ${eq.serial_number}` : ''}
               {eq.refrigerant_type ? ` · ${eq.refrigerant_type}` : ''}
             </div>
-            {eq.install_date && (
+            {eq.installation_date && (
               <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
-                Installed {fmtDate(eq.install_date)}{age !== null ? ` · ${age} yr${age !== 1 ? 's' : ''} old` : ''}
+                Installed {fmtDate(eq.installation_date)}{age !== null ? ` · ${age} yr${age !== 1 ? 's' : ''} old` : ''}
               </div>
             )}
           </div>

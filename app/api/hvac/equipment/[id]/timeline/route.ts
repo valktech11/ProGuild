@@ -40,8 +40,8 @@ export async function GET(
   type Event = { id: string; type: string; date: string; title: string; subtitle: string; meta: Record<string, unknown> }
   const timeline: Event[] = []
 
-  if (eq.install_date) timeline.push({
-    id: `install-${id}`, type: 'install', date: eq.install_date,
+  if (eq.installation_date) timeline.push({
+    id: `install-${id}`, type: 'install', date: eq.installation_date,
     title: 'Installed',
     subtitle: [eq.brand, eq.model_number].filter(Boolean).join(' ') || 'Equipment installed',
     meta: { serial: eq.serial_number },

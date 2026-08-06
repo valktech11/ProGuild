@@ -16,7 +16,7 @@ export async function GET(
 
   const { data: eq, error: eqErr } = await sb
     .from('hvac_equipment')
-    .select('id, equipment_type, brand, model_number, serial_number, refrigerant_type, notes, pro_id, client_id')
+    .select('id, equipment_type, brand, model_number, serial_number, refrigerant_type, installation_date, filter_size, notes, pro_id, client_id')
     .eq('id', id)
     .single()
 

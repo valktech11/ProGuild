@@ -106,8 +106,8 @@ function EquipmentDetailInner() {
 
   const typeLabel = EQUIP_LABELS[eq.equipment_type] ?? eq.equipment_type ?? '—'
   const icon      = EQUIP_ICONS[eq.equipment_type] ?? '🔧'
-  const age       = eq.install_date
-    ? Math.floor((Date.now() - new Date(eq.install_date).getTime()) / (365.25 * 864e5))
+  const age       = eq.installation_date
+    ? Math.floor((Date.now() - new Date(eq.installation_date).getTime()) / (365.25 * 864e5))
     : null
 
   return (
@@ -139,9 +139,9 @@ function EquipmentDetailInner() {
                 {eq.serial_number ? ` · SN: ${eq.serial_number}` : ''}
                 {eq.refrigerant_type ? ` · ${eq.refrigerant_type}` : ''}
               </div>
-              {eq.install_date && (
+              {eq.installation_date && (
                 <div style={{ fontSize: 12.5, color: t.textMuted, marginTop: 4 }}>
-                  Installed {fmtDate(eq.install_date)}{age !== null ? ` (${age} yr${age !== 1 ? 's' : ''} ago)` : ''}
+                  Installed {fmtDate(eq.installation_date)}{age !== null ? ` (${age} yr${age !== 1 ? 's' : ''} ago)` : ''}
                 </div>
               )}
             </div>
