@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePro } from '@/lib/pro-auth'
 
-// POST /api/hvac/structure-notes
-// Takes a raw voice transcript from a tech and structures it into
-// symptoms / diagnosis / work done / recommendation.
-//
-// Body: { transcript: string, pro_id: string }
-// Returns: { symptoms, diagnosis, work_done, recommendation, raw }
-
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const __auth = await requirePro(req as any, body.pro_id ?? null)
@@ -20,8 +13,7 @@ export async function POST(req: NextRequest) {
 
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    // Graceful fallback — return the raw transcript as the work_done so the
-    // tech still gets their note saved even without AI structuring.
+    console.error('[structure-notes] GEMINI_API_KEY not set')
     return NextResponse.json({
       symptoms: '', diagnosis: '', work_done: transcript, recommendation: '',
       raw: transcript, structured: false,
@@ -29,6 +21,8 @@ export async function POST(req: NextRequest) {
   }
 
   const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
+  console.log('[structure-notes] key prefix:', apiKey.slice(0, 8), 'model:', model)
+
   const prompt = `You are an HVAC service-note assistant. A technician has dictated a rough voice note from a service call. Structure it into clear, professional service-note fields.
 
 Technician's dictation:
@@ -42,35 +36,39 @@ Return a JSON object with exactly these fields (each a short professional string
 
 Keep each field concise and in professional service-report language. Fix grammar. Do not invent details not in the dictation. Only return JSON.`
 
+  const geminiPayload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      maxOutputTokens: 512,
+      temperature: 0.2,
+      responseMimeType: 'application/json',
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  }
+
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            maxOutputTokens: 512,
-            temperature: 0.2,
-            responseMimeType: 'application/json',
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
-      }
-    )
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+    console.log('[structure-notes] POST', url.replace(apiKey, 'REDACTED'))
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiPayload),
+    })
+
+    const rawText = await response.text()
+    console.log('[structure-notes] Gemini status:', response.status, 'body preview:', rawText.slice(0, 400))
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => 'unknown')
-      console.error('[structure-notes] Gemini error', response.status, errText)
       return NextResponse.json({
         symptoms: '', diagnosis: '', work_done: transcript, recommendation: '',
         raw: transcript, structured: false,
+        debug_status: response.status, debug_error: rawText.slice(0, 400),
       })
     }
 
-    const data   = await response.json()
-    const raw    = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+    const data = JSON.parse(rawText)
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
     const parsed = JSON.parse(raw)
 
     return NextResponse.json({
@@ -81,10 +79,11 @@ Keep each field concise and in professional service-report language. Fix grammar
       raw:            transcript,
       structured:     true,
     })
-  } catch {
+  } catch (e) {
+    console.error('[structure-notes] exception:', String(e))
     return NextResponse.json({
       symptoms: '', diagnosis: '', work_done: transcript, recommendation: '',
-      raw: transcript, structured: false,
+      raw: transcript, structured: false, debug_exception: String(e),
     })
   }
 }
