@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
+  const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash-lite'
   const prompt = `You are an HVAC service-note assistant. A technician has dictated a rough voice note from a service call. Structure it into clear, professional service-note fields.
 
 Technician's dictation:
@@ -60,6 +60,8 @@ Keep each field concise and in professional service-report language. Fix grammar
     )
 
     if (!response.ok) {
+      const errText = await response.text().catch(() => 'unknown')
+      console.error('[structure-notes] Gemini error', response.status, errText)
       return NextResponse.json({
         symptoms: '', diagnosis: '', work_done: transcript, recommendation: '',
         raw: transcript, structured: false,
