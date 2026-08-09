@@ -13,7 +13,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import InPersonSignModal from '@/components/estimates/InPersonSignModal'
 import { theme, T } from '@/lib/tokens'
 import { estimateStatusStyle } from '@/lib/design'
-import { isRoofing, getTradeConfig } from '@/lib/trades/_registry'
+import { isRoofing, isHvac, getTradeConfig } from '@/lib/trades/_registry'
 import RoofingEstimatePage from '@/lib/trades/roofing/components/EstimatePage'
 import { timeAgo } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-fetch'
@@ -958,7 +958,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           {/* Common HVAC services — quick-add chips. HVAC estimates
                               start empty (no roofing calculator), so give the tech
                               one-click lines instead of typing every name. */}
-                          {!isRoofing(getTradeConfig(estTradeSlug)) && !isLocked(estimate.status) && (
+                          {isHvac(getTradeConfig(estTradeSlug)) && !isLocked(estimate.status) && (
                             <div style={{ marginBottom: 18 }}>
                               <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.05em', color: t.textMuted, marginBottom: 8 }}>
                                 COMMON SERVICES

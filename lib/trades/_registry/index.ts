@@ -90,6 +90,10 @@ export function getTradeConfig(tradeSlug: string | null | undefined): AnyTradeCo
 //   const trade = getTradeConfig(session.trade_slug)
 //   if (isRoofing(trade)) { trade.features.insuranceClaim }   // ✅ typed
 //   if (isRoofing(trade)) { trade.features.equipmentRecords } // ✅ TS error
+export function isHvac(c: AnyTradeConfig): boolean {
+  return c.slug === 'hvac-technician'
+}
+
 export function isRoofing(c: AnyTradeConfig): c is RoofingConfig {
   return c.slug === 'roofing' || c.slug === 'roofing-contractor'
 }
