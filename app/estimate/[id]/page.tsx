@@ -7,6 +7,7 @@
 import { use, useEffect, useState } from 'react'
 import RoofingEstimatePublicPage, { PublicRoofingEstimate } from '@/lib/trades/roofing/components/EstimatePublicPage'
 import HVACEstimatePublicPage, { PublicHVACEstimate } from '@/lib/trades/hvac/components/EstimatePublicPage'
+import GenericEstimatePublicPage, { PublicGenericEstimate } from '@/lib/trades/_default/components/EstimatePublicPage'
 
 export default function PublicEstimatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -72,5 +73,8 @@ export default function PublicEstimatePage({ params }: { params: Promise<{ id: s
   if (tradeSlug.includes('hvac') || tradeSlug === 'air-conditioning') {
     return <HVACEstimatePublicPage estimate={estimate as unknown as PublicHVACEstimate} onApprove={handleApprove} />
   }
-  return <RoofingEstimatePublicPage estimate={estimate} onApprove={handleApprove} />
+  if (tradeSlug === 'roofing' || tradeSlug === 'roofer' || tradeSlug === '') {
+    return <RoofingEstimatePublicPage estimate={estimate} onApprove={handleApprove} />
+  }
+  return <GenericEstimatePublicPage estimate={estimate as unknown as PublicGenericEstimate} onApprove={handleApprove} />
 }

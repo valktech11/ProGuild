@@ -61,8 +61,13 @@ export async function POST(req: NextRequest) {
   const proCity     = [pro.city, pro.state].filter(Boolean).join(', ')
   const tradeSlug   = pro.trade_slug ?? (est as any).trade_slug ?? ''
   const isHVAC      = tradeSlug.includes('hvac') || tradeSlug === 'air-conditioning'
-  const proposalLabel = isHVAC ? 'HVAC Service Proposal' : 'Roofing Proposal'
-  const proposalLine  = isHVAC ? 'Your HVAC service proposal' : 'Your roofing proposal'
+  const isRoofingTrade = tradeSlug === 'roofing' || tradeSlug === 'roofer'
+  const proposalLabel = isHVAC ? 'HVAC Service Proposal'
+    : isRoofingTrade ? 'Roofing Proposal'
+    : 'Service Proposal'
+  const proposalLine  = isHVAC ? 'Your HVAC service proposal'
+    : isRoofingTrade ? 'Your roofing proposal'
+    : 'Your service proposal'
   const property    = leadPropertyAddress ?? roofing.property_address ?? ''
   const estNumber   = est.estimate_number ?? 'EST'
 
