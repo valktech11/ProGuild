@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
 
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    console.error('[structure-notes] GEMINI_API_KEY not set')
     return NextResponse.json({
       symptoms: '', diagnosis: '', work_done: transcript, recommendation: '',
       raw: transcript, structured: false,
@@ -21,7 +20,6 @@ export async function POST(req: NextRequest) {
   }
 
   const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
-  console.log('[structure-notes] key prefix:', apiKey.slice(0, 8), 'model:', model)
 
   const prompt = `You are an HVAC service-note assistant. A technician has dictated a rough voice note from a service call. Structure it into clear, professional service-note fields.
 
@@ -36,34 +34,29 @@ Return a JSON object with exactly these fields (each a short professional string
 
 Keep each field concise and in professional service-report language. Fix grammar. Do not invent details not in the dictation. Only return JSON.`
 
-  const geminiPayload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      maxOutputTokens: 512,
-      temperature: 0.2,
-      responseMimeType: 'application/json',
-      thinkingConfig: { thinkingBudget: 0 },
-    },
-  }
-
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
-    console.log('[structure-notes] POST', url.replace(apiKey, 'REDACTED'))
 
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiPayload),
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 512,
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
     })
 
     const rawText = await response.text()
-    console.log('[structure-notes] Gemini status:', response.status, 'body preview:', rawText.slice(0, 400))
 
     if (!response.ok) {
       return NextResponse.json({
         symptoms: '', diagnosis: '', work_done: transcript, recommendation: '',
         raw: transcript, structured: false,
-        debug_status: response.status, debug_error: rawText.slice(0, 400),
       })
     }
 
@@ -80,10 +73,9 @@ Keep each field concise and in professional service-report language. Fix grammar
       structured:     true,
     })
   } catch (e) {
-    console.error('[structure-notes] exception:', String(e))
     return NextResponse.json({
       symptoms: '', diagnosis: '', work_done: transcript, recommendation: '',
-      raw: transcript, structured: false, debug_exception: String(e),
+      raw: transcript, structured: false,
     })
   }
 }
