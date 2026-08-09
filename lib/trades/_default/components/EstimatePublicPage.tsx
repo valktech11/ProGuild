@@ -74,11 +74,11 @@ export default function GenericEstimatePublicPage({ estimate, onApprove }: Props
   const balanceAmt = Math.round((estimate.total - depositAmt) * 100) / 100
 
   const nameVariants = estimate.lead_name
-    ? [
+    ? [...new Set([
         estimate.lead_name,
-        estimate.lead_name.split(' ').map((w, i) => i === 0 ? w : w[0] + '.').join(' '),
-        estimate.lead_name.split(' ').map((w, i) => i === 0 ? w[0] + '.' : w).join(' '),
-      ]
+        estimate.lead_name.split(' ').map((w: string, i: number) => i === 0 ? w : w[0] + '.').join(' '),
+        estimate.lead_name.split(' ').map((w: string, i: number) => i === 0 ? w[0] + '.' : w).join(' '),
+      ])]
     : []
 
   const label = proposalLabel(estimate.trade_slug)
