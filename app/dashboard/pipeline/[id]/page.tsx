@@ -729,7 +729,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     const items:{date:string;title:string;sub:string;type:string;warn?:boolean}[] = []
     items.push({date:lead.created_at,title:'Lead created',sub:`From ${(lead.lead_source||'unknown').replace(/_/g,' ')}${lead.message?` · "${lead.message.slice(0,60)}${lead.message.length>60?'…':''}"`:``}`,type:'created'})
     if (lead.quoted_amount!=null) items.push({date:lead.updated_at||lead.created_at,title:'Quote set',sub:`$${Number(lead.quoted_amount).toLocaleString()}`,type:'quote'})
-    if ((lead as any).inspection_date) items.push({date:lead.updated_at||lead.created_at,title:'Inspection scheduled',sub:fmt((lead as any).inspection_date),type:'scheduled'})
+    if ((lead as any).inspection_date) items.push({date:lead.updated_at||lead.created_at,title:isHvac_guard(tradePlugin)?'Diagnosis scheduled':'Inspection scheduled',sub:fmt((lead as any).inspection_date),type:'scheduled'})
     if (lead.scheduled_date) items.push({date:lead.updated_at||lead.created_at,title:'Job scheduled',sub:fmt(lead.scheduled_date),type:'scheduled'})
     if (lead.notes) lead.notes.split(/\n\n+/).filter(Boolean).forEach(n=>items.push({date:lead.updated_at||lead.created_at,title:'Note added',sub:n.slice(0,100)+(n.length>100?'…':''),type:'note'}))
     // Estimate events — pull from linked estimate timestamps
