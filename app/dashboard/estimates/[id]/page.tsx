@@ -339,10 +339,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     'Labour (per hour)',
   ]
 
+  const [lastPresetId, setLastPresetId] = useState<string | null>(null)
+
   const addPresetItem = (name: string) => {
     if (!estimate) return
+    const newId = crypto.randomUUID()
     const newItem = {
-      id: crypto.randomUUID(),
+      id: newId,
       name,
       description: '',
       qty: 1,
@@ -353,6 +356,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     const subtotal   = merged.reduce((s: number, i: any) => s + i.qty * i.unit_price, 0)
     const tax_amount = subtotal * (estimate.tax_rate / 100)
     setEstimate(prev => prev ? { ...prev, items: merged, subtotal, tax_amount, total: subtotal + tax_amount } : prev)
+    setLastPresetId(newId)
   }
 
   const saveTemplate = async () => {
@@ -1000,6 +1004,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                             setEstimate={setEstimateDirty}
                             darkMode={dk}
                             tradeSlug={estTradeSlug}
+                            autoEditId={lastPresetId}
                             onOpenTemplatePicker={openTemplatePicker}
                             onSaveTemplate={() => {
                               if (estimate.items.length === 0) { setSaveMsg('Add items before saving a template'); setTimeout(() => setSaveMsg(null), 3000); return }

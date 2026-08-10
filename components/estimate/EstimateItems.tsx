@@ -1,6 +1,6 @@
 'use client'
 
-import { Dispatch, SetStateAction, useState } from 'react'
+import { Dispatch, SetStateAction, useState, useEffect, useRef } from 'react'
 import { theme, T } from '@/lib/tokens'
 import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import { Estimate, EstimateItem } from '@/app/dashboard/estimates/[id]/page'
@@ -24,7 +24,7 @@ function money(n: number) {
 }
 
 export default function EstimateItems({
-  estimate, setEstimate, darkMode, onSaveTemplate, onOpenTemplatePicker, locked = false, tradeSlug,
+  estimate, setEstimate, darkMode, onSaveTemplate, onOpenTemplatePicker, locked = false, tradeSlug, autoEditId,
 }: {
   estimate: Estimate
   setEstimate: Dispatch<SetStateAction<Estimate | null>>
@@ -33,10 +33,20 @@ export default function EstimateItems({
   onOpenTemplatePicker?: () => void
   locked?: boolean
   tradeSlug?: string | null
+  autoEditId?: string | null
 }) {
   const isHVAC = tradeSlug === 'hvac-technician' || tradeSlug === 'hvac' || tradeSlug === 'hvac-contractor'
   const dk = darkMode
   const [editingId,   setEditingId]   = useState<string | null>(null)
+  // Auto-open edit form when a preset chip adds a new item
+  const prevAutoEditId = useRef<string | null>(null)
+  useEffect(() => {
+    if (autoEditId && autoEditId !== prevAutoEditId.current) {
+      prevAutoEditId.current = autoEditId
+      const item = estimate.items.find(i => i.id === autoEditId)
+      if (item) { setEditingId(item.id); setDraft({ name: item.name, qty: item.qty, unit_price: item.unit_price, description: item.description }) }
+    }
+  }, [autoEditId, estimate.items])
   const [draft,       setDraft]       = useState<Partial<EstimateItem>>({})
   const [showDiscount,  setShowDiscount]  = useState(estimate.discount > 0)
   const [discountType,  setDiscountType]  = useState<'$' | '%'>(estimate.discount_type || '$')
