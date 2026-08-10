@@ -8,7 +8,7 @@ import { avatarColor, initials, capName, fmtPhone, US_STATES } from '@/lib/utils
 import { theme, T, BRAND } from '@/lib/tokens'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { getPipelineStages, LostReasonSheet } from '@/components/ui/LeadPipeline'
-import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors } from '@/lib/trades/_registry'
+import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors, isHvac as isHvac_guard } from '@/lib/trades/_registry'
 import type { StagePlanEntry } from '@/lib/trades/roofing/stage-rules'
 // Roofing components accessed via trade module path — not components/roofing
 import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
@@ -986,9 +986,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
             <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:400,width:'100%',border:`1px solid ${bdr}`}}
               onClick={e=>e.stopPropagation()}>
               <div style={{fontSize:17,fontWeight:800,color:tp,marginBottom:4}}>Schedule Inspection</div>
-              <div style={{fontSize:13,color:tb,marginBottom:20}}>Set the inspection date to add it to your calendar.</div>
+              <div style={{fontSize:13,color:tb,marginBottom:20}}>{isHvac_guard(tradePlugin) ? 'Set the diagnosis date to add it to your calendar.' : 'Set the inspection date to add it to your calendar.'}</div>
               <div>
-                <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.08em',color:ts,marginBottom:6}}>Inspection Date</div>
+                <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.08em',color:ts,marginBottom:6}}>{isHvac_guard(tradePlugin) ? 'Diagnosis Date' : 'Inspection Date'}</div>
                 <input type="date" value={inspDate} onChange={e=>setInspDate(e.target.value)}
                   style={{width:'100%',padding:'10px 12px',border:`1.5px solid ${inspDate?BRAND.teal:bdr}`,borderRadius:T.radSm,fontSize:14,outline:'none',boxSizing:'border-box' as const,colorScheme:dk?'dark':'light'}} />
               </div>
@@ -2095,7 +2095,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   {SOURCE_OPTIONS.map(s=><option key={s.value} value={s.value}>{s.label}</option>)}
                                 </select>
                               </div>
-                              <div><label style={labelCls}>Inspection Date</label>
+                              <div><label style={labelCls}>{isHvac_guard(tradePlugin) ? 'Diagnosis Date' : 'Inspection Date'}</label>
                                 <input type="date" value={eInsp} onChange={e=>setEInsp(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
                               </div>
                               <div><label style={labelCls}>Job Date &amp; Time</label>
