@@ -10,10 +10,11 @@ export async function GET(req: NextRequest) {
   const tradeSlug  = searchParams.get('trade_slug')   // filter by trade slug
   const search     = searchParams.get('search')?.trim() // text search in content
   const postType   = searchParams.get('post_type')    // filter by type
+  const city       = searchParams.get('city')         // filter by pro's city
 
   let query = getSupabaseAdmin()
     .from('posts')
-    .select(`*, pro:pros(id, full_name, profile_photo_url, plan_tier, city, state, is_verified, trade_category:trade_categories(id, category_name, slug))`)
+    .select(`*, pro:pros!posts_pro_id_fkey(id, full_name, profile_photo_url, plan_tier, city, state, is_verified, trade_category:trade_categories(id, category_name, slug))`)
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -26,9 +27,12 @@ export async function GET(req: NextRequest) {
 
   let posts = data || []
 
-  // Filter by trade slug (client-side after join since Supabase FK filter needs different syntax)
+  // Filter by trade slug and city client-side after join
   if (tradeSlug) {
     posts = posts.filter(p => (p.pro as any)?.trade_category?.slug === tradeSlug)
+  }
+  if (city) {
+    posts = posts.filter(p => (p.pro as any)?.city?.toLowerCase() === city.toLowerCase())
   }
 
   // Boost followed pros to top if feed_for provided
@@ -52,11 +56,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, content, photo_url, post_type, before_photo_url, is_before_after } = body
+  const { pro_id, content, photo_url, photo_urls, post_type, before_photo_url, is_before_after } = body
 
-  // For Ask a Pro and Post Work, content is optional if we have a photo
+  // Normalise: merge photo_url + photo_urls into a single array (max 5)
+  const allPhotos: string[] = []
+  if (photo_urls && Array.isArray(photo_urls)) allPhotos.push(...photo_urls)
+  else if (photo_url) allPhotos.push(photo_url)
+  const photosToSave = allPhotos.slice(0, 5)
+
   const hasContent = content?.trim()
-  const hasPhoto   = !!photo_url
+  const hasPhoto   = photosToSave.length > 0
   if (!pro_id || (!hasContent && !hasPhoto)) {
     return NextResponse.json({ error: 'pro_id and content or photo are required' }, { status: 400 })
   }
@@ -76,12 +85,13 @@ export async function POST(req: NextRequest) {
     .insert({
       pro_id,
       content: content?.trim() || '',
-      photo_url: photo_url || null,
+      photo_url:  photosToSave[0] || null,   // backwards compat
+      photo_urls: photosToSave,
       before_photo_url: before_photo_url || null,
       is_before_after: is_before_after || false,
       post_type: post_type || 'update',
     })
-    .select(`*, pro:pros(id, full_name, profile_photo_url, is_verified, trade_category:trade_categories(id, category_name, slug))`)
+    .select(`*, pro:pros!posts_pro_id_fkey(id, full_name, profile_photo_url, is_verified, trade_category:trade_categories(id, category_name, slug))`)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

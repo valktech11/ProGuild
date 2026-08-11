@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
@@ -22,14 +23,14 @@ export default function HireJobDetailPage() {
   const [job, setJob]           = useState<any>(null)
   const [similar, setSimilar]   = useState<any[]>([])
   const [session, setSession]   = useState<any>(null)
+  const { session: _real } = useProSession()
   const [loading, setLoading]   = useState(true)
   const [applying, setApplying] = useState(false)
   const [applied, setApplied]   = useState(false)
   const [toast, setToast]       = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (raw) setSession(JSON.parse(raw))
+    if (_real) setSession(_real)
 
     fetch(`/api/b2b/${id}`)
       .then(r => r.json())
@@ -43,7 +44,7 @@ export default function HireJobDetailPage() {
             .then(sd => setSimilar((sd.jobs || []).filter((j: any) => j.id !== id).slice(0, 3)))
         }
       })
-  }, [id])
+  }, [id, _real])
 
   async function applyToJob() {
     if (!session) { router.push('/login'); return }

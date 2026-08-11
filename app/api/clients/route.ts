@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
+import { requirePro } from '@/lib/pro-auth'
 
 // GET /api/clients?pro_id=xxx — list all clients for a pro
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const proId = req.nextUrl.searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
@@ -28,7 +32,7 @@ export async function GET(req: NextRequest) {
     if (leads) {
       enriched = enriched.map(client => {
         const clientLeads = leads.filter(l => l.client_id === client.id)
-        const paidLeads   = clientLeads.filter(l => l.lead_status === 'Paid' && l.quoted_amount)
+        const paidLeads   = clientLeads.filter(l => (l.lead_status === 'Paid' || l.lead_status === 'job_won') && l.quoted_amount)
         const lifetimeValue = paidLeads.reduce((sum, l) => sum + (l.quoted_amount || 0), 0)
         const lastJob = clientLeads.sort((a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -48,6 +52,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/clients — create a new client
 export async function POST(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const body = await req.json()
   const { pro_id, full_name, phone, email, address_line1, city, state, zip, preferred_contact, notes, tags } = body
 
@@ -55,7 +61,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'pro_id and full_name required' }, { status: 400 })
   }
 
-  const { data, error } = await getSupabaseAdmin()
+  const db = auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
+
+  // ── Dedup guard: match existing client by phone → email → name+address ──
+  // Prevents duplicate client rows from repeated "Save as Property" clicks,
+  // multi-submits, and retries after a failed lead-link PATCH.
+  let existing: { id: string } | null = null
+  if (phone) {
+    const { data } = await db.from('clients').select('*')
+      .eq('pro_id', pro_id).eq('phone', String(phone).trim()).maybeSingle()
+    if (data) existing = data
+  }
+  if (!existing && email) {
+    const { data } = await db.from('clients').select('*')
+      .eq('pro_id', pro_id).eq('email', String(email).toLowerCase().trim()).maybeSingle()
+    if (data) existing = data
+  }
+  if (!existing && address_line1) {
+    const { data } = await db.from('clients').select('*')
+      .eq('pro_id', pro_id)
+      .ilike('full_name', String(full_name).trim())
+      .eq('address_line1', String(address_line1).trim())
+      .maybeSingle()
+    if (data) existing = data
+  }
+  if (existing) {
+    return NextResponse.json({ client: existing }, { status: 200 })
+  }
+
+  const { data, error } = await db
     .from('clients')
     .insert({ pro_id, full_name, phone, email, address_line1, city, state, zip, preferred_contact: preferred_contact || 'call', notes, tags: tags || [] })
     .select()
@@ -67,6 +101,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/clients — update a client
 export async function PATCH(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const body = await req.json()
   const { id, ...fields } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -75,8 +111,8 @@ export async function PATCH(req: NextRequest) {
   const updates: Record<string, any> = { updated_at: new Date().toISOString() }
   for (const key of allowed) { if (key in fields) updates[key] = fields[key] }
 
-  const { data, error } = await getSupabaseAdmin()
-    .from('clients').update(updates).eq('id', id).select().single()
+  const { data, error } = await auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
+    .from('clients').update(updates).eq('id', id).eq('pro_id', __auth.proId!).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ client: data })
@@ -84,6 +120,8 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/clients — delete a client
 export async function DELETE(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 

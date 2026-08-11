@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
+// Debug / keep-alive — never cache.
+export const dynamic = 'force-dynamic'
+
 // Lightweight DB ping — keeps Supabase free tier awake
 // Called daily by Vercel cron (see vercel.json)
 export async function GET() {

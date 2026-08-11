@@ -82,20 +82,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'full_name and email are required' }, { status: 400 })
   }
 
-  const { data: existing } = await getSupabaseAdmin()
+  const sb = getSupabaseAdmin()
+
+  const { data: existing } = await sb
     .from('pros').select('id').ilike('email', email).single()
 
   if (existing) {
     return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
   }
 
-  const { data, error } = await getSupabaseAdmin()
+  // Resolve trade_slug from trade_categories so pipeline + lead creation work correctly
+  let trade_slug: string | null = null
+  if (trade_category_id) {
+    const { data: cat } = await sb
+      .from('trade_categories')
+      .select('slug')
+      .eq('id', trade_category_id)
+      .single()
+    trade_slug = cat?.slug || null
+  }
+
+  const { data, error } = await sb
     .from('pros')
     .insert({
       full_name, email: email.toLowerCase().trim(),
       phone: phone || null, city: city || null, state: state || null,
       zip_code: zip_code || null, years_experience: years_experience || null,
       trade_category_id: trade_category_id || null,
+      trade_slug,
       plan_tier: 'Free', profile_status: 'Active', is_verified: false,
     })
     .select().single()

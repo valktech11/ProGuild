@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
+// Public/static payload — safe to cache; revalidate hourly.
+export const revalidate = 3600
+
 // Public endpoint — readable by all, cached
 export async function GET() {
   const { data } = await getSupabaseAdmin().from('site_config').select('*')

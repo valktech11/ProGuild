@@ -1,0 +1,268 @@
+'use client'
+import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { theme, T } from '@/lib/tokens'
+import { eventStyle, ICON_PATH } from '@/lib/design'
+import { capName, fmtCurrency } from '@/lib/utils'
+
+export interface CalEvent {
+  id: string
+  contact_name: string
+  contact_phone: string | null
+  contact_email: string | null
+  lead_status: string
+  lead_source: string | null
+  quoted_amount: number | null
+  scheduled_date: string | null
+  scheduled_time: string | null
+  follow_up_date: string | null
+  inspection_date: string | null
+  notes: string | null
+  message: string | null
+  created_at: string
+  _type: 'job' | 'followup' | 'inspection'
+}
+
+function fmtTime(t: string | null): string {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const ampm = h >= 12 ? 'pm' : 'am'
+  const hour = h % 12 || 12
+  return m === 0 ? `${hour}${ampm}` : `${hour}:${String(m).padStart(2, '0')}${ampm}`
+}
+
+function fmtPhone(p: string | null): string | null {
+  if (!p) return null
+  const digits = p.replace(/\D/g, '')
+  if (digits.length === 10) return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
+  return p
+}
+
+function Svg({ path, size = 12, color = 'currentColor', sw = 2 }: { path: string; size?: number; color?: string; sw?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d={path} />
+    </svg>
+  )
+}
+
+// ─── Props ───────────────────────────────────────────────────────────────────
+
+interface EventChipProps {
+  key?: React.Key
+  ev: CalEvent
+  dk: boolean
+  /** micro: month grid cell chip (name only, 9px)
+   *  compact: week grid chip (name + time + amount, 11-12px)
+   *  full: mobile card / agenda row (full card with actions) */
+  size: 'micro' | 'compact' | 'full'
+  onClick?: () => void
+  onMarkComplete?: () => void
+  completing?: boolean
+  isOverdue?: boolean
+}
+
+// ─── EventChip ───────────────────────────────────────────────────────────────
+
+export function EventChip({ ev, dk, size, onClick, onMarkComplete, completing, isOverdue = false }: EventChipProps) {
+  const t   = theme(dk)
+  const isFollowup  = ev._type === 'followup'
+  const isInspection = ev._type === 'inspection'
+  // 'Completed'/'Paid' = old generic; 'job_won' = new roofing; both mean done
+  const DONE_STATUSES = new Set(['Completed', 'Paid', 'job_won', 'Converted'])
+  const isCompleted = DONE_STATUSES.has(ev.lead_status)
+  const esBase = eventStyle({ isOverdue, isFollowup, isCompleted, leadStatus: ev.lead_status }, dk)
+  const INSPECTION_STYLE = dk
+    ? { bg: '#1E1B4B', border: '#818CF8', text: '#E0E7FF', mutedText: '#A5B4FC', opacity: esBase.opacity }
+    : { bg: '#EEF2FF', border: '#4F46E5', text: '#312E81', mutedText: '#6366F1', opacity: esBase.opacity }
+  const es = isInspection && !isOverdue ? { ...esBase, ...INSPECTION_STYLE } : esBase
+  const CLIPBOARD = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'
+  const timeLabel = ev._type === 'job' && ev.scheduled_time ? fmtTime(ev.scheduled_time) : ''
+  const fmtShort = (d: string | null) => {
+    if (!d) return ''
+    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return d }
+  }
+  const typeLabel = isInspection ? 'Diagnosis' : isFollowup ? 'Follow-up' : 'Job'
+  const eventDate = isInspection ? ev.inspection_date : isFollowup ? ev.follow_up_date : ev.scheduled_date
+  const tooltipDate = fmtShort(eventDate) + (timeLabel ? ` · ${timeLabel}` : '')
+  const iconPath  = isOverdue ? ICON_PATH.warning : isInspection ? CLIPBOARD : isFollowup ? ICON_PATH.phone : ICON_PATH.wrench
+
+  // ── micro — month grid cell ───────────────────────────────────────────────
+  if (size === 'micro') {
+    const [tip, setTip] = useState(false)
+    const [pos, setPos] = useState({ x: 0, y: 0 })
+    const chipRef = useRef<HTMLDivElement>(null)
+    // Recalculate portal position when tip becomes visible
+    useEffect(() => {
+      if (tip && chipRef.current) {
+        const r = chipRef.current.getBoundingClientRect()
+        setPos({ x: r.left, y: r.bottom + window.scrollY })
+      }
+    }, [tip])
+    const tooltipContent = (
+      <div style={{
+        position: 'absolute', top: pos.y + 6, left: Math.min(pos.x, window.innerWidth - 230),
+        zIndex: 9999, pointerEvents: 'none',
+        background: '#1E293B', borderRadius: 8, padding: '8px 11px',
+        minWidth: 160, maxWidth: 220,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
+      }}>
+        <div style={{ position: 'absolute', bottom: '100%', left: 14, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '5px solid #1E293B' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: es.border, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 800, color: es.border, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{typeLabel}</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#F1F5F9', marginBottom: 2 }}>{capName(ev.contact_name)}</div>
+        {tooltipDate && <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: ev.quoted_amount ? 4 : 0 }}>{tooltipDate}</div>}
+        {ev.quoted_amount && ev.quoted_amount > 0
+          ? <div style={{ fontSize: 13, fontWeight: 700, color: '#34D399', marginTop: 2 }}>${Number(ev.quoted_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          : null}
+      </div>
+    )
+    return (
+      <div style={{ position: 'relative', display: 'block' }}>
+        <div ref={chipRef}
+          onClick={e => { e.stopPropagation(); onClick?.() }}
+          onMouseEnter={() => setTip(true)}
+          onMouseLeave={() => setTip(false)}
+          style={{
+            fontSize: 11, fontWeight: 700, padding: '2px 5px', borderRadius: 4,
+            background: es.bg, borderLeft: `2px solid ${es.border}`, color: es.text,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            opacity: tip ? Math.min(1, es.opacity + 0.2) : es.opacity,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, transition: 'opacity 0.1s',
+          }}>
+          <Svg path={iconPath} size={8} color={es.border} sw={2.5} />
+          {capName(ev.contact_name)}
+          <span style={{ fontSize: 9, fontWeight: 800, opacity: 0.7, marginLeft: 2, flexShrink: 0 }}>
+            {isInspection ? '· Diag' : isFollowup ? '· FU' : ''}
+          </span>
+        </div>
+        {tip && typeof document !== 'undefined' && createPortal(tooltipContent, document.body)}
+      </div>
+    )
+  }
+
+  // ── compact — week grid / agenda ─────────────────────────────────────────
+  if (size === 'compact') {
+    return (
+      <div
+        onClick={onClick}
+        style={{
+          padding: '5px 7px',
+          borderRadius: 7,
+          background: es.bg,
+          borderLeft: `3px ${isFollowup ? 'dashed' : 'solid'} ${es.border}`,
+          opacity: es.opacity,
+          cursor: 'pointer',
+          display: 'flex', flexDirection: 'column', gap: 2,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+          transition: 'transform 0.1s, box-shadow 0.1s',
+          overflow: 'hidden',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 3px 8px rgba(0,0,0,0.12)' }}
+        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)' }}>
+        {/* Row 1: icon + type label + time */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Svg path={iconPath} size={10} color={es.border} sw={2.2} />
+          <span style={{ fontSize: 10, fontWeight: 800, color: es.border, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {typeLabel}
+          </span>
+          {timeLabel && <span style={{ fontSize: 11, fontWeight: 700, color: es.border, marginLeft: 2 }}>{timeLabel}</span>}
+        </div>
+        {/* Row 2: name */}
+        <div style={{ fontSize: 13, fontWeight: 700, color: es.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {capName(ev.contact_name)}
+        </div>
+        {/* Row 3: amount — jobs only, not follow-ups */}
+        {ev._type === 'job' && ev.quoted_amount && ev.quoted_amount > 0 ? (
+          <div style={{ fontSize: 12, fontWeight: 600, color: es.mutedText }}>
+            ${ev.quoted_amount.toLocaleString()}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  // ── full — mobile agenda card ─────────────────────────────────────────────
+  const phone = fmtPhone(ev.contact_phone)
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: t.cardBg,
+        borderLeft: `4px solid ${es.border}`,
+        borderRadius: 12,
+        border: `1px solid ${t.cardBorder}`,
+        borderLeftWidth: 4,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        opacity: es.opacity,
+        cursor: 'pointer',
+        overflow: 'hidden',
+      }}>
+      {/* Top section */}
+      <div style={{ padding: '12px 14px 10px' }}>
+        {/* Row 1: icon + type label + time */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <Svg path={iconPath} size={13} color={es.border} sw={2} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: es.mutedText, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {isFollowup ? 'Follow-up' : isInspection ? 'Inspection' : DONE_STATUSES.has(ev.lead_status) ? 'Job Won' : ev.lead_status}
+          </span>
+          {timeLabel && (
+            <>
+              <span style={{ color: t.cardBorder }}>·</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: es.border }}>{timeLabel}</span>
+            </>
+          )}
+          {ev._type === 'job' && ev.quoted_amount && ev.quoted_amount > 0 ? (
+            <>
+              <span style={{ color: t.cardBorder, marginLeft: 'auto' }}>·</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: es.border, marginLeft: 4 }}>
+                ${ev.quoted_amount.toLocaleString()}
+              </span>
+            </>
+          ) : null}
+        </div>
+        {/* Row 2: customer name */}
+        <div style={{ fontSize: 17, fontWeight: 800, color: t.textPri, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {capName(ev.contact_name)}
+        </div>
+        {/* Row 3: location hint from message */}
+        {ev.message && (
+          <div style={{ fontSize: 13, color: t.textSubtle, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {ev.message.slice(0, 60)}
+          </div>
+        )}
+      </div>
+      {/* Action bar — always 2 buttons, Call is never full-width */}
+      <div style={{ borderTop: `1px solid ${t.cardBorder}`, padding: '8px 14px', display: 'flex', gap: 8 }}
+        onClick={e => e.stopPropagation()}>
+        {/* Primary: Call or Open */}
+        {phone ? (
+          <a href={`tel:${ev.contact_phone}`}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 0', borderRadius: 9, background: es.bg, border: `1.5px solid ${es.border}44`, color: es.border, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+            <Svg path={ICON_PATH.phone} size={12} color={es.border} sw={2.2} />
+            Call
+          </a>
+        ) : (
+          <button onClick={onClick}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '9px 0', borderRadius: 9, background: es.bg, border: `1.5px solid ${es.border}44`, color: es.border, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            Open
+          </button>
+        )}
+        {/* Secondary: Done (scheduled jobs) or Open Lead */}
+        {onMarkComplete && !isCompleted ? (
+          <button onClick={onMarkComplete} disabled={completing}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '9px 0', borderRadius: 9, background: completing ? t.cardBgAlt : '#DCFCE7', border: '1.5px solid #86EFAC', color: '#15803D', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: completing ? 0.6 : 1 }}>
+            {completing ? '…' : (<><Svg path={ICON_PATH.check} size={12} color="#15803D" sw={2.5} />Done</>)}
+          </button>
+        ) : (
+          <button onClick={onClick}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '9px 0', borderRadius: 9, background: t.cardBgAlt, border: `1px solid ${t.cardBorder}`, color: t.textMuted, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            Open
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,2569 @@
+'use client'
+import { useState, useEffect, use, useCallback, useRef, Suspense } from 'react'
+import { createPortal } from 'react-dom'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Lead, LeadStatus, isPaidPlan } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
+import { avatarColor, initials, capName, fmtPhone, US_STATES } from '@/lib/utils'
+import { theme, T, BRAND } from '@/lib/tokens'
+import DashboardShell from '@/components/layout/DashboardShell'
+import { getPipelineStages, LostReasonSheet } from '@/components/ui/LeadPipeline'
+import { getTradeConfig, getActiveStages, isRoofing as isRoofing_guard, isRoofing as _isRoofing, getStageAnchors, isHvac as isHvac_guard } from '@/lib/trades/_registry'
+import type { StagePlanEntry } from '@/lib/trades/roofing/stage-rules'
+// Roofing components accessed via trade module path — not components/roofing
+import InsuranceClaimFields from '@/lib/trades/roofing/components/InsuranceClaimFields'
+import SupplementAssistant from '@/lib/trades/roofing/components/SupplementAssistant'
+import { computeSupplementGap } from '@/lib/fl/supplement'
+import { Card } from '@/components/ui/Card'
+import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
+import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
+import { apiFetch } from '@/lib/api-fetch'
+
+// Captures the last lead-PATCH error message so saveEdit can show it in the toast
+let _lastPatchError = ''
+
+// Animated count-up for a money figure — eases from the previous value to the new one.
+// First mount animates from 0; subsequent value changes animate from the prior value.
+function CountUpMoney({ value, fmt, style }: { value: number; fmt: (n: number) => string; style?: React.CSSProperties }) {
+  const [disp, setDisp] = useState(0)
+  const fromRef = useRef(0)
+  const rafRef = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    const from = fromRef.current
+    const to = value
+    if (from === to) { setDisp(to); return }
+    const dur = 700
+    const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now())
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur)
+      const eased = 1 - Math.pow(1 - p, 3) // ease-out cubic
+      setDisp(Math.round(from + (to - from) * eased))
+      if (p < 1) rafRef.current = requestAnimationFrame(tick)
+      else fromRef.current = to
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [value])
+  return <span style={style}>{fmt(disp)}</span>
+}
+
+
+// ─── Stage order map ──────────────────────────────────────────────────────────
+// STAGE_ORDER and SOURCE_OPTIONS are derived inside the component from the trade plugin.
+// This fallback is used for non-roofing trades until their configs define leadSources.
+const FALLBACK_SOURCE_OPTIONS = [
+  'Phone Call','Profile Page','Referral','Facebook','Instagram',
+  'Yard Sign','Canvassing','Insurance','Website','Other',
+]
+
+interface LeadExt extends Lead {
+  contact_city:  string | null
+  contact_state: string | null
+  client_id:     string | null
+  updated_at:    string
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+type WorkflowStep = { key: string; label: string; done: boolean }
+/**
+ * roofingWorkflow — single source of truth for the lead's task-completeness model.
+ * Consumed by BOTH the Next Action banner and the verb progress checklist so the
+ * two surfaces can never drift. Mirrors the on-page gap engine: the Supplement
+ * step only exists when gap = estTotal − (approved + supplement) is positive.
+ */
+function roofingWorkflow(
+  rjd: any,
+  est: { total?: number; status?: string; sent_at?: string | null } | null,
+  estCount: number,
+): { steps: WorkflowStep[]; nextKey: string | null; gap: number | null; hasGap: boolean; decisionRecorded: boolean } {
+  const isClaim = !!rjd?.insurance_claim
+  const lfd = rjd?.linear_footage || {}
+  const sqDone = !!rjd?.square_count
+  const lfDone = (lfd.ridge_ft > 0) || (lfd.hip_ft > 0) || (lfd.valley_ft > 0)
+  const approvedAmt = Number(rjd?.approved_amount) || 0
+  const supplementAmt = Number(rjd?.supplement_amount) || 0
+  const claimStatus = rjd?.claim_status || 'Filed'
+  const estTotal = Number(est?.total) || 0
+  const _gap = computeSupplementGap(estTotal, approvedAmt, supplementAmt)
+  const carrierTotal = _gap.carrier_total
+  const decisionRecorded = ['Approved','Decision','Denied','Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
+  const gap = _gap.gap
+  const hasGap = _gap.has_gap
+  const estDone = estCount > 0 || !!est
+  // Lifecycle status is the sole authority for supp-stage done-state; supplement_amount can be entered pre-filing (Approved) and must not force 'filed' label.
+  const supDone = ['Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
+  const sentDone = !!(est && ((est.sent_at) || ['sent','viewed','approved'].includes(est.status || '')))
+  const steps: WorkflowStep[] = isClaim
+    ? [
+        { key: 'measure',  label: 'Measure Roof',         done: sqDone },
+        { key: 'lf',       label: 'Capture LF',           done: lfDone },
+        { key: 'estimate', label: 'Build Estimate',       done: estDone },
+        { key: 'carrier',  label: 'Review Carrier Scope', done: decisionRecorded },
+        ...(decisionRecorded ? [{ key: 'supp', label: 'Review Supplement', done: supDone }] : []),
+        { key: 'send',     label: 'Send to Homeowner',    done: sentDone },
+      ]
+    : [
+        { key: 'measure',  label: 'Measure Roof',      done: sqDone },
+        { key: 'lf',       label: 'Capture LF',        done: lfDone },
+        { key: 'estimate', label: 'Build Estimate',    done: estDone },
+        { key: 'send',     label: 'Send to Homeowner', done: sentDone },
+      ]
+  const found = steps.find(s => !s.done)
+  return { steps, nextKey: found ? found.key : null, gap, hasGap, decisionRecorded }
+}
+
+function fmt(d: string | null): string {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+}
+function daysAgo(d: string): number {
+  return Math.floor((Date.now() - new Date(d).getTime()) / 86400000)
+}
+function isOverdue(d: string | null) { return !!d && new Date(d) < new Date() }
+
+interface Toast { id:number; msg:string; type:'success'|'error'|'info'|'warning'; prev?:LeadStatus }
+
+// ─── SVG helper ───────────────────────────────────────────────────────────────
+function Svg({ size=14, stroke='currentColor', sw=2, children }: {
+  size?:number; stroke?:string; sw?:number; children:React.ReactNode
+}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  )
+}
+
+function CopyBtn({ text, color }: { text:string; color:string }) {
+  const [ok, setOk] = useState(false)
+  return (
+    <button onClick={() => { navigator.clipboard.writeText(text).then(() => { setOk(true); setTimeout(()=>setOk(false),1500) }) }}
+      style={{ background:'none', border:'none', cursor:'pointer', padding:'0 2px', color, opacity: ok?1:0.45, lineHeight:1, display:'flex', flexShrink:0 }}>
+      <Svg size={13} stroke={color}>
+        {ok ? <polyline points="20 6 9 17 4 12"/> : <><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></>}
+      </Svg>
+    </button>
+  )
+}
+
+// ─── Stage icon for dropdown rows ─────────────────────────────────────────────
+function StageIcon({ k, color, size=24 }: { k:string; color:string; size?:number }) {
+  const ic = size * 0.48
+  const isDate = ['inspection_scheduled','scheduled','Scheduled'].some(x => x === k)
+  const isDoc  = ['proposal_sent','proposal_signed','Quoted'].some(x => x === k)
+  return (
+    <div style={{ width:size, height:size, borderRadius:'50%', background:color+'1A',
+      display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+      <Svg size={ic} stroke={color}>
+        {k==='lead_in'           && <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>}
+        {isDate                  && <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+        {isDoc                   && <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+        {k==='insurance_approved'&& <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>}
+        {k==='in_progress'       && <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>}
+        {k==='job_won'           && <polyline points="8 6 2 12 8 18"/>}
+        {k==='lost'              && <><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>}
+        {k==='unqualified'       && <><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></>}
+        {/* Default icon for any stage key not matched above */}
+        {!['lead_in','inspection_scheduled','scheduled','Scheduled',
+           'proposal_sent','proposal_signed','Quoted','insurance_approved',
+           'in_progress','job_won','lost','unqualified'].some(x => x === k) && <circle cx="12" cy="12" r="10"/>}
+      </Svg>
+    </div>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
+  const { id }   = use(params)
+  const router   = useRouter()
+  const sp       = useSearchParams()
+  const fromParam = sp.get('from')
+  const fromEst   = sp.get('est_id')
+  const appliedFromProMeasure = sp.get('applied') === '1' && fromParam === 'promeasure'
+
+  function backNav() {
+    // Trade label from plugin — no slug string comparisons
+    const pipelineTerm = tradePlugin.labels.pipeline ?? 'Jobs'
+    if (fromParam==='calendar')  return { label:'Back to Calendar',  href:'/dashboard/calendar' }
+    if (fromParam==='clients')   return { label:'Back to Clients',   href:'/dashboard/clients' }
+    if (fromParam==='estimates') return { label:'Back to Estimate',  href: fromEst?`/dashboard/estimates/${fromEst}`:'/dashboard/estimates' }
+    return { label:`Back to ${pipelineTerm}`, href:'/dashboard/pipeline' }
+  }
+
+  // ── Session ─────────────────────────────────────────────────────────────
+  const { session, loading: _authLoading } = useProSession()
+  const [dk, setDk] = useState(false)
+  useEffect(() => { if (typeof window!=='undefined') setDk(localStorage.getItem('pg_darkmode')==='1') }, [])
+
+  const [isWide, setIsWide] = useState(false)
+
+  // Responsive 2-col grid — pure JS, no Tailwind arbitrary values
+  useEffect(() => {
+    function check() { setIsWide(window.innerWidth >= 900) }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  const toggleDark = () => { const n=!dk; setDk(n); localStorage.setItem('pg_darkmode',n?'1':'0') }
+
+  // ── Lead data ────────────────────────────────────────────────────────────
+  const [lead,    setLead]    = useState<LeadExt|null>(null)
+  const [loading, setLoading] = useState(true)
+  const [missing, setMissing] = useState(false)
+  const [stage,   setStage]   = useState<LeadStatus>('New')
+  const [saving,  setSaving]  = useState(false)
+
+  // ── UI state ─────────────────────────────────────────────────────────────
+  type Tab = 'details'|'photos'|'estimate'|'activity'
+  const [tab,          setTab]          = useState<Tab>('details')
+  const [isEditing,    setIsEditing]    = useState(false)
+  const [contactOpen,  setContactOpen]  = useState(false)
+  const [useSpine,     setUseSpine]     = useState(true)
+  const [suppOpen,     setSuppOpen]     = useState(false)  // expand the done Supplement stage back to the full assistant
+  const [tipDismissed, setTipDismissed] = useState<string | null>(null)  // stage whose coaching tip the user dismissed (session-scoped)
+  // Step-completion pop: track which stage keys were done on the previous render
+  // so we can detect the exact frame a key transitions done→newly-done.
+  const prevDoneKeysRef = useRef<Set<string>>(new Set())
+  const [poppedKeys,   setPoppedKeys]   = useState<Set<string>>(new Set())
+  const [showPicker,   setShowPicker]   = useState(false)
+  // Persistent info/warning popover anchored under the status dropdown (replaces
+  // the transient toast for blocked/locked stage taps — stays until dismissed).
+  const [stageNotice, setStageNotice] = useState<{ kind:'info'|'warning'; msg:string }|null>(null)
+  const [showWarranty, setShowWarranty] = useState(false)
+  const [confirmBack,  setConfirmBack]  = useState<LeadStatus|null>(null)
+  // Canonical move rules for this lead — served by /api/roofing/stage-plan.
+  const [stagePlan, setStagePlan] = useState<StagePlanEntry[]>([])
+  const planFor = (k: string) => stagePlan.find(e => e.key === k)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [showInspectionModal, setShowInspectionModal] = useState(false)
+  const [inspDate, setInspDate] = useState('')
+  const [schedDate,  setSchedDate]  = useState('')
+  const [schedTime,  setSchedTime]  = useState('')
+
+  // ── Edit fields ──────────────────────────────────────────────────────────
+  const [eAddr,  setEAddr]  = useState('')
+  const [eAddrPredictions, setEAddrPredictions] = useState<Array<{description:string;place_id:string}>>([])
+  const [eAddrShowPred,    setEAddrShowPred]    = useState(false)
+  const [eAddrLoading,     setEAddrLoading]     = useState(false)
+  const [ePhone, setEPhone] = useState('')
+  const [eEmail, setEEmail] = useState('')
+  const [eCity,  setECity]  = useState('')
+  const [eState, setEState] = useState('')
+  const [eZip,   setEZip]   = useState('')
+  const [eSrc,   setESrc]   = useState('')
+  const [eDate,  setEDate]  = useState('')
+  const [eTime,  setETime]  = useState('')
+  const [eFU,    setEFU]    = useState('')
+  const [eInsp,  setEInsp]  = useState('')
+  const [eNotes, setENotes] = useState('')
+  const [eSaving,setESaving]= useState(false)
+
+  // ── Note ────────────────────────────────────────────────────────────────
+  const [noteText,    setNoteText]    = useState('')
+  const [savingNote,  setSavingNote]  = useState(false)
+  const [qbGenerating,   setQbGenerating]   = useState(false)
+  const [reportRowId,    setReportRowId]    = useState<string|null>(null)
+  const [pipelineEvents, setPipelineEvents] = useState<any[]>([])
+  const [qbDone,         setQbDone]         = useState(false)
+  const [qbError,        setQbError]        = useState('')
+  const [showRemeasure,  setShowRemeasure]  = useState(false)
+
+  // ── Estimate / invoice ───────────────────────────────────────────────────
+  const [est, setEst] = useState<{id:string;estimate_number:string;total:number;status:string}|null>(null)
+  // All non-void estimates for this lead (original + any revisions) — for stacked display
+  const [estList, setEstList] = useState<{id:string;estimate_number:string;total:number;status:string;revision_of?:string|null;revision_number?:number}[]>([])
+  // Superseded/voided estimates for this lead — for the history trail
+  const [supersededList, setSupersededList] = useState<{id:string;estimate_number:string;total:number;status:string;void_reason?:string|null;voided_at?:string|null;revision_number?:number}[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [inv, setInv] = useState<{id:string;invoice_number:string;status:string;balance_due:number;total:number}|null>(null)
+  const [creatingEst, setCreatingEst] = useState(false)
+  const [photoCount, setPhotoCount]   = useState(0)
+  const [photos, setPhotos]           = useState<any[]>([])
+  const [photosModalOpen, setPhotosModalOpen] = useState(false)
+  // Bumped on Reopen-claim to force the InsuranceClaimFields component to remount
+  // and re-read the now-reset status (its internal state is guarded against
+  // re-sync once the user starts editing, so a parent status change alone won't
+  // propagate without a remount).
+  const [claimRemountNonce, setClaimRemountNonce] = useState(0)
+  // Job Readiness collapse — null = use auto default (expanded while early, collapsed once an estimate exists)
+
+  // ── Toasts ───────────────────────────────────────────────────────────────
+  const [toasts,   setToasts]   = useState<Toast[]>([])
+  const [toastSeq, setToastSeq] = useState(0)
+  const [showLostSheet, setShowLostSheet] = useState(false)
+  const [reasonTarget, setReasonTarget] = useState<LeadStatus>('lost')
+  function addToast(msg:string, type:Toast['type']='success', prev?:LeadStatus) {
+    const tid=toastSeq+1; setToastSeq(tid)
+    setToasts(t=>[...t,{id:tid,msg,type,prev}])
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==tid)), prev ? 9000 : 5000)
+  }
+  function killToast(tid:number) { setToasts(t=>t.filter(x=>x.id!==tid)) }
+
+  async function shareStatus() {
+    if (!session || !lead?.contact_email) {
+      addToast('No email on file for this homeowner — add one in Edit', 'error')
+      return
+    }
+    try {
+      const r = await apiFetch('/api/leads/send-status-email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: id, pro_id: session.id }),
+      })
+      const d = await r.json()
+      if (!r.ok) { addToast(d.error || 'Failed to send', 'error'); return }
+      addToast(`Status link sent to ${lead.contact_email}`, 'success')
+    } catch { addToast('Failed to send status email', 'error') }
+  }
+
+  const tradePlugin = getTradeConfig(session?.trade_slug)
+  const isRoofing = isRoofing_guard(tradePlugin)
+  const refetchPhotos = useCallback(() => {
+    if (!session || !lead || !isRoofing) return
+    apiFetch(`/api/leads/${lead.id}/photos?pro_id=${session.id}`).then(r=>r.json()).then(d => {
+      const arr = Array.isArray(d?.photos) ? d.photos : []
+      setPhotos(arr); setPhotoCount(arr.length)
+    }).catch(()=>{})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, lead, isRoofing])
+  useEffect(() => {
+    if (!photosModalOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPhotosModalOpen(false) }
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+  }, [photosModalOpen])
+  // isPro: hardcoded true until Stripe plan enforcement goes live
+  const isPro = true
+
+  // Derived from trade plugin — no hardcoded stage keys or source labels
+  const STAGE_ORDER: Record<string, number> = Object.fromEntries(
+    getActiveStages(session?.trade_slug).map((s, i) => [s.key, i])
+  )
+  const SOURCE_OPTIONS: { value: string; label: string }[] = isRoofing
+    ? tradePlugin.leadSources.map((s: { value: string; label: string }) => ({ value: s.value, label: s.label }))
+    : FALLBACK_SOURCE_OPTIONS.map(s => ({ value: s.replace(/ /g, '_'), label: s }))
+
+  // ── Fetch lead ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
+    apiFetch(`/api/leads/${id}?pro_id=${session.id}`)
+      .then(r => { if(r.status===404){setMissing(true);setLoading(false);return null}; return r.json() })
+      .then(d => { if(!d) return; const l=d.lead as LeadExt; setLead(l); setStage(l.lead_status as LeadStatus); setLoading(false) })
+      .catch(()=>setLoading(false))
+    // Fetch stage transition history
+    apiFetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : { events: [] })
+      .then(d => setPipelineEvents(d.events || []))
+      .catch(() => {})
+  }, [session, id, router])
+
+  // Re-fetch pipeline events (Activity tab) on demand — used after saves that write events
+  const refreshEvents = useCallback(() => {
+    if (!session) return
+    apiFetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : { events: [] })
+      .then(d => setPipelineEvents(d.events || []))
+      .catch(() => {})
+  }, [session, id])
+
+  const refreshEst = useCallback(() => {
+    if (!session||!lead) return
+    apiFetch(`/api/estimates?pro_id=${session.id}`).then(r=>r.json()).then(d => {
+      const arr=(d.estimates||[]).filter((e:any)=>e.lead_id===lead.id&&!['void','declined'].includes(e.status))
+      if (!arr.length) { setEst(null); setEstList([]); return }
+      const pri=['invoiced','approved','paid','sent','viewed','draft']
+      const sorted=[...arr].sort((a:any,b:any)=>pri.indexOf(a.status)<pri.indexOf(b.status)?-1:1)
+      setEst(sorted[0])
+      // Stacked display: original first, then revisions in order (oldest → newest)
+      const ordered=[...arr].sort((a:any,b:any)=>(a.revision_number??0)-(b.revision_number??0))
+      setEstList(ordered)
+      // History trail: voided estimates that were superseded (part of this lead's revision chain)
+      const voided=(d.estimates||[]).filter((e:any)=>e.lead_id===lead.id&&e.status==='void')
+        .sort((a:any,b:any)=>(a.revision_number??0)-(b.revision_number??0))
+      setSupersededList(voided)
+    }).catch(()=>{})
+  }, [session, lead])
+
+  // Re-fetch estimate on visibility change (tab switch) and on fromParam change
+  // (covers returning from calculator/estimate editor via client-side nav)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshEst() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [refreshEst])
+
+  // The move sheet's single source of truth. Refetched whenever the inputs the
+  // gates read can change (stage / estimate / invoice / lead fields).
+  const refreshPlan = useCallback(() => {
+    if (!session || !lead || !isRoofing) return
+    fetch(`/api/roofing/stage-plan?lead_id=${lead.id}&pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.stages) setStagePlan(d.stages as StagePlanEntry[]) })
+      .catch(() => {})
+  }, [session, lead, isRoofing])
+
+  useEffect(() => { refreshPlan() }, [refreshPlan, stage, est, inv])
+
+  useEffect(() => {
+    refreshEst()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromParam])
+
+  // Arriving from the estimate-screen gap banner ("Review supplement items →")
+  // with ?focus=supplement: once the lead (and thus the supplement section) is
+  // rendered, scroll it into view so the roofer lands on the gap + assistant.
+  useEffect(() => {
+    if (sp.get('focus') !== 'supplement' || !lead) return
+    const t = setTimeout(() => {
+      document.getElementById('supplement-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [sp, lead])
+
+  useEffect(() => {
+    if (!session||!lead) return
+    refreshEst()
+    apiFetch(`/api/invoices?pro_id=${session.id}&lead_id=${lead.id}`).then(r=>r.json()).then(d => {
+      const i=(d.invoices||[]).find((x:any)=>x.status!=='void'); if(i) setInv(i)
+    }).catch(()=>{})
+    // Eagerly fetch photos so the rail card thumbnails + count show on first render
+    if (isRoofing) refetchPhotos()
+  }, [session, lead])
+
+  // When returning from ProMeasure with measurements applied:
+  // re-fetch the lead so roofing_job_data is fresh in state before UI renders pills
+  useEffect(() => {
+    if (!appliedFromProMeasure || !session || !lead) return
+    apiFetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.lead) {
+          setLead(d.lead)
+          setStage(d.lead.lead_status)
+        }
+        addToast('Measurements applied to lead', 'success')
+        // Strip ?from=promeasure&applied=1 so toast never re-fires on back-nav or re-render
+        router.replace(`/dashboard/pipeline/${lead.id}`)
+      })
+      .catch(() => addToast('Measurements applied to lead', 'success'))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedFromProMeasure, lead?.id])
+
+  // ── Patch ────────────────────────────────────────────────────────────────
+  const patch = useCallback(async (fields:Record<string,unknown>) => {
+    if (!session) return false
+    // Route lead_status changes through /stage endpoint so pipeline_events are written
+    if ('lead_status' in fields) {
+      const r = await apiFetch(`/api/leads/${id}/stage`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          pro_id: session.id,
+          stage: fields.lead_status,
+          ...(fields.lost_reason ? { lost_reason: fields.lost_reason } : {}),
+        }),
+      })
+      // If stage route succeeds, also patch any other fields in the payload
+      const otherFields = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'lead_status'))
+      if (Object.keys(otherFields).length > 0 && r.ok) {
+        await apiFetch(`/api/leads/${id}`, {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ pro_id: session.id, ...otherFields }),
+        })
+      }
+      return r.ok
+    }
+    const r = await apiFetch(`/api/leads/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,...fields})})
+    if (!r.ok) {
+      try {
+        const body = await r.json()
+        _lastPatchError = body?.error || `HTTP ${r.status}`
+      } catch { _lastPatchError = `HTTP ${r.status}` }
+    }
+    return r.ok
+  }, [session, id])
+
+  // ── Stage move ───────────────────────────────────────────────────────────
+  // Move rules come entirely from the server plan (/api/roofing/stage-plan, via
+  // planFor). No gate logic lives in this client anymore.
+  async function moveStage(s:LeadStatus, force=false) {
+    if (s===stage||saving) return
+    if (STAGE_ORDER[s]<STAGE_ORDER[stage]) { setConfirmBack(s); return }   // backward → confirm
+
+    if (!force) {
+      const lostKey = getStageAnchors(session?.trade_slug)?.lost ?? 'lost'
+      const entry   = planFor(s)
+
+      // Blocked or locked — the plan says why. Surface it; no manual override.
+      // Auto stages advance by their action (send / sign / claim approved /
+      // payment), never by a chip flip, so there is no "do it anyway".
+      if (entry && !entry.allowed) {
+        // Persistent popover under the dropdown — auto stage = info, gated manual = warning.
+        setShowPicker(false)
+        setStageNotice({ kind: entry.kind === 'auto' ? 'info' : 'warning', msg: entry.reason ?? 'This stage advances automatically' })
+        return
+      }
+
+      // Allowed — collect any required input first (prompt comes from the plan).
+      if (entry?.prompt === 'reason' || s === lostKey || s === 'lost') {
+        setReasonTarget(s as LeadStatus); setShowLostSheet(true); return
+      }
+      if (s === 'scheduled' || entry?.prompt === 'datetime') {
+        setSchedDate(lead?.scheduled_date || '')
+        setSchedTime((lead as any)?.scheduled_time || '')
+        setShowScheduleModal(true)
+        return
+      }
+      if (s === 'inspection_scheduled' || entry?.prompt === 'date') {
+        setInspDate((lead as any)?.inspection_date || '')
+        setShowInspectionModal(true)
+        return
+      }
+    }
+
+    const prev=stage; setStage(s); setSaving(true)
+    const ok = await patch({lead_status:s}); setSaving(false)
+    if (ok) {
+      setLead(l=>l?{...l,lead_status:s}:l)
+      addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev)
+      refreshPlan()
+      if(tradePlugin && _isRoofing(tradePlugin) && s===((tradePlugin as any).stageAnchors?.warrantyTrigger ?? getStageAnchors(session?.trade_slug).won)) setShowWarranty(true)
+    }
+    else { setStage(prev); addToast('Failed to update stage','error') }
+  }
+
+  async function doConfirmBack() {
+    if (!confirmBack) return
+    const s=confirmBack; const prev=stage
+    setConfirmBack(null); setStage(s); setSaving(true)
+    const ok=await patch({lead_status:s}); setSaving(false)
+    if (ok) { setLead(l=>l?{...l,lead_status:s}:l); addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev) }
+    else { setStage(prev); addToast('Failed','error') }
+  }
+
+  async function undoMove(tid:number, prev:LeadStatus) {
+    killToast(tid); const from=stage; setStage(prev); setSaving(true)
+    const ok=await patch({lead_status:prev}); setSaving(false)
+    if (!ok) { setStage(from); addToast('Undo failed','error') }
+  }
+
+  // ── Edit ─────────────────────────────────────────────────────────────────
+  function startEdit() {
+    if (!lead) return
+    setEAddr((lead as any).property_address||'')
+    setEPhone(lead.contact_phone||'')
+    setEEmail(lead.contact_email||'')
+    setECity(lead.contact_city||'')
+    setEState(lead.contact_state||'')
+    setEZip((lead as any).contact_zip||'')
+    setESrc(lead.lead_source||'')
+    setEDate(lead.scheduled_date||'')
+    setETime((lead as any).scheduled_time||'')
+    setEFU(lead.follow_up_date||'')
+    setEInsp((lead as any).inspection_date||'')
+    setENotes(lead.notes||'')
+    setTab('details'); setIsEditing(true)
+  }
+
+  // ── Satellite roof measure (~30s) — single shared handler used by the Next
+  //    Action hero and the Re-measure control. Posts to /api/roofing/report,
+  //    stores squares/pitch/waste, PATCHes the lead. LF is never seeded here (§25). ──
+  async function runSatelliteMeasure() {
+    if (!lead || !session) return
+    const street=(((lead as any).property_address)||'').replace(/, USA$/,'').trim()
+    const city=lead.contact_city||''; const st=lead.contact_state||''; const zip=(lead as any).contact_zip||''
+    const fullAddr=[street,city,st,zip].filter(Boolean).join(', ')
+    if(!street){ addToast('Add a property address first','error'); return }
+    setQbGenerating(true); setQbDone(false); setQbError('')
+    try{
+      const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),90000)
+      let res:Response
+      try{
+        res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await apiFetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})
+      }finally{clearTimeout(timer)}
+      const d=await res.json().catch(()=>({}))
+      if(!res.ok){setQbError((d as any).error||'Report failed');return}
+      const meas=(d as any).measurements
+      const geocodedAddr=(d as any)?.debug?.formattedAddress?String((d as any).debug.formattedAddress).replace(', USA',''):fullAddr
+      if(meas){
+        const payload:Record<string,unknown>={squares:Number(meas.totalSquaresOrder)||0,pitch:meas.dominantPitch??'4/12',waste:Number(meas.wasteFactor)||12,source:'roof_report',address:geocodedAddr,storedAt:Date.now(),leadId:lead.id,ridgeLF:0,eaveLF:0,perimLF:0}
+        try{sessionStorage.setItem('pg_report_data',JSON.stringify(payload));sessionStorage.setItem('pg_promeasure',JSON.stringify(payload))}catch{}
+        const rowId=(d as any).reportRowId
+        if(rowId)setReportRowId(rowId)
+        // square_count intentionally omitted — DSM/aerial SQ is non-authoritative (Bible §25). User enters SQ in calculator.
+        apiFetch(`/api/leads/${lead.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,pitch:meas.dominantPitch??null,waste_pct:Number(meas.wasteFactor)||null})})
+          .then(r=>r.ok?r.json():null).then(d=>{if(d?.lead)setLead(d.lead)}).catch(()=>{})
+        const newSq=Number(meas?.totalSquaresOrder)
+        if(newSq>0)addToast(`Roof measured — ${newSq} sq`,'success')
+      }
+      setQbDone(true);setShowRemeasure(false)
+    }catch(err:unknown){
+      const isAbort=err instanceof Error&&err.name==='AbortError'
+      setQbError(isAbort?'Timed out — try again':'Network error')
+    }finally{setQbGenerating(false)}
+  }
+  // ── Stage-spine layout — now the default. ?spine=0 falls back to the old layout (rollback/compare) ──
+  useEffect(() => {
+    if (typeof window !== 'undefined') setUseSpine(new URLSearchParams(window.location.search).get('spine') !== '0')
+  }, [])
+  // ── Address autocomplete for edit form ──────────────────────────────────
+  useEffect(() => {
+    if (!eAddrLoading || eAddr.length < 3) { setEAddrPredictions([]); setEAddrShowPred(false); return }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(eAddr)}`)
+        const data = res.ok ? await res.json() : {}
+        setEAddrPredictions(data.predictions || [])
+        setEAddrShowPred((data.predictions || []).length > 0)
+      } catch { setEAddrPredictions([]) }
+    }, 280)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eAddr, eAddrLoading])
+
+  async function selectEAddrPrediction(pred: {description:string;place_id:string}) {
+    setEAddrShowPred(false)
+    setEAddrLoading(false)
+    try {
+      const res = await fetch(`/api/places/details?place_id=${pred.place_id}`)
+      const data = res.ok ? await res.json() : {}
+      const comps: any[] = data.result?.address_components || []
+      let streetNum='', route='', city='', state='', zip=''
+      for (const comp of comps) {
+        const types: string[] = comp.types || []
+        if (types.includes('street_number'))              streetNum = comp.long_name
+        if (types.includes('route'))                      route     = comp.long_name
+        if (types.includes('locality'))                   city      = comp.long_name
+        if (!city && types.includes('sublocality_level_1')) city    = comp.long_name
+        if (types.includes('administrative_area_level_1')) state    = comp.short_name
+        if (types.includes('postal_code'))                zip       = comp.long_name
+      }
+      const street = `${streetNum} ${route}`.trim() || pred.description.split(',')[0].trim()
+      // Full address string = "street, city, state zip"
+      const full = [street, city, state, zip].filter(Boolean).join(', ')
+      setEAddr(full)
+      setECity(city || eCity)
+      setEState(state || eState)
+      setEZip(zip || eZip)
+    } catch {
+      setEAddr(pred.description)
+    }
+  }
+
+  async function saveEdit() {
+    setESaving(true)
+    const ok = await patch({
+      property_address: eAddr||null,
+      contact_phone: ePhone||null, contact_email: eEmail||null,
+      contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
+      lead_source: eSrc||null,
+      scheduled_date: eDate||null, scheduled_time: eTime||null,
+      ...(eInsp ? { inspection_date: eInsp } : {}),
+      follow_up_date: eFU||null, notes: eNotes||null,
+    })
+    setESaving(false)
+    if (ok) {
+      setLead(l=>l?{...l,
+        property_address: eAddr||null,
+        contact_phone: ePhone||null, contact_email: eEmail||null,
+        contact_city: eCity||null, contact_state: eState||null, contact_zip: eZip||null,
+        lead_source: eSrc as any||null,
+        scheduled_date: eDate||null, follow_up_date: eFU||null, ...(eInsp ? { inspection_date: eInsp } : {}), notes: eNotes||null,
+      }:l)
+      setIsEditing(false); addToast('Saved')
+    } else addToast('Failed to save: ' + (_lastPatchError || 'unknown error'), 'error')
+  }
+
+  // ── Note ─────────────────────────────────────────────────────────────────
+  async function saveNote() {
+    if (!noteText.trim()) return; setSavingNote(true)
+    const newNotes = lead?.notes ? `${lead.notes}\n\n${noteText.trim()}` : noteText.trim()
+    const ok = await patch({notes:newNotes}); setSavingNote(false)
+    if (ok) { setLead(l=>l?{...l,notes:newNotes}:l); setNoteText(''); addToast('Note saved') }
+    else addToast('Failed','error')
+  }
+
+  // ── Estimate / invoice create ─────────────────────────────────────────────
+  async function createEst() {
+    if (!lead||!session||creatingEst) return
+    setCreatingEst(true)
+    try {
+      // Re-fetch lead to get the latest contact_name + roofing_job_data
+      // (measurements may have just been applied from Quick Bid Report or ProMeasure)
+      const freshRes = await apiFetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+      const freshData = freshRes.ok ? await freshRes.json() : null
+      const freshLead = freshData?.lead ?? lead
+      // Update local state so UI also reflects fresh data
+      setLead(freshLead)
+      const rjd = (freshLead as any)?.roofing_job_data
+
+      const r=await apiFetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        pro_id:           session.id,
+        lead_id:          freshLead.id,
+        lead_name:        freshLead.contact_name,
+        lead_source:      freshLead.lead_source||'',
+        trade:            session.trade||'',
+        trade_slug:       session.trade_slug||'',
+        state:            session.state||'',
+        contact_phone:    freshLead.contact_phone||'',
+        contact_email:    freshLead.contact_email||'',
+        property_address: ((freshLead as any).property_address||'').replace(/, USA$/i,'').trim(),
+        // Include measurements from roofing_job_data if present
+        square_count:     rjd?.square_count  ?? null,
+        pitch:            rjd?.pitch         ?? null,
+        waste_pct:        rjd?.waste_pct     ?? null,
+        // Insurance claims use standard estimates — carrier approves a fixed scope, not tiers
+        estimate_type:    rjd?.insurance_claim ? 'standard' : undefined,
+      })})
+      const d=await r.json(); if(d.estimate?.id) router.push(`/dashboard/estimates/${d.estimate.id}?from=pipeline&lead_id=${id}`)
+    } catch { setCreatingEst(false) }
+  }
+
+  // ── Activity ──────────────────────────────────────────────────────────────
+  function activity() {
+    if (!lead) return []
+    const items:{date:string;title:string;sub:string;type:string;warn?:boolean}[] = []
+    items.push({date:lead.created_at,title:'Lead created',sub:`From ${(lead.lead_source||'unknown').replace(/_/g,' ')}${lead.message?` · "${lead.message.slice(0,60)}${lead.message.length>60?'…':''}"`:``}`,type:'created'})
+    if (lead.quoted_amount!=null) items.push({date:lead.updated_at||lead.created_at,title:'Quote set',sub:`$${Number(lead.quoted_amount).toLocaleString()}`,type:'quote'})
+    if ((lead as any).inspection_date) items.push({date:lead.updated_at||lead.created_at,title:isHvac_guard(tradePlugin)?'Diagnosis scheduled':'Inspection scheduled',sub:fmt((lead as any).inspection_date),type:'scheduled'})
+    if (lead.scheduled_date) items.push({date:lead.updated_at||lead.created_at,title:'Job scheduled',sub:fmt(lead.scheduled_date),type:'scheduled'})
+    if (lead.notes) lead.notes.split(/\n\n+/).filter(Boolean).forEach(n=>items.push({date:lead.updated_at||lead.created_at,title:'Note added',sub:n.slice(0,100)+(n.length>100?'…':''),type:'note'}))
+    // Estimate events — pull from linked estimate timestamps
+    if (est) {
+      if ((est as any).created_at) items.push({date:(est as any).created_at,title:`Estimate created`,sub:`#${est.estimate_number} · $${Number(est.total||0).toLocaleString()}`,type:'estimate'})
+      if ((est as any).sent_at) {
+        const bounced = (est as any).email_status === 'bounced'
+        const toEmail = (est as any).sent_to_email ? ` → ${(est as any).sent_to_email}` : ''
+        const bounceNote = bounced ? ` · Bounced: ${((est as any).email_bounce_reason||'recipient not found').slice(0,50)}` : ''
+        items.push({date:(est as any).sent_at,title:`Proposal sent`,sub:`#${est.estimate_number}${toEmail}${bounceNote}`,type:'estimate_sent',warn:bounced})
+      }
+      if ((est as any).viewed_at) {
+        const count = (est as any).viewed_count > 1 ? ` · ${(est as any).viewed_count}× views` : ''
+        items.push({date:(est as any).viewed_at,title:`Proposal viewed`,sub:`#${est.estimate_number}${count}`,type:'estimate_viewed'})
+      }
+      if ((est as any).approved_at) items.push({date:(est as any).approved_at,title:`Proposal approved`,sub:`#${est.estimate_number}`,type:'estimate_approved'})
+    }
+    // Superseded versions — show the supersede in the audit trail
+    for (const sv of supersededList) {
+      if ((sv as any).voided_at) {
+        items.push({
+          date: (sv as any).voided_at,
+          title: `Estimate superseded`,
+          sub: `#${sv.estimate_number}${sv.revision_number?` (Rev ${sv.revision_number})`:''} · ${sv.void_reason||'Replaced by a newer version'}`,
+          type: 'estimate',
+        })
+      }
+    }
+    // Merge pipeline_events (stage transitions from DB)
+    // Build stage label map from the trade's actual stages — not a hardcoded
+    // roofing map. This ensures HVAC shows "On the Job" not "In Progress",
+    // "New Call" not a raw key, etc. Falls back to the raw key for unknown stages.
+    const allTradeStages = getTradeConfig(session?.trade_slug).stages as { key: string; label: string }[]
+    const stageLabels: Record<string,string> = Object.fromEntries(
+      allTradeStages.map(s => [s.key, s.label])
+    )
+    // The insurance auto-approve writes BOTH a stage_changed→insurance_approved AND an
+    // insurance_auto_approved event at (near) the same instant. Collapse that pair to the
+    // single richer "Pipeline advanced…" row. (Display-side only — stored rows untouched.)
+    const autoApprovedTimes = pipelineEvents
+      .filter(ev => ev.event_type === 'insurance_auto_approved')
+      .map(ev => new Date(ev.created_at).getTime())
+    for (const ev of pipelineEvents) {
+      if (ev.event_type === 'stage_changed' && ev.event_data) {
+        const toRaw = ev.event_data.to
+        const tms = new Date(ev.created_at).getTime()
+        const isAutoPair = toRaw === 'insurance_approved' && autoApprovedTimes.some(at => Math.abs(at - tms) < 3000)
+        if (!isAutoPair) {
+          const from = stageLabels[ev.event_data.from] || ev.event_data.from
+          const to   = stageLabels[toRaw] || toRaw
+          items.push({
+            date:  ev.created_at,
+            title: `Stage moved to ${to}`,
+            sub:   ev.event_data.from ? `From ${from}` : '',
+            type:  'stage',
+          })
+        }
+      }
+      if (ev.event_type === 'invoice_sent' && ev.event_data) {
+        items.push({
+          date:  ev.created_at,
+          title: `Invoice sent`,
+          sub:   ev.event_data.email ? `→ ${ev.event_data.email}` : '',
+          type:  'invoice_sent',
+        })
+      }
+      if (ev.event_type === 'invoice_viewed' && ev.event_data) {
+        items.push({
+          date:  ev.created_at,
+          title: `Invoice viewed`,
+          sub:   ev.event_data.invoice_number ? `#${ev.event_data.invoice_number}` : '',
+          type:  'invoice_viewed',
+        })
+      }
+      if (ev.event_type === 'payment_received' && ev.event_data) {
+        const amt = Number(ev.event_data.amount).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+        const bal = Number(ev.event_data.balance_due)
+        items.push({
+          date:  ev.created_at,
+          title: `Payment received — ${amt}`,
+          sub:   `${ev.event_data.milestone} · ${ev.event_data.method}${bal <= 0 ? ' · Paid in full' : ` · Balance: ${Number(bal).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}`}`,
+          type:  'payment_received',
+        })
+      }
+      if (ev.event_type === 'supplement_filed' && ev.event_data) {
+        items.push({
+          date:  ev.created_at,
+          title: 'Supplement filed',
+          sub:   (ev.event_data as any).note ?? '',
+          type:  'stage',
+        })
+      }
+      if (ev.event_type === 'insurance_auto_approved') {
+        items.push({
+          date:  ev.created_at,
+          title: 'Pipeline advanced to Insurance Approved',
+          sub:   'Auto-advanced when claim marked Approved',
+          type:  'stage',
+        })
+      }
+    }
+    return items.sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime())
+  }
+
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  const t   = theme(dk)
+  const pg  = t.pageBg; const card=t.cardBg; const bdr=t.cardBorder
+  const tp  = t.textPri; const tb=t.textBody; const ts=t.textMuted; const tsu=t.textSubtle
+
+  const inputCls: React.CSSProperties = {
+    fontSize:T.fontBody, padding:'9px 11px', borderRadius:T.radSm,
+    border:`1px solid ${t.inputBorder}`, background:t.inputBg,
+    color:tp, width:'100%', fontFamily:'inherit', outline:'none', boxSizing:'border-box',
+  }
+  const labelCls: React.CSSProperties = {
+    fontSize:10, fontWeight:700, color:tsu, display:'block',
+    marginBottom:5, textTransform:'uppercase', letterSpacing:'0.07em',
+  }
+
+  if (!session) return null
+
+  const acts = activity()
+  const [avBg, avFg] = lead ? avatarColor(lead.contact_name) : ['#E1F5EE','#0F6E56']
+
+  const isClaim = !!(lead as any)?.roofing_job_data?.insurance_claim
+  // Single source for the claim component — re-homed into the spine's carrier stage, or shown in the
+  // Details tab on the flag-off page / for retail leads (so the insurance on/off toggle stays reachable).
+  const claimFieldsEl = (isRoofing && lead && session) ? (
+    <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} propertyAddress={([(lead as any).property_address, lead.contact_city, lead.contact_state, (lead as any).contact_zip].filter(Boolean).join(', '))} propertyLat={(lead as any).contact_lat ?? null} propertyLon={(lead as any).contact_lng ?? null} locked={stage==='job_won'||stage==='lost'}
+      onSaved={(data)=>{
+        setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
+        setTimeout(()=>{
+          apiFetch(`/api/leads/${lead.id}?pro_id=${session.id}`)
+            .then(r=>r.json())
+            .then(d=>{
+              if(d?.lead){
+                setLead(d.lead as LeadExt)
+                setStage((d.lead as LeadExt).lead_status as LeadStatus)
+              }
+            }).catch(()=>{})
+          refreshEvents()
+        }, 400)
+      }}/>
+  ) : null
+
+  return (
+    <DashboardShell session={session} newLeads={0} onAddLead={()=>{}} darkMode={dk} onToggleDark={toggleDark}>
+      <div style={{background:pg,minHeight:'100vh',padding:'16px 20px 80px',boxSizing:'border-box'}}>
+
+        {/* ── Toasts — rendered via portal to escape any transform stacking context ── */}
+        {typeof window !== 'undefined' && toasts.length > 0 && createPortal(
+          <>
+            <style>{`@keyframes pgToastCountdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }`}</style>
+
+            {/* Stage-move confirmation — centered overlay (soft dim, page stays usable) */}
+            {toasts.some(t=>t.prev&&t.type==='success') && (
+              <div style={{position:'fixed',inset:0,zIndex:9998,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4,background:'rgba(15,23,42,0.32)',pointerEvents:'none'}}>
+                <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                  {toasts.filter(t=>t.prev&&t.type==='success').map(toast=>(
+                    <div key={toast.id} style={{pointerEvents:'all',position:'relative',background:card,border:`1px solid ${bdr}`,borderRadius:16,padding:'16px 18px',display:'flex',alignItems:'center',gap:14,minWidth:380,maxWidth:520,boxShadow:dk?'0 24px 60px rgba(0,0,0,0.6)':'0 24px 60px rgba(15,23,42,0.28)',overflow:'hidden'}}>
+                      <div style={{width:38,height:38,borderRadius:T.radMd,background:'#0596691A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:T.fontBadge,fontWeight:800,color:'#059669',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>Stage Updated</div>
+                        <div style={{fontSize:T.fontBody,fontWeight:600,color:tp,lineHeight:1.35}}>{toast.msg}</div>
+                      </div>
+                      <button onClick={()=>undoMove(toast.id,toast.prev!)} style={{display:'inline-flex',alignItems:'center',gap:6,height:38,padding:'0 16px',borderRadius:T.radSm,border:`1px solid ${BRAND.teal}`,background:dk?'rgba(20,184,166,0.10)':'#F0FDFA',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>
+                        <Svg size={15} stroke={BRAND.teal} sw={2.2}><path d="M9 14L4 9l5-5"/><path d="M4 9h11a4 4 0 010 8h-1"/></Svg>
+                        Undo
+                      </button>
+                      <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:20,lineHeight:1,padding:'0 2px',opacity:0.5,flexShrink:0}}>×</button>
+                      <div style={{position:'absolute',left:0,bottom:0,height:3,width:'100%',background:'#059669',transformOrigin:'left',animation:'pgToastCountdown 9000ms linear forwards'}}/>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Minor confirmations — top-center stack */}
+            {toasts.some(t=>!(t.prev&&t.type==='success')) && (
+              <div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none',alignItems:'center'}}>
+                {toasts.filter(t=>!(t.prev&&t.type==='success')).map(toast=>{
+                  const cfg = ({
+                    success: { accent:'#059669', title:'Done',     icon:<path d="M20 6 9 17l-5-5"/> },
+                    error:   { accent:'#DC2626', title:'Error',    icon:<><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></> },
+                    warning: { accent:'#D97706', title:'Not yet',  icon:<><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></> },
+                    info:    { accent:BRAND.teal, title:'Heads up', icon:<><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></> },
+                  } as const)[toast.type as 'success' | 'error' | 'warning' | 'info']
+                  return (
+                    <div key={toast.id} style={{pointerEvents:'all',background:card,border:`1px solid ${bdr}`,borderLeft:`4px solid ${cfg.accent}`,borderRadius:14,padding:'13px 14px',display:'flex',alignItems:'flex-start',gap:12,minWidth:300,maxWidth:440,boxShadow:dk?'0 16px 40px rgba(0,0,0,0.5)':'0 16px 40px rgba(15,23,42,0.18)'}}>
+                      <div style={{width:28,height:28,borderRadius:9,background:cfg.accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={cfg.accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{cfg.icon}</svg>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:11,fontWeight:800,color:cfg.accent,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2}}>{cfg.title}</div>
+                        <div style={{fontSize:13.5,fontWeight:500,color:tp,lineHeight:1.35}}>{toast.msg}</div>
+                      </div>
+                      <button onClick={()=>killToast(toast.id)} style={{background:'none',border:'none',cursor:'pointer',color:ts,fontSize:18,lineHeight:1,padding:0,opacity:0.55,alignSelf:'flex-start'}}>×</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </>,
+          document.body
+        )}
+
+        {/* ── Modals ─────────────────────────────────────────────────────── */}
+        {confirmBack&&(
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setConfirmBack(null)}>
+            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:360,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
+              <p style={{fontSize:T.fontLabel,fontWeight:600,color:tp,marginBottom:T.sp2}}>Move back to {String(confirmBack).replace(/_/g,' ')}?</p>
+              <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp5}}>Currently <strong>{String(stage).replace(/_/g,' ')}</strong>. Moving backward is tracked.</p>
+              <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end'}}>
+                <button onClick={()=>setConfirmBack(null)} style={{padding:'8px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>Cancel</button>
+                <button onClick={doConfirmBack} style={{padding:'8px 16px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:600}}>Move back</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Blocked / locked stage — same centered treatment as the confirm dialog */}
+        {stageNotice&&(()=>{
+          const isWarn = stageNotice.kind==='warning'
+          const accent = isWarn ? '#D97706' : BRAND.teal
+          const title  = isWarn ? 'Action needed' : 'Information'
+          return (
+            <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}} onClick={()=>setStageNotice(null)}>
+              <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:360,width:'100%',border:`1px solid ${bdr}`}} onClick={e=>e.stopPropagation()}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                  <div style={{width:34,height:34,borderRadius:10,background:accent+'1A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                      {isWarn
+                        ? <><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>
+                        : <><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>}
+                    </svg>
+                  </div>
+                  <p style={{fontSize:T.fontEmphasis,fontWeight:700,color:tp,margin:0}}>{title}</p>
+                </div>
+                <p style={{fontSize:T.fontBody,color:tb,marginBottom:T.sp5,lineHeight:1.5}}>{stageNotice.msg}</p>
+                <div style={{display:'flex',justifyContent:'flex-end'}}>
+                  <button onClick={()=>setStageNotice(null)} style={{padding:'8px 20px',borderRadius:T.radSm,border:'none',background:accent,color:'#fff',cursor:'pointer',fontSize:T.fontBody,fontWeight:700}}>Got it</button>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Schedule Inspection Modal */}
+        {showInspectionModal && (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}}
+            onClick={()=>setShowInspectionModal(false)}>
+            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:400,width:'100%',border:`1px solid ${bdr}`}}
+              onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:17,fontWeight:800,color:tp,marginBottom:4}}>Schedule Inspection</div>
+              <div style={{fontSize:13,color:tb,marginBottom:20}}>{isHvac_guard(tradePlugin) ? 'Set the diagnosis date to add it to your calendar.' : 'Set the inspection date to add it to your calendar.'}</div>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.08em',color:ts,marginBottom:6}}>{isHvac_guard(tradePlugin) ? 'Diagnosis Date' : 'Inspection Date'}</div>
+                <input type="date" value={inspDate} onChange={e=>setInspDate(e.target.value)}
+                  style={{width:'100%',padding:'10px 12px',border:`1.5px solid ${inspDate?BRAND.teal:bdr}`,borderRadius:T.radSm,fontSize:14,outline:'none',boxSizing:'border-box' as const,colorScheme:dk?'dark':'light'}} />
+              </div>
+              <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end',marginTop:20}}>
+                <button onClick={()=>{setShowInspectionModal(false);moveStage('inspection_scheduled' as LeadStatus,true)}}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>
+                  Skip for now
+                </button>
+                <button
+                  disabled={!inspDate}
+                  onClick={async ()=>{
+                    setShowInspectionModal(false)
+                    if (inspDate) {
+                      await patch({ inspection_date: inspDate })
+                      setLead(l => l ? { ...l, inspection_date: inspDate } as any : l)
+                    }
+                    moveStage('inspection_scheduled' as LeadStatus, true)
+                  }}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',background:inspDate?BRAND.teal:'#E2E8F0',color:inspDate?'#fff':'#94A3B8',cursor:inspDate?'pointer':'not-allowed',fontSize:T.fontBody,fontWeight:700}}>
+                  Schedule Inspection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Schedule Job Modal */}
+        {showScheduleModal && (
+          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:T.sp4}}
+            onClick={()=>setShowScheduleModal(false)}>
+            <div style={{background:card,borderRadius:T.radLg,padding:T.sp6,maxWidth:400,width:'100%',border:`1px solid ${bdr}`}}
+              onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:17,fontWeight:800,color:tp,marginBottom:4}}>Schedule Job</div>
+              <div style={{fontSize:13,color:tb,marginBottom:20}}>Set the job date to add this to your calendar.</div>
+              <div style={{display:'flex',flexDirection:'column' as const,gap:14}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.08em',color:ts,marginBottom:6}}>Job Date</div>
+                  <input type="date" value={schedDate} onChange={e=>setSchedDate(e.target.value)}
+                    style={{width:'100%',padding:'10px 12px',border:`1.5px solid ${schedDate?BRAND.teal:bdr}`,borderRadius:T.radSm,
+                      fontSize:14,outline:'none',boxSizing:'border-box' as const,colorScheme:dk?'dark':'light'}} />
+                </div>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase' as const,letterSpacing:'0.08em',color:ts,marginBottom:6}}>Start Time <span style={{fontWeight:400,opacity:0.6}}>(optional)</span></div>
+                  <input type="time" value={schedTime} onChange={e=>setSchedTime(e.target.value)}
+                    style={{width:'100%',padding:'10px 12px',border:`1.5px solid ${bdr}`,borderRadius:T.radSm,
+                      fontSize:14,outline:'none',boxSizing:'border-box' as const,colorScheme:dk?'dark':'light'}} />
+                </div>
+              </div>
+              <div style={{display:'flex',gap:T.sp2,justifyContent:'flex-end',marginTop:20}}>
+                <button onClick={()=>setShowScheduleModal(false)}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'none',color:ts,cursor:'pointer',fontSize:T.fontBody}}>
+                  Cancel
+                </button>
+                <button
+                  disabled={!schedDate}
+                  onClick={async ()=>{
+                    setShowScheduleModal(false)
+                    // Save date+time then move stage
+                    if (schedDate) {
+                      await patch({ scheduled_date: schedDate, scheduled_time: schedTime||null })
+                      setLead(l => l ? { ...l, scheduled_date: schedDate, scheduled_time: schedTime||null } as any : l)
+                    }
+                    moveStage('scheduled' as LeadStatus, true)
+                  }}
+                  style={{padding:'9px 16px',borderRadius:T.radSm,border:'none',
+                    background:schedDate?BRAND.teal:'#E2E8F0',color:schedDate?'#fff':'#94A3B8',
+                    cursor:schedDate?'pointer':'not-allowed',fontSize:T.fontBody,fontWeight:700}}>
+                  Schedule Job
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Loading / not found ──────────────────────────────────────────── */}
+        {loading  && <div style={{textAlign:'center',padding:80,color:ts,fontSize:T.fontBody}}>Loading...</div>}
+        {missing  && <div style={{textAlign:'center',padding:80,color:ts,fontSize:T.fontBody}}>Lead not found.</div>}
+
+        {!loading&&!missing&&lead&&(()=>{
+          const stages   = getPipelineStages(session?.trade_slug)
+          const stgObj   = stages.find(s=>s.key===stage)
+          const active   = stages.filter(s=>!s.terminal)
+          const curPos   = active.findIndex(s=>s.key===stage)
+          const anchors2   = getStageAnchors(session?.trade_slug)
+          const termKeys   = tradePlugin.stages.filter(s => s.terminal).map(s => s.key)
+          const isTerminal = stage === anchors2.won || termKeys.some(k => k === stage)
+
+          // stagesWithTerminal includes Lost/Unqualified so the picker CLOSED group renders them
+          const terminalPipelineStages = tradePlugin.stages
+            .filter((s: any) => s.terminal)
+            .map((s: any) => ({
+              key:       s.key      as string,
+              label:     s.label    as string,
+              color:     (s.color   as string) ?? '#6B7280',
+              bg:        (s.bg      as string) ?? '#F3F4F6',
+              subLabel:  (s.subLabel  as string | undefined) ?? 'Did not proceed',
+              nextLabel: (s.nextLabel as string | undefined) ?? 'Reopen',
+              terminal:  true as const,
+            }))
+          const stagesWithTerminal = [...stages, ...terminalPipelineStages]
+
+          // Stage tips — roofing-specific content gated by isRoofing
+          // Generic tip shown for all trades; trade-specific tips only for roofing
+          const ROOFING_TIPS:Record<string,string> = {
+            lead_in:              'Call within 1 hour — response rate drops 80% after 24hrs.',
+            inspection_scheduled: 'Confirm the night before. Bring a moisture meter.',
+            proposal_sent:        'Follow up in 48hrs. Most jobs are won on the follow-up.',
+            proposal_signed:      'Collect deposit now — 25–33% is standard.',
+            insurance_approved:   'Order materials within 24hrs to lock price.',
+            scheduled:            'Send reminder to homeowner 48hrs before crew arrives.',
+            in_progress:          'Take photos at each phase: decking, install, completion.',
+            job_won:              'Request a Google review within 24hrs — 70% response rate.',
+          }
+          const GENERIC_TIPS:Record<string,string> = {
+            [getStageAnchors(session?.trade_slug).entry]: 'Call within 1 hour — response rate drops 80% after 24hrs.',
+            [getStageAnchors(session?.trade_slug).won]:   'Request a Google review within 24hrs — 70% response rate.',
+          }
+          const TIPS = isRoofing ? ROOFING_TIPS : GENERIC_TIPS
+
+          const isRoofingGroups = isRoofing
+          const pickerGroups = isRoofingGroups
+            ? [
+                {label:'SALES',      keys:['lead_in','inspection_scheduled','proposal_sent','proposal_signed']},
+                {label:'OPERATIONS', keys:['insurance_approved','scheduled','in_progress']},
+                {label:'CLOSED',     keys:['job_won','lost','unqualified']},
+              ]
+            : [
+                {label:'ACTIVE', keys: tradePlugin.stages.filter(s => !s.terminal && s.key !== getStageAnchors(session?.trade_slug).won).map(s => s.key)},
+                {label:'CLOSED', keys: [getStageAnchors(session?.trade_slug).won, ...tradePlugin.stages.filter(s => s.terminal).map(s => s.key)]},
+              ]
+
+          // ── Identity ────────────────────────────────────────────────────
+          const addr        = (lead as any).property_address as string|null|undefined
+          const heroLabel   = addr ? addr.replace(/, USA$/,'') : capName(lead.contact_name)
+          const heroName    = addr ? capName(lead.contact_name) : ''
+          const heroMeta    = [heroName, lead.contact_phone?fmtPhone(lead.contact_phone):null, lead.contact_email||null].filter(Boolean) as string[]
+
+          const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
+            {key:'details', label: useSpine ? 'Contact' : 'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
+            ...((isRoofing && (!useSpine || !isWide))?[{key:'photos' as Tab, label:photoCount>0?`Photos (${photoCount})`:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
+            {key:'estimate' as Tab,label:estList.length>0?`Estimate (${estList.length})`:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>},
+            ...((!useSpine||!isWide)?[{key:'activity' as Tab,label:acts.length>0?`Activity (${acts.length})`:'Activity', icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>}]:[]),
+          ]
+
+          return (
+            <>
+              {showWarranty&&isRoofing&&(
+                <div style={{
+                  position:'fixed', inset:0, zIndex:60,
+                  background:'rgba(0,0,0,0.55)', backdropFilter:'blur(2px)',
+                  display:'flex', alignItems:'center', justifyContent:'center', padding:16,
+                }} onClick={()=>setShowWarranty(false)}>
+                  <div onClick={e=>e.stopPropagation()} style={{ width:'100%', maxWidth:480 }}>
+                    <WarrantyRecord leadId={lead.id} proId={session!.id} propertyId={(lead as any).property_id ?? null} darkMode={dk}
+                      onSaved={()=>{setShowWarranty(false);addToast('Warranty recorded')}}
+                      onDismiss={()=>setShowWarranty(false)}/>
+                  </div>
+                </div>
+              )}
+
+              {/* back nav */}
+              <div style={{marginBottom:T.sp4}}>
+                <button onClick={()=>router.push(backNav().href)}
+                  style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:T.fontBody,color:ts,background:'none',border:'none',cursor:'pointer',padding:0}}>
+                  <Svg size={14} stroke={ts}><polyline points="15 18 9 12 15 6"/></Svg>
+                  {backNav().label}
+                </button>
+              </div>
+
+              {/* ── 2-col grid ─────────────────────────────────────────── */}
+              <div style={{maxWidth:1400,margin:'0 auto',width:'100%'}}>
+              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 300px':'1fr',gap:16}}>
+
+                {/* ══ LEFT ══════════════════════════════════════════════ */}
+                <div style={{minWidth:0}}>
+
+                  {/* ─── HERO CARD ─────────────────────────────────────── */}
+                  <div style={{background:card,borderRadius:T.radLg,marginBottom:18,border:`1px solid ${bdr}`,boxShadow:dk?'none':'0 2px 8px rgba(0,0,0,0.08)',position:'relative'}}>
+                    {/* Teal accent bar — stage color top strip, uses borderRadius to match card */}
+                    <div style={{height:4,background:`linear-gradient(90deg,${stgObj?.color??BRAND.teal},${stgObj?.color??BRAND.teal}66)`,borderRadius:`${T.radLg} ${T.radLg} 0 0`}}/>
+
+                    {/* Identity row */}
+                    <div style={{padding:'20px 24px 16px'}}>
+                      <div style={{display:'flex',flexDirection:isWide?'row':'column',alignItems:isWide?'flex-start':'stretch',justifyContent:'space-between',gap:12}}>
+                        <div style={{display:'flex',alignItems:'flex-start',gap:14,minWidth:0,flex:1}}>
+                          <div style={{width:52,height:52,borderRadius:12,background:avBg,color:avFg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,fontWeight:800,flexShrink:0,letterSpacing:'-0.02em'}}>
+                            {initials(lead.contact_name)}
+                          </div>
+                          <div style={{minWidth:0,flex:1,paddingTop:2}}>
+                            <div style={{marginBottom:heroMeta.length?4:0}}>
+                              <span style={{fontSize:28,fontWeight:800,color:tp,letterSpacing:'-0.03em',lineHeight:1.15}}>{heroLabel}</span>
+                            </div>
+                            {heroMeta.length>0 && (
+                              <div style={{display:'flex',alignItems:'center',gap:10,fontSize:13.5,color:tsu,fontWeight:600,flexWrap:'wrap' as const,marginBottom:0}}>
+                                {heroMeta.map((x,i)=>(
+                                  <span key={i} style={{display:'inline-flex',alignItems:'center',gap:10}}>
+                                    {i>0 && <span style={{width:1,height:13,background:dk?'#475569':'#94A3B8',display:'inline-block',borderRadius:1}}/>}
+                                    {x}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {/* Appointment line — the stepper owns the stage; this carries
+                                only the booked date (labeled). Aging lives in Time in Stage. */}
+                            {(() => {
+                              const appt = stage==='inspection_scheduled'&&(lead as any)?.inspection_date
+                                ? {label:'Inspection booked', date:(lead as any).inspection_date as string, color:'#4F46E5'}
+                                : stage==='scheduled'&&lead?.scheduled_date
+                                ? {label:'Job scheduled', date:lead.scheduled_date as string, color:tp}
+                                : null
+                              if (!appt && lead.quoted_amount==null) return null
+                              return (
+                                <div style={{display:'flex',alignItems:'center',gap:10,marginTop:8,flexWrap:'wrap'}}>
+                                  {appt&&(
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,color:tsu}}>
+                                      <Svg size={15} stroke={appt.color}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                                      <span><span style={{fontWeight:700,color:appt.color}}>{appt.label}</span>{' — '}{fmt(appt.date)}</span>
+                                    </span>
+                                  )}
+                                  {lead.quoted_amount!=null&&(
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px',borderRadius:8,background:dk?'rgba(15,118,110,0.12)':'#F0FDFA',border:`1px solid ${dk?'rgba(15,118,110,0.3)':'#99F6E4'}`}}>
+                                      <span style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.06em'}}>Quote</span>
+                                      <span style={{fontSize:15,fontWeight:800,color:BRAND.teal}}>${Number(lead.quoted_amount).toLocaleString()}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        </div>
+                        {/* Action buttons */}
+                        <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0,flexWrap:'wrap',justifyContent:isWide?'flex-end':'flex-start',paddingLeft:isWide?0:66}}>
+                          {lead.contact_phone&&(
+                            <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
+                              style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:BRAND.teal,fontSize:13,textDecoration:'none',fontWeight:700,whiteSpace:'nowrap'}}>
+                              <Svg size={13} stroke={BRAND.teal}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Svg>
+                              Call
+                            </a>
+                          )}
+                          <button onClick={shareStatus} title="Email homeowner their project status link"
+                            style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            <Svg size={13} stroke={BRAND.teal}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></Svg>
+                            Send Status
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ─── Progress bar ───────────────────────────────── */}
+                    <div style={{borderTop:`1px solid ${bdr}`,padding:'16px 24px 0px',overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch'}}>
+                      <div style={{minWidth:isWide?'auto':active.length*72}}>
+                      <div style={{position:'relative',display:'flex',alignItems:'flex-end',height:28}}>
+                        {/* Track: grey base + colored progress overlay */}
+                        <div style={{position:'absolute',top:5,zIndex:0,left:`${100/active.length/2}%`,right:`${100/active.length/2}%`,height:2,background:dk?'#1E293B':'#E5E7EB',borderRadius:2}}/>
+                        {curPos>0&&(
+                          <div style={{position:'absolute',top:5,zIndex:0,left:`${100/active.length/2}%`,width:`${(curPos/(active.length-1))*100*(1-1/active.length)}%`,height:2,background:`linear-gradient(to right,${active[0]?.color??BRAND.teal},${stgObj?.color??BRAND.teal})`,borderRadius:2,transition:'width 0.4s ease'}}/>
+                        )}
+                        {active.map((stg,i)=>{
+                          const done  = i<curPos
+                          const isAct = i===curPos
+                          const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && (done || isAct)
+                          const sz    = isAct?22:done?20:12
+                          const rad   = done||isAct?'50%':'3px'
+                          const bg    = skipped?(dk?'#334155':'#CBD5E1'):done?stg.color:isAct?stg.color:(dk?'#374151':'#E5E7EB')
+                          const bdr2  = isAct?`2.5px solid ${card}`:'none'
+                          const shd   = isAct?`0 0 0 2.5px ${stg.color},0 2px 8px ${stg.color}40`:done&&!skipped?`0 1px 4px ${stg.color}30`:'none'
+                          return (
+                            <div key={stg.key} style={{flex:1,display:'flex',justifyContent:'center',position:'relative',zIndex:1}} title={skipped?'Skipped — retail job (no insurance claim)':undefined}>
+                              <div style={{width:sz,height:sz,borderRadius:rad,background:bg,border:bdr2,boxShadow:shd,display:'flex',alignItems:'center',justifyContent:'center',opacity:skipped?0.6:1}}>
+                                {skipped?<Svg size={9} stroke="#fff" sw={3}><line x1="5" y1="12" x2="19" y2="12"/></Svg>:done&&<Svg size={9} stroke="#fff" sw={3}><polyline points="20 6 9 17 4 12"/></Svg>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {/* Label row — separate, always same height, always aligned under dots */}
+                      <div style={{display:'flex',marginTop:6,marginBottom:0}}>
+                        {active.map((stg,i)=>{
+                          const done  = i<curPos
+                          const isAct = i===curPos
+                          const skipped = stg.key==='insurance_approved' && !(lead as any).roofing_job_data?.insurance_claim && (done || isAct)
+                          const lc    = skipped?(dk?'#475569':'#CBD5E1'):isAct?stg.color:done?(dk?'#94A3B8':'#475569'):(dk?'#475569':'#94A3B8')
+                          return (
+                            <div key={stg.key} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}>
+                              <span style={{fontSize:isAct?12.5:11,fontWeight:isAct?800:done?600:500,color:lc,textAlign:'center',lineHeight:1.3,wordBreak:'break-word',maxWidth:'100%',display:'block',padding:'0 2px',letterSpacing:isAct?'0.01em':'normal',textDecoration:skipped?'line-through':'none'}}>
+                                {stg.label}
+                              </span>
+                              {/* Active stage: downward caret pointing to status row below */}
+                              {isAct&&(
+                                <svg width="10" height="6" viewBox="0 0 10 6" style={{marginTop:4,flexShrink:0}} fill={stg.color}>
+                                  <path d="M5 6L0 0h10L5 6z"/>
+                                </svg>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      </div>{/* end min-width track */}
+                    </div>
+
+                    {/* ─── Status row ─────────────────────────────────── */}
+                    <div style={{borderTop:`1px solid ${bdr}`,padding:'12px 24px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:T.sp3,flexWrap:'wrap'}}>
+
+                        {/* status picker pill (moveStage preserved) */}
+                        <div>
+                          <div style={{position:'relative',display:'inline-block'}}>
+                            <button
+                              onClick={()=>{setStageNotice(null);setShowPicker(v=>!v)}}
+                              disabled={saving}
+                              style={{
+                                display:'inline-flex',alignItems:'center',gap:8,
+                                padding:'10px 14px',borderRadius:T.radMd,
+                                border:'none',
+                                background:stgObj?.color??BRAND.teal,
+                                cursor:saving?'wait':'pointer',
+                                boxShadow:showPicker?`0 0 0 4px ${stgObj?.color??BRAND.teal}30`:`0 2px 8px ${stgObj?.color??BRAND.teal}40`,
+                                transition:'box-shadow 0.15s',
+                                whiteSpace:'nowrap',
+                              }}>
+                              <div style={{textAlign:'left'}}>
+                                <div style={{fontSize:14,fontWeight:700,color:'#fff',lineHeight:1.2}}>
+                                  {saving?'Updating...':(stgObj?.label??stage)}
+                                </div>
+                                <div style={{fontSize:11,color:'rgba(255,255,255,0.75)',marginTop:1}}>{stgObj?.subLabel}</div>
+                              </div>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                stroke="rgba(255,255,255,0.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                style={{transform:showPicker?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s',flexShrink:0}}>
+                                <polyline points="6 9 12 15 18 9"/>
+                              </svg>
+                            </button>
+
+                            {/* ── Dropdown — position:absolute, attached directly below pill ── */}
+                            {showPicker&&(
+                              <>
+                                <div style={{position:'fixed',inset:0,zIndex:199}} onClick={()=>setShowPicker(false)}/>
+                                <div style={{
+                                  position:'absolute',
+                                  top:'calc(100% + 6px)',
+                                  left:0,
+                                  zIndex:200,
+                                  background:card,
+                                  border:`1px solid ${bdr}`,
+                                  borderRadius:T.radMd,
+                                  boxShadow:'0 12px 40px rgba(0,0,0,0.18)',
+                                  minWidth:'100%',
+                                  width:300,
+                                  overflow:'hidden',
+                                }}>
+                                  {/* ── CURRENT ── */}
+                                  <div style={{padding:'8px 14px 6px',fontSize:10,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',background:t.cardBgAlt}}>Current</div>
+                                  <div style={{padding:'8px 14px 10px',background:stgObj?.bg??'#F0FDFA',borderBottom:`1px solid ${bdr}`}}>
+                                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                      <div style={{width:20,height:20,borderRadius:'50%',background:stgObj?.color??BRAND.teal,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                        <Svg size={11} stroke="#fff" sw={2.5}><polyline points="20 6 9 17 4 12"/></Svg>
+                                      </div>
+                                      <div style={{flex:1,minWidth:0}}>
+                                        <div style={{fontSize:14,fontWeight:700,color:stgObj?.color??BRAND.teal,lineHeight:1.2}}>{stgObj?.label??stage}</div>
+                                        <div style={{fontSize:11,color:tsu,marginTop:1}}>{stgObj?.subLabel}</div>
+                                      </div>
+                                      {planFor(stage)?.date&&<span style={{fontSize:11,fontWeight:600,color:tsu,flexShrink:0,whiteSpace:'nowrap'}}>{new Date(planFor(stage)!.date!).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>}
+                                    </div>
+                                  </div>
+
+                                  {/* ── CHANGE TO ── */}
+                                  <div style={{padding:'8px 14px 4px',fontSize:10,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',background:t.cardBgAlt,borderBottom:`1px solid ${bdr}`}}>Change To</div>
+                                  {pickerGroups.map((grp,gi)=>{
+                                    const gStages=stagesWithTerminal.filter(s=>grp.keys.includes(s.key)&&s.key!==stage)
+                                    if(!gStages.length) return null
+                                    return (
+                                      <div key={grp.label}>
+                                        {/* Group label */}
+                                        <div style={{padding:'7px 14px 2px',fontSize:9,fontWeight:800,color:tsu,textTransform:'uppercase',letterSpacing:'0.08em'}}>{grp.label}</div>
+                                        {gStages.map(stg=>{
+                                          const dc=stg.terminal?t.accentRed:stg.color
+                                          const p = planFor(stg.key)
+                                          const allowed   = p?.allowed ?? true
+                                          const locked    = p?.locked ?? false
+                                          const suggested = (p?.suggested ?? false) && allowed && !stg.terminal && !(p?.backward)
+                                          const pd = p?.date ? new Date(p.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : null
+                                          const tint = suggested ? (dk?`${BRAND.teal}22`:`${BRAND.teal}0D`) : 'transparent'
+                                          return (
+                                            <button key={stg.key}
+                                              onClick={()=>{setShowPicker(false);moveStage(stg.key as LeadStatus)}}
+                                              style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'7px 14px',background:tint,border:'none',cursor:'pointer',textAlign:'left',opacity:allowed?1:0.5}}
+                                              onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background=dk?'#1F2937':'#F8FAFC'}}
+                                              onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background=tint}}>
+                                              {/* Small icon — no circle background, just the icon */}
+                                              <div style={{width:32,height:32,borderRadius:8,background:dc+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                                <StageIcon k={stg.key} color={dc} size={22}/>
+                                              </div>
+                                              <div style={{flex:1,minWidth:0}}>
+                                                <div style={{fontSize:13,fontWeight:500,color:tp,lineHeight:1.2}}>{stg.label}</div>
+                                                <div style={{fontSize:11,color:tsu,marginTop:1}}>{stg.subLabel}</div>
+                                              </div>
+                                              {pd&&<span style={{fontSize:11,fontWeight:600,color:tsu,flexShrink:0,whiteSpace:'nowrap',marginRight:(suggested||locked)?8:0}}>{pd}</span>}
+                                              {p?.skipped
+                                                ? <span style={{fontSize:9,fontWeight:700,color:tsu,background:dk?'#33415588':'#F1F5F9',padding:'3px 7px',borderRadius:20,textTransform:'uppercase',letterSpacing:'0.05em',flexShrink:0,whiteSpace:'nowrap'}}>Skipped</span>
+                                                : suggested
+                                                ? <span style={{fontSize:9,fontWeight:800,color:BRAND.teal,background:`${BRAND.teal}1A`,padding:'3px 7px',borderRadius:20,textTransform:'uppercase',letterSpacing:'0.05em',flexShrink:0,whiteSpace:'nowrap'}}>Suggested</span>
+                                                : locked
+                                                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={tsu} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,opacity:0.7}}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                                  : null}
+                                            </button>
+                                          )
+                                        })}
+                                        {gi<pickerGroups.length-1&&<div style={{height:1,background:bdr,margin:'4px 0'}}/>}
+                                      </div>
+                                    )
+                                  })}
+                                  <div style={{height:8}}/>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Entered date — inline */}
+                        <span style={{width:1,height:22,background:bdr,flexShrink:0}}/>
+                        <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:T.fontSub,color:tsu,whiteSpace:'nowrap'}}>
+                          <Svg size={14} stroke={tsu}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                          Entered <span style={{fontWeight:700,color:ts}}>{new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+                        </span>
+                      </div>
+
+                      {/* Stage tip — amber card, dismissible per stage */}
+                      {TIPS[stage] && tipDismissed !== stage && (
+                        <div style={{marginTop:14,padding:'10px 14px',borderRadius:T.radMd,background:'#FFFBEB',border:'1px solid #FDE68A',display:'flex',alignItems:'flex-start',gap:8}}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,marginTop:1}}>
+                            <path d="M12 3a6 6 0 00-6 6c0 3 1.5 5 3 7h6c1.5-2 3-4 3-7a6 6 0 00-6-6z"/>
+                            <line x1="8.5" y1="19" x2="15.5" y2="19"/><line x1="9" y1="22" x2="15" y2="22"/>
+                          </svg>
+                          <span style={{fontSize:12,fontWeight:500,color:'#92400E',lineHeight:1.5,flex:1}}>{TIPS[stage]}</span>
+                          <button onClick={()=>setTipDismissed(stage)} aria-label="Dismiss tip" style={{flexShrink:0,marginTop:-1,width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',background:'transparent',border:'none',cursor:'pointer',color:'#B45309',opacity:0.7,borderRadius:5}}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        </div>
+                      )}
+                      {isTerminal&&(
+                        <div style={{marginTop:12,padding:'10px 14px',borderRadius:T.radSm,textAlign:'center',background:stage===getStageAnchors(session?.trade_slug).won?'linear-gradient(135deg,#065F46,#047857)':t.cardBgAlt,color:stage===getStageAnchors(session?.trade_slug).won?'#fff':ts,fontSize:14,fontWeight:700}}>
+                          {stage===getStageAnchors(session?.trade_slug).won?'🏆 Job Complete':stage===getStageAnchors(session?.trade_slug).lost?'Job Lost':'Lead Unqualified'}
+                        </div>
+                      )}
+                      {stage===getStageAnchors(session?.trade_slug).won&&isRoofing&&(
+                        <button onClick={()=>setShowWarranty(true)} style={{marginTop:8,width:'100%',padding:'10px 14px',borderRadius:T.radSm,background:t.cardBgAlt,color:BRAND.teal,border:`1px solid ${BRAND.teal}`,fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Record Warranty</button>
+                      )}
+                    </div>
+                  </div>{/* end hero */}
+
+                  {/* ─── NEXT ACTION banner (wow redesign — dark teal hero) ─── */}
+                  {isRoofing && (() => {
+                    const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
+                    const nextKey = wf.nextKey
+                    const addr = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
+                    // ProMeasure is now OPTIONAL, never a forced step. The LF
+                    // workflow step routes to the calculator (goEstimate) where LF
+                    // can be typed directly or traced via ProMeasure. Kept here so
+                    // the lead page can still offer a direct trace entry if needed.
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
+                    const goSupplement = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
+                    const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
+                    const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
+                    const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string;icon:React.ReactNode}> = {
+                      measure:  {title:'Measure the roof', sub:'Pull roof size from satellite — about 30 seconds.', cta:'Measure Roof', onClick:runSatelliteMeasure, mins:'1 min', icon:<><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></>},
+                      lf:       {title:'Capture linear footage', sub:'Add ridge, hip & valley — type them or trace with ProMeasure. Drives materials and supplements.', cta:'Add LF', onClick:goEstimate, mins:'2 min', icon:<><rect x="2" y="9" width="20" height="6" rx="1.5"/><path d="M6 9v2.5M10 9v3M14 9v2.5M18 9v3"/></>},
+                      carrier:  {title:'Review carrier scope', sub:'Record the carrier\u2019s decision to see whether a supplement is needed.', cta:'Record Decision', onClick:goCarrier, mins:'2 min', icon:<><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></>},
+                      estimate: {title:'Build the estimate', sub:'Turn your measurements into a priced estimate.', cta:'Build Estimate', onClick:goEstimate, mins:'2 min', icon:<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></>},
+                      supp:     {title:'Review supplement items', sub:'Check which code-required items the carrier may have missed.', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'3 min', icon:<><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8.5" x2="11" y2="13.5"/><line x1="8.5" y1="11" x2="13.5" y2="11"/></>},
+                      send:     {title:'Send to homeowner', sub:'Send the estimate for instant approve & pay.', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min', icon:<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>},
+                    }
+                    const na = nextKey ? NA[nextKey] : null
+                    const done = !na
+                    const fieldBg = done
+                      ? 'linear-gradient(135deg, #15803D 0%, #0F5C2E 100%)'
+                      : 'linear-gradient(135deg, #0F766E 0%, #0C5F59 100%)'
+                    const fieldShadow = done
+                      ? '0 16px 40px -12px rgba(15,128,61,0.5), 0 4px 12px rgba(10,61,32,0.3)'
+                      : '0 16px 40px -12px rgba(15,118,110,0.5), 0 4px 12px rgba(10,58,53,0.3)'
+                    const glow = done ? 'rgba(74,222,128,0.22)' : 'rgba(45,212,191,0.25)'
+                    const eyebrowColor = done ? '#86EFAC' : '#5EEAD4'
+                    const wmIcon = na ? na.icon : (<polyline points="20 6 9 17 4 12"/>)
+                    const heroEl = (
+                      <div style={{position:'relative',background:fieldBg,borderRadius:T.radLg,marginBottom:12,boxShadow:fieldShadow,overflow:'hidden'}}>
+                        <div style={{position:'absolute',top:-60,left:-20,width:260,height:260,borderRadius:'50%',background:`radial-gradient(circle, ${glow}, transparent 65%)`,pointerEvents:'none'}}/>
+                        <div style={{position:'absolute',right:-20,bottom:-30,opacity:0.07,pointerEvents:'none',transform:'rotate(-8deg)'}}>
+                          <Svg size={150} stroke="#fff" sw={1.5}>{wmIcon}</Svg>
+                        </div>
+                        <div style={{position:'relative',display:'flex',alignItems:'center',gap:T.sp5,padding:'16px 24px',flexWrap:'wrap'}}>
+                          <div style={{width:54,height:54,borderRadius:T.radMd,background:'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.32), rgba(255,255,255,0.08) 65%)',border:'1px solid rgba(255,255,255,0.22)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.12)'}}>
+                            <Svg size={26} stroke="#fff" sw={2}>{wmIcon}</Svg>
+                          </div>
+                          <div style={{flex:1,minWidth:220}}>
+                            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:6}}>
+                              <span style={{width:7,height:7,borderRadius:'50%',background:eyebrowColor,boxShadow:`0 0 8px ${eyebrowColor}`,flexShrink:0}}/>
+                              <span style={{fontSize:T.fontBadge,fontWeight:800,color:eyebrowColor,textTransform:'uppercase',letterSpacing:'0.12em'}}>{na?'Next Action':'On Track'}</span>
+                            </div>
+                            <div style={{fontSize:T.fontHero,fontWeight:800,color:'#fff',lineHeight:1.2,letterSpacing:'-0.01em',marginBottom:4}}>{na?na.title:'You\u2019re all caught up'}</div>
+                            <div style={{fontSize:T.fontBody,color:'rgba(255,255,255,0.82)',lineHeight:1.5}}>{na?na.sub:'Every step for this job is done.'}</div>
+                          </div>
+                          {na ? (
+                            <div style={{display:'flex',alignItems:'stretch',gap:T.sp4,flexShrink:0}}>
+                              <div style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:3,padding:'8px 16px',borderRadius:T.radMd,background:'rgba(255,255,255,0.10)',border:'1px solid rgba(255,255,255,0.18)'}}>
+                                <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:T.fontBadge,fontWeight:700,color:'rgba(255,255,255,0.65)',textTransform:'uppercase',letterSpacing:'0.08em'}}>
+                                  <Svg size={11} stroke="rgba(255,255,255,0.65)" sw={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
+                                  Est. Time
+                                </span>
+                                <span style={{color:'#fff',lineHeight:1}}><span style={{fontSize:T.fontHero,fontWeight:800}}>{na.mins.replace(' min','')}</span><span style={{fontSize:T.fontSub,fontWeight:600,marginLeft:3,color:'rgba(255,255,255,0.75)'}}>min</span></span>
+                              </div>
+                              <button onClick={na.onClick} disabled={nextKey==='measure'&&qbGenerating}
+                                onMouseEnter={e=>{if(nextKey==='measure'&&qbGenerating)return;const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-2px)';b.style.boxShadow='0 14px 28px -6px rgba(0,0,0,0.35)'}}
+                                onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 8px 18px -4px rgba(0,0,0,0.28)'}}
+                                style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 22px',borderRadius:T.radSm,border:'none',background:'#fff',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:800,cursor:(nextKey==='measure'&&qbGenerating)?'wait':'pointer',whiteSpace:'nowrap',boxShadow:'0 8px 18px -4px rgba(0,0,0,0.28)',transition:'transform 0.15s, box-shadow 0.15s',opacity:(nextKey==='measure'&&qbGenerating)?0.9:1}}>
+                                {nextKey==='measure'&&qbGenerating
+                                  ? <><span style={{width:14,height:14,borderRadius:'50%',border:`2px solid ${BRAND.teal}40`,borderTopColor:BRAND.teal,animation:'pg-spin 0.7s linear infinite',display:'inline-block'}}/>Measuring…</>
+                                  : <>{na.cta}<Svg size={16} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg></>}
+                              </button>
+                            </div>
+                          ) : (est && (
+                            <button onClick={goEstimate} style={{display:'inline-flex',alignItems:'center',gap:8,height:46,padding:'0 20px',borderRadius:T.radSm,border:'1px solid rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.12)',color:'#fff',fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>Open Estimate</button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+
+                    // ── Stage spine — derived from the same workflow source of truth ──
+                    const rjd2 = (lead as any).roofing_job_data || {}
+                    const isClaim2 = !!rjd2.insurance_claim
+                    const lfd2 = rjd2.linear_footage || {}
+                    const sqv = rjd2.square_count
+                    const dn = (k: string) => !!wf.steps.find(s => s.key === k)?.done
+                    const money = (n: number) => '$' + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                    const relTime = (iso?: string) => {
+                      if (!iso) return null
+                      const s = (Date.now() - new Date(iso).getTime()) / 1000
+                      if (s < 60) return 'just now'
+                      if (s < 3600) return `${Math.floor(s / 60)}m ago`
+                      if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+                      return `${Math.floor(s / 86400)}d ago`
+                    }
+                    const estFresh = relTime((est as any)?.updated_at || (est as any)?.created_at)
+                    type SP = { key: string; label: string; done: boolean; summary: string }
+                    const stages: SP[] = []
+                    stages.push({
+                      key: 'measure', label: 'Roof Measurements',
+                      done: dn('measure') && (isClaim2 ? dn('lf') : true),
+                      summary: dn('measure')
+                        ? `${sqv} SQ · ${rjd2.pitch || '—'} · ${rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'} waste${isClaim2 && dn('lf') ? `   ·   Ridge ${Math.round(lfd2.ridge_ft || 0)} / Hip ${Math.round(lfd2.hip_ft || 0)} / Valley ${Math.round(lfd2.valley_ft || 0)} LF` : ''}`
+                        : 'Not measured yet',
+                    })
+                    stages.push({
+                      key: 'estimate', label: isClaim2 ? 'Estimate' : 'Price the job', done: dn('estimate'),
+                      summary: est ? `${(est as any).estimate_number || 'Estimate'} · ${money(Number(est.total) || 0)}${(est as any).status ? ` · ${(est as any).status}` : ''}` : 'Price the job in the calculator',
+                    })
+                    if (isClaim2) stages.push({
+                      key: 'carrier', label: 'Carrier Claim', done: dn('carrier'),
+                      summary: dn('carrier') ? `${rjd2.carrier_name || 'Carrier'} · decision recorded` : `${rjd2.carrier_name || 'Carrier'} · awaiting decision`,
+                    })
+                    if (isClaim2 && wf.decisionRecorded) stages.push({
+                      key: 'supp', label: 'Supplement', done: dn('supp'),
+                      summary: wf.gap != null ? `Potential gap ${money(wf.gap)} — review items` : 'Review supplement items',
+                    })
+                    const firstActive = stages.findIndex(s => !s.done)
+
+                    // Step-completion pop: compare current done keys to previous render
+                    const currentDoneKeys = new Set(stages.filter(s => s.done).map(s => s.key))
+                    const newlyDone = stages.filter(s => s.done && !prevDoneKeysRef.current.has(s.key)).map(s => s.key)
+                    if (newlyDone.length > 0) {
+                      setPoppedKeys(prev => { const n = new Set(prev); newlyDone.forEach(k => n.add(k)); return n })
+                      setTimeout(() => setPoppedKeys(prev => { const n = new Set(prev); newlyDone.forEach(k => n.delete(k)); return n }), 600)
+                    }
+                    prevDoneKeysRef.current = currentDoneKeys
+                    const goStage = (k: string) => {
+                      if (k === 'estimate') { goEstimate(); return }
+                      setTab('details')
+                      const id = k === 'carrier' ? 'insurance-claim-section' : k === 'supp' ? 'supplement-section' : null
+                      if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+                    }
+                    const ICONS: Record<string, React.ReactNode> = {
+                      measure: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></>,
+                      carrier: <path d="M12 2l8 4v6c0 5-3.4 8-8 10-4.6-2-8-5-8-10V6z" />,
+                      estimate: <><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="8" y1="6" x2="16" y2="6" /><line x1="8" y1="10.5" x2="16" y2="10.5" /><line x1="8" y1="15" x2="13" y2="15" /></>,
+                      supp: <><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8.4" x2="11" y2="13.6" /><line x1="8.4" y1="11" x2="13.6" y2="11" /></>,
+                    }
+                    const CUES: Record<string, string> = {
+                      estimate: 'After measuring',
+                      carrier: 'After your estimate',
+                      supp: 'When your scope exceeds the carrier\u2019s',
+                    }
+                    const sBtn = (label: string, onClick: () => void) => (
+                      <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', borderRadius: T.radSm, border: `1px solid ${bdr}`, background: card, color: BRAND.teal, fontSize: T.fontSub, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{label}</button>
+                    )
+                    const GW = isWide ? 40 : 32
+                    const gIcon = (bg: string, content: React.ReactNode, ring?: string, stageKey?: string) => (
+                      <div className={[
+                        typeof bg === 'string' && bg.includes('0F766E') ? 'pg-pulse' : '',
+                        stageKey && poppedKeys.has(stageKey) ? 'pg-pop' : '',
+                      ].filter(Boolean).join(' ') || undefined}
+                      style={{ width: GW, height: GW, borderRadius: '50%', background: bg, border: ring ? `2px solid ${ring}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{content}</div>
+                    )
+                    const statusPill = (status?: string) => {
+                      const st = (status || 'draft').toLowerCase()
+                      const map: Record<string, [string, string]> = { draft: ['#B45309', '#FFFBEB'], sent: ['#0F766E', '#F0FDFA'], viewed: ['#2563EB', '#EFF4FF'], approved: ['#15803D', '#F0FDF4'], paid: ['#15803D', '#F0FDF4'], declined: ['#DC2626', '#FEF2F2'] }
+                      const [c, bg] = map[st] || map.draft
+                      return <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: c, background: bg, border: `1px solid ${c}33`, borderRadius: T.radSm, padding: '3px 9px', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{st}</span>
+                    }
+                    return (
+                      <div style={{ position: 'relative', marginBottom: 12 }}>
+                        {/* one continuous path — upcoming stages read as 'ahead', not shut */}
+                        <div style={{ position: 'absolute', left: isWide ? 19 : 15, top: 30, bottom: 30, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, position: 'relative', zIndex: 1 }}>
+                          {stages.map((s, i) => {
+                            // Carrier stage owns the claim form inline (re-homed InsuranceClaimFields, kept whole)
+                            if (s.key === 'carrier') {
+                              const cState = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
+                              return (
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
+                                  {gIcon(cState === 'done' ? '#15803D' : cState === 'active' ? 'linear-gradient(135deg,#0F766E,#0C5F59)' : (dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9'), <Svg size={isWide ? 17 : 15} stroke={cState === 'upcoming' ? tsu : '#fff'} sw={2}>{ICONS.carrier}</Svg>, cState === 'upcoming' ? bdr : undefined, 'carrier')}
+                                  <div id="insurance-claim-section" style={{ scrollMarginTop: 16 }}>
+                                    {cState === 'active' && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, padding: '10px 16px', borderRadius: T.radSm, background: 'linear-gradient(135deg,#0F766E,#0C5F59)', flexWrap: 'wrap' as const }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 6px #5EEAD4' }} />
+                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.14em' }}>Next Action</span>
+                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: '#fff' }}>{na?.title || 'Review carrier scope'}</span>
+                                        {na?.sub && <span style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.8)' }}>· {na.sub}</span>}
+                                      </div>
+                                    )}
+                                    {claimFieldsEl}
+                                  </div>
+                                </div>
+                              )
+                            }
+                            // Supplement stage owns the gap payoff + Supplement Assistant inline (Build B)
+                            if (s.key === 'supp' && (s.done || i === firstActive)) {
+                              const cState = s.done ? 'done' : 'active'
+                              const isFLLead = ((lead.contact_state ?? '').trim().toUpperCase() === 'FL')
+                              const gapVal = wf.gap || 0
+                              const eTot = Number(est?.total) || 0
+                              const cTot = Math.max(eTot - gapVal, 0)
+                              // Done + not expanded → one-line summary (like other done stages), re-openable
+                              if (cState === 'done' && !suppOpen) {
+                                const sLabel = rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'
+                                return (
+                                  <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
+                                    {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp')}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '13px 18px' : '11px 14px', flexWrap: 'wrap' as const }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                                        <span style={{ fontSize: isWide ? T.fontHero : T.fontHeroMobile, fontWeight: 800, color: tp, letterSpacing: '-0.01em' }}>Supplement {sLabel}</span>
+                                        {gapVal > 0 && <span style={{ fontSize: T.fontBody, color: tsu }}>· potential gap <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5' }}>{money(gapVal)}</span></span>}
+                                      </div>
+                                      <button onClick={() => setSuppOpen(true)} style={{ fontSize: T.fontSub, fontWeight: 700, color: BRAND.teal, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '5px 12px', cursor: 'pointer', flexShrink: 0 }}>Review</button>
+                                    </div>
+                                  </div>
+                                )
+                              }
+                              return (
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
+                                  {gIcon(cState === 'done' ? '#15803D' : 'linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp')}
+                                  <div id="supplement-section" className={suppOpen ? 'pg-reveal' : undefined} style={{ scrollMarginTop: 16 }}>
+                                    {cState === 'done' && (
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                                        <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#15803D', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>Supplement {rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'}</span>
+                                        <button onClick={() => setSuppOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: T.fontSub, fontWeight: 700, color: tsu, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '4px 11px', cursor: 'pointer' }}>Collapse <Svg size={12} stroke={tsu} sw={2.5}><polyline points="18 15 12 9 6 15" /></Svg></button>
+                                      </div>
+                                    )}
+                                    {/* Gap payoff hero — FL-only; non-FL falls through to assistant's single FL-gate message */}
+                                    {isFLLead && <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(129,140,248,0.28)' : '#C7D2FE'}`, background: dk ? 'rgba(79,70,229,0.10)' : '#EEF2FF', overflow: 'hidden', marginBottom: 12 }}>
+                                      <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
+                                        <div style={{ minWidth: 0 }}>
+                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: dk ? '#A5B4FC' : '#4338CA', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>{eTot > 0 ? 'Potential supplement gap' : 'Supplement review'}</div>
+                                          {eTot > 0
+                                            ? <CountUpMoney value={gapVal} fmt={money} style={{ display: 'block', fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }} />
+                                            : <div style={{ fontSize: isWide ? 20 : T.fontHeroMobile, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.01em', lineHeight: 1.2, marginTop: 2 }}>Scan carrier scope</div>}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 22 }}>
+                                          <div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Carrier total</div>
+                                            <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>${cTot.toLocaleString()}</div>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Your estimate</div>
+                                            <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{eTot > 0 ? `$${eTot.toLocaleString()}` : '—'}</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(129,140,248,0.22)' : '#C7D2FE'}`, fontSize: T.fontSub, color: dk ? '#C7D2FE' : '#4338CA', lineHeight: 1.45 }}>
+                                        {eTot > 0 ? 'The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.' : 'Paste the carrier scope below to flag FL code-required items they missed — no estimate needed to start.'}
+                                      </div>
+                                    </div>}
+                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} />
+                                    {/* Supplement lifecycle transitions — single source of truth (spine owns Supplement->Closed) */}
+                                    {!(stage==='job_won'||stage==='lost') && rjd2.claim_status !== 'Closed' && (()=>{
+                                      const advance = async (next:string, toast:string)=>{
+                                        const ok = await patch({claim_status:next})
+                                        if (ok) { setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),claim_status:next}} as any:l); setClaimRemountNonce(n=>n+1); addToast(toast,'success') }
+                                        else addToast('Update failed','error')
+                                      }
+                                      return (
+                                        <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const, marginTop:12 }}>
+                                          {rjd2.claim_status === 'Approved' && (
+                                            <button onClick={()=>advance('Supplement Filed','Supplement filed')} style={{ fontSize:12, fontWeight:700, color:BRAND.teal, background:'transparent', border:`1px solid ${BRAND.teal}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement filed</button>
+                                          )}
+                                          {rjd2.claim_status === 'Supplement Filed' && (
+                                            <button onClick={()=>advance('Supplement Approved','Supplement approved')} style={{ fontSize:12, fontWeight:700, color:BRAND.teal, background:'transparent', border:`1px solid ${BRAND.teal}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement approved</button>
+                                          )}
+                                          <button onClick={()=>advance('Closed','Claim closed')} style={{ fontSize:12, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
+                                        </div>
+                                      )
+                                    })()}
+                                  </div>
+                                </div>
+                              )
+                            }
+                            const state = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
+
+                            if (state === 'active') {
+                              const isMeasuring = nextKey === 'measure' && qbGenerating
+                              const aTitle = (s.key === 'estimate' && !isClaim2) ? 'Price the job' : (na?.title || s.label)
+                              const aCta = (s.key === 'estimate' && !isClaim2) ? 'Price the job' : (na?.cta || 'Open')
+                              return (
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: isWide ? 'center' : 'start' }}>
+                                  {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 19 : 16} stroke="#fff" sw={2}>{ICONS[s.key] || ICONS.measure}</Svg>, undefined, s.key)}
+                                  <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '12px 18px' : '12px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 12, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
+                                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: '#5EEAD4', opacity: 0.9 }} />
+                                    <div style={{ position: 'absolute', left: -30, top: -40, width: 170, height: 170, borderRadius: '50%', background: 'radial-gradient(circle, rgba(94,234,212,0.18), transparent 65%)', pointerEvents: 'none' }} />
+                                    <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 8px #5EEAD4' }} />
+                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.16em' }}>Next Action</span>
+                                      </div>
+                                      <div style={{ fontSize: isWide ? 22 : T.fontHeroMobile, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{aTitle}</div>
+                                      <div style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.82)', marginTop: 2 }}>{na?.sub}</div>
+                                    </div>
+                                    <button onClick={na?.onClick} disabled={isMeasuring}
+                                      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, height: 42, padding: '0 20px', width: isWide ? 'auto' : '100%', borderRadius: T.radSm, border: 'none', background: '#fff', color: BRAND.teal, fontSize: T.fontEmphasis, fontWeight: 800, cursor: isMeasuring ? 'wait' : 'pointer', whiteSpace: 'nowrap' as const, boxShadow: '0 6px 16px -6px rgba(0,0,0,0.3)', flexShrink: 0 }}>
+                                      {isMeasuring
+                                        ? <><span style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${BRAND.teal}40`, borderTopColor: BRAND.teal, animation: 'pg-spin 0.7s linear infinite', display: 'inline-block' }} />Measuring…</>
+                                        : <>{aCta}<Svg size={15} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></Svg></>}
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            }
+
+                            if (state === 'done') {
+                              const estInline = s.key === 'estimate'
+                              const sumInline = s.key === 'carrier' || s.key === 'supp'
+                              return (
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
+                                  {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2.6}><polyline points="20 6 9 17 4 12" /></Svg>, undefined, s.key)}
+                                  <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '11px 16px' : '11px 14px', boxShadow: dk ? 'none' : '0 1px 3px rgba(0,0,0,0.04)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const, minWidth: 0 }}>
+                                        {!estInline && <span style={{ fontSize: T.fontSub, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.05em', whiteSpace: 'nowrap' as const }}>{s.label}</span>}
+                                        {estInline && (
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
+                                            <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Estimate</span>
+                                            <CountUpMoney value={Number(est?.total) || 0} fmt={money} style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }} />
+                                            {statusPill((est as any)?.status)}
+                                            {estFresh && <span style={{ fontSize: T.fontSub, color: tsu }}>Updated {estFresh}</span>}
+                                          </span>
+                                        )}
+                                        {sumInline && (
+                                          <span style={{ fontSize: T.fontBody, color: tp, fontWeight: 600 }}>{s.summary}</span>
+                                        )}
+                                      </div>
+                                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                        {s.key === 'measure' && (lead as any)?.roofing_job_data?.report_url && sBtn('View report', () => window.open((lead as any).roofing_job_data.report_url, '_blank'))}
+                                        {sBtn(s.key === 'measure' ? 'Re-measure' : s.key === 'estimate' ? 'Open' : 'View', () => { if (s.key === 'measure') runSatelliteMeasure(); else goStage(s.key) })}
+                                      </div>
+                                    </div>
+                                    {s.key === 'measure' && (
+                                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, marginTop: 9, flexWrap: 'wrap' as const }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: isWide ? 22 : 16 }}>
+                                          <div>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                                              <span style={{ fontSize: isWide ? T.fontTitle : T.fontTitleMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }}>{sqv}</span>
+                                              <span style={{ fontSize: T.fontSub, fontWeight: 800, color: BRAND.teal }}>SQ</span>
+                                            </div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Roof size</div>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: isWide ? T.fontTitle : T.fontTitleMobile, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.pitch || '—'}</div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Pitch</div>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: isWide ? T.fontTitle : T.fontTitleMobile, fontWeight: 800, color: tp, lineHeight: 1 }}>{rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'}</div>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Waste</div>
+                                          </div>
+                                        </div>
+                                        {isClaim2 && lfd2.source === 'promeasure_manual' && ((lfd2.ridge_ft || 0) > 0 || (lfd2.hip_ft || 0) > 0 || (lfd2.valley_ft || 0) > 0) && (
+                                          <>
+                                            {isWide && <span style={{ width: 1, height: 38, background: bdr, flexShrink: 0 }} />}
+                                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, flexShrink: 0 }}>
+                                              <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: BRAND.teal, textTransform: 'uppercase' as const, letterSpacing: '0.05em', lineHeight: 1.1 }}>Linear Footage</span>
+                                              <span style={{ fontSize: 10, fontWeight: 600, color: tsu }}>ProMeasure traced</span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' as const }}>
+                                              {[['Ridge', lfd2.ridge_ft], ['Hip', lfd2.hip_ft], ['Valley', lfd2.valley_ft], ...((lfd2.eave_ft || 0) > 0 ? [['Eave', lfd2.eave_ft]] : [])].map(([lbl, v]) => (
+                                                <div key={lbl as string} style={{ minWidth: 52, padding: '5px 11px', borderRadius: T.radSm, background: dk ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${bdr}`, textAlign: 'center' as const }}>
+                                                  <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: tp, lineHeight: 1.1 }}>{Math.round((v as number) || 0)}</div>
+                                                  <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 1 }}>{lbl}</div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            }
+
+                            // upcoming — calm, on the path, not blocked
+                            return (
+                              <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center', opacity: 0.82 }}>
+                                {gIcon(dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9', <Svg size={isWide ? 18 : 15} stroke={tsu} sw={2}>{ICONS[s.key] || ICONS.estimate}</Svg>, bdr)}
+                                <div style={{ background: dk ? 'transparent' : '#FCFDFD', border: `1px dashed ${bdr}`, borderRadius: T.radLg, padding: '12px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'flex-start', gap: isWide ? 12 : 5 }}>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontWeight: 700, fontSize: T.fontEmphasis, color: ts }}>{s.label}</div>
+                                    <div style={{ fontSize: T.fontSub, color: tsu, marginTop: 2 }}>{s.summary}</div>
+                                  </div>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: ts, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Svg size={12} stroke={ts} sw={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Svg>{CUES[s.key] || 'Coming up'}</span>
+                                </div>
+                              </div>
+                            )
+                          })}
+
+                          {/* Terminal Next Action: all spine stages done, estimate still needs sending (send isn't a stage) */}
+                          {nextKey === 'send' && na && (
+                            <div style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: isWide ? 'center' : 'start' }}>
+                              {gIcon('linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 19 : 16} stroke="#fff" sw={2}>{na.icon}</Svg>)}
+                              <div className="pg-cta" style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg,#0F766E,#0C5F59)', borderRadius: T.radLg, padding: isWide ? '11px 18px' : '11px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? T.sp4 : 10, boxShadow: '0 8px 22px -10px rgba(15,118,110,0.5)' }}>
+                                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: '#5EEAD4', opacity: 0.9 }} />
+                                <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 8px #5EEAD4' }} />
+                                    <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.16em' }}>Next Action</span>
+                                  </div>
+                                  <div style={{ fontSize: isWide ? 19 : T.fontHeroMobile, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{na.title}</div>
+                                  <div style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.82)', marginTop: 1 }}>{na.sub}</div>
+                                </div>
+                                <button onClick={na.onClick} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, height: 42, padding: '0 20px', width: isWide ? 'auto' : '100%', borderRadius: T.radSm, border: 'none', background: '#fff', color: BRAND.teal, fontSize: T.fontEmphasis, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' as const, boxShadow: '0 6px 16px -6px rgba(0,0,0,0.3)', flexShrink: 0 }}>
+                                  {na.cta}<Svg size={15} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></Svg>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+
+                  {/* ─── TABS CARD ───────────────────────────────────────── */}
+                  <div style={{background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,overflow:'visible',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+
+                    {/* Tab strip — sticky underline bar */}
+                    <div style={{display:'flex',position:'sticky',top:0,zIndex:5,borderBottom:`1px solid ${bdr}`,paddingLeft:4,paddingRight:4,overflowX:isWide?'visible':'auto',WebkitOverflowScrolling:'touch',background:card,borderRadius:`${T.radLg}px ${T.radLg}px 0 0`,boxShadow:dk?'none':'0 1px 0 rgba(15,23,42,0.02)'}}>
+                      {tabs.map(tb2=>{
+                        const isAct=tab===tb2.key
+                        return (
+                          <button key={tb2.key}
+                            onClick={()=>{setTab(tb2.key);if(isEditing&&tb2.key!=='details')setIsEditing(false)}}
+                            style={{
+                              display:'flex',alignItems:'center',gap:7,
+                              padding:'13px 16px 12px',
+                              border:'none',
+                              borderBottom:isAct?`2.5px solid ${BRAND.teal}`:'2.5px solid transparent',
+                              background:isAct?(dk?'rgba(20,184,166,0.08)':'rgba(15,118,110,0.05)'):'transparent',
+                              cursor:'pointer',
+                              color:isAct?BRAND.teal:ts,
+                              fontWeight:isAct?800:600,
+                              fontSize:14,whiteSpace:'nowrap',
+                              marginBottom:-1,
+                              transition:'all 0.15s',
+                            }}>
+                            <Svg size={14} stroke={isAct?BRAND.teal:tsu}>{tb2.icon}</Svg>
+                            {tb2.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* ── Details tab ──────────────────────────────────── */}
+                    {tab==='details'&&(
+                      <div style={{padding:'18px 20px'}}>
+                        {!isEditing&&(
+                          <>
+                            {isRoofing&&(!useSpine||!isClaim)&&<div id="insurance-claim-section" style={{position:'relative',top:-12}}/>}
+                            {isRoofing&&(!useSpine||!isClaim)&&claimFieldsEl}
+
+                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
+                              <div style={{marginTop:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(220,38,38,0.10)':'#FEF2F2',border:'1px solid #FECACA'}}>
+                                <div style={{fontSize:13,fontWeight:800,color:'#DC2626',marginBottom:4}}>Insurance claim denied</div>
+                                <div style={{fontSize:12,color:dk?'#FCA5A5':'#991B1B',lineHeight:1.5,marginBottom:12}}>This claim can&apos;t proceed on the insurance track. Reopen it if the carrier reconsidered, convert to a retail job so the homeowner pays the full cost{stage==='insurance_approved'?' — this moves the lead back to Inspection Scheduled':''}, or mark the lead lost. Claim details are preserved either way in case of an appeal.</div>
+                                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                                  <button onClick={async()=>{const ok=await patch({claim_status:'Filed'});if(ok){setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),claim_status:'Filed'}} as any:l);setClaimRemountNonce(n=>n+1);addToast('Claim reopened','success')}else{addToast('Failed to reopen','error')}}}
+                                    style={{padding:'8px 14px',borderRadius:8,border:`1px solid ${dk?'#475569':'#CBD5E1'}`,background:'transparent',color:dk?'#E2E8F0':'#475569',fontSize:12,fontWeight:700,cursor:'pointer'}}>Reopen claim</button>
+                                  <button onClick={async()=>{const inApproved=stage==='insurance_approved';const ok=await patch(inApproved?{insurance_claim:false,lead_status:'inspection_scheduled'}:{insurance_claim:false});if(ok){setLead(l=>l?{...l,lead_status:inApproved?('inspection_scheduled' as LeadStatus):l.lead_status,roofing_job_data:{...((l as any).roofing_job_data??{}),insurance_claim:false}} as any:l);if(inApproved)setStage('inspection_scheduled' as LeadStatus);addToast(inApproved?'Converted to retail — moved to Inspection Scheduled':'Converted to retail — homeowner pays full cost','success')}else{addToast('Failed to convert','error')}}}
+                                    style={{padding:'8px 14px',borderRadius:8,border:'none',background:BRAND.teal,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>Convert to Retail</button>
+                                  <button onClick={()=>moveStage('lost' as LeadStatus)}
+                                    style={{padding:'8px 14px',borderRadius:8,border:`1px solid ${dk?'#475569':'#CBD5E1'}`,background:'transparent',color:dk?'#E2E8F0':'#475569',fontSize:12,fontWeight:700,cursor:'pointer'}}>Mark Lost</button>
+                                </div>
+                              </div>
+                            )}
+
+
+                            {/* FL Supplement workflow — only once the carrier has actually responded.
+                                Trigger is the approved amount (the roofer enters it off the adjuster call)
+                                or an explicit post-decision claim status. Before that it's hidden — the
+                                step ladder owns this space and there is no carrier scope to reconcile yet. */}
+                            {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(()=>{
+                              const rjd = (lead as any).roofing_job_data
+                              const approvedAmt = Number(rjd?.approved_amount) || 0
+                              const supplementAmt = Number(rjd?.supplement_amount) || 0
+                              const claimStatus = rjd?.claim_status || 'Filed'
+                              const carrierResponded = approvedAmt > 0 ||
+                                ['Approved','Supplement Filed','Supplement Approved'].includes(claimStatus)
+                              const isDenied = claimStatus === 'Denied'
+                              const estTotal = est?.total || 0
+                              const carrierTotal = approvedAmt + supplementAmt
+                              const gap = (estTotal > 0 && carrierTotal > 0) ? estTotal - carrierTotal : null
+
+                              if (isDenied) return null  // denial has its own CTA above
+                              if (!carrierResponded) return null  // pre-decision: the claim panel's decision buttons own this
+                              if (useSpine) return null  // spine renders the supplement payoff inline in its own stage
+
+                              return (
+                                <div id="supplement-section" style={{marginTop:16}}>
+                                  {/* Gap summary — what the carrier paid vs the roofer's estimate */}
+                                  <Card dk={false} variant={gap && gap > 0 ? 'warning' : 'success'} pad="none" style={{marginBottom:14}}>
+                                    <div style={{padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap' as const}}>
+                                      <div style={{display:'flex',gap:22}}>
+                                        <div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#64748B',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Carrier total</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#0F172A',letterSpacing:'-0.02em'}}>${carrierTotal.toLocaleString()}</div>
+                                        </div>
+                                        <div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#64748B',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Your estimate</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#0F172A',letterSpacing:'-0.02em'}}>{estTotal > 0 ? `$${estTotal.toLocaleString()}` : '—'}</div>
+                                        </div>
+                                      </div>
+                                      <div style={{textAlign:'right' as const}}>
+                                        {gap === null ? (
+                                          <div style={{fontSize:12,fontWeight:600,color:'#92400E',maxWidth:210,lineHeight:1.4}}>
+                                            {carrierTotal === 0
+                                              ? 'Enter the carrier\u2019s approved amount above to see your gap'
+                                              : 'Price this job to see your gap'}
+                                          </div>
+                                        ) : gap > 0 ? (
+                                          <>
+                                            <div style={{fontSize:10,fontWeight:700,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Potential gap</div>
+                                            <div style={{fontSize:22,fontWeight:900,color:'#B45309',letterSpacing:'-0.03em'}}>${gap.toLocaleString()}</div>
+                                          </>
+                                        ) : (
+                                          <div style={{fontSize:13,fontWeight:700,color:'#059669'}}>Carrier covers your estimate</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {gap !== null && gap > 0 && (
+                                      <div style={{padding:'9px 16px',borderTop:'1px solid #FED7AA',fontSize:11.5,color:'#92400E',lineHeight:1.45}}>
+                                        The carrier may have under-scoped. Paste their estimate below to see which FL code-required items they missed.
+                                      </div>
+                                    )}
+                                  </Card>
+                                  <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null} groundedFlags={(rjd as any)?.supplement_flags ?? null}/>
+                                </div>
+                              )
+                            })()}
+
+
+                            {/* ── Homeowner Portal card ──────────────────── */}
+                            {lead.contact_email && (
+                              <HomeownerPortalCard
+                                leadId={lead.id}
+                                proId={session!.id}
+                                contactName={lead.contact_name || ''}
+                                contactEmail={lead.contact_email}
+                                card={card} bdr={bdr} tp={tp} sub={ts} dk={dk}
+                                onSent={(email) => addToast(`Portal link sent to ${email}`, 'success')}
+                                onError={(msg) => addToast(msg, 'error')}
+                              />
+                            )}
+
+                            {/* Contact & details — reference, sits below the work */}
+                            <div style={{marginTop:(useSpine&&(!isRoofing||isClaim))?0:16,paddingTop:(useSpine&&(!isRoofing||isClaim))?0:16,borderTop:(useSpine&&(!isRoofing||isClaim))?'none':`1px solid ${bdr}`}}>
+                              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                                <span style={{fontSize:11.5,fontWeight:800,color:tp,textTransform:'uppercase' as const,letterSpacing:'0.07em',flexShrink:0}}>Contact &amp; Details</span>
+                                <button onClick={()=>startEdit()} style={{marginLeft:'auto',display:'inline-flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:7,border:`1px solid ${BRAND.teal}40`,background:'transparent',color:BRAND.teal,fontSize:12.5,fontWeight:700,cursor:'pointer',flexShrink:0}}>
+                                  <Svg size={12} stroke={BRAND.teal}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></Svg>
+                                  Edit details
+                                </button>
+                              </div>
+                              <div style={{marginTop:10,display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:1,background:bdr,border:`1px solid ${bdr}`,borderRadius:T.radMd,overflow:'hidden'}}>
+                                {([
+                                  {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
+                                  {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
+                                  {label:'Address',  color:'#0F766E', icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:<span style={{display:'flex',flexDirection:'column',gap:3}}><span>{(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—'}</span>{!lead.client_id&&lead.contact_name&&<button onClick={async(e)=>{e.stopPropagation();if(!session)return;const r=await apiFetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,full_name:lead.contact_name,phone:lead.contact_phone||null,email:lead.contact_email||null,address_line1:((lead as any).property_address||'').split(',')[0]?.trim()||null,city:lead.contact_city||null,state:lead.contact_state||null})});const d=await r.json();if(d.client?.id){await apiFetch('/api/leads/'+lead.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,client_id:d.client.id})});setLead(l=>l?{...l,client_id:d.client.id}:l);addToast('Saved as property','success')}}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>+ Save as Property</button>}{lead.client_id&&<button onClick={e=>{e.stopPropagation();router.push('/dashboard/clients/'+lead.client_id)}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>View Property →</button>}</span>, copy:null},
+                                  {label:'Source',   color:'#64748B', icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
+                                  // Inspection / Job date / Follow-up move to the rail's Key Dates card under the spine (kept here on flag-off or narrow)
+                                  ...(!(useSpine && isWide) ? [
+                                  {label:'Inspection',color:'#4F46E5', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></>, val:fmt((lead as any).inspection_date), copy:null},
+                                  {label:'Job Date', color:'#64748B', icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>, val:fmt(lead.scheduled_date), copy:null},
+                                  {label:'Follow-up',color:'#64748B', icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, val:lead.follow_up_date
+                                    ?<span style={{display:'flex',alignItems:'center',gap:5}}>{fmt(lead.follow_up_date)}{isOverdue(lead.follow_up_date)&&<span style={{fontSize:11,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:600}}>Overdue</span>}</span>
+                                    :'—', copy:null},
+                                  ] : []),
+                                ] as {label:string;color:string;icon:React.ReactNode;val:React.ReactNode;copy:string|null}[]).map((cell,ci)=>(
+                                  <div key={cell.label} style={{padding:'10px 13px',background:card,display:'flex',alignItems:'center',gap:11}}>
+                                    {/* Icon circle */}
+                                    <div style={{width:26,height:26,borderRadius:7,background:cell.color+'12',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,}}>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={cell.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{cell.icon}</svg>
+                                    </div>
+                                    <div style={{minWidth:0,flex:1}}>
+                                      <div style={{fontSize:10,fontWeight:700,color:tsu,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4}}>{cell.label}</div>
+                                      <div style={{fontSize:14,fontWeight:600,color:tp,display:'flex',alignItems:'center',gap:4,wordBreak:'break-word',lineHeight:1.4}}>
+                                        {cell.val}
+                                        {cell.copy&&cell.val!=='—'&&<CopyBtn text={cell.copy} color={ts}/>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Notes */}
+                            <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
+                              <div style={{fontSize:11.5,fontWeight:800,color:tp,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10}}>Notes</div>
+                              {lead.notes&&(
+                                <div style={{fontSize:14,color:tb,lineHeight:1.65,whiteSpace:'pre-wrap',marginBottom:10,padding:'10px 12px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
+                                  {lead.notes}
+                                </div>
+                              )}
+                              <div style={{display:'flex',gap:8}}>
+                                <input value={noteText} onChange={e=>setNoteText(e.target.value)}
+                                  onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&noteText.trim()){e.preventDefault();saveNote()}}}
+                                  placeholder="Add a note..."
+                                  style={{flex:1,fontSize:14,padding:'9px 12px',borderRadius:T.radSm,border:`1px solid ${t.inputBorder}`,background:t.inputBg,color:tp,outline:'none',fontFamily:'inherit'}}/>
+                                <button onClick={saveNote} disabled={savingNote||!noteText.trim()}
+                                  style={{padding:'9px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',opacity:!noteText.trim()?0.4:1}}>
+                                  {savingNote?'...':'Save'}
+                                </button>
+                              </div>
+                            </div>
+
+                            {lead.message&&(
+                              <div style={{marginTop:10,padding:'11px 14px',background:t.cardBgAlt,borderRadius:T.radSm,border:`1px solid ${bdr}`}}>
+                                <div style={{fontSize:11,fontWeight:800,color:ts,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:5}}>Original Message</div>
+                                <div style={{fontSize:14,color:tb,lineHeight:1.65,fontStyle:'italic'}}>"{lead.message}"</div>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Edit mode */}
+                        {isEditing&&(
+                          <>
+                            <div id="contact-edit-form" style={{display:'flex',flexDirection:'column',gap:14,scrollMarginTop:80}}>
+                              <div style={{position:'relative'}}>
+                                <label style={labelCls}>Property Address</label>
+                                <input
+                                  value={eAddr}
+                                  onChange={e=>{setEAddr(e.target.value);setEAddrLoading(true)}}
+                                  onFocus={()=>eAddrPredictions.length>0&&setEAddrShowPred(true)}
+                                  onBlur={()=>setTimeout(()=>setEAddrShowPred(false),180)}
+                                  placeholder="123 Maple St, Jacksonville, FL 32207"
+                                  style={inputCls}
+                                  autoComplete="off"
+                                />
+                                {eAddrShowPred&&eAddrPredictions.length>0&&(
+                                  <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid #E2E8F0',borderRadius:8,boxShadow:'0 4px 16px rgba(0,0,0,0.10)',zIndex:500,maxHeight:220,overflowY:'auto'}}>
+                                    {eAddrPredictions.map((pred)=>(
+                                      <div key={pred.place_id}
+                                        onMouseDown={()=>selectEAddrPrediction(pred)}
+                                        style={{padding:'10px 14px',cursor:'pointer',fontSize:13,color:'#1E293B',borderBottom:'1px solid #F1F5F9'}}
+                                        onMouseEnter={e=>(e.currentTarget.style.background='#F0FDFA')}
+                                        onMouseLeave={e=>(e.currentTarget.style.background='')}>
+                                        {pred.description}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:12}}>
+                                <div><label style={labelCls}>Phone</label><input value={ePhone} onChange={e=>setEPhone(e.target.value)} style={inputCls}/></div>
+                                <div><label style={labelCls}>Email</label><input value={eEmail} onChange={e=>setEEmail(e.target.value)} style={inputCls}/></div>
+                              </div>
+                              <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr 90px':'1fr',gap:12}}>
+                                <div><label style={labelCls}>City</label><input value={eCity} onChange={e=>setECity(e.target.value)} placeholder="Jacksonville" style={inputCls}/></div>
+                                <div><label style={labelCls}>State</label>
+                                  <select value={eState} onChange={e=>setEState(e.target.value)} style={inputCls}>
+                                    <option value="">—</option>
+                                    {US_STATES.map(([code,name])=><option key={code} value={code}>{code} — {name}</option>)}
+                                  </select>
+                                </div>
+                                <div><label style={labelCls}>Zip</label><input value={eZip} onChange={e=>setEZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="32207" maxLength={5} inputMode="numeric" style={inputCls}/></div>
+                              </div>
+                              <div><label style={labelCls}>Source</label>
+                                <select value={eSrc} onChange={e=>setESrc(e.target.value)} style={inputCls}>
+                                  <option value="">— Select source —</option>
+                                  {SOURCE_OPTIONS.map(s=><option key={s.value} value={s.value}>{s.label}</option>)}
+                                </select>
+                              </div>
+                              <div><label style={labelCls}>{isHvac_guard(tradePlugin) ? 'Diagnosis Date' : 'Inspection Date'}</label>
+                                <input type="date" value={eInsp} onChange={e=>setEInsp(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
+                              </div>
+                              <div><label style={labelCls}>Job Date &amp; Time</label>
+                                <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:8}}>
+                                  <input type="date" value={eDate} onChange={e=>setEDate(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
+                                  <input type="time" value={eTime} onChange={e=>setETime(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
+                                </div>
+                              </div>
+                              <div><label style={labelCls}>Follow-up Date</label>
+                                <input type="date" value={eFU} onChange={e=>setEFU(e.target.value)} style={{...inputCls,colorScheme:dk?'dark':'light'}}/>
+                              </div>
+                              <div><label style={labelCls}>Notes</label>
+                                <textarea value={eNotes} onChange={e=>setENotes(e.target.value)} rows={4} maxLength={500}
+                                  style={{...inputCls,resize:'vertical',lineHeight:1.6,minHeight:90}}/>
+                                <div style={{fontSize:12,color:tsu,textAlign:'right',marginTop:3}}>{eNotes.length}/500</div>
+                              </div>
+                            </div>
+                            <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:12,marginTop:16,paddingTop:16,borderTop:`1px solid ${bdr}`}}>
+                              <button onClick={()=>setIsEditing(false)} style={{padding:'11px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:t.cardBgAlt,color:tp,cursor:'pointer',fontSize:14,fontWeight:600}}>Cancel</button>
+                              <button onClick={saveEdit} disabled={eSaving} style={{padding:'11px',borderRadius:T.radSm,border:'none',background:`linear-gradient(135deg,${BRAND.teal},${BRAND.tealLight})`,color:'#fff',cursor:'pointer',fontSize:14,fontWeight:700}}>
+                                {eSaving?'Saving…':'Save Changes'}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Photos tab */}
+                    {tab==='photos'&&isRoofing&&(!useSpine||!isWide)&&(
+                      <div style={{padding:'18px 20px'}}>
+                        <JobPhotoLog leadId={lead.id} proId={session!.id} isRoofing={isRoofing} darkMode={dk} onPhotosLoaded={(n:number)=>setPhotoCount(n)}/>
+                      </div>
+                    )}
+
+                    {/* Estimate tab */}
+                    {tab==='estimate'&&(
+                      <div style={{padding:'18px 20px'}}>
+                        {estList.length>0?(
+                          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                            {estList.map((e)=>{
+                              const isRevision = !!e.revision_of
+                              const statusLabel = e.status.charAt(0).toUpperCase()+e.status.slice(1)
+                              return (
+                                <div key={e.id} style={{padding:'16px 18px',borderRadius:T.radMd,background:t.successBg,border:`1px solid ${t.successBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                                  <div>
+                                    <div style={{fontSize:10,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:2,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                                      <span>Estimate #{e.estimate_number}</span>
+                                      {isRevision&&<span style={{padding:'1px 7px',borderRadius:100,background:'rgba(15,118,110,0.12)',color:BRAND.teal,fontSize:9}}>Revision {e.revision_number??''}</span>}
+                                      <span style={{padding:'1px 7px',borderRadius:100,background:t.cardBgAlt,color:ts,fontSize:9}}>{statusLabel}</span>
+                                    </div>
+                                    <div style={{fontSize:26,fontWeight:800,color:BRAND.teal,letterSpacing:'-0.03em'}}>{e.total > 0 ? `$${e.total.toLocaleString('en-US',{minimumFractionDigits:2})}` : 'Open to see total'}</div>
+                                  </div>
+                                  <button onClick={()=>router.push(`/dashboard/estimates/${e.id}?from=pipeline&lead_id=${id}`)}
+                                    style={{padding:'10px 18px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
+                                    Open
+                                  </button>
+                                </div>
+                              )
+                            })}
+                            {inv&&(()=>{
+                              const paid = Math.max(0, (inv.total||0) - inv.balance_due)
+                              const isPaid = inv.status==='paid' || inv.balance_due<=0
+                              const isPartial = !isPaid && (inv.status==='partial_payment' || paid>0)
+                              const sc  = isPaid ? '#15803D' : isPartial ? '#B45309' : ts
+                              const sbg = isPaid ? '#DCFCE7'  : isPartial ? '#FEF3C7' : t.cardBgAlt
+                              const sLabel = isPaid ? 'Paid' : isPartial ? 'Partial' : (inv.status ? inv.status[0].toUpperCase()+inv.status.slice(1) : 'Invoice')
+                              const money = (v:number)=>`$${v.toLocaleString('en-US',{minimumFractionDigits:2})}`
+                              const stat = (label:string, val:number, color:string) => (
+                                <div style={{flex:1}}>
+                                  <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.05em',textTransform:'uppercase',color:ts}}>{label}</div>
+                                  <div style={{fontSize:17,fontWeight:800,color,marginTop:3,letterSpacing:'-0.02em'}}>{money(val)}</div>
+                                </div>
+                              )
+                              return (
+                                <div style={{padding:'16px 18px',borderRadius:T.radMd,background:card,border:`1px solid ${bdr}`}}>
+                                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+                                    <div style={{fontSize:10,fontWeight:700,color:BRAND.teal,textTransform:'uppercase',letterSpacing:'0.06em',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                                      <span>Invoice #{inv.invoice_number}</span>
+                                      <span style={{padding:'1px 7px',borderRadius:100,background:sbg,color:sc,fontSize:9,fontWeight:700}}>{sLabel}</span>
+                                    </div>
+                                    <button onClick={()=>router.push(`/dashboard/invoices/${inv.id}`)}
+                                      style={{padding:'8px 16px',borderRadius:T.radSm,border:`1px solid ${BRAND.teal}`,background:'none',color:BRAND.teal,fontSize:13,fontWeight:700,cursor:'pointer',flexShrink:0}}>
+                                      View
+                                    </button>
+                                  </div>
+                                  <div style={{display:'flex',gap:8,alignItems:'stretch'}}>
+                                    {stat('Total', inv.total||0, tp)}
+                                    <div style={{width:1,background:bdr}}/>
+                                    {stat('Paid', paid, paid>0?'#15803D':ts)}
+                                    <div style={{width:1,background:bdr}}/>
+                                    {stat('Balance', inv.balance_due, inv.balance_due>0?'#B45309':'#15803D')}
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                            {/* History trail: previous (superseded) versions, collapsed by default */}
+                            {supersededList.length>0&&(
+                              <div style={{borderRadius:T.radSm,border:`1px solid ${bdr}`,overflow:'hidden'}}>
+                                <button onClick={()=>setShowHistory(h=>!h)}
+                                  style={{width:'100%',padding:'11px 16px',background:t.cardBgAlt,border:'none',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer',color:ts,fontSize:13,fontWeight:600}}>
+                                  <span>Previous versions ({supersededList.length})</span>
+                                  <span style={{fontSize:11,transform:showHistory?'rotate(180deg)':'none',transition:'transform 0.15s'}}>▼</span>
+                                </button>
+                                {showHistory&&(
+                                  <div style={{padding:'4px 0'}}>
+                                    {supersededList.map(sv=>(
+                                      <div key={sv.id} style={{padding:'10px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',borderTop:`1px solid ${bdr}`}}>
+                                        <div style={{minWidth:0}}>
+                                          <div style={{fontSize:12,fontWeight:600,color:ts,display:'flex',alignItems:'center',gap:6}}>
+                                            <span>#{sv.estimate_number}</span>
+                                            {sv.revision_number?<span style={{padding:'0px 6px',borderRadius:100,background:t.cardBgAlt,color:tsu,fontSize:9,fontWeight:700}}>Rev {sv.revision_number}</span>:null}
+                                            <span style={{padding:'0px 6px',borderRadius:100,background:dk?'rgba(148,163,184,0.15)':'#F1F5F9',color:tsu,fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em'}}>Superseded</span>
+                                          </div>
+                                          <div style={{fontSize:11,color:tsu,marginTop:2}}>${Number(sv.total||0).toLocaleString('en-US',{minimumFractionDigits:2})} · {sv.void_reason||'Replaced by a newer version'}</div>
+                                        </div>
+                                        <button onClick={()=>router.push(`/dashboard/estimates/${sv.id}?from=pipeline&lead_id=${id}`)}
+                                          style={{padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:'transparent',color:ts,fontSize:12,fontWeight:600,cursor:'pointer',flexShrink:0}}>
+                                          View
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ):(
+                          <div style={{textAlign:'center',padding:'40px 0'}}>
+                            <div style={{fontSize:14,color:ts,marginBottom:16}}>No estimate yet</div>
+                            <button onClick={createEst} disabled={creatingEst}
+                              style={{padding:'11px 28px',borderRadius:T.radSm,border:'none',background:BRAND.teal,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer',opacity:creatingEst?0.7:1}}>
+                              {creatingEst?'Creating...':'+ Create Estimate'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Activity tab — full timeline */}
+                    {tab==='activity'&&(!useSpine||!isWide)&&(
+                      <div style={{padding:'18px 20px'}}>
+                        {acts.length===0
+                          ?<div style={{textAlign:'center',padding:'40px 0',color:ts,fontSize:14}}>No activity yet.</div>
+                          :<div style={{position:'relative'}}>
+                            {/* Vertical rail */}
+                            <div style={{position:'absolute',left:15,top:16,bottom:16,width:1,background:bdr,zIndex:0}}/>
+                            {acts.map((item,i)=>{
+                              const warn=(item as any).warn===true
+                              const ic=warn?'#EF4444':item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='quote'?'#0F766E':item.type==='scheduled'?'#64748B':item.type==='invoice_sent'?'#0F766E':item.type==='payment_received'?'#16A34A':item.type==='invoice_viewed'?'#0F766E':['estimate','estimate_sent','estimate_viewed','estimate_approved'].includes(item.type)?'#0F766E':BRAND.teal
+                              const ib=warn?'#FEF2F2':item.type==='stage'?'#F5F3FF':item.type==='note'?'#FEF3C7':item.type==='quote'?'#EEF2FF':item.type==='scheduled'?'#FFFBEB':'#E1F5EE'
+                              return (
+                                <div key={i} style={{display:'flex',alignItems:'flex-start',gap:14,paddingBottom:i<acts.length-1?18:0,position:'relative',zIndex:1}}>
+                                  {/* Timeline dot */}
+                                  <div style={{width:30,height:30,borderRadius:'50%',background:ib,border:`2px solid ${ic}25`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                    <Svg size={13} stroke={ic}>
+                                      {item.type==='stage'            &&<><polyline points="9 18 15 12 9 6"/></>}
+                                      {item.type==='note'             &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></>}
+                                      {item.type==='quote'            &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
+                                      {item.type==='created'          &&<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+                                      {item.type==='scheduled'        &&<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
+                                      {item.type==='estimate'         &&<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>}
+                                      {item.type==='invoice_viewed'   &&<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}{item.type==='payment_received' &&<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}{item.type==='invoice_sent'    &&<><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="7" y1="15" x2="12" y2="15"/></>}{item.type==='estimate_sent'    &&<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>}
+                                      {item.type==='estimate_viewed'  &&<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
+                                      {item.type==='estimate_approved'&&<><polyline points="20 6 9 17 4 12"/></>}
+                                    </Svg>
+                                  </div>
+                                  <div style={{flex:1,paddingTop:3}}>
+                                    <div style={{fontSize:14,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.3}}>{item.title}</div>
+                                    {item.sub && item.sub.trim() !== item.title.trim() && <div style={{fontSize:12,color:warn?'#EF4444':ts,marginTop:2,lineHeight:1.4}}>{item.sub}</div>}
+                                  </div>
+                                  <div style={{fontSize:11,color:tsu,flexShrink:0,paddingTop:4,textAlign:'right',lineHeight:1.4}}>
+                                    <div>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+                                    <div>{new Date(item.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        }
+                      </div>
+                    )}
+                  </div>{/* end tabs card */}
+                </div>{/* end left col */}
+
+                {/* ══ RIGHT COLUMN ══════════════════════════════════════ */}
+                <div style={{display:isWide?'block':'none'}}>
+                  <div style={{position:'sticky',top:20,display:'flex',flexDirection:'column',gap:12}}>
+
+                    {/* Supplement gap — the wedge. Only once carrier responded AND estimate exceeds carrier scope. */}
+                    {(()=>{
+                      const rjd=(lead as any)?.roofing_job_data
+                      if(useSpine) return null  // spine's Supplement stage owns the gap inline — no rail duplicate
+                      if(!isRoofing || !rjd?.insurance_claim) return null
+                      const approved=Number(rjd?.approved_amount)||0
+                      const supp=Number(rjd?.supplement_amount)||0
+                      const cs=rjd?.claim_status||'Filed'
+                      const responded = approved>0 || ['Approved','Supplement Filed','Supplement Approved'].includes(cs)
+                      const estTot=Number(est?.total)||0
+                      const carrierTot=approved+supp
+                      const gap=(estTot>0&&carrierTot>0)?estTot-carrierTot:null
+                      if(!responded || gap==null || gap<=0) return null
+                      return (
+                        <div style={{background:card,border:'1px solid #FDE68A',borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 2px 10px -3px rgba(180,83,9,0.18)'}}>
+                          <div style={{height:4,background:'linear-gradient(90deg,#D97706,#F59E0B)'}}/>
+                          <div style={{padding:'14px 16px 16px'}}>
+                            <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+                              <div style={{width:30,height:30,borderRadius:8,background:'#FFFBEB',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                <Svg size={15} stroke="#B45309" sw={2.2}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></Svg>
+                              </div>
+                              <span style={{fontSize:T.fontBadge,fontWeight:800,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.06em'}}>Potential Supplement Gap</span>
+                            </div>
+                            <div style={{fontSize:T.fontStat,fontWeight:800,color:'#B45309',lineHeight:1,letterSpacing:'-0.02em'}}>${gap.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                            <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.45,marginTop:8}}>
+                              Your estimate (${estTot.toLocaleString(undefined,{maximumFractionDigits:0})}) is above the carrier&apos;s current scope (${carrierTot.toLocaleString(undefined,{maximumFractionDigits:0})}). The carrier may have under-scoped — review the line items.
+                            </div>
+                            <button onClick={()=>{setTab('details');setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60)}}
+                              style={{marginTop:12,width:'100%',height:38,borderRadius:T.radSm,border:'none',background:'#B45309',color:'#fff',fontSize:T.fontSub,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                              Open Supplement Assistant
+                              <Svg size={14} stroke="#fff" sw={2.4}><polyline points="9 18 15 12 9 6"/></Svg>
+                            </button>
+                            <div style={{fontSize:10,color:tsu,lineHeight:1.4,marginTop:8,opacity:0.85}}>Informational — not legal or public-adjuster advice.</div>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Photos — glanceable thumbnails in the rail; tap opens the full modal */}
+                    {useSpine && isWide && isRoofing && (
+                      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:0,borderBottom:`1px solid ${bdr}`}}>
+                          <button onClick={()=>setPhotosModalOpen(true)} style={{flex:1,padding:'14px 16px 10px',display:'flex',alignItems:'center',gap:7,background:'none',border:'none',cursor:'pointer',textAlign:'left' as const}}>
+                            <Svg size={14} stroke={BRAND.teal}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Svg>
+                            <span style={{fontSize:14,fontWeight:700,color:tp}}>Photos{photoCount>0?` (${photoCount})`:''}</span>
+                            <span style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal}}>{photoCount>0?'View all':'+ Add'}</span>
+                          </button>
+                          {photoCount>0&&<button title="Download photo report PDF" onClick={async()=>{
+                            const r=await apiFetch(`/api/leads/${lead.id}/photos/report`,{method:'POST'})
+                            if(!r.ok)return
+                            const b=await r.blob();const u=URL.createObjectURL(b)
+                            const a=document.createElement('a');a.href=u;a.download=`photo-report-${lead.id.slice(0,8)}.pdf`;a.click();URL.revokeObjectURL(u)
+                          }} style={{padding:'10px 12px',background:'none',border:'none',cursor:'pointer',color:BRAND.teal,fontSize:12,fontWeight:700}}>
+                            ↓ PDF
+                          </button>}
+                        </div>
+                        <div onClick={()=>setPhotosModalOpen(true)} style={{padding:12,cursor:'pointer'}}>
+                          {photoCount>0 ? (
+                            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6}}>
+                              {photos.slice(0,4).map((ph,i)=>(
+                                <div key={i} style={{position:'relative',aspectRatio:'1 / 1',borderRadius:8,overflow:'hidden',background:dk?'#1E293B':'#F1F5F9',border:`1px solid ${bdr}`}}>
+                                  <img src={ph.url} alt="" loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover' as const,display:'block'}}/>
+                                  {i===3 && photoCount>4 && <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:14,fontWeight:800}}>+{photoCount-4}</div>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{padding:'16px 8px',textAlign:'center' as const,color:tsu,fontSize:12.5,border:`1px dashed ${bdr}`,borderRadius:8}}>No photos yet — tap to add</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recent Activity — relocated to the rail under the spine (replaces the Activity tab) */}
+                    {useSpine && isWide && acts.length > 0 && (
+                      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                        <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
+                          <Svg size={14} stroke={BRAND.teal}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></Svg>
+                          <span style={{fontSize:14,fontWeight:700,color:tp}}>Recent Activity</span>
+                        </div>
+                        <div className="pg-actscroll" style={{padding:'10px 10px 12px 16px',maxHeight:560,overflowY:'auto'}}>
+                          {acts.map((item,i)=>{
+                            const warn=(item as any).warn===true
+                            const ic=warn?'#EF4444':item.type==='stage'?'#7C3AED':item.type==='note'?'#854F0B':item.type==='scheduled'?'#64748B':item.type==='payment_received'?'#16A34A':['quote','estimate','estimate_sent','estimate_viewed','estimate_approved','invoice_sent','invoice_viewed'].includes(item.type)?'#0F766E':BRAND.teal
+                            return (
+                              <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,paddingTop:i===0?0:11}}>
+                                <div style={{width:9,height:9,borderRadius:'50%',background:ic,marginTop:5,flexShrink:0,boxShadow:`0 0 0 3px ${ic}1A`}}/>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{fontSize:12.5,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.35}}>{item.title}</div>
+                                  {item.sub && item.sub.trim() !== item.title.trim() && <div style={{fontSize:11,color:warn?'#EF4444':ts,marginTop:1,lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{item.sub}</div>}
+                                </div>
+                                <div style={{fontSize:10,flexShrink:0,marginTop:2,textAlign:'right' as const,lineHeight:1.35}}>
+                                  <div style={{fontWeight:700,color:ts}}>{new Date(item.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+                                  <div style={{color:ts,fontWeight:600,marginTop:1}}>{new Date(item.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <style>{`.pg-actscroll::-webkit-scrollbar{width:6px}.pg-actscroll::-webkit-scrollbar-thumb{background:${dk?'#334155':'#CBD5E1'};border-radius:3px}.pg-actscroll::-webkit-scrollbar-track{background:transparent}.pg-actscroll{scrollbar-width:thin;scrollbar-color:${dk?'#334155':'#CBD5E1'} transparent}`}</style>
+                      </div>
+                    )}
+
+                    {/* Key Dates — pulled out of the buried Details tab into the rail (spine) */}
+                    {useSpine && isWide && (
+                      <div style={{background:card,border:`1px solid ${bdr}`,borderRadius:T.radLg,overflow:'hidden',boxShadow:dk?'none':'0 1px 4px rgba(0,0,0,0.05)'}}>
+                        <div style={{padding:'14px 16px 10px',borderBottom:`1px solid ${bdr}`,display:'flex',alignItems:'center',gap:7}}>
+                          <Svg size={14} stroke="#4F46E5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
+                          <span style={{fontSize:14,fontWeight:700,color:tp}}>Key Dates</span>
+                          <button onClick={()=>{startEdit();setTimeout(()=>document.getElementById('contact-edit-form')?.scrollIntoView({behavior:'smooth',block:'center'}),80)}} style={{marginLeft:'auto',fontSize:11.5,fontWeight:700,color:BRAND.teal,background:'transparent',border:'none',cursor:'pointer'}}>Edit</button>
+                        </div>
+                        <div style={{padding:'2px 16px 10px'}}>
+                          {([
+                            {label: getStageAnchors(session?.trade_slug).entry === 'new_call' ? 'Diagnosis' : 'Inspection', val:fmt((lead as any).inspection_date), over:false},
+                            {label:'Job date',   val:fmt(lead.scheduled_date), over:false},
+                            {label:'Follow-up',  val:lead.follow_up_date?fmt(lead.follow_up_date):'—', over:!!(lead.follow_up_date&&isOverdue(lead.follow_up_date))},
+                          ]).map((d,i)=>(
+                            <div key={d.label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'10px 0',borderTop:i===0?'none':`1px solid ${bdr}`}}>
+                              <span style={{fontSize:12,fontWeight:600,color:ts}}>{d.label}</span>
+                              <span style={{display:'flex',alignItems:'center',gap:6}}>
+                                <span style={{fontSize:13,fontWeight:700,color: d.val==='—'?tsu:tp}}>{d.val}</span>
+                                {d.over && <span style={{fontSize:10,padding:'1px 6px',borderRadius:20,background:t.dangerBg,color:'#A32D2D',fontWeight:700}}>Overdue</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+
+                  </div>
+                </div>{/* end right col */}
+
+              </div>{/* end grid */}
+              </div>{/* end max-width wrapper */}
+            </>
+          )
+        })()}
+      </div>
+
+      {/* Photos modal — full grid + upload/delete over the page; reuses JobPhotoLog */}
+      {photosModalOpen && lead && session && (
+        <div onClick={()=>{setPhotosModalOpen(false);refetchPhotos()}}
+          style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(15,23,42,0.6)',backdropFilter:'blur(2px)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:isWide?'40px 24px':'16px',overflowY:'auto'}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{width:'100%',maxWidth:920,background:card,borderRadius:T.radLg,border:`1px solid ${bdr}`,boxShadow:'0 24px 60px -20px rgba(0,0,0,0.5)',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'14px 18px',borderBottom:`1px solid ${bdr}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:9}}>
+                <Svg size={16} stroke={BRAND.teal}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></Svg>
+                <span style={{fontSize:16,fontWeight:800,color:tp}}>Photos{photoCount>0?` · ${photoCount}`:''}</span>
+              </div>
+              <button onClick={()=>{setPhotosModalOpen(false);refetchPhotos()}} style={{width:32,height:32,borderRadius:8,border:`1px solid ${bdr}`,background:'transparent',color:ts,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <Svg size={16} stroke={ts} sw={2.2}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Svg>
+              </button>
+            </div>
+            <div style={{padding:'18px 20px',maxHeight:'calc(100vh - 160px)',overflowY:'auto'}}>
+              <JobPhotoLog leadId={lead.id} proId={session.id} isRoofing={isRoofing} darkMode={dk} onPhotosLoaded={(n:number)=>setPhotoCount(n)}/>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reason sheet — Lost or Unqualified (target from the plan prompt) */}
+      {showLostSheet && lead && (() => {
+        const isUnq = reasonTarget === 'unqualified'
+        return (
+        <LostReasonSheet
+          lead={lead}
+          dk={dk}
+          title={isUnq ? 'Mark as Unqualified' : 'Mark as Lost'}
+          prompt={isUnq ? 'Why isn\u2019t this lead a fit?' : 'Why was this lead lost?'}
+          onCancel={() => setShowLostSheet(false)}
+          onConfirm={async (reason) => {
+            setShowLostSheet(false)
+            const target = reasonTarget
+            const prev = stage
+            setStage(target)
+            setSaving(true)
+            const ok = await patch({ lead_status: target, lost_reason: reason })
+            setSaving(false)
+            if (ok) {
+              setLead(l => l ? { ...l, lead_status: target } : l)
+              addToast(isUnq ? 'Lead marked as Unqualified' : 'Lead marked as Lost', 'success', prev)
+              refreshPlan()
+            } else {
+              setStage(prev)
+              addToast('Failed to update stage', 'error')
+            }
+          }}
+        />
+        )
+      })()}
+    </DashboardShell>
+  )
+}
+
+export default function LeadDetailPage({ params }: { params: Promise<{ id:string }> }) {
+  return (
+    <Suspense fallback={null}>
+      <LeadDetailInner params={params}/>
+    </Suspense>
+  )
+}
+
+// ── Homeowner Portal Card ─────────────────────────────────────────────────────
+function HomeownerPortalCard({ leadId, proId, contactName, contactEmail, card, bdr, tp, sub, dk, onSent, onError }: {
+  leadId: string; proId: string; contactName: string; contactEmail: string
+  card: string; bdr: string; tp: string; sub: string; dk: boolean
+  onSent: (email: string) => void; onError: (msg: string) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [copied,  setCopied]  = useState(false)
+  const [url,     setUrl]     = useState<string|null>(null)
+
+  const TEAL = '#0F766E'
+
+  async function getUrl() {
+    if (url) return url
+    const r = await apiFetch(`/api/leads/${leadId}/public-link`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pro_id: proId }),
+    })
+    const d = await r.json()
+    const full = `${window.location.origin}${d.path}`
+    setUrl(full); return full
+  }
+
+  async function copyLink() {
+    const u = await getUrl()
+    await navigator.clipboard.writeText(u)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function sendEmail() {
+    setLoading(true)
+    try {
+      const r = await apiFetch('/api/leads/send-status-email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: leadId, pro_id: proId }),
+      })
+      const d = await r.json()
+      if (!r.ok) onError(d.error || 'Failed to send')
+      else onSent(contactEmail)
+    } finally { setLoading(false) }
+  }
+
+  const iconCopy = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+  const iconMail = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+
+  return (
+    <div style={{ background: card, border: `1px solid ${bdr}`, borderRadius: 12,
+      padding: '16px 20px', marginBottom: 14,
+      boxShadow: dk ? 'none' : '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span style={{ fontSize: 18 }}>🏠</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: tp }}>Homeowner Portal</div>
+          <div style={{ fontSize: 12, color: sub, marginTop: 1 }}>
+            {contactName}{contactName && ' · '}{contactEmail}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={copyLink}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '9px 0', borderRadius: 9, border: `1px solid ${bdr}`,
+            background: 'transparent', color: TEAL, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          {iconCopy}
+          {copied ? 'Copied!' : 'Copy Link'}
+        </button>
+        <button onClick={sendEmail} disabled={loading}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '9px 0', borderRadius: 9, border: 'none',
+            background: TEAL, color: '#fff', fontSize: 13, fontWeight: 700,
+            cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {iconMail}
+          {loading ? 'Sending…' : 'Send via Email'}
+        </button>
+      </div>
+    </div>
+  )
+}

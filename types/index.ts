@@ -11,7 +11,10 @@ export type PlanTier =
 
 export type ProfileStatus = 'Active' | 'Suspended' | 'Pending_Review'
 export type JobStatus = 'Open' | 'In_Progress' | 'Filled' | 'Expired' | 'Cancelled'
-export type LeadStatus = 'New' | 'Contacted' | 'Quoted' | 'Scheduled' | 'Completed' | 'Paid' | 'Lost' | 'Archived' | 'Queued_Manual' | 'Converted'
+// LeadStatus — broad string type to accept any trade's stage key.
+// Source of truth is the trade registry: getAllTradeStageKeys().
+// Never hand-maintain this list — adding a trade to the registry is sufficient.
+export type LeadStatus = string
 export type LeadSource = 'Profile_Page' | 'Job_Post' | 'Search_Result' | 'Direct' | 'Registry_Card' | 'Phone_Call' | 'Facebook' | 'Instagram' | 'Referral' | 'Website' | 'Yard_Sign' | 'Walk_In' | 'Other'
 export type ApplicationStatus = 'Submitted' | 'Viewed' | 'Shortlisted' | 'Rejected' | 'Hired'
 export type BudgetRange = 'Under $500' | '$500–$2K' | '$2K–$10K' | '$10K+' | 'Negotiable'
@@ -98,8 +101,17 @@ export interface Lead {
   // CRM fields
   quoted_amount: number | null
   scheduled_date: string | null
+  scheduled_time: string | null
+  inspection_date: string | null
   notes: string | null
   follow_up_date: string | null
+  contact_city: string | null
+  contact_state: string | null
+  property_address: string | null
+  updated_at?: string
+  lead_status_changed_at?: string | null
+  insurance_claim?: boolean | null
+  lost_reason?: string | null
   // joined
   pro?: Pro
   job?: Job
@@ -149,9 +161,12 @@ export interface Session {
   email: string
   plan: PlanTier
   trade: string | null
+  trade_slug: string | null    // canonical DB slug: "hvac-technician", "roofing-contractor"
   city: string | null
   state: string | null
   slug: string | null          // vanity URL slug e.g. wasim-akram-painter-jacksonville
+  profile_status: ProfileStatus
+  is_verified: boolean
 }
 
 export const PAID_PLANS: PlanTier[] = [

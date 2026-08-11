@@ -1,10 +1,13 @@
 'use client'
-import Navbar from '@/components/layout/Navbar'
+import DashboardShell from '@/components/layout/DashboardShell'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 import { initials, avatarColor, timeAgo } from '@/lib/utils'
+import { theme } from '@/lib/theme'
+import { apiFetch } from '@/lib/api-fetch'
 
 function Avatar({ name, photo, size = 10 }: { name: string; photo?: string | null; size?: number }) {
   const [bg, fg] = avatarColor(name)
@@ -28,6 +31,17 @@ export default function MessagesContent() {
   const bottomRef    = useRef<HTMLDivElement>(null)
 
   const [session,    setSession]    = useState<Session | null>(null)
+  const { session: _real, loading: _authLoading } = useProSession()
+  const [dk, setDk] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('pg_darkmode') === '1'
+  })
+  const toggleDark = () => {
+    const next = !dk
+    localStorage.setItem('pg_darkmode', next ? '1' : '0')
+    setDk(next)
+  }
+  const t = theme(dk)
   const [threads,    setThreads]    = useState<any[]>([])
   const [messages,   setMessages]   = useState<any[]>([])
   const [activeWith, setActiveWith] = useState<any>(null)
@@ -39,20 +53,20 @@ export default function MessagesContent() {
   const [mobileView, setMobileView] = useState<'threads' | 'conversation'>('threads')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.replace('/login'); return }
-    const s: Session = JSON.parse(raw)
+    if (_authLoading) return
+    if (!_real) { router.replace('/login'); return }
+    const s = _real
     setSession(s)
-    fetch(`/api/messages?pro_id=${s.id}`)
+    apiFetch(`/api/messages?pro_id=${s.id}`)
       .then(r => r.json())
       .then(d => { setThreads(d.threads || []); setLoading(false) })
-  }, [])
+  }, [_real, _authLoading])
 
   useEffect(() => {
     if (!withId || !session) return
     // When a thread is selected on mobile, switch to conversation view
     setMobileView('conversation')
-    fetch(`/api/messages?pro_id=${session.id}&with_id=${withId}`)
+    apiFetch(`/api/messages?pro_id=${session.id}&with_id=${withId}`)
       .then(r => r.json())
       .then(d => {
         setMessages(d.messages || [])
@@ -66,7 +80,7 @@ export default function MessagesContent() {
   async function sendMessage() {
     if (!text.trim() || !session || !withId || sending) return
     setSending(true)
-    const r = await fetch('/api/messages', {
+    const r = await apiFetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender_id: session.id, receiver_id: withId, content: text.trim() }),
@@ -84,9 +98,9 @@ export default function MessagesContent() {
 
   // ── Thread list panel ──────────────────────────────────────────────────────
   const ThreadList = (
-    <div className="flex flex-col h-full bg-white">
-      <div className="px-5 py-4 border-b flex-shrink-0" style={{ borderColor: '#E5E0D8' }}>
-        <h1 className="font-bold text-lg" style={{ color: '#1C1917', fontFamily: "'DM Serif Display', serif" }}>
+    <div className="flex flex-col h-full" style={{ background: t.cardBg }}>
+      <div className="px-5 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
+        <h1 className="font-bold text-lg" style={{ color: t.textPri, fontFamily: "'DM Serif Display', serif" }}>
           Messages
         </h1>
       </div>
@@ -163,16 +177,16 @@ export default function MessagesContent() {
 
   // ── Conversation panel ─────────────────────────────────────────────────────
   const ConversationPanel = (
-    <div className="flex flex-col h-full bg-white md:bg-transparent">
+    <div className="flex flex-col h-full" style={{ background: dk ? '#0F172A' : '#F9F8F5' }}>
       {!withId ? (
         // Desktop empty state — hidden on mobile
         <div className="hidden md:flex flex-1 items-center justify-center">
           <div className="text-center">
             <div className="text-5xl mb-4 opacity-10">💬</div>
-            <div className="text-xl font-bold mb-2" style={{ color: '#A89F93', fontFamily: "'DM Serif Display', serif" }}>
+            <div className="text-xl font-bold mb-2" style={{ color: t.textSubtle, fontFamily: "'DM Serif Display', serif" }}>
               Select a conversation
             </div>
-            <div className="text-sm" style={{ color: '#A89F93' }}>
+            <div className="text-sm" style={{ color: t.textSubtle }}>
               Choose a thread on the left to start messaging
             </div>
           </div>
@@ -180,8 +194,8 @@ export default function MessagesContent() {
       ) : (
         <>
           {/* Conversation header */}
-          <div className="bg-white border-b px-4 md:px-6 py-4 flex items-center gap-3 flex-shrink-0"
-            style={{ borderColor: '#E5E0D8' }}>
+          <div className="px-4 md:px-6 py-4 flex items-center gap-3 flex-shrink-0"
+            style={{ background: t.cardBg, borderBottom: `1px solid ${t.cardBorder}` }}>
             {/* Mobile back button */}
             <button
               onClick={() => {
@@ -255,8 +269,8 @@ export default function MessagesContent() {
           </div>
 
           {/* Message input — tall enough for thumbs */}
-          <div className="bg-white border-t px-4 md:px-6 py-4 flex-shrink-0"
-            style={{ borderColor: '#E5E0D8' }}>
+          <div className="flex-shrink-0 px-4 md:px-6 py-4"
+            style={{ background: t.cardBg, borderTop: `1px solid ${t.cardBorder}` }}>
             <div className="flex gap-3 items-end">
               <textarea
                 value={text}
@@ -267,7 +281,7 @@ export default function MessagesContent() {
                 placeholder="Write a message..."
                 rows={1}
                 className="flex-1 px-4 py-3.5 rounded-2xl text-base resize-none outline-none"
-                style={{ border: '1.5px solid #E5E0D8', background: '#FAF9F6', color: '#1C1917', minHeight: 52 }}
+                style={{ border: `1.5px solid ${t.inputBorder}`, background: t.inputBg, color: t.textPri, minHeight: 52 }}
                 onFocus={e => (e.currentTarget.style.borderColor = '#0F766E')}
                 onBlur={e => (e.currentTarget.style.borderColor = '#E5E0D8')}
               />
@@ -300,25 +314,21 @@ export default function MessagesContent() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
-      <Navbar />
-
-      {/* ── MOBILE: single panel, switch between threads and conversation ── */}
-      <div className="md:hidden flex-1 flex flex-col" style={{ height: 'calc(100vh - 56px - 64px)' }}>
+    <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
+      {/* MOBILE: single panel */}
+      <div className="md:hidden flex-1 flex flex-col" style={{ height: 'calc(100dvh - 60px)', background: t.pageBg }}>
         {mobileView === 'threads' || !withId ? ThreadList : ConversationPanel}
       </div>
 
-      {/* ── DESKTOP: two-column layout ── */}
-      <div className="hidden md:flex flex-1 max-w-6xl mx-auto w-full" style={{ minHeight: 'calc(100vh - 56px)' }}>
-        {/* Thread list — fixed width sidebar */}
-        <div className="w-80 border-r flex-shrink-0 flex flex-col" style={{ borderColor: '#E5E0D8' }}>
+      {/* DESKTOP: two-column */}
+      <div className="hidden md:flex" style={{ height: '100%', background: t.pageBg }}>
+        <div className="w-80 flex-shrink-0 flex flex-col overflow-y-auto" style={{ borderRight: `1px solid ${t.cardBorder}` }}>
           {ThreadList}
         </div>
-        {/* Conversation */}
         <div className="flex-1 flex flex-col min-w-0">
           {ConversationPanel}
         </div>
       </div>
-    </div>
+    </DashboardShell>
   )
 }

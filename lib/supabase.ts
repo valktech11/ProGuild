@@ -1,28 +1,23 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-// Lazy singleton — initialised only at request time, not at build time
-let _anon: SupabaseClient | null = null
-let _admin: SupabaseClient | null = null
+// SUPABASE_URL is a server-side-only var read at request time (not compiled into bundle).
+// Falls back to NEXT_PUBLIC_SUPABASE_URL for local dev where only that is set.
+const getUrl = () =>
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
 export function getSupabase(): SupabaseClient {
-  if (!_anon) {
-    _anon = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  }
-  return _anon
+  return createClient(
+    getUrl(),
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 }
 
 export function getSupabaseAdmin(): SupabaseClient {
-  if (!_admin) {
-    _admin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-  }
-  return _admin
+  return createClient(
+    getUrl(),
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 }
 
 // Convenience exports for backward compat

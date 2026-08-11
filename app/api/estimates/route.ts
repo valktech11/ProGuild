@@ -1,0 +1,403 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseAdmin } from '@/lib/supabase'
+import { auditedAdmin } from '@/lib/audit-context'
+import { CALCULATOR_LINE_NAMES } from '@/lib/roofing/calculator'
+import { syncLabourCacheFromEstimate } from '@/lib/roofing/labour-cache'
+
+// Frozen estimate states — a homeowner has signed/agreed. Re-pricing must NOT
+// overwrite these; it spins off a revision instead (see revision branch below).
+const FROZEN_STATUSES = ['approved', 'invoiced', 'paid']
+
+// Sales-tax table + resolver now live in one place (lib/estimates/tax.ts).
+import { resolveTaxRate } from '@/lib/estimates/tax'
+import { requirePro } from '@/lib/pro-auth'
+// Re-exported here so existing importers (calculator-state, calculator page)
+// that import STATE_TAX_RATES from this route keep resolving unchanged.
+export { STATE_TAX_RATES, resolveTaxRate } from '@/lib/estimates/tax'
+
+// ── GET /api/estimates?pro_id=xxx ─────────────────────────────────────────
+export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
+  const { searchParams } = new URL(req.url)
+  const proId = searchParams.get('pro_id')
+  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const leadId = searchParams.get('lead_id')  // optional: filter to one lead's estimates
+
+  let q = getSupabaseAdmin()
+    .from('estimates')
+    .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count, revision_of, revision_number, void_reason, voided_at')
+    .eq('pro_id', proId)
+  if (leadId) q = q.eq('lead_id', leadId)
+
+  const { data, error } = await q.order('created_at', { ascending: false })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ estimates: data || [] })
+}
+
+// ── POST /api/estimates ───────────────────────────────────────────────────
+// Creates a blank draft estimate and returns it so the UI can redirect to /[id]
+export async function POST(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
+  const body = await req.json()
+  const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source, square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, hip_lf, valley_lf, lines, pipe_boots, tearoff_layers } = body
+  const linesJson = Array.isArray(lines)
+    ? (lines as any[]).map(l => ({
+        type: String(l?.type ?? ''),
+        lf: Number(l?.lf) || 0,
+        user_adjusted: l?.user_adjusted === true,
+        source: l?.source === 'gemini_adjusted' ? 'gemini_adjusted' : 'manual',
+      })).filter(l => l.type && l.lf > 0)
+    : null
+
+  if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+
+  // Option C guard: estimates must be linked to a lead.
+  // lead_id is required unless this is a force_new re-issue of an existing lead's estimate
+  // (force_new=true always has pendingLead.id passed as lead_id from the UI).
+  if (!lead_id) {
+    return NextResponse.json({ error: 'lead_id required — estimates must be linked to a lead' }, { status: 400 })
+  }
+
+  const sb = auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
+
+  // Tax follows the JOB location, not the client-passed session snapshot.
+  // Resolve once here so every branch (create / revision / re-price) keys tax
+  // off the property's state. Authoritative sources only: lead.contact_state
+  // (job) → pros.state (pro's DB profile) → client `state` (last-resort snapshot).
+  const [{ data: leadRow }, { data: proRow }] = await Promise.all([
+    sb.from('leads').select('contact_state').eq('id', lead_id).single(),
+    sb.from('pros').select('state').eq('id', pro_id).maybeSingle(),
+  ])
+  const leadState: string | null  = (leadRow as any)?.contact_state ?? null
+  const proStateDb: string | null = (proRow as any)?.state ?? null
+  const resolvedTaxRate = resolveTaxRate(leadState, proStateDb || state)
+
+  // Slice 1: normalize calculator measurement-snapshot inputs → number | null
+  const numOrNull = (v: unknown): number | null => {
+    if (v == null) return null
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
+
+  // C2 FIX: check for any non-void, non-declined estimate (not just draft)
+  // Priority: approved > invoiced > paid > sent > viewed > draft
+  if (lead_id && !force_new) {
+    const { data: existing } = await sb
+      .from('estimates')
+      .select('id, estimate_number, status, total, tax_rate, created_at, lead_name')
+      .eq('pro_id', pro_id)
+      .eq('lead_id', lead_id)
+      .not('status', 'in', '("void","declined")')
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    if (existing && existing.length > 0) {
+      // Pick by priority: approved/invoiced/paid > sent/viewed > draft
+      const priority = ['approved', 'invoiced', 'paid', 'sent', 'viewed', 'draft']
+      const best = existing.sort((a, b) =>
+        (priority.indexOf(a.status) - priority.indexOf(b.status))
+      )[0]
+
+      // Sync roofing_estimate_data with latest lead data — address/measurements
+      // may have changed since the estimate was first created
+      if (trade_slug?.includes('roof') && (square_count || pitch || waste_pct)) {
+        // property_address NOT written — leads.property_address is the golden source
+        const syncPayload: Record<string, unknown> = { estimate_id: best.id, pro_id }
+        if (square_count) syncPayload.square_count = Number(square_count)
+        if (pitch)        syncPayload.pitch        = pitch
+        if (waste_pct)    syncPayload.waste_pct    = Number(waste_pct)
+        if (ridge_lf       != null) syncPayload.ridge_lf       = numOrNull(ridge_lf)
+        if (eave_lf        != null) syncPayload.eave_lf        = numOrNull(eave_lf)
+        if (perimeter_lf   != null) syncPayload.perimeter_lf   = numOrNull(perimeter_lf)
+        if (hip_lf         != null) syncPayload.hip_lf         = numOrNull(hip_lf)
+        if (valley_lf      != null) syncPayload.valley_lf      = numOrNull(valley_lf)
+        if (linesJson      != null) syncPayload.lines          = linesJson
+        if (pipe_boots     != null) syncPayload.pipe_boots     = numOrNull(pipe_boots)
+        if (tearoff_layers != null) syncPayload.tearoff_layers = numOrNull(tearoff_layers)
+        await sb.from('roofing_estimate_data').upsert(syncPayload, { onConflict: 'estimate_id' })
+      }
+
+      // Calculator output handling — branches on whether the estimate is frozen.
+      if (source === 'roofing_calculator' && Array.isArray(line_items) && line_items.length > 0) {
+
+        // Build the calculator's material lines once (reused by both branches).
+        const calcItems = line_items.map((item: any, idx: number) => {
+          const qty       = Number(item.quantity  ?? item.qty ?? 1)
+          const unitPrice = Number(item.unit_price ?? item.unitPrice ?? 0)
+          const itemTotal = Number(item.total ?? item.amount ?? Math.round(qty * unitPrice * 100) / 100)
+          return {
+            name:        String(item.description ?? item.name ?? ''),
+            description: String(item.description ?? item.name ?? ''),
+            qty, unit_price: unitPrice, amount: itemTotal, sort_order: idx,
+            // Provenance: 'measurement' for LF-derived materials (badge shows
+            // "Detected from measurements"), else 'manual'. Defaults safe.
+            source:      item.source === 'measurement' ? 'measurement' : 'manual',
+          }
+        })
+
+        // ─────────────────────────────────────────────────────────────────────
+        // FROZEN (approved / invoiced / paid) → create a REVISION, never overwrite.
+        // The original keeps its signature, invoice and status intact. A new draft
+        // estimate is created, linked via revision_of, pre-filled with the calc lines,
+        // and returned so the UI takes the roofer there to re-price and re-send.
+        // ─────────────────────────────────────────────────────────────────────
+        if (FROZEN_STATUSES.includes(best.status)) {
+          // Determine revision depth: walk the chain so each revision is numbered.
+          // best may itself be a revision; count existing revisions in this lead's chain.
+          const { data: chain } = await sb
+            .from('estimates')
+            .select('id, revision_number')
+            .eq('pro_id', pro_id)
+            .eq('lead_id', lead_id)
+            .not('revision_of', 'is', null)
+          const nextRevNum = (chain?.length ?? 0) + 1
+
+          const { data: numData2 } = await sb.rpc('next_estimate_number')
+          const revNumber: string = numData2 || `EST-${Date.now().toString().slice(-4)}`
+          const validUntil2 = new Date(); validUntil2.setDate(validUntil2.getDate() + 14)
+
+          // Carry tax_rate forward from the original (it was already resolved at
+          // create); if absent, resolve from the job's state, not a magic default.
+          const carriedTaxRate = (best as any).tax_rate ?? resolvedTaxRate
+
+          const calcSubtotal = calcItems.reduce((s, i) => s + (i.amount ?? 0), 0)
+          const calcTax      = Math.round(calcSubtotal * carriedTaxRate / 100 * 100) / 100
+          const calcTotal    = Math.round((calcSubtotal + calcTax) * 100) / 100
+
+          const { data: rev, error: revErr } = await sb.from('estimates').insert({
+            pro_id,
+            lead_id,
+            estimate_number: revNumber,
+            status:          'draft',
+            lead_name:       (best as any).lead_name ?? lead_name ?? 'New Client',
+            trade:           trade || '',
+            trade_slug:      trade_slug || null,
+            subtotal:        calcSubtotal,
+            discount:        0,
+            tax_rate:        carriedTaxRate,
+            tax_amount:      calcTax,
+            total:           calcTotal,
+            require_deposit: true,
+            valid_until:     validUntil2.toISOString(),
+            contact_phone:   contact_phone || null,
+            contact_email:   contact_email || null,
+            terms:           (trade_slug?.includes('hvac')
+              ? 'This estimate is valid for 14 days. A diagnostic fee applies if no repair is authorized. Payment is due upon job completion.'
+              : 'This estimate is valid for 14 days. Payment is due upon job completion.'),
+            revision_of:     best.id,
+            revision_number: nextRevNum,
+          }).select().single()
+
+          if (revErr || !rev) {
+            console.error('[estimates POST] revision create failed:', revErr?.message)
+            return NextResponse.json({ error: 'Failed to create revision: ' + (revErr?.message ?? 'unknown') }, { status: 500 })
+          }
+
+          // Pre-fill the revision: carry the ORIGINAL's custom lines (anything the
+          // roofer hand-added, e.g. Permit Fee) PLUS the calculator's fresh material
+          // lines. Mirrors the editable-path merge so custom work survives into the
+          // revision (what we agreed: copy the original as a starting point).
+          const { data: origItems } = await sb
+            .from('estimate_items').select('*').eq('estimate_id', best.id)
+          const origCustom = (origItems ?? []).filter(
+            (it: any) => !CALCULATOR_LINE_NAMES.includes(String(it.name ?? it.description ?? ''))
+          )
+          const revItems = [
+            ...calcItems.map((i, idx) => ({ ...i, estimate_id: rev.id, sort_order: idx })),
+            ...origCustom.map((it: any, idx: number) => ({
+              estimate_id: rev.id,
+              name:        it.name,
+              description: it.description ?? it.name,
+              qty:         Number(it.qty) || 1,
+              unit_price:  Number(it.unit_price) || 0,
+              amount:      Number(it.amount) || (Number(it.qty) * Number(it.unit_price)) || 0,
+              sort_order:  calcItems.length + idx,
+              source:      it.source === 'measurement' ? 'measurement' : 'manual',
+            })),
+          ]
+          await sb.from('estimate_items').insert(revItems)
+          // Recompute the revision totals including the carried custom lines.
+          const revSubtotal = revItems.reduce((s, i: any) => s + (Number(i.amount) || 0), 0)
+          const revTax      = Math.round(revSubtotal * carriedTaxRate / 100 * 100) / 100
+          const revTotal    = Math.round((revSubtotal + revTax) * 100) / 100
+          await sb.from('estimates').update({
+            subtotal: revSubtotal, tax_amount: revTax, total: revTotal,
+          }).eq('id', rev.id)
+
+          // Roofing extension row — standard mode, carry measurements.
+          if (trade_slug?.includes('roof')) {
+            await sb.from('roofing_estimate_data').upsert({
+              estimate_id:   rev.id,
+              pro_id,
+              estimate_type: 'standard',
+              tiered_data:   null,
+              square_count:  Number(square_count) || null,
+              pitch:         pitch ?? null,
+              waste_pct:     Number(waste_pct) || null,
+              ridge_lf:       numOrNull(ridge_lf),
+              eave_lf:        numOrNull(eave_lf),
+              perimeter_lf:   numOrNull(perimeter_lf),
+              hip_lf:         numOrNull(hip_lf),
+              valley_lf:      numOrNull(valley_lf),
+              lines:          linesJson ?? [],
+              pipe_boots:     numOrNull(pipe_boots),
+              tearoff_layers: numOrNull(tearoff_layers),
+            }, { onConflict: 'estimate_id' })
+          }
+
+          await syncLabourCacheFromEstimate(sb, rev.id, lead_id, pro_id)
+          return NextResponse.json({
+            estimate: rev, existed: true, revised: true,
+            revision_of: best.id, revision_number: nextRevNum,
+          })
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // EDITABLE (draft / sent / viewed) → MERGE: replace only the calculator's
+        // own material lines, preserve any line the roofer added by hand.
+        // ─────────────────────────────────────────────────────────────────────
+        // 1. Read existing items, keep the ones NOT owned by the calculator.
+        const { data: existingItems } = await sb
+          .from('estimate_items').select('*').eq('estimate_id', best.id)
+        const customItems = (existingItems ?? []).filter(
+          (it: any) => !CALCULATOR_LINE_NAMES.includes(String(it.name ?? it.description ?? ''))
+        )
+        // 2. Delete only the calculator-owned lines.
+        await sb.from('estimate_items').delete()
+          .eq('estimate_id', best.id)
+          .in('name', CALCULATOR_LINE_NAMES as string[])
+        // 3. Insert the fresh calculator lines (custom lines stay as-is).
+        await sb.from('estimate_items').insert(calcItems.map(i => ({ ...i, estimate_id: best.id })))
+        // 4. Recalculate totals from ALL persisted lines (calc + preserved custom).
+        const calcSubtotal   = calcItems.reduce((s, i) => s + (i.amount ?? 0), 0)
+        const customSubtotal = customItems.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
+        const newSubtotal = Math.round((calcSubtotal + customSubtotal) * 100) / 100
+        const taxRate     = ((best as any).tax_rate ?? resolvedTaxRate)
+        const newTax      = Math.round(newSubtotal * taxRate / 100 * 100) / 100
+        const newTotal    = Math.round((newSubtotal + newTax) * 100) / 100
+        // 5. Force Standard mode — update estimates table totals.
+        // NOTE: square_count/pitch/waste_pct are NOT columns on `estimates` — they
+        // live in roofing_estimate_data (written at 5b). Writing them here errors
+        // ("Could not find the 'pitch' column of 'estimates'").
+        const { error: updateErr } = await sb.from('estimates').update({
+          subtotal:   newSubtotal,
+          tax_amount: newTax,
+          total:      newTotal,
+        }).eq('id', best.id)
+        if (updateErr) {
+          console.error('[estimates POST] update totals failed:', updateErr.message, 'id:', best.id)
+          return NextResponse.json({ error: 'Failed to update estimate totals: ' + updateErr.message }, { status: 500 })
+        }
+        // 5b. Force Standard mode in roofing_estimate_data (where estimate_type lives)
+        await sb.from('roofing_estimate_data').upsert({
+          estimate_id:   best.id,
+          pro_id:        pro_id,
+          estimate_type: 'standard',
+          // tiered_data intentionally NOT set here — converting a GBB estimate to
+          // Standard via the calculator preserves its tiers (reversible from the
+          // estimate's Proposal Type toggle), matching the toggle's own behaviour.
+          // Previously this set tiered_data: null and silently destroyed them.
+          square_count:  Number(square_count) || null,
+          pitch:         pitch ?? null,
+          waste_pct:     Number(waste_pct) || null,
+          ridge_lf:       numOrNull(ridge_lf),
+          eave_lf:        numOrNull(eave_lf),
+          perimeter_lf:   numOrNull(perimeter_lf),
+          hip_lf:         numOrNull(hip_lf),
+          valley_lf:      numOrNull(valley_lf),
+          lines:          linesJson ?? [],
+          pipe_boots:     numOrNull(pipe_boots),
+          tearoff_layers: numOrNull(tearoff_layers),
+        }, { onConflict: 'estimate_id' })
+        // 6. Return fresh estimate row
+        const { data: updated } = await sb.from('estimates').select('*').eq('id', best.id).single()
+        await syncLabourCacheFromEstimate(sb, best.id, lead_id, pro_id)
+        return NextResponse.json({
+          estimate: updated ?? best, existed: true, items_replaced: true,
+          custom_lines_preserved: customItems.length,
+        })
+      }
+      return NextResponse.json({ estimate: best, existed: true })
+    }
+  }
+
+  // No existing draft — create new
+  const { data: numData } = await sb.rpc('next_estimate_number')
+  const estimateNumber: string = numData || `EST-${Date.now().toString().slice(-4)}`
+
+  const validUntil = new Date()
+  validUntil.setDate(validUntil.getDate() + 14)
+
+  const { data: estimate, error } = await sb
+    .from('estimates')
+    .insert({
+      pro_id,
+      lead_id:         lead_id || null,
+      estimate_number: estimateNumber,
+      status:          'draft',
+      lead_name:       lead_name  || 'New Client',
+      lead_source:     lead_source || '',
+      trade:           trade || '',
+      subtotal:        0,
+      discount:        0,
+      tax_rate:        resolvedTaxRate,
+      tax_amount:      0,
+      total:           0,
+      require_deposit: true,
+      valid_until:     validUntil.toISOString(),
+      contact_phone:   contact_phone || null,
+      contact_email:   contact_email || null,
+      terms:           (trade_slug?.includes('hvac')
+              ? 'This estimate is valid for 14 days. A diagnostic fee applies if no repair is authorized. Payment is due upon job completion.'
+              : 'This estimate is valid for 14 days. Payment is due upon job completion.'),
+      trade_slug:      trade_slug || null,
+      // Note: estimate_type, tiered_data, scope_of_work, payment_milestones,
+      // property_address are NOT written here — they live in roofing_estimate_data.
+    })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // ── Roofing estimates get a roofing_estimate_data row immediately ─────────
+  if (trade_slug?.includes('roof') && estimate) {
+    await sb.from('roofing_estimate_data').upsert({
+      estimate_id:      estimate.id,
+      pro_id:           pro_id,
+      estimate_type:    'tiered',
+      // property_address omitted — leads.property_address is golden source
+      // Measurements from calculator or direct entry
+      square_count:     square_count     ? Number(square_count)  : null,
+      pitch:            pitch            || null,
+      waste_pct:        waste_pct        ? Number(waste_pct)     : 10,
+      ridge_lf:         numOrNull(ridge_lf),
+      eave_lf:          numOrNull(eave_lf),
+      perimeter_lf:     numOrNull(perimeter_lf),
+      hip_lf:           numOrNull(hip_lf),
+      valley_lf:        numOrNull(valley_lf),
+      lines:            linesJson ?? [],
+      pipe_boots:       numOrNull(pipe_boots),
+      tearoff_layers:   numOrNull(tearoff_layers),
+    }, { onConflict: 'estimate_id' })
+  }
+
+  // ── Line items from calculator — insert into estimate_items ──────────────
+  if (Array.isArray(line_items) && line_items.length > 0 && estimate) {
+    const items = line_items.map((item: any) => ({
+      estimate_id: estimate.id,
+      name:        item.description || item.name || 'Item',
+      description: item.description || '',
+      qty:         Number(item.quantity ?? item.qty) || 1,
+      unit_price:  Number(item.unit_price ?? item.unitPrice) || 0,
+      amount:      Number(item.quantity ?? item.qty) * Number(item.unit_price ?? item.unitPrice) || 0,
+    }))
+    const { error: itemsErr } = await sb.from('estimate_items').insert(items)
+    if (itemsErr) console.error('[estimates POST] line_items insert error:', itemsErr.message)
+  }
+
+  if (estimate) await syncLabourCacheFromEstimate(sb, estimate.id, lead_id, pro_id)
+  return NextResponse.json({ estimate: { ...estimate, id: estimate.id }, existed: false })
+}

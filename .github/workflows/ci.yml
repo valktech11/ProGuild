@@ -1,0 +1,172 @@
+name: CI — Test & Deploy
+
+on:
+  push:
+    branches: [dev, staging, main]
+  pull_request:
+    branches: [staging, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ── Layer 1: Unit Tests ─────────────────────────────────────────────────────
+  unit:
+    name: Unit Tests (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit -- --reporter=verbose
+        env:
+          # Stub values — unit tests mock Supabase
+          NEXT_PUBLIC_SUPABASE_URL: https://stub.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: stub-service-key
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ── Layer 2: Integration Tests ──────────────────────────────────────────────
+  integration:
+    name: Integration Tests (Staging Supabase)
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npm run test:integration -- --reporter=verbose
+        env:
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+
+  # ── Layer 3: E2E Tests ──────────────────────────────────────────────────────
+  e2e:
+    name: E2E Tests (Playwright — Transactional)
+    runs-on: ubuntu-latest
+    needs: integration
+    # continue-on-error removed — E2E now gates merge to staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      # Vercel password protection returns 401 until unlocked.
+      # SUPABASE_URL is a server-side-only env var read at request time (not compiled).
+      # The webServer (npm run dev) inherits this from the CI job env, so every
+      # API route call during tests hits staging Supabase — no .env file needed.
+      - name: Run E2E tests (localhost dev server + staging Supabase)
+        run: npm run test:e2e
+        env:
+          # Server-side var — read at request time, not baked into bundle
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          # Anon key is public so NEXT_PUBLIC_ is fine here
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_ENV: staging
+          MODERATION_MODE: "off"
+          # Supabase vars also needed by global-setup/teardown (run in same process)
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          TEST_PRO_EMAIL: ${{ secrets.TEST_PRO_EMAIL }}
+          TEST_PRO_PASSWORD: ${{ secrets.TEST_PRO_PASSWORD }}
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+      - name: Post Playwright results to PR
+        uses: actions/github-script@v7
+        if: failure() && github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs')
+            let summary = '## ❌ E2E Tests Failed\n\n'
+            try {
+              const results = JSON.parse(fs.readFileSync('test-results/results.json', 'utf8'))
+              const failed = results.suites?.flatMap(s => s.specs?.filter(sp => sp.ok === false) || []) || []
+              if (failed.length > 0) {
+                summary += '**Failed tests:**\n'
+                failed.forEach(t => { summary += `- ❌ ${t.title}\n` })
+              }
+            } catch (e) {
+              summary += 'Could not parse test results.\n'
+            }
+            summary += '\n[View full Playwright report in Actions artifacts]'
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            })
+
+  # ── Summary ─────────────────────────────────────────────────────────────────
+  all-passed:
+    name: ✅ All Tests Passed
+    runs-on: ubuntu-latest
+    needs: [unit, integration, e2e]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.unit.result }}" != "success" || \
+                "${{ needs.integration.result }}" != "success" || \
+                "${{ needs.e2e.result }}" != "success" ]]; then
+            echo "❌ One or more test layers failed."
+            exit 1
+          fi
+          echo "✅ All test layers passed — safe to merge."

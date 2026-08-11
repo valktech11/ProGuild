@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 function mimeFromUrl(url: string): string {
   const clean = url.split('?')[0].toLowerCase()
@@ -79,6 +80,8 @@ Do not include any other keys. Use null for missing fields.` }
 }
 
 export async function GET(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const proId = new URL(req.url).searchParams.get('pro_id')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
   const { data } = await getSupabaseAdmin()
@@ -88,6 +91,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { pro_id, file_url } = await req.json()
   if (!pro_id || !file_url) return NextResponse.json({ error: 'pro_id and file_url required' }, { status: 400 })
   const sb = getSupabaseAdmin()
@@ -114,6 +119,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
   const { pro_id, id } = await req.json()
   if (!pro_id || !id) return NextResponse.json({ error: 'pro_id and id required' }, { status: 400 })
   const sb = getSupabaseAdmin()

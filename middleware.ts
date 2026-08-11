@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // PAGES publicly reachable while prod is locked. Every other page redirects to '/'.
 // All /api/ routes pass through (they enforce their own auth), so the homepage's
 // fetches (zip, match-trade, waitlist, etc.) keep working without enumerating them.
-const PUBLIC_PAGES = new Set(['/', '/supplement', '/privacy', '/terms', '/sms-consent'])
+const PUBLIC_PAGES = new Set(['/', '/supplement', '/privacy', '/terms'])
 const SEO_PATHS = new Set(['/robots.txt', '/sitemap.xml'])
 
 function publicPageOnLockedProd(pathname: string): boolean {

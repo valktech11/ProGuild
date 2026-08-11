@@ -1,61 +1,93 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Navbar from '@/components/layout/Navbar'
-import { Session } from '@/types'
-import { initials, avatarColor, timeAgo } from '@/lib/utils'
+import DashboardShell from '@/components/layout/DashboardShell'
+import { useProSession } from '@/lib/hooks/useProSession'
+import { initials, avatarColor, timeAgo, fmtCurrency } from '@/lib/utils'
+import { theme, T } from '@/lib/tokens'
+import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { parseFormattedAddress } from '@/lib/address'
+import { apiFetch } from '@/lib/api-fetch'
 
-const TAG_COLORS: Record<string, string> = {
-  Residential: 'bg-blue-50 text-blue-700',
-  Commercial:  'bg-purple-50 text-purple-700',
-  Repeat:      'bg-green-50 text-green-700',
-  VIP:         'bg-amber-50 text-amber-700',
+function TAG_COLORS(dk: boolean): Record<string, { bg: string; text: string }> {
+  return {
+    Residential: { bg: dk ? 'rgba(29,78,216,0.15)' : '#EFF6FF',  text: dk ? '#93C5FD' : '#1D4ED8' },
+    Commercial:  { bg: dk ? 'rgba(109,40,217,0.15)' : '#F5F3FF', text: dk ? '#C4B5FD' : '#6D28D9' },
+    Repeat:      { bg: dk ? 'rgba(21,128,61,0.15)' : '#F0FDF4',  text: dk ? '#86EFAC' : '#15803D' },
+    VIP:         { bg: dk ? 'rgba(180,83,9,0.15)' : '#FFFBEB',   text: dk ? '#FCD34D' : '#B45309' },
+  }
 }
 
 export default function ClientsPage() {
   const router = useRouter()
-  const [session, setSession]   = useState<Session | null>(null)
+
+  const { session, loading: _authLoading } = useProSession()
+  const [dk, setDk] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('pg_darkmode') === '1'
+  })
+  const toggleDark = () => {
+    const next = !dk
+    localStorage.setItem('pg_darkmode', next ? '1' : '0')
+    setDk(next)
+  }
+
   const [clients, setClients]   = useState<any[]>([])
+  const [summary, setSummary]   = useState<any>(null)
   const [loading, setLoading]   = useState(true)
   const [search,  setSearch]    = useState('')
   const [sort,    setSort]      = useState<'name' | 'value' | 'recent'>('recent')
   const [showAdd, setShowAdd]   = useState(false)
-
-  // New client form
-  const [newName,  setNewName]  = useState('')
-  const [newPhone, setNewPhone] = useState('')
-  const [newEmail, setNewEmail] = useState('')
-  const [newNotes, setNewNotes] = useState('')
-  const [newTags,  setNewTags]  = useState<string[]>([])
+  const [newName,   setNewName]   = useState('')
+  const [newPhone,  setNewPhone]  = useState('')
+  const [newEmail,  setNewEmail]  = useState('')
+  const [newStreet, setNewStreet] = useState('')
+  const [newCity,   setNewCity]   = useState('')
+  const [newState,  setNewState]  = useState('')
+  const [newZip,    setNewZip]    = useState('')
+  const [newNotes,  setNewNotes]  = useState('')
+  const [newTags,   setNewTags]   = useState<string[]>([])
   const [saving,   setSaving]   = useState(false)
   const [err,      setErr]      = useState('')
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (!raw) { router.replace('/login'); return }
-    const s: Session = JSON.parse(raw)
-    setSession(s)
-    fetch(`/api/clients?pro_id=${s.id}`)
-      .then(r => r.json())
-      .then(d => { setClients(d.clients || []); setLoading(false) })
-  }, [])
+    if (_authLoading) return
+    if (!session) { router.replace('/login'); return }
+    const s = session
+    // Raw list powers the rows (search/sort — UI state). Summary powers the
+    // header totals (derived metrics — single source for web + mobile).
+    Promise.all([
+      apiFetch(`/api/clients?pro_id=${s.id}`).then(r => r.json()).catch(() => ({ clients: [] })),
+      apiFetch(`/api/clients/summary?pro_id=${s.id}`).then(r => r.ok ? r.json() : null).catch(() => null),
+    ])
+      .then(([d, sum]) => { setClients(d.clients || []); setSummary(sum) })
+      .catch(() => setClients([]))
+      .finally(() => setLoading(false))
+    // Depend on session/_authLoading so the fetch runs once auth resolves.
+    // Previously depended on [router] only, so if session wasn't ready on the
+    // first render the effect early-returned and never re-ran → infinite spinner.
+  }, [session, _authLoading, router])
 
   async function addClient() {
     if (!newName.trim()) { setErr('Name is required'); return }
     if (!session) return
     setSaving(true); setErr('')
-    const r = await fetch('/api/clients', {
+    const r = await apiFetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pro_id: session.id,
-        full_name: newName.trim(),
-        phone: newPhone.trim() || null,
-        email: newEmail.trim() || null,
-        notes: newNotes.trim() || null,
-        tags: newTags,
+        full_name:    newName.trim(),
+        phone:        newPhone.trim()  || null,
+        email:        newEmail.trim()  || null,
+        address_line1: newStreet.trim() || null,
+        city:         newCity.trim()   || null,
+        state:        newState.trim()  || null,
+        zip:          newZip.trim()    || null,
+        notes:        newNotes.trim()  || null,
+        tags:         newTags,
       }),
     })
     const d = await r.json()
@@ -63,13 +95,13 @@ export default function ClientsPage() {
     if (r.ok) {
       setClients(prev => [{ ...d.client, job_count: 0, lifetime_value: 0 }, ...prev])
       setShowAdd(false)
-      setNewName(''); setNewPhone(''); setNewEmail(''); setNewNotes(''); setNewTags([])
+      setNewName(''); setNewPhone(''); setNewEmail(''); setNewStreet(''); setNewCity(''); setNewState(''); setNewZip(''); setNewNotes(''); setNewTags([])
     } else setErr(d.error || 'Failed to save')
   }
 
   async function deleteClient() {
     if (!deleteTarget) return
-    await fetch(`/api/clients?id=${deleteTarget.id}`, { method: 'DELETE' })
+    await apiFetch(`/api/clients?id=${deleteTarget.id}`, { method: 'DELETE' })
     setClients(prev => prev.filter(c => c.id !== deleteTarget.id))
     setDeleteTarget(null)
   }
@@ -78,225 +110,399 @@ export default function ClientsPage() {
     setNewTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
   }
 
-  // Filter + sort
   const filtered = clients
-    .filter(c => !search || c.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.phone || '').includes(search))
+    .filter(c => !search || c.full_name.toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search))
     .sort((a, b) => {
-      if (sort === 'name')   return a.full_name.localeCompare(b.full_name)
-      if (sort === 'value')  return (b.lifetime_value || 0) - (a.lifetime_value || 0)
+      if (sort === 'name')  return a.full_name.localeCompare(b.full_name)
+      if (sort === 'value') return (b.lifetime_value || 0) - (a.lifetime_value || 0)
       return new Date(b.last_contact || b.created_at).getTime() - new Date(a.last_contact || a.created_at).getTime()
     })
 
-  const totalValue = clients.reduce((sum, c) => sum + (c.lifetime_value || 0), 0)
+  // Header totals — from /api/clients/summary (single source for web + mobile).
+  const totalValue   = summary?.totalLifetime ?? clients.reduce((sum, c) => sum + (c.lifetime_value || 0), 0)
+  const totalClients = summary?.totalClients ?? clients.length
+  const t = theme(dk)
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '10px 14px', fontSize: 14, borderRadius: 10,
+    border: `1.5px solid ${t.inputBorder}`, background: t.inputBg,
+    color: t.textPri, outline: 'none', boxSizing: 'border-box',
+  }
 
   return (
-    <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
-      <Navbar />
+    <DashboardShell session={session} newLeads={0} onAddLead={() => setShowAdd(true)} darkMode={dk} onToggleDark={toggleDark}>
+      <div style={{ background: t.pageBg, minHeight: '100vh', padding: '16px 16px 28px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
-      <div className="max-w-4xl mx-auto px-4 py-7">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Link href="/dashboard" className="text-sm text-gray-400 hover:text-teal-600 transition-colors">Dashboard</Link>
-              <span className="text-gray-300">/</span>
-              <span className="text-sm font-semibold text-[#0A1628]">Clients</span>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Link href="/dashboard" style={{ fontSize: 14, color: t.textMuted, textDecoration: 'none' }}>Dashboard</Link>
+                <span style={{ color: t.textSubtle }}>/</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: t.textPri }}>Clients</span>
+              </div>
+              <h1 style={{ fontSize: 24, fontWeight: 700, color: t.textPri, margin: 0 }}>Clients</h1>
+              <p style={{ fontSize: 14, color: t.textMuted, marginTop: 2 }}>
+                {totalClients} client{totalClients !== 1 ? 's' : ''}
+                {totalValue > 0 && ` · ${fmtCurrency(totalValue)} lifetime revenue`}
+              </p>
             </div>
-            <h1 className="text-2xl font-bold text-[#0A1628]">Client address book</h1>
-            <p className="text-sm text-gray-400 mt-0.5">
-              {clients.length} client{clients.length !== 1 ? 's' : ''}
-              {totalValue > 0 && ` · $${totalValue.toLocaleString()} lifetime revenue`}
-            </p>
+            <button onClick={() => setShowAdd(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 14, fontWeight: 700, color: '#fff', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #0F766E, #0C5F57)', cursor: 'pointer' }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add client
+            </button>
           </div>
-          <button onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-white rounded-xl"
-            style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-            <span className="text-lg leading-none">+</span> Add client
-          </button>
-        </div>
 
-        {/* Search + sort */}
-        <div className="flex gap-3 mb-5">
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or phone..."
-            className="flex-1 px-4 py-2.5 text-sm border border-[#E8E2D9] rounded-xl outline-none bg-white text-[#0A1628]"
-            onFocus={e => e.target.style.borderColor = '#0F766E'}
-            onBlur={e => e.target.style.borderColor = '#E8E2D9'} />
-          <select value={sort} onChange={e => setSort(e.target.value as any)}
-            className="px-3 py-2.5 text-sm border border-[#E8E2D9] rounded-xl outline-none bg-white text-[#0A1628]">
-            <option value="recent">Recent</option>
-            <option value="value">Top value</option>
-            <option value="name">Name A–Z</option>
-          </select>
-        </div>
+          {/* Search + sort */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name or phone..."
+              style={{ ...inputStyle, flex: 1 }}
+              onFocus={e => (e.target.style.borderColor = '#0F766E')}
+              onBlur={e => (e.target.style.borderColor = t.inputBorder)} />
+            <select value={sort} onChange={e => setSort(e.target.value as any)}
+              style={{ ...inputStyle, width: 'auto', paddingRight: 32, appearance: 'none', WebkitAppearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', cursor: 'pointer', fontWeight: 500 }}>
+              <option value="recent">Recent</option>
+              <option value="value">Top value</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </div>
 
-        {/* Client list */}
-        <div className="bg-white border border-[#E8E2D9] rounded-2xl overflow-hidden">
-          {loading ? (
-            <div className="p-8 space-y-3">
-              {[1,2,3].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-50" />)}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="text-4xl mb-3 opacity-20">👥</div>
-              <p className="text-base font-semibold text-gray-600 mb-1">
-                {search ? 'No clients match your search' : 'No clients yet'}
-              </p>
-              <p className="text-sm text-gray-400 mb-5">
-                {search ? 'Try a different name or phone number' : 'Add your first client or save one from a lead'}
-              </p>
-              {!search && (
-                <button onClick={() => setShowAdd(true)}
-                  className="text-sm font-semibold text-teal-600 hover:underline">
-                  + Add your first client
-                </button>
-              )}
-            </div>
-          ) : filtered.map((client, i) => {
-            const [bg, fg] = avatarColor(client.full_name)
-            return (
-              <Link key={client.id} href={`/dashboard/clients/${client.id}`}
-                className={`flex items-center gap-4 px-5 py-4 hover:bg-[#FAF9F6] transition-colors ${
-                  i > 0 ? 'border-t border-gray-50' : ''
-                }`}>
-                {/* Avatar */}
-                <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                  style={{ background: bg, color: fg }}>
-                  {initials(client.full_name)}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-base font-semibold text-[#0A1628] truncate">{client.full_name}</span>
-                    {(client.tags || []).map((tag: string) => (
-                      <span key={tag} className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TAG_COLORS[tag] || 'bg-gray-50 text-gray-500'}`}>
-                        {tag}
-                      </span>
-                    ))}
+          {/* Client list */}
+          <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 16, overflow: 'hidden' }}>
+            {loading ? (
+              <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[1,2,3].map(i => <div key={i} style={{ height: 64, borderRadius: 10, animation: 'shimmer 1.4s ease-in-out infinite', background: 'linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%)', backgroundSize: '200% 100%' }} />)}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '64px 24px' }}>
+                <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.2 }}>👥</div>
+                <p style={{ fontSize: 16, fontWeight: 600, color: t.textPri, marginBottom: 4 }}>
+                  {search ? 'No clients match your search' : 'No clients yet'}
+                </p>
+                <p style={{ fontSize: 14, color: t.textMuted, marginBottom: 16 }}>
+                  {search ? 'Try a different name or phone number' : 'Add your first client or save one from a lead'}
+                </p>
+                {!search && (
+                  <button onClick={() => setShowAdd(true)}
+                    style={{ fontSize: 14, fontWeight: 600, color: '#0F766E', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                    + Add your first client
+                  </button>
+                )}
+              </div>
+            ) : filtered.map((client, i) => {
+              const [bg, fg] = avatarColor(client.full_name)
+              return (
+                <Link key={client.id} href={`/dashboard/clients/${client.id}`}
+                  className="active:opacity-70 active:scale-[.99]"
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', borderTop: i > 0 ? `1px solid ${t.divider}` : 'none', textDecoration: 'none', transition: 'background 0.15s', background: i % 2 === 1 ? t.tableRowAlt : 'transparent' }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = t.tableRowHover)}
+                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = i % 2 === 1 ? t.tableRowAlt : 'transparent')}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0, background: bg, color: fg }}>
+                    {initials(client.full_name)}
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    {client.phone && <span className="text-sm text-gray-400">{client.phone}</span>}
-                    {client.email && <span className="text-sm text-gray-400 truncate">{client.email}</span>}
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="text-right flex-shrink-0">
-                  {client.lifetime_value > 0 && (
-                    <div className="text-base font-bold text-teal-600">
-                      ${client.lifetime_value.toLocaleString()}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: t.textPri }}>{client.full_name}</span>
+                      {(client.address_line1 || client.city) && (
+                        <span style={{ fontSize: 12, color: t.textMuted, display: 'block', marginTop: 1 }}>
+                          {[client.address_line1, client.city, client.state].filter(Boolean).join(', ')}
+                        </span>
+                      )}
+                      {(client.tags || []).map((tag: string) => {
+                        const tc = TAG_COLORS(dk)[tag] || { bg: t.cardBgAlt, text: t.textMuted }
+                        return (
+                          <span key={tag} style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: tc.bg, color: tc.text }}>{tag}</span>
+                        )
+                      })}
                     </div>
-                  )}
-                  <div className="text-xs text-gray-400">
-                    {client.job_count} job{client.job_count !== 1 ? 's' : ''} · {timeAgo(client.last_contact || client.created_at)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 2 }}>
+                      {client.phone && <span style={{ fontSize: 14, color: t.textMuted }}>{client.phone}</span>}
+                      {client.email && <span style={{ fontSize: 14, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.email}</span>}
+                    </div>
                   </div>
-                </div>
-
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#C4BCAF" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M6 4l4 4-4 4" />
-                </svg>
-              </Link>
-            )
-          })}
-        </div>
-
-        {/* Delete confirm modal */}
-        {deleteTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.6)' }}
-            onClick={() => setDeleteTarget(null)}>
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl"
-              onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
-                Delete {deleteTarget.full_name}?
-              </h3>
-              <p className="text-sm text-gray-500 text-center leading-relaxed mb-2">
-                This removes them from your client book permanently.
-              </p>
-              <p className="text-xs text-gray-400 text-center mb-5">
-                Their job history will remain in your pipeline.
-              </p>
-              <div className="flex gap-3">
-                <button onClick={() => setDeleteTarget(null)}
-                  className="flex-1 py-3.5 rounded-xl text-sm font-bold border-2 border-gray-200 text-gray-600 hover:bg-gray-50">
-                  Cancel
-                </button>
-                <button onClick={deleteClient}
-                  className="flex-1 py-3.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-colors">
-                  Delete
-                </button>
-              </div>
-            </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    {client.lifetime_value > 0 && (
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#0F766E' }}>${client.lifetime_value.toLocaleString()}</div>
+                    )}
+                    <div style={{ fontSize: 13, color: t.textSubtle }}>
+                      {client.job_count} job{client.job_count !== 1 ? 's' : ''} · {timeAgo(client.last_contact || client.created_at)}
+                    </div>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={t.textSubtle} strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M6 4l4 4-4 4" />
+                  </svg>
+                </Link>
+              )
+            })}
           </div>
-        )}
 
-        {/* Add client modal */}
-        {showAdd && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-            style={{ background: 'rgba(0,0,0,0.6)' }}
-            onClick={() => setShowAdd(false)}>
-            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl"
-              onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                <h2 className="text-lg font-bold text-[#0A1628]">New client</h2>
-                <button onClick={() => setShowAdd(false)}
-                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 text-xl">×</button>
-              </div>
-              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                {[
-                  { label: 'Full name *', value: newName, set: setNewName, placeholder: 'John Smith', type: 'text' },
-                  { label: 'Phone', value: newPhone, set: (v: string) => setNewPhone(v.replace(/[^\d\s\-\(\)\+]/g, '')), placeholder: '(555) 555-5555', type: 'tel' },
-                  { label: 'Email', value: newEmail, set: setNewEmail, placeholder: 'john@example.com', type: 'email' },
-                ].map(f => (
-                  <div key={f.label}>
-                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">{f.label}</p>
-                    <input value={f.value} onChange={e => f.set(e.target.value)}
-                      placeholder={f.placeholder} type={f.type}
-                      className="w-full px-4 py-3 text-sm border-2 border-[#E8E2D9] rounded-xl outline-none text-[#0A1628]"
-                      onFocus={e => e.target.style.borderColor = '#0F766E'}
-                      onBlur={e => e.target.style.borderColor = '#E8E2D9'} />
-                  </div>
-                ))}
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Tags</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {['Residential','Commercial','Repeat','VIP'].map(tag => (
-                      <button key={tag} onClick={() => toggleTag(tag)}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-                          newTags.includes(tag)
-                            ? 'bg-teal-600 text-white border-teal-600'
-                            : 'bg-white text-gray-500 border-gray-200'
-                        }`}>
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Notes</p>
-                  <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)}
-                    placeholder="Gate code 1234, has two dogs, prefers morning appointments..."
-                    rows={3}
-                    className="w-full px-4 py-3 text-sm border-2 border-[#E8E2D9] rounded-xl outline-none resize-none text-[#0A1628]"
-                    onFocus={e => e.target.style.borderColor = '#0F766E'}
-                    onBlur={e => e.target.style.borderColor = '#E8E2D9'} />
-                </div>
-                {err && <p className="text-sm text-red-500">{err}</p>}
-                <div className="flex gap-3 pt-2">
-                  <button onClick={() => setShowAdd(false)}
-                    className="flex-1 py-3.5 rounded-2xl text-sm font-bold border-2 border-gray-200 text-gray-600">Cancel</button>
-                  <button onClick={addClient} disabled={saving}
-                    className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-                    {saving ? 'Saving...' : 'Save client'}
+          {/* Delete confirm modal */}
+          {deleteTarget && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(0,0,0,0.6)' }}
+              onClick={() => setDeleteTarget(null)}>
+              <div style={{ background: t.cardBg, borderRadius: 20, width: '100%', maxWidth: 360, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
+                onClick={e => e.stopPropagation()}>
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: t.textPri, textAlign: 'center', marginBottom: 8 }}>Delete {deleteTarget.full_name}?</h3>
+                <p style={{ fontSize: 14, color: t.textMuted, textAlign: 'center', marginBottom: 4 }}>This removes them from your client book permanently.</p>
+                <p style={{ fontSize: 13, color: t.textSubtle, textAlign: 'center', marginBottom: 20 }}>Their job history will remain in your pipeline.</p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => setDeleteTarget(null)}
+                    style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, border: `2px solid ${t.cardBorder}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                  <button onClick={deleteClient}
+                    style={{ flex: 1, padding: '12px', borderRadius: 10, fontSize: 14, fontWeight: 700, border: 'none', background: '#EF4444', color: '#fff', cursor: 'pointer' }}>
+                    Delete
                   </button>
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Add client modal — separate component so Places hook attaches when input is in DOM */}
+          {showAdd && (
+            <AddClientModal
+              dk={dk}
+              onClose={() => setShowAdd(false)}
+              onSaved={(client) => {
+                setClients(prev => [{ ...client, job_count: 0, lifetime_value: 0 }, ...prev])
+                setShowAdd(false)
+              }}
+              proId={session?.id || ''}
+            />
+          )}
+        </div>
+      </div>
+    </DashboardShell>
+  )
+}
+
+function formatPhone(raw: string) {
+  const d = raw.replace(/\D/g, '').slice(0, 10)
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0,3)}-${d.slice(3)}`
+  return `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`
+}
+
+// ─── AddClientModal ───────────────────────────────────────────────────────────
+// Separate component so usePlacesAutocomplete runs when the input is in the DOM.
+// The parent conditionally renders this — on mount the street input exists
+// immediately and the Places hook can attach correctly.
+
+interface AddClientModalProps {
+  dk: boolean
+  proId: string
+  onClose: () => void
+  onSaved: (client: any) => void
+}
+
+function AddClientModal({ dk, proId, onClose, onSaved }: AddClientModalProps) {
+  const t = theme(dk)
+
+  const [name,   setName]   = useState('')
+  const [phone,  setPhone]  = useState('')
+  const [email,  setEmail]  = useState('')
+  const [street, setStreet] = useState('')
+  const [city,   setCity]   = useState('')
+  const [state,  setState]  = useState('')
+  const [zip,    setZip]    = useState('')
+  const [notes,  setNotes]  = useState('')
+  const [tags,   setTags]   = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [err,    setErr]    = useState('')
+
+  // Places autocomplete — hook attaches immediately because input is in DOM on mount
+  const streetRef = useRef<HTMLInputElement>(null)
+  usePlacesAutocomplete(streetRef, (formatted: string) => {
+    // Canonical parse — see lib/address.ts. Do NOT hand-index the parts array:
+    // that is how the street address ended up written into contact_city.
+    const a = parseFormattedAddress(formatted)
+    if (a.zip)    setZip(a.zip)
+    if (a.state)  setState(a.state)
+    if (a.city)   setCity(a.city)
+    if (a.street) setStreet(a.street)
+  })
+
+  function toggleTag(tag: string) {
+    setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+  }
+
+  async function save() {
+    if (!name.trim()) { setErr('Name is required'); return }
+    if (!proId)       { setErr('Session expired — please refresh'); return }
+    setSaving(true); setErr('')
+    const r = await apiFetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pro_id: proId,
+        full_name:     name.trim(),
+        phone:         phone.trim()  || null,
+        email:         email.trim()  || null,
+        address_line1: street.trim() || null,
+        city:          city.trim()   || null,
+        state:         state.trim()  || null,
+        zip:           zip.trim()    || null,
+        notes:         notes.trim()  || null,
+        tags,
+      }),
+    })
+    const d = await r.json()
+    setSaving(false)
+    if (r.ok) onSaved(d.client)
+    else setErr(d.error || 'Failed to save')
+  }
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '10px 14px', fontSize: 14, borderRadius: 10,
+    border: `1.5px solid ${t.inputBorder}`, background: t.inputBg,
+    color: t.textPri, outline: 'none', boxSizing: 'border-box',
+  }
+  const focus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    (e.target.style.borderColor = '#0F766E')
+  const blur  = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    (e.target.style.borderColor = t.inputBorder)
+  const lbl: React.CSSProperties = {
+    fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+    letterSpacing: '0.09em', color: t.textMuted, marginBottom: 7,
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', background: 'rgba(0,0,0,0.55)', padding: '16px' }}
+      onClick={onClose}>
+      <div style={{ background: t.cardBg, width: '100%', maxWidth: 640, borderRadius: 20,
+        boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: 'calc(100vh - 32px)',
+        display: 'flex', flexDirection: 'column' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 28px', borderBottom: `1px solid ${t.cardBorder}`, flexShrink: 0 }}>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: t.textPri, margin: 0 }}>New client</h2>
+            <p style={{ fontSize: 13, color: t.textMuted, margin: '2px 0 0' }}>Add a client manually or save from a lead</p>
           </div>
-        )}
+          <button onClick={onClose}
+            style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              borderRadius: '50%', border: 'none', background: t.cardBgAlt, color: t.textMuted,
+              cursor: 'pointer', fontSize: 20, flexShrink: 0 }}>×</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
+
+          {/* Name + Phone */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <p style={lbl}>Full name *</p>
+              <input value={name} onChange={e => setName(e.target.value)}
+                placeholder="John Smith" type="text" autoComplete="off"
+                style={inp} onFocus={focus} onBlur={blur} />
+            </div>
+            <div>
+              <p style={lbl}>Phone</p>
+              <input value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
+                placeholder="(555) 555-5555" type="tel" autoComplete="off"
+                style={inp} onFocus={focus}
+                onBlur={e => { setPhone(formatPhone(e.target.value)); blur(e) }} />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <p style={lbl}>Email</p>
+            <input value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="john@example.com" type="email" autoComplete="off"
+              style={inp} onFocus={focus} onBlur={blur} />
+          </div>
+
+          <div style={{ borderTop: `1px solid ${t.divider}`, margin: '2px 0' }} />
+
+          {/* Street — Places autocomplete attached here */}
+          <div>
+            <p style={lbl}>Street address</p>
+            <input ref={streetRef} value={street} onChange={e => setStreet(e.target.value)}
+              placeholder="9933 Orchard Hills Rd" autoComplete="off"
+              style={inp} onFocus={focus} onBlur={blur} />
+          </div>
+
+          {/* City / State / Zip */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 90px', gap: 14 }}>
+            <div>
+              <p style={lbl}>City</p>
+              <input value={city} onChange={e => setCity(e.target.value)}
+                placeholder="Jacksonville" autoComplete="off"
+                style={inp} onFocus={focus} onBlur={blur} />
+            </div>
+            <div>
+              <p style={lbl}>State</p>
+              <select value={state} onChange={e => setState(e.target.value)}
+                style={{ ...inp, paddingRight: 6 }} onFocus={focus} onBlur={blur}>
+                <option value="">—</option>
+                {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p style={lbl}>Zip</p>
+              <input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))}
+                placeholder="32207" maxLength={5} inputMode="numeric" autoComplete="off"
+                style={inp} onFocus={focus} onBlur={blur} />
+            </div>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${t.divider}`, margin: '2px 0' }} />
+
+          {/* Tags */}
+          <div>
+            <p style={lbl}>Tags</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['Residential','Commercial','Repeat','VIP'].map(tag => (
+                <button key={tag} onClick={() => toggleTag(tag)}
+                  style={{ fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 20,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                    border: `1.5px solid ${tags.includes(tag) ? '#0F766E' : t.inputBorder}`,
+                    background: tags.includes(tag) ? '#0F766E' : 'transparent',
+                    color: tags.includes(tag) ? '#fff' : t.textMuted }}>
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <p style={lbl}>Notes</p>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)}
+              placeholder="Gate code 1234, has two dogs, prefers morning appointments..."
+              rows={3} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }}
+              onFocus={focus} onBlur={blur} />
+          </div>
+
+          {err && <p style={{ fontSize: 14, color: '#EF4444', margin: 0 }}>{err}</p>}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: 'flex', gap: 10, padding: '16px 28px 24px',
+          borderTop: `1px solid ${t.cardBorder}`, flexShrink: 0 }}>
+          <button onClick={onClose}
+            style={{ flex: 1, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700,
+              border: `2px solid ${t.cardBorder}`, background: 'transparent',
+              color: t.textMuted, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={save} disabled={saving}
+            style={{ flex: 2, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700,
+              border: 'none', background: 'linear-gradient(135deg, #0F766E, #0C5F57)',
+              color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Saving...' : 'Save client'}
+          </button>
+        </div>
       </div>
     </div>
   )

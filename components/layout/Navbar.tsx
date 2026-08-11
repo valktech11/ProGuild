@@ -4,13 +4,29 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Session } from '@/types'
 import { initials, avatarColor } from '@/lib/utils'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import { useProSession } from '@/lib/hooks/useProSession'
+
+
+// ── Staging environment badge ────────────────────────────────────────────────
+declare const process: { env: Record<string, string | undefined> }
+const NEXT_PUBLIC_ENV = process.env.NEXT_PUBLIC_ENV
+function StagingBadge() {
+  if (NEXT_PUBLIC_ENV !== 'staging') return null
+  return (
+    <span className="ml-1 px-1.5 py-0.5 rounded text-xs font-bold tracking-wide"
+      style={{ backgroundColor: '#FEF3C7', color: '#B45309', border: '1px solid #FCD34D' }}>
+      STAGING
+    </span>
+  )
+}
 
 // ── Role-aware nav links ────────────────────────────────────────────────────
 // Homeowner (logged out): Find a Pro · Request a Pro · Community
 // Pro (logged in):        Find Work · Community · Dashboard
 const HOMEOWNER_LINKS = [
   { href: '/',           label: 'Find a Pro',     match: (p: string) => p === '/' },
-  { href: '/post-job',   label: 'Request a Pro',  match: (p: string) => p === '/post-job' },
+  { href: '/fl',         label: 'Browse Trades',  match: (p: string) => p === '/fl' },
   { href: '/community',  label: 'Community',      match: (p: string) => p.startsWith('/community') },
 ]
 
@@ -93,7 +109,7 @@ function MessageIcon({ active }: { active: boolean }) {
   )
 }
 
-export default function Navbar() {
+export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean } = {}) {
   const path   = usePathname()
   const router = useRouter()
   const [session, setSession]           = useState<Session | null>(null)
@@ -106,23 +122,19 @@ export default function Navbar() {
   const dropdownRef  = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (raw) { try { setSession(JSON.parse(raw)) } catch {} }
+  const { session: realSession } = useProSession()
 
-    const sync = () => {
-      const r = sessionStorage.getItem('pg_pro')
-      const s = r ? JSON.parse(r) : null
-      setSession(s)
-      if (s?.id) {
-        fetch(`/api/notifications?pro_id=${s.id}`)
-          .then(r => r.json())
-          .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unread || 0) })
-          .catch(() => {})
-      }
+  useEffect(() => {
+    if (realSession) setSession(realSession)
+  }, [realSession])
+
+  useEffect(() => {
+    if (realSession?.id) {
+      fetch(`/api/notifications?pro_id=${realSession.id}`)
+        .then(r => r.json())
+        .then(d => { setNotifications(d.notifications || []); setUnreadCount(d.unread || 0) })
+        .catch(() => {})
     }
-    window.addEventListener('storage', sync)
-    window.addEventListener('pg-session-changed', sync)
 
     const handleOutside = (e: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false)
@@ -132,17 +144,19 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleOutside)
     document.addEventListener('touchstart', handleOutside as any)
     return () => {
-      window.removeEventListener('storage', sync)
-      window.removeEventListener('pg-session-changed', sync)
       document.removeEventListener('mousedown', handleOutside)
       document.removeEventListener('touchstart', handleOutside as any)
     }
-  }, [])
+  }, [realSession])
 
   useEffect(() => { setMobileMenuOpen(false) }, [path])
 
-  function logout() {
-    sessionStorage.removeItem('pg_pro')
+  async function logout() {
+    try {
+      const supabase = getSupabaseBrowser()
+      await supabase.auth.signOut()
+    } catch {}
+    sessionStorage.removeItem('pg_pro')   // clear any legacy remnants
     setSession(null)
     router.push('/')
   }
@@ -170,6 +184,7 @@ export default function Navbar() {
               <span className="font-serif text-lg font-bold tracking-tight" style={{ color: '#0A1628' }}>ProGuild</span>
               <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
             </div>
+            <StagingBadge />
           </Link>
 
           {/* Desktop nav — role-aware */}
@@ -321,10 +336,13 @@ export default function Navbar() {
                   className="text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors">
                   Log in
                 </Link>
+                {!hideJoinCta && (
                 <Link href="/login?tab=signup"
-                  className="text-sm font-semibold px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors">
-                  Join as pro
+                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white hover:opacity-90 transition-all"
+                  style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 2px 8px rgba(15,118,110,0.3)' }}>
+                  Join as a pro →
                 </Link>
+                )}
               </div>
             )}
           </div>

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
+// Per-record data that changes — always read fresh.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET() {
   const { data, error } = await getSupabaseAdmin()
     .from('trade_categories')

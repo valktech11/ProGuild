@@ -2,18 +2,22 @@
 
 import { useState } from 'react'
 import { Lead } from '@/types'
+import { getStageAnchors, getTerminalStages } from '@/lib/trades/_registry'
+import { capName } from '@/lib/utils'
 
 interface ActionAlertProps {
   leads: Lead[]
   onRespond: (leadId: string) => void
+  tradeSlug?: string | null
 }
 
 function daysSince(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
 }
 
-export default function ActionAlert({ leads, onRespond }: ActionAlertProps) {
+export default function ActionAlert({ leads, onRespond, tradeSlug }: ActionAlertProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState(false)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -27,8 +31,12 @@ export default function ActionAlert({ leads, onRespond }: ActionAlertProps) {
     days: number
   }>()
 
+  const anchors     = getStageAnchors(tradeSlug)
+  const termKeys    = new Set([...getTerminalStages(tradeSlug).map(s => s.key),
+    anchors.won, 'Completed', 'Archived']) // legacy compat
+
   leads
-    .filter(l => !['Completed', 'Paid', 'Lost', 'Archived'].includes(l.lead_status))
+    .filter(l => !termKeys.has(l.lead_status as string))
     .forEach(l => {
       const days = daysSince(l.created_at)
       if (days >= 3) {
@@ -61,41 +69,55 @@ export default function ActionAlert({ leads, onRespond }: ActionAlertProps) {
   if (visible.length === 0) return null
 
   return (
-    <div className="mb-5 rounded-2xl overflow-hidden border border-amber-200 bg-amber-50">
-      {/* Header row */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-amber-200">
-        <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+    <div className="mb-5 rounded-2xl overflow-hidden" style={{ border: "1px solid #FECACA", background: "#FFF5F5" }}>
+      {/* Header row — always visible, click to expand */}
+      <button
+        className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-red-50"
+        onClick={() => setExpanded(v => !v)}
+        style={{ borderBottom: expanded ? "1px solid #FECACA" : "none" }}
+      >
+        <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#EF4444" }}>
           <span className="text-white text-xs font-bold">{visible.length}</span>
         </div>
-        <p className="text-sm font-semibold text-amber-900 flex-1">
+        <p className="text-sm font-semibold flex-1" style={{ color: "#991B1B" }}>
           {visible.length === 1
             ? '1 lead needs your attention'
             : `${visible.length} leads need your attention`}
         </p>
-      </div>
+        {/* Chevron */}
+        <svg
+          width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round"
+          style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}
+        >
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
 
-      {/* Individual alerts */}
-      {visible.map((alert, i) => (
+      {/* Individual alerts — only shown when expanded */}
+      {expanded && visible.map((alert, i) => (
         <div
           key={alert.id}
-          className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? 'border-t border-amber-100' : ''}`}
+          className="flex items-center gap-3 px-4 py-3"
+          style={i > 0 ? { borderTop: '1px solid #FEE2E2' } : {}}
         >
-          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            alert.type === 'overdue'
-              ? alert.days > 7 ? 'bg-red-500 animate-pulse' : 'bg-amber-400'
-              : 'bg-blue-400'
-          }`} />
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{
+            background: alert.type === 'overdue'
+              ? alert.days > 7 ? '#DC2626' : '#F97316'
+              : '#60A5FA',
+            animation: alert.type === 'overdue' && alert.days > 7 ? 'pulse 2s infinite' : 'none'
+          }} />
 
-          <p className="text-sm text-amber-800 flex-1">
+          <p className="text-sm flex-1" style={{ color: "#7F1D1D" }}>
             {alert.type === 'overdue' ? (
               <>
-                <span className="font-semibold">{alert.contact_name}</span>
+                <span className="font-semibold">{capName(alert.contact_name || "")}</span>
                 {' '}— no contact in{' '}
                 <span className="font-semibold text-red-600">{alert.days} days</span>
               </>
             ) : (
               <>
-                Follow-up with <span className="font-semibold">{alert.contact_name}</span> due today
+                Follow-up with <span className="font-semibold">{capName(alert.contact_name || "")}</span> due today
               </>
             )}
           </p>
@@ -109,7 +131,7 @@ export default function ActionAlert({ leads, onRespond }: ActionAlertProps) {
 
           <button
             onClick={() => setDismissed(prev => new Set([...prev, alert.id]))}
-            className="text-amber-400 hover:text-amber-600 transition-colors text-xl leading-none"
+            className="transition-colors text-xl leading-none" style={{ color: "#FCA5A5" }}
             aria-label="Dismiss"
           >
             ×

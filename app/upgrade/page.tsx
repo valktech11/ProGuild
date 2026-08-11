@@ -3,6 +3,7 @@ import Navbar from '@/components/layout/Navbar'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Session } from '@/types'
+import { useProSession } from '@/lib/hooks/useProSession'
 
 const PLANS = {
   pro:   { label: 'Pro',   founding: 19, regular: 29, annualFounding: 190, annualRegular: 290, color: 'teal',   badge: 'Most popular' },
@@ -16,6 +17,7 @@ export default function UpgradePage() {
   const [annual, setAnnual] = useState(false)
   const [spots, setSpots]   = useState(73)
   const [session, setSession] = useState<Session | null>(null)
+  const { session: _real } = useProSession()
   const [modal, setModal]   = useState<'pro' | 'elite' | null>(null)
   const [name, setName]     = useState('')
   const [card, setCard]     = useState('')
@@ -25,11 +27,10 @@ export default function UpgradePage() {
   const [done, setDone]     = useState(false)
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (raw) { const s = JSON.parse(raw); setSession(s) }
+    if (_real) setSession(_real)
     const interval = setInterval(() => setSpots(s => Math.random() < 0.08 && s > 40 ? s - 1 : s), 9000)
     return () => clearInterval(interval)
-  }, [])
+  }, [_real])
 
   async function pay() {
     if (!session) { window.location.href = '/login'; return }

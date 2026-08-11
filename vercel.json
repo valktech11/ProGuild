@@ -3,6 +3,18 @@
     {
       "path": "/api/ping",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/pending-review-promote",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/morning-brief",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/hvac-maintenance-reminders",
+      "schedule": "0 13 * * *"
     }
   ]
 }

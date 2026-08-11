@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { Resend } from 'resend'
+import { getInitialStage } from '@/lib/trades/_registry'
 
 // ── Feature flag — set true when ready for Phase 2 auto-send ─────────────────
 const AUTO_SEND_EMAIL = false
@@ -17,7 +18,7 @@ function isRealEmail(email: string): boolean {
 function outreachEmail(pro: any, contact: {
   name: string; email: string; phone: string; need: string; tradeName: string
 }): string {
-  const claimUrl  = `https://proguild.ai/claim/${pro.id}`
+  const claimUrl  = `https://proguild.ai/login?tab=signup&claim=${pro.id}`
   const firstName = pro.full_name?.split(' ')[0] || 'there'
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f5f4ef;font-family:Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
     // Fetch the pro
     const { data: pro, error: proErr } = await sb
       .from('pros')
-      .select('id, full_name, email, phone_cell, phone_work, city, state, license_number, is_claimed, trade_category:trade_categories(category_name)')
+      .select('id, full_name, email, phone_cell, phone_work, city, state, license_number, is_claimed, trade_slug, trade_category:trade_categories(category_name)')
       .eq('id', pro_id)
       .single()
 
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
         contact_email: contact_email?.toLowerCase().trim() || null,
         contact_phone: contact_phone || null,
         message,
-        lead_status: 'New',
+        lead_status: getInitialStage(pro?.trade_slug),
         lead_source: 'Registry_Card',
       })
       .select()
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
       // Phone-only or no contact info — flag for manual follow-up
       queuedForManual = true
       await sb.from('leads').update({
-        lead_status: 'Queued_Manual',
+        lead_status: 'lead_in',  // was Queued_Manual — not in DB constraint
       }).eq('id', lead.id)
     }
 

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useProSession } from '@/lib/hooks/useProSession'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import { timeAgo } from '@/lib/utils'
@@ -35,6 +36,7 @@ export default function HirePage() {
   const [jobs, setJobs]           = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [session, setSession]     = useState<any>(null)
+  const { session: _real } = useProSession()
   const [loading, setLoading]     = useState(true)
   const [applying, setApplying]   = useState<string | null>(null)
   const [applied, setApplied]     = useState<Set<string>>(new Set())
@@ -47,10 +49,9 @@ export default function HirePage() {
   const [stateFil, setStateFil]   = useState('')
 
   useEffect(() => {
-    const raw = sessionStorage.getItem('pg_pro')
-    if (raw) setSession(JSON.parse(raw))
+    if (_real) setSession(_real)
     fetch('/api/categories').then(r => r.json()).then(d => setCategories(d.categories || []))
-  }, [])
+  }, [_real])
 
   useEffect(() => {
     setLoading(true)
