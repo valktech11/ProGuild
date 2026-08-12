@@ -78,7 +78,7 @@ function roofingWorkflow(
 ): { steps: WorkflowStep[]; nextKey: string | null; gap: number | null; hasGap: boolean; decisionRecorded: boolean } {
   const isClaim = !!rjd?.insurance_claim
   const lfd = rjd?.linear_footage || {}
-  const sqDone = !!rjd?.square_count
+  const sqDone = !!(rjd?.pitch || rjd?.waste_pct)  // square_count intentionally not written (Bible §25); pitch+waste_pct are
   const lfDone = (lfd.ridge_ft > 0) || (lfd.hip_ft > 0) || (lfd.valley_ft > 0)
   const approvedAmt = Number(rjd?.approved_amount) || 0
   const supplementAmt = Number(rjd?.supplement_amount) || 0
@@ -583,7 +583,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),90000)
       let res:Response
       try{
-        res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:await(async()=>{try{const sr=await apiFetch(`/api/properties?pro_id=${session.id}&search=${encodeURIComponent(street.split(",")[0])}`);const sd=sr.ok?await sr.json():null;const match=(sd?.properties||[]).find((p:any)=>p.address_line1?.toLowerCase().includes(street.split(',')[0].toLowerCase()));return match?.id??null}catch{return null}})()}),signal:ctrl.signal})
+        res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:(lead as any).property_id??null}),signal:ctrl.signal})
       }finally{clearTimeout(timer)}
       const d=await res.json().catch(()=>({}))
       if(!res.ok){setQbError((d as any).error||'Report failed');return}
@@ -1507,6 +1507,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                   ? <><span style={{width:14,height:14,borderRadius:'50%',border:`2px solid ${BRAND.teal}40`,borderTopColor:BRAND.teal,animation:'pg-spin 0.7s linear infinite',display:'inline-block'}}/>Measuring…</>
                                   : <>{na.cta}<Svg size={16} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg></>}
                               </button>
+                              {nextKey==='measure'&&qbError&&<div style={{marginTop:8,fontSize:T.fontSub,color:'#ff6b6b',fontWeight:600}}>{qbError}</div>}
                             </div>
                           ) : (est && (
                             <button onClick={goEstimate} style={{display:'inline-flex',alignItems:'center',gap:8,height:46,padding:'0 20px',borderRadius:T.radSm,border:'1px solid rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.12)',color:'#fff',fontSize:T.fontEmphasis,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}}>Open Estimate</button>

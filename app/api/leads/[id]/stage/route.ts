@@ -131,7 +131,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
             if (byEmail) clientId = byEmail.id
           }
           if (!clientId) {
-            const { data: newClient } = await sb.from('clients').insert({
+            const { data: newClient, error: clientErr } = await sb.from('clients').insert({
               pro_id:        pro_id,
               full_name:     String(leadForClient.contact_name).trim(),
               phone:         leadForClient.contact_phone ? String(leadForClient.contact_phone).trim() : null,
@@ -141,6 +141,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
               state:         leadForClient.contact_state ? String(leadForClient.contact_state).trim() : null,
               zip:           leadForClient.contact_zip   ? String(leadForClient.contact_zip).trim()   : null,
             }).select('id').single()
+            if (clientErr) console.error('[stage/route] client insert failed:', clientErr.message, clientErr.details)
             if (newClient) clientId = newClient.id
           }
           resolvedClientId = clientId

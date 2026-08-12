@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
       if (byNameAddr) clientId = byNameAddr.id
     }
     if (!clientId) {
-      const { data: newClient } = await supabase.from('clients').insert({
+      const { data: newClient, error: clientErr } = await supabase.from('clients').insert({
         pro_id,
         full_name:     contact_name.trim(),
         phone:         contact_phone?.trim()               || null,
@@ -251,6 +251,7 @@ export async function POST(req: NextRequest) {
         state:         contact_state?.trim()               || null,
         zip_code:      contact_zip?.trim()                 || null,
       }).select('id').single()
+      if (clientErr) console.error('Client insert failed:', clientErr.message, clientErr.details)
       if (newClient) clientId = newClient.id
     }
   } catch (e) { console.error('Client pre-resolve failed:', e) }
@@ -262,15 +263,17 @@ export async function POST(req: NextRequest) {
         .eq('pro_id', pro_id).eq('address_line1', streetOnly).maybeSingle()
       propertyId = existingProp?.id ?? null
       if (!propertyId) {
-        const { data: newProp } = await supabase.from('properties').insert({
+        const { data: newProp, error: propErr } = await supabase.from('properties').insert({
           pro_id,
           address_line1: streetOnly,
+          address:       streetOnly,            // legacy NOT NULL column in prod
           city:          contact_city?.trim()  || null,
           state:         contact_state?.trim() || null,
           zip_code:      contact_zip?.trim()   || null,
           client_id:     clientId              || null,
           property_type: 'residential',
         }).select('id').single()
+        if (propErr) console.error('Property insert failed:', propErr.message, propErr.details)
         if (newProp) propertyId = newProp.id
       }
     } catch (e) { console.error('Property pre-resolve failed:', e) }
