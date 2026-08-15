@@ -91,7 +91,7 @@ export async function GET(
   const reportQuery = data.property_id
     ? getSupabaseAdmin().from('roof_reports').select('total_squares_order, dominant_pitch, waste_factor, r2_url').eq('pro_id', data.pro_id).eq('property_id', data.property_id).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
     : data.property_address
-      ? getSupabaseAdmin().from('roof_reports').select('total_squares_order, dominant_pitch, waste_factor, r2_url').eq('pro_id', data.pro_id).eq('address', data.property_address).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      ? getSupabaseAdmin().from('roof_reports').select('total_squares_order, dominant_pitch, waste_factor, r2_url').eq('pro_id', data.pro_id).ilike('address', `${data.property_address}%`).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null })
   if (data.property_id || data.property_address) {
     const { data: latestReport } = await reportQuery
