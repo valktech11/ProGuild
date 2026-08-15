@@ -78,7 +78,7 @@ function roofingWorkflow(
 ): { steps: WorkflowStep[]; nextKey: string | null; gap: number | null; hasGap: boolean; decisionRecorded: boolean } {
   const isClaim = !!rjd?.insurance_claim
   const lfd = rjd?.linear_footage || {}
-  const sqDone = !!(rjd?.pitch || rjd?.waste_pct)  // square_count intentionally not written (Bible §25); pitch+waste_pct are
+  const sqDone = !!(rjd?.pitch && rjd?.waste_pct)  // pitch only set by Solar API (never default); both required to confirm real measure ran
   const lfDone = (lfd.ridge_ft > 0) || (lfd.hip_ft > 0) || (lfd.valley_ft > 0)
   const approvedAmt = Number(rjd?.approved_amount) || 0
   const supplementAmt = Number(rjd?.supplement_amount) || 0
