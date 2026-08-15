@@ -86,16 +86,15 @@ export async function GET(
   // roofing_job_data are the only authoritative linear-footage source (Bible §25).
   // roofing_job_data holds job-level data (insurance, labour, human LF) too.
   let roofingJobData = rd ?? null
-  if (data.property_id) {
-    const { data: latestReport } = await getSupabaseAdmin()
-      .from('roof_reports')
-      .select('total_squares_order, dominant_pitch, waste_factor, r2_url')
-      .eq('pro_id', data.pro_id)
-      .eq('property_id', data.property_id)
-      .not('total_squares_order', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+  // Look up latest roof report — by property_id if set, otherwise by address fallback
+  // (property_id is null when property INSERT failed at lead creation — see leads/route.ts)
+  const reportQuery = data.property_id
+    ? getSupabaseAdmin().from('roof_reports').select('total_squares_order, dominant_pitch, waste_factor, r2_url').eq('pro_id', data.pro_id).eq('property_id', data.property_id).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    : data.property_address
+      ? getSupabaseAdmin().from('roof_reports').select('total_squares_order, dominant_pitch, waste_factor, r2_url').eq('pro_id', data.pro_id).eq('address', data.property_address).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      : Promise.resolve({ data: null })
+  if (data.property_id || data.property_address) {
+    const { data: latestReport } = await reportQuery
     if (latestReport) {
       // Human-traced ProMeasure lines on roofing_job_data are the only LF source.
       // DSM linear_footage is never used (non-authoritative — Bible §25).
