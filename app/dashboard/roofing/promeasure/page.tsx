@@ -213,8 +213,8 @@ function ProMeasureInner() {
             if (s === 'OK' && r?.[0]?.geometry?.location) {
               mapRef.current.setCenter(r[0].geometry.location)
               mapRef.current.setZoom(20)
-              // Drop a teal target marker so the roofer knows which property to trace
-              new (window as any).google.maps.Marker({
+              // Drop a teal target marker briefly so the roofer can identify the property, then auto-remove
+              const _targetMarker = new (window as any).google.maps.Marker({
                 position: r[0].geometry.location,
                 map: mapRef.current,
                 title: leadAddr,
@@ -228,6 +228,7 @@ function ProMeasureInner() {
                 },
                 zIndex: 1000,
               })
+              setTimeout(() => _targetMarker.setMap(null), 3000)
             }
           })
         }
