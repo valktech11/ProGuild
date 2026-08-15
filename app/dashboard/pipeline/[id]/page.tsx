@@ -1538,7 +1538,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       key: 'measure', label: 'Roof Measurements',
                       done: dn('measure') && (isClaim2 ? dn('lf') : true),
                       summary: dn('measure')
-                        ? `${sqv} SQ · ${rjd2.pitch || '—'} · ${rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'} waste${isClaim2 && dn('lf') ? `   ·   Ridge ${Math.round(lfd2.ridge_ft || 0)} / Hip ${Math.round(lfd2.hip_ft || 0)} / Valley ${Math.round(lfd2.valley_ft || 0)} LF` : ''}`
+                        ? `${sqv} SQ · ${rjd2.pitch || '—'} · ${rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'} waste${dn('lf') ? `   ·   Ridge ${Math.round(lfd2.ridge_ft || 0)} / Hip ${Math.round(lfd2.hip_ft || 0)} / Valley ${Math.round(lfd2.valley_ft || 0)} LF` : ''}`
                         : 'Not measured yet',
                     })
                     stages.push({
@@ -1787,7 +1787,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginTop: 3 }}>Waste</div>
                                           </div>
                                         </div>
-                                        {isClaim2 && lfd2.source === 'promeasure_manual' && ((lfd2.ridge_ft || 0) > 0 || (lfd2.hip_ft || 0) > 0 || (lfd2.valley_ft || 0) > 0) && (
+                                        {lfd2.source === 'promeasure_manual' && ((lfd2.ridge_ft || 0) > 0 || (lfd2.hip_ft || 0) > 0 || (lfd2.valley_ft || 0) > 0) && (
                                           <>
                                             {isWide && <span style={{ width: 1, height: 38, background: bdr, flexShrink: 0 }} />}
                                             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, flexShrink: 0 }}>
