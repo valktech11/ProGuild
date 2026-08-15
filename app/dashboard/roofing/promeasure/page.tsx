@@ -213,6 +213,21 @@ function ProMeasureInner() {
             if (s === 'OK' && r?.[0]?.geometry?.location) {
               mapRef.current.setCenter(r[0].geometry.location)
               mapRef.current.setZoom(20)
+              // Drop a teal target marker so the roofer knows which property to trace
+              new (window as any).google.maps.Marker({
+                position: r[0].geometry.location,
+                map: mapRef.current,
+                title: leadAddr,
+                icon: {
+                  path: (window as any).google.maps.SymbolPath.CIRCLE,
+                  scale: 12,
+                  fillColor: '#14B8A6',
+                  fillOpacity: 0.9,
+                  strokeColor: '#0F766E',
+                  strokeWeight: 3,
+                },
+                zIndex: 1000,
+              })
             }
           })
         }
