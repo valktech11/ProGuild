@@ -1580,9 +1580,15 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       carrier: 'After your estimate',
                       supp: 'When your scope exceeds the carrier\u2019s',
                     }
-                    const sBtn = (label: string, onClick: () => void) => (
-                      <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', borderRadius: T.radSm, border: `1px solid ${bdr}`, background: card, color: BRAND.teal, fontSize: T.fontSub, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{label}</button>
-                    )
+                    const sBtn = (label: string, onClick: () => void, isMeasure?: boolean) => {
+                      const loading = isMeasure && qbGenerating
+                      return (
+                        <button onClick={loading ? undefined : onClick} disabled={loading} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 13px', borderRadius: T.radSm, border: `1px solid ${bdr}`, background: card, color: loading ? tsu : BRAND.teal, fontSize: T.fontSub, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0, opacity: loading ? 0.7 : 1 }}>
+                          {loading && <span style={{width:10,height:10,borderRadius:'50%',border:`2px solid ${BRAND.teal}40`,borderTopColor:BRAND.teal,animation:'pg-spin 0.7s linear infinite',display:'inline-block',flexShrink:0}}/>}
+                          {loading ? 'Measuring…' : label}
+                        </button>
+                      )
+                    }
                     const GW = isWide ? 40 : 32
                     const gIcon = (bg: string, content: React.ReactNode, ring?: string, stageKey?: string) => (
                       <div className={[
@@ -1759,7 +1765,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       </div>
                                       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                                         {s.key === 'measure' && (lead as any)?.roofing_job_data?.report_url && sBtn('View report', () => window.open((lead as any).roofing_job_data.report_url, '_blank'))}
-                                        {sBtn(s.key === 'measure' ? 'Re-measure' : s.key === 'estimate' ? 'Open' : 'View', () => { if (s.key === 'measure') runSatelliteMeasure(); else goStage(s.key) })}
+                                        {sBtn(s.key === 'measure' ? 'Re-measure' : s.key === 'estimate' ? 'Open' : 'View', () => { if (s.key === 'measure') runSatelliteMeasure(); else goStage(s.key) }, s.key === 'measure')}
                                       </div>
                                     </div>
                                     {s.key === 'measure' && (
