@@ -529,7 +529,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           backLabel={backNav().label}
           darkMode={dk}
           externalSaveMsg={saveMsg}
-          isLocked={['approved','void','declined','paid'].includes((estimate as any).status)}
+          isLocked={['approved','invoiced','void','declined','paid'].includes((estimate as any).status)}
         />
       </DashboardShell>
     )
