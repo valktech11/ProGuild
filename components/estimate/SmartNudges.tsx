@@ -54,8 +54,8 @@ function getNudge(status: string, invoiceId?: string): NudgeConfig | null {
     case 'invoiced':
       return {
         emoji: '📤',
-        title: 'Invoice sent — follow up if unpaid after 3 days',
-        sub: invoiceId ? 'View your invoice to track payment status.' : 'Send a reminder to the client.',
+        title: 'Invoice sent — waiting for payment',
+        sub: invoiceId ? 'Track payment status on the invoice. Need to change the price? Use Re-price above.' : 'Send a reminder to the client.',
         ctaLabel: invoiceId ? 'View Invoice' : 'Send Reminder',
         ctaBg: 'transparent',
         ctaColor: '#0F766E',

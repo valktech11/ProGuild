@@ -849,6 +849,14 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                           {duplicating ? 'Creating...' : 'Revise & Resend'}
                         </button>
                       )}
+                      {estimate.status === 'invoiced' && estimate.lead_id && (
+                        <button onClick={() => router.push(`/dashboard/roofing/calculator?lead_id=${estimate.lead_id}&from=estimate`)}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 whitespace-nowrap"
+                          style={{ border: '1.5px solid #0F766E', background: 'transparent', color: '#0F766E' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                          Re-price
+                        </button>
+                      )}
                       {(estimate.status === 'invoiced' || estimate.status === 'paid') && (
                         <button onClick={() => estimate.invoice_id && router.push(`/dashboard/invoices/${estimate.invoice_id}`)}
                           className="flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 whitespace-nowrap"
