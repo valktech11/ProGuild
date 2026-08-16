@@ -224,6 +224,7 @@ function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
 
 export default function RoofingEstimatePage({ estimate, proId, templates = [], onSave, onSend, onBack, backLabel = 'Back to Lead', darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
   const dk = darkMode ?? false
+  const router = useRouter()
 
   // Responsive: this page is desktop-first (2-col body, 3-up tier grid, wide
   // header/tracker rows). Below 900px we stack the body, turn the tier cards
@@ -684,6 +685,29 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
               <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/>
             </svg>
             Sign in person
+          </button>
+        )}
+        {estimate.status === 'invoiced' && (estimate as any).lead_id && (
+          <button onClick={() => router.push(`/dashboard/roofing/calculator?lead_id=${(estimate as any).lead_id}&from=estimate`)}
+            style={{ padding: '9px 18px', borderRadius: 10, border: `1.5px solid ${C.teal}`,
+              background: 'transparent', color: C.teal, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/>
+            </svg>
+            Re-price
+          </button>
+        )}
+        {(estimate.status === 'invoiced' || estimate.status === 'paid') && (estimate as any).invoice_id && (
+          <button onClick={() => router.push(`/dashboard/invoices/${(estimate as any).invoice_id}`)}
+            style={{ padding: '9px 18px', borderRadius: 10, border: 'none',
+              background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
+              color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            View Invoice
           </button>
         )}
         <div style={{ fontSize: 12, color: textS }}>Client can approve &amp; pay instantly</div>
@@ -2273,20 +2297,22 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
         </div>
       </div>
 
-      {/* Smart nudge */}
-      <div style={{ background: C.amberBg, borderRadius: 16, padding: 20,
-        border: `1px solid ${C.amberBorder}` }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: '#92400E', marginBottom: 6 }}>
-          ⚡ Estimates sent within 10 minutes close 2× faster
+      {/* Smart nudge — only for draft/unsent estimates */}
+      {['draft', 'sent', 'viewed'].includes(estimate.status) && (
+        <div style={{ background: C.amberBg, borderRadius: 16, padding: 20,
+          border: `1px solid ${C.amberBorder}` }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#92400E', marginBottom: 6 }}>
+            ⚡ Estimates sent within 10 minutes close 2× faster
+          </div>
+          <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.6, marginBottom: 10 }}>
+            Send this estimate now to improve your chances.
+          </div>
+          <button style={{ background: 'none', border: 'none', color: C.amber,
+            fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+            See Tips →
+          </button>
         </div>
-        <div style={{ fontSize: 13, color: '#B45309', lineHeight: 1.6, marginBottom: 10 }}>
-          Send this estimate now to improve your chances.
-        </div>
-        <button style={{ background: 'none', border: 'none', color: C.amber,
-          fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-          See Tips →
-        </button>
-      </div>
+      )}
 
     </div>
   )
