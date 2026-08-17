@@ -101,6 +101,7 @@ interface Props {
   templates?: GBBTemplate[]
   onSave: (updates: Partial<RoofingEstimate>) => Promise<void>
   onSend: () => Promise<void>
+  onCreateInvoice?: () => void
   onBack: () => void
   backLabel?: string
   darkMode?: boolean
@@ -222,7 +223,7 @@ function buildDefaultTiers(prices?: Record<string, number> | null): Tier[] {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function RoofingEstimatePage({ estimate, proId, templates = [], onSave, onSend, onBack, backLabel = 'Back to Lead', darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
+export default function RoofingEstimatePage({ estimate, proId, templates = [], onSave, onSend, onCreateInvoice, onBack, backLabel = 'Back to Lead', darkMode, onMeasurementsUpdate, materialPrices, onDirty, externalSaveMsg, isLocked = false }: Props) {
   const dk = darkMode ?? false
   const router = useRouter()
 
@@ -574,6 +575,7 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
   const textP = dk ? '#F1F5F9' : C.text
   const textS = dk ? '#94A3B8' : C.secondary
   const border= dk ? '#1E293B' : C.border
+  const inputBg = dk ? '#152540' : '#F8FAFC'   // row / input fill — dark-aware
 
   return (
     <div style={{ fontFamily: font, background: bg, minHeight: '100vh', color: textP }}>
@@ -687,6 +689,18 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
             Sign in person
           </button>
         )}
+        {estimate.status === 'approved' && onCreateInvoice && (
+          <button onClick={onCreateInvoice}
+            style={{ padding: '9px 22px', borderRadius: 10, border: 'none',
+              background: `linear-gradient(135deg, ${C.teal}, #0D9488)`,
+              color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Create Invoice
+          </button>
+        )}
         {estimate.status === 'invoiced' && (estimate as any).lead_id && (
           <button onClick={() => router.push(`/dashboard/roofing/calculator?lead_id=${(estimate as any).lead_id}&from=estimate`)}
             style={{ padding: '9px 18px', borderRadius: 10, border: `1.5px solid ${C.teal}`,
@@ -797,7 +811,7 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
             editMeas={editMeas} setEditMeas={setEditMeas}
             savingMeas={savingMeas} onSaveMeas={saveMeasurements}
             isLocked={isLocked}
-            estType={estType} leadId={(estimate as any).lead_id}
+            estType={estType} leadId={(estimate as any).lead_id} inputBg={inputBg}
           />
 
           {/* Client contact — only for blank estimates (no lead) */}
@@ -929,6 +943,7 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
               onUpdateLabel={isLocked ? undefined : ((key, label) => { setTiers(prev => prev.map(t => t.key === key ? { ...t, label } : t)); setIsDirty(true) })}
               onUpdateBrand={isLocked ? undefined : ((key, brand) => { setTiers(prev => prev.map(t => t.key === key ? { ...t, shingle_brand: brand } : t)); setIsDirty(true) })}
               onUpdateWarranty={isLocked ? undefined : ((key, w) => { setTiers(prev => prev.map(t => t.key === key ? { ...t, warranty: w } : t)); setIsDirty(true) })}
+              inputBg={inputBg}
               card={card} border={border} textP={textP} textS={textS}
               isLocked={isLocked}
               materialPrices={materialPrices}
@@ -954,7 +969,7 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
               onDelete={isLocked ? undefined : ((id) => {
                 setStdItems(prev => { const next = prev.filter(i => i.id !== id); checkDirty({ stdItems: next }); return next })
               })}
-              card={card} border={border} textP={textP} textS={textS}
+              card={card} border={border} textP={textP} textS={textS} inputBg={inputBg}
               isLocked={isLocked}
             />
           )}
@@ -964,7 +979,7 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
 
           {/* Insurance claim — only when relevant */}
           {(estimate.insurance_claim || !!(estimate.approved_amount || estimate.claim_number)) && (
-            <InsuranceCard estimate={estimate} computedTotal={total} card={card} border={border} textP={textP} textS={textS} leadId={(estimate as any).lead_id} />
+            <InsuranceCard estimate={estimate} computedTotal={total} card={card} border={border} textP={textP} textS={textS} leadId={(estimate as any).lead_id} inputBg={inputBg} />
           )}
 
           {/* Terms */}
@@ -1153,8 +1168,8 @@ const PITCH_OPTIONS = ['3/12','4/12','5/12','6/12','7/12','8/12','9/12','10/12',
 function PropertyCard({ estimate, card, border, textP, textS,
   addrVal, setAddrVal, sqCount, setSqCount, pitchVal, setPitchVal, wastePct, setWastePct,
   ridgeFt, setRidgeFt, hipFt, setHipFt, valleyFt, setValleyFt,
-  editMeas, setEditMeas, savingMeas, onSaveMeas, isLocked = false, estType, leadId }: {
-  estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string
+  editMeas, setEditMeas, savingMeas, onSaveMeas, isLocked = false, estType, leadId, inputBg = '#F8FAFC' }: {
+  estimate: RoofingEstimate; card: string; border: string; textP: string; textS: string; inputBg?: string
   addrVal: string; setAddrVal: (v: string) => void
   sqCount: string; setSqCount: (v: string) => void
   pitchVal: string; setPitchVal: (v: string) => void
@@ -1245,7 +1260,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
               placeholder="9933 Orchard Hills Rd, Jacksonville FL 32256"
               style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 8,
                 padding: '10px 12px', fontSize: 14, outline: 'none',
-                background: '#F8FAFC', color: textP, boxSizing: 'border-box' }}
+                background: inputBg, color: textP, boxSizing: 'border-box' }}
               onFocus={e => (e.target.style.borderColor = C.teal)}
               onBlur={e => (e.target.style.borderColor = border)}
             />
@@ -1266,7 +1281,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
                 style={{ width: '100%', border: `1.5px solid ${parseFloat(sqCount) > 0 ? C.teal : border}`,
                   borderRadius: 8, padding: '10px 12px', fontSize: 16, fontWeight: 700,
                   outline: 'none', boxSizing: 'border-box',
-                  background: parseFloat(sqCount) > 0 ? C.tealLight : '#F8FAFC', color: textP }}
+                  background: parseFloat(sqCount) > 0 ? C.tealLight : inputBg, color: textP }}
                 onFocus={e => e.target.style.borderColor = C.teal}
                 onBlur={e => e.target.style.borderColor = parseFloat(sqCount) > 0 ? C.teal : border}
               />
@@ -1283,7 +1298,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
                 onChange={e => setPitchVal(e.target.value)}
                 style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 8,
                   padding: '10px 12px', fontSize: 15, outline: 'none',
-                  background: '#F8FAFC', color: textP, boxSizing: 'border-box',
+                  background: inputBg, color: textP, boxSizing: 'border-box',
                   cursor: 'pointer' }}>
                 {PITCH_OPTIONS.map(p => (
                   <option key={p} value={p}>{p}</option>
@@ -1299,7 +1314,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
                 onChange={e => setWastePct(e.target.value)}
                 style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 8,
                   padding: '10px 12px', fontSize: 15, outline: 'none',
-                  background: '#F8FAFC', color: textP, boxSizing: 'border-box',
+                  background: inputBg, color: textP, boxSizing: 'border-box',
                   cursor: 'pointer' }}>
                 {[10,12,15,18,20].map(w => (
                   <option key={w} value={w}>{w}%{w === 10 ? ' (standard)' : w === 15 ? ' (complex)' : ''}</option>
@@ -1330,7 +1345,7 @@ function PropertyCard({ estimate, card, border, textP, textS,
                       placeholder="0"
                       style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 8,
                         padding: '9px 11px', fontSize: 15, fontWeight: 600,
-                        outline: 'none', boxSizing: 'border-box', background: '#F8FAFC', color: textP }}
+                        outline: 'none', boxSizing: 'border-box', background: inputBg, color: textP }}
                       onFocus={e => e.target.style.borderColor = C.teal}
                       onBlur={e => e.target.style.borderColor = border}
                     />
@@ -1371,7 +1386,7 @@ function MeasPill({ label, warn }: { label: string; warn: boolean }) {
 }
 
 // ── ProposalTypeToggle ──────────────────────────────────────────────────────────
-function ProposalTypeToggle({ value, onChange, card, border, textP, textS }: {
+function ProposalTypeToggle({ value, onChange, card, border, textP, textS, inputBg = '#F8FAFC' }: {
   value: 'standard' | 'tiered'
   onChange: (v: 'standard' | 'tiered') => void
   card: string; border: string; textP: string; textS: string
@@ -1383,7 +1398,7 @@ function ProposalTypeToggle({ value, onChange, card, border, textP, textS }: {
         <span style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: textS }}>
           Proposal Type
         </span>
-        <div style={{ display: 'flex', background: '#F8FAFC', borderRadius: 10, border: `1px solid ${border}`, padding: 4, gap: 4 }}>
+        <div style={{ display: 'flex', background: inputBg, borderRadius: 10, border: `1px solid ${border}`, padding: 4, gap: 4 }}>
           {(['standard', 'tiered'] as const).map(v => (
             <button key={v} onClick={() => onChange(v)}
               style={{ padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
@@ -1408,7 +1423,7 @@ function ProposalTypeToggle({ value, onChange, card, border, textP, textS }: {
 // Collapsed by default — one tier expanded at a time for editing
 function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, onDeleteItem,
   onUpdateLabel, onUpdateBrand, onUpdateWarranty,
-  card, border, textP, textS, isLocked = false, materialPrices, isWide = true }: {
+  card, border, textP, textS, isLocked = false, materialPrices, isWide = true, inputBg = '#FAFAFA' }: {
   tiers: Tier[]
   selectedTier: TierKey
   onSelect?: (k: TierKey) => void
@@ -1418,7 +1433,7 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
   onUpdateLabel?: (tier: TierKey, label: string) => void
   onUpdateBrand?: (tier: TierKey, brand: string) => void
   onUpdateWarranty?: (tier: TierKey, w: string) => void
-  card: string; border: string; textP: string; textS: string
+  card: string; border: string; textP: string; textS: string; inputBg?: string
   isLocked?: boolean
   materialPrices?: Record<string, number> | null
   isWide?: boolean
@@ -1539,7 +1554,7 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
             isLocked={isLocked}
             onSelect={onSelect ? () => onSelect(tier.key) : undefined}
             onEdit={isLocked ? undefined : () => openModal(tier.key)}
-            border={border} textP={textP} textS={textS}
+            border={border} textP={textP} textS={textS} inputBg={inputBg}
           />
           </div>
         ))}
@@ -1564,15 +1579,15 @@ function GBBSection({ tiers, selectedTier, onSelect, onUpdateItem, onAddItem, on
 }
 
 // ── TierCard — pure read-only display ─────────────────────────────────────────
-function TierCard({ tier, selected, isLocked = false, onSelect, onEdit, border, textP, textS }: {
+function TierCard({ tier, selected, isLocked = false, onSelect, onEdit, border, textP, textS, inputBg = '#FAFAFA' }: {
   tier: Tier; selected: boolean; isLocked?: boolean
   onSelect?: () => void
   onEdit?: () => void
-  border: string; textP: string; textS: string
+  border: string; textP: string; textS: string; inputBg?: string
 }) {
   const isPremium  = tier.key === 'premium'
   const isUpgraded = tier.key === 'upgraded'
-  const cardBg     = selected ? C.tealLight : '#FAFAFA'
+  const cardBg     = selected ? C.tealLight : inputBg
   const cardBorder = selected ? `2px solid ${C.teal}` : `1px solid ${border}`
 
   return (
@@ -1857,11 +1872,11 @@ function TierEditModal({ tier, onUpdateField, onUpdateItem, onAddItem, onDeleteI
 
 
 function StandardSection({ items, onUpdateItem, onAdd, onDelete,
-  card, border, textP, textS, isLocked = false }: {
+  card, border, textP, textS, inputBg = '#F8FAFC', isLocked = false }: {
   items: TierLineItem[]
   onUpdateItem?: (id: string, field: keyof TierLineItem, val: string | number) => void
   onAdd?: (id: string) => void; onDelete?: (id: string) => void
-  card: string; border: string; textP: string; textS: string
+  card: string; border: string; textP: string; textS: string; inputBg?: string
   isLocked?: boolean
 }) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
@@ -1877,7 +1892,7 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
         {items.map(item => (
           <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 90px 32px',
             gap: 10, alignItems: 'center', padding: '10px 14px', borderRadius: 10,
-            background: '#F8FAFC', border: `1px solid ${border}` }}>
+            background: inputBg, border: `1px solid ${border}` }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
               <input value={item.name} onChange={e => onUpdateItem?.(item.id, 'name', e.target.value)}
                 placeholder="Item name"
@@ -1886,20 +1901,20 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
                   color: textP, outline: 'none', width: '100%' }} />
               {item.source === 'measurement' && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
-                  fontSize: 10.5, fontWeight: 700, color: '#0F766E', background: '#F0FDFA',
-                  border: '1px solid #99F6E4', borderRadius: 5, padding: '1px 6px', whiteSpace: 'nowrap' }}>
+                  fontSize: 10.5, fontWeight: 700, color: '#5EEAD4', background: 'rgba(20,184,166,0.12)',
+                  border: '1px solid rgba(20,184,166,0.35)', borderRadius: 5, padding: '1px 6px', whiteSpace: 'nowrap' }}>
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                   Detected from measurements
                 </span>
               )}
             </div>
             <input value={item.qty} type="number" onChange={e => onUpdateItem?.(item.id, 'qty', Number(e.target.value))}
-              style={{ background: '#fff', padding: '6px 8px', borderRadius: 6,
+              style={{ background: card, padding: '6px 8px', borderRadius: 6,
                 border: `1px solid ${border}`,
                 fontSize: 14, textAlign: 'center', outline: 'none', color: textP }} />
             <input value={item.unit_price} type="number"
               onChange={e => onUpdateItem?.(item.id, 'unit_price', Number(e.target.value))}
-              style={{ border: `1px solid ${border}`, background: '#fff', padding: '6px 8px',
+              style={{ border: `1px solid ${border}`, background: card, padding: '6px 8px',
                 borderRadius: 6, fontSize: 14, textAlign: 'right', outline: 'none', color: textP }} />
             <div style={{ fontSize: 14, fontWeight: 700, color: textP, textAlign: 'right' }}>
               {fmt(item.amount)}
@@ -1998,7 +2013,7 @@ function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = fal
             placeholder="Describe the scope of work — materials, removal, cleanup, any special conditions..."
             style={{ width: '100%', border: `1.5px solid ${border}`, borderRadius: 10, padding: '12px 14px',
               fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
-              background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
+              background: inputBg, outline: 'none', boxSizing: 'border-box' }}
             onFocus={e => (e.target.style.borderColor = C.teal)}
             onBlur={e => (e.target.style.borderColor = border)} />
           <div style={{ textAlign: 'right', fontSize: 12, color: C.muted, marginTop: 6 }}>
@@ -2011,8 +2026,8 @@ function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = fal
 }
 
 // ── InsuranceCard ──────────────────────────────────────────────────────────────
-function InsuranceCard({ estimate, computedTotal, card, border, textP, textS, leadId }: {
-  estimate: RoofingEstimate; computedTotal: number; card: string; border: string; textP: string; textS: string; leadId?: string
+function InsuranceCard({ estimate, computedTotal, card, border, textP, textS, leadId, inputBg = '#F8FAFC' }: {
+  estimate: RoofingEstimate; computedTotal: number; card: string; border: string; textP: string; textS: string; leadId?: string; inputBg?: string
 }) {
   const router          = useRouter()
   const approved        = estimate.approved_amount   ?? 0
@@ -2151,7 +2166,7 @@ function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS
           rows={5}
           style={{ width: '100%', marginTop: 14, border: `1.5px solid ${border}`, borderRadius: 10,
             padding: '12px 14px', fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
-            background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
+            background: dk ? '#152540' : '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
           onFocus={e => (e.target.style.borderColor = C.teal)}
           onBlur={e => (e.target.style.borderColor = border)} />
       )}
@@ -2254,7 +2269,7 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
 
         {/* Validity */}
         <div style={{ padding: '10px 14px', borderRadius: 10, marginBottom: 0,
-          background: expiring ? C.amberBg : '#F8FAFC',
+          background: expiring ? C.amberBg : (dk ? '#152540' : '#F8FAFC'),
           border: `1px solid ${expiring ? C.amberBorder : border}` }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: expiring ? C.amber : textS }}>
             📅 Valid until: {new Date(validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
