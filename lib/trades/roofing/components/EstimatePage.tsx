@@ -975,7 +975,7 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
           )}
 
           {/* Scope of work */}
-          <ScopeCard scope={scope} onChange={isLocked ? undefined : (v => { setScope(v); checkDirty({ scope: v }) })} card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} />
+          <ScopeCard scope={scope} onChange={isLocked ? undefined : (v => { setScope(v); checkDirty({ scope: v }) })} card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} inputBg={inputBg} />
 
           {/* Insurance claim — only when relevant */}
           {(estimate.insurance_claim || !!(estimate.approved_amount || estimate.claim_number)) && (
@@ -984,7 +984,7 @@ export default function RoofingEstimatePage({ estimate, proId, templates = [], o
 
           {/* Terms */}
           <TermsCard terms={terms} onChange={isLocked ? undefined : (v => { setTerms(v); checkDirty({ terms: v }) })} show={showTerms} onToggle={() => setShowTerms(p => !p)}
-            card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} />
+            card={card} border={border} textP={textP} textS={textS} readOnly={isLocked} inputBg={inputBg} />
 
         </div>
 
@@ -1990,9 +1990,9 @@ function StandardSection({ items, onUpdateItem, onAdd, onDelete,
 }
 
 // ── ScopeCard ──────────────────────────────────────────────────────────────────
-function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = false }: {
+function ScopeCard({ scope, onChange, card, border, textP, textS, readOnly = false, inputBg = '#F8FAFC' }: {
   scope: string; onChange?: (v: string) => void
-  card: string; border: string; textP: string; textS: string
+  card: string; border: string; textP: string; textS: string; inputBg?: string
   readOnly?: boolean
 }) {
   return (
@@ -2138,10 +2138,10 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS, le
 }
 
 // ── TermsCard ──────────────────────────────────────────────────────────────────
-function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS, readOnly = false }: {
+function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS, readOnly = false, inputBg = '#F8FAFC' }: {
   terms: string; onChange?: (v: string) => void
   show: boolean; onToggle: () => void
-  card: string; border: string; textP: string; textS: string
+  card: string; border: string; textP: string; textS: string; inputBg?: string
   readOnly?: boolean
 }) {
   return (
@@ -2166,7 +2166,7 @@ function TermsCard({ terms, onChange, show, onToggle, card, border, textP, textS
           rows={5}
           style={{ width: '100%', marginTop: 14, border: `1.5px solid ${border}`, borderRadius: 10,
             padding: '12px 14px', fontSize: 14, color: textP, resize: 'vertical', lineHeight: 1.7,
-            background: dk ? '#152540' : '#F8FAFC', outline: 'none', boxSizing: 'border-box' }}
+            background: inputBg, outline: 'none', boxSizing: 'border-box' }}
           onFocus={e => (e.target.style.borderColor = C.teal)}
           onBlur={e => (e.target.style.borderColor = border)} />
       )}
