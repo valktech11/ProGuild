@@ -237,7 +237,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk=fa
         </div>
 
         {/* ════ RIGHT PANEL — white, form fields ═══════════════════════════════ */}
-        <div style={{flex:1,display:'flex',flexDirection:'column',background:'#fff',minWidth:0,minHeight:0}}>
+        <div style={{flex:1,display:'flex',flexDirection:'column',background:dk?'#0F172A':'#fff',minWidth:0,minHeight:0}}>
 
           {/* Right header */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'20px 24px 16px',borderBottom:`1px solid ${BORDER}`,flexShrink:0}}>
@@ -360,7 +360,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk=fa
             </div>
             {/* Right: buttons */}
             <div style={{display:'flex',gap:10}}>
-              <button onClick={onClose} style={{padding:'9px 20px',borderRadius:8,background:'#fff',border:`1.5px solid ${BORDER}`,color:'#64748B',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+              <button onClick={onClose} style={{padding:'9px 20px',borderRadius:8,background:dk?'#1E293B':'#fff',border:`1.5px solid ${dk?'#2D3748':BORDER}`,color:dk?'#94A3B8':'#64748B',fontSize:13,fontWeight:600,cursor:'pointer'}}>
                 Cancel
               </button>
               <button onClick={save} disabled={saving} style={{

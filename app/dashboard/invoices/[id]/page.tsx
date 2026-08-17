@@ -128,7 +128,7 @@ function RecordPaymentModal({ invoice, paidMs, onRecord, onClose, t }: {
     <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center',
       justifyContent: 'center', background: 'rgba(0,0,0,0.5)', padding: 20 }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 480,
+      <div style={{ background: t.cardBg, borderRadius: 20, width: '100%', maxWidth: 480,
         boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${C.border}`,
@@ -192,7 +192,7 @@ function RecordPaymentModal({ invoice, paidMs, onRecord, onClose, t }: {
                 letterSpacing: '0.08em', color: C.muted, marginBottom: 6 }}>Method</div>
               <select value={method} onChange={e => setMethod(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${C.border}`,
-                  borderRadius: 10, fontSize: 14, outline: 'none', background: '#fff' }}>
+                  borderRadius: 10, fontSize: 14, outline: 'none', background: t.inputBg }}>
                 {['Cash','Check','Zelle','Venmo','Card','Bank Transfer','Other'].map(m => (
                   <option key={m} value={m.toLowerCase().replace(' ', '_')}>{m}</option>
                 ))}
