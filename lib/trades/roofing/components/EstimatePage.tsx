@@ -1389,7 +1389,7 @@ function MeasPill({ label, warn }: { label: string; warn: boolean }) {
 function ProposalTypeToggle({ value, onChange, card, border, textP, textS, inputBg = '#F8FAFC' }: {
   value: 'standard' | 'tiered'
   onChange: (v: 'standard' | 'tiered') => void
-  card: string; border: string; textP: string; textS: string
+  card: string; border: string; textP: string; textS: string; inputBg?: string
 }) {
   return (
     <div style={{ background: card, borderRadius: 16, padding: '20px 24px', boxShadow: SHADOW_SM,
