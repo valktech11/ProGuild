@@ -39,6 +39,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!session?.id) return
+    if (process.env.NEXT_PUBLIC_STRIPE_CONNECT_ENABLED !== 'true') return
     // Fetch Connect status on mount + on return from Stripe onboarding
     apiFetch('/api/stripe/connect/status')
       .then(r => r.json())
@@ -182,7 +183,8 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* ── Stripe Connect card ─────────────────────────────────────────── */}
+        {/* ── Stripe Connect card — hidden unless STRIPE_CONNECT_ENABLED=true ── */}
+        {process.env.NEXT_PUBLIC_STRIPE_CONNECT_ENABLED === 'true' && (
         <div style={{ ...card, marginBottom: 18 }}>
           <div style={sectionLabel}>CARD PAYMENTS</div>
           {connectStatus?.stripe_onboarding_status === 'active' ? (
@@ -231,6 +233,7 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+        )}
 
         <div style={{ ...card, marginBottom: 18 }}>
           <div style={sectionLabel}>BILLING & PLAN</div>
