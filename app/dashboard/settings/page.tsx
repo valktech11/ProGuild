@@ -25,6 +25,42 @@ export default function SettingsPage() {
   const [delDone, setDelDone]     = useState(false)
   const [delConfirm, setDelConfirm] = useState(false)
 
+  // Stripe Connect state
+  type ConnectStatus = { stripe_account_id: string | null; stripe_charges_enabled: boolean; stripe_onboarding_status: string }
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null)
+  const [connectBusy, setConnectBusy]     = useState(false)
+  const [connectErr, setConnectErr]       = useState('')
+
+  // Check search params for stripe_connect return/refresh
+  const stripeConnectReturn = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('stripe_connect')
+    : null
+
+  useEffect(() => {
+    if (!session?.id) return
+    // Fetch Connect status on mount + on return from Stripe onboarding
+    fetch('/api/stripe/connect/status', { headers: { 'Content-Type': 'application/json' } })
+      .then(r => r.json())
+      .then(d => setConnectStatus(d))
+      .catch(() => {})
+  }, [session?.id, stripeConnectReturn])
+
+  async function handleConnectStripe() {
+    if (!session?.id) return
+    setConnectBusy(true); setConnectErr('')
+    try {
+      const res  = await fetch('/api/stripe/connect/onboard', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pro_id: session.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setConnectErr(data.error || 'Could not start onboarding'); setConnectBusy(false); return }
+      window.location.href = data.url
+    } catch {
+      setConnectErr('Could not start onboarding'); setConnectBusy(false)
+    }
+  }
+
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
@@ -143,6 +179,56 @@ export default function SettingsPage() {
               Log out →
             </button>
           </div>
+        </div>
+
+        {/* ── Stripe Connect card ─────────────────────────────────────────── */}
+        <div style={{ ...card, marginBottom: 18 }}>
+          <div style={sectionLabel}>CARD PAYMENTS</div>
+          {connectStatus?.stripe_onboarding_status === 'active' ? (
+            // Active — charges enabled
+            <div style={{ ...linkRow, borderBottom: 'none' }}>
+              <div>
+                <div style={{ ...rowLabel, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Card Payments
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#065F46', background: '#D1FAE5', borderRadius: 20, padding: '2px 8px' }}>Active</span>
+                </div>
+                <div style={rowSub}>Homeowners can pay invoices by card. Stripe deposits directly to your account.</div>
+              </div>
+            </div>
+          ) : connectStatus?.stripe_onboarding_status === 'pending' || connectStatus?.stripe_onboarding_status === 'restricted' ? (
+            // Pending — account created but onboarding incomplete
+            <div style={{ ...linkRow, borderBottom: 'none' }}>
+              <div>
+                <div style={{ ...rowLabel, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Card Payments
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#92400E', background: '#FEF3C7', borderRadius: 20, padding: '2px 8px' }}>Pending</span>
+                </div>
+                <div style={rowSub}>Stripe onboarding is incomplete. Finish setup to accept card payments.</div>
+              </div>
+              <button onClick={handleConnectStripe} disabled={connectBusy}
+                style={{ fontSize: 13.5, color: '#2DD4BF', fontWeight: 600, background: 'none', border: 'none', cursor: connectBusy ? 'default' : 'pointer', opacity: connectBusy ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                {connectBusy ? 'Opening…' : 'Resume →'}
+              </button>
+            </div>
+          ) : (
+            // Not started — show disclosure + connect button
+            <div>
+              <div style={{ background: dk ? '#1E293B' : '#F8FAFC', border: `1px solid ${dk ? '#334155' : '#E2E8F0'}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginBottom: 6 }}>Accept card payments from homeowners</div>
+                <div style={{ fontSize: 12.5, color: t.textSubtle, lineHeight: 1.6 }}>
+                  Connect your Stripe account so homeowners can pay invoices by card. Funds deposit directly to your bank — ProGuild never holds your money.
+                </div>
+                <div style={{ fontSize: 12, color: '#B45309', fontWeight: 600, marginTop: 10, padding: '8px 12px', background: dk ? '#292524' : '#FFFBEB', borderRadius: 8, border: '1px solid #FDE68A' }}>
+                  Stripe charges 2.9% + 30¢ per transaction, deducted from each payout to you. ProGuild does not charge an additional fee.
+                </div>
+              </div>
+              {connectErr && <p style={{ fontSize: 12.5, color: '#DC2626', marginBottom: 10 }}>{connectErr}</p>}
+              <button onClick={handleConnectStripe} disabled={connectBusy}
+                style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: connectBusy ? '#CBD5E1' : 'linear-gradient(135deg,#0F766E,#0D9488)', color: 'white', fontSize: 14, fontWeight: 700, cursor: connectBusy ? 'default' : 'pointer' }}>
+                {connectBusy ? 'Redirecting to Stripe…' : 'I understand — connect my Stripe account →'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ ...card, marginBottom: 18 }}>

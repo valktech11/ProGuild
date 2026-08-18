@@ -23,7 +23,7 @@ export async function GET(
       payment_terms, payment_milestones, payment_history,
       issue_date, due_date, sent_at, viewed_at, paid_at, notes, terms,
       estimate_id, lead_id, pro_id,
-      pro:pros(full_name, business_name, city, state, phone_cell, logo_url, license_number)
+      pro:pros(full_name, business_name, city, state, phone_cell, logo_url, license_number, stripe_charges_enabled)
     `)
     .eq('id', id)
     .single()

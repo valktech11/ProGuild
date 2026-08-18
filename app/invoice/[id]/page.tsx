@@ -7,7 +7,7 @@ import { use, useEffect, useState } from 'react'
 type Milestone = { id: string; name: string; pct: number; amount: number; due_when: string }
 
 function MilestonePaySection({
-  invoiceId, milestones, paidMilestones, balanceDue, total, onPaid, paymentHistory
+  invoiceId, milestones, paidMilestones, balanceDue, total, onPaid, paymentHistory, cardEnabled
 }: {
   invoiceId: string
   milestones: Milestone[]
@@ -16,6 +16,7 @@ function MilestonePaySection({
   total: number
   onPaid: (milestoneName: string, amount: number) => void
   paymentHistory: Array<{ milestone_name: string; amount: number }> | null
+  cardEnabled: boolean
 }) {
   const fmtLocal = (n: number | null | undefined) =>
     '$' + (n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -44,7 +45,7 @@ function MilestonePaySection({
 
   const [step, setStep]         = useState<'select' | 'confirm' | 'success'>('select')
   const [selMilestone, setSel]  = useState<Milestone | null>(nextDue)
-  const [method, setMethod]     = useState<string>('card')
+  const [method, setMethod]     = useState<string>(cardEnabled ? 'card' : 'offline')
   const [reference, setRef]     = useState('')
   const [submitting, setSub]    = useState(false)
   const [error, setError]       = useState<string | null>(null)
@@ -202,25 +203,27 @@ function MilestonePaySection({
             <div className="text-sm text-gray-600 mt-1">{selMilestone.name} · {selMilestone.pct}%</div>
           </div>
 
-          {/* Payment method — 2 clear options */}
+          {/* Payment method — card only shown if pro has active Connect account */}
           <div className="mb-5">
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
               How would you like to pay?
             </label>
             <div className="flex flex-col gap-3">
-              <button onClick={() => setMethod('card')}
-                className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
-                  method === 'card'
-                    ? 'border-[#0F766E] bg-[#F0FDFA]'
-                    : 'border-gray-200 bg-white hover:border-[#0F766E]'
-                }`}>
-                <div className="text-2xl">💳</div>
-                <div>
-                  <div className="text-sm font-bold text-gray-900">Pay by Card</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Secure online payment — you'll be redirected to Stripe</div>
-                </div>
-                {method === 'card' && <div className="ml-auto w-5 h-5 rounded-full bg-[#0F766E] flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-white"/></div>}
-              </button>
+              {cardEnabled && (
+                <button onClick={() => setMethod('card')}
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                    method === 'card'
+                      ? 'border-[#0F766E] bg-[#F0FDFA]'
+                      : 'border-gray-200 bg-white hover:border-[#0F766E]'
+                  }`}>
+                  <div className="text-2xl">💳</div>
+                  <div>
+                    <div className="text-sm font-bold text-gray-900">Pay by Card</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Secure online payment — you'll be redirected to Stripe</div>
+                  </div>
+                  {method === 'card' && <div className="ml-auto w-5 h-5 rounded-full bg-[#0F766E] flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-white"/></div>}
+                </button>
+              )}
               <button onClick={() => setMethod('offline')}
                 className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
                   method === 'offline'
@@ -599,6 +602,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
               balanceDue={balanceDue}
               total={invoice.total}
               paymentHistory={invoice.payment_history ?? []}
+              cardEnabled={!!(invoice as any).pro?.stripe_charges_enabled}
               onPaid={(name, amount) => {
                 // Update payment_history optimistically so the partial-payment
                 // progress recomputes immediately without a full refetch.
