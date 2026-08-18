@@ -6,6 +6,7 @@ import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { theme } from '@/lib/tokens'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import { apiFetch } from '@/lib/api-fetch'
 
 // App version shown to the user — bump alongside meaningful web releases.
 // (Mobile has its own pubspec.yaml version; this is web's own marker, not shared.)
@@ -39,7 +40,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!session?.id) return
     // Fetch Connect status on mount + on return from Stripe onboarding
-    fetch('/api/stripe/connect/status', { headers: { 'Content-Type': 'application/json' } })
+    apiFetch('/api/stripe/connect/status')
       .then(r => r.json())
       .then(d => setConnectStatus(d))
       .catch(() => {})
@@ -49,7 +50,7 @@ export default function SettingsPage() {
     if (!session?.id) return
     setConnectBusy(true); setConnectErr('')
     try {
-      const res  = await fetch('/api/stripe/connect/onboard', {
+      const res  = await apiFetch('/api/stripe/connect/onboard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pro_id: session.id }),
       })
