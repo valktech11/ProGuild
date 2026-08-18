@@ -8,18 +8,21 @@ function u(loc: string, priority: string, freq: string) {
 }
 
 export async function GET() {
+  // Trade group hub pages
+  const TRADE_GROUPS = ['mechanical', 'structural', 'finishing', 'property', 'specialty']
+
   const urls = [
     u(BASE,                '1.0', 'weekly'),
-    u(`${BASE}/search`,    '0.9', 'daily'),
     u(`${BASE}/fl`,        '0.9', 'weekly'),
-    u(`${BASE}/post-job`,  '0.8', 'monthly'),
-    u(`${BASE}/community`, '0.8', 'daily'),
-    u(`${BASE}/jobs`,      '0.7', 'daily'),
     u(`${BASE}/about`,     '0.5', 'monthly'),
     u(`${BASE}/contact`,   '0.4', 'monthly'),
     u(`${BASE}/privacy`,   '0.3', 'yearly'),
     u(`${BASE}/terms`,     '0.3', 'yearly'),
+    // Trade group hubs (fl/mechanical, fl/structural etc)
+    ...TRADE_GROUPS.map(g => u(`${BASE}/fl/${g}`, '0.85', 'weekly')),
+    // Individual trade pages
     ...DBPR_TRADES.map(t => u(`${BASE}/fl/${t.slug}`, '0.9', 'weekly')),
+    // Trade + city pages (210 pages)
     ...DBPR_TRADES.flatMap(t =>
       FL_SEO_CITIES.map(c => u(`${BASE}/fl/${t.slug}/${cityToSlug(c)}`, '0.8', 'weekly'))
     ),

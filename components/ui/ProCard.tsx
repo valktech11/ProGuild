@@ -52,9 +52,9 @@ function UnclaimedContactForm({ pro }: { pro: ProCardProps['pro'] }) {
       <div className="mt-3 rounded-xl p-4 text-center"
         style={{ background: 'rgba(15,118,110,0.06)', border: '1px solid rgba(15,118,110,0.2)' }}>
         <div className="text-2xl mb-1">✓</div>
-        <div className="text-sm font-semibold" style={{ color: '#0C5F57' }}>Request sent!</div>
+        <div className="text-sm font-semibold" style={{ color: '#0C5F57' }}>Enquiry sent!</div>
         <div className="text-xs mt-1" style={{ color: '#6B7280' }}>
-          We'll reach out to {pro.full_name.split(' ')[0]} on your behalf.
+          Your request has been saved. When {pro.full_name.split(' ')[0]} joins ProGuild, they will see your enquiry waiting for them.
         </div>
       </div>
     )
@@ -62,16 +62,11 @@ function UnclaimedContactForm({ pro }: { pro: ProCardProps['pro'] }) {
 
   if (!open) {
     return (
-      <div className="mt-3 space-y-2">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
-          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#92400E' }}>
-          <span>⚠</span>
-          <span>This pro hasn't claimed their profile yet</span>
-        </div>
+      <div className="mt-3">
         <button onClick={() => setOpen(true)}
           className="w-full py-2.5 rounded-lg text-sm font-semibold text-white"
           style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-          Request contact from this pro →
+          Send an enquiry →
         </button>
       </div>
     )
