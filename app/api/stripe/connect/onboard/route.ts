@@ -24,11 +24,15 @@ export async function POST(req: NextRequest) {
   // Load pro to check existing account
   const { data: pro } = await sb
     .from('pros')
-    .select('id, full_name, business_name, email, stripe_account_id, stripe_onboarding_status')
+    .select('id, full_name, business_name, stripe_account_id, stripe_onboarding_status')
     .eq('id', proId)
     .single()
 
   if (!pro) return NextResponse.json({ error: 'Pro not found' }, { status: 404 })
+
+  // Get email from auth.users via admin client
+  const { data: authUser } = await sb.auth.admin.getUserById(auth.authUserId ?? '')
+  const email = authUser?.user?.email ?? undefined
 
   let accountId = pro.stripe_account_id as string | null
 
@@ -37,7 +41,7 @@ export async function POST(req: NextRequest) {
     const account = await stripe.accounts.create({
       type:    'express',
       country: 'US',
-      email:   pro.email ?? undefined,
+      email:   email,
       business_profile: {
         name: pro.business_name ?? pro.full_name ?? undefined,
         mcc:  '1761', // Roofing, Siding, Sheet Metal Work
