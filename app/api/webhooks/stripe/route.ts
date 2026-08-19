@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       const proId = session.metadata?.pro_id
       if (proId) {
         await sb.from('pros').update({
-          plan_tier:     'pro',
+          plan_tier:     'Pro',
           trial_ends_at: null,   // clear trial gate — they're now paying
           updated_at:    new Date().toISOString(),
         }).eq('id', proId)
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
       if (pro) {
         await sb.from('pros').update({
-          plan_tier:     'pro',
+          plan_tier:     'Pro',
           trial_ends_at: null,
           updated_at:    new Date().toISOString(),
         }).eq('id', pro.id)
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     if (pro) {
       await sb.from('pros').update({
-        plan_tier:  'free',
+        plan_tier:  'Free',
         updated_at: new Date().toISOString(),
       }).eq('id', pro.id)
       console.log(`[webhooks/stripe] Plan downgraded to free for pro ${pro.id}`)

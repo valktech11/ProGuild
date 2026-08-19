@@ -18,7 +18,7 @@ export default function SubscribePage() {
     if (loading) return
     if (!session) { router.replace('/login'); return }
     const plan   = session.plan as string | null
-    const isPaid = plan === 'pro' || plan === 'elite'
+    const isPaid = plan === 'Pro' || plan === 'Elite' || plan === 'Pro_Founding' || plan === 'Elite_Founding' || plan === 'Pro_Annual' || plan === 'Elite_Annual'
     if (isPaid) router.replace('/dashboard')
   }, [loading, session, router])
 
