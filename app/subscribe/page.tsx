@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { apiFetch } from '@/lib/api-fetch'
 
-const ROOFING_SLUGS = new Set(['roofing', 'roofing-contractor'])
+const ROOFING_SLUGS = new Set(['roofing', 'roofing-contractor', 'roofer'])
 
 export default function SubscribePage() {
   const { session, loading } = useProSession()

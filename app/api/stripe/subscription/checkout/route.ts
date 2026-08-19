@@ -8,7 +8,7 @@ import { requirePro } from '@/lib/pro-auth'
 // Price is determined by trade_slug — roofing gets $49.99, all others $29.99.
 // No card required during trial — this is called when trial expires.
 
-const ROOFING_SLUGS = new Set(['roofing', 'roofing-contractor'])
+const ROOFING_SLUGS = new Set(['roofing', 'roofing-contractor', 'roofer'])
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
