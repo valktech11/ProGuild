@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
       name:           pro.full_name,
       email:          pro.email,
       plan:           pro.plan_tier,
+      trial_ends_at:  (pro as any).trial_ends_at ?? null,
       trade:          (pro.trade_category as any)?.category_name || null,
       trade_slug:     (pro as any).trade_slug || (pro.trade_category as any)?.slug || null,
       city:           pro.city,

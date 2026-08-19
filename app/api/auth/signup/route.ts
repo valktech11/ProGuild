@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
           is_claimed:   true,
           claimed_at:   new Date().toISOString(),
           is_verified:  verified,
+          trial_ends_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 3 months
           // Unmatched claims go to manual review queue; matched stay Active.
           ...(verified ? {} : { profile_status: 'Pending_Review' }),
         })
@@ -141,6 +142,7 @@ export async function POST(req: NextRequest) {
         is_claimed:        true,
         claimed_at:        new Date().toISOString(),
         is_verified:       false,   // license verified later in background
+        trial_ends_at:     new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 3 months
       })
       .select('*, trade_category:trade_categories(category_name, slug)')
       .single()
