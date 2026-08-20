@@ -67,10 +67,10 @@ export async function GET(req: NextRequest) {
 
   // Self-heal: if trade_slug missing on pros row (accounts created before this
   // was written at registration), backfill it from trade_category join.
-  // Fire-and-forget — never blocks the response.
+
   const resolvedTradeSlug = (pro as any).trade_slug || (pro.trade_category as any)?.slug || null
   if (!(pro as any).trade_slug && resolvedTradeSlug) {
-    void admin.from('pros').update({ trade_slug: resolvedTradeSlug }).eq('id', pro.id)
+        await admin.from('pros').update({ trade_slug: resolvedTradeSlug }).eq('id', pro.id)
   }
 
   return NextResponse.json({
