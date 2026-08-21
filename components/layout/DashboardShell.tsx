@@ -716,6 +716,8 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
 }
 
 // ── Main shell ────────────────────────────────────────────────────────────────
+import { TrialBanner } from '@/components/layout/TrialBanner'
+
 export default function DashboardShell({ children, session, newLeads = 0, onAddLead, darkMode, onToggleDark, fullBleed }: {
   children: React.ReactNode; session: Session | null; newLeads?: number; onAddLead?: () => void; darkMode?: boolean; onToggleDark?: () => void; fullBleed?: boolean
 }) {
@@ -841,6 +843,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
           <main className={`pg-main flex-1 flex flex-col ${fullBleed ? 'overflow-hidden' : 'overflow-y-auto'}`} style={{ backgroundColor: t.pageBg, color: dk ? '#F1F5F9' : undefined }}>
             {/* ── Top header bar ─────────────────────────────────────────── */}
             {session && <TopHeader session={session} dk={dk} onAddLead={onAddLead} onToggleDark={onToggleDark} />}
+            <TrialBanner session={session} />
             <div className={fullBleed ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1'}>
               {children}
             </div>
@@ -850,6 +853,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
         {/* ── MOBILE ───────────────────────────────────────────────────────── */}
         <div className="md:hidden" suppressHydrationWarning>
           <main className="pb-[68px] min-h-screen" style={{ backgroundColor: t.pageBg }}>
+            <TrialBanner session={session} />
             {children}
           </main>
           <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} pipelineLabel={getTradeConfig(session?.trade_slug).labels.pipeline} />
