@@ -93,76 +93,85 @@ async function runSam2(imgB64DataUri: string): Promise<{ individual_masks: strin
   throw new Error('SAM2 timed out after 120 seconds')
 }
 
-// ── GroundedSAM2 — text-guided segmentation ───────────────────────────────────
-// Uses idea-research/grounded-sam-2 on Replicate.
-// Text prompt targets roof-related surfaces; returns masks in same shape as SAM2.
-// Falls back to plain SAM2 if GroundedSAM2 returns zero masks (e.g. flat roofs
-// that don't match the prompt well).
-// Enable via VIZ_SEGMENT_ENGINE=grounded env var.
+// ── SAM2 point-prompted — roof-targeted segmentation ─────────────────────────
+// Instead of automatic mode (segments everything), we use SAM2 with foreground
+// point prompts placed in the upper-center region of the image where roofs
+// typically live. This gives 3-8 roof-specific candidates vs 30-60 from auto mode.
+// Falls back to automatic SAM2 if point-prompted returns zero masks.
 
-// Roof-related prompts — covers shingles, flat membrane, metal, tile
-const ROOF_PROMPTS = 'roof . roofing . shingles . tiles . flat roof . metal roof . pitched roof . dormer'
-
-async function runGroundedSam2(imgB64DataUri: string): Promise<{ individual_masks: string[] }> {
+async function runSam2Pointed(imgB64DataUri: string, imgW: number, imgH: number): Promise<{ individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
+  const SAM2_VERSION = 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b'
 
-  // Use model endpoint directly (no version hash needed — Replicate uses latest)
-  const createRes = await fetch(`${REPLICATE_API}/models/idea-research/grounded-sam-2/predictions`, {
+  // Place foreground points in the upper-center region (typical roof zone)
+  // 5 points spread across the upper 25-55% of image height, center 80% of width
+  const pts: number[][] = []
+  for (const yFrac of [0.28, 0.38, 0.45]) {
+    for (const xFrac of [0.35, 0.5, 0.65]) {
+      pts.push([Math.round(imgW * xFrac), Math.round(imgH * yFrac)])
+    }
+  }
+  const inputPoints = JSON.stringify([pts])       // [[x,y], ...] wrapped in outer array
+  const inputLabels = JSON.stringify([[...pts.map(() => 1)]])  // all foreground (1)
+
+  console.log(`[segment/pointed] SAM2 point-prompted with ${pts.length} points`)
+
+  const createRes = await fetch(`${REPLICATE_API}/predictions`, {
     method: 'POST', headers: authHeader,
     body: JSON.stringify({
+      version: SAM2_VERSION,
       input: {
         image:              imgB64DataUri,
-        text_prompt:        ROOF_PROMPTS,
-        box_threshold:      0.25,
-        text_threshold:     0.25,
-        multimask_output:   false,
+        input_points:       inputPoints,
+        input_labels:       inputLabels,
+        multimask_output:   true,
       },
     }),
   })
-  if (!createRes.ok) throw new Error(`GroundedSAM2 create failed ${createRes.status}: ${(await createRes.text()).slice(0, 300)}`)
+  if (!createRes.ok) throw new Error(`SAM2-pointed create failed ${createRes.status}: ${(await createRes.text()).slice(0, 300)}`)
   const prediction = await createRes.json()
-
-  const poll = async (): Promise<any> => {
-    if (prediction.status === 'succeeded') return prediction.output
-    if (prediction.status === 'failed') throw new Error(`GroundedSAM2 failed: ${prediction.error}`)
-    const pollUrl = prediction.urls?.get
-    if (!pollUrl) throw new Error('No poll URL from Replicate')
-    for (let i = 0; i < 24; i++) {
-      await new Promise(r => setTimeout(r, 5000))
-      const pollRes = await fetch(pollUrl, { headers: { 'Authorization': `Bearer ${REPLICATE_TOKEN}` } })
-      if (!pollRes.ok) continue
-      const p = await pollRes.json()
-      if (p.status === 'succeeded') return p.output
-      if (p.status === 'failed') throw new Error(`GroundedSAM2 failed: ${p.error}`)
-    }
-    throw new Error('GroundedSAM2 timed out after 120 seconds')
+  if (prediction.status === 'succeeded') return extractMasks(prediction.output)
+  if (prediction.status === 'failed') throw new Error(`SAM2-pointed failed: ${prediction.error}`)
+  const pollUrl = prediction.urls?.get
+  if (!pollUrl) throw new Error('No poll URL')
+  for (let i = 0; i < 24; i++) {
+    await new Promise(r => setTimeout(r, 5000))
+    const pollRes = await fetch(pollUrl, { headers: { 'Authorization': `Bearer ${REPLICATE_TOKEN}` } })
+    if (!pollRes.ok) continue
+    const poll = await pollRes.json()
+    if (poll.status === 'succeeded') return extractMasks(poll.output)
+    if (poll.status === 'failed') throw new Error(`SAM2-pointed failed: ${poll.error}`)
   }
+  throw new Error('SAM2-pointed timed out')
+}
 
-  const output = await poll()
-
-  // GroundedSAM2 output shape: { masks: string[], labels: string[], scores: number[] }
-  // Where masks are PNG URLs of individual segmentation masks
-  const masks: string[] = output?.masks ?? []
-
-  console.log(`[segment/grounded] GroundedSAM2 returned ${masks.length} masks for prompt: "${ROOF_PROMPTS}"`)
-
-  if (masks.length === 0) {
-    // No roof detected — fall back to plain SAM2
-    console.warn('[segment/grounded] Zero masks from GroundedSAM2 — falling back to SAM2')
-    return runSam2(imgB64DataUri)
-  }
-
-  return { individual_masks: masks }
+// SAM2 point-prompted output shape differs from automatic mode
+// automatic: { individual_masks: string[] }
+// point-prompted: string[] (direct mask URLs) or { masks: string[] }
+function extractMasks(output: any): { individual_masks: string[] } {
+  if (!output) return { individual_masks: [] }
+  if (Array.isArray(output)) return { individual_masks: output.filter((u: any) => typeof u === 'string') }
+  if (output.individual_masks) return { individual_masks: output.individual_masks }
+  if (output.masks) return { individual_masks: output.masks }
+  return { individual_masks: [] }
 }
 
 // ── Segment engine selector ───────────────────────────────────────────────────
-// VIZ_SEGMENT_ENGINE=grounded → GroundedSAM2 (text-guided, fewer but more targeted masks)
+// VIZ_SEGMENT_ENGINE=pointed → SAM2 point-prompted (roof-targeted, fewer candidates)
 // VIZ_SEGMENT_ENGINE=sam2 (default) → SAM2 automatic (all segments, user selects roof)
 
-async function runSegmentation(imgB64DataUri: string): Promise<{ individual_masks: string[] }> {
+async function runSegmentation(imgB64DataUri: string, imgW: number, imgH: number): Promise<{ individual_masks: string[] }> {
   const engine = process.env.VIZ_SEGMENT_ENGINE ?? 'sam2'
   console.log(`[segment] engine=${engine}`)
-  if (engine === 'grounded') return runGroundedSam2(imgB64DataUri)
+  if (engine === 'pointed') {
+    try {
+      const result = await runSam2Pointed(imgB64DataUri, imgW, imgH)
+      if (result.individual_masks.length > 0) return result
+      console.warn('[segment/pointed] zero masks — falling back to SAM2 automatic')
+    } catch (e) {
+      console.error('[segment/pointed] failed, falling back to SAM2:', e)
+    }
+  }
   return runSam2(imgB64DataUri)
 }
 
@@ -306,7 +315,7 @@ export async function POST(req: NextRequest) {
     // SAM2
     let samOut: { individual_masks: string[] }
     try {
-      samOut = await runSegmentation(`data:image/jpeg;base64,${photoBuffer.toString('base64')}`)
+      samOut = await runSegmentation(`data:image/jpeg;base64,${photoBuffer.toString('base64')}`, pw, ph)
     } catch (samErr) {
       const msg = samErr instanceof Error ? samErr.message : 'Segmentation error'
       await sb.from('visualizer_sessions').update({ mask_status: 'failed', mask_error: msg }).eq('id', sessionId)
