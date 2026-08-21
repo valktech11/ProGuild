@@ -304,7 +304,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       sessionId, photoUrl, gridB64, gridW: gw, gridH: gh,
-      candidates: cands.map(c => ({ index: c.index, areaPct: c.areaPct })),
+      candidates: cands.map(c => ({ index: c.index, areaPct: c.areaPct, cy: +c.cy.toFixed(0), meanLum: +c.meanLum.toFixed(0) })),
       vegFraction, occlusionLevel,
     })
 
