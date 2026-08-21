@@ -100,27 +100,22 @@ async function runSam2(imgB64DataUri: string): Promise<{ individual_masks: strin
 // that don't match the prompt well).
 // Enable via VIZ_SEGMENT_ENGINE=grounded env var.
 
-const GROUNDED_SAM2_VERSION = 'be1b6be6a99b62a400d52af9c95b8d49e10c4c55e50a9ccae3cad2d87fabb26b'
-
 // Roof-related prompts — covers shingles, flat membrane, metal, tile
 const ROOF_PROMPTS = 'roof . roofing . shingles . tiles . flat roof . metal roof . pitched roof . dormer'
 
 async function runGroundedSam2(imgB64DataUri: string): Promise<{ individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
 
-  // GroundedSAM2 expects a URL, not a base64 data URI.
-  // We upload the image to R2 first (already happens before this call in the main handler)
-  // so we pass the data URI and let Replicate handle it — it accepts data URIs.
-  const createRes = await fetch(`${REPLICATE_API}/predictions`, {
+  // Use model endpoint directly (no version hash needed — Replicate uses latest)
+  const createRes = await fetch(`${REPLICATE_API}/models/idea-research/grounded-sam-2/predictions`, {
     method: 'POST', headers: authHeader,
     body: JSON.stringify({
-      version: GROUNDED_SAM2_VERSION,
       input: {
         image:              imgB64DataUri,
         text_prompt:        ROOF_PROMPTS,
-        box_threshold:      0.25,   // lower = more permissive detection
+        box_threshold:      0.25,
         text_threshold:     0.25,
-        multimask_output:   false,  // one mask per detection (cleaner than multi)
+        multimask_output:   false,
       },
     }),
   })
