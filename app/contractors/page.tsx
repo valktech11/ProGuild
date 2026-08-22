@@ -32,7 +32,7 @@ const hvacFeatures = [
 const allTradeFeatures = [
   { icon: '📊', title: 'Visual Job Pipeline', desc: 'Kanban board showing every job by stage. See your whole book of business at a glance.' },
   { icon: '📱', title: 'iOS + Android App', desc: 'Full CRM in your pocket. Capture photos, measure roofs, create leads from the job site.' },
-  { icon: '✅', title: 'FL License Verified', desc: 'Your license is verified against the DBPR database. Homeowners see the checkmark — instant credibility.' },
+  { icon: '✅', title: 'License Verified', desc: 'Your license is verified against state databases. Homeowners see the checkmark — instant credibility.' },
   { icon: '🗂️', title: 'Client & Property Records', desc: 'Every client, every property, every job — searchable, organized, one place.' },
   { icon: '📆', title: 'Job Calendar', desc: 'Schedule inspections, installs, and follow-ups. See your week without juggling spreadsheets.' },
   { icon: '📍', title: 'Contractor Directory', desc: 'Your verified profile appears when homeowners search for licensed contractors in your area. No per-lead fee.' },
@@ -86,6 +86,7 @@ export default function ContractorsPage() {
             <span style={{ fontSize: 17, fontWeight: 700, color: white }}>ProGuild.ai</span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Link href="/roof-size-calculator" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Free Measurement</Link>
             <Link href="/roof-visualizer" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Roof Visualizer</Link>
             <Link href="/login" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Sign in</Link>
             <Link href="/signup" style={{ fontSize: 14, fontWeight: 700, color: white, background: teal, padding: '8px 18px', borderRadius: 8, textDecoration: 'none' }}>Start Free →</Link>
@@ -100,12 +101,12 @@ export default function ContractorsPage() {
 
         <div style={{ maxWidth: 780, margin: '0 auto', position: 'relative' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: `${teal}22`, border: `1px solid ${teal}44`, borderRadius: 20, padding: '6px 14px', marginBottom: 28 }}>
-            <span style={{ fontSize: 12, color: tealLt, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Florida-First · DBPR Verified</span>
+            <span style={{ fontSize: 12, color: tealLt, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>State-Licensed · Verified Contractors</span>
           </div>
 
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 68px)', fontWeight: 900, lineHeight: 1.05, margin: '0 0 24px', letterSpacing: '-0.02em' }}>
             The CRM built for<br />
-            <span style={{ background: `linear-gradient(90deg,${tealLt},${gold})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Florida contractors</span>
+            <span style={{ background: `linear-gradient(90deg,${tealLt},${gold})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>trade contractors</span>
           </h1>
 
           <p style={{ fontSize: 18, color: '#94A3B8', lineHeight: 1.7, maxWidth: 560, margin: '0 auto 40px' }}>
@@ -129,8 +130,9 @@ export default function ContractorsPage() {
       <div style={{ background: navyMd, borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '18px 24px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', gap: 32, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
           {[
+            ['Free', 'Satellite Roof Measurement'],
             ['Free', 'Homeowner Estimate Tool'],
-            ['124,000+', 'Licensed FL Contractors in Database'],
+            ['124,000+', 'Licensed Contractors in Database'],
             ['$0', 'Per-Lead Fee'],
             ['$0', 'Per Measurement Report'],
             ['15', 'Real Shingle Colors'],
@@ -266,8 +268,8 @@ export default function ContractorsPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
             {[
-              { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Mobile app (iOS + Android)', 'Verified FL directory listing'] },
-              { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Equipment tracking (HVAC, Plumbing)', 'Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Mobile app (iOS + Android)', 'Verified FL directory listing', 'Voice-to-notes'] },
+              { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Mobile app (iOS + Android)', 'Verified contractor directory listing'] },
+              { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Equipment tracking (HVAC, Plumbing)', 'Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Mobile app (iOS + Android)', 'Verified contractor directory listing', 'Voice-to-notes'] },
             ].map(plan => (
               <div key={plan.trade} style={{ background: navyMd, border: `1px solid ${plan.color}44`, borderRadius: 20, padding: 32, textAlign: 'left' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: plan.color, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{plan.trade}</div>
@@ -301,7 +303,7 @@ export default function ContractorsPage() {
             Your competitors are already<br />using better tools.
           </h2>
           <p style={{ color: '#64748B', fontSize: 16, lineHeight: 1.6, marginBottom: 36 }}>
-            Join Florida's verified contractor network. Start free for 3 months — no credit card, no commitment. Your profile goes live the day you sign up.
+            Join the verified contractor network. Start free for 3 months — no credit card, no commitment. Your profile goes live the day you sign up.
           </p>
           <Link href="/signup" style={{ display: 'inline-block', fontSize: 17, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '16px 40px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
             Claim Your Free Profile →
