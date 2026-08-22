@@ -117,8 +117,11 @@ export default function ContractorsPage() {
             <Link href="/signup" style={{ fontSize: 16, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '14px 32px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
               Start 3-Month Free Trial →
             </Link>
+            <Link href="/roof-size-calculator" style={{ fontSize: 16, fontWeight: 700, color: white, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '14px 32px', borderRadius: 12, textDecoration: 'none' }}>
+              🛰️ Free Roof Measurement
+            </Link>
             <Link href="/roof-visualizer" style={{ fontSize: 16, fontWeight: 700, color: tealLt, background: 'rgba(45,212,191,0.1)', border: `1px solid ${tealLt}44`, padding: '14px 32px', borderRadius: 12, textDecoration: 'none' }}>
-              Try Roof Visualizer
+              🎨 Roof Visualizer
             </Link>
           </div>
 
