@@ -105,28 +105,29 @@ async function fetchWithRetry(url: string, init: RequestInit, maxRetries = 3): P
   throw new Error('SAM2 timed out after 120 seconds')
 }
 
-// ── GroundedSAM — text-guided segmentation (Grounding DINO + SAM2) ────────────
-// Uses idea-research/ram-grounded-sam on Replicate.
+// ── GroundedSAM — text-guided segmentation (Grounding DINO + SAM) ─────────────
+// Uses schananas/grounded_sam on Replicate (Warm, 2.8M runs, L40S).
 // Grounding DINO detects "roof" bounding boxes → SAM2 generates precise masks.
 // Zero manual coordinate prompting — fully automated roof isolation.
 // Falls back to automatic SAM2 if zero masks returned.
 
-const ROOF_TEXT_PROMPT   = 'roof'
-const BOX_THRESHOLD      = 0.30   // DINO detection sensitivity for distinct structures
-const TEXT_THRESHOLD     = 0.25   // open-vocabulary label matching threshold
+const GROUNDED_SAM_VERSION = 'ee871c19efb1941f55f66a3d7d960428c8a5afcb77449547fe8e5a3ab9ebc21c'
+const ROOF_MASK_PROMPT     = 'roof,shingles,roofing,tiles,pitched roof,flat roof,metal roof,dormer'
+const ROOF_NEG_PROMPT      = 'wall,siding,sky,grass,lawn,driveway,window,door,chimney,tree,fence'
 
 async function runGroundedSam(imgB64DataUri: string): Promise<{ individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
 
   // Use model endpoint without version — Replicate uses latest published version
-  const createRes = await fetchWithRetry(`${REPLICATE_API}/models/idea-research/ram-grounded-sam/predictions`, {
+  const createRes = await fetchWithRetry(`${REPLICATE_API}/predictions`, {
     method: 'POST', headers: authHeader,
     body: JSON.stringify({
+      version: GROUNDED_SAM_VERSION,
       input: {
-        image:          imgB64DataUri,
-        text_prompt:    ROOF_TEXT_PROMPT,
-        box_threshold:  BOX_THRESHOLD,
-        text_threshold: TEXT_THRESHOLD,
+        image:                 imgB64DataUri,
+        mask_prompt:           ROOF_MASK_PROMPT,
+        negative_mask_prompt:  ROOF_NEG_PROMPT,
+        adjustment_factor:     -10,
       },
     }),
   })
@@ -147,15 +148,14 @@ async function runGroundedSam(imgB64DataUri: string): Promise<{ individual_masks
   throw new Error('GroundedSAM timed out after 120 seconds')
 }
 
-// ram-grounded-sam output shape varies by version — handle both possible shapes
+// schananas/grounded_sam output: single mask image URL (string) or array
 function extractGroundedMasks(output: any): { individual_masks: string[] } {
   if (!output) return { individual_masks: [] }
-  // Shape 1: { masks: string[] }
-  if (Array.isArray(output?.masks)) return { individual_masks: output.masks.filter((u: any) => typeof u === 'string') }
-  // Shape 2: string[] direct
+  if (typeof output === 'string') return { individual_masks: [output] }
   if (Array.isArray(output)) return { individual_masks: output.filter((u: any) => typeof u === 'string') }
-  // Shape 3: { individual_masks: string[] } (SAM2-compatible)
-  if (Array.isArray(output?.individual_masks)) return { individual_masks: output.individual_masks }
+  if (output.mask) return { individual_masks: [output.mask] }
+  if (output.masks) return { individual_masks: Array.isArray(output.masks) ? output.masks : [output.masks] }
+  if (output.individual_masks) return { individual_masks: output.individual_masks }
   console.warn('[segment/grounded] unexpected output shape:', JSON.stringify(output).slice(0, 200))
   return { individual_masks: [] }
 }
