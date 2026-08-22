@@ -324,10 +324,10 @@ export default function HomePage() {
               style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
               Join the Guild — Free
             </Link>
-            <Link href="/community"
+            <Link href="/contractors"
               className="px-8 py-3.5 rounded-xl font-semibold border transition-all hover:bg-white/5"
-              style={{ color: '#94A3B8', borderColor: 'rgba(255,255,255,0.15)' }}>
-              Explore the Community
+              style={{ color: '#2DD4BF', borderColor: 'rgba(45,212,191,0.3)' }}>
+              See All Features →
             </Link>
           </div>
         </div>
@@ -351,7 +351,7 @@ export default function HomePage() {
               <div>
                 <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#A89F93' }}>Platform</div>
                 <div className="space-y-3">
-                  {[['/search','Find a Pro'],['/post-job','Request a Pro'],['/jobs','Find Work'],['/community','Community']].map(([href, label]) => (
+                  {[['/search','Find a Pro'],['/post-job','Request a Pro'],['/jobs','Find Work'],['/contractors','For Contractors'],['/community','Community']].map(([href, label]) => (
                     <Link key={href} href={href}
                       className="block transition-colors text-sm"
                       style={{ color: '#6B7280' }}

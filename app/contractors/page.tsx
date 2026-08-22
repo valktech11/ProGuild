@@ -86,6 +86,7 @@ export default function ContractorsPage() {
             <span style={{ fontSize: 17, fontWeight: 700, color: white }}>ProGuild.ai</span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Link href="/roof-visualizer" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Roof Visualizer</Link>
             <Link href="/login" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Sign in</Link>
             <Link href="/signup" style={{ fontSize: 14, fontWeight: 700, color: white, background: teal, padding: '8px 18px', borderRadius: 8, textDecoration: 'none' }}>Start Free →</Link>
           </div>
