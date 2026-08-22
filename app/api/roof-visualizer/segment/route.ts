@@ -129,7 +129,7 @@ async function runGroundedSam(imgB64DataUri: string): Promise<{ individual_masks
         image:                 imgB64DataUri,
         mask_prompt:           ROOF_MASK_PROMPT,
         negative_mask_prompt:  ROOF_NEG_PROMPT,
-        adjustment_factor:     5,   // expand slightly to close gaps
+        adjustment_factor:     0,   // no expansion/contraction
       },
     }),
   })
