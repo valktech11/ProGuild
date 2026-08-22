@@ -383,7 +383,9 @@ export default function RoofVisualizerClient({ skus }: { skus: Sku[] }) {
         setGridDims({ w: data.gridW, h: data.gridH })
         setOcclusionLevel(data.occlusionLevel ?? 'clear')
         setCandidates(data.candidates ?? [])
-        setSelected(new Set<number>())   // NO preselection — user taps/sweeps their roof
+        // Pre-select if grounded engine returned auto-identified roof regions
+        const autoSelected = data.autoSelectedIndices as number[] | undefined
+        setSelected(autoSelected?.length ? new Set<number>(autoSelected) : new Set<number>())
         setHistory([])
         setTapCount(0)
         setConfirmStart(Date.now())

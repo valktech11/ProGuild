@@ -129,7 +129,7 @@ async function runGroundedSam(imgB64DataUri: string): Promise<{ individual_masks
         image:                 imgB64DataUri,
         mask_prompt:           ROOF_MASK_PROMPT,
         negative_mask_prompt:  ROOF_NEG_PROMPT,
-        adjustment_factor:     0,   // no expansion/contraction
+        adjustment_factor:     -10,  // slight contraction keeps masks tight to roof edges
       },
     }),
   })
@@ -393,10 +393,15 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     }).eq('id', sessionId)
 
+    const engine = process.env.VIZ_SEGMENT_ENGINE ?? 'sam2'
+    // In grounded mode, pre-select all roof candidates — user only needs to tap missed areas
+    const autoSelectedIndices = engine === 'grounded' ? cands.map(c => c.index) : []
+
     return NextResponse.json({
       sessionId, photoUrl, gridB64, gridW: gw, gridH: gh,
       candidates: cands.map(c => ({ index: c.index, areaPct: c.areaPct, cy: +c.cy.toFixed(0), meanLum: +c.meanLum.toFixed(0) })),
       vegFraction, occlusionLevel,
+      autoSelectedIndices,
     })
 
   } catch (err: unknown) {
