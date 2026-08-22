@@ -18,7 +18,7 @@ const roofingFeatures = [
   { icon: '🛰️', title: 'Free Satellite Measurements', desc: 'Pull rooftop dimensions from satellite imagery in seconds. EagleView charges $35 per report. We include unlimited measurements with every plan.' },
   { icon: '🎨', title: 'Roof Visualizer', desc: 'Upload a photo and show homeowners their roof in 15 real shingle colors from GAF, Owens Corning, CertainTeed, IKO and Atlas. Close deals on the spot.' },
   { icon: '📋', title: 'Insurance Pipeline', desc: 'Built-in stages for every step of the insurance claim cycle — from inspection to adjuster meeting to supplement to check received.' },
-  { icon: '📄', title: 'Good / Better / Best Proposals', desc: 'Generate tiered proposals with one click. Homeowners choose their tier; you win the job.' },
+  { icon: '🏷️', title: 'Free Roofing Estimate Tool', desc: 'Homeowners get a free instant roof estimate powered by satellite data. They come to you pre-educated — no cold leads, no tire kickers.' },
   { icon: '💳', title: 'Milestone Invoicing', desc: 'Send an invoice with deposit, material delivery, and completion milestones. Homeowners confirm payment online.' },
 ]
 
@@ -128,6 +128,7 @@ export default function ContractorsPage() {
       <div style={{ background: navyMd, borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '18px 24px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', gap: 32, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
           {[
+            ['Free', 'Homeowner Estimate Tool'],
             ['124,000+', 'Licensed FL Contractors in Database'],
             ['$0', 'Per-Lead Fee'],
             ['$0', 'Per Measurement Report'],
@@ -264,7 +265,7 @@ export default function ContractorsPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
             {[
-              { trade: 'Roofing', price: '$49.99', color: teal, features: ['Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Mobile app (iOS + Android)', 'Verified FL directory listing'] },
+              { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Mobile app (iOS + Android)', 'Verified FL directory listing'] },
               { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Equipment tracking (HVAC, Plumbing)', 'Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Mobile app (iOS + Android)', 'Verified FL directory listing', 'Voice-to-notes'] },
             ].map(plan => (
               <div key={plan.trade} style={{ background: navyMd, border: `1px solid ${plan.color}44`, borderRadius: 20, padding: 32, textAlign: 'left' }}>
