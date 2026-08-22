@@ -66,10 +66,22 @@ function r2Key(prefix: string, id: string, ext: string) {
 
 // ── SAM2 (unchanged mechanics) ───────────────────────────────────────────────
 
-async function runSam2(imgB64DataUri: string): Promise<{ individual_masks: string[] }> {
+// Retry a fetch up to maxRetries times on 429/503, with exponential backoff
+async function fetchWithRetry(url: string, init: RequestInit, maxRetries = 3): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, init)
+    if (res.status !== 429 && res.status !== 503) return res
+    if (attempt === maxRetries) return res
+    const retryAfter = parseInt(res.headers.get('retry-after') ?? '10', 10)
+    const delay = Math.max(retryAfter * 1000, Math.pow(2, attempt) * 2000)
+    console.warn(`[segment] Replicate 429/503 — retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`)
+    await new Promise(r => setTimeout(r, delay))
+  }
+  return fetch(url, init) // final attempt
+}
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
   const SAM2_VERSION = 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b'
-  const createRes = await fetch(`${REPLICATE_API}/predictions`, {
+  const createRes = await fetchWithRetry(`${REPLICATE_API}/predictions`, {
     method: 'POST', headers: authHeader,
     body: JSON.stringify({
       version: SAM2_VERSION,
@@ -107,7 +119,7 @@ async function runGroundedSam(imgB64DataUri: string): Promise<{ individual_masks
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
 
   // Use model endpoint without version — Replicate uses latest published version
-  const createRes = await fetch(`${REPLICATE_API}/models/idea-research/ram-grounded-sam/predictions`, {
+  const createRes = await fetchWithRetry(`${REPLICATE_API}/models/idea-research/ram-grounded-sam/predictions`, {
     method: 'POST', headers: authHeader,
     body: JSON.stringify({
       input: {
