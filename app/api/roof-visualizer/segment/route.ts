@@ -79,6 +79,8 @@ async function fetchWithRetry(url: string, init: RequestInit, maxRetries = 3): P
   }
   return fetch(url, init) // final attempt
 }
+
+async function runSam2(imgB64DataUri: string): Promise<{ individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
   const SAM2_VERSION = 'cbd95fb76192174268b6b303aeeb7a736e8dab0cbc38177f09db79b2299da30b'
   const createRes = await fetchWithRetry(`${REPLICATE_API}/predictions`, {
