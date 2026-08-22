@@ -115,7 +115,7 @@ async function runSam2(imgB64DataUri: string): Promise<{ individual_masks: strin
 
 const GROUNDED_SAM_VERSION = 'ee871c19efb1941f55f66a3d7d960428c8a5afcb77449547fe8e5a3ab9ebc21c'
 const ROOF_MASK_PROMPT     = 'roof,shingles,roofing,tiles,pitched roof,flat roof,metal roof,dormer'
-const ROOF_NEG_PROMPT      = 'wall,siding,sky,grass,lawn,driveway,window,door,chimney,tree,fence'
+const ROOF_NEG_PROMPT      = 'wall,siding,sky,grass,lawn,driveway,concrete,pavement,sidewalk,road,window,door,chimney,tree,fence,ground,floor'
 
 async function runGroundedSam(imgB64DataUri: string): Promise<{ individual_masks: string[] }> {
   const authHeader = { 'Authorization': `Bearer ${REPLICATE_TOKEN}`, 'Content-Type': 'application/json' }
@@ -394,8 +394,11 @@ export async function POST(req: NextRequest) {
     }).eq('id', sessionId)
 
     const engine = process.env.VIZ_SEGMENT_ENGINE ?? 'sam2'
-    // In grounded mode, pre-select all roof candidates — user only needs to tap missed areas
-    const autoSelectedIndices = engine === 'grounded' ? cands.map(c => c.index) : []
+    // In grounded mode, pre-select roof candidates — filter to upper 55% of image
+    // (driveway/ground always below midline; roof always above)
+    const autoSelectedIndices = engine === 'grounded'
+      ? cands.filter(c => c.cy < gh * 0.55).map(c => c.index)
+      : []
 
     return NextResponse.json({
       sessionId, photoUrl, gridB64, gridW: gw, gridH: gh,
