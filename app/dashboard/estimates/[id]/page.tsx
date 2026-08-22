@@ -402,6 +402,15 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     return (
       <DashboardShell session={session} newLeads={0} onAddLead={() => {}}
         darkMode={dk} onToggleDark={toggleDark}>
+        {/* Banner shown when arriving from the calculator — confirms the total was saved */}
+        {_from === 'calculator' && estimate.total > 0 && (
+          <div style={{ background: '#F0FDF4', borderBottom: '1px solid #BBF7D0', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16 }}>✅</span>
+            <span style={{ fontSize: 13.5, color: '#166534', fontWeight: 600 }}>
+              Calculator total of <strong>${estimate.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> applied to this estimate. Choose Standard or Good/Better/Best to present to the homeowner.
+            </span>
+          </div>
+        )}
         <RoofingEstimatePage
           proId={session?.id}
           estimate={{

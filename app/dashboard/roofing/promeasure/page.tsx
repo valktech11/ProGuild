@@ -245,6 +245,7 @@ function ProMeasureInner() {
   const [mapHint, setMapHint] = useState<string|null>(null)
   const [showRecent,   setShowRecent]   = useState(false)
   const [recentAddrs,  setRecentAddrs]  = useState<string[]>([])
+  const [isPushing,    setIsPushing]    = useState(false)
 
   const [settings, setSettings] = useState<Settings>(() => {
     if (typeof window==='undefined') return DEFAULT_SETTINGS
@@ -821,6 +822,7 @@ function ProMeasureInner() {
   }
 
   async function pushToCalc() {
+    setIsPushing(true)
     const totalSqFt = regions.reduce((s,r)=>s+r.sqFt,0)+(area||0)
     const squares   = +(totalSqFt/100).toFixed(2)
     // Perimeter must include saved region boundaries + the active polygon — the
@@ -871,6 +873,7 @@ function ProMeasureInner() {
     }
 
     // Standalone use (no leadId) — go to calculator as before
+    setIsPushing(false)
     router.push('/dashboard/roofing/calculator?from=promeasure')
   }
 
@@ -1147,10 +1150,13 @@ function ProMeasureInner() {
 
       <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:8}}>
         {(area||regions.length>0)&&(
-          <button onClick={pushToCalc}
-            style={{padding:'13px',borderRadius:12,border:'none',background:'linear-gradient(135deg,#14B8A6,#0F766E)',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',boxShadow:'0 4px 16px rgba(20,184,166,0.3)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-            {leadId ? 'Apply to Lead →' : 'Push to Calculator'}
-            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <button onClick={pushToCalc} disabled={isPushing}
+            style={{padding:'13px',borderRadius:12,border:'none',background: isPushing ? '#0D6B63' : 'linear-gradient(135deg,#14B8A6,#0F766E)',color:'#fff',fontSize:13,fontWeight:700,cursor: isPushing ? 'default' : 'pointer',boxShadow:'0 4px 16px rgba(20,184,166,0.3)',display:'flex',alignItems:'center',justifyContent:'center',gap:6,opacity: isPushing ? 0.8 : 1}}>
+            {isPushing ? (
+              <><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Saving…</>
+            ) : (
+              <>{leadId ? 'Apply to Lead →' : 'Push to Calculator'}<svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></>
+            )}
           </button>
         )}
         {!area&&regions.length===0&&(
