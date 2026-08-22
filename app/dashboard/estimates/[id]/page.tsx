@@ -416,7 +416,10 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           estimate={{
             ...(estimate as any),
             estimate_number:   estimate.estimate_number,
-            estimate_type:     (estimate as any).estimate_type ?? 'tiered',
+            // Default to Standard when arriving from calculator — the total is already computed
+            estimate_type:     _from === 'calculator'
+              ? ((estimate as any).estimate_type === 'tiered' ? 'standard' : ((estimate as any).estimate_type ?? 'standard'))
+              : ((estimate as any).estimate_type ?? 'tiered'),
             tiered_data:       (estimate as any).tiered_data,
             scope_of_work:     (estimate as any).scope_of_work,
             square_count:      (estimate as any).square_count,
