@@ -25,15 +25,17 @@ function StagingBadge() {
 // Homeowner (logged out): Find a Pro · Request a Pro · Community
 // Pro (logged in):        Find Work · Community · Dashboard
 const HOMEOWNER_LINKS = [
-  { href: '/',           label: 'Find a Pro',     match: (p: string) => p === '/' },
-  { href: '/fl',         label: 'Browse Trades',  match: (p: string) => p === '/fl' },
-  { href: '/community',  label: 'Community',      match: (p: string) => p.startsWith('/community') },
+  { href: '/',           label: 'Find a Pro',      match: (p: string) => p === '/' },
+  { href: '/fl',         label: 'Browse Trades',   match: (p: string) => p === '/fl' },
+  { href: '/community',  label: 'Community',       match: (p: string) => p.startsWith('/community') },
+  { href: '/contractors', label: 'For Contractors', match: (p: string) => p.startsWith('/contractors') },
 ]
 
 const PRO_LINKS = [
-  { href: '/jobs',       label: 'Find Work',      match: (p: string) => p.startsWith('/jobs') },
-  { href: '/community',  label: 'Community',      match: (p: string) => p.startsWith('/community') },
-  { href: '/dashboard',  label: 'Dashboard',      match: (p: string) => p === '/dashboard' },
+  { href: '/jobs',       label: 'Find Work',       match: (p: string) => p.startsWith('/jobs') },
+  { href: '/community',  label: 'Community',       match: (p: string) => p.startsWith('/community') },
+  { href: '/contractors', label: 'For Contractors', match: (p: string) => p.startsWith('/contractors') },
+  { href: '/dashboard',  label: 'Dashboard',       match: (p: string) => p === '/dashboard' },
 ]
 
 // ── Mobile bottom nav ───────────────────────────────────────────────────────
