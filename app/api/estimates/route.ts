@@ -331,6 +331,19 @@ export async function POST(req: NextRequest) {
   const validUntil = new Date()
   validUntil.setDate(validUntil.getDate() + 14)
 
+  // Pre-calculate totals if calculator is sending line items
+  const newCalcItems = source === 'roofing_calculator' && Array.isArray(line_items) && line_items.length > 0
+    ? line_items.map((item: any) => ({
+        name:        String(item.description ?? item.name ?? ''),
+        qty:         Number(item.quantity ?? item.qty ?? 1),
+        unit_price:  Number(item.unit_price ?? item.unitPrice ?? 0),
+        amount:      Number(item.total ?? item.amount ?? (Number(item.quantity ?? item.qty ?? 1) * Number(item.unit_price ?? item.unitPrice ?? 0))),
+      }))
+    : []
+  const newCalcSubtotal = newCalcItems.reduce((s, i) => s + i.amount, 0)
+  const newCalcTax      = Math.round(newCalcSubtotal * resolvedTaxRate / 100 * 100) / 100
+  const newCalcTotal    = Math.round((newCalcSubtotal + newCalcTax) * 100) / 100
+
   const { data: estimate, error } = await sb
     .from('estimates')
     .insert({
@@ -341,11 +354,11 @@ export async function POST(req: NextRequest) {
       lead_name:       lead_name  || 'New Client',
       lead_source:     lead_source || '',
       trade:           trade || '',
-      subtotal:        0,
+      subtotal:        newCalcSubtotal || 0,
       discount:        0,
       tax_rate:        resolvedTaxRate,
-      tax_amount:      0,
-      total:           0,
+      tax_amount:      newCalcTax || 0,
+      total:           newCalcTotal || 0,
       require_deposit: true,
       valid_until:     validUntil.toISOString(),
       contact_phone:   contact_phone || null,
@@ -354,8 +367,6 @@ export async function POST(req: NextRequest) {
               ? 'This estimate is valid for 14 days. A diagnostic fee applies if no repair is authorized. Payment is due upon job completion.'
               : 'This estimate is valid for 14 days. Payment is due upon job completion.'),
       trade_slug:      trade_slug || null,
-      // Note: estimate_type, tiered_data, scope_of_work, payment_milestones,
-      // property_address are NOT written here — they live in roofing_estimate_data.
     })
     .select()
     .single()
@@ -367,7 +378,7 @@ export async function POST(req: NextRequest) {
     await sb.from('roofing_estimate_data').upsert({
       estimate_id:      estimate.id,
       pro_id:           pro_id,
-      estimate_type:    'tiered',
+      estimate_type:    source === 'roofing_calculator' ? 'standard' : 'tiered',
       // property_address omitted — leads.property_address is golden source
       // Measurements from calculator or direct entry
       square_count:     square_count     ? Number(square_count)  : null,
