@@ -67,6 +67,7 @@ export async function GET(
 
   // Server-derived pro scope — mandatory (was optional client filter: IDOR).
   const proId = __auth.proId
+  const companyId = __auth.companyId
 
   const query = getSupabaseAdmin().from('leads').select('*').eq('id', id)
     // scope: company member can access any lead in their company
@@ -194,6 +195,7 @@ export async function PATCH(
   // Ownership: pro_id accepted from body OR query param — frontend sends in body
   // Server-derived — body/URL pro_id no longer trusted (IDOR).
   const proId = __auth.proId
+  const _patchCompanyId = __auth.companyId
 
   // ── Build lead update fields (whitelisted) ──────────────────────────────
   const updateFields: Partial<LeadUpdateFields> = {}

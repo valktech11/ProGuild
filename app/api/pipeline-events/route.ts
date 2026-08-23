@@ -5,9 +5,9 @@ import { requirePro } from '@/lib/pro-auth'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const { companyId: _pevCompanyId, proId: _pevProId } = __auth
   const { searchParams } = new URL(req.url)
   const lead_id = searchParams.get('lead_id')
-  // pro_id kept for reference but companyId used for filtering
   if (!lead_id) {
     return NextResponse.json({ error: 'lead_id required' }, { status: 400 })
   }
