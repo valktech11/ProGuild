@@ -349,6 +349,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={() => {}} darkMode={dk} onToggleDark={toggleDark}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ background: t.pageBg, minHeight: '100vh', padding: '20px 24px 60px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
 
@@ -391,7 +392,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   style={{ padding: '9px 20px', borderRadius: 10, border: 'none',
                     background: C.teal, color: '#fff', fontSize: 14, fontWeight: 700,
                     cursor: sending ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  📤 {invoice.status === 'draft' ? 'Send Invoice' : invoice.status === 'partial_payment' ? 'Resend Payment Link' : 'Resend Invoice'}
+                  {sending
+                    ? <><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Sending…</>
+                    : <>📤 {invoice.status === 'draft' ? 'Send Invoice' : invoice.status === 'partial_payment' ? 'Resend Payment Link' : 'Resend Invoice'}</>
+                  }
                 </button>
               )}
               {!isPaid && (

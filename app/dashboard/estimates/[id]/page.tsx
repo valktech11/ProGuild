@@ -1432,8 +1432,11 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 setTimeout(() => setSaveMsg(null), 4000)
               }}
               disabled={saving}
-              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 15, fontWeight:700, cursor:'pointer' }}>
-              Send Estimate
+              style={{ flex:1, padding:'13px', borderRadius:12, border:'none', background: saving ? '#0D6B63' : 'linear-gradient(135deg,#0F766E,#0D9488)', color:'white', fontSize: 15, fontWeight:700, cursor: saving ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+              {saving
+                ? <><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Sending…</>
+                : 'Send Estimate'
+              }
             </button>
           )}
           {estimate.status === 'approved' && (
