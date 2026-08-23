@@ -160,6 +160,7 @@ export interface Session {
   name: string
   email: string
   plan: PlanTier
+  trial_ends_at: string | null
   trade: string | null
   trade_slug: string | null    // canonical DB slug: "hvac-technician", "roofing-contractor"
   city: string | null
@@ -167,6 +168,9 @@ export interface Session {
   slug: string | null          // vanity URL slug e.g. wasim-akram-painter-jacksonville
   profile_status: ProfileStatus
   is_verified: boolean
+  // Multi-user: company context (populated for all claimed pros after migration)
+  company_id: string | null
+  company_name: string | null
 }
 
 export const PAID_PLANS: PlanTier[] = [

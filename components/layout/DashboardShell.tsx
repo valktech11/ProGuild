@@ -484,6 +484,7 @@ function MoreDrawer({ open, onClose, session, nl, dk, onToggleDark }: { open: bo
               </div>
             </button>
             <DrawerNavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings }} active={p === '/dashboard/settings'} onNav={handleClose} />
+            <DrawerNavLink item={{ label: 'Team', href: '/dashboard/settings/team', icon: (a: boolean) => <I sw={a?2.2:1.6} d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 100 8 4 4 0 000-8z" /> }} active={p === '/dashboard/settings/team'} onNav={handleClose} />
           </div>
         </div>
       </div>
@@ -809,6 +810,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
                 </div>
                 <div className="mb-0.5"><NavLink item={{ label: 'Profile', href: '/edit-profile', icon: icon.profile }} active={p === '/edit-profile'} /></div>
                 <div className="mb-0.5"><NavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings }} active={p === '/dashboard/settings'} /></div>
+                <div className="mb-0.5"><NavLink item={{ label: 'Team', href: '/dashboard/settings/team', icon: (a: boolean) => <I sw={a?2.2:1.6} d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 100 8 4 4 0 000-8z" /> }} active={p === '/dashboard/settings/team'} /></div>
               </div>
             </div>
 

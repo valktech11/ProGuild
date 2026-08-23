@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     claim_pro_id,
     claim_license,
     claim_license_expiry,
+    invite_token,          // present when signing up via /join/[token]
   } = body
 
   if (!email || !password) {
@@ -212,6 +213,40 @@ export async function POST(req: NextRequest) {
     if (insErr || !pro) {
       await admin.auth.admin.deleteUser(authUserId)
       return NextResponse.json({ error: insErr?.message || 'Could not create profile' }, { status: 500 })
+    }
+
+    // If the user signed up via an invite link, join that company instead of
+    // creating a solo company. If the invite is invalid/expired, fall through
+    // to solo company creation (non-fatal — they can join later via /join).
+    if (invite_token) {
+      const { data: invite } = await admin
+        .from('company_invites')
+        .select('id, company_id, expires_at, used_at')
+        .eq('token', invite_token)
+        .maybeSingle()
+
+      const inviteValid = invite && !invite.used_at && new Date(invite.expires_at) >= new Date()
+
+      if (inviteValid) {
+        // Join the inviting company (skip solo company creation)
+        await admin.from('company_members').insert({
+          company_id: invite.company_id,
+          pro_id:     pro.id,
+          role:       'member',
+          invited_at: new Date().toISOString(),
+          joined_at:  new Date().toISOString(),
+        })
+        await admin.from('pros').update({ company_id: invite.company_id }).eq('id', pro.id)
+        // Mark invite used
+        await admin.from('company_invites')
+          .update({ used_at: new Date().toISOString(), used_by: pro.id })
+          .eq('id', invite.id)
+          .is('used_at', null)
+
+        return NextResponse.json({ ok: true, pro, claimed: false, joined_company_id: invite.company_id })
+      }
+      // Invalid/expired invite — fall through to solo company creation
+      console.warn('[signup] invite_token invalid or expired, creating solo company')
     }
 
     const companyResult = await createCompany(pro.id, {
