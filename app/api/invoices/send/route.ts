@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       <p style="font-size:15px;color:#374151;line-height:1.7;margin:0 0 24px;">
         Your invoice <strong>${invNumber}</strong> from ${proName} is ready.
         ${dueDate ? `Payment is due by <strong>${dueDate}</strong>.` : ''}
-        You can review and pay securely online.
+        Please review the invoice and arrange payment directly with your contractor via check, Zelle, or cash.
       </p>
 
       <!-- Amount box -->
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       <div style="text-align:center;margin:0 0 28px;">
         <a href="${invoiceUrl}"
           style="display:inline-block;padding:14px 32px;background:#0F766E;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;letter-spacing:-0.01em;">
-          View &amp; Pay Invoice →
+          View Invoice →
         </a>
       </div>
 
