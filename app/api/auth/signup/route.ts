@@ -1,14 +1,12 @@
 // app/api/auth/signup/route.ts
-// Creates a REAL account: a Supabase auth user (email+password) linked to a pros record.
+// Creates a REAL account: Supabase auth user → pros row → companies row → company_members(owner).
 //
 // Two cases handled:
-//   A. Brand-new contractor (not in our 130K) → create auth user + create new pros row
-//   B. Existing unclaimed pros row being claimed → create auth user + link to that row
+//   A. Brand-new contractor → create auth user + new pros row + new companies row
+//   B. Existing unclaimed pros row being claimed → create auth user + link pros + new companies row
 //
-// The link is pros.auth_user_id = <new auth user id>.
-//
-// Verification (license #) is enforced by the CLAIM flow, not here. This route is the
-// account-creation primitive both paths call.
+// The company is always created here. One pro = one company (solo operator).
+// Multi-user: other members join via invite link (/join/[token]) — not signup.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
@@ -25,9 +23,9 @@ export async function POST(req: NextRequest) {
     state,
     city,
     years_experience,
-    claim_pro_id,   // if present → case B (claiming an existing row)
-    claim_license,       // license # entered by the claimant (for soft verification)
-    claim_license_expiry,// expiry date entered by the claimant (YYYY-MM-DD)
+    claim_pro_id,
+    claim_license,
+    claim_license_expiry,
   } = body
 
   if (!email || !password) {
@@ -40,8 +38,6 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin()
   const cleanEmail = email.trim().toLowerCase()
 
-  // 1. Create the Supabase auth user (email confirmed = true so they can log in immediately;
-  //    flip to false later if you want email verification).
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
     email: cleanEmail,
     password,
@@ -57,66 +53,129 @@ export async function POST(req: NextRequest) {
   }
 
   const authUserId = created.user.id
+  const trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+
+  // Helper: resolve trade_slug from trade_category_id
+  async function resolveTradeSlug(catId: string | null | undefined): Promise<string | null> {
+    if (!catId) return null
+    const { data: cat } = await admin.from('trade_categories').select('slug').eq('id', catId).single()
+    return cat?.slug ?? null
+  }
+
+  // Helper: create company + company_members(owner) for a proId
+  async function createCompany(proId: string, opts: {
+    name: string
+    tradeSlug: string | null
+    tradeCategoryId: string | null
+    businessName: string | null
+    licenseNumber: string | null
+    city: string | null
+    state: string | null
+    phoneCell: string | null
+    planTier: string
+    trialEndsAt: string
+  }): Promise<{ companyId: string } | { error: string }> {
+    const { data: company, error: compErr } = await admin
+      .from('companies')
+      .insert({
+        name:              opts.name,
+        trade_slug:        opts.tradeSlug,
+        trade_category_id: opts.tradeCategoryId,
+        business_name:     opts.businessName,
+        license_number:    opts.licenseNumber,
+        city:              opts.city,
+        state:             opts.state,
+        phone_cell:        opts.phoneCell,
+        plan_tier:         opts.planTier,
+        trial_ends_at:     opts.trialEndsAt,
+        owner_pro_id:      proId,
+      })
+      .select('id')
+      .single()
+
+    if (compErr || !company) {
+      return { error: compErr?.message || 'Could not create company' }
+    }
+
+    // Back-fill pros.company_id
+    await admin.from('pros').update({ company_id: company.id }).eq('id', proId)
+
+    // Create owner membership
+    await admin.from('company_members').insert({
+      company_id: company.id,
+      pro_id:     proId,
+      role:       'owner',
+    })
+
+    return { companyId: company.id }
+  }
 
   try {
     // ── Case B: claim an existing unclaimed pros row ──
     if (claim_pro_id) {
-      // ── Soft, NON-BLOCKING verification ──────────────────────────────────
-      // Read the stored license data and compare to what the claimant entered.
-      // A match flips is_verified=true (badge); a mismatch still claims the
-      // profile (is_verified=false, flagged for manual review). We never block.
       const { data: existing } = await admin
         .from('pros')
-        .select('license_number, license_expiry_date, is_claimed, auth_user_id')
+        .select('license_number, license_expiry_date, is_claimed, auth_user_id, business_name, trade_slug, trade_category_id, city, state, phone_cell')
         .eq('id', claim_pro_id)
         .single()
 
-      // Hard guard: never let a claimed profile be re-claimed (would hijack the
-      // existing owner's auth_user_id). The client also blocks this, but the
-      // server is the real boundary. Roll back the just-created auth user.
       if (existing?.is_claimed || existing?.auth_user_id) {
         await admin.auth.admin.deleteUser(authUserId)
         return NextResponse.json({ error: 'This profile has already been claimed.' }, { status: 409 })
       }
 
-      const normLic = (s: string | null | undefined) =>
-        (s || '').replace(/\s+/g, '').toUpperCase()
+      const normLic = (s: string | null | undefined) => (s || '').replace(/\s+/g, '').toUpperCase()
       const licMatch = !!existing?.license_number &&
         normLic(claim_license) === normLic(existing.license_number)
-      // Expiry: compare date portion only (stored is a DATE)
       const expMatch = !!existing?.license_expiry_date &&
         (claim_license_expiry || '').slice(0, 10) === String(existing.license_expiry_date).slice(0, 10)
-
       const verified = licMatch && expMatch
 
       const { data: pro, error: proErr } = await admin
         .from('pros')
         .update({
-          auth_user_id: authUserId,
-          email:        cleanEmail,
-          phone:        phone || null,
-          is_claimed:   true,
-          claimed_at:   new Date().toISOString(),
-          is_verified:  verified,
-          trial_ends_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 3 months
-          // Unmatched claims go to manual review queue; matched stay Active.
+          auth_user_id:  authUserId,
+          email:         cleanEmail,
+          phone:         phone || null,
+          is_claimed:    true,
+          claimed_at:    new Date().toISOString(),
+          is_verified:   verified,
+          trial_ends_at: trialEndsAt,
           ...(verified ? {} : { profile_status: 'Pending_Review' }),
         })
         .eq('id', claim_pro_id)
-        .eq('is_claimed', false)   // atomic: only claim if still unclaimed (race-safe)
+        .eq('is_claimed', false)
         .select('*, trade_category:trade_categories(category_name, slug)')
         .single()
 
       if (proErr || !pro) {
-        // Roll back the auth user so we don't orphan it
         await admin.auth.admin.deleteUser(authUserId)
         return NextResponse.json({ error: 'Could not link profile' }, { status: 500 })
       }
+
+      const companyResult = await createCompany(pro.id, {
+        name:            (existing as any).business_name || full_name || 'My Company',
+        tradeSlug:       (existing as any).trade_slug || (pro.trade_category as any)?.slug || null,
+        tradeCategoryId: (existing as any).trade_category_id || null,
+        businessName:    (existing as any).business_name || null,
+        licenseNumber:   existing?.license_number || null,
+        city:            (existing as any).city || null,
+        state:           (existing as any).state || null,
+        phoneCell:       (existing as any).phone_cell || null,
+        planTier:        'Free',
+        trialEndsAt,
+      })
+
+      if ('error' in companyResult) {
+        // Company creation failure is non-fatal for signup — pro can still log in.
+        // companyId will be null; self-heal can run on next login.
+        console.error('[signup] company creation failed for claim:', companyResult.error)
+      }
+
       return NextResponse.json({ ok: true, pro, claimed: true, verified })
     }
 
     // ── Case A: brand-new pros row ──
-    // Generate a unique slug
     let slug: string | null = null
     const candidates = generateSlugCandidates({
       fullName: full_name, trade: null, city: city || null, state: state || null, licenseNumber: null,
@@ -127,6 +186,8 @@ export async function POST(req: NextRequest) {
     }
     if (!slug) slug = `${candidates[0]}-${Date.now().toString(36)}`
 
+    const tradeSlug = await resolveTradeSlug(trade_category_id)
+
     const { data: pro, error: insErr } = await admin
       .from('pros')
       .insert({
@@ -135,14 +196,15 @@ export async function POST(req: NextRequest) {
         email:             cleanEmail,
         phone:             phone || null,
         trade_category_id: trade_category_id || null,
+        trade_slug:        tradeSlug,
         state:             state || null,
         city:              city || null,
         years_experience:  years_experience || null,
         slug,
         is_claimed:        true,
         claimed_at:        new Date().toISOString(),
-        is_verified:       false,   // license verified later in background
-        trial_ends_at:     new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 3 months
+        is_verified:       false,
+        trial_ends_at:     trialEndsAt,
       })
       .select('*, trade_category:trade_categories(category_name, slug)')
       .single()
@@ -150,6 +212,23 @@ export async function POST(req: NextRequest) {
     if (insErr || !pro) {
       await admin.auth.admin.deleteUser(authUserId)
       return NextResponse.json({ error: insErr?.message || 'Could not create profile' }, { status: 500 })
+    }
+
+    const companyResult = await createCompany(pro.id, {
+      name:            full_name || 'My Company',
+      tradeSlug,
+      tradeCategoryId: trade_category_id || null,
+      businessName:    null,
+      licenseNumber:   null,
+      city:            city || null,
+      state:           state || null,
+      phoneCell:       null,
+      planTier:        'Free',
+      trialEndsAt,
+    })
+
+    if ('error' in companyResult) {
+      console.error('[signup] company creation failed for new pro:', companyResult.error)
     }
 
     return NextResponse.json({ ok: true, pro, claimed: false })

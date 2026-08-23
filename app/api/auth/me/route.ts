@@ -1,26 +1,12 @@
 // app/api/auth/me/route.ts
-// Given the logged-in Supabase auth user (via their access token), return their
-// `pros` record shaped as the existing Session object every page already expects.
-//
-// This is the bridge: Supabase Auth identity  →  pros record  →  Session.
-// The link is pros.auth_user_id = auth.users.id (the column you just added).
-//
-// Flow:
-//   1. Client sends its Supabase access token (Authorization: Bearer <token>)
-//   2. We verify it and get the auth user
-//   3. Look up the pros row WHERE auth_user_id = user.id
-//   4. Return it as a Session (same shape as the old fake auth)
+// Returns the logged-in pro's session + their company context.
+// Additive: all existing session fields preserved; company_id + company added.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { verifySupabaseToken } from '@/lib/pro-auth'
 
-function getUrl() {
-  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-}
-
 export async function GET(req: NextRequest) {
-  // Extract the bearer token the browser client sends
   const authHeader = req.headers.get('authorization') || ''
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
 
@@ -28,31 +14,40 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  // Verify the token locally (HS256, SUPABASE_JWT_SECRET) — no auth-API RTT.
   const verified = await verifySupabaseToken(token)
   if (!verified) {
     return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
   }
   const authUser = { id: verified.userId, email: verified.email }
 
-  // Look up the pro linked to this auth user
   const admin = getSupabaseAdmin()
+
+  // Single query: pro + their company (via company_id FK, not a join to company_members)
   const { data: pro, error: proErr } = await admin
     .from('pros')
-    .select(`*, trade_category:trade_categories(id, category_name, slug)`)
+    .select(`
+      *,
+      trade_category:trade_categories(id, category_name, slug),
+      company:companies(
+        id,
+        name,
+        plan_tier,
+        trial_ends_at,
+        trade_slug,
+        business_name,
+        logo_url,
+        city,
+        state
+      )
+    `)
     .eq('auth_user_id', authUser.id)
     .maybeSingle()
 
   if (proErr) {
-    // console.error survives Vercel Hobby log filter (console.log is stripped).
-    // Previously this 500'd silently — the Supabase error was swallowed, making
-    // cold-start 500s (paused DB, pool exhaustion, schema issues) undiagnosable.
     console.error('[auth/me] pros lookup failed', proErr)
     return NextResponse.json({ error: 'Lookup failed' }, { status: 500 })
   }
 
-  // No linked pro yet — the user authenticated but hasn't claimed/created a profile.
-  // The client uses this signal to route them to claim/onboarding.
   if (!pro) {
     return NextResponse.json({
       session: null,
@@ -65,28 +60,53 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Account suspended — contact support' }, { status: 403 })
   }
 
-  // Self-heal: if trade_slug missing on pros row (accounts created before this
-  // was written at registration), backfill it from trade_category join.
+  const company = (pro as any).company as {
+    id: string
+    name: string
+    plan_tier: string
+    trial_ends_at: string | null
+    trade_slug: string | null
+    business_name: string | null
+    logo_url: string | null
+    city: string | null
+    state: string | null
+  } | null
 
-  const resolvedTradeSlug = (pro as any).trade_slug || (pro.trade_category as any)?.slug || null
+  // Self-heal: if trade_slug missing on pros row, backfill from trade_category
+  const resolvedTradeSlug =
+    (pro as any).trade_slug ||
+    company?.trade_slug ||
+    (pro.trade_category as any)?.slug ||
+    null
+
   if (!(pro as any).trade_slug && resolvedTradeSlug) {
-        await admin.from('pros').update({ trade_slug: resolvedTradeSlug }).eq('id', pro.id)
+    await admin.from('pros').update({ trade_slug: resolvedTradeSlug }).eq('id', pro.id)
   }
+
+  // Plan and trial come from company if available, else fall back to pros
+  // (fallback handles unclaimed/orphaned rows during migration window)
+  const plan        = company?.plan_tier        ?? (pro as any).plan_tier        ?? 'Free'
+  const trialEndsAt = company?.trial_ends_at    ?? (pro as any).trial_ends_at    ?? null
 
   return NextResponse.json({
     session: {
+      // ── Existing fields (unchanged) ──
       id:             pro.id,
       name:           pro.full_name,
       email:          pro.email,
-      plan:           pro.plan_tier,
-      trial_ends_at:  (pro as any).trial_ends_at ?? null,
+      plan:           plan,
+      trial_ends_at:  trialEndsAt,
       trade:          (pro.trade_category as any)?.category_name || null,
-      trade_slug:     (pro as any).trade_slug || (pro.trade_category as any)?.slug || null,
-      city:           pro.city,
-      state:          pro.state,
+      trade_slug:     resolvedTradeSlug,
+      city:           company?.city           ?? pro.city,
+      state:          company?.state          ?? pro.state,
       slug:           pro.slug || null,
       profile_status: pro.profile_status,
       is_verified:    pro.is_verified,
+
+      // ── New: company context ──
+      company_id:     company?.id    ?? null,
+      company_name:   company?.name  ?? null,
     },
     needsProfile: false,
   })
