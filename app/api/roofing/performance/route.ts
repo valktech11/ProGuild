@@ -9,8 +9,9 @@ const pretty = (s: string) => s.replace(/_/g, ' ').trim().replace(/\b\w/g, c => 
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const proId = new URL(req.url).searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const proId = __auth.proId
+  const _perfCompanyId = __auth.companyId
+  if (!_perfCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
   const [leadsRes, eventsRes] = await Promise.all([
     sb.from('leads')
       .select('id, lead_status, lead_source, created_at, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount)')
-      .eq('pro_id', proId),
+      .eq('company_id', _perfCompanyId),
     sb.from('pipeline_events')
       .select('lead_id, event_data')
       .eq('pro_id', proId)

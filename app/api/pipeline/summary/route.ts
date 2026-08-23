@@ -28,8 +28,9 @@ const DAY = 86400000
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const proId = new URL(req.url).searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const proId = __auth.proId
+  const _pipCompanyId = __auth.companyId
+  if (!_pipCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
   const { data: proRow } = await sb.from('pros').select('trade_slug').eq('id', proId).single()
@@ -42,10 +43,10 @@ export async function GET(req: NextRequest) {
   const [leadsRes, estRes] = await Promise.all([
     sb.from('leads')
       .select('id, lead_status, created_at, lead_status_changed_at, quoted_amount, roofing_job_data(approved_amount)')
-      .eq('pro_id', proId),
+      .eq('company_id', _pipCompanyId),
     sb.from('estimates')
       .select('status, sent_at, valid_until')
-      .eq('pro_id', proId),
+      .eq('company_id', _pipCompanyId),
   ])
 
   if (leadsRes.error) return NextResponse.json({ error: leadsRes.error.message }, { status: 500 })

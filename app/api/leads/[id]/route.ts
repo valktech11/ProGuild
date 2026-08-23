@@ -68,7 +68,9 @@ export async function GET(
   // Server-derived pro scope — mandatory (was optional client filter: IDOR).
   const proId = __auth.proId
 
-  const query = getSupabaseAdmin().from('leads').select('*').eq('id', id).eq('pro_id', proId)
+  const query = getSupabaseAdmin().from('leads').select('*').eq('id', id)
+    // scope: company member can access any lead in their company
+    .or(companyId ? `company_id.eq.${companyId},pro_id.eq.${proId}` : `pro_id.eq.${proId}`)
 
   const { data, error } = await query.single()
 
@@ -248,7 +250,7 @@ export async function PATCH(
       .from('leads')
       .update(updateFields)
       .eq('id', id)
-      .eq('pro_id', proId)
+      .or(_patchCompanyId ? `company_id.eq.${_patchCompanyId},pro_id.eq.${proId}` : `pro_id.eq.${proId}`)
       .select()
       .single()
     if (error || !data) {
@@ -298,7 +300,8 @@ export async function PATCH(
   }
   if (Object.keys(roofingPayload).length > 0) {
     const { data: freshLead } = await getSupabaseAdmin()
-      .from('leads').select('*').eq('id', id).eq('pro_id', proId).single()
+      .from('leads').select('*').eq('id', id)
+      .or(_patchCompanyId ? `company_id.eq.${_patchCompanyId},pro_id.eq.${proId}` : `pro_id.eq.${proId}`).single()
     if (freshLead) return NextResponse.json({ lead: { ...freshLead, roofing_job_data: updatedRjd ?? null } })
   }
   return NextResponse.json({ success: true })

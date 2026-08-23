@@ -11,9 +11,10 @@ import { requirePro } from '@/lib/pro-auth'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const { companyId } = __auth
+  if (!companyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
   const { searchParams } = new URL(req.url)
-  const proId = searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const proId = searchParams.get('pro_id')  // kept for roof_reports query below
   // Optional client_id filter — lets a client detail page fetch only that
   // client's leads instead of pulling the whole list and filtering client-side.
   const clientFilter = searchParams.get('client_id')
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   let q = getSupabaseAdmin()
     .from('leads')
     .select('*')
-    .eq('pro_id', proId)
+    .eq('company_id', companyId)
     .is('deleted_at', null)
   if (clientFilter) q = q.eq('client_id', clientFilter)
   const { data, error } = await q.order('created_at', { ascending: false })
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
       .from('estimates')
       .select('lead_id, total, status, created_at')
       .in('lead_id', allLeadIds)
-      .eq('pro_id', proId)
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false })
     if (ests && ests.length > 0) {
       const statusMap = new Map<string, string>()
@@ -158,9 +159,11 @@ export async function POST(req: NextRequest) {
   //   • Public: a prospect submits a contractor's public contact form. No
   //     session — pro_id is supplied by the public page. We validate it names
   //     a real pro (below) but do not require a bearer.
+  let _manualCompanyId: string | null = null
   if (is_manual) {
     const __auth = await requirePro(req, pro_id)
     if (__auth.error) return __auth.error
+    _manualCompanyId = __auth.companyId ?? null
   }
 
   if (!pro_id || !contact_name || !message)
@@ -292,6 +295,7 @@ export async function POST(req: NextRequest) {
       message,
       lead_status:      initialStage,
       lead_source:      lead_source || 'Profile_Page',
+      company_id:       _manualCompanyId || null,
       client_id:        clientId    || null,
       property_id:      propertyId  || null,
       property_address: streetOnly,

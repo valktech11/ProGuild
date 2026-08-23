@@ -6,11 +6,9 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
-  const proId = searchParams.get('pro_id')
   const from  = searchParams.get('from')   // ISO date string
   const to    = searchParams.get('to')     // ISO date string
 
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
 
@@ -18,7 +16,7 @@ export async function GET(req: NextRequest) {
   const scheduledQ = sb
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
-    .eq('pro_id', proId)
+    .eq('company_id', _calCompanyId)
     .not('scheduled_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
 
@@ -29,7 +27,7 @@ export async function GET(req: NextRequest) {
   const followupQ = sb
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
-    .eq('pro_id', proId)
+    .eq('company_id', _calCompanyId)
     .not('follow_up_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
 
@@ -40,7 +38,7 @@ export async function GET(req: NextRequest) {
   const inspectionQ = sb
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
-    .eq('pro_id', proId)
+    .eq('company_id', _calCompanyId)
     .not('inspection_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
 
@@ -51,7 +49,7 @@ export async function GET(req: NextRequest) {
   const unscheduledQ = sb
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
-    .eq('pro_id', proId)
+    .eq('company_id', _calCompanyId)
     .in('lead_status', ['Quoted', 'Contacted', 'quoted'])
     .is('scheduled_date', null)
     .order('created_at', { ascending: false })

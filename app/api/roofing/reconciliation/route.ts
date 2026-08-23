@@ -15,9 +15,10 @@ export async function GET(req: NextRequest) {
   if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const leadId = searchParams.get('lead_id')
-  const proId  = searchParams.get('pro_id')
-  if (!leadId || !proId) {
-    return NextResponse.json({ error: 'lead_id and pro_id required' }, { status: 400 })
+  const proId = __auth.proId
+  const _recCompanyId = __auth.companyId
+  if (!leadId) {
+    return NextResponse.json({ error: 'lead_id required' }, { status: 400 })
   }
 
   const sb = getSupabaseAdmin()
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     .from('leads')
     .select('roofing_job_data(insurance_claim, approved_amount, supplement_amount, deductible, claim_status)')
     .eq('id', leadId)
-    .eq('pro_id', proId)
+    .eq(_recCompanyId ? 'company_id' : 'pro_id', _recCompanyId ?? proId)
     .maybeSingle()
 
   const rjd = (lead as any)?.roofing_job_data ?? null
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
     .from('estimates')
     .select('total, status, created_at')
     .eq('lead_id', leadId)
-    .eq('pro_id', proId)
+    .eq(_recCompanyId ? 'company_id' : 'pro_id', _recCompanyId ?? proId)
     .not('status', 'in', '("void","declined")')
     .order('created_at', { ascending: false })
     .limit(1)

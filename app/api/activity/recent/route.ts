@@ -53,20 +53,16 @@ function describe(eventType: string, data: Record<string, unknown>): { label: st
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const { companyId: _actCompanyId, proId: _actProId } = __auth
   const { searchParams } = new URL(req.url)
-  const pro_id = searchParams.get('pro_id')
   const limit  = Math.min(Number(searchParams.get('limit')) || 15, 50)
-
-  if (!pro_id) {
-    return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
-  }
 
   const sb = getSupabaseAdmin()
 
   const { data: events, error } = await sb
     .from('pipeline_events')
     .select('id, lead_id, event_type, event_data, created_at')
-    .eq('pro_id', pro_id)
+    .eq(_actCompanyId ? 'company_id' : 'pro_id', _actCompanyId ?? _actProId)
     .order('created_at', { ascending: false })
     .limit(limit)
 

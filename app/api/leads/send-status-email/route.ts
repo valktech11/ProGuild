@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const { lead_id, pro_id } = await req.json()
   const __auth = await requirePro(req, pro_id)
+  const _emailCompanyId = __auth.error ? null : (__auth.companyId ?? null)
   if (__auth.error) return __auth.error
     if (!lead_id || !pro_id) return NextResponse.json({ error: 'lead_id and pro_id required' }, { status: 400 })
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
       .from('leads')
       .select('id, pro_id, contact_name, contact_email, property_address, lead_status, public_token, inspection_date')
       .eq('id', lead_id)
-      .eq('pro_id', pro_id)
+      .or(_emailCompanyId ? `company_id.eq.${_emailCompanyId},pro_id.eq.${pro_id}` : `pro_id.eq.${pro_id}`)
       .single()
     if (lErr || !lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     if (!lead.contact_email) return NextResponse.json({ error: 'No email on file for this homeowner' }, { status: 422 })

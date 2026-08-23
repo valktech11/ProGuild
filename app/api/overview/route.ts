@@ -15,8 +15,9 @@ const DAY = 86400000
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const proId = new URL(req.url).searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const proId = __auth.proId
+  const _ovCompanyId = __auth.companyId
+  if (!_ovCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
 
@@ -29,13 +30,13 @@ export async function GET(req: NextRequest) {
   const [leadsRes, estRes, invRes] = await Promise.all([
     sb.from('leads')
       .select('id, lead_status, created_at, lead_status_changed_at, updated_at, quoted_amount, scheduled_date, roofing_job_data(insurance_claim, approved_amount, supplement_amount, claim_status)')
-      .eq('pro_id', proId),
+      .eq('company_id', _ovCompanyId),
     sb.from('estimates')
       .select('status, valid_until, sent_at, created_at, total')
-      .eq('pro_id', proId),
+      .eq('company_id', _ovCompanyId),
     sb.from('invoices')
       .select('status, total')
-      .eq('pro_id', proId),
+      .eq('company_id', _ovCompanyId),
   ])
   if (leadsRes.error) return NextResponse.json({ error: leadsRes.error.message }, { status: 500 })
 

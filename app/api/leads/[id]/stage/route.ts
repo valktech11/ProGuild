@@ -50,6 +50,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     // Verify the caller owns this pro_id (defense beyond the query-scope below).
     const __auth = await requirePro(req as NextRequest, pro_id)
     if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    const _stageCompanyId = __auth.companyId
 
     const sb = auditedAdmin(req, { actorId: __auth.proId, actorType: 'pro' })
 
@@ -58,7 +59,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       .from('leads')
       .select('id, lead_status, trade_slug, pro_id, property_address, scheduled_date, inspection_date')
       .eq('id', leadId)
-      .eq('pro_id', pro_id)
+      .or(_stageCompanyId ? `company_id.eq.${_stageCompanyId},pro_id.eq.${pro_id}` : `pro_id.eq.${pro_id}`)
       .single()
 
     if (fetchError || !lead)

@@ -10,19 +10,19 @@ import { requirePro } from '@/lib/pro-auth'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const { companyId: _byLeadCompanyId, proId: _byLeadProId } = __auth
   const { searchParams } = new URL(req.url)
   const leadId = searchParams.get('lead_id')
-  const proId  = searchParams.get('pro_id')
 
-  if (!leadId || !proId) {
-    return NextResponse.json({ error: 'lead_id and pro_id required' }, { status: 400 })
+  if (!leadId) {
+    return NextResponse.json({ error: 'lead_id required' }, { status: 400 })
   }
 
   const { data, error } = await getSupabaseAdmin()
     .from('estimates')
     .select('id, status, total, sent_at, approved_at, viewed_at, invoiced_at, paid_at')
     .eq('lead_id', leadId)
-    .eq('pro_id', proId)
+    .eq(_byLeadCompanyId ? 'company_id' : 'pro_id', _byLeadCompanyId ?? _byLeadProId)
     .not('status', 'in', '("void","declined")')
     .order('created_at', { ascending: false })
     .limit(1)

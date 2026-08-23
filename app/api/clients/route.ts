@@ -7,13 +7,13 @@ import { requirePro } from '@/lib/pro-auth'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const proId = req.nextUrl.searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const _clientCompanyId = __auth.companyId
+  if (!_clientCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   const { data, error } = await getSupabaseAdmin()
     .from('clients')
     .select('*')
-    .eq('pro_id', proId)
+    .eq('company_id', _clientCompanyId)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const { data: leads } = await getSupabaseAdmin()
       .from('leads')
       .select('client_id, quoted_amount, lead_status, created_at')
-      .eq('pro_id', proId)
+      .eq('company_id', _clientCompanyId)
       .in('client_id', clientIds)
 
     if (leads) {
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await db
     .from('clients')
-    .insert({ pro_id, full_name, phone, email, address_line1, city, state, zip, preferred_contact: preferred_contact || 'call', notes, tags: tags || [] })
+    .insert({ pro_id, company_id: __auth.companyId, full_name, phone, email, address_line1, city, state, zip, preferred_contact: preferred_contact || 'call', notes, tags: tags || [] })
     .select()
     .single()
 

@@ -20,15 +20,15 @@ const WON_STATUSES = ['job_won', 'Paid']
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const proId = new URL(req.url).searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const _cliSumCompanyId = __auth.companyId
+  if (!_cliSumCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
 
   const { data: clients, error } = await sb
     .from('clients')
     .select('id')
-    .eq('pro_id', proId)
+    .eq('company_id', _cliSumCompanyId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   const { data: leads } = await sb
     .from('leads')
     .select('client_id, quoted_amount, lead_status')
-    .eq('pro_id', proId)
+    .eq('company_id', _cliSumCompanyId)
     .in('client_id', clientIds)
 
   const perClient: Record<string, number> = {}

@@ -10,13 +10,14 @@ const WON = 'job_won'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const proId = new URL(req.url).searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const proId = __auth.proId
+  const _revCompanyId = __auth.companyId
+  if (!_revCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   const { data, error } = await getSupabaseAdmin()
     .from('leads')
     .select('contact_name, property_address, contact_city, contact_state, lead_status, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount, insurance_company)')
-    .eq('pro_id', proId)
+    .eq('company_id', _revCompanyId)
     .eq('lead_status', WON)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

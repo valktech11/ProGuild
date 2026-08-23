@@ -8,16 +8,15 @@ import { computeMilestonesForTrade } from '@/lib/estimates/milestones'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _invGetCompanyId = __auth.companyId
+  if (!_invGetCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
   const { searchParams } = new URL(req.url)
-  const proId  = searchParams.get('pro_id')
   const leadId = searchParams.get('lead_id')
-
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
   let query = getSupabaseAdmin()
     .from('invoices')
     .select('id, invoice_number, status, lead_name, trade, total, balance_due, due_date, created_at, estimate_id, lead_id')
-    .eq('pro_id', proId)
+    .eq('company_id', _invGetCompanyId)
     .neq('status', 'void')
     .order('created_at', { ascending: false })
 
@@ -42,6 +41,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _invPostCompanyId = __auth.companyId
   const body = await req.json()
   const {
     pro_id,
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
   const sb = auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
-  let invoiceData: Record<string, unknown> = { pro_id, lead_id, lead_name, trade, contact_name, contact_email, contact_phone }
+  let invoiceData: Record<string, unknown> = { pro_id, company_id: _invPostCompanyId, lead_id, lead_name, trade, contact_name, contact_email, contact_phone }
 
   if (estimate_id) {
     // Guard: check if an invoice already exists for this estimate

@@ -6,14 +6,14 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
-  const proId    = searchParams.get('pro_id')
+  const _hvacCompanyId = __auth.companyId
   const clientId = searchParams.get('client_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  if (!_hvacCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   let q = getSupabaseAdmin()
     .from('hvac_equipment')
     .select('*, hvac_maintenance_reminders(id, due_date, status)')
-    .eq('pro_id', proId)
+    .eq('company_id', _hvacCompanyId)
     .order('created_at', { ascending: false })
 
   if (clientId) q = q.eq('client_id', clientId)
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await getSupabaseAdmin()
     .from('hvac_equipment')
-    .insert({ pro_id, client_id, equipment_type, ...rest })
+    .insert({ pro_id, company_id: __auth.companyId, client_id, equipment_type, ...rest })
     .select()
     .single()
 

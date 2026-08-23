@@ -19,15 +19,16 @@ export { STATE_TAX_RATES, resolveTaxRate } from '@/lib/estimates/tax'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const { companyId: _estCompanyId } = __auth
+  if (!_estCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
   const leadId = searchParams.get('lead_id')  // optional: filter to one lead's estimates
 
   let q = getSupabaseAdmin()
     .from('estimates')
     .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count, revision_of, revision_number, void_reason, voided_at')
-    .eq('pro_id', proId)
+    .eq('company_id', _estCompanyId)
   if (leadId) q = q.eq('lead_id', leadId)
 
   const { data, error } = await q.order('created_at', { ascending: false })

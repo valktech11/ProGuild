@@ -20,14 +20,14 @@ const CLOSED = ['paid', 'void']
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const proId = new URL(req.url).searchParams.get('pro_id')
-  if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  const _invSumCompanyId = __auth.companyId
+  if (!_invSumCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
   const { data, error } = await sb
     .from('invoices')
     .select('status, total, balance_due, due_date')
-    .eq('pro_id', proId)
+    .eq('company_id', _invSumCompanyId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

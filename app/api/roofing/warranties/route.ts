@@ -13,6 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export async function POST(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _wCompanyId = __auth.companyId
   let body: Record<string, unknown>
   try {
     body = await req.json()
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
     .from('leads')
     .select('id, pro_id')
     .eq('id', lead_id)
-    .eq('pro_id', pro_id)
+    .eq(_wCompanyId ? 'company_id' : 'pro_id', _wCompanyId ?? pro_id)
     .single()
 
   if (leadErr || !lead) {
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _wGetCompanyId = __auth.companyId
   const proId  = req.nextUrl.searchParams.get('pro_id')
   const leadId = req.nextUrl.searchParams.get('lead_id')
 
@@ -93,7 +95,7 @@ export async function GET(req: NextRequest) {
   let query = sb
     .from('roofing_warranties')
     .select('*, lead:leads(contact_name, property_address, contact_city, contact_state)')
-    .eq('pro_id', proId)
+    .eq(_wGetCompanyId ? 'company_id' : 'pro_id', _wGetCompanyId ?? proId)
     .order('created_at', { ascending: false })
 
   if (leadId && UUID_RE.test(leadId)) {
