@@ -5,6 +5,8 @@ import { requirePro } from '@/lib/pro-auth'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _calCompanyId = __auth.companyId
+  if (!_calCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
   const { searchParams } = new URL(req.url)
   const from  = searchParams.get('from')   // ISO date string
   const to    = searchParams.get('to')     // ISO date string
