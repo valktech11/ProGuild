@@ -162,6 +162,8 @@ function StepBar({ step, total }: { step: number; total: number }) {
 
 // ── Login form ────────────────────────────────────────────────────────────────
 function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: any }) {
+  const _loginParams = useSearchParams()
+  const _loginRedirect = _loginParams.get('redirect') || ''
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]     = useState(false)
@@ -190,8 +192,8 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
       return
     }
 
-    // Session is now set. Route through callback resolver for consistent routing.
-    router.push('/auth/callback')
+    // Session is now set. Route to redirect target or callback resolver.
+    router.push(_loginRedirect || '/auth/callback')
   }
 
   async function handleForgotPassword() {
