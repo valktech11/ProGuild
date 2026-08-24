@@ -189,21 +189,25 @@ export default function EditProfilePage() {
       fetch(`/api/pro-licenses?pro_id=${session.id}`).then(r => r.json()),
       fetch(`/api/memberships?pro_id=${session.id}`).then(r => r.json()),
       apiFetch(`/api/insurance?pro_id=${session.id}`).then(r => r.json()),
-    ]).then(([proData, catData, eqData, licData, memData, insData]) => {
+      // Company profile: prefer company values for shared fields (multi-user canonical source)
+      apiFetch('/api/company/profile').catch(() => null),
+    ]).then(([proData, catData, eqData, licData, memData, insData, companyData]) => {
       const p = proData.pro
+      // Company fields take precedence over stale pros row for shared business data
+      const c = (companyData as any)?.company ?? null
       if (p) {
         setFullName(p.full_name || '')
-        setBusinessName(p.business_name || '')
+        setBusinessName(c?.business_name ?? p.business_name ?? '')
         setPhone(p.phone || '')
-        setPhoneCell(p.phone_cell || '')
+        setPhoneCell(c?.phone_cell ?? p.phone_cell ?? '')
         setPhoneWork(p.phone_work || '')
         setPhoneCell2(p.phone_cell2 || '')
-        setTrade(p.trade_category_id || '')
+        setTrade(c?.trade_category_id ?? p.trade_category_id ?? '')
         setYrs(p.years_experience?.toString() || '')
         setLicense(p.license_number || '')
         setBio(p.bio || '')
-        setState(p.state || '')
-        setCity(p.city || '')
+        setState(c?.state ?? p.state ?? '')
+        setCity(c?.city ?? p.city ?? '')
         setZip(p.zip_code || '')
         setPhotoUrl(p.profile_photo_url || '')
         setCoverUrl(p.cover_image_url || '')

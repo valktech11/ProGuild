@@ -59,5 +59,35 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
   const { data, error } = await getSupabaseAdmin().from('pros').update(updates).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Sync company-scoped fields to companies row (multi-user: all members see
+  // the same business profile). The pros row is kept as a fallback for read
+  // compatibility during the migration window.
+  const COMPANY_FIELDS: Record<string, string> = {
+    business_name:    'business_name',
+    trade_category_id:'trade_category_id',
+    city:             'city',
+    state:            'state',
+    phone_cell:       'phone_cell',
+    license_number:   'license_number',
+  }
+  const companyUpdates: Record<string, unknown> = {}
+  for (const [proField, compField] of Object.entries(COMPANY_FIELDS)) {
+    if (proField in updates) companyUpdates[compField] = updates[proField]
+  }
+  // Also sync trade_slug when trade_category_id changes
+  if ('trade_slug' in updates) companyUpdates.trade_slug = updates.trade_slug
+
+  if (Object.keys(companyUpdates).length > 0) {
+    // Resolve company for this pro (non-blocking — failure doesn't affect response)
+    const proRow = data as Record<string, unknown>
+    if (proRow?.company_id) {
+      await getSupabaseAdmin()
+        .from('companies')
+        .update({ ...companyUpdates, updated_at: new Date().toISOString() })
+        .eq('id', proRow.company_id as string)
+    }
+  }
+
   return NextResponse.json({ pro: data })
 }

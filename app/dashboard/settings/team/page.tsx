@@ -45,14 +45,35 @@ export default function TeamPage() {
   const [removeId, setRemoveId] = useState<string | null>(null)
   const [err, setErr] = useState('')
 
+  // Company profile editing
+  const [companyName, setCompanyName] = useState('')
+  const [companyBusinessName, setCompanyBusinessName] = useState('')
+  const [companyCity, setCompanyCity] = useState('')
+  const [companyState, setCompanyState] = useState('')
+  const [companyPhone, setCompanyPhone] = useState('')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
+  const [profileErr, setProfileErr] = useState('')
+
   const isOwner = members.find(m => m.pro.id === session?.id)?.role === 'owner'
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await apiFetch('/api/company/members') as any
-      if (data?.members) setMembers(data.members)
-      if (data?.invites) setInvites(data.invites)
+      const [membersData, profileData] = await Promise.all([
+        apiFetch('/api/company/members') as any,
+        apiFetch('/api/company/profile') as any,
+      ])
+      if (membersData?.members) setMembers(membersData.members)
+      if (membersData?.invites) setInvites(membersData.invites)
+      if (profileData?.company) {
+        const c = profileData.company
+        setCompanyName(c.name ?? '')
+        setCompanyBusinessName(c.business_name ?? '')
+        setCompanyCity(c.city ?? '')
+        setCompanyState(c.state ?? '')
+        setCompanyPhone(c.phone_cell ?? '')
+      }
     } catch { /* silent */ } finally {
       setLoading(false)
     }
@@ -77,6 +98,33 @@ export default function TeamPage() {
       setErr('Something went wrong')
     } finally {
       setInviting(false)
+    }
+  }
+
+  async function saveProfile() {
+    setSavingProfile(true)
+    setProfileErr('')
+    try {
+      const data = await apiFetch('/api/company/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name:          companyName.trim() || undefined,
+          business_name: companyBusinessName.trim() || null,
+          city:          companyCity.trim() || null,
+          state:         companyState.trim() || null,
+          phone_cell:    companyPhone.trim() || null,
+        }),
+      }) as any
+      if (data?.company) {
+        setProfileSaved(true)
+        setTimeout(() => setProfileSaved(false), 3000)
+      } else {
+        setProfileErr(data?.error ?? 'Could not save')
+      }
+    } catch {
+      setProfileErr('Something went wrong')
+    } finally {
+      setSavingProfile(false)
     }
   }
 
@@ -140,6 +188,9 @@ export default function TeamPage() {
       textDecoration: variant === 'ghost' || variant === 'danger' ? 'underline' : 'none',
     }),
     err: { fontSize: 13, color: '#DC2626', marginTop: 8 } as React.CSSProperties,
+    inp: { width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${t.cardBorder}`,
+           background: dk ? '#0F172A' : '#FFFFFF', color: t.textPri, fontSize: 14,
+           outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' },
   }
 
   if (!session) return null
@@ -185,6 +236,46 @@ export default function TeamPage() {
                   {inviting ? 'Generating…' : 'Generate invite link'}
                 </button>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Company profile (owner only) ── */}
+        {isOwner && (
+          <div style={s.section}>
+            <div style={s.sHead}>Company profile</div>
+            <div style={{ ...s.card, padding: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4 }}>COMPANY NAME</div>
+                  <input value={companyName} onChange={e => setCompanyName(e.target.value)}
+                    placeholder="Your company name" style={s.inp} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4 }}>BUSINESS NAME (DBA)</div>
+                  <input value={companyBusinessName} onChange={e => setCompanyBusinessName(e.target.value)}
+                    placeholder="Trading name (if different)" style={s.inp} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4 }}>CITY</div>
+                  <input value={companyCity} onChange={e => setCompanyCity(e.target.value)}
+                    placeholder="City" style={s.inp} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4 }}>STATE</div>
+                  <input value={companyState} onChange={e => setCompanyState(e.target.value)}
+                    placeholder="State" style={s.inp} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4 }}>BUSINESS PHONE</div>
+                  <input value={companyPhone} onChange={e => setCompanyPhone(e.target.value)}
+                    placeholder="(555) 000-0000" style={s.inp} type="tel" />
+                </div>
+              </div>
+              {profileErr && <div style={{ fontSize: 13, color: '#DC2626', marginBottom: 10 }}>{profileErr}</div>}
+              <button onClick={saveProfile} disabled={savingProfile} style={s.btn('primary')}>
+                {savingProfile ? 'Saving…' : profileSaved ? '✓ Saved' : 'Save changes'}
+              </button>
             </div>
           </div>
         )}
