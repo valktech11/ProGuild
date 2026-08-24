@@ -380,6 +380,8 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     setError('')
     const err = validateStep()
     if (err) { setError(err); return }
+    // Invite flow: only need identity (step 0), skip trade/location steps
+    if (inviteToken && step === 0) { handleSignup(); return }
     setStep(s => s + 1)
   }
 
@@ -443,9 +445,10 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     }
 
     setSuccess(true)
-    // If signed up via invite, skip onboarding and go directly to dashboard
+    // If signed up via invite, go via callback (handles session establishment)
     if (inviteToken) {
-      setTimeout(() => router.push('/dashboard'), 600)
+      try { sessionStorage.setItem('pg_invite_join', '1') } catch {}
+      setTimeout(() => router.push('/auth/callback'), 600)
       return
     }
     // Route through the shared callback, which reliably waits for the session to be

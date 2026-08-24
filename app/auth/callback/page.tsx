@@ -78,6 +78,13 @@ function CallbackInner() {
           }
           router.replace('/dashboard')
         } else if (r.ok && d.needsProfile) {
+          // If this was an invite signup, they have a company — go to dashboard
+          const isInviteJoin = (() => { try { return !!sessionStorage.getItem('pg_invite_join') } catch { return false } })()
+          if (isInviteJoin) {
+            try { sessionStorage.removeItem('pg_invite_join') } catch {}
+            router.replace('/dashboard')
+            return
+          }
           // Profile not built yet. Keep pg_visualizer_session in storage — the
           // visualizer links it itself once the pro record exists.
           router.replace('/complete-profile')
