@@ -63,7 +63,14 @@ export default function TeamPage() {
   const [removingId, setRemovingId] = useState<string | null>(null)
 
   const myProId = session?.id ?? null
-  const isOwner = members.some(m => m.pro?.id === myProId && m.role === 'owner')
+  // isOwner: check by pro id match OR by email match as fallback
+  const myEmail = session?.email ?? null
+  const isOwner = members.some(m =>
+    m.role === 'owner' && (
+      (myProId && m.pro?.id === myProId) ||
+      (myEmail && m.pro?.email === myEmail)
+    )
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -315,7 +322,7 @@ export default function TeamPage() {
                 <div style={card}>
                   {members.map((m, i) => {
                     const pro = m.pro
-                    const isMe = pro?.id === myProId
+                    const isMe = (myProId && pro?.id === myProId) || (myEmail && pro?.email === myEmail)
                     const isLast = i === members.length - 1
                     return (
                       <div key={m.id} style={{ ...divRow, borderBottom: isLast ? 'none' : `1px solid ${t.cardBorder}` }}>
