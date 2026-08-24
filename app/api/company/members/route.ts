@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       id,
       role,
       joined_at,
-      pro:pros(id, full_name, email, profile_photo_url, is_verified, trade_slug)
+      pro:pros!company_members_pro_id_fkey(id, full_name, email, profile_photo_url, is_verified, trade_slug)
     `)
     .eq('company_id', companyId)
     .order('joined_at', { ascending: true })

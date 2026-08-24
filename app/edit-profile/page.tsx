@@ -251,8 +251,18 @@ export default function EditProfilePage() {
     const r = await fetch('/api/upload', { method: 'POST', body: form })
     const d = await r.json()
     setUploading(false)
-    if (r.ok) setPhotoUrl(d.url)
-    else { setPhotoUrl(''); setErrors(p => ({ ...p, photo: d.error || 'Upload failed' })) }
+    if (r.ok) {
+      setPhotoUrl(d.url)
+      // Persist immediately so reload doesn't revert
+      await fetch(`/api/pros/${session!.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_photo_url: d.url }),
+      })
+    } else {
+      setPhotoUrl('')
+      setErrors(p => ({ ...p, photo: d.error || 'Upload failed' }))
+    }
   }
 
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {

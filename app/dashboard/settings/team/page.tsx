@@ -59,13 +59,18 @@ export default function TeamPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setErr('')
     try {
       const [membersData, profileData] = await Promise.all([
         apiFetch('/api/company/members') as any,
-        apiFetch('/api/company/profile') as any,
+        apiFetch('/api/company/profile').catch(() => null) as any,
       ])
-      if (membersData?.members) setMembers(membersData.members)
-      if (membersData?.invites) setInvites(membersData.invites)
+      if (membersData?.error) {
+        setErr(membersData.error)
+      } else {
+        if (membersData?.members) setMembers(membersData.members)
+        if (membersData?.invites) setInvites(membersData.invites)
+      }
       if (profileData?.company) {
         const c = profileData.company
         setCompanyName(c.name ?? '')
@@ -74,7 +79,9 @@ export default function TeamPage() {
         setCompanyState(c.state ?? '')
         setCompanyPhone(c.phone_cell ?? '')
       }
-    } catch { /* silent */ } finally {
+    } catch (e: any) {
+      setErr(e?.message ?? 'Could not load team data')
+    } finally {
       setLoading(false)
     }
   }, [])
