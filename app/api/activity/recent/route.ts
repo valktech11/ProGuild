@@ -53,18 +53,28 @@ function describe(eventType: string, data: Record<string, unknown>): { label: st
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const { companyId: _actCompanyId, proId: _actProId } = __auth
+  const { companyId: _actCompanyId, proId: _actProId, role: _actRole } = __auth
   const { searchParams } = new URL(req.url)
   const limit  = Math.min(Number(searchParams.get('limit')) || 15, 50)
 
   const sb = getSupabaseAdmin()
 
-  const { data: events, error } = await sb
-    .from('pipeline_events')
+  // Member: only activity on their assigned leads
+  let _actLeadIds: string[] | null = null
+  if (_actRole === 'member' && _actProId && _actCompanyId) {
+    const { data: _ml } = await sb.from('leads').select('id')
+      .eq('company_id', _actCompanyId).eq('assigned_to_pro_id', _actProId).is('deleted_at', null)
+    _actLeadIds = (_ml ?? []).map((l: any) => l.id)
+  }
+
+  let _actQ = sb.from('pipeline_events')
     .select('id, lead_id, event_type, event_data, created_at')
     .eq(_actCompanyId ? 'company_id' : 'pro_id', _actCompanyId ?? _actProId)
     .order('created_at', { ascending: false })
     .limit(limit)
+  if (_actLeadIds !== null && _actLeadIds.length > 0) _actQ = _actQ.in('lead_id', _actLeadIds)
+  if (_actLeadIds !== null && _actLeadIds.length === 0) return NextResponse.json({ activity: [] })
+  const { data: events, error } = await _actQ
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

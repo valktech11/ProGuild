@@ -26,13 +26,20 @@ export async function GET(req: NextRequest) {
   if (__auth.error) return __auth.error
   const proId = __auth.proId
   const _estSumCompanyId = __auth.companyId
+  const _estSumRole = __auth.role
   if (!_estSumCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
+  let _estSumLeadIds: string[] | null = null
+  if (_estSumRole === 'member' && proId) {
+    const { data: _ml } = await getSupabaseAdmin().from('leads').select('id')
+      .eq('company_id', _estSumCompanyId).eq('assigned_to_pro_id', proId).is('deleted_at', null)
+    _estSumLeadIds = (_ml ?? []).map((l: any) => l.id)
+    if (_estSumLeadIds.length === 0) return NextResponse.json({ total: 0, sent: 0, approved: 0, draft: 0 })
+  }
 
   const sb = getSupabaseAdmin()
-  const { data, error } = await sb
-    .from('estimates')
-    .select('id, lead_id, status, total, revision_of')
-    .eq('company_id', _estSumCompanyId)
+  let _estSumQ = sb.from('estimates').select('id, lead_id, status, total, revision_of').eq('company_id', _estSumCompanyId)
+  if (_estSumLeadIds !== null) _estSumQ = _estSumQ.in('lead_id', _estSumLeadIds)
+  const { data, error } = await _estSumQ
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

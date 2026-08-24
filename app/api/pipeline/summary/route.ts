@@ -30,7 +30,14 @@ export async function GET(req: NextRequest) {
   if (__auth.error) return __auth.error
   const proId = __auth.proId
   const _pipCompanyId = __auth.companyId
+  const _pipRole = __auth.role
   if (!_pipCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
+  let _pipLeadIds: string[] | null = null
+  if (_pipRole === 'member' && proId) {
+    const { data: _ml } = await getSupabaseAdmin().from('leads').select('id')
+      .eq('company_id', _pipCompanyId).eq('assigned_to_pro_id', proId).is('deleted_at', null)
+    _pipLeadIds = (_ml ?? []).map((l: any) => l.id)
+  }
 
   const sb = getSupabaseAdmin()
   const { data: proRow } = await sb.from('pros').select('trade_slug').eq('id', proId).single()
@@ -39,14 +46,10 @@ export async function GET(req: NextRequest) {
 
   const closedKeys = closedPipelineKeys(tradeSlug, anchors.won)
 
-  // Fetch leads + estimates in parallel
+  // Fetch leads + estimates in parallel (member: assigned leads only)
   const [leadsRes, estRes] = await Promise.all([
-    sb.from('leads')
-      .select('id, lead_status, created_at, lead_status_changed_at, quoted_amount, roofing_job_data(approved_amount)')
-      .eq('company_id', _pipCompanyId),
-    sb.from('estimates')
-      .select('status, sent_at, valid_until')
-      .eq('company_id', _pipCompanyId),
+    (() => { let q = sb.from('leads').select('id, lead_status, created_at, lead_status_changed_at, quoted_amount, roofing_job_data(approved_amount)').eq('company_id', _pipCompanyId); if (_pipLeadIds !== null) q = q.in('id', _pipLeadIds); return q })(),
+    (() => { let q = sb.from('estimates').select('status, sent_at, valid_until').eq('company_id', _pipCompanyId); if (_pipLeadIds !== null) q = q.in('lead_id', _pipLeadIds); return q })(),
   ])
 
   if (leadsRes.error) return NextResponse.json({ error: leadsRes.error.message }, { status: 500 })

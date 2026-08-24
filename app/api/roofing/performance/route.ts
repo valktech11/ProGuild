@@ -11,7 +11,16 @@ export async function GET(req: NextRequest) {
   if (__auth.error) return __auth.error
   const proId = __auth.proId
   const _perfCompanyId = __auth.companyId
+  const _perfRole = __auth.role
   if (!_perfCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
+  // Member: only their assigned leads
+  let _perfLeadIds: string[] | null = null
+  if (_perfRole === 'member' && proId) {
+    const { data: _ml } = await getSupabaseAdmin().from('leads').select('id')
+      .eq('company_id', _perfCompanyId).eq('assigned_to_pro_id', proId).is('deleted_at', null)
+    _perfLeadIds = (_ml ?? []).map((l: any) => l.id)
+    if (_perfLeadIds.length === 0) return NextResponse.json({ leads: [], win_rate: 0, avg_cycle: 0, total_leads: 0 })
+  }
 
   const sb = getSupabaseAdmin()
 
@@ -22,9 +31,7 @@ export async function GET(req: NextRequest) {
     .map((s: any) => ({ key: s.key, label: s.label }))
 
   const [leadsRes, eventsRes] = await Promise.all([
-    sb.from('leads')
-      .select('id, lead_status, lead_source, created_at, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount)')
-      .eq('company_id', _perfCompanyId),
+    (() => { let q = sb.from('leads').select('id, lead_status, lead_source, created_at, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount)').eq('company_id', _perfCompanyId); if (_perfLeadIds !== null) q = q.in('id', _perfLeadIds); return q })(),
     sb.from('pipeline_events')
       .select('lead_id, event_data')
       .eq('pro_id', proId)

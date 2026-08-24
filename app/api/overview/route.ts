@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   if (__auth.error) return __auth.error
   const proId = __auth.proId
   const _ovCompanyId = __auth.companyId
+  const _ovRole = __auth.role
   if (!_ovCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
@@ -27,16 +28,22 @@ export async function GET(req: NextRequest) {
   const anchors = getStageAnchors(proRow?.trade_slug)
   const tc      = getTradeConfig(proRow?.trade_slug)
 
+  // Member: scope to assigned leads only
+  let _ovLeadIds: string[] | null = null
+  if (_ovRole === 'member' && proId) {
+    const { data: _ml } = await sb.from('leads').select('id')
+      .eq('company_id', _ovCompanyId).eq('assigned_to_pro_id', proId).is('deleted_at', null)
+    _ovLeadIds = (_ml ?? []).map((l: any) => l.id)
+    if (_ovLeadIds.length === 0) {
+      // Member with no assigned leads — return zero state
+      return NextResponse.json({ actionCenter: { newLeads: 0, awaitingSignature: 0, insuranceFollowUp: 0, stalledLeads: 0 }, stats: { revenue: { thisMonth: 0, lastMonth: 0, ytd: 0, lifetime: 0 }, jobsWon: { thisMonth: 0, allTime: 0 }, winRate: null, avgTicket: null, estimatedValue: 0, insApproved: 0, supplements: 0, openClaims: 0 }, openPipelineByStage: [], schedule: [], subLine: '' })
+    }
+  }
+
   const [leadsRes, estRes, invRes] = await Promise.all([
-    sb.from('leads')
-      .select('id, lead_status, created_at, lead_status_changed_at, updated_at, quoted_amount, scheduled_date, roofing_job_data(insurance_claim, approved_amount, supplement_amount, claim_status)')
-      .eq('company_id', _ovCompanyId),
-    sb.from('estimates')
-      .select('status, valid_until, sent_at, created_at, total')
-      .eq('company_id', _ovCompanyId),
-    sb.from('invoices')
-      .select('status, total')
-      .eq('company_id', _ovCompanyId),
+    (() => { let q = sb.from('leads').select('id, lead_status, created_at, lead_status_changed_at, updated_at, quoted_amount, scheduled_date, roofing_job_data(insurance_claim, approved_amount, supplement_amount, claim_status)').eq('company_id', _ovCompanyId); if (_ovLeadIds) q = q.in('id', _ovLeadIds); return q })(),
+    (() => { let q = sb.from('estimates').select('status, valid_until, sent_at, created_at, total').eq('company_id', _ovCompanyId); if (_ovLeadIds) q = q.in('lead_id', _ovLeadIds); return q })(),
+    (() => { let q = sb.from('invoices').select('status, total').eq('company_id', _ovCompanyId); if (_ovLeadIds) q = q.in('lead_id', _ovLeadIds); return q })(),
   ])
   if (leadsRes.error) return NextResponse.json({ error: leadsRes.error.message }, { status: 500 })
 

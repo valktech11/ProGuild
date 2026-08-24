@@ -21,7 +21,16 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const _invSumCompanyId = __auth.companyId
+  const _invSumProId = __auth.proId
+  const _invSumRole = __auth.role
   if (!_invSumCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
+  let _invSumLeadIds: string[] | null = null
+  if (_invSumRole === 'member' && _invSumProId) {
+    const { data: _ml } = await getSupabaseAdmin().from('leads').select('id')
+      .eq('company_id', _invSumCompanyId).eq('assigned_to_pro_id', _invSumProId).is('deleted_at', null)
+    _invSumLeadIds = (_ml ?? []).map((l: any) => l.id)
+    if (_invSumLeadIds.length === 0) return NextResponse.json({ total: 0, paid: 0, outstanding: 0, overdue: 0, count: 0 })
+  }
 
   const sb = getSupabaseAdmin()
   const { data, error } = await sb

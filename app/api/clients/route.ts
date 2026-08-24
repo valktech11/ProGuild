@@ -8,7 +8,17 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const _clientCompanyId = __auth.companyId
+  const _clientProId = __auth.proId
+  const _clientRole = __auth.role
   if (!_clientCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
+  // Member: only clients linked to their assigned leads
+  let _clientLeadIds: string[] | null = null
+  if (_clientRole === 'member' && _clientProId) {
+    const { data: _ml } = await getSupabaseAdmin().from('leads').select('client_id')
+      .eq('company_id', _clientCompanyId).eq('assigned_to_pro_id', _clientProId).is('deleted_at', null).not('client_id', 'is', null)
+    _clientLeadIds = (_ml ?? []).map((l: any) => l.client_id).filter(Boolean)
+    if (_clientLeadIds.length === 0) return NextResponse.json({ clients: [] })
+  }
 
   const { data, error } = await getSupabaseAdmin()
     .from('clients')

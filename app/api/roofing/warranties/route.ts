@@ -84,7 +84,9 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const _wGetCompanyId = __auth.companyId
-  const proId  = req.nextUrl.searchParams.get('pro_id')
+  const _wGetProId = __auth.proId
+  const _wGetRole = __auth.role
+  const proId  = _wGetProId
   const leadId = req.nextUrl.searchParams.get('lead_id')
 
   if (!proId || !UUID_RE.test(proId)) {
@@ -92,11 +94,20 @@ export async function GET(req: NextRequest) {
   }
 
   const sb = getSupabaseAdmin()
+  // Member: only warranties for their assigned leads
+  let _wLeadIds2: string[] | null = null
+  if (_wGetRole === 'member' && _wGetProId) {
+    const { data: _ml } = await sb.from('leads').select('id')
+      .eq('company_id', _wGetCompanyId).eq('assigned_to_pro_id', _wGetProId).is('deleted_at', null)
+    _wLeadIds2 = (_ml ?? []).map((l: any) => l.id)
+  }
   let query = sb
     .from('roofing_warranties')
     .select('*, lead:leads(contact_name, property_address, contact_city, contact_state)')
-    .eq(_wGetCompanyId ? 'company_id' : 'pro_id', _wGetCompanyId ?? proId)
+    .eq(_wGetCompanyId ? 'company_id' : 'pro_id', _wGetCompanyId ?? _wGetProId)
     .order('created_at', { ascending: false })
+  if (_wLeadIds2 !== null && _wLeadIds2.length > 0) query = query.in('lead_id', _wLeadIds2)
+  if (_wLeadIds2 !== null && _wLeadIds2.length === 0) return NextResponse.json({ warranties: [] })
 
   if (leadId && UUID_RE.test(leadId)) {
     query = query.eq('lead_id', leadId)

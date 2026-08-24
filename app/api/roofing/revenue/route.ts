@@ -12,7 +12,15 @@ export async function GET(req: NextRequest) {
   if (__auth.error) return __auth.error
   const proId = __auth.proId
   const _revCompanyId = __auth.companyId
+  const _revRole = __auth.role
   if (!_revCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
+  // Member: only their assigned leads
+  let _revLeadIds: string[] | null = null
+  if (_revRole === 'member' && proId) {
+    const { data: _ml } = await getSupabaseAdmin().from('leads').select('id')
+      .eq('company_id', _revCompanyId).eq('assigned_to_pro_id', proId).is('deleted_at', null)
+    _revLeadIds = (_ml ?? []).map((l: any) => l.id)
+  }
 
   const { data, error } = await getSupabaseAdmin()
     .from('leads')
