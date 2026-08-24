@@ -56,6 +56,8 @@ export default function TeamPage() {
 
   // Invite
   const [inviting, setInviting] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [generatedUrl, setGeneratedUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [inviteErr, setInviteErr] = useState('')
 
@@ -130,22 +132,41 @@ export default function TeamPage() {
     setInviting(true)
     setInviteErr('')
     try {
-      const invRes = await apiFetch('/api/company/invite', { method: 'POST', body: JSON.stringify({}) })
+      const invRes = await apiFetch('/api/company/invite', {
+        method: 'POST',
+        body: JSON.stringify({ email: inviteEmail.trim() || undefined }),
+      })
       const d = await invRes.json().catch(() => null)
       if (d?.invite_url) {
-        await navigator.clipboard.writeText(d.invite_url).catch(() => {})
-        setCopied(true)
-        setTimeout(() => setCopied(false), 3000)
-        await load()
-      } else setInviteErr(d?.error ?? 'Could not generate invite')
+        setGeneratedUrl(d.invite_url)
+        await load()  // refresh invites list
+      } else {
+        setInviteErr(d?.error ?? 'Could not generate invite link')
+      }
     } catch { setInviteErr('Something went wrong') }
     finally { setInviting(false) }
   }
 
+  async function copyToClipboard(url: string) {
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch {
+      // Fallback: select a temp input
+      const el = document.createElement('input')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    }
+  }
+
   async function copyUrl(url: string) {
-    await navigator.clipboard.writeText(url).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2500)
+    await copyToClipboard(url)
   }
 
   async function revokeInvite(token: string) {
@@ -281,40 +302,66 @@ export default function TeamPage() {
             {/* ── Invite link (owner only) ── */}
             {isOwner && (
               <div style={{ marginBottom: 28 }}>
-                <div style={sectionHead}>Invite link</div>
+                <div style={sectionHead}>Invite to team</div>
                 <div style={{ ...card, padding: 18 }}>
-                  <div style={{ fontSize: 13, color: t.textBody, lineHeight: 1.6, marginBottom: 14 }}>
-                    Share this link to add someone to your team. Links expire in 7 days and are single-use.
+                  <div style={{ fontSize: 13, color: t.textBody, lineHeight: 1.6, marginBottom: 16 }}>
+                    Enter an email address to send an invite, or generate a link to share manually.
+                    Links expire in 7 days.
                   </div>
 
-                  {invites.length > 0 ? (
-                    <>
-                      <div style={{ fontFamily: 'monospace', fontSize: 12, color: t.textMuted, wordBreak: 'break-all',
-                        background: dk ? '#0F172A' : '#F8F7F5', borderRadius: 6, padding: '8px 10px',
-                        border: `1px solid ${t.cardBorder}`, marginBottom: 12 }}>
-                        {invites[0].invite_url}
-                      </div>
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <button onClick={() => copyUrl(invites[0].invite_url)} style={tealBtn()}>
-                          {copied ? '✓ Copied!' : 'Copy link'}
-                        </button>
-                        <button onClick={() => revokeInvite(invites[0].token)}
-                          style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
-                          Revoke
-                        </button>
-                        <span style={{ fontSize: 11, color: t.textSubtle }}>
-                          Expires {new Date(invites[0].expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {inviteErr && <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 8 }}>{inviteErr}</div>}
-                      <button onClick={generateInvite} disabled={inviting} style={tealBtn(inviting)}>
-                        {inviting ? 'Generating…' : 'Generate invite link'}
-                      </button>
-                    </>
+                  {/* Email input */}
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      placeholder="colleague@example.com (optional)"
+                      style={{ ...inp, flex: 1, minWidth: 200 }}
+                    />
+                    <button onClick={generateInvite} disabled={inviting} style={tealBtn(inviting)}>
+                      {inviting ? 'Generating…' : inviteEmail.trim() ? 'Send invite' : 'Generate link'}
+                    </button>
+                  </div>
+
+                  {inviteErr && (
+                    <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 12 }}>{inviteErr}</div>
                   )}
+
+                  {/* Show active invite link */}
+                  {(invites.length > 0 || generatedUrl) && (() => {
+                    const activeUrl = invites[0]?.invite_url ?? generatedUrl
+                    const activeToken = invites[0]?.token ?? ''
+                    const expiresAt = invites[0]?.expires_at
+                    return (
+                      <div style={{ background: dk ? '#0F172A' : '#F0FDF9', border: `1px solid ${dk ? '#2D3A4A' : '#99F6E4'}`,
+                        borderRadius: 8, padding: 14 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#0d9488', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Active invite link
+                        </div>
+                        <div style={{ fontFamily: 'monospace', fontSize: 12, color: t.textMuted,
+                          wordBreak: 'break-all', marginBottom: 12, lineHeight: 1.5 }}>
+                          {activeUrl}
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button onClick={() => copyUrl(activeUrl)} style={tealBtn()}>
+                            {copied ? '✓ Copied!' : 'Copy link'}
+                          </button>
+                          {activeToken && (
+                            <button onClick={() => revokeInvite(activeToken)}
+                              style={{ background: 'none', border: 'none', color: '#DC2626',
+                                fontSize: 13, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                              Revoke
+                            </button>
+                          )}
+                          {expiresAt && (
+                            <span style={{ fontSize: 11, color: t.textSubtle }}>
+                              Expires {new Date(expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             )}
