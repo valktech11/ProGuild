@@ -138,6 +138,7 @@ export default function EditProfilePage() {
   const [otherCity,    setOtherCity]    = useState('')
   const [zip,          setZip]          = useState('')
   const [photoUrl,     setPhotoUrl]     = useState('')
+  const [photoVersion, setPhotoVersion] = useState(() => Date.now())
   const [coverUrl,     setCoverUrl]     = useState('')
   const [uploading,    setUploading]    = useState(false)
   const [uploadingCover, setUploadingCover] = useState(false)
@@ -252,6 +253,7 @@ export default function EditProfilePage() {
     const d = await r.json()
     setUploading(false)
     if (r.ok) {
+      setPhotoVersion(Date.now())
       setPhotoUrl(d.url)
       // Persist immediately so reload doesn't revert
       await fetch(`/api/pros/${session!.id}`, {
@@ -347,7 +349,7 @@ export default function EditProfilePage() {
   const AvatarWidget = (
     <div style={{ position: 'relative', display: 'inline-block' }}>
       {photoUrl
-        ? <img src={photoUrl} alt={fullName}
+        ? <img src={`${photoUrl}?v=${photoVersion}`} alt={fullName}
             style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', display: 'block', border: `3px solid ${dk ? '#334155' : '#E5E0D9'}` }} />
         : <div style={{ width: 120, height: 120, borderRadius: '50%', background: bg, color: fg,
             display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -17,15 +17,10 @@ export async function GET(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
-  // Members with their pro details
-  const { data: members, error: membErr } = await sb
+  // Members — two-step to avoid PostgREST FK ambiguity
+  const { data: memberRows, error: membErr } = await sb
     .from('company_members')
-    .select(`
-      id,
-      role,
-      joined_at,
-      pro:pro_id(id, full_name, email, profile_photo_url, is_verified, trade_slug)
-    `)
+    .select('id, role, joined_at, pro_id')
     .eq('company_id', companyId)
     .order('joined_at', { ascending: true })
 
@@ -33,6 +28,21 @@ export async function GET(req: NextRequest) {
     console.error('[company/members] query failed', membErr)
     return NextResponse.json({ error: membErr.message }, { status: 500 })
   }
+
+  // Fetch pro details for each member
+  const proIds = (memberRows ?? []).map(m => m.pro_id)
+  const { data: prosData } = proIds.length > 0
+    ? await sb.from('pros').select('id, full_name, email, profile_photo_url, is_verified, trade_slug').in('id', proIds)
+    : { data: [] }
+
+  const prosMap = Object.fromEntries((prosData ?? []).map(p => [p.id, p]))
+
+  const members = (memberRows ?? []).map(m => ({
+    id:        m.id,
+    role:      m.role,
+    joined_at: m.joined_at,
+    pro:       prosMap[m.pro_id] ?? null,
+  }))
 
   // Pending invites (unused, not expired)
   const { data: invites } = await sb
@@ -46,7 +56,7 @@ export async function GET(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://staging.proguild.ai'
 
   return NextResponse.json({
-    members: members ?? [],
+    members: members,
     invites: (invites ?? []).map(inv => ({
       ...inv,
       invite_url: `${appUrl}/join/${inv.token}`,

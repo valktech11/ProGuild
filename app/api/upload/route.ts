@@ -36,7 +36,9 @@ export async function POST(req: NextRequest) {
 
     // Upload to R2
     const buf       = Buffer.from(await file.arrayBuffer())
-    const publicUrl = await uploadToR2(key, buf, file.type)
+    // Avatars/cover use a fixed key (same URL on every upload) — bust CDN cache
+    const noCache   = bucket === 'avatars' || bucket === 'cover'
+    const publicUrl = await uploadToR2(key, buf, file.type, noCache ? 'no-cache, no-store' : undefined)
 
     // Save avatar URL to DB
     if (bucket === 'avatars') {

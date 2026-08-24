@@ -22,14 +22,16 @@ export function getR2Client() {
 export async function uploadToR2(
   key: string,
   body: Buffer | Uint8Array,
-  contentType: string
+  contentType: string,
+  cacheControl?: string
 ): Promise<string> {
   const client = getR2Client()
   await client.send(new PutObjectCommand({
-    Bucket:      BUCKET_NAME,
-    Key:         key,
-    Body:        body,
-    ContentType: contentType,
+    Bucket:       BUCKET_NAME,
+    Key:          key,
+    Body:         body,
+    ContentType:  contentType,
+    ...(cacheControl ? { CacheControl: cacheControl } : {}),
   }))
   return getR2PublicUrl(key)
 }
