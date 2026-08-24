@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     .select(`
       *,
       trade_category:trade_categories(id, category_name, slug),
-      company:companies(
+      company:companies!pros_company_id_fkey(
         id,
         name,
         plan_tier,
