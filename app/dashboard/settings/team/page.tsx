@@ -231,6 +231,21 @@ export default function TeamPage() {
           </div>
         )}
 
+        {/* DEBUG — remove after fix */}
+        <div style={{ background: '#1E293B', color: '#94A3B8', fontSize: 11, fontFamily: 'monospace',
+          padding: 12, borderRadius: 8, marginBottom: 16, lineHeight: 1.6 }}>
+          <div>session.id: {session?.id ?? 'null'}</div>
+          <div>session.email: {session?.email ?? 'null'}</div>
+          <div>myProId: {myProId ?? 'null'}</div>
+          <div>myEmail: {myEmail ?? 'null'}</div>
+          <div>members.length: {members.length}</div>
+          <div>isOwner: {String(isOwner)}</div>
+          <div>loading: {String(loading)}</div>
+          {members.map(m => (
+            <div key={m.id}>member: {m.pro?.email} role={m.role} pro.id={m.pro?.id} match={String(m.pro?.id === myProId || m.pro?.email === myEmail)}</div>
+          ))}
+        </div>
+
         {loading ? (
           <div style={{ fontSize: 14, color: t.textMuted, padding: '40px 0', textAlign: 'center' }}>Loading…</div>
         ) : (
