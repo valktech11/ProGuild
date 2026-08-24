@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
   // Parse body early (before token generation)
   const body = await req.json().catch(() => ({}))
   const recipientEmail: string | null = body.email ?? null
+  console.error('[company/invite] POST body:', JSON.stringify(body), 'recipientEmail:', recipientEmail)
 
   let token: string
 
@@ -91,6 +92,9 @@ export async function POST(req: NextRequest) {
 
   if (recipientEmail && process.env.RESEND_API_KEY) {
     try {
+      console.error('[company/invite] sending email to:', recipientEmail)
+      console.error('[company/invite] RESEND_API_KEY set:', !!process.env.RESEND_API_KEY)
+
       // Get company name for the email
       const { data: company } = await sb
         .from('companies')
@@ -104,9 +108,12 @@ export async function POST(req: NextRequest) {
         .eq('id', proId)
         .single()
 
+      const fromAddr = process.env.EMAIL_FROM ?? 'ProGuild.ai <hello@proguild.ai>'
+      console.error('[company/invite] from:', fromAddr, 'company:', company?.name, 'inviter:', inviter?.full_name)
+
       const resend = new Resend(process.env.RESEND_API_KEY)
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM ?? 'ProGuild.ai <hello@proguild.ai>',
+      const result = await resend.emails.send({
+        from: fromAddr,
         to: recipientEmail,
         subject: `You've been invited to join ${company?.name ?? 'a company'} on ProGuild`,
         html: companyInviteEmail({
@@ -116,8 +123,9 @@ export async function POST(req: NextRequest) {
           expiresInDays: 7,
         }),
       })
+      console.error('[company/invite] email result:', JSON.stringify(result))
     } catch (e) {
-      console.error('[company/invite] email failed', e)
+      console.error('[company/invite] email EXCEPTION:', e)
       // Non-fatal — return URL even if email fails
     }
   }
