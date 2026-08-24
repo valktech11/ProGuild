@@ -6,6 +6,8 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const _calCompanyId = __auth.companyId
+  const _calProId = __auth.proId
+  const _calRole = __auth.role
   if (!_calCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
   const { searchParams } = new URL(req.url)
   const from  = searchParams.get('from')   // ISO date string
@@ -14,46 +16,58 @@ export async function GET(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
+  // Member: only their assigned leads
+  let _calLeadIds: string[] | null = null
+  if (_calRole === 'member' && _calProId) {
+    const { data: _ml } = await sb.from('leads').select('id')
+      .eq('company_id', _calCompanyId).eq('assigned_to_pro_id', _calProId).is('deleted_at', null)
+    _calLeadIds = (_ml ?? []).map((l: any) => l.id)
+  }
+
   // Fetch leads with scheduled_date in range
-  const scheduledQ = sb
+  let scheduledQ = sb
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('company_id', _calCompanyId)
     .not('scheduled_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
+  if (_calLeadIds !== null) scheduledQ = (_calLeadIds.length > 0 ? scheduledQ.in('id', _calLeadIds) : scheduledQ.eq('id', 'no-match'))
 
   if (from) scheduledQ.gte('scheduled_date', from)
   if (to)   scheduledQ.lte('scheduled_date', to)
 
   // Fetch leads with follow_up_date in range
-  const followupQ = sb
+  let followupQ = sb
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('company_id', _calCompanyId)
     .not('follow_up_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
+  if (_calLeadIds !== null) followupQ = (_calLeadIds.length > 0 ? followupQ.in('id', _calLeadIds) : followupQ.eq('id', 'no-match'))
 
   if (from) followupQ.gte('follow_up_date', from)
   if (to)   followupQ.lte('follow_up_date', to)
 
   // Fetch leads with inspection_date in range
-  const inspectionQ = sb
+  let inspectionQ = sb
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,inspection_date,notes,message,created_at')
     .eq('company_id', _calCompanyId)
     .not('inspection_date', 'is', null)
     .not('lead_status', 'in', '(Lost,Archived)')
+  if (_calLeadIds !== null) inspectionQ = (_calLeadIds.length > 0 ? inspectionQ.in('id', _calLeadIds) : inspectionQ.eq('id', 'no-match'))
 
   if (from) inspectionQ.gte('inspection_date', from)
   if (to)   inspectionQ.lte('inspection_date', to)
 
   // Unscheduled leads (Quoted or Contacted — need scheduling)
-  const unscheduledQ = sb
+  let unscheduledQ = sb
     .from('leads')
     .select('id,contact_name,contact_phone,contact_email,lead_status,lead_source,quoted_amount,scheduled_date,scheduled_time,follow_up_date,notes,message,created_at')
     .eq('company_id', _calCompanyId)
     .in('lead_status', ['Quoted', 'Contacted', 'quoted'])
     .is('scheduled_date', null)
+  if (_calLeadIds !== null) unscheduledQ = (_calLeadIds.length > 0 ? unscheduledQ.in('id', _calLeadIds) : unscheduledQ.eq('id', 'no-match'))
     .order('created_at', { ascending: false })
     .limit(10)
 

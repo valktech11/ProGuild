@@ -22,11 +22,12 @@ export async function GET(req: NextRequest) {
     _revLeadIds = (_ml ?? []).map((l: any) => l.id)
   }
 
-  const { data, error } = await getSupabaseAdmin()
-    .from('leads')
+  let _revQ2 = getSupabaseAdmin().from('leads')
     .select('contact_name, property_address, contact_city, contact_state, lead_status, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount, insurance_company)')
-    .eq('company_id', _revCompanyId)
-    .eq('lead_status', WON)
+    .eq('company_id', _revCompanyId).eq('lead_status', WON)
+  if (_revLeadIds !== null && _revLeadIds.length > 0) _revQ2 = _revQ2.in('id', _revLeadIds)
+  if (_revLeadIds !== null && _revLeadIds.length === 0) return NextResponse.json({ won: [], summary: { thisMonth: 0, lastMonth: 0, ytd: 0, lifetime: 0 }, byCarrier: [] })
+  const { data, error } = await _revQ2
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

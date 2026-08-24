@@ -33,10 +33,9 @@ export async function GET(req: NextRequest) {
   }
 
   const sb = getSupabaseAdmin()
-  const { data, error } = await sb
-    .from('invoices')
-    .select('status, total, balance_due, due_date')
-    .eq('company_id', _invSumCompanyId)
+  let _invSumQ2 = sb.from('invoices').select('status, total, balance_due, due_date').eq('company_id', _invSumCompanyId)
+  if (_invSumLeadIds !== null && _invSumLeadIds.length > 0) _invSumQ2 = _invSumQ2.in('lead_id', _invSumLeadIds)
+  const { data, error } = await _invSumQ2
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
