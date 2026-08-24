@@ -17,6 +17,7 @@ interface SessionContextValue {
   session: Session | null
   loading: boolean
   needsProfile: boolean
+  removedFromCompany: boolean
   authEmail: string | null
   signOut: () => Promise<void>
   refresh: () => Promise<void>
@@ -28,6 +29,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [needsProfile, setNeedsProfile] = useState(false)
+  const [removedFromCompany, setRemovedFromCompany] = useState(false)
   const [authEmail, setAuthEmail] = useState<string | null>(null)
 
   // Mirror of `session` readable inside the []-deps resolve callback without a
@@ -94,6 +96,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const d = await r.json()
         setSession(d.session)
         setNeedsProfile(!!d.needsProfile)
+        setRemovedFromCompany(!!d.removedFromCompany)
       } else if (!opts?.silent) {
         // Only downgrade to null on a NON-silent (initial) resolve, and only after
         // the refresh-and-retry above also failed. On a silent re-resolve (token
@@ -138,7 +141,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <SessionContext.Provider value={{ session, loading, needsProfile, authEmail, signOut, refresh: resolve }}>
+    <SessionContext.Provider value={{ session, loading, needsProfile, removedFromCompany, authEmail, signOut, refresh: resolve }}>
       {children}
     </SessionContext.Provider>
   )
@@ -150,7 +153,7 @@ export function useSessionContext(): SessionContextValue {
     // Fallback so any component used outside the provider doesn't crash —
     // returns a resolved-empty state. In practice the provider wraps the whole app.
     return {
-      session: null, loading: false, needsProfile: false, authEmail: null,
+      session: null, loading: false, needsProfile: false, removedFromCompany: false, authEmail: null,
       signOut: async () => {}, refresh: async () => {},
     }
   }

@@ -50,8 +50,15 @@ export async function DELETE(
     return NextResponse.json({ error: 'Cannot remove yourself from the company' }, { status: 400 })
   }
 
-  // Remove the membership — the pro row stays (they can rejoin or be in another company)
-  // Also clear pros.company_id so they no longer have a company context
+  // Reassign all leads assigned to the removed member → unassigned (null)
+  // Owner sees unassigned leads, so no data is lost.
+  await sb
+    .from('leads')
+    .update({ assigned_to_pro_id: null, updated_at: new Date().toISOString() })
+    .eq('company_id', companyId)
+    .eq('assigned_to_pro_id', target.pro_id)
+
+  // Remove the membership
   const { error: delErr } = await sb
     .from('company_members')
     .delete()

@@ -100,6 +100,9 @@ export async function GET(req: NextRequest) {
     role = (membership?.role as 'owner' | 'member') ?? null
   }
 
+  // Removed member: pro exists but no longer has a company
+  const wasRemoved = !company && (pro as any).is_claimed && !(pro as any).company_id
+
   return NextResponse.json({
     session: {
       // ── Existing fields (unchanged) ──
@@ -122,5 +125,6 @@ export async function GET(req: NextRequest) {
       role,
     },
     needsProfile: false,
+    removedFromCompany: wasRemoved,
   })
 }

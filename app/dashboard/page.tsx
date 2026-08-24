@@ -331,7 +331,7 @@ function PipeArrow({ dk }: { dk: boolean }) {
 export default function OverviewPage() {
   const router = useRouter()
 
-  const { session, loading: sessionLoading, needsProfile, refresh } = useProSession()
+  const { session, loading: sessionLoading, needsProfile, removedFromCompany, refresh } = useProSession()
 
   const [dk, setDk] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -385,6 +385,7 @@ export default function OverviewPage() {
     if (sessionLoading) return
     // Authenticated but no linked pro yet → home to find & claim their profile
     if (needsProfile) { router.replace('/complete-profile'); return }
+    if (removedFromCompany) { router.replace('/removed-from-team'); return }
     // Not authenticated at all → login
     if (!session) { router.replace('/login'); return }
     fetchData(session)
@@ -392,7 +393,7 @@ export default function OverviewPage() {
     const handler = () => fetchData(session)
     window.addEventListener('pg:lead-added', handler)
     return () => window.removeEventListener('pg:lead-added', handler)
-  }, [session, sessionLoading, needsProfile, router])
+  }, [session, sessionLoading, needsProfile, removedFromCompany, router])
 
   // Stage filters derived from trade plugin — no hardcoded stage key strings
   const anchors        = getStageAnchors(session?.trade_slug)
