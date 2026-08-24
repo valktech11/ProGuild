@@ -13,6 +13,12 @@ export async function POST(req: NextRequest) {
   const { pro_id } = await req.json()
   if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
+  // Role check: only owner can access billing portal
+  const { requirePro } = await import('@/lib/pro-auth')
+  const _portalAuth = await requirePro(req, pro_id)
+  if (_portalAuth.error) return _portalAuth.error
+  if (_portalAuth.role === 'member') return NextResponse.json({ error: 'Only the company owner can manage billing' }, { status: 403 })
+
   const { data: pro } = await getSupabaseAdmin()
     .from('pros').select('id, stripe_customer_id, plan_tier').eq('id', pro_id).single()
   if (!pro) return NextResponse.json({ error: 'Pro not found' }, { status: 404 })

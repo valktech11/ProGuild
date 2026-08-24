@@ -227,6 +227,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const prevDoneKeysRef = useRef<Set<string>>(new Set())
   const [poppedKeys,   setPoppedKeys]   = useState<Set<string>>(new Set())
   const [showPicker,   setShowPicker]   = useState(false)
+  const [showAssign,   setShowAssign]   = useState(false)
+  const [assignMembers, setAssignMembers] = useState<{id:string,full_name:string,email:string}[]>([])
+  const [assigning,    setAssigning]    = useState(false)
   // Persistent info/warning popover anchored under the status dropdown (replaces
   // the transient toast for blocked/locked stage taps — stays until dismissed).
   const [stageNotice, setStageNotice] = useState<{ kind:'info'|'warning'; msg:string }|null>(null)
@@ -349,6 +352,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   useEffect(() => {
     if (_authLoading) return
     if (!session) { router.replace('/login'); return }
+    // Load team members for reassign dropdown (owner only)
+    if (session?.role === 'owner') {
+      apiFetch('/api/company/members').then(r=>r.json()).then((d:any)=>{
+        if (d?.members) setAssignMembers(d.members.map((m:any)=>m.pro).filter(Boolean))
+      }).catch(()=>{})
+    }
     apiFetch(`/api/leads/${id}?pro_id=${session.id}`)
       .then(r => { if(r.status===404){setMissing(true);setLoading(false);return null}; return r.json() })
       .then(d => { if(!d) return; const l=d.lead as LeadExt; setLead(l); setStage(l.lead_status as LeadStatus); setLoading(false) })
@@ -1413,6 +1422,71 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <Svg size={14} stroke={tsu}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Svg>
                           Entered <span style={{fontWeight:700,color:ts}}>{new Date((lead as any).lead_status_changed_at||lead.updated_at||lead.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
                         </span>
+
+                        {/* Assign to team member — owner only */}
+                        {session?.role === 'owner' && assignMembers.length > 0 && (
+                          <>
+                            <span style={{width:1,height:22,background:bdr,flexShrink:0}}/>
+                            <div style={{position:'relative',display:'inline-block'}}>
+                              <button
+                                onClick={()=>setShowAssign(v=>!v)}
+                                style={{display:'inline-flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:T.radSm,
+                                  border:`1px solid ${bdr}`,background:'transparent',color:tsu,fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                {(lead as any).assigned_to_pro_id
+                                  ? (assignMembers.find(m=>m.id===(lead as any).assigned_to_pro_id)?.full_name?.split(' ')[0] ?? 'Assigned')
+                                  : 'Assign'}
+                              </button>
+                              {showAssign && (
+                                <>
+                                  <div style={{position:'fixed',inset:0,zIndex:299}} onClick={()=>setShowAssign(false)}/>
+                                  <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,zIndex:300,
+                                    background:card,border:`1px solid ${bdr}`,borderRadius:T.radMd,
+                                    boxShadow:'0 8px 24px rgba(0,0,0,0.14)',minWidth:200,overflow:'hidden'}}>
+                                    {/* Unassign option */}
+                                    <button
+                                      onClick={async()=>{
+                                        setAssigning(true); setShowAssign(false)
+                                        const r = await apiFetch(`/api/leads/${lead.id}/assign`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assigned_to_pro_id:null})})
+                                        const d = await r.json()
+                                        if(d?.ok) setLead(l=>l?{...l,assigned_to_pro_id:null} as any:l)
+                                        setAssigning(false)
+                                      }}
+                                      style={{width:'100%',padding:'9px 14px',textAlign:'left',background:'transparent',border:'none',cursor:'pointer',fontSize:12,color:tsu,display:'flex',alignItems:'center',gap:8,borderBottom:`1px solid ${bdr}`}}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                      Unassigned (owner)
+                                    </button>
+                                    {assignMembers.map(m=>(
+                                      <button key={m.id}
+                                        onClick={async()=>{
+                                          setAssigning(true); setShowAssign(false)
+                                          const r = await apiFetch(`/api/leads/${lead.id}/assign`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assigned_to_pro_id:m.id})})
+                                          const d = await r.json()
+                                          if(d?.ok) setLead(l=>l?{...l,assigned_to_pro_id:m.id} as any:l)
+                                          setAssigning(false)
+                                        }}
+                                        style={{width:'100%',padding:'9px 14px',textAlign:'left',background:(lead as any).assigned_to_pro_id===m.id?(dk?'rgba(15,118,110,0.15)':'#F0FDFA'):'transparent',
+                                          border:'none',cursor:'pointer',fontSize:13,fontWeight:500,color:tp,display:'flex',alignItems:'center',gap:8}}>
+                                        <div style={{width:26,height:26,borderRadius:'50%',background:BRAND.teal,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:10,fontWeight:700,color:'#fff'}}>
+                                          {m.full_name.split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <div style={{fontWeight:600}}>{m.full_name}</div>
+                                          <div style={{fontSize:11,color:tsu}}>{m.email}</div>
+                                        </div>
+                                        {(lead as any).assigned_to_pro_id===m.id && (
+                                          <svg style={{marginLeft:'auto',flexShrink:0}} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.teal} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       {/* Stage tip — amber card, dismissible per stage */}

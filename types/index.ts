@@ -112,6 +112,9 @@ export interface Lead {
   lead_status_changed_at?: string | null
   insurance_claim?: boolean | null
   lost_reason?: string | null
+  // Multi-user assignment
+  assigned_to_pro_id?: string | null
+  company_id?: string | null
   // joined
   pro?: Pro
   job?: Job
@@ -171,6 +174,7 @@ export interface Session {
   // Multi-user: company context (populated for all claimed pros after migration)
   company_id: string | null
   company_name: string | null
+  role: 'owner' | 'member' | null
 }
 
 export const PAID_PLANS: PlanTier[] = [

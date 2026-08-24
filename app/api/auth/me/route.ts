@@ -88,6 +88,18 @@ export async function GET(req: NextRequest) {
   const plan        = company?.plan_tier        ?? (pro as any).plan_tier        ?? 'Free'
   const trialEndsAt = company?.trial_ends_at    ?? (pro as any).trial_ends_at    ?? null
 
+  // Resolve role from company_members
+  let role: 'owner' | 'member' | null = null
+  if (company?.id) {
+    const { data: membership } = await admin
+      .from('company_members')
+      .select('role')
+      .eq('company_id', company.id)
+      .eq('pro_id', pro.id)
+      .maybeSingle()
+    role = (membership?.role as 'owner' | 'member') ?? null
+  }
+
   return NextResponse.json({
     session: {
       // ── Existing fields (unchanged) ──
@@ -104,9 +116,10 @@ export async function GET(req: NextRequest) {
       profile_status: pro.profile_status,
       is_verified:    pro.is_verified,
 
-      // ── New: company context ──
+      // ── New: company context + role ──
       company_id:     company?.id    ?? null,
       company_name:   company?.name  ?? null,
+      role,
     },
     needsProfile: false,
   })

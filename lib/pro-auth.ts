@@ -111,10 +111,11 @@ export type ProAuthResult =
   | {
       proId: string
       companyId: string | null   // null only for unclaimed/orphaned pros
+      role: 'owner' | 'member' | null  // null if no company
       authUserId: string
       error?: undefined
     }
-  | { proId?: undefined; companyId?: undefined; authUserId?: undefined; error: NextResponse }
+  | { proId?: undefined; companyId?: undefined; role?: undefined; authUserId?: undefined; error: NextResponse }
 
 // ── Session activity tracking ────────────────────────────────────────────────
 const ACTIVITY_THROTTLE_MS = 5 * 60 * 1000
@@ -225,9 +226,22 @@ export async function requirePro(
 
   void touchSession(req, pro.id as string, verified.sessionId ?? null)
 
+  // Resolve role from company_members (single indexed read)
+  let role: 'owner' | 'member' | null = null
+  if (pro.company_id) {
+    const { data: membership } = await admin
+      .from('company_members')
+      .select('role')
+      .eq('company_id', pro.company_id)
+      .eq('pro_id', pro.id)
+      .maybeSingle()
+    role = (membership?.role as 'owner' | 'member') ?? null
+  }
+
   return {
     proId:     pro.id as string,
     companyId: pro.company_id ?? null,
+    role,
     authUserId,
   }
 }

@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
 
   const auth = await requirePro(req, body.pro_id)
   if (auth.error || !auth.proId) return auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  if (auth.role === 'member') return NextResponse.json({ error: 'Only the company owner can manage billing' }, { status: 403 })
   const { proId, companyId } = auth
 
   if (!companyId) {

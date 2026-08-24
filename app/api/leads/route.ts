@@ -11,19 +11,21 @@ import { requirePro } from '@/lib/pro-auth'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const { companyId } = __auth
+  const { companyId, proId: _callerProId, role: _callerRole } = __auth
   if (!companyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
   const { searchParams } = new URL(req.url)
-  const proId = searchParams.get('pro_id')  // kept for roof_reports query below
-  // Optional client_id filter — lets a client detail page fetch only that
-  // client's leads instead of pulling the whole list and filtering client-side.
+  const proId = _callerProId  // server-derived, used for roof_reports and member filter
   const clientFilter = searchParams.get('client_id')
 
+  // Role-based isolation: owner sees all company leads; member sees only assigned
   let q = getSupabaseAdmin()
     .from('leads')
     .select('*')
     .eq('company_id', companyId)
     .is('deleted_at', null)
+  if (_callerRole === 'member') {
+    q = q.eq('assigned_to_pro_id', _callerProId)
+  }
   if (clientFilter) q = q.eq('client_id', clientFilter)
   const { data, error } = await q.order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -160,10 +162,12 @@ export async function POST(req: NextRequest) {
   //     session — pro_id is supplied by the public page. We validate it names
   //     a real pro (below) but do not require a bearer.
   let _manualCompanyId: string | null = null
+  let _auth2ProId: string | null = null
   if (is_manual) {
     const __auth = await requirePro(req, pro_id)
     if (__auth.error) return __auth.error
     _manualCompanyId = __auth.companyId ?? null
+    _auth2ProId = __auth.proId ?? null
   }
 
   if (!pro_id || !contact_name || !message)
@@ -296,6 +300,8 @@ export async function POST(req: NextRequest) {
       lead_status:      initialStage,
       lead_source:      lead_source || 'Profile_Page',
       company_id:       _manualCompanyId || null,
+      // Auto-assign: member gets self, owner gets self by default
+      assigned_to_pro_id: _auth2ProId || null,
       client_id:        clientId    || null,
       property_id:      propertyId  || null,
       property_address: streetOnly,

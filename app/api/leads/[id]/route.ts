@@ -196,6 +196,7 @@ export async function PATCH(
   // Server-derived — body/URL pro_id no longer trusted (IDOR).
   const proId = __auth.proId
   const _patchCompanyId = __auth.companyId
+  const _patchRole = __auth.role
 
   // ── Build lead update fields (whitelisted) ──────────────────────────────
   const updateFields: Partial<LeadUpdateFields> = {}
@@ -252,7 +253,8 @@ export async function PATCH(
       .from('leads')
       .update(updateFields)
       .eq('id', id)
-      .or(_patchCompanyId ? `company_id.eq.${_patchCompanyId},pro_id.eq.${proId}` : `pro_id.eq.${proId}`)
+      .eq(_patchRole === 'member' ? 'assigned_to_pro_id' : (_patchCompanyId ? 'company_id' : 'pro_id'),
+          _patchRole === 'member' ? proId : (_patchCompanyId ?? proId))
       .select()
       .single()
     if (error || !data) {
@@ -303,7 +305,9 @@ export async function PATCH(
   if (Object.keys(roofingPayload).length > 0) {
     const { data: freshLead } = await getSupabaseAdmin()
       .from('leads').select('*').eq('id', id)
-      .or(_patchCompanyId ? `company_id.eq.${_patchCompanyId},pro_id.eq.${proId}` : `pro_id.eq.${proId}`).single()
+      .eq(_patchRole === 'member' ? 'assigned_to_pro_id' : (_patchCompanyId ? 'company_id' : 'pro_id'),
+          _patchRole === 'member' ? proId : (_patchCompanyId ?? proId))
+      .single()
     if (freshLead) return NextResponse.json({ lead: { ...freshLead, roofing_job_data: updatedRjd ?? null } })
   }
   return NextResponse.json({ success: true })

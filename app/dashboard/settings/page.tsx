@@ -235,19 +235,22 @@ export default function SettingsPage() {
         </div>
         )}
 
-        <div style={{ ...card, marginBottom: 18 }}>
-          <div style={sectionLabel}>BILLING & PLAN</div>
-          <div style={{ ...linkRow, borderBottom: 'none' }}>
-            <div>
-              <div style={rowLabel}>Current plan</div>
-              <div style={rowSub}>{portalErr || (session?.plan ? session.plan.replace(/_/g, ' ') : '—')}</div>
+        {/* Billing only visible to owners */}
+        {session?.role !== 'member' && (
+          <div style={{ ...card, marginBottom: 18 }}>
+            <div style={sectionLabel}>BILLING & PLAN</div>
+            <div style={{ ...linkRow, borderBottom: 'none' }}>
+              <div>
+                <div style={rowLabel}>Current plan</div>
+                <div style={rowSub}>{portalErr || (session?.plan ? session.plan.replace(/_/g, ' ') : '—')}</div>
+              </div>
+              <button onClick={handleManageBilling} disabled={portalBusy}
+                style={{ fontSize: 13.5, color: '#2DD4BF', fontWeight: 600, background: 'none', border: 'none', cursor: portalBusy ? 'default' : 'pointer', opacity: portalBusy ? 0.6 : 1 }}>
+                {portalBusy ? 'Opening…' : 'Manage billing →'}
+              </button>
             </div>
-            <button onClick={handleManageBilling} disabled={portalBusy}
-              style={{ fontSize: 13.5, color: '#2DD4BF', fontWeight: 600, background: 'none', border: 'none', cursor: portalBusy ? 'default' : 'pointer', opacity: portalBusy ? 0.6 : 1 }}>
-              {portalBusy ? 'Opening…' : 'Manage billing →'}
-            </button>
           </div>
-        </div>
+        )}
 
         <div style={{ ...card, marginBottom: 18, borderColor: '#FECACA' }}>
           <div style={sectionLabel}>ACCOUNT</div>

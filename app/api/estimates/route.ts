@@ -19,16 +19,29 @@ export { STATE_TAX_RATES, resolveTaxRate } from '@/lib/estimates/tax'
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
-  const { companyId: _estCompanyId } = __auth
+  const { companyId: _estCompanyId, proId: _estProId, role: _estRole } = __auth
   if (!_estCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
   const leadId = searchParams.get('lead_id')  // optional: filter to one lead's estimates
 
+  // Member: only estimates for their assigned leads
+  let _estAssignedLeadIds: string[] | null = null
+  if (_estRole === 'member' && _estProId) {
+    const { data: _aLeads } = await getSupabaseAdmin()
+      .from('leads').select('id')
+      .eq('company_id', _estCompanyId)
+      .eq('assigned_to_pro_id', _estProId)
+      .is('deleted_at', null)
+    _estAssignedLeadIds = (_aLeads ?? []).map((l: any) => l.id)
+    if (_estAssignedLeadIds.length === 0) return NextResponse.json({ estimates: [] })
+  }
+
   let q = getSupabaseAdmin()
     .from('estimates')
     .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count, revision_of, revision_number, void_reason, voided_at')
     .eq('company_id', _estCompanyId)
+  if (_estAssignedLeadIds !== null) q = q.in('lead_id', _estAssignedLeadIds)
   if (leadId) q = q.eq('lead_id', leadId)
 
   const { data, error } = await q.order('created_at', { ascending: false })

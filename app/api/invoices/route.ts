@@ -9,9 +9,23 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const _invGetCompanyId = __auth.companyId
+  const _invGetProId = __auth.proId
+  const _invGetRole = __auth.role
   if (!_invGetCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
   const { searchParams } = new URL(req.url)
   const leadId = searchParams.get('lead_id')
+
+  // Member: only invoices for their assigned leads
+  let _invMemberLeadIds: string[] | null = null
+  if (_invGetRole === 'member' && _invGetProId) {
+    const { data: _aL } = await getSupabaseAdmin()
+      .from('leads').select('id')
+      .eq('company_id', _invGetCompanyId)
+      .eq('assigned_to_pro_id', _invGetProId)
+      .is('deleted_at', null)
+    _invMemberLeadIds = (_aL ?? []).map((l: any) => l.id)
+    if (_invMemberLeadIds.length === 0) return NextResponse.json({ invoices: [] })
+  }
 
   let query = getSupabaseAdmin()
     .from('invoices')
@@ -20,6 +34,7 @@ export async function GET(req: NextRequest) {
     .neq('status', 'void')
     .order('created_at', { ascending: false })
 
+  if (_invMemberLeadIds !== null) query = query.in('lead_id', _invMemberLeadIds)
   if (leadId) query = query.eq('lead_id', leadId)
 
   const { data, error } = await query
