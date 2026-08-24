@@ -76,10 +76,12 @@ export default function TeamPage() {
     setLoading(true)
     setLoadErr('')
     try {
-      const [md, pd] = await Promise.all([
-        apiFetch('/api/company/members') as any,
-        apiFetch('/api/company/profile').catch(() => null) as any,
+      const [membRes, profRes] = await Promise.all([
+        apiFetch('/api/company/members'),
+        apiFetch('/api/company/profile').catch(() => null),
       ])
+      const md = membRes ? await membRes.json() : null
+      const pd = profRes ? await profRes.json().catch(() => null) : null
       if (md?.error) {
         setLoadErr(md.error)
       } else {
@@ -107,7 +109,7 @@ export default function TeamPage() {
     setSavingProfile(true)
     setProfileErr('')
     try {
-      const d = await apiFetch('/api/company/profile', {
+      const res = await apiFetch('/api/company/profile', {
         method: 'PATCH',
         body: JSON.stringify({
           name:          companyName.trim() || undefined,
@@ -116,7 +118,8 @@ export default function TeamPage() {
           state:         companyState.trim() || null,
           phone_cell:    phone.trim() || null,
         }),
-      }) as any
+      })
+      const d = await res.json().catch(() => null)
       if (d?.company) { setProfileSaved(true); setTimeout(() => setProfileSaved(false), 3000) }
       else setProfileErr(d?.error ?? 'Could not save')
     } catch { setProfileErr('Something went wrong') }
@@ -127,7 +130,8 @@ export default function TeamPage() {
     setInviting(true)
     setInviteErr('')
     try {
-      const d = await apiFetch('/api/company/invite', { method: 'POST', body: JSON.stringify({}) }) as any
+      const invRes = await apiFetch('/api/company/invite', { method: 'POST', body: JSON.stringify({}) })
+      const d = await invRes.json().catch(() => null)
       if (d?.invite_url) {
         await navigator.clipboard.writeText(d.invite_url).catch(() => {})
         setCopied(true)
@@ -145,7 +149,7 @@ export default function TeamPage() {
   }
 
   async function revokeInvite(token: string) {
-    await apiFetch(`/api/company/invite?token=${token}`, { method: 'DELETE' })
+    await apiFetch(`/api/company/invite?token=${encodeURIComponent(token)}`, { method: 'DELETE' })
     await load()
   }
 
@@ -153,7 +157,8 @@ export default function TeamPage() {
     if (!confirm(`Remove ${name} from your team? They will lose access to company data.`)) return
     setRemovingId(membershipId)
     try {
-      const d = await apiFetch(`/api/company/members/${membershipId}`, { method: 'DELETE' }) as any
+      const rmRes = await apiFetch(`/api/company/members/${membershipId}`, { method: 'DELETE' })
+      const d = await rmRes.json().catch(() => null)
       if (d?.ok) await load()
       else setLoadErr(d?.error ?? 'Could not remove member')
     } catch { setLoadErr('Something went wrong') }
