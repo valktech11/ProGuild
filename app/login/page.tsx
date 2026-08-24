@@ -283,6 +283,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const claimId = params.get('claim') || ''
   const isClaiming = !!claimId
   const vizSession = params.get('visualizer_session') || ''
+  const inviteToken = params.get('invite') || ''
 
   const [step, setStep] = useState(0) // 0: identity, 1: trade+location, 2: contact
   const [cats, setCats] = useState<TradeCategory[]>([])
@@ -403,6 +404,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
           claim_license: claimLicense.trim() || null,
           claim_license_expiry: claimExpiry || null,
         } : {}),
+        ...(inviteToken ? { invite_token: inviteToken } : {}),
       }),
     })
     const d = await r.json()
@@ -439,6 +441,11 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     }
 
     setSuccess(true)
+    // If signed up via invite, skip onboarding and go directly to dashboard
+    if (inviteToken) {
+      setTimeout(() => router.push('/dashboard'), 600)
+      return
+    }
     // Route through the shared callback, which reliably waits for the session to be
     // readable, calls /api/auth/me, and routes: linked pro → /dashboard,
     // authed-but-no-pro → /complete-profile. This avoids the race where a blind

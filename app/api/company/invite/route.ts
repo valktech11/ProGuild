@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
 
       const resend = new Resend(process.env.RESEND_API_KEY)
       await resend.emails.send({
-        from: process.env.EMAIL_FROM ?? 'onboarding@resend.dev',
+        from: process.env.EMAIL_FROM ?? 'ProGuild.ai <hello@proguild.ai>',
         to: recipientEmail,
         subject: `You've been invited to join ${company?.name ?? 'a company'} on ProGuild`,
         html: companyInviteEmail({

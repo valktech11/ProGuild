@@ -204,14 +204,14 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
         {loggedIn === false && (
           <>
             <Link
-              href={`/auth/signup?invite=${token}`}
+              href={`/login?tab=signup&invite=${token}`}
               style={{ ...btn, display: 'block' }}
             >
               Create account &amp; join team
             </Link>
             <div style={{ fontSize: 13, color: t.textMuted, marginTop: 14 }}>
               Already have an account?{' '}
-              <Link href={`/auth/login?redirect=/join/${token}`} style={{ color: '#0d9488' }}>
+              <Link href={`/login?redirect=/join/${token}`} style={{ color: '#0d9488' }}>
                 Sign in
               </Link>
             </div>
