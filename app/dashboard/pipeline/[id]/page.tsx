@@ -492,8 +492,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         const body = await r.json()
         _lastPatchError = body?.error || `HTTP ${r.status}`
       } catch { _lastPatchError = `HTTP ${r.status}` }
+      return false
     }
-    return r.ok
+    _lastPatchError = ''
+    return true
   }, [session, id])
 
   // ── Stage move ───────────────────────────────────────────────────────────
@@ -542,7 +544,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       refreshPlan()
       if(tradePlugin && _isRoofing(tradePlugin) && s===((tradePlugin as any).stageAnchors?.warrantyTrigger ?? getStageAnchors(session?.trade_slug).won)) setShowWarranty(true)
     }
-    else { setStage(prev); addToast('Failed to update stage','error') }
+    else { setStage(prev); addToast(_lastPatchError || 'Failed to update stage','error') }
   }
 
   async function doConfirmBack() {
@@ -551,7 +553,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     setConfirmBack(null); setStage(s); setSaving(true)
     const ok=await patch({lead_status:s}); setSaving(false)
     if (ok) { setLead(l=>l?{...l,lead_status:s}:l); addToast(`Moved to ${s.replace(/_/g,' ')}`,'success',prev) }
-    else { setStage(prev); addToast('Failed','error') }
+    else { setStage(prev); addToast(_lastPatchError || 'Failed to move stage','error') }
   }
 
   async function undoMove(tid:number, prev:LeadStatus) {
@@ -1011,8 +1013,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                   onClick={async ()=>{
                     setShowInspectionModal(false)
                     if (inspDate) {
-                      await patch({ inspection_date: inspDate })
-                      setLead(l => l ? { ...l, inspection_date: inspDate } as any : l)
+                      const _ok = await patch({ inspection_date: inspDate })
+                      if (_ok) { setLead(l => l ? { ...l, inspection_date: inspDate } as any : l) }
+                      else addToast(_lastPatchError || 'Failed to save date', 'error')
                     }
                     moveStage('inspection_scheduled' as LeadStatus, true)
                   }}

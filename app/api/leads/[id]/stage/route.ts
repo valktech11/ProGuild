@@ -175,15 +175,20 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       : _stageCompanyId
         ? { col: 'company_id', val: _stageCompanyId }
         : { col: 'pro_id', val: pro_id }
-    const { error: updateError } = await sb
+    const { data: updateData, error: updateError } = await sb
       .from('leads')
       .update(updatePayload)
       .eq('id', leadId)
       .eq(_updateScope.col, _updateScope.val)
+      .select('id')
 
     if (updateError) {
       console.error('[stage/route] update error:', updateError.message)
-      return NextResponse.json({ error: 'Failed to update stage' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to update stage: ' + updateError.message }, { status: 500 })
+    }
+    if (!updateData || (Array.isArray(updateData) && updateData.length === 0)) {
+      console.error('[stage/route] update matched 0 rows — scope mismatch', { leadId, scope: _updateScope })
+      return NextResponse.json({ error: 'Access denied: lead not in your scope' }, { status: 403 })
     }
 
     // ── Write to pipeline_events (immutable audit trail) ─────────────────
