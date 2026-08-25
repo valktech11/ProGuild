@@ -601,7 +601,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
 }
 
 // ── Lead List View — full sortable table for dense triage ──────────────────────
-function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[] }) {
+function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), memberMap = {} }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[]; memberMap?: Record<string, string> }) {
   const router = useRouter()
   const t = theme(dk)
   const [sort, setSort]     = useState<'age' | 'name' | 'stage' | 'value'>('age')
@@ -1718,7 +1718,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       {/* ── Desktop list view ── */}
       {listView && (
         <div className="hidden md:block">
-          <LeadListView leads={leads} onOpen={openLead} dk={dk} stages={stages} />
+          <LeadListView leads={leads} onOpen={openLead} dk={dk} stages={stages} memberMap={memberMap} />
         </div>
       )}
 
