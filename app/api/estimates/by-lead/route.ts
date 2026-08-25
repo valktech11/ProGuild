@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     .from('estimates')
     .select('id, status, total, sent_at, approved_at, viewed_at, invoiced_at, paid_at')
     .eq('lead_id', leadId)
-    .eq(_byLeadCompanyId ? 'company_id' : 'pro_id', _byLeadCompanyId ?? _byLeadProId)
+    .or(`company_id.eq.${_byLeadCompanyId},pro_id.eq.${_byLeadProId}`)
     .not('status', 'in', '("void","declined")')
     .order('created_at', { ascending: false })
     .limit(1)

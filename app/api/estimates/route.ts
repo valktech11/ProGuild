@@ -37,10 +37,11 @@ export async function GET(req: NextRequest) {
     if (_estAssignedLeadIds.length === 0) return NextResponse.json({ estimates: [] })
   }
 
+  // Fetch by company_id (post-migration) OR by lead_id IN assigned leads (pre-migration estimates)
   let q = getSupabaseAdmin()
     .from('estimates')
     .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count, revision_of, revision_number, void_reason, voided_at')
-    .eq('company_id', _estCompanyId)
+    .or(`company_id.eq.${_estCompanyId},pro_id.eq.${_estProId}`)
   if (_estAssignedLeadIds !== null) q = q.in('lead_id', _estAssignedLeadIds)
   if (leadId) q = q.eq('lead_id', leadId)
 
@@ -55,6 +56,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _estPostCompanyId = __auth.companyId
   const body = await req.json()
   const { pro_id, lead_id, lead_name, lead_source, trade, trade_slug, force_new, state, contact_phone, contact_email, property_address, line_items, source, square_count, pitch, waste_pct, ridge_lf, eave_lf, perimeter_lf, hip_lf, valley_lf, lines, pipe_boots, tearoff_layers } = body
   const linesJson = Array.isArray(lines)
@@ -183,6 +185,7 @@ export async function POST(req: NextRequest) {
 
           const { data: rev, error: revErr } = await sb.from('estimates').insert({
             pro_id,
+            company_id: _estPostCompanyId || null,
             lead_id,
             estimate_number: revNumber,
             status:          'draft',
@@ -362,6 +365,7 @@ export async function POST(req: NextRequest) {
     .from('estimates')
     .insert({
       pro_id,
+      company_id:      _estPostCompanyId || null,
       lead_id:         lead_id || null,
       estimate_number: estimateNumber,
       status:          'draft',
