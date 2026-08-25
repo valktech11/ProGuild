@@ -175,6 +175,9 @@ export async function PATCH(
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const proId = __auth.proId
+  const _estScope = __auth.role === 'member'
+    ? { col: 'pro_id' as const, val: proId! }
+    : __auth.companyId ? { col: 'company_id' as const, val: __auth.companyId } : { col: 'pro_id' as const, val: proId! }
   const body = await req.json()
   const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
 
