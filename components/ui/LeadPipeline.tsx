@@ -605,7 +605,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
 function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), memberMap = {}, ownerName = 'Owner' }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[]; memberMap?: Record<string, string>; ownerName?: string }) {
   const router = useRouter()
   const t = theme(dk)
-  const [sort, setSort]     = useState<'age' | 'name' | 'stage' | 'value'>('age')
+  const [sort, setSort]     = useState<'age' | 'name' | 'stage' | 'value' | 'assigned'>('age')
   const [asc,  setAsc]      = useState(true)
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
@@ -621,10 +621,15 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), mem
         v = (so[a.lead_status]||0) - (so[b.lead_status]||0)
       }
       if (sort === 'value') v = (b.quoted_amount||0) - (a.quoted_amount||0)
+      if (sort === 'assigned') {
+        const nameA = (memberMap[(a as any).assigned_to_pro_id] ?? ownerName).toLowerCase()
+        const nameB = (memberMap[(b as any).assigned_to_pro_id] ?? ownerName).toLowerCase()
+        v = nameB.localeCompare(nameA)
+      }
       return asc ? -v : v
     })
 
-  function toggleSort(col: typeof sort) {
+  function toggleSort(col: 'age' | 'name' | 'stage' | 'value' | 'assigned') {
     if (sort === col) setAsc(a => !a)
     else { setSort(col); setAsc(false) }
   }
@@ -734,8 +739,12 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), mem
                   </span>
                 </th>
                 {Object.keys(memberMap).length > 0 && (
-                  <th style={{ ...thBase, cursor:'default' as const, color:t.textSubtle }}>
-                    Assigned To
+                  <th style={{ ...thBase, color: isActive('assigned') ? TEAL : t.textSubtle }}
+                    onClick={() => toggleSort('assigned' as any)}>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                      {isActive('assigned' as any) && <span style={{ width:2, height:11, borderRadius:2, background:TEAL, display:'inline-block' }}/>}
+                      Assigned To <SortArrow col={'assigned' as any} />
+                    </span>
                   </th>
                 )}
                 <th style={{ ...thBase, cursor:'default' as const, color:t.textSubtle, textAlign:'right' as const, paddingRight:20 }}>
@@ -850,7 +859,17 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), mem
                             {(memberMap as Record<string,string>)[(lead as any).assigned_to_pro_id] ?? 'Assigned'}
                           </span>
                         ) : (
-                          <span style={{ fontSize:12, color:t.textSubtle }}>{ownerName}</span>
+                          <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600,
+                            padding:'4px 10px', borderRadius:20,
+                            background: dk ? '#1A2730' : '#F3F4F6',
+                            color: dk ? '#94A3B8' : '#374151',
+                            whiteSpace:'nowrap' as const }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                              <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            {ownerName}
+                          </span>
                         )}
                       </td>
                     )}
