@@ -842,6 +842,27 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
                         : <span style={{ fontSize:11, color:t.textSubtle, fontStyle:'italic' as const }}>Not quoted</span>}
                     </td>
 
+                    {/* Assigned To column */}
+                    {Object.keys(memberMap).length > 0 && (
+                      <td style={{ padding:'13px 16px' }}>
+                        {(lead as any).assigned_to_pro_id ? (
+                          <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600,
+                            padding:'4px 10px', borderRadius:20,
+                            background: dk ? '#1E3A5F' : '#EFF6FF',
+                            color: dk ? '#93C5FD' : '#1D4ED8',
+                            whiteSpace:'nowrap' as const }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                              <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            {(memberMap as Record<string,string>)[(lead as any).assigned_to_pro_id] ?? 'Assigned'}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize:12, color:t.textSubtle }}>Unassigned</span>
+                        )}
+                      </td>
+                    )}
+
                     {/* Actions */}
                     <td style={{ padding:'13px 20px 13px 16px', textAlign:'right' as const }} onClick={e => e.stopPropagation()}>
                       <div style={{ display:'flex', gap:6, alignItems:'center', justifyContent:'flex-end' }}>
