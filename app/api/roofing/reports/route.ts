@@ -82,7 +82,9 @@ export async function DELETE(req: NextRequest) {
   if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const id    = searchParams.get('id')
-  const proId = searchParams.get('pro_id')
+  const proId = __auth.proId
+  const _rptCompanyId = __auth.companyId
+  const _rptRole = __auth.role
 
   if (!id || !proId) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
 
@@ -126,7 +128,7 @@ export async function PATCH(req: NextRequest) {
     .from('roof_reports')
     .update({ property_id })
     .eq('id', id)
-    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
+    .eq(_rptRole === 'member' ? 'assigned_to_pro_id' : (_rptCompanyId ? 'company_id' : 'pro_id'), _rptRole === 'member' ? __auth.proId! : (_rptCompanyId ?? __auth.proId!))
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

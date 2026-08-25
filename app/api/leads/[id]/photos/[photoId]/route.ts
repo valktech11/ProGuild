@@ -98,6 +98,8 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
   }
 
+  const _photoCompanyId = __auth.companyId
+  const _photoRole = __auth.role
   const sb = getSupabaseAdmin()
   // Ownership: photo must belong to this pro + lead
   const { data: photo, error: findErr } = await sb
