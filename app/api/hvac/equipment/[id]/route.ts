@@ -9,6 +9,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const { pro_id: _claimedProId, ...fields } = body
   const pro_id = __auth.proId // server-derived (IDOR); body value ignored
+  const _hvacEditCompanyId = __auth.companyId
+  const _hvacEditRole = __auth.role
 
   const updateFields = { ...fields, updated_at: new Date().toISOString() }
 
@@ -16,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .from('hvac_equipment')
     .update(updateFields)
     .eq('id', id)
-    .eq('pro_id', pro_id)
+    .eq(_hvacEditRole === 'member' ? 'pro_id' : (_hvacEditCompanyId ? 'company_id' : 'pro_id'), _hvacEditRole === 'member' ? pro_id! : (_hvacEditCompanyId ?? pro_id!))
     .select()
     .single()
 

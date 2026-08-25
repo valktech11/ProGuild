@@ -395,6 +395,7 @@ export async function POST(req: NextRequest) {
     await supabase.from('pipeline_events').insert({
       lead_id:    lead.id,
       pro_id,
+        company_id: _manualCompanyId ?? null,
       trade_slug: tradeSlug,
       event_type: 'lead_created',
       event_data: { to: initialStage },

@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
       await sb.from('pipeline_events').insert({
         lead_id,
         pro_id,
+        company_id: __auth.companyId ?? null,
         event_type: 'status_link_sent',
         event_data: { to: lead.contact_email },
         actor_type: 'system',

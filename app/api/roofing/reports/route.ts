@@ -26,7 +26,9 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
-  const proId      = searchParams.get('pro_id')
+  const proId      = __auth.proId
+  const _rptCompanyId = __auth.companyId
+  const _rptRole = __auth.role
   const propertyId = searchParams.get('property_id')
 
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
   let query = sb
     .from('roof_reports')
     .select('id, created_at, total_squares_raw, total_squares_order, dominant_pitch, facet_count, waste_factor, imagery_date, r2_key, lat, lng, linear_footage, premium_r2_key, condition_assessment, condition_assessed_at, nearest_supplier, storm_event')
-    .eq('pro_id', proId)
+    .eq(_rptRole === 'member' ? 'pro_id' : (_rptCompanyId ? 'company_id' : 'pro_id'), _rptRole === 'member' ? proId! : (_rptCompanyId ?? proId!))
     .order('created_at', { ascending: false })
     .limit(20)
 
@@ -91,13 +93,13 @@ export async function DELETE(req: NextRequest) {
     .from('roof_reports')
     .select('r2_key')
     .eq('id', id)
-    .eq('pro_id', proId)
+    .eq(_rptRole === 'member' ? 'pro_id' : (_rptCompanyId ? 'company_id' : 'pro_id'), _rptRole === 'member' ? proId! : (_rptCompanyId ?? proId!))
     .single()
 
   if (fetchErr || !row) return NextResponse.json({ error: 'Report not found' }, { status: 404 })
 
   // Delete DB row
-  const { error: delErr } = await sb.from('roof_reports').delete().eq('id', id).eq('pro_id', proId)
+  const { error: delErr } = await sb.from('roof_reports').delete().eq('id', id).eq(_rptRole === 'member' ? 'pro_id' : (_rptCompanyId ? 'company_id' : 'pro_id'), _rptRole === 'member' ? proId! : (_rptCompanyId ?? proId!))
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 })
 
   // Purge R2 object — best-effort, don't fail the response if already gone

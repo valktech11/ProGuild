@@ -112,6 +112,7 @@ export async function POST(
           await sb.from('pipeline_events').insert({
             lead_id:    inv.lead_id,
             pro_id:     leadRow.pro_id,
+        company_id: __auth.companyId ?? null,
             event_type: 'stage_changed',
             event_data: { from: leadRow.lead_status, to: anchors.won, auto: 'invoice_paid' },
             actor_type: 'system',
@@ -138,6 +139,7 @@ export async function POST(
     await sb.from('pipeline_events').insert({
       lead_id:    inv.lead_id,
       pro_id:     inv.pro_id,
+        company_id: __auth.companyId ?? null,
       event_type: 'payment_received',
       event_data: {
         milestone:   body.milestone_name ?? 'Payment',

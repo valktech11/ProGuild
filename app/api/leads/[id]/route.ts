@@ -275,6 +275,7 @@ export async function PATCH(
     try {
       await getSupabaseAdmin().from('pipeline_events').insert({
         lead_id:    id,
+        company_id: __auth.companyId ?? null,
         pro_id:     proId,
         event_type: 'stage_changed',
         event_data: { from: prevStatus ?? null, to: updateFields.lead_status },

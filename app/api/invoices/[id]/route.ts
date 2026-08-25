@@ -117,6 +117,7 @@ export async function PATCH(
         await sb.from('pipeline_events').insert({
           lead_id:    data.lead_id,
           pro_id:     leadRow.pro_id,
+        company_id: __auth.companyId ?? null,
           event_type: 'stage_changed',
           event_data: { from: leadRow.lead_status, to: anchors.won, auto: 'invoice_paid' },
           actor_type: 'system',

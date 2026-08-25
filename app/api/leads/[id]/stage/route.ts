@@ -196,6 +196,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       await sb.from('pipeline_events').insert({
         lead_id:    leadId,
         pro_id,
+        company_id: _stageCompanyId ?? null,
         trade_slug: tradeSlug || null,
         event_type: 'stage_changed',
         event_data: { from: currentStage, to: newStage, ...(lost_reason ? { lost_reason } : {}) },

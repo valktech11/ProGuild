@@ -13,11 +13,14 @@ export async function POST(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const proId = __auth.proId
+  const _mpCompanyId = __auth.companyId
+  const _mpRole = __auth.role
+  const _mpScope = _mpRole === 'member' ? { col: 'pro_id' as const, val: proId! } : _mpCompanyId ? { col: 'company_id' as const, val: _mpCompanyId } : { col: 'pro_id' as const, val: proId! }
   const sb     = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
   const paidAt = new Date().toISOString()
 
   const { data: inv, error: invErr } = await sb
-    .from('invoices').select('*').eq('id', invoice_id).eq('pro_id', proId).single()
+    .from('invoices').select('*').eq('id', invoice_id).eq(_mpScope.col, _mpScope.val).single()
   if (invErr || !inv) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
 
   // A1 FIX: subtract from current balance_due, not recalculate from total
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
     amount_paid:  totalPaid,   // accumulate, not overwrite
     balance_due:  balanceDue,
     notes: notes ? `${inv.notes || ''}\nPayment note: ${notes}`.trim() : inv.notes,
-  }).eq('id', invoice_id).eq('pro_id', proId)
+  }).eq('id', invoice_id).eq(_mpScope.col, _mpScope.val)
 
   if (newStatus === 'paid' && inv.lead_id) {
     // Use correct stage key 'job_won' — not display label 'Paid'
