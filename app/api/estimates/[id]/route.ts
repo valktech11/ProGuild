@@ -402,7 +402,7 @@ export async function PATCH(
   // Deferred to here so the general fields AND the computed total land in one
   // UPDATE — one logical save = one estimates audit row (no intermediate rows).
   const { error: estError } = await sb
-    .from('estimates').update(updatePayload).eq('id', id).eq('pro_id', proId)
+    .from('estimates').update(updatePayload).eq('id', id).eq(_estScope.col, _estScope.val)
   if (estError) return NextResponse.json({ error: estError.message }, { status: 500 })
 
   // ── Auto-stage lead based on estimate status ────────────────────────────────

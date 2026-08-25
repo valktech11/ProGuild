@@ -122,7 +122,7 @@ export async function PATCH(req: NextRequest) {
   for (const key of allowed) { if (key in fields) updates[key] = fields[key] }
 
   const { data, error } = await auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
-    .from('clients').update(updates).eq('id', id).eq('pro_id', __auth.proId!).select().single()
+    .from('clients').update(updates).eq('id', id).eq(_clientRole === 'member' ? 'pro_id' : (_clientCompanyId ? 'company_id' : 'pro_id'), _clientRole === 'member' ? __auth.proId! : (_clientCompanyId ?? __auth.proId!)).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ client: data })

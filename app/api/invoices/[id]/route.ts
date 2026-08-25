@@ -70,6 +70,9 @@ export async function PATCH(
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const proId = __auth.proId
+  const _invScope = __auth.role === 'member'
+    ? { col: 'pro_id' as const, val: proId! }
+    : __auth.companyId ? { col: 'company_id' as const, val: __auth.companyId } : { col: 'pro_id' as const, val: proId! }
   const body   = await req.json()
   const sb     = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
 
@@ -92,7 +95,7 @@ export async function PATCH(
     if (key in body) payload[key] = body[key]
   }
 
-  const { data, error } = await sb.from('invoices').update(payload).eq('id', id).eq('pro_id', proId).select().single()
+  const { data, error } = await sb.from('invoices').update(payload).eq('id', id).eq(_invScope.col, _invScope.val).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // ── Invoice paid → auto-advance lead to job_won ──────────────────────────
@@ -170,12 +173,15 @@ export async function DELETE(
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const proId = __auth.proId
+  const _invScope = __auth.role === 'member'
+    ? { col: 'pro_id' as const, val: proId! }
+    : __auth.companyId ? { col: 'company_id' as const, val: __auth.companyId } : { col: 'pro_id' as const, val: proId! }
   const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
   // Read the invoice's estimate link before voiding so we can reset the parent
   const { data: invRow } = await sb
-    .from('invoices').select('estimate_id').eq('id', id).eq('pro_id', proId).maybeSingle()
+    .from('invoices').select('estimate_id').eq('id', id).eq(_invScope.col, _invScope.val).maybeSingle()
   const { error } = await sb
-    .from('invoices').update({ status: 'void' }).eq('id', id).eq('pro_id', proId)
+    .from('invoices').update({ status: 'void' }).eq('id', id).eq(_invScope.col, _invScope.val)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   // Reset the parent estimate so it can be re-invoiced — clears the stale
   // invoice_id pointer that would otherwise redirect to a voided invoice.
