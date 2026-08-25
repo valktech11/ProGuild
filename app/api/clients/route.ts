@@ -113,6 +113,8 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _patchClientRole = __auth.role
+  const _patchClientCompanyId = __auth.companyId
   const body = await req.json()
   const { id, ...fields } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -122,7 +124,7 @@ export async function PATCH(req: NextRequest) {
   for (const key of allowed) { if (key in fields) updates[key] = fields[key] }
 
   const { data, error } = await auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
-    .from('clients').update(updates).eq('id', id).eq(_clientRole === 'member' ? 'pro_id' : (_clientCompanyId ? 'company_id' : 'pro_id'), _clientRole === 'member' ? __auth.proId! : (_clientCompanyId ?? __auth.proId!)).select().single()
+    .from('clients').update(updates).eq('id', id).eq(_patchClientRole === 'member' ? 'pro_id' : (_patchClientCompanyId ? 'company_id' : 'pro_id'), _patchClientRole === 'member' ? __auth.proId! : (_patchClientCompanyId ?? __auth.proId!)).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ client: data })
