@@ -27,14 +27,16 @@ export async function GET(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 })
     }
 
+    const _photoScopeCompanyId = __auth.companyId
+    const _photoScopeRole = __auth.role
     const sb = getSupabaseAdmin()
 
-    // Verify ownership
+    // Verify ownership: lead_id is already known, just scope by company or assignment
     const { data: lead, error } = await sb
       .from('leads')
       .select('id')
       .eq('id', leadId)
-      .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
+      .eq(_photoScopeRole === 'member' ? 'assigned_to_pro_id' : (_photoScopeCompanyId ? 'company_id' : 'pro_id'), _photoScopeRole === 'member' ? proId! : (_photoScopeCompanyId ?? proId!))
       .single()
 
     if (error || !lead) {

@@ -55,12 +55,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ estimates: [] })
   }
 
-  // Query by company_id (new) OR lead_id IN company leads (migration fallback)
+  // Query: if specific lead requested, use lead_id directly (simple + correct).
+  // Otherwise: company_id OR lead_id IN company leads (catches pre-migration null company_id).
   let q = getSupabaseAdmin()
     .from('estimates')
     .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count, revision_of, revision_number, void_reason, voided_at')
-    .or(`company_id.eq.${_estCompanyId}${_allLeadIds ? `,lead_id.in.(${_allLeadIds.join(',')})` : ''}`)
-  if (leadId) q = q.eq('lead_id', leadId)
+  if (leadId) {
+    q = q.eq('lead_id', leadId)
+  } else if (_allLeadIds && _allLeadIds.length > 0) {
+    q = q.or(`company_id.eq.${_estCompanyId},lead_id.in.(${_allLeadIds.join(',')})`)
+  } else {
+    q = q.eq('company_id', _estCompanyId)
+  }
 
   const { data, error } = await q.order('created_at', { ascending: false })
 
