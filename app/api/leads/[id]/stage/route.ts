@@ -169,11 +169,17 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     if (scheduled_date  !== undefined) updatePayload.scheduled_date  = scheduled_date
     if (scheduled_time  !== undefined) updatePayload.scheduled_time  = scheduled_time
 
+    const _stageRole = __auth.role
+    const _updateScope = _stageRole === 'member'
+      ? { col: 'assigned_to_pro_id', val: __auth.proId! }
+      : _stageCompanyId
+        ? { col: 'company_id', val: _stageCompanyId }
+        : { col: 'pro_id', val: pro_id }
     const { error: updateError } = await sb
       .from('leads')
       .update(updatePayload)
       .eq('id', leadId)
-      .eq('pro_id', pro_id)
+      .eq(_updateScope.col, _updateScope.val)
 
     if (updateError) {
       console.error('[stage/route] update error:', updateError.message)
