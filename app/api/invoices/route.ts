@@ -16,25 +16,36 @@ export async function GET(req: NextRequest) {
   const leadId = searchParams.get('lead_id')
 
   // Member: only invoices for their assigned leads
-  let _invMemberLeadIds: string[] | null = null
+  // Resolve lead IDs: assigned (member) or all company leads (owner)
+  let _invLeadScope: string[] | null = null
   if (_invGetRole === 'member' && _invGetProId) {
     const { data: _aL } = await getSupabaseAdmin()
       .from('leads').select('id')
       .eq('company_id', _invGetCompanyId)
       .eq('assigned_to_pro_id', _invGetProId)
       .is('deleted_at', null)
-    _invMemberLeadIds = (_aL ?? []).map((l: any) => l.id)
-    if (_invMemberLeadIds.length === 0) return NextResponse.json({ invoices: [] })
+    _invLeadScope = (_aL ?? []).map((l: any) => l.id)
+    if (_invLeadScope.length === 0) return NextResponse.json({ invoices: [] })
+  } else {
+    // Owner: all company leads (catches pre-migration invoices with company_id=null)
+    const { data: _aL } = await getSupabaseAdmin()
+      .from('leads').select('id')
+      .eq('company_id', _invGetCompanyId)
+      .is('deleted_at', null)
+    _invLeadScope = (_aL ?? []).map((l: any) => l.id)
   }
 
   let query = getSupabaseAdmin()
     .from('invoices')
     .select('id, invoice_number, status, lead_name, trade, total, balance_due, due_date, created_at, estimate_id, lead_id')
-    .eq('company_id', _invGetCompanyId)
     .neq('status', 'void')
     .order('created_at', { ascending: false })
 
-  if (_invMemberLeadIds !== null) query = query.in('lead_id', _invMemberLeadIds)
+  if (_invLeadScope !== null && _invLeadScope.length > 0) {
+    query = query.or(`company_id.eq.${_invGetCompanyId},lead_id.in.(${_invLeadScope.join(',')})`)
+  } else {
+    query = query.eq('company_id', _invGetCompanyId)
+  }
   if (leadId) query = query.eq('lead_id', leadId)
 
   const { data, error } = await query

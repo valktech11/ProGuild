@@ -37,12 +37,29 @@ export async function GET(req: NextRequest) {
     if (_estAssignedLeadIds.length === 0) return NextResponse.json({ estimates: [] })
   }
 
-  // Fetch by company_id (post-migration) OR by lead_id IN assigned leads (pre-migration estimates)
+  // Resolve ALL lead IDs for this company (owner) or assigned leads (member)
+  // Using lead_id scope catches pre-migration estimates that have company_id=null
+  let _allLeadIds: string[] | null = null
+  if (_estRole === 'member' && _estProId) {
+    // Already resolved above as _estAssignedLeadIds
+    _allLeadIds = _estAssignedLeadIds
+  } else {
+    // Owner: fetch all company lead IDs
+    const { data: _allLeads } = await getSupabaseAdmin()
+      .from('leads').select('id')
+      .eq('company_id', _estCompanyId).is('deleted_at', null)
+    _allLeadIds = (_allLeads ?? []).map((l: any) => l.id)
+  }
+
+  if (_allLeadIds !== null && _allLeadIds.length === 0) {
+    return NextResponse.json({ estimates: [] })
+  }
+
+  // Query by company_id (new) OR lead_id IN company leads (migration fallback)
   let q = getSupabaseAdmin()
     .from('estimates')
     .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count, revision_of, revision_number, void_reason, voided_at')
-    .or(`company_id.eq.${_estCompanyId},pro_id.eq.${_estProId}`)
-  if (_estAssignedLeadIds !== null) q = q.in('lead_id', _estAssignedLeadIds)
+    .or(`company_id.eq.${_estCompanyId}${_allLeadIds ? `,lead_id.in.(${_allLeadIds.join(',')})` : ''}`)
   if (leadId) q = q.eq('lead_id', leadId)
 
   const { data, error } = await q.order('created_at', { ascending: false })
