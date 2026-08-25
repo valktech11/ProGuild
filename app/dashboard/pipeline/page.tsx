@@ -361,6 +361,7 @@ export default function PipelinePage() {
             activeFilter={activeFilter}
             onClearFilter={() => setFilters(DEFAULT_FILTERS)}
             memberMap={memberMap}
+            ownerName={session.name ?? 'Owner'}
           />
         )}
       </div>

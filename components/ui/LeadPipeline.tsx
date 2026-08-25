@@ -78,6 +78,7 @@ interface PipelineSummary {
 interface Props {
   leads:           Lead[]
   memberMap?:      Record<string, string>
+  ownerName?:      string
   onStatusChange:  (leadId: string, status: string) => Promise<void>
   onUpdate:        (leadId: string, fields: Partial<Lead>) => Promise<void>
   isPaid:          boolean
@@ -601,7 +602,7 @@ function LeadCard({ lead, stage, allStages = [], onOpen, dk = false, onStatusCha
 }
 
 // ── Lead List View — full sortable table for dense triage ──────────────────────
-function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), memberMap = {} }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[]; memberMap?: Record<string, string> }) {
+function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), memberMap = {}, ownerName = 'Owner' }: { leads: Lead[]; onOpen: (l: Lead) => void; dk: boolean; stages?: PipelineStage[]; memberMap?: Record<string, string>; ownerName?: string }) {
   const router = useRouter()
   const t = theme(dk)
   const [sort, setSort]     = useState<'age' | 'name' | 'stage' | 'value'>('age')
@@ -732,6 +733,11 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), mem
                     Job Value <SortArrow col="value" />
                   </span>
                 </th>
+                {Object.keys(memberMap).length > 0 && (
+                  <th style={{ ...thBase, cursor:'default' as const, color:t.textSubtle }}>
+                    Assigned To
+                  </th>
+                )}
                 <th style={{ ...thBase, cursor:'default' as const, color:t.textSubtle, textAlign:'right' as const, paddingRight:20 }}>
                   Actions
                 </th>
@@ -844,7 +850,7 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null), mem
                             {(memberMap as Record<string,string>)[(lead as any).assigned_to_pro_id] ?? 'Assigned'}
                           </span>
                         ) : (
-                          <span style={{ fontSize:12, color:t.textSubtle }}>Unassigned</span>
+                          <span style={{ fontSize:12, color:t.textSubtle }}>{ownerName}</span>
                         )}
                       </td>
                     )}
@@ -1387,7 +1393,7 @@ function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onSt
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false, summary, onActionFilter, activeFilter, onClearFilter, memberMap = {} }: Props) {
+export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false, summary, onActionFilter, activeFilter, onClearFilter, memberMap = {}, ownerName = 'Owner' }: Props) {
   const router = useRouter()
   const t = theme(dk)
   const stages = getPipelineStages(tradeSlug)
@@ -1718,7 +1724,7 @@ export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, 
       {/* ── Desktop list view ── */}
       {listView && (
         <div className="hidden md:block">
-          <LeadListView leads={leads} onOpen={openLead} dk={dk} stages={stages} memberMap={memberMap} />
+          <LeadListView leads={leads} onOpen={openLead} dk={dk} stages={stages} memberMap={memberMap} ownerName={ownerName} />
         </div>
       )}
 
