@@ -27,7 +27,9 @@ export async function DELETE(
   const __auth = await requirePro(req as any, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const { id: leadId, photoId } = await params
-  const proId = req.nextUrl.searchParams.get('pro_id')
+  const proId = __auth.proId
+  const _photoCompanyId = __auth.companyId
+  const _photoRole = __auth.role
 
   if (!UUID_RE.test(leadId) || !UUID_RE.test(photoId)) {
     return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
@@ -103,7 +105,7 @@ export async function PATCH(
     .select('id, r2_key')
     .eq('id', photoId)
     .eq('lead_id', leadId)
-    .eq('pro_id', __auth.proId)
+    .eq(_photoRole === 'member' ? 'assigned_to_pro_id' : (_photoCompanyId ? 'company_id' : 'pro_id'), _photoRole === 'member' ? __auth.proId! : (_photoCompanyId ?? __auth.proId!))
     .maybeSingle()
   if (findErr) return NextResponse.json({ error: 'Lookup failed' }, { status: 500 })
   if (!photo) return NextResponse.json({ error: 'Not found' }, { status: 404 })

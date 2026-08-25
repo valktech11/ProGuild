@@ -123,12 +123,12 @@ export async function PATCH(req: Request, { params }: RouteParams) {
           let clientId: string | null = null
           if (leadForClient.contact_phone) {
             const { data: byPhone } = await sb.from('clients').select('id')
-              .eq('pro_id', pro_id).eq('phone', String(leadForClient.contact_phone).trim()).maybeSingle()
+              .eq(_stageCompanyId ? 'company_id' : 'pro_id', _stageCompanyId ?? pro_id).eq('phone', String(leadForClient.contact_phone).trim()).maybeSingle()
             if (byPhone) clientId = byPhone.id
           }
           if (!clientId && leadForClient.contact_email) {
             const { data: byEmail } = await sb.from('clients').select('id')
-              .eq('pro_id', pro_id).eq('email', String(leadForClient.contact_email).toLowerCase().trim()).maybeSingle()
+              .eq(_stageCompanyId ? 'company_id' : 'pro_id', _stageCompanyId ?? pro_id).eq('email', String(leadForClient.contact_email).toLowerCase().trim()).maybeSingle()
             if (byEmail) clientId = byEmail.id
           }
           if (!clientId) {

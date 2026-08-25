@@ -14,13 +14,15 @@ export async function GET(
   if (__auth.error) return __auth.error
   const { id } = await params
   const proId = __auth.proId
+  const _scopeCompanyId = __auth.companyId
+  const _scopeRole = __auth.role
   const sb = getSupabaseAdmin()
 
   const { data: eq, error: eqErr } = await sb
     .from('hvac_equipment')
     .select('*, hvac_maintenance_reminders(id, due_date, status)')
     .eq('id', id)
-    .eq('pro_id', proId)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .single()
   if (eqErr || !eq) {
     console.error('[equipment/timeline] equipment fetch failed:', eqErr?.message, 'id:', id, 'pro:', proId)
@@ -29,9 +31,9 @@ export async function GET(
 
   // measurements query is fault-tolerant — the table may not exist yet in staging.
   const [refrigerantResult, measurementsResult, leadsResult] = await Promise.all([
-    sb.from('hvac_refrigerant_log').select('*').eq('equipment_id', id).eq('pro_id', proId).order('created_at', { ascending: false }),
-    Promise.resolve(sb.from('hvac_equipment_measurements').select('*').eq('equipment_id', id).eq('pro_id', proId).order('measured_at', { ascending: false }).limit(50)).catch(() => ({ data: [] as any[] })),
-    sb.from('leads').select('id, message, lead_status, created_at, quoted_amount, notes').eq('pro_id', proId).eq('client_id', eq.client_id).order('created_at', { ascending: false }).limit(50),
+    sb.from('hvac_refrigerant_log').select('*').eq('equipment_id', id).eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!)).order('created_at', { ascending: false }),
+    Promise.resolve(sb.from('hvac_equipment_measurements').select('*').eq('equipment_id', id).eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!)).order('measured_at', { ascending: false }).limit(50)).catch(() => ({ data: [] as any[] })),
+    sb.from('leads').select('id, message, lead_status, created_at, quoted_amount, notes').eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!)).eq('client_id', eq.client_id).order('created_at', { ascending: false }).limit(50),
   ])
   const refrigerantLogs = refrigerantResult.data
   const measurements    = measurementsResult.data

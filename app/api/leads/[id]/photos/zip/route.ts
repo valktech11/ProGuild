@@ -32,7 +32,7 @@ export async function GET(
     .from('leads')
     .select('id, contact_name, pro_id')
     .eq('id', leadId)
-    .eq('pro_id', proId)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .single()
 
   if (leadErr || !lead) {

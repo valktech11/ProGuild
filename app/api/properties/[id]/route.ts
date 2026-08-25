@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .from('properties')
     .select('*')
     .eq('id', id)
-    .eq('pro_id', proId)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .single()
 
   if (error || !property) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .from('leads')
     .select('id, contact_name, lead_status, quoted_amount, created_at, scheduled_date')
     .eq('property_id', id)
-    .eq('pro_id', proId)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .order('created_at', { ascending: false })
 
   // Fetch linked client (homeowner contact) via property.client_id
@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .from('properties')
     .update({ ...fields, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('pro_id', pro_id)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .select()
     .single()
 
@@ -73,7 +73,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     .from('properties')
     .delete()
     .eq('id', id)
-    .eq('pro_id', proId)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

@@ -34,7 +34,7 @@ export async function GET(req: Request, { params }: RouteParams) {
       .from('leads')
       .select('id')
       .eq('id', leadId)
-      .eq('pro_id', proId)
+      .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
       .single()
 
     if (error || !lead) {
@@ -90,6 +90,8 @@ export async function POST(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     const proId = __auth.proId // server-derived (IDOR)
+  const _scopeCompanyId = __auth.companyId
+  const _scopeRole = __auth.role
     const caption = (form.get('caption') as string | null) ?? ''
     // Optional geo/time proof metadata (insurance-grade). All nullable.
     const latRaw    = form.get('lat')      as string | null
@@ -124,7 +126,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       .from('leads')
       .select('id')
       .eq('id', leadId)
-      .eq('pro_id', proId)
+      .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
       .single()
 
     if (leadError || !lead) {

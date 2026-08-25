@@ -10,6 +10,8 @@ export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
   const proId = __auth.proId
+  const _scopeCompanyId = __auth.companyId
+  const _scopeRole = __auth.role
   const _perfCompanyId = __auth.companyId
   const _perfRole = __auth.role
   if (!_perfCompanyId) return NextResponse.json({ error: 'No company context' }, { status: 400 })
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
     (() => { let q = sb.from('leads').select('id, lead_status, lead_source, created_at, lead_status_changed_at, updated_at, quoted_amount, roofing_job_data(approved_amount)').eq('company_id', _perfCompanyId); if (_perfLeadIds !== null) q = q.in('id', _perfLeadIds); return q })(),
     sb.from('pipeline_events')
       .select('lead_id, event_data')
-      .eq('pro_id', proId)
+      .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
       .eq('event_type', 'stage_changed'),
   ])
   if (leadsRes.error) return NextResponse.json({ error: leadsRes.error.message }, { status: 500 })

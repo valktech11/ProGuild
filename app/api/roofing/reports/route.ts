@@ -126,7 +126,7 @@ export async function PATCH(req: NextRequest) {
     .from('roof_reports')
     .update({ property_id })
     .eq('id', id)
-    .eq('pro_id', pro_id)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

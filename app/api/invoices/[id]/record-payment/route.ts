@@ -25,6 +25,8 @@ export async function POST(
   const __auth = await requirePro(req, body.pro_id ?? new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error || !__auth.proId) return __auth.error ?? NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const proId = __auth.proId
+  const _scopeCompanyId = __auth.companyId
+  const _scopeRole = __auth.role
   const sb = auditedAdmin(req, { actorId: proId, actorType: 'pro' })
 
   const amount = Number(body.amount)
@@ -36,7 +38,7 @@ export async function POST(
     .from('invoices')
     .select('id, pro_id, lead_id, estimate_id, total, payment_history, status, paid_at')
     .eq('id', id)
-    .eq('pro_id', proId)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .single()
   if (loadErr || !inv) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })

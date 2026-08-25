@@ -19,6 +19,8 @@ export async function POST(
 ) {
   const auth = await requirePro(req)
   if (auth.error) return auth.error
+  const _rptCompanyId2 = auth.companyId
+  const _rptRole2 = auth.role
 
   const { id: leadId } = await params
   if (!UUID_RE.test(leadId))
@@ -31,7 +33,7 @@ export async function POST(
     .from('leads')
     .select('id, contact_name, property_address, contact_city, contact_state, contact_zip')
     .eq('id', leadId)
-    .eq('pro_id', auth.proId)
+    .eq(_rptRole2 === 'member' ? 'assigned_to_pro_id' : (_rptCompanyId2 ? 'company_id' : 'pro_id'), _rptRole2 === 'member' ? auth.proId! : (_rptCompanyId2 ?? auth.proId!))
     .maybeSingle()
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -54,7 +56,7 @@ export async function POST(
     .from('lead_photos')
     .select('id, url, annotated_url, has_annotation, phase, caption, taken_at')
     .eq('lead_id', leadId)
-    .eq('pro_id', auth.proId)
+    .eq(_rptRole2 === 'member' ? 'assigned_to_pro_id' : (_rptCompanyId2 ? 'company_id' : 'pro_id'), _rptRole2 === 'member' ? auth.proId! : (_rptCompanyId2 ?? auth.proId!))
     .order('taken_at', { ascending: true })
 
   // Group by phase

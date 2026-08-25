@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   let q = getSupabaseAdmin()
     .from('properties')
     .select('*, roof_reports(id, total_squares_order, dominant_pitch, waste_factor, created_at)')
-    .eq('pro_id', proId)
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .order('created_at', { ascending: false })
 
   if (search) q = q.ilike('address_line1', `%${search}%`)
