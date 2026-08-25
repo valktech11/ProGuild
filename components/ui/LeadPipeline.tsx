@@ -77,6 +77,7 @@ interface PipelineSummary {
 
 interface Props {
   leads:           Lead[]
+  memberMap?:      Record<string, string>
   onStatusChange:  (leadId: string, status: string) => Promise<void>
   onUpdate:        (leadId: string, fields: Partial<Lead>) => Promise<void>
   isPaid:          boolean
@@ -821,7 +822,7 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
                     </td>
 
                     {/* Assignee — shown when lead has an assigned_to_pro_id */}
-                    {(lead as any).assigned_to_pro_id && (lead as any).assigned_to_pro_id !== (lead as any).pro_id && (
+                    {(lead as any).assigned_to_pro_id && (
                       <td style={{ padding: '13px 16px' }}>
                         <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:10, fontWeight:600, padding:'3px 8px', borderRadius:20,
                           background: dk ? '#1E3A5F' : '#EFF6FF', color: dk ? '#93C5FD' : '#1D4ED8', whiteSpace:'nowrap' as const }}>
@@ -829,7 +830,7 @@ function LeadListView({ leads, onOpen, dk, stages = getPipelineStages(null) }: {
                             <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
                             <circle cx="12" cy="7" r="4"/>
                           </svg>
-                          Assigned
+                          {(memberMap as Record<string,string>)[(lead as any).assigned_to_pro_id]?.split(' ')[0] ?? 'Assigned'}
                         </span>
                       </td>
                     )}
@@ -1379,7 +1380,7 @@ function PipelineColumn({ stage, leads, allStages = [], onOpen, dk = false, onSt
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false, summary, onActionFilter, activeFilter, onClearFilter }: Props) {
+export default function LeadPipeline({ leads, onStatusChange, onUpdate, isPaid, tradeSlug, dk = false, summary, onActionFilter, activeFilter, onClearFilter, memberMap = {} }: Props) {
   const router = useRouter()
   const t = theme(dk)
   const stages = getPipelineStages(tradeSlug)

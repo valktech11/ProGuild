@@ -100,8 +100,12 @@ export async function GET(req: NextRequest) {
     role = (membership?.role as 'owner' | 'member') ?? null
   }
 
-  // Removed member: pro exists but no longer has a company
-  const wasRemoved = !company && (pro as any).is_claimed && !(pro as any).company_id
+  // Removed member: pro is claimed + authenticated but has no company.
+  // Distinguish from a brand-new solo signup (who also has no company briefly)
+  // by checking if there's a company_members row that got deleted.
+  // Simplest signal: is_claimed + no company_id = removed from team
+  // (new signups without invite_token get a company created in the same request)
+  const wasRemoved = (pro as any).is_claimed === true && !(pro as any).company_id
 
   return NextResponse.json({
     session: {

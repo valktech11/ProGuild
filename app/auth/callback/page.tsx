@@ -76,7 +76,11 @@ function CallbackInner() {
             router.replace(`/roof-visualizer?session=${vizSessionId}&ready=report`)
             return
           }
-          router.replace('/dashboard')
+          if (d.removedFromCompany) {
+            router.replace('/removed-from-team')
+          } else {
+            router.replace('/dashboard')
+          }
         } else if (r.ok && d.needsProfile) {
           // If this was an invite signup, they have a company — go to dashboard
           const isInviteJoin = (() => { try { return !!sessionStorage.getItem('pg_invite_join') } catch { return false } })()

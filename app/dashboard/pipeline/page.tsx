@@ -40,6 +40,8 @@ export default function PipelinePage() {
   const [showFilter,  setShowFilter]  = useState(false)
   const [filters,     setFilters]     = useState<FilterState>(DEFAULT_FILTERS)
   const [summary,     setSummary]     = useState<any>(null)
+  // Team members for assignee display
+  const [memberMap,   setMemberMap]   = useState<Record<string, string>>({})
 
   // Derive which action card (if any) is the source of the current filter.
   // Used to show selected state on the card and to toggle it off on re-click.
@@ -77,6 +79,21 @@ export default function PipelinePage() {
     ])
     if (r.ok)  setLeads(((await r.json()).leads) || [])
     if (sr.ok) setSummary(await sr.json())
+  }, [session])
+
+  // Load team members once for assignee name display (owner only)
+  useEffect(() => {
+    if (!session || session.role !== 'owner') return
+    apiFetch('/api/company/members')
+      .then(r => r.json())
+      .then((d: any) => {
+        const map: Record<string, string> = {}
+        ;(d?.members ?? []).forEach((m: any) => {
+          if (m?.pro?.id) map[m.pro.id] = m.pro.full_name
+        })
+        setMemberMap(map)
+      })
+      .catch(() => {})
   }, [session])
 
   useEffect(() => {
@@ -343,6 +360,7 @@ export default function PipelinePage() {
             onActionFilter={handleActionFilter}
             activeFilter={activeFilter}
             onClearFilter={() => setFilters(DEFAULT_FILTERS)}
+            memberMap={memberMap}
           />
         )}
       </div>
