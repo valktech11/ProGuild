@@ -68,10 +68,18 @@ export async function GET(
   // Server-derived pro scope — mandatory (was optional client filter: IDOR).
   const proId = __auth.proId
   const companyId = __auth.companyId
+  const callerRole = __auth.role
 
-  const query = getSupabaseAdmin().from('leads').select('*').eq('id', id)
-    // scope: company member can access any lead in their company
-    .or(companyId ? `company_id.eq.${companyId},pro_id.eq.${proId}` : `pro_id.eq.${proId}`)
+  // Role-based: owner accesses any company lead by ID
+  //             member can ONLY access leads assigned to them
+  let query = getSupabaseAdmin().from('leads').select('*').eq('id', id)
+  if (callerRole === 'member') {
+    query = query.eq('assigned_to_pro_id', proId)
+  } else if (companyId) {
+    query = query.eq('company_id', companyId)
+  } else {
+    query = query.eq('pro_id', proId)
+  }
 
   const { data, error } = await query.single()
 
