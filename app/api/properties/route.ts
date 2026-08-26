@@ -7,6 +7,8 @@ export async function GET(req: NextRequest) {
   if (__auth.error) return __auth.error
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
+  const _scopeCompanyId = __auth.companyId
+  const _scopeRole = __auth.role
   const search = searchParams.get('search')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 

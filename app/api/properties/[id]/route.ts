@@ -8,13 +8,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
+  const _scopeCompanyId = __auth.companyId
+  const _scopeRole = __auth.role
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
   const { data: property, error } = await getSupabaseAdmin()
     .from('properties')
     .select('*')
     .eq('id', id)
-    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? __auth.proId! : (_scopeCompanyId ?? __auth.proId!))
     .single()
 
   if (error || !property) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -24,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .from('leads')
     .select('id, contact_name, lead_status, quoted_amount, created_at, scheduled_date')
     .eq('property_id', id)
-    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? __auth.proId! : (_scopeCompanyId ?? __auth.proId!))
     .order('created_at', { ascending: false })
 
   // Fetch linked client (homeowner contact) via property.client_id
@@ -53,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .from('properties')
     .update({ ...fields, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? __auth.proId! : (_scopeCompanyId ?? __auth.proId!))
     .select()
     .single()
 
@@ -67,13 +69,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
+  const _scopeCompanyId = __auth.companyId
+  const _scopeRole = __auth.role
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
   const { error } = await getSupabaseAdmin()
     .from('properties')
     .delete()
     .eq('id', id)
-    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
+    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? __auth.proId! : (_scopeCompanyId ?? __auth.proId!))
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

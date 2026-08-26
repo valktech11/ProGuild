@@ -17,6 +17,8 @@ export async function GET(
   if (__auth.error) return __auth.error
   const { id: leadId } = await params
   const proId = req.nextUrl.searchParams.get('pro_id')
+  const _scopeCompanyId = __auth.companyId
+  const _scopeRole = __auth.role
 
   if (!UUID_RE.test(leadId)) {
     return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 })
