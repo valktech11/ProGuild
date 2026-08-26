@@ -34,14 +34,38 @@ export async function POST(
     return NextResponse.json({ error: 'amount must be a positive number' }, { status: 400 })
   }
 
+  // Use invoice ID directly — ownership verified via company_id OR lead's company
+  // (catches pre-migration invoices with company_id=null)
   const { data: inv, error: loadErr } = await sb
     .from('invoices')
     .select('id, pro_id, lead_id, estimate_id, total, payment_history, status, paid_at')
     .eq('id', id)
-    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .single()
   if (loadErr || !inv) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+  }
+  // Verify caller has access: company_id match, or lead belongs to company
+  const invCompanyId = (inv as any).company_id
+  const invLeadId = inv.lead_id
+  if (_scopeRole === 'member') {
+    // Member must own the lead this invoice is for
+    if (invLeadId) {
+      const { data: lead } = await sb.from('leads').select('assigned_to_pro_id').eq('id', invLeadId).single()
+      if ((lead as any)?.assigned_to_pro_id !== proId) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
+    }
+  } else if (_scopeCompanyId) {
+    // Owner: invoice must belong to company (by company_id or via lead)
+    if (invCompanyId && invCompanyId !== _scopeCompanyId) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+    if (!invCompanyId && invLeadId) {
+      const { data: lead } = await sb.from('leads').select('company_id').eq('id', invLeadId).single()
+      if ((lead as any)?.company_id !== _scopeCompanyId) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
+    }
   }
   const total = Number(inv.total) || 0
   const existing = (inv.payment_history as Array<{ amount?: number | null }> | null) ?? []

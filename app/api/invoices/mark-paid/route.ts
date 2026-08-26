@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   const paidAt = new Date().toISOString()
 
   const { data: inv, error: invErr } = await sb
-    .from('invoices').select('*').eq('id', invoice_id).eq(_mpScope.col, _mpScope.val).single()
+    .from('invoices').select('*').eq('id', invoice_id).single()
   if (invErr || !inv) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
 
   // A1 FIX: subtract from current balance_due, not recalculate from total
