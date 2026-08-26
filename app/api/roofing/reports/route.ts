@@ -119,6 +119,8 @@ export async function DELETE(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _rptCompanyId = __auth.companyId
+  const _rptRole = __auth.role
   const { id, pro_id, property_id } = await req.json().catch(() => ({}))
   if (!id || !pro_id || !property_id) {
     return NextResponse.json({ error: 'id, pro_id, property_id required' }, { status: 400 })

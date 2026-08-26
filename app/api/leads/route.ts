@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
       const { data: reports } = await getSupabaseAdmin()
         .from('roof_reports')
         .select('property_id, total_squares_order, dominant_pitch, created_at')
-        .eq(_callerRole === 'member' ? 'assigned_to_pro_id' : (companyId ? 'company_id' : 'pro_id'), _callerRole === 'member' ? _callerProId! : (companyId ?? _callerProId!))
+        .eq('company_id', _manualCompanyId ?? companyId ?? '')
         .in('property_id', propertyIds)
         .not('total_squares_order', 'is', null)
         .order('created_at', { ascending: false })
@@ -233,17 +233,17 @@ export async function POST(req: NextRequest) {
   try {
     if (!clientId && contact_phone) {
       const { data: byPhone } = await supabase.from('clients').select('id')
-        .eq(_callerRole === 'member' ? 'assigned_to_pro_id' : (companyId ? 'company_id' : 'pro_id'), _callerRole === 'member' ? _callerProId! : (companyId ?? _callerProId!)).eq('phone', contact_phone.trim()).maybeSingle()
+        .eq('company_id', _manualCompanyId ?? companyId ?? '').eq('phone', contact_phone.trim()).maybeSingle()
       if (byPhone) clientId = byPhone.id
     }
     if (!clientId && contact_email) {
       const { data: byEmail } = await supabase.from('clients').select('id')
-        .eq(_callerRole === 'member' ? 'assigned_to_pro_id' : (companyId ? 'company_id' : 'pro_id'), _callerRole === 'member' ? _callerProId! : (companyId ?? _callerProId!)).eq('email', contact_email.toLowerCase().trim()).maybeSingle()
+        .eq('company_id', _manualCompanyId ?? companyId ?? '').eq('email', contact_email.toLowerCase().trim()).maybeSingle()
       if (byEmail) clientId = byEmail.id
     }
     if (!clientId && contact_name && streetOnly) {
       const { data: byNameAddr } = await supabase.from('clients').select('id')
-        .eq(_callerRole === 'member' ? 'assigned_to_pro_id' : (companyId ? 'company_id' : 'pro_id'), _callerRole === 'member' ? _callerProId! : (companyId ?? _callerProId!)).ilike('full_name', contact_name.trim())
+        .eq('company_id', _manualCompanyId ?? companyId ?? '').ilike('full_name', contact_name.trim())
         .eq('address_line1', streetOnly).maybeSingle()
       if (byNameAddr) clientId = byNameAddr.id
     }
@@ -267,7 +267,7 @@ export async function POST(req: NextRequest) {
   if (streetOnly) {
     try {
       const { data: existingProp } = await supabase.from('properties').select('id')
-        .eq(_callerRole === 'member' ? 'assigned_to_pro_id' : (companyId ? 'company_id' : 'pro_id'), _callerRole === 'member' ? _callerProId! : (companyId ?? _callerProId!)).eq('address_line1', streetOnly).maybeSingle()
+        .eq('company_id', _manualCompanyId ?? companyId ?? '').eq('address_line1', streetOnly).maybeSingle()
       propertyId = existingProp?.id ?? null
       if (!propertyId) {
         const { data: newProp, error: propErr } = await supabase.from('properties').insert({
