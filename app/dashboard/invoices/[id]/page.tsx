@@ -265,7 +265,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     if (!session) { router.replace('/login'); return }
     apiFetch(`/api/invoices/${id}`)
       .then(r => r.json())
-      .then(d => { if (d.invoice) setInvoice(d.invoice) })
+      .then(async d => {
+        if (!d.invoice) return
+        // Member access check: verify lead is assigned to them
+        if (d.invoice.lead_id && session?.role === 'member') {
+          const lr = await apiFetch(`/api/leads/${d.invoice.lead_id}?pro_id=${session.id}`)
+          if (!lr.ok) { router.replace('/dashboard/invoices'); return }
+        }
+        setInvoice(d.invoice)
+      })
       .finally(() => setLoading(false))
   }, [id, session, router])
 

@@ -157,6 +157,14 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         if (!r.ok) { setNotFound(true); setLoading(false); return null }
         return r.json()
       })
+      .then(async d => {
+        // Role-based access: member can only view estimates for their assigned leads
+        if (d?.estimate?.lead_id && session?.role === 'member') {
+          const leadRes = await apiFetch(`/api/leads/${d.estimate.lead_id}?pro_id=${session.id}`)
+          if (!leadRes.ok) { setNotFound(true); setLoading(false); return }
+        }
+        return d
+      })
       .then(d => {
         if (!d) return
         if (d.estimate) {
