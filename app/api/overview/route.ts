@@ -132,7 +132,19 @@ export async function GET(req: NextRequest) {
   const sumTotal = (arr: { total?: unknown }[]) =>
     arr.reduce((s, e) => s + (Number(e.total) || 0), 0)
 
+  // Unassigned leads count (owners only — members always see their own)
+  let unassignedCount = 0
+  if (_ovRole !== 'member' && _ovCompanyId) {
+    const { count } = await sb.from('leads').select('id', { count: 'exact', head: true })
+      .eq('company_id', _ovCompanyId)
+      .is('assigned_to_pro_id', null)
+      .is('deleted_at', null)
+      .not('lead_status', 'in', '(Lost,Archived,Job Won)')
+    unassignedCount = count ?? 0
+  }
+
   return NextResponse.json({
+    unassignedLeads: unassignedCount,
     actionCenter: {
       uncontacted: uncontacted.length,
       expiring: expiring.length,

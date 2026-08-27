@@ -404,5 +404,20 @@ export async function POST(req: NextRequest) {
     })
   } catch (e) { console.error('pipeline_events insert failed:', e) }
 
+  // Notify owner when member creates a new lead
+  if (_auth2ProId && _manualCompanyId) {
+    try {
+      const { data: memberInfo } = await getSupabaseAdmin().from('pros').select('full_name').eq('id', _auth2ProId).single()
+      const memberName = (memberInfo as any)?.full_name?.split(' ')[0] ?? 'A team member'
+      const { notifyOwners } = await import('@/lib/notifications')
+      await notifyOwners(_manualCompanyId, _auth2ProId, {
+        type: 'new_lead_created',
+        title: `New lead added by ${memberName}`,
+        body: (lead as any)?.contact_name || (lead as any)?.property_address || 'New lead created',
+        leadId: (lead as any)?.id ?? null,
+      })
+    } catch {}
+  }
+
   return NextResponse.json({ lead }, { status: 201 })
 }

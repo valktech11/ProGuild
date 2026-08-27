@@ -372,7 +372,7 @@ export default function RoofingOverviewWidget({ leads, session, dk, overview, ac
               }}>
                 <div style={{ width: 8, height: 8, borderRadius: 4, flexShrink: 0, background: activityAccent(it.accent, t) }} />
                 <div style={{ flex: 1, fontSize: 13.5, color: t.textMuted, lineHeight: 1.35 }}>
-                  <span style={{ fontWeight: 700, color: t.textPri }}>{it.name}</span> {it.label}
+                  <span style={{ fontWeight: 700, color: t.textPri }}>{it.name}</span> {it.label}{it.actor ? <span style={{ color: t.textSubtle, fontSize: 12 }}> · by {it.actor}</span> : null}
                 </div>
                 <div style={{ fontSize: 12, color: t.textMuted, flexShrink: 0 }}>{relTime(it.created_at)}</div>
               </div>

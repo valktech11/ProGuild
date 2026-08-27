@@ -60,5 +60,19 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Notify assigned member
+  if (assigned_to_pro_id && assigned_to_pro_id !== proId) {
+    const { data: lead_info } = await sb.from('leads').select('contact_name, property_address').eq('id', leadId).single()
+    const { notify } = await import('@/lib/notifications')
+    await notify({
+      proId: assigned_to_pro_id,
+      companyId,
+      type: 'lead_assigned',
+      title: 'New lead assigned to you',
+      body: (lead_info as any)?.contact_name || (lead_info as any)?.property_address || 'A lead has been assigned to you',
+      leadId,
+    })
+  }
+
   return NextResponse.json({ ok: true, lead: data })
 }

@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
   }
 
   let _actQ = sb.from('pipeline_events')
-    .select('id, lead_id, event_type, event_data, created_at')
+    .select('id, lead_id, event_type, event_data, created_at, pro_id')
     .eq(_actCompanyId ? 'company_id' : 'pro_id', _actCompanyId ?? _actProId)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -80,25 +80,31 @@ export async function GET(req: NextRequest) {
 
   const rows = events || []
 
-  // Resolve lead display names in a single query.
+  // Resolve lead display names and actor names in parallel
   const leadIds = Array.from(new Set(rows.map(r => r.lead_id).filter(Boolean)))
+  const actorIds = Array.from(new Set(rows.map((r: any) => r.pro_id).filter(Boolean)))
   const names: Record<string, string> = {}
-  if (leadIds.length) {
-    const { data: leads } = await sb
-      .from('leads')
-      .select('id, contact_name')
-      .in('id', leadIds)
-    for (const l of leads || []) names[l.id] = l.contact_name || 'A lead'
-  }
+  const actorNames: Record<string, string> = {}
+  await Promise.all([
+    leadIds.length ? sb.from('leads').select('id, contact_name').in('id', leadIds)
+      .then(({ data }) => { for (const l of data || []) names[l.id] = l.contact_name || 'A lead' }) : Promise.resolve(),
+    actorIds.length ? sb.from('pros').select('id, full_name').in('id', actorIds)
+      .then(({ data }) => { for (const p of data || []) actorNames[p.id] = p.full_name || '' }) : Promise.resolve(),
+  ])
 
   const activity = rows.map(r => {
     const { label, accent } = describe(r.event_type, (r.event_data || {}) as Record<string, unknown>)
+    const actorProId = (r as any).pro_id
+    // Show actor attribution only when it differs from caller (owner sees 'by Brian')
+    const actorName = actorProId && actorProId !== _actProId ? actorNames[actorProId] : null
+    const actorFirst = actorName ? actorName.split(' ')[0] : null
     return {
       id:         r.id,
       lead_id:    r.lead_id,
       name:       (r.lead_id && names[r.lead_id]) || 'A lead',
       label,
       accent,
+      actor:      actorFirst,  // null = done by caller themselves
       created_at: r.created_at,
     }
   })

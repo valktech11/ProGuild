@@ -737,7 +737,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // ── Activity ──────────────────────────────────────────────────────────────
   function activity() {
     if (!lead) return []
-    const items:{date:string;title:string;sub:string;type:string;warn?:boolean}[] = []
+    const items:{date:string;title:string;sub:string;type:string;warn?:boolean;actor?:string|null}[] = []
     items.push({date:lead.created_at,title:'Lead created',sub:`From ${(lead.lead_source||'unknown').replace(/_/g,' ')}${lead.message?` · "${lead.message.slice(0,60)}${lead.message.length>60?'…':''}"`:``}`,type:'created'})
     if (lead.quoted_amount!=null) items.push({date:lead.updated_at||lead.created_at,title:'Quote set',sub:`$${Number(lead.quoted_amount).toLocaleString()}`,type:'quote'})
     if ((lead as any).inspection_date) items.push({date:lead.updated_at||lead.created_at,title:isHvac_guard(tradePlugin)?'Diagnosis scheduled':'Inspection scheduled',sub:fmt((lead as any).inspection_date),type:'scheduled'})
@@ -796,6 +796,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
             title: `Stage moved to ${to}`,
             sub:   ev.event_data.from ? `From ${from}` : '',
             type:  'stage',
+            actor: (ev as any).actor ?? null,
           })
         }
       }
@@ -823,6 +824,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           title: `Payment received — ${amt}`,
           sub:   `${ev.event_data.milestone} · ${ev.event_data.method}${bal <= 0 ? ' · Paid in full' : ` · Balance: ${Number(bal).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}`}`,
           type:  'payment_received',
+          actor: (ev as any).actor ?? null,
         })
       }
       if (ev.event_type === 'supplement_filed' && ev.event_data) {
@@ -2457,7 +2459,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,paddingTop:i===0?0:11}}>
                                 <div style={{width:9,height:9,borderRadius:'50%',background:ic,marginTop:5,flexShrink:0,boxShadow:`0 0 0 3px ${ic}1A`}}/>
                                 <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontSize:12.5,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.35}}>{item.title}</div>
+                                  <div style={{fontSize:12.5,fontWeight:600,color:warn?'#EF4444':tp,lineHeight:1.35}}>{item.title}{(item as any).actor?<span style={{fontWeight:400,color:ts,fontSize:11}}> · by {(item as any).actor}</span>:null}</div>
                                   {item.sub && item.sub.trim() !== item.title.trim() && <div style={{fontSize:11,color:warn?'#EF4444':ts,marginTop:1,lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{item.sub}</div>}
                                 </div>
                                 <div style={{fontSize:10,flexShrink:0,marginTop:2,textAlign:'right' as const,lineHeight:1.35}}>

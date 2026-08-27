@@ -191,6 +191,19 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Access denied: lead not in your scope' }, { status: 403 })
     }
 
+    // Notify owner when member wins a job
+    if (newStage === 'Job Won' && __auth.companyId && __auth.role === 'member') {
+      const { data: leadInfo } = await sb.from('leads').select('contact_name, property_address').eq('id', leadId).single()
+      const { data: memberInfo } = await sb.from('pros').select('full_name').eq('id', pro_id).single()
+      const { notifyOwners } = await import('@/lib/notifications')
+      await notifyOwners(__auth.companyId, pro_id, {
+        type: 'job_won',
+        title: `Job Won by ${(memberInfo as any)?.full_name?.split(' ')[0] ?? 'team member'}`,
+        body: (leadInfo as any)?.contact_name || (leadInfo as any)?.property_address || 'A job has been won',
+        leadId,
+      })
+    }
+
     // ── Write to pipeline_events (immutable audit trail) ─────────────────
     try {
       await sb.from('pipeline_events').insert({

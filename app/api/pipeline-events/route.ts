@@ -14,12 +14,25 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await getSupabaseAdmin()
     .from('pipeline_events')
-    .select('id, event_type, event_data, created_at, actor_type')
+    .select('id, event_type, event_data, created_at, actor_type, pro_id')
     .eq('lead_id', lead_id)
     .eq(_pevCompanyId ? 'company_id' : 'pro_id', _pevCompanyId ?? _pevProId)
     .order('created_at', { ascending: false })
     .limit(50)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ events: data || [] })
+  // Resolve actor names for attribution display
+  const rows = data || []
+  const actorIds = Array.from(new Set(rows.map((r: any) => r.pro_id).filter(Boolean))) as string[]
+  const actorMap: Record<string, string> = {}
+  if (actorIds.length) {
+    const { data: pros } = await getSupabaseAdmin().from('pros').select('id, full_name').in('id', actorIds)
+    for (const p of pros || []) actorMap[p.id] = p.full_name?.split(' ')[0] ?? ''
+  }
+  const events = rows.map((r: any) => ({
+    ...r,
+    actor: r.pro_id && r.pro_id !== _pevProId ? (actorMap[r.pro_id] || null) : null,
+  }))
+
+  return NextResponse.json({ events })
 }

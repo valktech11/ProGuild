@@ -431,12 +431,14 @@ export default function OverviewPage() {
   // Thresholds (24h / 0-3d / 48h / today / draft) live in the endpoint, not here,
   // so web and mobile can't disagree.
   const ac = overview?.actionCenter ?? {}
+  const unassignedLeads = (overview as any)?.unassignedLeads ?? 0
 
   // Smart sub-line: driven by actionCenter from the endpoint (not client-side
   // awaitingResp, which used a different clock and caused duplicate signals).
   const subLineParts: string[] = []
   if ((ac.uncontacted ?? 0) > 0) subLineParts.push(`${ac.uncontacted} homeowner${ac.uncontacted !== 1 ? 's' : ''} waiting`)
   if ((ac.drafts ?? 0) > 0) subLineParts.push(`${ac.drafts} estimate${ac.drafts !== 1 ? 's' : ''} unsent`)
+  if (session?.role !== 'member' && unassignedLeads > 0) subLineParts.push(`${unassignedLeads} lead${unassignedLeads !== 1 ? 's' : ''} unassigned`)
   const smartSubLine = subLineParts.join(' · ')
 
   const cardBg  = t.cardBg

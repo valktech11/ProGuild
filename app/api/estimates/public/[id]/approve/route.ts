@@ -41,5 +41,36 @@ export async function POST(
       .in('status', ['draft', 'sent', 'viewed'])
   }
 
+  // Notify the pro who created the estimate + owner (if different)
+  try {
+    const { data: fullEst } = await sb.from('estimates').select('pro_id, lead_name, company_id').eq('id', id).single()
+    if (fullEst) {
+      const { notify, notifyOwners } = await import('@/lib/notifications')
+      const leadLabel = (fullEst as any).lead_name || 'a homeowner'
+
+      // Notify the estimate creator (the member or owner who sent it)
+      if ((fullEst as any).pro_id) {
+        await notify({
+          proId:     (fullEst as any).pro_id,
+          companyId: (fullEst as any).company_id ?? null,
+          type:      'estimate_approved',
+          title:     'Estimate approved! 🎉',
+          body:      `${leadLabel} approved your estimate`,
+          leadId:    est.lead_id ?? null,
+        })
+      }
+
+      // Also notify owners (if creator was a member)
+      if ((fullEst as any).company_id && (fullEst as any).pro_id) {
+        await notifyOwners((fullEst as any).company_id, (fullEst as any).pro_id, {
+          type:   'estimate_approved',
+          title:  'Estimate approved! 🎉',
+          body:   `${leadLabel} approved an estimate`,
+          leadId: est.lead_id ?? null,
+        })
+      }
+    }
+  } catch {}
+
   return NextResponse.json({ ok: true })
 }
