@@ -88,27 +88,18 @@ export async function GET(req: NextRequest) {
   const plan        = company?.plan_tier        ?? (pro as any).plan_tier        ?? 'Free'
   const trialEndsAt = company?.trial_ends_at    ?? (pro as any).trial_ends_at    ?? null
 
-  // Resolve role from company_members
-  let role: 'owner' | 'member' | null = null
-  if (company?.id) {
-    const { data: membership } = await admin
-      .from('company_members')
-      .select('role')
-      .eq('company_id', company.id)
-      .eq('pro_id', pro.id)
-      .maybeSingle()
-    role = (membership?.role as 'owner' | 'member') ?? null
-  }
-
-  // Removed member detection: only flag if company_id is null AND
-  // there is NO company_members row (meaning they were removed, not a solo pro)
-  let wasRemoved = false
-  if ((pro as any).is_claimed === true && !(pro as any).company_id) {
-    const { count } = await admin
-      .from('company_members').select('id', { count: 'exact', head: true }).eq('pro_id', pro.id)
-    // If they have company_members rows but no company_id → they were removed
-    wasRemoved = (count ?? 0) > 0
-  }
+  // Resolve role + removed status in parallel for speed
+  const isRemovedCandidate = (pro as any).is_claimed === true && !(pro as any).company_id
+  const [membershipRes, removedCheckRes] = await Promise.all([
+    company?.id
+      ? admin.from('company_members').select('role').eq('company_id', company.id).eq('pro_id', pro.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    isRemovedCandidate
+      ? admin.from('company_members').select('id', { count: 'exact', head: true }).eq('pro_id', pro.id)
+      : Promise.resolve({ count: 0 }),
+  ])
+  const role = ((membershipRes as any).data?.role as 'owner' | 'member') ?? null
+  const wasRemoved = isRemovedCandidate ? (((removedCheckRes as any).count) ?? 0) > 0 : false
 
   return NextResponse.json({
     session: {

@@ -457,11 +457,21 @@ export default function OverviewPage() {
   }
 
   if (sessionLoading || !session || dataLoading) {
+    // Skeleton shell — prevents blank flash while session resolves
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: t.pageBg }}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: TEAL, borderTopColor: 'transparent' }} />
-          <span className="text-sm font-medium" style={{ color: MUTED_D }}>Loading...</span>
+      <div style={{ minHeight: '100vh', background: t.pageBg, display: 'flex' }}>
+        {/* Sidebar skeleton */}
+        <div style={{ width: 180, background: '#0F172A', flexShrink: 0 }} />
+        {/* Content skeleton */}
+        <div style={{ flex: 1, padding: '32px 28px' }}>
+          <div style={{ height: 28, width: 200, borderRadius: 6, background: dk ? '#1E293B' : '#E2E8F0', marginBottom: 8 }} />
+          <div style={{ height: 16, width: 280, borderRadius: 4, background: dk ? '#1E293B' : '#E2E8F0', marginBottom: 32 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 28 }}>
+            {[1,2,3,4].map(i => (
+              <div key={i} style={{ height: 88, borderRadius: 10, background: dk ? '#1E293B' : '#E2E8F0' }} />
+            ))}
+          </div>
+          <div style={{ height: 300, borderRadius: 10, background: dk ? '#1E293B' : '#E2E8F0' }} />
         </div>
       </div>
     )
