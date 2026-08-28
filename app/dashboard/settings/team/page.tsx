@@ -106,7 +106,7 @@ export default function TeamPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [session])
 
   useEffect(() => { load() }, [load])
 
