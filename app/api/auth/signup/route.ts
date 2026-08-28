@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     city: string | null
     state: string | null
     phoneCell: string | null
+    email: string | null
     planTier: string
     trialEndsAt: string
   }): Promise<{ companyId: string } | { error: string }> {
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
       .from('companies')
       .insert({
         name:              opts.name,
+        email:             opts.email,
         trade_slug:        opts.tradeSlug,
         trade_category_id: opts.tradeCategoryId,
         business_name:     opts.businessName,
@@ -163,6 +165,7 @@ export async function POST(req: NextRequest) {
         city:            (existing as any).city || null,
         state:           (existing as any).state || null,
         phoneCell:       (existing as any).phone_cell || null,
+        email:           email || null,
         planTier:        'Free',
         trialEndsAt,
       })
@@ -257,6 +260,7 @@ export async function POST(req: NextRequest) {
       city:            city || null,
       state:           state || null,
       phoneCell:       null,
+      email:           email || null,
       planTier:        'Free',
       trialEndsAt,
     })
