@@ -261,7 +261,7 @@ export async function POST(req: NextRequest) {
       licenseNumber:   null,
       city:            city || null,
       state:           state || null,
-      phoneCell:       null,
+      phoneCell:       phone || null,
       email:           email || null,
       planTier:        'Free',
       trialEndsAt,
