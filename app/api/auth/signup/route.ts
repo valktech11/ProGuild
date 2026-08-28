@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     email,
     password,
     full_name,
+    business_name,
     phone,
     trade_category_id,
     state,
@@ -196,6 +197,7 @@ export async function POST(req: NextRequest) {
       .insert({
         auth_user_id:      authUserId,
         full_name,
+        business_name:     business_name || null,
         email:             cleanEmail,
         phone:             phone || null,
         trade_category_id: trade_category_id || null,
@@ -252,10 +254,10 @@ export async function POST(req: NextRequest) {
     }
 
     const companyResult = await createCompany(pro.id, {
-      name:            full_name || 'My Company',
+      name:            business_name || full_name || 'My Company',
       tradeSlug,
       tradeCategoryId: trade_category_id || null,
-      businessName:    null,
+      businessName:    business_name || null,
       licenseNumber:   null,
       city:            city || null,
       state:           state || null,

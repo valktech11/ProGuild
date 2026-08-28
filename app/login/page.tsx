@@ -304,6 +304,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const [city, setCity] = useState('')
   const [otherCity, setOtherCity] = useState('')
   const [yrs, setYrs] = useState('')
+  const [businessName, setBusinessName] = useState('')
   const [cities, setCities] = useState<string[]>([])
   const [citiesLoading, setCitiesLoading] = useState(false)
 
@@ -398,6 +399,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
         email,
         password,
         full_name:`${fname} ${lname}`,
+        business_name: businessName.trim() || null,
         phone,
         trade_category_id:trade,
         state:stateVal,
@@ -551,7 +553,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       </>}
       {step === 2 && <>
         <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Almost done, {fname}.</h2>
-        <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>Add your phone and we'll create your profile.</p>
+        <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>Add your business name and phone to complete your profile.</p>
       </>}
 
       {/* Error */}
@@ -679,6 +681,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
                 { l:'Email', v:email },
                 { l:'Trade', v:selectedTrade?.category_name || '—' },
                 { l:'Location', v:`${city === '__other__' ? otherCity : city}, ${stateVal}` },
+                ...(businessName ? [{ l:'Business', v:businessName }] : []),
               ].map(r => (
                 <div key={r.l}>
                   <div style={{ fontSize:10, color:C.muted, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>{r.l}</div>
@@ -687,6 +690,12 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
               ))}
             </div>
           </div>
+
+          <Field label="Business name" hint="How your company appears to homeowners">
+            <input value={businessName} onChange={e => setBusinessName(e.target.value)}
+              placeholder={`${fname} ${lname} Roofing`}
+              style={inputStyle(focused==='bizname')} {...f('bizname')} />
+          </Field>
 
           <Field label="Mobile phone" hint="You'll get lead notifications here">
             <input type="tel" value={phone}
