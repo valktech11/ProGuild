@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
       id, name, business_name, trade_slug, trade_category_id,
       city, state, phone_cell, license_number, logo_url,
       plan_tier, trial_ends_at,
-      owner_pro_id,
       trade_category:trade_categories(id, category_name, slug)
     `)
     .eq('id', companyId)

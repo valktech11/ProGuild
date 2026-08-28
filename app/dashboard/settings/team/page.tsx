@@ -97,6 +97,9 @@ export default function TeamPage() {
         setCity(c.city ?? '')
         setCompanyState(c.state ?? '')
         setPhone(c.phone_cell ?? '')
+      } else if (session) {
+        // Fallback: pre-populate from session (e.g. fresh signup before cache refresh)
+        setCompanyName(session.company_name ?? '')
       }
     } catch (e: any) {
       setLoadErr(e?.message ?? 'Could not load team')
