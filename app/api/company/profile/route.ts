@@ -32,8 +32,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, name, business_name, trade_slug, trade_category_id,
       city, state, phone_cell, license_number, logo_url,
-      plan_tier, trial_ends_at,
-      trade_category:trade_categories(id, category_name, slug)
+      plan_tier, trial_ends_at
     `)
     .eq('id', companyId)
     .single()
