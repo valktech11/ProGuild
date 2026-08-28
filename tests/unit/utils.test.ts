@@ -73,25 +73,16 @@ describe('timeAgo', () => {
 describe('planLabel', () => {
   it('Free plan', () => expect(planLabel('Free')).toBe('Free'))
   it('Pro plan', () => expect(planLabel('Pro')).toBe('Pro'))
-  it('Elite plan', () => expect(planLabel('Elite')).toBe('Elite'))
-  it('Pro Founding', () => expect(planLabel('Pro_Founding')).toBe('Pro★'))
-  it('Elite Founding', () => expect(planLabel('Elite_Founding')).toBe('Elite★'))
-  it('Pro Annual', () => expect(planLabel('Pro_Annual')).toBe('Pro'))
-  it('Elite Annual', () => expect(planLabel('Elite_Annual')).toBe('Elite'))
 })
 
 // ── isPaid / isElite ──────────────────────────────────────────────────────────
 describe('isPaid', () => {
   it('Free is not paid', () => expect(isPaid('Free')).toBe(false))
   it('Pro is paid', () => expect(isPaid('Pro')).toBe(true))
-  it('Elite is paid', () => expect(isPaid('Elite')).toBe(true))
-  it('Pro_Annual is paid', () => expect(isPaid('Pro_Annual')).toBe(true))
 })
 
 describe('isElite', () => {
   it('Pro is not elite', () => expect(isElite('Pro')).toBe(false))
-  it('Elite is elite', () => expect(isElite('Elite')).toBe(true))
-  it('Elite_Founding is elite', () => expect(isElite('Elite_Founding')).toBe(true))
 })
 
 // ── avatarColor ───────────────────────────────────────────────────────────────

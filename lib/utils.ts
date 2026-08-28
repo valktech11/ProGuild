@@ -63,9 +63,7 @@ export function isElite(plan: PlanTier): boolean {
 }
 
 export function planLabel(plan: PlanTier): string {
-  if (isElite(plan)) return plan.includes('Founding') ? 'Elite★' : 'Elite'
-  if (isPaid(plan)) return plan.includes('Founding') ? 'Pro★' : 'Pro'
-  return 'Free'
+  return plan === 'Pro' ? 'Pro' : 'Free'
 }
 
 export function capName(name: string): string {

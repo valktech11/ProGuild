@@ -6,17 +6,12 @@ function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2026-04-22.dahlia' })
 }
 
-// Price IDs — create these in your Stripe dashboard and set as env vars
-// Format: price_xxxxxxxxxxxxxxxxxxxx
+// Two price IDs only: monthly and annual.
+// Both Pro and Elite marketing tiers map to the same Stripe price.
+// Set STRIPE_PRICE_PRO and STRIPE_PRICE_PRO_ANNUAL in Vercel env vars.
 const PRICE_IDS: Record<string, string> = {
-  Pro_Founding:         process.env.STRIPE_PRICE_PRO_FOUNDING         || 'price_pro_founding_placeholder',
-  Elite_Founding:       process.env.STRIPE_PRICE_ELITE_FOUNDING       || 'price_elite_founding_placeholder',
-  Pro_Founding_Annual:  process.env.STRIPE_PRICE_PRO_FOUNDING_ANNUAL  || 'price_pro_founding_annual_placeholder',
-  Elite_Founding_Annual:process.env.STRIPE_PRICE_ELITE_FOUNDING_ANNUAL|| 'price_elite_founding_annual_placeholder',
-  Pro:                  process.env.STRIPE_PRICE_PRO                  || 'price_pro_placeholder',
-  Elite:                process.env.STRIPE_PRICE_ELITE                || 'price_elite_placeholder',
-  Pro_Annual:           process.env.STRIPE_PRICE_PRO_ANNUAL           || 'price_pro_annual_placeholder',
-  Elite_Annual:         process.env.STRIPE_PRICE_ELITE_ANNUAL         || 'price_elite_annual_placeholder',
+  Pro:        process.env.STRIPE_PRICE_PRO        || 'price_pro_placeholder',
+  Pro_Annual: process.env.STRIPE_PRICE_PRO_ANNUAL || 'price_pro_annual_placeholder',
 }
 
 export async function POST(req: NextRequest) {

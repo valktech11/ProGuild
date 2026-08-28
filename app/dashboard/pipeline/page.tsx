@@ -353,7 +353,7 @@ export default function PipelinePage() {
             leads={filteredLeads}
             onStatusChange={handleStatusChange}
             onUpdate={handleUpdate}
-            isPaid={['Pro','Elite','Pro_Founding','Elite_Founding','Pro_Annual','Elite_Annual','Pro_Founding_Annual','Elite_Founding_Annual'].includes(session.plan)}
+            isPaid={session.plan === 'Pro'}
             tradeSlug={session.trade_slug}
             dk={dk}
             summary={summary}

@@ -1,13 +1,6 @@
 export type PlanTier =
   | 'Free'
   | 'Pro'
-  | 'Elite'
-  | 'Pro_Founding'
-  | 'Elite_Founding'
-  | 'Pro_Annual'
-  | 'Elite_Annual'
-  | 'Pro_Founding_Annual'
-  | 'Elite_Founding_Annual'
 
 export type ProfileStatus = 'Active' | 'Suspended' | 'Pending_Review'
 export type JobStatus = 'Open' | 'In_Progress' | 'Filled' | 'Expired' | 'Cancelled'
@@ -177,29 +170,21 @@ export interface Session {
   role: 'owner' | 'member' | null
 }
 
-export const PAID_PLANS: PlanTier[] = [
-  'Pro', 'Elite',
-  'Pro_Founding', 'Elite_Founding',
-  'Pro_Annual', 'Elite_Annual',
-  'Pro_Founding_Annual', 'Elite_Founding_Annual',
-]
+export const PAID_PLANS: PlanTier[] = ['Pro']
 
-export const ELITE_PLANS: PlanTier[] = [
-  'Elite', 'Elite_Founding', 'Elite_Annual', 'Elite_Founding_Annual',
-]
+// Elite no longer a distinct DB tier — both Pro and Elite checkouts write 'Pro'
+export const ELITE_PLANS: PlanTier[] = ['Pro']
 
 export function isPaidPlan(plan: PlanTier): boolean {
-  return PAID_PLANS.includes(plan)
+  return plan === 'Pro'
 }
 
 export function isElitePlan(plan: PlanTier): boolean {
-  return ELITE_PLANS.includes(plan)
+  return plan === 'Pro'
 }
 
 export function planLabel(plan: PlanTier): string {
-  if (isElitePlan(plan)) return plan.includes('Founding') ? 'Elite★' : 'Elite'
-  if (isPaidPlan(plan)) return plan.includes('Founding') ? 'Pro★' : 'Pro'
-  return 'Free'
+  return plan === 'Pro' ? 'Pro' : 'Free'
 }
 
 // ── TRADECOMMUNITY TYPES ────────────────────────────────────

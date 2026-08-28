@@ -168,9 +168,8 @@ export async function POST(req: NextRequest) {
       })
 
       if ('error' in companyResult) {
-        // Company creation failure is non-fatal for signup — pro can still log in.
-        // companyId will be null; self-heal can run on next login.
         console.error('[signup] company creation failed for claim:', companyResult.error)
+        return NextResponse.json({ error: 'Account setup failed — please try again or contact support.' }, { status: 500 })
       }
 
       return NextResponse.json({ ok: true, pro, claimed: true, verified })
@@ -264,6 +263,7 @@ export async function POST(req: NextRequest) {
 
     if ('error' in companyResult) {
       console.error('[signup] company creation failed for new pro:', companyResult.error)
+      return NextResponse.json({ error: 'Account setup failed — please try again or contact support.' }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true, pro, claimed: false })

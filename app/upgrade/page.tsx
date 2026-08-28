@@ -34,9 +34,7 @@ export default function UpgradePage() {
 
   async function pay() {
     if (!session) { window.location.href = '/login'; return }
-    const plan = modal === 'pro'
-      ? (annual ? 'Pro_Founding_Annual' : 'Pro_Founding')
-      : (annual ? 'Elite_Founding_Annual' : 'Elite_Founding')
+    const plan = annual ? 'Pro_Annual' : 'Pro'
     setPaying(true)
     const r = await fetch('/api/stripe/checkout', {
       method: 'POST',
