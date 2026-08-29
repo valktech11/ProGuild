@@ -457,7 +457,7 @@ export async function POST(req: NextRequest) {
     try {
       await sb.from('pipeline_events').insert({
         lead_id,
-        pro_id:     _estProId,
+        pro_id:     __auth.proId,
         company_id: _estPostCompanyId,
         event_type: 'estimate_created',
         event_data: { estimate_number: (estimate as any).estimate_number, total: (estimate as any).total },
