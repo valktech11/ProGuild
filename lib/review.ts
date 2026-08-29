@@ -55,7 +55,6 @@ export async function queueAndSendReviewRequest({
         pro_id:          proId,
         company_id:      companyId,
         lead_id:         leadId,
-        invoice_id:      invoiceId ?? null,
         homeowner_name:  (lead as any).contact_name,
         homeowner_email: (lead as any).contact_email,
         homeowner_phone: (lead as any).contact_phone,
