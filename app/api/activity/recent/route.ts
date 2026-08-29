@@ -46,6 +46,10 @@ function describe(eventType: string, data: Record<string, unknown>): { label: st
     case 'status_link_sent':        return { label: 'was sent a status link', accent: 'grey' }
     case 'supplement_filed':        return { label: 'supplement filed', accent: 'teal' }
     case 'insurance_auto_approved': return { label: 'insurance approved', accent: 'teal' }
+    case 'estimate_created': {
+      const num = data.estimate_number ? `#${data.estimate_number}` : ''
+      return { label: `estimate created ${num}`.trim(), accent: 'blue' }
+    }
     default:                        return { label: eventType.replace(/_/g, ' '), accent: 'grey' }
   }
 }

@@ -745,7 +745,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     if (lead.notes) lead.notes.split(/\n\n+/).filter(Boolean).forEach(n=>items.push({date:lead.updated_at||lead.created_at,title:'Note added',sub:n.slice(0,100)+(n.length>100?'…':''),type:'note'}))
     // Estimate events — pull from linked estimate timestamps
     if (est) {
-      if ((est as any).created_at) items.push({date:(est as any).created_at,title:`Estimate created`,sub:`#${est.estimate_number} · $${Number(est.total||0).toLocaleString()}`,type:'estimate'})
+      // Estimate created — now logged as pipeline_event with actor attribution
+      // Kept as fallback for older estimates that predate pipeline event logging
+      const hasEvent = pipelineEvents?.some((e:any) => e.event_type === 'estimate_created')
+      if (!hasEvent && (est as any).created_at) items.push({date:(est as any).created_at,title:`Estimate created`,sub:`#${est.estimate_number} · $${Number(est.total||0).toLocaleString()}`,type:'estimate',actor:null})
       if ((est as any).sent_at) {
         const bounced = (est as any).email_status === 'bounced'
         const toEmail = (est as any).sent_to_email ? ` → ${(est as any).sent_to_email}` : ''

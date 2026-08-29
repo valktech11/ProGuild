@@ -451,5 +451,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (estimate) await syncLabourCacheFromEstimate(sb, estimate.id, lead_id, pro_id)
+
+  // Log pipeline event for activity feed attribution
+  if (lead_id && estimate) {
+    try {
+      await sb.from('pipeline_events').insert({
+        lead_id,
+        pro_id:     _estProId,
+        company_id: _estPostCompanyId,
+        event_type: 'estimate_created',
+        event_data: { estimate_number: (estimate as any).estimate_number, total: (estimate as any).total },
+      })
+    } catch {}
+  }
+
   return NextResponse.json({ estimate: { ...estimate, id: estimate.id }, existed: false })
 }
