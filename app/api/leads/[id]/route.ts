@@ -227,7 +227,7 @@ export async function PATCH(
       try {
         const { getSupabaseAdmin: _gsa } = await import('@/lib/supabase')
         await _gsa().from('pipeline_events').insert({
-          lead_id: id, pro_id: proId, company_id: companyId,
+          lead_id: id, pro_id: proId, company_id: __auth.companyId,
           event_type: 'quote_set', event_data: { amount: Math.round(n * 100) / 100 },
         })
       } catch {}
