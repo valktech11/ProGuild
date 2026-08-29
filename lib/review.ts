@@ -51,10 +51,10 @@ export async function queueAndSendReviewRequest({
     const businessName = (pro as any).business_name || (pro as any).full_name || 'Your contractor'
     const googleId = (pro as any).google_id
 
-    // Create or update review_request row with token
+    // Create review_request row
     const { data: rr, error: rrErr } = await sb
       .from('review_requests')
-      .upsert({
+      .insert({
         pro_id:          proId,
         company_id:      companyId,
         lead_id:         leadId,
@@ -64,7 +64,7 @@ export async function queueAndSendReviewRequest({
         homeowner_phone: (lead as any).contact_phone,
         status:          'queued',
         send_after:      new Date().toISOString(),
-      }, { onConflict: 'lead_id' })
+      })
       .select('id, token')
       .single()
 
