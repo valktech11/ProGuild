@@ -200,6 +200,7 @@ export async function POST(req: NextRequest) {
         business_name:     business_name || null,
         email:             cleanEmail,
         phone:             phone || null,
+        phone_cell:        phone || null,
         trade_category_id: trade_category_id || null,
         trade_slug:        tradeSlug,
         state:             state || null,
