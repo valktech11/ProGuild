@@ -85,6 +85,11 @@ export default function NotificationBell({ dk = false }: { dk?: boolean }) {
 
   function handleClick(n: Notification) {
     setOpen(false)
+    // Invite notification — body contains the invite URL
+    if (n.body && n.body.startsWith('https://') && n.body.includes('/join/')) {
+      window.location.href = n.body
+      return
+    }
     if (n.lead_id) router.push(`/dashboard/pipeline/${n.lead_id}`)
   }
 
@@ -152,10 +157,15 @@ export default function NotificationBell({ dk = false }: { dk?: boolean }) {
                   <div style={{ fontSize: 13, fontWeight: n.read_at ? 400 : 600, color: t.textPri, lineHeight: 1.4 }}>
                     {n.title}
                   </div>
-                  {n.body && (
+                  {n.body && !n.body.startsWith('https://') && (
                     <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2, lineHeight: 1.4,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {n.body}
+                    </div>
+                  )}
+                  {n.body && n.body.startsWith('https://') && (
+                    <div style={{ fontSize: 12, color: '#0d9488', marginTop: 2, fontWeight: 500 }}>
+                      Tap to accept →
                     </div>
                   )}
                   <div style={{ fontSize: 11, color: t.textSubtle, marginTop: 4 }}>

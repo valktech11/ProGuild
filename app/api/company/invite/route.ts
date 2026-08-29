@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
           companyId: null,
           type:      'lead_assigned',
           title:     `You've been invited to join ${(comp as any)?.name ?? 'a team'}`,
-          body:      'Tap to view and accept the invitation',
+          body:      inviteUrl,  // store invite URL so tap can navigate
           leadId:    null,
         })
       }
