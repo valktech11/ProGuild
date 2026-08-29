@@ -234,13 +234,17 @@ export async function POST(req: NextRequest) {
 
       if (inviteValid) {
         // Join the inviting company (skip solo company creation)
-        await admin.from('company_members').insert({
+        const { error: memberErr } = await admin.from('company_members').insert({
           company_id: invite.company_id,
           pro_id:     pro.id,
           role:       'member',
-          invited_at: new Date().toISOString(),
           joined_at:  new Date().toISOString(),
         })
+        if (memberErr) {
+          console.error('[signup] company_members insert failed:', memberErr.message)
+          // Don't fall through — return error so user knows to contact support
+          return NextResponse.json({ error: 'Failed to join team — please contact support.' }, { status: 500 })
+        }
         await admin.from('pros').update({ company_id: invite.company_id }).eq('id', pro.id)
         // Mark invite used
         await admin.from('company_invites')
