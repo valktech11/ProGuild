@@ -192,7 +192,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     }
 
     // Trigger review request on Job Won
-    if (newStage === 'Job Won') {
+    if (newStage === 'Job Won' || newStage === 'job_won') {
       try {
         const { queueAndSendReviewRequest } = await import('@/lib/review')
         await queueAndSendReviewRequest({
@@ -204,7 +204,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     }
 
     // Notify owner when member wins a job
-    if (newStage === 'Job Won' && __auth.companyId && __auth.role === 'member') {
+    if ((newStage === 'Job Won' || newStage === 'job_won') && __auth.companyId && __auth.role === 'member') {
       const { data: leadInfo } = await sb.from('leads').select('contact_name, property_address').eq('id', leadId).single()
       const { data: memberInfo } = await sb.from('pros').select('full_name').eq('id', pro_id).single()
       const { notifyOwners } = await import('@/lib/notifications')
