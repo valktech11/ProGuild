@@ -42,12 +42,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, already_member: true })
   }
 
-  // Already in a different company — conflict
+  // Already in a different company — check if solo owner (can dissolve and join)
   if (currentCompanyId && currentCompanyId !== targetCompanyId) {
-    return NextResponse.json(
-      { error: 'You are already a member of another company' },
-      { status: 409 }
-    )
+    // Check if they're a solo owner with no other members
+    const { count: memberCount } = await sb
+      .from('company_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', currentCompanyId)
+    
+    if ((memberCount ?? 2) > 1) {
+      // Has other members — cannot leave
+      return NextResponse.json(
+        { error: 'You are already a member of another company' },
+        { status: 409 }
+      )
+    }
+
+    // Solo owner — dissolve their company and join the new one
+    await sb.from('company_members').delete().eq('company_id', currentCompanyId).eq('pro_id', proId)
+    await sb.from('companies').delete().eq('id', currentCompanyId)
+    await sb.from('pros').update({ company_id: null }).eq('id', proId)
   }
 
   // Insert company_members row

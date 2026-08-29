@@ -24,6 +24,7 @@ type AuthState =
   | { status: 'guest' }
   | { status: 'member_same_company' }
   | { status: 'member_other_company'; company_name: string }
+  | { status: 'solo_owner'; company_name: string }  // solo owner with no members — can dissolve and join
   | { status: 'ready_to_join'; session_email: string }
 
 export default function JoinPage({ params }: { params: Promise<{ token: string }> }) {
@@ -74,6 +75,24 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
         // Has a company — check if it's THIS company
         if (sess.company_id === invite?.company_id) {
           setAuth({ status: 'member_same_company' })
+        } else if (sess.role === 'owner') {
+          // Check if they're a solo owner (only themselves in company)
+          // If so, allow them to dissolve their solo company and join
+          try {
+            const mr = await fetch(`/api/company/members`, {
+              headers: { Authorization: `Bearer ${session.access_token}` }
+            })
+            const md = await mr.json()
+            const memberCount = md?.members?.length ?? 2
+            if (memberCount <= 1) {
+              // Solo owner — can dissolve and join
+              setAuth({ status: 'solo_owner', company_name: sess.company_name ?? 'your company' })
+            } else {
+              setAuth({ status: 'member_other_company', company_name: sess.company_name ?? 'another company' })
+            }
+          } catch {
+            setAuth({ status: 'member_other_company', company_name: sess.company_name ?? 'another company' })
+          }
         } else {
           setAuth({ status: 'member_other_company', company_name: sess.company_name ?? 'another company' })
         }
@@ -86,7 +105,7 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
   }, [invite, token])
 
   async function handleJoin() {
-    if (auth.status !== 'ready_to_join') return
+    if (auth.status !== 'ready_to_join' && auth.status !== 'solo_owner') return
     setJoining(true)
     setErr('')
 
@@ -246,6 +265,18 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
         )}
 
         {/* Already in a different company */}
+        {auth.status === 'solo_owner' && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 10, padding: '14px 18px', marginBottom: 24, fontSize: 13, color: '#92400E', lineHeight: 1.6 }}>
+              You currently own <strong>{(auth as any).company_name}</strong> with no other members.<br />
+              Joining this team will dissolve your solo company.
+            </div>
+            <button onClick={handleJoin} disabled={joining} style={{ ...primaryBtn(), opacity: joining ? 0.6 : 1 }}>
+              {joining ? 'Joining…' : `Join ${invite?.company_name ?? 'team'} →`}
+            </button>
+          </div>
+        )}
+
         {auth.status === 'member_other_company' && (
           <>
             <div style={errBox}>
