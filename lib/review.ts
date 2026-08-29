@@ -19,6 +19,7 @@ export async function queueAndSendReviewRequest({
   invoiceId?: string | null
 }): Promise<void> {
   try {
+    console.error('[review] start', { proId, leadId })
     const sb = getSupabaseAdmin()
 
     // Check if review request already sent for this lead
@@ -28,14 +29,16 @@ export async function queueAndSendReviewRequest({
       .eq('lead_id', leadId)
       .not('status', 'in', '(queued)')
       .maybeSingle()
+    console.error('[review] existing check', { existing: !!existing })
     if (existing) return
 
     // Fetch lead + pro + company info
-    const { data: lead } = await sb
+    const { data: lead, error: leadErr } = await sb
       .from('leads')
       .select('contact_name, contact_phone, contact_email, property_address')
       .eq('id', leadId)
       .single()
+    console.error('[review] lead', { found: !!lead, err: leadErr?.message })
     if (!lead) return
 
     const { data: pro } = await sb
@@ -49,6 +52,7 @@ export async function queueAndSendReviewRequest({
     const googleId = (pro as any).google_id
 
     // Create review_request row
+    console.error('[review] inserting review_request')
     const { data: rr, error: rrErr } = await sb
       .from('review_requests')
       .insert({
@@ -64,8 +68,9 @@ export async function queueAndSendReviewRequest({
       .select('id, token')
       .single()
 
+    console.error('[review] insert result', { id: (rr as any)?.id, err: rrErr?.message, code: rrErr?.code })
     if (rrErr || !rr) {
-      console.error('[review] upsert failed:', rrErr?.message)
+      console.error('[review] insert failed:', rrErr?.message)
       return
     }
 

@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     notes: notes ? `${inv.notes || ''}\nPayment note: ${notes}`.trim() : inv.notes,
   }).eq('id', invoice_id).eq(_mpScope.col, _mpScope.val)
 
+  console.error(`[mark-paid] newStatus=${newStatus} lead_id=${inv.lead_id} balance=${balanceDue}`)
   if (newStatus === 'paid' && inv.lead_id) {
     // Use correct stage key 'job_won' — not display label 'Paid'
     await sb.from('leads').update({
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
     // Queue review request (stored in DB — fired by Twilio when 10DLC is active)
     // Queue review request — non-fatal if table doesn't exist yet
     try {
+      console.error('[mark-paid] calling queueAndSendReviewRequest')
       const { queueAndSendReviewRequest } = await import('@/lib/review')
       await queueAndSendReviewRequest({
         proId:     inv.pro_id as string,
@@ -59,7 +61,8 @@ export async function POST(req: NextRequest) {
         leadId:    inv.lead_id as string,
         invoiceId: invoice_id,
       })
-    } catch { /* non-fatal */ }
+      console.error('[mark-paid] queueAndSendReviewRequest completed')
+    } catch (e) { console.error('[mark-paid] review error:', String(e)) }
   }
 
   if (newStatus === 'paid' && inv.estimate_id) {
