@@ -252,6 +252,17 @@ export async function POST(req: NextRequest) {
           .eq('id', invite.id)
           .is('used_at', null)
 
+        // Notify owner that new member joined via signup
+        try {
+          const memberName = full_name?.split(' ')[0] ?? 'Someone'
+          const { notifyOwners } = await import('@/lib/notifications')
+          await notifyOwners(invite.company_id, pro.id, {
+            type:  'new_lead_created',
+            title: `${memberName} joined your team`,
+            body:  `${full_name ?? 'A new member'} accepted your invite and created an account`,
+          })
+        } catch {}
+
         return NextResponse.json({ ok: true, pro, claimed: false, joined_company_id: invite.company_id })
       }
       // Invalid/expired invite — fall through to solo company creation

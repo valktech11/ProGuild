@@ -57,7 +57,6 @@ export async function POST(req: NextRequest) {
       company_id:  targetCompanyId,
       pro_id:      proId,
       role:        'member',
-      invited_at:  new Date().toISOString(),
       joined_at:   new Date().toISOString(),
     })
 
@@ -67,18 +66,26 @@ export async function POST(req: NextRequest) {
   }
 
   // Set pros.company_id
-  await sb
-    .from('pros')
-    .update({ company_id: targetCompanyId })
-    .eq('id', proId)
+  await sb.from('pros').update({ company_id: targetCompanyId }).eq('id', proId)
 
-  // Mark invite as used (single-use: first person to accept claims it)
-  // Using a conditional update — if already used_at set, that's fine (race)
+  // Mark invite as used
   await sb
     .from('company_invites')
     .update({ used_at: new Date().toISOString(), used_by: proId })
     .eq('id', invite.id)
     .is('used_at', null)
+
+  // Notify owner that member joined
+  try {
+    const { data: memberPro } = await sb.from('pros').select('full_name').eq('id', proId).single()
+    const memberName = (memberPro as any)?.full_name?.split(' ')[0] ?? 'Someone'
+    const { notifyOwners } = await import('@/lib/notifications')
+    await notifyOwners(targetCompanyId, proId, {
+      type:  'new_lead_created', // reuse as team event
+      title: `${memberName} joined your team`,
+      body:  `${(memberPro as any)?.full_name ?? 'A new member'} accepted your invite`,
+    })
+  } catch {}
 
   return NextResponse.json({ ok: true, company_id: targetCompanyId })
 }

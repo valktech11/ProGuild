@@ -120,6 +120,24 @@ export async function POST(req: NextRequest) {
       console.error('[company/invite] email EXCEPTION:', e)
       // Non-fatal — return URL even if email fails
     }
+
+    // Also send in-app notification if recipient is an existing pro
+    try {
+      const { data: existingPro } = await sb
+        .from('pros').select('id').eq('email', recipientEmail).maybeSingle()
+      if (existingPro?.id) {
+        const { notify } = await import('@/lib/notifications')
+        const { data: comp } = await sb.from('companies').select('name').eq('id', companyId).single()
+        await notify({
+          proId:     existingPro.id,
+          companyId: null,
+          type:      'lead_assigned',
+          title:     `You've been invited to join ${(comp as any)?.name ?? 'a team'}`,
+          body:      'Tap to view and accept the invitation',
+          leadId:    null,
+        })
+      }
+    } catch {}
   }
 
   return NextResponse.json({ ok: true, invite_url: inviteUrl, token })
