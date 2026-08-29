@@ -133,6 +133,7 @@ export default function EditProfilePage() {
   const [yrs,          setYrs]          = useState('')
   const [license,      setLicense]      = useState('')
   const [bio,          setBio]          = useState('')
+  const [googleId,     setGoogleId]     = useState('')
   const [state,        setState]        = useState('')
   const [city,         setCity]         = useState('')
   const [otherCity,    setOtherCity]    = useState('')
@@ -207,6 +208,7 @@ export default function EditProfilePage() {
         setYrs(p.years_experience?.toString() || '')
         setLicense(p.license_number || '')
         setBio(p.bio || '')
+        setGoogleId((p as any).google_id || '')
         setState(c?.state ?? p.state ?? '')
         setCity(c?.city ?? p.city ?? '')
         setZip(p.zip_code || '')
@@ -299,7 +301,7 @@ export default function EditProfilePage() {
         phone: phone.trim() || null, phone_cell: phoneCell.trim() || null,
         phone_work: phoneWork.trim() || null, phone_cell2: phoneCell2.trim() || null,
         trade_category_id: trade || null, years_experience: yrs ? parseInt(yrs) : null,
-        license_number: license.trim() || null, bio: bio.trim() || null,
+        license_number: license.trim() || null, bio: bio.trim() || null, google_id: googleId.trim() || null,
         state: state || null, city: finalCity || null, zip_code: zip || null,
         license_expiry_date: licenseExpiry || null,
         osha_card_type: oshaType || null, osha_card_number: oshaNumber || null, osha_card_expiry: oshaExpiry || null,
@@ -455,6 +457,15 @@ export default function EditProfilePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: t.textSubtle, marginTop: -10 }}>
             <span>2–4 sentences works best</span>
             <span style={{ color: bio.length > 400 ? '#EF4444' : t.textSubtle }}>{bio.length}/500</span>
+
+            {/* Google Business Profile ID for review links */}
+            <div style={{ marginTop: 20 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: t.textSubtle, textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Google Business Profile ID</label>
+              <input value={googleId} onChange={e => setGoogleId(e.target.value)}
+                placeholder="e.g. ChIJN1t_tDeuEmsRUsoyG83frY4"
+                style={{ width: '100%', border: `1px solid ${t.inputBorder}`, borderRadius: 8, padding: '9px 11px', fontSize: 14, fontFamily: 'inherit', background: t.inputBg, color: t.textPri, outline: 'none', boxSizing: 'border-box' as const }} />
+              <div style={{ fontSize: 12, color: t.textSubtle, marginTop: 4 }}>Find this in your Google Business Profile URL. Used to send homeowners directly to your Google review page after job completion.</div>
+            </div>
           </div>
         </Card>
 

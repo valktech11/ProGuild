@@ -52,13 +52,12 @@ export async function POST(req: NextRequest) {
     // Queue review request (stored in DB — fired by Twilio when 10DLC is active)
     // Queue review request — non-fatal if table doesn't exist yet
     try {
-      await sb.from('review_requests').insert({
-        pro_id:     inv.pro_id,
-        lead_id:    inv.lead_id,
-        invoice_id: invoice_id,
-        status:     'queued',
-        send_after: new Date(Date.now() + 3 * 86400000).toISOString(),
-        created_at: new Date().toISOString(),
+      const { queueAndSendReviewRequest } = await import('@/lib/review')
+      await queueAndSendReviewRequest({
+        proId:     inv.pro_id as string,
+        companyId: __auth.companyId ?? null,
+        leadId:    inv.lead_id as string,
+        invoiceId: invoice_id,
       })
     } catch { /* non-fatal */ }
   }

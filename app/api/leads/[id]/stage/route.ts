@@ -191,6 +191,18 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Access denied: lead not in your scope' }, { status: 403 })
     }
 
+    // Trigger review request on Job Won
+    if (newStage === 'Job Won') {
+      try {
+        const { queueAndSendReviewRequest } = await import('@/lib/review')
+        await queueAndSendReviewRequest({
+          proId:     __auth.proId!,
+          companyId: __auth.companyId ?? null,
+          leadId,
+        })
+      } catch {}
+    }
+
     // Notify owner when member wins a job
     if (newStage === 'Job Won' && __auth.companyId && __auth.role === 'member') {
       const { data: leadInfo } = await sb.from('leads').select('contact_name, property_address').eq('id', leadId).single()
