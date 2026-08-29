@@ -18,7 +18,6 @@ export async function queueAndSendReviewRequest({
   leadId: string
   invoiceId?: string | null
 }): Promise<void> {
-  console.error('[review] queueAndSendReviewRequest called', { proId, companyId, leadId })
   try {
     const sb = getSupabaseAdmin()
 
@@ -29,23 +28,21 @@ export async function queueAndSendReviewRequest({
       .eq('lead_id', leadId)
       .not('status', 'in', '(queued)')
       .maybeSingle()
-    if (existing) { console.error('[review] already sent, skipping'); return }
+    if (existing) return
 
     // Fetch lead + pro + company info
-    const { data: lead, error: leadErr } = await sb
+    const { data: lead } = await sb
       .from('leads')
       .select('contact_name, contact_phone, contact_email, property_address')
       .eq('id', leadId)
       .single()
-    console.error('[review] lead fetch', { lead: !!lead, error: leadErr?.message })
     if (!lead) return
 
-    const { data: pro, error: proErr } = await sb
+    const { data: pro } = await sb
       .from('pros')
       .select('full_name, business_name, google_id, phone_cell')
       .eq('id', proId)
       .single()
-    console.error('[review] pro fetch', { pro: !!pro, error: proErr?.message })
     if (!pro) return
 
     const businessName = (pro as any).business_name || (pro as any).full_name || 'Your contractor'
@@ -68,7 +65,6 @@ export async function queueAndSendReviewRequest({
       .select('id, token')
       .single()
 
-    console.error('[review] upsert result', { rr: !!(rr as any)?.id, error: rrErr?.message })
     if (rrErr || !rr) {
       console.error('[review] upsert failed:', rrErr?.message)
       return
