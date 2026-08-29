@@ -223,6 +223,14 @@ export async function PATCH(
       const n = Number(qa)
       if (!isFinite(n) || n < 0) return apiError('quoted_amount must be a non-negative number', 400)
       updateFields.quoted_amount = Math.round(n * 100) / 100
+      // Log quote_set pipeline event for attribution
+      try {
+        const { getSupabaseAdmin: _gsa } = await import('@/lib/supabase')
+        await _gsa().from('pipeline_events').insert({
+          lead_id: id, pro_id: proId, company_id: companyId,
+          event_type: 'quote_set', event_data: { amount: Math.round(n * 100) / 100 },
+        })
+      } catch {}
     } else {
       updateFields.quoted_amount = null
     }

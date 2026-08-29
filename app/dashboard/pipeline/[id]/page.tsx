@@ -738,11 +738,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   function activity() {
     if (!lead) return []
     const items:{date:string;title:string;sub:string;type:string;warn?:boolean;actor?:string|null}[] = []
-    items.push({date:lead.created_at,title:'Lead created',sub:`From ${(lead.lead_source||'unknown').replace(/_/g,' ')}${lead.message?` · "${lead.message.slice(0,60)}${lead.message.length>60?'…':''}"`:``}`,type:'created'})
-    if (lead.quoted_amount!=null) items.push({date:lead.updated_at||lead.created_at,title:'Quote set',sub:`$${Number(lead.quoted_amount).toLocaleString()}`,type:'quote'})
+    const leadCreatedEvent = pipelineEvents?.find((e:any) => e.event_type === 'lead_created')
+    items.push({date:lead.created_at,title:'Lead created',sub:`From ${(lead.lead_source||'unknown').replace(/_/g,' ')}${lead.message?` · "${lead.message.slice(0,60)}${lead.message.length>60?'…':''}"`:``}`,type:'created',actor:(leadCreatedEvent as any)?.actor ?? null})
+    if (lead.quoted_amount!=null) {
+      const quoteEvent = pipelineEvents?.find((e:any) => e.event_type === 'quote_set')
+      items.push({date:lead.updated_at||lead.created_at,title:'Quote set',sub:`$${Number(lead.quoted_amount).toLocaleString()}`,type:'quote',actor:(quoteEvent as any)?.actor ?? null})
+    }
     if ((lead as any).inspection_date) items.push({date:lead.updated_at||lead.created_at,title:isHvac_guard(tradePlugin)?'Diagnosis scheduled':'Inspection scheduled',sub:fmt((lead as any).inspection_date),type:'scheduled'})
     if (lead.scheduled_date) items.push({date:lead.updated_at||lead.created_at,title:'Job scheduled',sub:fmt(lead.scheduled_date),type:'scheduled'})
-    if (lead.notes) lead.notes.split(/\n\n+/).filter(Boolean).forEach(n=>items.push({date:lead.updated_at||lead.created_at,title:'Note added',sub:n.slice(0,100)+(n.length>100?'…':''),type:'note'}))
+    // Note added — no per-note actor tracking yet (notes field is a single string)
+    if (lead.notes) lead.notes.split(/\n\n+/).filter(Boolean).forEach(n=>items.push({date:lead.updated_at||lead.created_at,title:'Note added',sub:n.slice(0,100)+(n.length>100?'…':''),type:'note',actor:null}))
     // Estimate events — pull from linked estimate timestamps
     if (est) {
       // Estimate created — now logged as pipeline_event with actor attribution
@@ -753,7 +758,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         const bounced = (est as any).email_status === 'bounced'
         const toEmail = (est as any).sent_to_email ? ` → ${(est as any).sent_to_email}` : ''
         const bounceNote = bounced ? ` · Bounced: ${((est as any).email_bounce_reason||'recipient not found').slice(0,50)}` : ''
-        items.push({date:(est as any).sent_at,title:`Proposal sent`,sub:`#${est.estimate_number}${toEmail}${bounceNote}`,type:'estimate_sent',warn:bounced})
+        const sentEvent = pipelineEvents?.find((e:any) => e.event_type === 'proposal_sent')
+        items.push({date:(est as any).sent_at,title:`Proposal sent`,sub:`#${est.estimate_number}${toEmail}${bounceNote}`,type:'estimate_sent',warn:bounced,actor:(sentEvent as any)?.actor ?? null})
       }
       if ((est as any).viewed_at) {
         const count = (est as any).viewed_count > 1 ? ` · ${(est as any).viewed_count}× views` : ''
@@ -809,6 +815,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           title: `Invoice sent`,
           sub:   ev.event_data.email ? `→ ${ev.event_data.email}` : '',
           type:  'invoice_sent',
+          actor: (ev as any).actor ?? null,
         })
       }
       if (ev.event_type === 'invoice_viewed' && ev.event_data) {
@@ -836,6 +843,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           title: 'Supplement filed',
           sub:   (ev.event_data as any).note ?? '',
           type:  'stage',
+          actor: (ev as any).actor ?? null,
         })
       }
       if (ev.event_type === 'insurance_auto_approved') {

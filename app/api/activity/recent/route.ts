@@ -50,6 +50,14 @@ function describe(eventType: string, data: Record<string, unknown>): { label: st
       const num = data.estimate_number ? `#${data.estimate_number}` : ''
       return { label: `estimate created ${num}`.trim(), accent: 'blue' }
     }
+    case 'proposal_sent': {
+      const num = data.estimate_number ? `#${data.estimate_number}` : ''
+      return { label: `proposal sent ${num}`.trim(), accent: 'blue' }
+    }
+    case 'quote_set': {
+      const amt = data.amount ? `$${Number(data.amount).toLocaleString()}` : ''
+      return { label: `quote set ${amt}`.trim(), accent: 'teal' }
+    }
     default:                        return { label: eventType.replace(/_/g, ' '), accent: 'grey' }
   }
 }

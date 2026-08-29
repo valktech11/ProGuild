@@ -185,5 +185,20 @@ export async function POST(req: NextRequest) {
     updated_at:        new Date().toISOString(),
   }).eq('id', estimateId)
 
+  // Log pipeline event for activity attribution
+  try {
+    const { data: est } = await getSupabaseAdmin().from('estimates')
+      .select('lead_id, company_id, estimate_number, sent_to_email').eq('id', estimateId).single()
+    if ((est as any)?.lead_id) {
+      await getSupabaseAdmin().from('pipeline_events').insert({
+        lead_id:    (est as any).lead_id,
+        pro_id:     __auth.proId,
+        company_id: (est as any).company_id,
+        event_type: 'proposal_sent',
+        event_data: { estimate_number: (est as any).estimate_number, email: (est as any).sent_to_email },
+      })
+    }
+  } catch {}
+
   return NextResponse.json({ ok: true, resend_message_id: resendMessageId })
 }
