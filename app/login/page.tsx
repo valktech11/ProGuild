@@ -381,8 +381,8 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     setError('')
     const err = validateStep()
     if (err) { setError(err); return }
-    // Invite flow: only need identity (step 0), skip trade/location steps
-    if (inviteToken && step === 0) { handleSignup(); return }
+    // Invite flow: step 0 (identity) → step 2 (business name + phone), skip trade/location
+    if (inviteToken && step === 0) { setStep(2); return }
     setStep(s => s + 1)
   }
 
@@ -553,7 +553,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       </>}
       {step === 2 && <>
         <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Almost done, {fname}.</h2>
-        <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>Add your business name and phone to complete your profile.</p>
+        <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>{inviteToken ? 'Almost done — add your phone number.' : 'Add your business name and phone to complete your profile.'}</p>
       </>}
 
       {/* Error */}
@@ -708,7 +708,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
       {/* CTA */}
       <button
-        onClick={step < 2 ? handleNext : handleSignup}
+        onClick={step < 2 ? handleNext : handleSignup}  // step 2 always calls handleSignup
         disabled={loading}
         style={{
           width:'100%', padding:'14px',
