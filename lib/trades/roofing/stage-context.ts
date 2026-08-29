@@ -53,11 +53,11 @@ export async function gatherRoofingStageContext(
     .eq('lead_id', leadId)
     .maybeSingle()
 
-  // Live estimate for this lead — priority pick shared with POST /api/estimates.
+  // Live estimate for this lead — use lead_id only (not pro_id) so member-created
+  // estimates are visible to the owner's stage plan check.
   const { data: estimates } = await sb
     .from('estimates')
     .select('id, status, total, created_at, sent_at, approved_at')
-    .eq('pro_id', proId)
     .eq('lead_id', leadId)
     .not('status', 'in', '("void","declined")')
     .order('created_at', { ascending: false })
