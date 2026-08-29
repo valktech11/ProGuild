@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
     // Queue review request (stored in DB — fired by Twilio when 10DLC is active)
     // Queue review request — non-fatal if table doesn't exist yet
     try {
+      console.error('[mark-paid] triggering review request', { proId, leadId: inv.lead_id })
       const { queueAndSendReviewRequest } = await import('@/lib/review')
       await queueAndSendReviewRequest({
         proId:     inv.pro_id as string,
