@@ -129,7 +129,7 @@ function RecordPaymentModal({ invoice, paidMs, onRecord, onClose, t }: {
       justifyContent: 'center', background: 'rgba(0,0,0,0.5)', padding: 20 }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ background: t.cardBg, borderRadius: 20, width: '100%', maxWidth: 480,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
+        maxHeight: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${C.border}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -137,7 +137,7 @@ function RecordPaymentModal({ invoice, paidMs, onRecord, onClose, t }: {
           <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 22,
             color: C.muted, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
         </div>
-        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
           {/* Info note */}
           <div style={{ padding: '10px 14px', borderRadius: 10, background: '#F0FDF4',
             border: '1px solid #BBF7D0', fontSize: 12, color: '#065F46', lineHeight: 1.5 }}>
@@ -314,13 +314,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pro_id: session?.id, ...data }),
     })
+    const rd = await r.json()
     if (!r.ok) { showToast('Failed to record payment', false); return }
     // Re-pull the full invoice so items/timeline stay intact; balances are server-truth.
     const fd = await (await apiFetch(`/api/invoices/${id}`)).json()
     if (fd.invoice) setInvoice(fd.invoice)
     setShowPayModal(false)
     const paidInFull = (fd.invoice?.balance_due ?? 1) <= 0
-    showToast(paidInFull ? 'Invoice paid in full ✓' : `Payment of ${fmt(data.amount)} recorded ✓`)
+    const reviewMsg = rd?._debug?.reviewTriggered ? ' · Review request sent ✓' : ''
+    showToast(paidInFull ? `Invoice paid in full ✓${reviewMsg}` : `Payment of ${fmt(data.amount)} recorded ✓`)
   }
 
   const t = theme(dk)

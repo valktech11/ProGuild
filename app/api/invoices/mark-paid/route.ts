@@ -77,5 +77,5 @@ export async function POST(req: NextRequest) {
     }).eq('id', inv.estimate_id)
   }
 
-  return NextResponse.json({ ok: true, status: newStatus, balance_due: balanceDue })
+  return NextResponse.json({ ok: true, status: newStatus, balance_due: balanceDue, _debug: { reviewTriggered: newStatus === 'paid' && !!inv.lead_id } })
 }
