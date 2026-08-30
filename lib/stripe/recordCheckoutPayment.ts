@@ -23,7 +23,7 @@ export async function recordCheckoutPayment(
 
   const { data: inv } = await sb
     .from('invoices')
-    .select('id, status, total, amount_paid, balance_due, payment_history, lead_id, pro_id')
+    .select('id, status, total, amount_paid, balance_due, payment_history, lead_id, pro_id, company_id')
     .eq('id', invoice_id)
     .single()
 
@@ -129,5 +129,17 @@ export async function recordCheckoutPayment(
   }
 
   console.log(`[recordCheckoutPayment] ✓ ${milestoneNm} $${amount} recorded for invoice ${invoice_id}`)
+  // Trigger review request when Stripe payment completes invoice
+  if (balanceDue <= 0 && inv.lead_id) {
+    try {
+      const { queueAndSendReviewRequest } = await import('@/lib/review')
+      await queueAndSendReviewRequest({
+        proId:     inv.pro_id as string,
+        companyId: (inv as any).company_id ?? null,
+        leadId:    inv.lead_id as string,
+      })
+    } catch {}
+  }
+
   return { ok: true, status: newStatus, balance_due: balanceDue }
 }

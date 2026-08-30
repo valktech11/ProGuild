@@ -20,7 +20,7 @@ export async function POST(
 
   const { data: inv, error } = await sb
     .from('invoices')
-    .select('id, status, total, amount_paid, balance_due, payment_history, lead_id, pro_id, estimate_id')
+    .select('id, status, total, amount_paid, balance_due, payment_history, lead_id, pro_id, estimate_id, company_id')
     .eq('id', id)
     .single()
 
@@ -131,6 +131,18 @@ export async function POST(
       leadId:   invForNotif.lead_id,
       sb,
     })
+  }
+
+  // Trigger review request when homeowner pays in full via public link
+  if (balanceDue <= 0 && inv.lead_id) {
+    try {
+      const { queueAndSendReviewRequest } = await import('@/lib/review')
+      await queueAndSendReviewRequest({
+        proId:     inv.pro_id as string,
+        companyId: (inv as any).company_id ?? null,
+        leadId:    inv.lead_id as string,
+      })
+    } catch {}
   }
 
   return NextResponse.json({ ok: true, status: newStatus, amount_paid: totalPaid, balance_due: balanceDue, payment: newPayment })
