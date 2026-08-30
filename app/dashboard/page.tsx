@@ -852,6 +852,41 @@ export default function OverviewPage() {
             </div>
           </div>
 
+          {/* ── ProGuild review stats from review_requests ── */}
+          {overview?.reviews?.total > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+              <div style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: '12px 14px', textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: textMain }}>{overview.reviews.avg ?? '—'}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, margin: '4px 0' }}>
+                  {[1,2,3,4,5].map((i: number) => <span key={i} style={{ fontSize: 12, color: i <= Math.round(overview.reviews.avg || 0) ? '#F59E0B' : '#E2E8F0' }}>★</span>)}
+                </div>
+                <div style={{ fontSize: 11, color: BODY, fontWeight: 600 }}>Avg Rating</div>
+              </div>
+              <div style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: '12px 14px', textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#10B981' }}>{overview.reviews.positive}</div>
+                <div style={{ fontSize: 11, color: BODY, fontWeight: 600, marginTop: 4 }}>4-5 ⭐ (→ Google)</div>
+              </div>
+              <div style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: '12px 14px', textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#EF4444' }}>{overview.reviews.negative}</div>
+                <div style={{ fontSize: 11, color: BODY, fontWeight: 600, marginTop: 4 }}>1-3 ⭐ (Private)</div>
+              </div>
+            </div>
+          )}
+          {overview?.reviews?.recentFeedback?.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: BODY, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Recent Feedback</div>
+              {overview.reviews.recentFeedback.map((f: any, i: number) => (
+                <div key={i} style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 10, padding: '10px 12px', marginBottom: 6, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ flexShrink: 0 }}>
+                    {[1,2,3,4,5].map((s: number) => <span key={s} style={{ fontSize: 11, color: s <= (f.rating || 0) ? '#F59E0B' : '#E2E8F0' }}>★</span>)}
+                  </div>
+                  <div style={{ fontSize: 13, color: textMain, fontStyle: 'italic', lineHeight: 1.5, flex: 1 }}>"{f.text}"</div>
+                  <div style={{ fontSize: 11, color: BODY, flexShrink: 0 }}>{f.date ? new Date(f.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {reviews.length === 0 ? (
             /* ── Empty state for new pros ── */
             <div className="flex flex-col md:flex-row gap-4">

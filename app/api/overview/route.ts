@@ -143,8 +143,28 @@ export async function GET(req: NextRequest) {
     unassignedCount = count ?? 0
   }
 
+  // Review stats
+  const { data: reviewStats } = await sb
+    .from('review_requests')
+    .select('rating, review_text, rated_at')
+    .eq('company_id', _ovCompanyId)
+    .eq('status', 'rated')
+    .not('rating', 'is', null)
+  const totalReviews   = reviewStats?.length ?? 0
+  const avgRating      = totalReviews > 0
+    ? Math.round((reviewStats!.reduce((s, r) => s + (r.rating || 0), 0) / totalReviews) * 10) / 10
+    : null
+  const positiveCount  = reviewStats?.filter(r => (r.rating || 0) >= 4).length ?? 0
+  const negativeCount  = reviewStats?.filter(r => (r.rating || 0) <= 3).length ?? 0
+  const recentFeedback = reviewStats
+    ?.filter(r => r.review_text)
+    ?.sort((a, b) => new Date(b.rated_at || 0).getTime() - new Date(a.rated_at || 0).getTime())
+    ?.slice(0, 3)
+    ?.map(r => ({ rating: r.rating, text: r.review_text, date: r.rated_at })) ?? []
+
   return NextResponse.json({
     unassignedLeads: unassignedCount,
+    reviews: { total: totalReviews, avg: avgRating, positive: positiveCount, negative: negativeCount, recentFeedback },
     actionCenter: {
       uncontacted: uncontacted.length,
       expiring: expiring.length,

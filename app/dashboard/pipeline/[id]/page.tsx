@@ -233,9 +233,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // Persistent info/warning popover anchored under the status dropdown (replaces
   // the transient toast for blocked/locked stage taps — stays until dismissed).
   const [stageNotice, setStageNotice] = useState<{ kind:'info'|'warning'; msg:string }|null>(null)
-  const [showWarranty, setShowWarranty] = useState(false)
-  const [reviewSent,    setReviewSent]   = useState(false)
-  const [reviewSending, setReviewSending] = useState(false)
+  const [showWarranty,   setShowWarranty]   = useState(false)
+  const [reviewSent,     setReviewSent]     = useState(false)
+  const [reviewSending,  setReviewSending]  = useState(false)
+  const [reviewRequest,  setReviewRequest]  = useState<any>(null)
   const [confirmBack,  setConfirmBack]  = useState<LeadStatus|null>(null)
   // Canonical move rules for this lead — served by /api/roofing/stage-plan.
   const [stagePlan, setStagePlan] = useState<StagePlanEntry[]>([])
@@ -362,7 +363,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     }
     apiFetch(`/api/leads/${id}?pro_id=${session.id}`)
       .then(r => { if(r.status===404){setMissing(true);setLoading(false);return null}; return r.json() })
-      .then(d => { if(!d) return; const l=d.lead as LeadExt; setLead(l); setStage(l.lead_status as LeadStatus); setLoading(false) })
+      .then(d => { if(!d) return; const l=d.lead as LeadExt; setLead(l); setStage(l.lead_status as LeadStatus); setLoading(false); if(d.review_request) setReviewRequest(d.review_request) })
       .catch(()=>setLoading(false))
     // Fetch stage transition history
     apiFetch(`/api/pipeline-events?lead_id=${id}&pro_id=${session.id}`)
@@ -2107,6 +2108,41 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 onSent={(email) => addToast(`Portal link sent to ${email}`, 'success')}
                                 onError={(msg) => addToast(msg, 'error')}
                               />
+                            )}
+
+                            {/* ── Review card ─────────────────────────────── */}
+                            {reviewRequest && reviewRequest.status === 'rated' && (
+                              <div style={{ marginTop: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radMd, padding: '14px 16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 800, color: tp, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Homeowner Review</span>
+                                  <span style={{ marginLeft: 'auto', fontSize: 12, color: ts }}>
+                                    {reviewRequest.rated_at ? new Date(reviewRequest.rated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: 2, marginBottom: reviewRequest.review_text ? 8 : 0 }}>
+                                  {[1,2,3,4,5].map(i => (
+                                    <svg key={i} width="18" height="18" viewBox="0 0 24 24"
+                                      fill={i <= (reviewRequest.rating || 0) ? '#F59E0B' : 'none'}
+                                      stroke={i <= (reviewRequest.rating || 0) ? '#F59E0B' : '#D1D5DB'}
+                                      strokeWidth="1.5">
+                                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                    </svg>
+                                  ))}
+                                  <span style={{ marginLeft: 6, fontSize: 13, fontWeight: 700, color: tp }}>{reviewRequest.rating}/5</span>
+                                  {reviewRequest.rating >= 4 && <span style={{ marginLeft: 6, fontSize: 11, color: '#10B981', fontWeight: 700 }}>→ Google</span>}
+                                </div>
+                                {reviewRequest.review_text && (
+                                  <div style={{ fontSize: 13, color: ts, fontStyle: 'italic', lineHeight: 1.5, padding: '8px 10px', background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', borderRadius: 8, borderLeft: '3px solid #E2E8F0' }}>
+                                    "{reviewRequest.review_text}"
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {reviewRequest && reviewRequest.status !== 'rated' && (
+                              <div style={{ marginTop: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radMd, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 18 }}>⭐</span>
+                                <span style={{ fontSize: 13, color: ts }}>Review request {reviewRequest.status === 'sent' ? 'sent — awaiting response' : 'queued'}</span>
+                              </div>
                             )}
 
                             {/* Contact & details — reference, sits below the work */}

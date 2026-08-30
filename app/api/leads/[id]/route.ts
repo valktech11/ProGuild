@@ -177,7 +177,16 @@ export async function GET(
     )
   }
 
-  return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData } })
+  // Fetch review request for this lead
+  const { data: reviewRequest } = await getSupabaseAdmin()
+    .from('review_requests')
+    .select('id, status, rating, review_text, sent_at, rated_at, token, homeowner_email')
+    .eq('lead_id', id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData }, review_request: reviewRequest ?? null })
 }
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
