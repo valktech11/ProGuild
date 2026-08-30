@@ -1,5 +1,6 @@
 // lib/review.ts — Review request sender
-// Returns a debug object so callers can surface errors in API responses
+// Called on invoice paid (record-payment route) and on Job Won (stage route)
+// Uses owner's google_id so member-initiated payments still link to owner's Google profile
 
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { sendHomeownerSms } from '@/lib/sms'
@@ -17,18 +18,16 @@ export async function queueAndSendReviewRequest({
   leadId: string
   invoiceId?: string | null
 }): Promise<Record<string, any>> {
-  const debug: Record<string, any> = { proId, leadId }
   try {
     const sb = getSupabaseAdmin()
 
     // Check if review request already exists for this lead
-    const { data: existing, error: existErr } = await sb
+    const { data: existing } = await sb
       .from('review_requests')
       .select('id')
       .eq('lead_id', leadId)
       .maybeSingle()
-    debug.existing = { found: !!existing, err: existErr?.message }
-    if (existing) return { skipped: 'already_exists', ...debug }
+    if (existing) return { skipped: 'already_exists' }
 
     // Fetch lead
     const { data: lead, error: leadErr } = await sb
@@ -36,26 +35,31 @@ export async function queueAndSendReviewRequest({
       .select('contact_name, contact_phone, contact_email, property_address')
       .eq('id', leadId)
       .single()
-    debug.lead = { found: !!lead, err: leadErr?.message }
-    if (!lead) return { skipped: 'lead_not_found', ...debug }
+    if (!lead) return { skipped: 'lead_not_found', err: leadErr?.message }
 
-    // Fetch pro
+    // Fetch owner's pro for google_id + business name
+    // Always use owner's profile — member may not have google_id set
+    let ownerProId = proId
+    if (companyId) {
+      const { data: company } = await sb
+        .from('companies').select('owner_pro_id').eq('id', companyId).single()
+      if ((company as any)?.owner_pro_id) ownerProId = (company as any).owner_pro_id
+    }
     const { data: pro, error: proErr } = await sb
       .from('pros')
       .select('full_name, business_name, google_id')
-      .eq('id', proId)
+      .eq('id', ownerProId)
       .single()
-    debug.pro = { found: !!pro, err: proErr?.message }
-    if (!pro) return { skipped: 'pro_not_found', ...debug }
+    if (!pro) return { skipped: 'pro_not_found', err: proErr?.message }
 
     const businessName = (pro as any).business_name || (pro as any).full_name || 'Your contractor'
     const googleId = (pro as any).google_id
 
-    // Insert review_request
+    // Insert review_request — use owner's pro_id so review page finds google_id
     const { data: rr, error: rrErr } = await sb
       .from('review_requests')
       .insert({
-        pro_id:          proId,
+        pro_id:          ownerProId,
         company_id:      companyId,
         lead_id:         leadId,
         homeowner_name:  (lead as any).contact_name,
@@ -67,8 +71,7 @@ export async function queueAndSendReviewRequest({
       .select('id, token')
       .single()
 
-    debug.insert = { success: !!rr, id: (rr as any)?.id, err: rrErr?.message, code: rrErr?.code, details: rrErr?.details }
-    if (rrErr || !rr) return { skipped: 'insert_failed', ...debug }
+    if (rrErr || !rr) return { skipped: 'insert_failed', err: rrErr?.message, code: rrErr?.code }
 
     const reviewUrl = `${BASE_URL}/review/${(rr as any).token}`
     const homeownerName = (lead as any).contact_name || 'there'
@@ -105,10 +108,10 @@ export async function queueAndSendReviewRequest({
       }).eq('id', (rr as any).id)
     }
 
-    debug.sent = { sms: smsSent, email: emailSent }
-    return { success: true, token: (rr as any).token, ...debug }
+    return { success: true, token: (rr as any).token, sent: { sms: smsSent, email: emailSent } }
 
   } catch (e) {
-    return { error: String(e), ...debug }
+    console.error('[review] error:', e)
+    return { error: String(e) }
   }
 }
