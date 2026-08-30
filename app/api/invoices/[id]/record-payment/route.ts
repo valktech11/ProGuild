@@ -159,15 +159,16 @@ export async function POST(
   }
 
   // ── Trigger review request when invoice fully paid ─────────────────────────
+  let _reviewDebug: Record<string, any> | null = null
   if (balances.status === 'paid' && inv.lead_id) {
     try {
       const { queueAndSendReviewRequest } = await import('@/lib/review')
-      await queueAndSendReviewRequest({
+      _reviewDebug = await queueAndSendReviewRequest({
         proId:     __auth.proId!,
         companyId: __auth.companyId ?? null,
         leadId:    inv.lead_id as string,
       })
-    } catch (e) { console.error('[record-payment] review error:', String(e)) }
+    } catch (e) { _reviewDebug = { error: String(e) } }
   }
 
   // ── Write activity feed event — every roofer-recorded payment ────────────
@@ -191,5 +192,5 @@ export async function POST(
     })
   }
 
-  return NextResponse.json({ invoice: updated })
+  return NextResponse.json({ invoice: updated, _reviewDebug })
 }
