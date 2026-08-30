@@ -1553,15 +1553,26 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <button onClick={()=>setShowWarranty(true)} style={{marginTop:8,width:'100%',padding:'10px 14px',borderRadius:T.radSm,background:t.cardBgAlt,color:BRAND.teal,border:`1px solid ${BRAND.teal}`,fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Record Warranty</button>
                       )}
                       {stage===getStageAnchors(session?.trade_slug).won&&(lead as any).contact_email&&(
-                        <button onClick={handleSendReview} disabled={reviewSending||reviewSent}
-                          style={{marginTop:8,width:'100%',padding:'10px 14px',borderRadius:T.radSm,
-                            background:reviewSent?t.cardBgAlt:BRAND.teal,
-                            color:reviewSent?BRAND.teal:'#fff',
-                            border:`1px solid ${BRAND.teal}`,fontSize:13,fontWeight:700,
-                            cursor:reviewSent||reviewSending?'default':'pointer',
-                            opacity:reviewSending?0.7:1}}>
-                          {reviewSent?'⭐ Review request sent':reviewSending?'Sending…':'⭐ Request Google Review'}
-                        </button>
+                        reviewRequest?.status==='rated' ? (
+                          <div style={{marginTop:8,width:'100%',padding:'10px 14px',borderRadius:T.radSm,
+                            background:t.cardBgAlt,color:'#10B981',border:`1px solid #10B98140`,
+                            fontSize:13,fontWeight:700,textAlign:'center' as const}}>
+                            ✅ Homeowner reviewed
+                          </div>
+                        ) : (
+                          <button onClick={handleSendReview} disabled={reviewSending}
+                            style={{marginTop:8,width:'100%',padding:'10px 14px',borderRadius:T.radSm,
+                              background:reviewSent?t.cardBgAlt:BRAND.teal,
+                              color:reviewSent?BRAND.teal:'#fff',
+                              border:`1px solid ${BRAND.teal}`,fontSize:13,fontWeight:700,
+                              cursor:reviewSending?'default':'pointer',
+                              opacity:reviewSending?0.7:1}}>
+                            {reviewSent?'⭐ Review request sent'
+                              :reviewSending?'Sending…'
+                              :reviewRequest?.status==='sent'?'🔁 Resend review request'
+                              :'⭐ Request Google Review'}
+                          </button>
+                        )
                       )}
                     </div>
                   </div>{/* end hero */}
