@@ -234,6 +234,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // the transient toast for blocked/locked stage taps — stays until dismissed).
   const [stageNotice, setStageNotice] = useState<{ kind:'info'|'warning'; msg:string }|null>(null)
   const [showWarranty, setShowWarranty] = useState(false)
+  const [reviewSent,    setReviewSent]   = useState(false)
+  const [reviewSending, setReviewSending] = useState(false)
   const [confirmBack,  setConfirmBack]  = useState<LeadStatus|null>(null)
   // Canonical move rules for this lead — served by /api/roofing/stage-plan.
   const [stagePlan, setStagePlan] = useState<StagePlanEntry[]>([])
