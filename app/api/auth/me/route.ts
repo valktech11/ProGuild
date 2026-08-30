@@ -120,6 +120,7 @@ export async function GET(req: NextRequest) {
       // ── New: company context + role ──
       company_id:     company?.id    ?? null,
       company_name:   company?.name  ?? null,
+      google_id:      (pro as any).google_id ?? null,
       role,
     },
     needsProfile: false,

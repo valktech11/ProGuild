@@ -504,6 +504,20 @@ export default function OverviewPage() {
 
         </div>
 
+        {/* ── Google ID nudge — shown to owners without google_id set ── */}
+        {session?.role !== 'member' && !session?.google_id && leads.length > 0 && (
+          <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10,
+            padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 18 }}>⭐</span>
+            <div style={{ flex: 1, fontSize: 13, color: '#92400E' }}>
+              <strong>Set up Google Reviews</strong> — Add your Google Business Profile ID to automatically
+              request reviews after each job.
+            </div>
+            <a href="/edit-profile" style={{ fontSize: 12, fontWeight: 600, color: '#D97706',
+              textDecoration: 'none', whiteSpace: 'nowrap' }}>Add now →</a>
+          </div>
+        )}
+
         {/* ── Welcome card — trade-aware, shown for fresh accounts with no leads ── */}
         {leads.length === 0 && reviews.length === 0 && (() => {
           // ── Trade-specific config ─────────────────────────────────────────────

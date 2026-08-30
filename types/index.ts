@@ -167,6 +167,7 @@ export interface Session {
   // Multi-user: company context (populated for all claimed pros after migration)
   company_id: string | null
   company_name: string | null
+  google_id: string | null
   role: 'owner' | 'member' | null
 }
 

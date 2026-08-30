@@ -192,5 +192,5 @@ export async function POST(
     })
   }
 
-  return NextResponse.json({ invoice: updated, _reviewDebug })
+  return NextResponse.json({ invoice: updated })
 }
