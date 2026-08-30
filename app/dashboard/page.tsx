@@ -844,7 +844,7 @@ export default function OverviewPage() {
 
         {/* ── Reviews & Growth ─────────────────────────────────────────────── */}
         <div className="rounded-2xl p-4 md:p-5 mb-5" style={{ backgroundColor: cardBg, border: `1px solid ${cardBdr}`, boxShadow: '0 2px 12px rgba(10,22,40,0.05)' }}>
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-5">
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#FEF9C322,#FDE68A44)', border: '1px solid rgba(251,191,36,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⭐</div>
             <div>
               <h2 style={{ fontSize: T.fontHeading, fontWeight: 800, color: textMain, margin: 0, letterSpacing: '-0.02em' }}>Reviews &amp; Growth</h2>
@@ -852,240 +852,66 @@ export default function OverviewPage() {
             </div>
           </div>
 
-          {/* ── ProGuild review stats from review_requests ── */}
-          {overview?.reviews?.total > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
-              <div style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: '12px 14px', textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: textMain }}>{overview.reviews.avg ?? '—'}</div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, margin: '4px 0' }}>
-                  {[1,2,3,4,5].map((i: number) => <span key={i} style={{ fontSize: 12, color: i <= Math.round(overview.reviews.avg || 0) ? '#F59E0B' : '#E2E8F0' }}>★</span>)}
-                </div>
-                <div style={{ fontSize: 11, color: BODY, fontWeight: 600 }}>Avg Rating</div>
+          {(overview?.reviews?.total ?? 0) === 0 ? (
+            /* ── Empty state ── */
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#0F766E22,#14B8A622)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>⭐</div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: textMain, marginBottom: 4 }}>No reviews yet</div>
+                <div style={{ fontSize: 13, color: BODY, lineHeight: 1.5, maxWidth: 280 }}>Reviews are automatically requested after each completed job.</div>
               </div>
-              <div style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: '12px 14px', textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: '#10B981' }}>{overview.reviews.positive}</div>
-                <div style={{ fontSize: 11, color: BODY, fontWeight: 600, marginTop: 4 }}>4-5 ⭐ (→ Google)</div>
-              </div>
-              <div style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: '12px 14px', textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: '#EF4444' }}>{overview.reviews.negative}</div>
-                <div style={{ fontSize: 11, color: BODY, fontWeight: 600, marginTop: 4 }}>1-3 ⭐ (Private)</div>
-              </div>
-            </div>
-          )}
-          {overview?.reviews?.recentFeedback?.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: BODY, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Recent Feedback</div>
-              {overview.reviews.recentFeedback.map((f: any, i: number) => (
-                <div key={i} style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 10, padding: '10px 12px', marginBottom: 6, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <div style={{ flexShrink: 0 }}>
-                    {[1,2,3,4,5].map((s: number) => <span key={s} style={{ fontSize: 11, color: s <= (f.rating || 0) ? '#F59E0B' : '#E2E8F0' }}>★</span>)}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, width: '100%', maxWidth: 340 }}>
+                {[['✅','Complete a job'],['⭐','Request review'],['🏆','Build reputation']].map(([icon, text]) => (
+                  <div key={text as string} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: 10, borderRadius: 10, background: t.cardBgAlt, border: `1px solid ${cardBdr}` }}>
+                    <span style={{ fontSize: 18 }}>{icon}</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: BODY }}>{text}</span>
                   </div>
-                  <div style={{ fontSize: 13, color: textMain, fontStyle: 'italic', lineHeight: 1.5, flex: 1 }}>"{f.text}"</div>
-                  <div style={{ fontSize: 11, color: BODY, flexShrink: 0 }}>{f.date ? new Date(f.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {reviews.length === 0 ? (
-            /* ── Empty state for new pros ── */
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 rounded-xl p-6 flex flex-col items-center justify-center gap-4 text-center"
-                style={{ background: t.cardBgAlt, border: `2px dashed ${t.cardBorder}`, minHeight: 220 }}>
-                <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl" style={{ background: 'linear-gradient(135deg,#0F766E22,#14B8A622)' }}>⭐</div>
-                <div>
-                  <h3 className="text-[15px] font-bold mb-1.5" style={{ color: textMain }}>No reviews yet</h3>
-                  <p className="text-[13px] leading-relaxed max-w-xs" style={{ color: BODY }}>Reviews build trust and help you win more jobs. Complete your first job and ask for a review.</p>
-                </div>
-                <div className="grid grid-cols-3 gap-2 w-full max-w-sm">
-                  {[['✅','Complete a job'],['💬','Ask for review'],['🏆','Build reputation']].map(([icon, text]) => (
-                    <div key={text} className="flex flex-col items-center gap-1.5 p-3 rounded-xl" style={{ background: t.cardBg, border: `1px solid ${BORDER}` }}>
-                      <span className="text-xl">{icon}</span>
-                      <span className="text-[10px] font-semibold" style={{ color: BODY }}>{text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="w-full md:w-72 flex flex-col gap-3">
-                <div className="rounded-xl p-4" style={{ background: t.successBg, border: `1px solid ${t.successBorder}` }}>
-                  <h3 className="text-[14px] font-bold mb-1.5" style={{ color: textMain }}>Request a review</h3>
-                  <p className="text-[12px] mb-3" style={{ color: BODY }}>Ask right after a job — response rates drop 80% after 48 hours.</p>
-                  <button className="w-full py-2.5 rounded-xl text-[13px] font-bold" style={{ background: `linear-gradient(135deg,${TEAL},#0D9488)`, color: 'white', border: 'none', cursor: 'pointer' }}>
-                    + Request a Review
-                  </button>
-                </div>
-                <div className="rounded-xl p-4 text-center" style={{ background: t.warningBg, border: `1px solid ${t.warningBorder}` }}>
-                  <div className="text-2xl mb-1">🏆</div>
-                  <div className="text-[13px] font-bold mb-1" style={{ color: textMain }}>Unlock Top Pro</div>
-                  <div className="text-[11px]" style={{ color: BODY }}>Get 10 reviews with 4.5+ rating to win 30% more leads</div>
-                </div>
+                ))}
               </div>
             </div>
           ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Col 1: Rating + gamification + AI insight + recent reviews */}
-            <div className="lg:col-span-2">
-              <div className="flex flex-col md:flex-row items-start gap-4 mb-5">
-                {/* Big rating */}
+            /* ── Has reviews ── */
+            <div>
+              {/* Stat cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
+                <div style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 12, padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: textMain, lineHeight: 1 }}>{overview.reviews.avg ?? '—'}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 1, margin: '6px 0 2px' }}>
+                    {[1,2,3,4,5].map((i: number) => (
+                      <span key={i} style={{ fontSize: 14, color: i <= Math.round(overview.reviews.avg || 0) ? '#F59E0B' : '#E2E8F0' }}>★</span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: BODY, fontWeight: 600 }}>Avg Rating</div>
+                </div>
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#10B981', lineHeight: 1 }}>{overview.reviews.positive}</div>
+                  <div style={{ fontSize: 11, color: '#065F46', fontWeight: 600, marginTop: 8 }}>Sent to Google</div>
+                  <div style={{ fontSize: 10, color: '#6EE7B7' }}>4–5 ⭐</div>
+                </div>
+                <div style={{ background: '#FFF7F7', border: '1px solid #FECACA', borderRadius: 12, padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#EF4444', lineHeight: 1 }}>{overview.reviews.negative}</div>
+                  <div style={{ fontSize: 11, color: '#991B1B', fontWeight: 600, marginTop: 8 }}>Private Feedback</div>
+                  <div style={{ fontSize: 10, color: '#FCA5A5' }}>1–3 ⭐</div>
+                </div>
+              </div>
+
+              {/* Recent feedback */}
+              {overview.reviews.recentFeedback?.length > 0 && (
                 <div>
-                  <div className="text-[52px] font-bold leading-none" style={{ color: textMain }}>
-                    {avgRating ? avgRating.toFixed(1) : '4.0'}
-                  </div>
-                  <Stars rating={avgRating || 4} size={18} />
-                  <div className="text-[12px] mt-1" style={{ color: MUTED_D }}>({reviews.length || 5} reviews)</div>
-                </div>
-
-                {/* Gamification card */}
-                <div className="w-full md:flex-1 rounded-xl p-3" style={{ backgroundColor: t.successBg, borderTop: `1px solid ${t.successBorder}`, borderRight: `1px solid ${t.successBorder}`, borderBottom: `1px solid ${t.successBorder}`, borderLeft: `3px solid ${dk ? '#22C55E' : '#16A34A'}` }}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="text-[12px] font-bold mb-1" style={{ color: textMain }}>
-                        🏆 Get 2 more 5⭐ reviews
+                  <div style={{ fontSize: 11, fontWeight: 800, color: BODY, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Recent Feedback</div>
+                  {overview.reviews.recentFeedback.map((f: any, i: number) => (
+                    <div key={i} style={{ background: t.cardBgAlt, border: `1px solid ${cardBdr}`, borderRadius: 10, padding: '10px 14px', marginBottom: 6, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <div style={{ flexShrink: 0, display: 'flex', gap: 1 }}>
+                        {[1,2,3,4,5].map((s: number) => <span key={s} style={{ fontSize: 12, color: s <= (f.rating || 0) ? '#F59E0B' : '#E2E8F0' }}>★</span>)}
                       </div>
-                      <div className="text-[13px]" style={{ color: dk ? '#94A3B8' : '#374151' }}>to unlock Top Pro badge and win 30% more jobs</div>
+                      <div style={{ fontSize: 13, color: textMain, fontStyle: 'italic', lineHeight: 1.5, flex: 1 }}>"{f.text}"</div>
+                      <div style={{ fontSize: 11, color: BODY, flexShrink: 0 }}>{f.date ? new Date(f.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</div>
                     </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
-                      style={{ backgroundColor: '#FEF3C7' }}>🥇</div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="flex justify-between text-[12px] mb-1" style={{ color: t.textMuted }}>
-                      <span>Progress</span><span>{reviews.length || 5} / 10 reviews</span>
-                    </div>
-                    <div className="h-1.5 rounded-full" style={{ backgroundColor: '#E8E2D9' }}>
-                      <div className="h-1.5 rounded-full" style={{ backgroundColor: TEAL, width: `${Math.min(((reviews.length || 5) / 10) * 100, 100)}%` }} />
-                    </div>
-                  </div>
+                  ))}
                 </div>
-
-                {/* AI Insight card */}
-                <div className="w-full md:flex-1 rounded-xl p-3" style={{ backgroundColor: t.infoBg, borderTop: `1px solid ${t.infoBorder}`, borderRight: `1px solid ${t.infoBorder}`, borderBottom: `1px solid ${t.infoBorder}`, borderLeft: `3px solid ${dk ? '#8B5CF6' : '#7C3AED'}` }}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <SvgIcon d={ICONS.sparkle} s={14} sw={1.5} color="#7C3AED" />
-                    <span className="text-[12px] font-bold" style={{ color: textMain }}>AI Insight</span>
-                  </div>
-                  <p className="text-[12px] mb-2" style={{ color: t.textBody }}>
-                    Customers love your work quality but mention slow response. Respond within 15 mins to increase win rate by 25%.
-                  </p>
-                  <button className="text-[11px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-                    View insight <SvgIcon d={ICONS.chevRight} s={11} sw={2.5} color={TEAL} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Recent reviews */}
-              <div>
-                <h3 className="text-[13px] font-bold mb-3" style={{ color: textMain }}>Recent Reviews</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {reviews.slice(0, 4).map(review => {
-                    const s = sentiment(review.rating)
-                    return (
-                      <div key={review.id} className="rounded-xl p-4" style={{ border: `1px solid ${t.cardBorder}`, backgroundColor: dk ? '#0F172A' : '#FAFAF8' }}>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <AvatarInitials name={review.reviewer_name || 'A'} size={36} />
-                          <div>
-                            <div className="text-[15px] font-bold" style={{ color: textMain }}>{review.reviewer_name}</div>
-                            <Stars rating={review.rating} size={16} />
-                          </div>
-                          <div className="ml-auto text-[12px] font-medium" style={{ color: t.textSubtle }}>{new Date(review.reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                        </div>
-                        {review.comment && <p className="text-[14px] line-clamp-2 mb-2.5 leading-snug" style={{ color: t.textBody }}>{review.comment}</p>}
-                        <span className="inline-block text-[12px] font-semibold px-3 py-0.5 rounded-full"
-                          style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+              )}
             </div>
-
-            {/* Col 2: Request reviews + AI assistant */}
-            <div className="flex flex-col gap-4">
-              {/* Request reviews panel */}
-              <div className="rounded-xl p-4" style={{ border: `1px solid ${cardBdr}`, backgroundColor: cardBg }}>
-                <div className="text-[13px] font-bold mb-0.5" style={{ color: textMain }}>Request reviews from happy customers</div>
-                <div className="text-[12px] mb-3 flex flex-wrap items-center gap-1" style={{ color: t.textMuted }}>
-                  3 customers are likely to give you a
-                  <Star filled size={11} />
-                  <span>5★ review</span>
-                </div>
-                {[
-                  { initials: 'SY', name: 'Surya Yadav',   sub: 'Job completed 1 day ago',   color: '#7C3AED' },
-                  { initials: 'MJ', name: 'Mike Johnson',  sub: 'Job completed 3 days ago',  color: '#0EA5E9' },
-                  { initials: 'SD', name: 'Sarah Davis',   sub: 'Job completed 1 week ago',  color: '#F97316' },
-                ].map(c => (
-                  <div key={c.name} className="flex items-center gap-2.5 py-2.5 border-t" style={{ borderColor: BORDER }}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
-                      style={{ backgroundColor: c.color }}>{c.initials}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[12px] font-semibold" style={{ color: textMain }}>{c.name}</div>
-                      <div className="text-[13px]" style={{ color: t.textMuted }}>{c.sub}</div>
-                    </div>
-                    <button className="text-[12px] font-semibold px-4 py-1.5 rounded-xl"
-                      style={{ border: `1.5px solid #0F766E`, color: '#0F766E', backgroundColor: '#F0FDFA' }}>Request</button>
-                  </div>
-                ))}
-                <button className="mt-3 text-[12px] font-semibold flex items-center gap-1" style={{ color: TEAL }}>
-                  View all customers <SvgIcon d={ICONS.arrowRight} s={13} sw={2} color={TEAL} />
-                </button>
-              </div>
-
-              {/* AI Review Assistant */}
-              <div className="rounded-xl p-4" style={{ border: `1px solid ${cardBdr}`, backgroundColor: cardBg }}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1.5">
-                    <SvgIcon d={ICONS.sparkle} s={14} sw={1.5} color="#7C3AED" />
-                    <span className="text-[13px] font-bold" style={{ color: textMain }}>AI Review Assistant</span>
-                  </div>
-                  <button className="text-[11px] font-semibold" style={{ color: TEAL }}>View all insights →</button>
-                </div>
-
-                {/* Negative review reply */}
-                <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: t.dangerBg, borderTop: `1px solid ${t.dangerBorder}`, borderRight: `1px solid ${t.dangerBorder}`, borderBottom: `1px solid ${t.dangerBorder}`, borderLeft: `3px solid ${dk ? '#EF4444' : '#DC2626'}` }}>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEE2E2' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-bold" style={{ color: '#DC2626' }}>Negative Review Assistant</div>
-                      <div className="text-[13px]" style={{ color: MUTED_D }}>AI-generated reply for Jessica Lee</div>
-                    </div>
-                  </div>
-                  <p className="text-[12px] italic mb-2" style={{ color: t.textBody }}>
-                    &ldquo;Hi Jessica, thank you for your feedback. We&apos;re sorry for the delay in response. We appreciate your patience and are glad you liked our work. We&apos;ll do better next time!&rdquo;
-                  </p>
-                  <div className="flex gap-2">
-                    <button className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white"
-                      style={{ backgroundColor: TEAL }}>Use Reply</button>
-                    <button className="px-3 py-1.5 rounded-lg text-[11px] font-semibold"
-                      style={{ border: `1px solid ${BORDER}`, color: NAVY }}>Edit</button>
-                  </div>
-                </div>
-
-                {/* Positive review booster */}
-                <div className="rounded-xl p-3" style={{ backgroundColor: t.warningBg, borderTop: `1px solid ${t.warningBorder}`, borderRight: `1px solid ${t.warningBorder}`, borderBottom: `1px solid ${t.warningBorder}`, borderLeft: `3px solid ${dk ? '#F59E0B' : '#D97706'}` }}>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FEF3C7' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-bold" style={{ color: '#B45309' }}>Positive Review Booster</div>
-                      <div className="text-[13px]" style={{ color: MUTED_D }}>AI-generated review request message</div>
-                    </div>
-                  </div>
-                  <p className="text-[12px] italic mb-2" style={{ color: t.textBody }}>
-                    Hi [Name], thanks again for choosing us! If you&apos;re happy with the work, would you mind leaving us a quick 5⭐ review?
-                  </p>
-                  <div className="flex gap-2">
-                    <button className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white"
-                      style={{ backgroundColor: TEAL }}>Use Message</button>
-                    <button className="px-3 py-1.5 rounded-lg text-[11px] font-semibold"
-                      style={{ border: `1px solid ${BORDER}`, color: NAVY }}>Edit</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          )} {/* end reviews.length > 0 */}
+          )}
         </div>
 
         {/* ── HVAC Maintenance Reminders (HVAC pros only) ───────────────── */}
