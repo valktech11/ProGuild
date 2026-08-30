@@ -158,6 +158,18 @@ export async function POST(
     }
   }
 
+  // ── Trigger review request when invoice fully paid ─────────────────────────
+  if (balances.status === 'paid' && inv.lead_id) {
+    try {
+      const { queueAndSendReviewRequest } = await import('@/lib/review')
+      await queueAndSendReviewRequest({
+        proId:     __auth.proId!,
+        companyId: __auth.companyId ?? null,
+        leadId:    inv.lead_id as string,
+      })
+    } catch (e) { console.error('[record-payment] review error:', String(e)) }
+  }
+
   // ── Write activity feed event — every roofer-recorded payment ────────────
   // The homeowner pay-milestone route already does this; this path was missing
   // it, so roofer/mobile offline payments never appeared in the activity feed.
