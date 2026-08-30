@@ -665,6 +665,29 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
     }
   }
 
+  async function handleSendReview() {
+    if (!lead || reviewSending || reviewSent) return
+    setReviewSending(true)
+    try {
+      const r = await apiFetch(`/api/review/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: lead.id }),
+      })
+      const d = await r.json()
+      if (r.ok && d.ok) {
+        setReviewSent(true)
+        addToast(`Review request sent to ${(lead as any).contact_name || 'homeowner'} ✓`)
+      } else {
+        addToast(d.error || 'Failed to send review request', 'error')
+      }
+    } catch {
+      addToast('Failed to send review request', 'error')
+    } finally {
+      setReviewSending(false)
+    }
+  }
+
   async function saveEdit() {
     setESaving(true)
     const ok = await patch({
@@ -1525,6 +1548,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       )}
                       {stage===getStageAnchors(session?.trade_slug).won&&isRoofing&&(
                         <button onClick={()=>setShowWarranty(true)} style={{marginTop:8,width:'100%',padding:'10px 14px',borderRadius:T.radSm,background:t.cardBgAlt,color:BRAND.teal,border:`1px solid ${BRAND.teal}`,fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Record Warranty</button>
+                      )}
+                      {stage===getStageAnchors(session?.trade_slug).won&&(lead as any).contact_email&&(
+                        <button onClick={handleSendReview} disabled={reviewSending||reviewSent}
+                          style={{marginTop:8,width:'100%',padding:'10px 14px',borderRadius:T.radSm,
+                            background:reviewSent?t.cardBgAlt:BRAND.teal,
+                            color:reviewSent?BRAND.teal:'#fff',
+                            border:`1px solid ${BRAND.teal}`,fontSize:13,fontWeight:700,
+                            cursor:reviewSent||reviewSending?'default':'pointer',
+                            opacity:reviewSending?0.7:1}}>
+                          {reviewSent?'⭐ Review request sent':reviewSending?'Sending…':'⭐ Request Google Review'}
+                        </button>
                       )}
                     </div>
                   </div>{/* end hero */}
