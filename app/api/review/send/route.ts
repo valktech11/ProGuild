@@ -27,9 +27,8 @@ export async function POST(req: NextRequest) {
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
   if (!(lead as any).contact_email) return NextResponse.json({ error: 'Lead has no email address' }, { status: 400 })
 
-  // Delete existing review_request for this lead so we can resend
-  // (allows manual re-trigger even if auto-trigger already ran)
-  await sb.from('review_requests').delete().eq('lead_id', lead_id).eq('status', 'queued')
+  // Delete existing review_request so resend always works regardless of prior status
+  await sb.from('review_requests').delete().eq('lead_id', lead_id)
 
   const result = await queueAndSendReviewRequest({
     proId:     auth.proId!,
