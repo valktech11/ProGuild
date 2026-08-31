@@ -140,6 +140,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Attach assigned member names for team attribution on mobile list
+  if (leads.length > 0) {
+    const assignedProIds = [...new Set((leads as any[]).map((l: any) => l.assigned_to_pro_id).filter(Boolean))]
+    if (assignedProIds.length > 0) {
+      const { data: pros } = await getSupabaseAdmin()
+        .from('pros').select('id, full_name').in('id', assignedProIds)
+      const proMap = new Map((pros || []).map((p: any) => [p.id, p.full_name]))
+      for (const l of leads as any[]) {
+        if (l.assigned_to_pro_id) l.assigned_to_name = proMap.get(l.assigned_to_pro_id) ?? null
+      }
+    }
+  }
+
   return NextResponse.json({ leads })
 }
 
