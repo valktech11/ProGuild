@@ -25,10 +25,21 @@ export async function GET(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
-  const { data: clients, error } = await sb
-    .from('clients')
-    .select('id')
-    .eq('company_id', _cliSumCompanyId)
+  // Member: only clients from their assigned leads
+  const _cliSumRole = __auth.role
+  const _cliSumProId = __auth.proId
+  let _cliSumClientIds: string[] | null = null
+  if (_cliSumRole === 'member' && _cliSumProId) {
+    const { data: _ml } = await sb.from('leads').select('client_id')
+      .eq('company_id', _cliSumCompanyId).eq('assigned_to_pro_id', _cliSumProId)
+      .is('deleted_at', null).not('client_id', 'is', null)
+    _cliSumClientIds = (_ml ?? []).map((l: any) => l.client_id).filter(Boolean)
+    if (_cliSumClientIds.length === 0) return NextResponse.json({ totalClients: 0, totalLifetime: 0, clientsWithJobs: 0 })
+  }
+
+  let clientQuery = sb.from('clients').select('id').eq('company_id', _cliSumCompanyId)
+  if (_cliSumClientIds !== null) clientQuery = clientQuery.in('id', _cliSumClientIds)
+  const { data: clients, error } = await clientQuery
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

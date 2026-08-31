@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   let q = getSupabaseAdmin()
     .from('properties')
-    .select('*, roof_reports(id, total_squares_order, dominant_pitch, waste_factor, created_at)')
+    .select('id, address_line1, city, state, zip_code, pro_id, company_id, assigned_to_pro_id, created_at, updated_at')
     .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .order('created_at', { ascending: false })
 
@@ -23,16 +23,12 @@ export async function GET(req: NextRequest) {
   const { data, error } = await q
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Derive the per-property report summary server-side (latest report's squares /
-  // pitch + count) so web and mobile both paint the same values (§28).
   const properties = (data || []).map((p: any) => {
-    const reports = (p.roof_reports ?? []) as { total_squares_order: number; dominant_pitch: string; created_at: string }[]
-    const latest = [...reports].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
     return {
       ...p,
-      report_count:  reports.length,
-      latest_sq:     latest ? latest.total_squares_order : null,
-      latest_pitch:  latest ? latest.dominant_pitch : null,
+      report_count:  0,
+      latest_sq:     null,
+      latest_pitch:  null,
       last_report_at: latest ? latest.created_at : null,
     }
   })
