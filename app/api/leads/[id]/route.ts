@@ -177,6 +177,14 @@ export async function GET(
     )
   }
 
+  // Fetch assigned member name for attribution
+  let assignedToName: string | null = null
+  if ((data as any).assigned_to_pro_id) {
+    const { data: assignedPro } = await getSupabaseAdmin()
+      .from('pros').select('full_name').eq('id', (data as any).assigned_to_pro_id).single()
+    assignedToName = (assignedPro as any)?.full_name ?? null
+  }
+
   // Fetch review request for this lead
   const { data: reviewRequest } = await getSupabaseAdmin()
     .from('review_requests')
@@ -186,7 +194,7 @@ export async function GET(
     .limit(1)
     .maybeSingle()
 
-  return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData }, review_request: reviewRequest ?? null })
+  return NextResponse.json({ lead: { ...data, roofing_job_data: roofingJobData, assigned_to_name: assignedToName }, review_request: reviewRequest ?? null })
 }
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
