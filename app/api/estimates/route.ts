@@ -62,7 +62,11 @@ export async function GET(req: NextRequest) {
     .select('id, estimate_number, status, lead_name, lead_id, trade, total, created_at, valid_until, sent_at, viewed_at, approved_at, sent_to_email, email_status, email_bounce_reason, viewed_count, revision_of, revision_number, void_reason, voided_at')
   if (leadId) {
     q = q.eq('lead_id', leadId)
+  } else if (_estRole === 'member' && _allLeadIds && _allLeadIds.length > 0) {
+    // Member: strictly filter by assigned lead IDs only
+    q = q.in('lead_id', _allLeadIds)
   } else if (_allLeadIds && _allLeadIds.length > 0) {
+    // Owner: company_id OR lead_id (catches pre-migration nulls)
     q = q.or(`company_id.eq.${_estCompanyId},lead_id.in.(${_allLeadIds.join(',')})`)
   } else {
     q = q.eq('company_id', _estCompanyId)

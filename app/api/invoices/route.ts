@@ -41,7 +41,11 @@ export async function GET(req: NextRequest) {
     .neq('status', 'void')
     .order('created_at', { ascending: false })
 
-  if (_invLeadScope !== null && _invLeadScope.length > 0) {
+  if (_invGetRole === 'member' && _invLeadScope !== null && _invLeadScope.length > 0) {
+    // Member: only invoices for their assigned leads
+    query = query.in('lead_id', _invLeadScope)
+  } else if (_invLeadScope !== null && _invLeadScope.length > 0) {
+    // Owner: all company invoices (via company_id or lead_id for older records)
     query = query.or(`company_id.eq.${_invGetCompanyId},lead_id.in.(${_invLeadScope.join(',')})`)
   } else {
     query = query.eq('company_id', _invGetCompanyId)

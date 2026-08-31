@@ -20,11 +20,14 @@ export async function GET(req: NextRequest) {
     if (_clientLeadIds.length === 0) return NextResponse.json({ clients: [] })
   }
 
-  const { data, error } = await getSupabaseAdmin()
+  let clientQuery = getSupabaseAdmin()
     .from('clients')
     .select('*')
     .eq('company_id', _clientCompanyId)
-    .order('created_at', { ascending: false })
+  if (_clientLeadIds !== null) {
+    clientQuery = clientQuery.in('id', _clientLeadIds)
+  }
+  const { data, error } = await clientQuery.order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
