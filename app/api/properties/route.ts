@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       report_count:  0,
       latest_sq:     null,
       latest_pitch:  null,
-      last_report_at: latest ? latest.created_at : null,
+      last_report_at: null,
     }
   })
   return NextResponse.json({ properties })
