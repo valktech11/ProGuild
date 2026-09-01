@@ -458,7 +458,7 @@ function QuickBidInner() {
               {/* City / State / ZIP */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 72px 88px', gap:10 }}>
                 {[
-                  { label:'City', val:city, set:setCity, ph:'Jacksonville' },
+                  { label:'City', val:city, set:setCity, ph:'City' },
                 ].map(f => (
                   <div key={f.label}>
                     <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:6 }}>{f.label}</label>
@@ -483,7 +483,7 @@ function QuickBidInner() {
                 </div>
                 <div>
                   <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:6 }}>ZIP</label>
-                  <input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="32216" maxLength={5} inputMode="numeric"
+                  <input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="ZIP" maxLength={5} inputMode="numeric"
                     style={{ width:'100%', boxSizing:'border-box', padding:'10px 12px', border:`1.5px solid ${t.cardBorder}`, borderRadius:9, fontSize:13, outline:'none', background:dk?t.cardBgAlt:'#F7F6F3', color:t.textPri, transition:'all 0.15s' }}
                     onFocus={e => { e.target.style.borderColor=TEAL; e.target.style.background='#fff'; e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)' }}
                     onBlur={e => { e.target.style.borderColor=t.cardBorder; e.target.style.background=dk?t.cardBgAlt:'#F7F6F3'; e.target.style.boxShadow='none' }}
