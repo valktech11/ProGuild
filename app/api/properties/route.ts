@@ -14,16 +14,23 @@ export async function GET(req: NextRequest) {
 
   const sb = getSupabaseAdmin()
 
+  // Member: scope to property_ids from their assigned leads only
+  let propertyIdFilter: string[] | null = null
+  if (_scopeRole === 'member' && proId) {
+    const { data: ml } = await sb.from('leads').select('property_id')
+      .eq('assigned_to_pro_id', proId).is('deleted_at', null).not('property_id', 'is', null)
+    propertyIdFilter = (ml ?? []).map((l: any) => l.property_id as string)
+    if (propertyIdFilter.length === 0) return NextResponse.json({ properties: [] })
+  }
+
   let q = sb
     .from('properties')
     .select('id, address_line1, city, state, zip_code, pro_id, company_id, created_at, updated_at')
-    .eq(
-      _scopeCompanyId ? 'company_id' : 'pro_id',
-      _scopeCompanyId ?? proId!
-    )
+    .eq(_scopeCompanyId ? 'company_id' : 'pro_id', _scopeCompanyId ?? proId!)
     .order('created_at', { ascending: false })
     .limit(100)
 
+  if (propertyIdFilter !== null) q = q.in('id', propertyIdFilter)
   if (search) q = q.ilike('address_line1', `%${search}%`)
 
   const { data, error } = await q
