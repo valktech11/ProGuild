@@ -356,7 +356,6 @@ export async function PATCH(
           company_id:   companyId,
           address_line1: addr,
           city, state, zip_code: zip,
-          assigned_to_pro_id: (leadData as any).assigned_to_pro_id ?? null,
         }).select('id').single()
         finalPropId = newProp?.id ?? null
       }

@@ -16,10 +16,10 @@ export async function GET(req: NextRequest) {
 
   let q = sb
     .from('properties')
-    .select('id, address_line1, city, state, zip_code, pro_id, company_id, assigned_to_pro_id, created_at, updated_at')
+    .select('id, address_line1, city, state, zip_code, pro_id, company_id, created_at, updated_at')
     .eq(
-      _scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'),
-      _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!)
+      _scopeCompanyId ? 'company_id' : 'pro_id',
+      _scopeCompanyId ?? proId!
     )
     .order('created_at', { ascending: false })
     .limit(100)
