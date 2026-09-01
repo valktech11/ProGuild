@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     .select('id, address_line1, city, state, zip_code, pro_id, company_id, assigned_to_pro_id, created_at, updated_at')
     .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
     .order('created_at', { ascending: false })
+    .limit(100)
 
   if (search) q = q.ilike('address_line1', `%${search}%`)
 
