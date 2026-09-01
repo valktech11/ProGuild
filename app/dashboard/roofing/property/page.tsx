@@ -27,7 +27,11 @@ interface Property {
   report_count?: number
   latest_sq?: number | null
   latest_pitch?: string | null
+  latest_waste?: number | null
   last_report_at?: string | null
+  job_count?: number
+  won_count?: number
+  lifetime_value?: number
 }
 
 const HouseIcon = ({ color = BRAND.teal }: { color?: string }) => (
@@ -264,6 +268,11 @@ export default function PropertyListPage() {
                             background: t.cardBgAlt, borderRadius: T.radXs, padding: '2px 8px' }}>
                             {pitch}
                           </span>
+                          {p.latest_waste != null && (
+                            <span style={{ fontSize: T.fontBadge, color: t.textSubtle }}>
+                              {p.latest_waste}% waste
+                            </span>
+                          )}
                           {p.roof_type && (
                             <span style={{ fontSize: T.fontBadge, color: t.textSubtle }}>
                               {p.roof_type}
@@ -279,6 +288,16 @@ export default function PropertyListPage() {
                     {/* Meta */}
                     <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: T.sp1, flexShrink: 0 }}>
                       <span style={{ fontSize: T.fontBadge, color: t.textSubtle }}>{timeAgo(p.created_at)}</span>
+                      {(p.job_count ?? 0) > 0 && (
+                        <span style={{ fontSize: T.fontBadge, color: t.textMuted }}>
+                          {p.job_count} job{(p.job_count ?? 0) !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {(p.lifetime_value ?? 0) > 0 && (
+                        <span style={{ fontSize: T.fontBadge, fontWeight: 700, color: BRAND.teal }}>
+                          ${(p.lifetime_value! / 1000).toFixed(0)}k
+                        </span>
+                      )}
                       {reportCount > 0 && (
                         <span style={{ fontSize: T.fontBadge, color: t.textMuted }}>
                           {reportCount} report{reportCount !== 1 ? 's' : ''}

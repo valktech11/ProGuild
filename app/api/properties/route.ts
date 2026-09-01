@@ -12,10 +12,15 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get('search')
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
-  let q = getSupabaseAdmin()
+  const sb = getSupabaseAdmin()
+
+  let q = sb
     .from('properties')
     .select('id, address_line1, city, state, zip_code, pro_id, company_id, assigned_to_pro_id, created_at, updated_at')
-    .eq(_scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'), _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!))
+    .eq(
+      _scopeRole === 'member' ? 'assigned_to_pro_id' : (_scopeCompanyId ? 'company_id' : 'pro_id'),
+      _scopeRole === 'member' ? proId! : (_scopeCompanyId ?? proId!)
+    )
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -24,15 +29,56 @@ export async function GET(req: NextRequest) {
   const { data, error } = await q
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const properties = (data || []).map((p: any) => {
+  const props = data || []
+  if (props.length === 0) return NextResponse.json({ properties: [] })
+
+  const propIds = props.map((p: any) => p.id as string)
+
+  // Fetch job counts and latest reports in parallel
+  const [leadsRes, reportsRes] = await Promise.all([
+    sb.from('leads')
+      .select('property_id, lead_status, quoted_amount')
+      .in('property_id', propIds)
+      .is('deleted_at', null),
+    sb.from('roof_reports')
+      .select('property_id, total_squares_order, dominant_pitch, waste_factor, created_at')
+      .in('property_id', propIds)
+      .order('created_at', { ascending: false }),
+  ])
+
+  // Index by property_id
+  const leadsByProp = new Map<string, any[]>()
+  for (const l of leadsRes.data || []) {
+    const pid = l.property_id as string
+    if (!leadsByProp.has(pid)) leadsByProp.set(pid, [])
+    leadsByProp.get(pid)!.push(l)
+  }
+
+  const reportsByProp = new Map<string, any>()
+  for (const r of reportsRes.data || []) {
+    const pid = r.property_id as string
+    if (!reportsByProp.has(pid)) reportsByProp.set(pid, r) // first = latest
+  }
+
+  const WON = ['job_won', 'complete']
+  const properties = props.map((p: any) => {
+    const leads  = leadsByProp.get(p.id) || []
+    const report = reportsByProp.get(p.id)
+    const wonLeads = leads.filter((l: any) => WON.includes(l.lead_status))
+    const revenue  = wonLeads.reduce((s: number, l: any) => s + (l.quoted_amount || 0), 0)
     return {
       ...p,
-      report_count:  0,
-      latest_sq:     null,
-      latest_pitch:  null,
-      last_report_at: null,
+      job_count:     leads.length,
+      won_count:     wonLeads.length,
+      lifetime_value: revenue,
+      report_count:  report ? 1 : 0,
+      latest_sq:     report ? report.total_squares_order : null,
+      latest_pitch:  report ? report.dominant_pitch : null,
+      latest_waste:  report ? report.waste_factor : null,
+      last_report_at: report ? report.created_at : null,
     }
   })
+
   return NextResponse.json({ properties })
 }
 
@@ -45,8 +91,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'pro_id and address_line1 required' }, { status: 400 })
   }
 
-  // If city/state/zip are provided separately, strip them from address_line1
-  // Prevents full address string being stored in street field
   const address_line1 = (city || state || zip_code)
     ? rawAddr.split(',')[0].trim()
     : rawAddr.trim()
