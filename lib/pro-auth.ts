@@ -199,18 +199,25 @@ export async function requirePro(
   const admin = getSupabaseAdmin()
 
   // Single indexed read: auth_user_id → pros row + company_id (O(1), no join)
-  let pro: { id: string; company_id: string | null } | null = null
+  // 30-second in-process cache to avoid repeated DB round trips per request burst
+  type ProCache = { pro: { id: string; company_id: string | null }; ts: number }
+  const _cache = (globalThis as any).__proAuthCache ?? ((globalThis as any).__proAuthCache = new Map<string, ProCache>())
+  const _cached = _cache.get(authUserId) as ProCache | undefined
+  let pro: { id: string; company_id: string | null } | null = _cached && Date.now() - _cached.ts < 30000 ? _cached.pro : null
   let proErr: unknown = null
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await admin
-      .from('pros')
-      .select('id, company_id')
-      .eq('auth_user_id', authUserId)
-      .maybeSingle()
-    pro = res.data as { id: string; company_id: string | null } | null
-    proErr = res.error
-    if (!proErr) break
-    if (attempt === 0) await new Promise(r => setTimeout(r, 250))
+  if (!pro) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await admin
+        .from('pros')
+        .select('id, company_id')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle()
+      pro = res.data as { id: string; company_id: string | null } | null
+      proErr = res.error
+      if (!proErr) break
+      if (attempt === 0) await new Promise(r => setTimeout(r, 250))
+    }
+    if (pro) _cache.set(authUserId, { pro, ts: Date.now() })
   }
 
   if (proErr) {
