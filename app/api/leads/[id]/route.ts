@@ -330,6 +330,44 @@ export async function PATCH(
     if (rErr) console.error('[PATCH /api/leads] roofing_job_data upsert error:', rErr)
   }
 
+  // ── Auto-create property when address added via PATCH ───────────────────────
+  // Fires when property_address is being set and lead has no property_id yet.
+  if (leadData && updateFields.property_address && !(leadData as any).property_id) {
+    try {
+      const sb = getSupabaseAdmin()
+      const addr = (updateFields.property_address as string).split(',')[0].trim()
+      const city  = (leadData as any).contact_city  ?? null
+      const state = (leadData as any).contact_state ?? null
+      const zip   = (leadData as any).contact_zip   ?? null
+      const companyId = __auth.companyId ?? null
+
+      // Check for existing property at same address + company
+      const { data: existing } = await sb.from('properties').select('id')
+        .eq('address_line1', addr)
+        .eq(companyId ? 'company_id' : 'pro_id', companyId ?? proId!)
+        .maybeSingle()
+
+      const propertyId = existing?.id ?? (() => null)()
+      let finalPropId = propertyId
+
+      if (!finalPropId) {
+        const { data: newProp } = await sb.from('properties').insert({
+          pro_id:       proId,
+          company_id:   companyId,
+          address_line1: addr,
+          city, state, zip_code: zip,
+          assigned_to_pro_id: (leadData as any).assigned_to_pro_id ?? null,
+        }).select('id').single()
+        finalPropId = newProp?.id ?? null
+      }
+
+      if (finalPropId) {
+        await sb.from('leads').update({ property_id: finalPropId }).eq('id', id)
+        ;(leadData as any).property_id = finalPropId
+      }
+    } catch (e) { console.error('[PATCH leads] property auto-create failed:', e) }
+  }
+
   // Return lead with roofing_job_data so callers can update UI without a separate GET
   const { data: updatedRjd } = await getSupabaseAdmin()
     .from('roofing_job_data').select('*').eq('lead_id', id).maybeSingle()
