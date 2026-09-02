@@ -67,25 +67,24 @@ export async function GET(req: NextRequest) {
     if (!reportsByProp.has(pid)) reportsByProp.set(pid, r) // first = latest
   }
 
-  // Address fallback: for properties with no matched report (property_id was null
-  // on the report at generation time), look up by address ILIKE within the company.
+  // Address fallback: for properties with no matched report, search roof_reports
+  // by address string. roof_reports has no company_id column — scope by pro_id
+  // using all pro_ids present on the fetched properties. Drop property_id IS NULL
+  // restriction: catches both orphaned reports (null) and mislinked ones (wrong id).
   const propsWithoutReport = props.filter((p: any) => !reportsByProp.has(p.id))
   if (propsWithoutReport.length > 0) {
-    const companyScope = _scopeCompanyId
-      ? { col: 'company_id', val: _scopeCompanyId }
-      : { col: 'pro_id', val: proId! }
-    // One query — filter is OR across all addresses, then deduplicate in JS
+    // Collect all pro_ids from the property rows (owner may differ per property)
+    const proIds = [...new Set(props.map((p: any) => p.pro_id as string).filter(Boolean))]
     const addrFilters = propsWithoutReport
       .map((p: any) => `address.ilike.${(p.address_line1 as string).replace(/[%_]/g, '\\$&')}%`)
       .join(',')
     const { data: addrReports } = await sb
       .from('roof_reports')
       .select('id, property_id, address, total_squares_order, dominant_pitch, waste_factor, created_at')
-      .eq(companyScope.col, companyScope.val)
-      .is('property_id', null)
+      .in('pro_id', proIds)
       .or(addrFilters)
       .order('created_at', { ascending: false })
-      .limit(propsWithoutReport.length * 3) // allow a few per property
+      .limit(propsWithoutReport.length * 5)
     for (const p of propsWithoutReport) {
       const addr = (p.address_line1 as string).toLowerCase()
       const match = (addrReports ?? []).find(
