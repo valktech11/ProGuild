@@ -285,6 +285,7 @@ export async function POST(req: NextRequest) {
       if (!propertyId) {
         const { data: newProp, error: propErr } = await supabase.from('properties').insert({
           pro_id,
+          company_id:    _manualCompanyId || null,
           address_line1: streetOnly,
           address:       streetOnly,            // legacy NOT NULL column in prod
           city:          contact_city?.trim()  || null,

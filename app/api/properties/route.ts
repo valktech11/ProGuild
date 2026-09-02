@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       .in('property_id', propIds)
       .is('deleted_at', null),
     sb.from('roof_reports')
-      .select('property_id, total_squares_order, dominant_pitch, waste_factor, created_at')
+      .select('property_id, address, total_squares_order, dominant_pitch, waste_factor, created_at')
       .in('property_id', propIds)
       .order('created_at', { ascending: false }),
   ])
@@ -65,6 +65,34 @@ export async function GET(req: NextRequest) {
   for (const r of reportsRes.data || []) {
     const pid = r.property_id as string
     if (!reportsByProp.has(pid)) reportsByProp.set(pid, r) // first = latest
+  }
+
+  // Address fallback: for properties with no matched report (property_id was null
+  // on the report at generation time), look up by address ILIKE within the company.
+  const propsWithoutReport = props.filter((p: any) => !reportsByProp.has(p.id))
+  if (propsWithoutReport.length > 0) {
+    const companyScope = _scopeCompanyId
+      ? { col: 'company_id', val: _scopeCompanyId }
+      : { col: 'pro_id', val: proId! }
+    // One query — filter is OR across all addresses, then deduplicate in JS
+    const addrFilters = propsWithoutReport
+      .map((p: any) => `address.ilike.${(p.address_line1 as string).replace(/[%_]/g, '\\$&')}%`)
+      .join(',')
+    const { data: addrReports } = await sb
+      .from('roof_reports')
+      .select('id, property_id, address, total_squares_order, dominant_pitch, waste_factor, created_at')
+      .eq(companyScope.col, companyScope.val)
+      .is('property_id', null)
+      .or(addrFilters)
+      .order('created_at', { ascending: false })
+      .limit(propsWithoutReport.length * 3) // allow a few per property
+    for (const p of propsWithoutReport) {
+      const addr = (p.address_line1 as string).toLowerCase()
+      const match = (addrReports ?? []).find(
+        (r: any) => r.address && (r.address as string).toLowerCase().startsWith(addr)
+      )
+      if (match) reportsByProp.set(p.id, match)
+    }
   }
 
   const WON = ['job_won', 'complete']

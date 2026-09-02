@@ -330,12 +330,16 @@ export async function PATCH(
     if (rErr) console.error('[PATCH /api/leads] roofing_job_data upsert error:', rErr)
   }
 
-  // ── Auto-create property when address added via PATCH ───────────────────────
-  // Fires when property_address is being set and lead has no property_id yet.
-  if (leadData && updateFields.property_address && !(leadData as any).property_id) {
+  // ── Auto-create property when address is present but property_id is null ─────
+  // Fires when: (a) property_address is being set in this PATCH, OR
+  // (b) the lead already has property_address but property_id is null (heals
+  //     leads created before company_id was included in the property INSERT).
+  const _existingAddr = (leadData as any)?.property_address as string | null
+  const _addrForProperty = updateFields.property_address ?? (_existingAddr || null)
+  if (leadData && _addrForProperty && !(leadData as any).property_id) {
     try {
       const sb = getSupabaseAdmin()
-      const addr = (updateFields.property_address as string).split(',')[0].trim()
+      const addr = (_addrForProperty as string).split(',')[0].trim()
       const city  = (leadData as any).contact_city  ?? null
       const state = (leadData as any).contact_state ?? null
       const zip   = (leadData as any).contact_zip   ?? null
