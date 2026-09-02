@@ -73,8 +73,12 @@ export async function GET(req: NextRequest) {
   // restriction: catches both orphaned reports (null) and mislinked ones (wrong id).
   const propsWithoutReport = props.filter((p: any) => !reportsByProp.has(p.id))
   if (propsWithoutReport.length > 0) {
-    // Collect all pro_ids from the property rows (owner may differ per property)
-    const proIds = [...new Set(props.map((p: any) => p.pro_id as string).filter(Boolean))]
+    // Collect all pro_ids from the property rows + requesting pro (member-generated
+    // reports are stored under their own pro_id, not the owner's)
+    const proIds = [...new Set([
+      ...props.map((p: any) => p.pro_id as string).filter(Boolean),
+      proId!,
+    ])]
     const addrFilters = propsWithoutReport
       .map((p: any) => `address.ilike.${(p.address_line1 as string).replace(/[%_]/g, '\\$&')}%`)
       .join(',')
