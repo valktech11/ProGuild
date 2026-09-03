@@ -78,9 +78,9 @@ const HeroPanel = () => (
       {/* Stats row */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:36 }}>
         {[
-          { n:'124,503', l:'Licensed Florida contractors' },
+          { n:'5,000+', l:'Verified Florida contractors' },
           { n:'$0', l:'Per-lead fee. Ever.' },
-          { n:'$49/mo', l:'Flat rate, all tools included' },
+          { n:'From $29.99', l:'Roofing $49.99 · Other trades $29.99' },
           { n:'1st lead', l:'Pays for your subscription' },
         ].map(s => (
           <div key={s.n} style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:'14px 16px', backdropFilter:'blur(4px)' }}>
