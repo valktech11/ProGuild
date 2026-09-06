@@ -4,13 +4,14 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 // ── GET /api/claim/[token] — validate token, return pro preview ───────────────
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
+  const { token } = await params
   const sb = getSupabaseAdmin()
   const { data: pro, error } = await sb
     .from('pros')
     .select('id, full_name, email, city, state, trade_slug, is_claimed, claim_token_expires_at, profile_photo_url, trade_category:trade_categories(category_name)')
-    .eq('claim_token', params.token)
+    .eq('claim_token', token)
     .single()
 
   if (error || !pro) {
@@ -37,15 +38,16 @@ export async function GET(
 // ── POST /api/claim/[token] — create account + claim in one step ──────────────
 export async function POST(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
+  const { token } = await params
   const sb = getSupabaseAdmin()
 
   // 1. Validate token
   const { data: pro, error: fetchErr } = await sb
     .from('pros')
     .select('id, full_name, email, is_claimed, claim_token_expires_at, trade_slug')
-    .eq('claim_token', params.token)
+    .eq('claim_token', token)
     .single()
 
   if (fetchErr || !pro) {
