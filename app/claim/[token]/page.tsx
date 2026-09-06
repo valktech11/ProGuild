@@ -17,7 +17,7 @@ const BENEFITS = [
   { bold: 'AI scans insurance claims', rest: ' for missed line items' },
   { bold: 'Unlimited job photos', rest: ' — no per-user fees' },
   { bold: 'One pipeline:', rest: ' inspection → supplement → payment' },
-  { bold: 'DBPR-verified profile', rest: ' — get found by homeowners' },
+  { bold: 'DBPR-verified profile', rest: ' — get discovered by homeowners' },
 ]
 
 function Check() {
@@ -101,7 +101,7 @@ export default function ClaimPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
-      <div style={{ width: '100%', maxWidth: 500 }}>
+      <div style={{ width: '100%', maxWidth: 520 }}>
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
@@ -150,7 +150,7 @@ export default function ClaimPage() {
 
               {/* Card body */}
               <div style={{ padding: '28px 28px 32px' }}>
-                <div style={{ color: '#fff', fontSize: 20, fontWeight: 700, lineHeight: 1.3, marginBottom: 10 }}>
+                <div style={{ color: '#fff', fontSize: 23, fontWeight: 700, lineHeight: 1.3, marginBottom: 10 }}>
                   Your verified profile is already<br />live on ProGuild
                 </div>
                 <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
@@ -158,7 +158,7 @@ export default function ClaimPage() {
                 </div>
 
                 {/* Benefits */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
                   {BENEFITS.map((b, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ marginTop: 1 }}><Check /></div>
