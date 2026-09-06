@@ -16,7 +16,7 @@ const BENEFITS = [
   { bold: 'Unlimited roof measurements', rest: ' — no $35/report fees' },
   { bold: 'AI scans insurance claims', rest: ' for missed line items' },
   { bold: 'Unlimited job photos', rest: ' — no per-user fees' },
-  { bold: 'One pipeline:', rest: ' inspection → supplement → payment' },
+  { bold: 'Unlimited team members', rest: ' — one flat rate, no per-seat fees' },
   { bold: 'DBPR-verified profile', rest: ' — get discovered by homeowners' },
 ]
 
