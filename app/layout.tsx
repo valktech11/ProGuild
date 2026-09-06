@@ -7,10 +7,15 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'ProGuild.ai — Your Craft. Your Guild.',
   description: 'Florida\'s verified trades network. Find DBPR-licensed electricians, plumbers, HVAC techs and more. Zero lead fees. License verified.',
+  icons: {
+    icon: '/icon.png',
+    apple: '/apple-icon.png',
+  },
   openGraph: {
     title: 'ProGuild.ai — Your Craft. Your Guild.',
     description: 'Find verified Florida tradespeople. DBPR-integrated. Zero lead fees.',
     siteName: 'ProGuild.ai',
+    images: [{ url: 'https://proguild.ai/icon.png', width: 512, height: 512 }],
   },
 }
 
