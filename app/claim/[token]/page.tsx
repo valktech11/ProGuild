@@ -77,19 +77,23 @@ export default function ClaimPage() {
       })
       const d = await r.json()
       if (d.ok) {
+        // Show success screen immediately — eliminates flicker
+        setStage('done')
         const supabase = getSupabaseBrowser()
         const { error: signInErr } = await supabase.auth.signInWithPassword({ email: pro.email, password: pw })
         if (signInErr) {
-          router.replace(`/login?email=${encodeURIComponent(pro.email)}&claimed=1`)
+          setTimeout(() => router.replace(`/login?email=${encodeURIComponent(pro.email)}&claimed=1`), 1500)
           return
         }
-        setStage('done')
-        setTimeout(() => router.replace('/dashboard'), 1800)
+        setTimeout(() => router.replace('/dashboard'), 2000)
       } else {
         setPwErr(d.error || 'Something went wrong. Please try again.')
+        setBusy(false)
       }
-    } catch { setPwErr('Network error. Please try again.') }
-    setBusy(false)
+    } catch {
+      setPwErr('Network error. Please try again.')
+      setBusy(false)
+    }
   }
 
   const inputStyle: React.CSSProperties = {
@@ -250,10 +254,29 @@ export default function ClaimPage() {
 
           {/* Done */}
           {stage === 'done' && (
-            <div style={{ padding: '48px 32px', textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-              <div style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>Profile claimed!</div>
-              <div style={{ color: C.muted, fontSize: 14, marginTop: 8 }}>Taking you to your dashboard…</div>
+            <div style={{ padding: '56px 32px', textAlign: 'center' }}>
+              <div style={{ 
+                width: 64, height: 64, borderRadius: '50%',
+                background: 'rgba(20,184,166,0.15)', border: '2px solid rgba(20,184,166,0.4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 20px', fontSize: 28
+              }}>✓</div>
+              <div style={{ color: '#fff', fontSize: 22, fontWeight: 700, marginBottom: 10 }}>Profile claimed!</div>
+              <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>
+                Welcome to ProGuild.<br />
+                Setting up your dashboard…
+              </div>
+              <div style={{ marginTop: 24 }}>
+                <div style={{ 
+                  height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden'
+                }}>
+                  <div style={{ 
+                    height: '100%', background: C.teal, borderRadius: 2,
+                    animation: 'progress 2s ease-in-out forwards',
+                    width: '100%'
+                  }}/>
+                </div>
+              </div>
             </div>
           )}
         </div>
