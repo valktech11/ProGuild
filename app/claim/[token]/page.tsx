@@ -106,7 +106,7 @@ export default function ClaimPage() {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, background: C.teal, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🔧</div>
+            <img src="/logo.png" alt="ProGuild" style={{ width: 36, height: 36, borderRadius: 8 }} />
             <span style={{ color: '#fff', fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>ProGuild.ai</span>
           </div>
           <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Florida's Verified Trades Network</div>
