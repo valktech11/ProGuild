@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
 const C = {
   bg:     '#0a0f0f',
@@ -80,7 +80,7 @@ export default function ClaimPage() {
       const d = await r.json()
       if (d.ok) {
         // Server confirmed claim — sign in client-side to establish session
-        const supabase = createClientComponentClient()
+        const supabase = getSupabaseBrowser()
         const { error: signInErr } = await supabase.auth.signInWithPassword({
           email:    pro.email,
           password: pw,
