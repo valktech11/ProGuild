@@ -85,18 +85,22 @@ export default function ClaimPage() {
           setTimeout(() => router.replace(`/login?email=${encodeURIComponent(pro.email)}&claimed=1`), 1500)
           return
         }
-        // Wait for SIGNED_IN event to confirm session is fully established
-        await new Promise<void>(resolve => {
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-            if (event === 'SIGNED_IN') {
+        // Wait for session to be fully written to storage before navigating.
+        // onAuthStateChange SIGNED_IN fires after the session is persisted,
+        // so the dashboard SessionProvider will find it immediately on mount.
+        await new Promise<void>(res => {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+            if (event === 'SIGNED_IN' && newSession) {
               subscription.unsubscribe()
-              resolve()
+              res()
             }
           })
-          // Fallback: resolve after 2s regardless
-          setTimeout(resolve, 2000)
+          setTimeout(res, 3000) // hard fallback
         })
-        router.replace('/dashboard')
+        // Use window.location for a hard navigation so the new page starts
+        // fresh with the session already in localStorage — avoids the React
+        // router reusing the old SessionProvider state that starts loading:true
+        window.location.href = '/dashboard'
       } else {
         setPwErr(d.error || 'Something went wrong. Please try again.')
         setBusy(false)
