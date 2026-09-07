@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/Card'
 import JobPhotoLog from '@/lib/trades/roofing/components/JobPhotoLog'
 import WarrantyRecord from '@/lib/trades/roofing/components/WarrantyRecord'
 import { apiFetch } from '@/lib/api-fetch'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
 // Captures the last lead-PATCH error message so saveEdit can show it in the toast
 let _lastPatchError = ''
@@ -1904,7 +1905,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                                         {s.key === 'measure' && (lead as any)?.roofing_job_data?.report_url && sBtn('View report', async () => {
                                           try {
-                                            const r = await fetch(`/api/roofing/reports?pro_id=${session?.id}`, { headers: { Authorization: `Bearer ${session?.token}` } })
+                                            const { data: { session: authSession } } = await getSupabaseBrowser().auth.getSession()
+                                            const token = authSession?.access_token
+                                            const r = await fetch(`/api/roofing/reports?pro_id=${session?.id}`, { headers: { Authorization: `Bearer ${token}` } })
                                             const reports = await r.json()
                                             const reportRowId = (lead as any).roofing_job_data?.report_row_id
                                             const match = Array.isArray(reports) ? (reportRowId ? reports.find((rpt: any) => rpt.id === reportRowId) : reports[0]) : null
