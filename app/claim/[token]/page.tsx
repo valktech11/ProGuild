@@ -85,9 +85,17 @@ export default function ClaimPage() {
           setTimeout(() => router.replace(`/login?email=${encodeURIComponent(pro.email)}&claimed=1`), 1500)
           return
         }
-        // Wait for session to fully propagate before redirecting to dashboard
-        await new Promise(resolve => setTimeout(resolve, 800))
-        await supabase.auth.getSession()
+        // Wait for SIGNED_IN event to confirm session is fully established
+        await new Promise<void>(resolve => {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_IN') {
+              subscription.unsubscribe()
+              resolve()
+            }
+          })
+          // Fallback: resolve after 2s regardless
+          setTimeout(resolve, 2000)
+        })
         router.replace('/dashboard')
       } else {
         setPwErr(d.error || 'Something went wrong. Please try again.')
